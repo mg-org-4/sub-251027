@@ -1,0 +1,3138 @@
+import { app } from "../../scripts/app.js";
+
+const LMSTUDIO_EXT_ID = "ZhihuiNodes.LMStudio";
+
+const logPanelStyles = document.createElement("style");
+logPanelStyles.textContent = `
+.lmstudio-log-panel::-webkit-scrollbar {
+    width: 4px;
+}
+.lmstudio-log-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+.lmstudio-log-panel::-webkit-scrollbar-thumb {
+    background: rgba(96, 165, 250, 0.5);
+    border-radius: 2px;
+}
+.lmstudio-log-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(96, 165, 250, 0.8);
+}
+`;
+document.head.appendChild(logPanelStyles);
+
+const i18n = {
+    zh: {
+        title: "🤖 LM Studio节点设置",
+        statusMonitoring: "服务状态监控",
+        serverStatus: "服务器状态",
+        connected: "已连接",
+        disconnected: "未连接",
+        corsNotice: "⚠️ CORS 配置提示",
+        corsWarning: "如检测到跨域问题，请确保 LM Studio 服务器已启用 CORS 支持。解决方法：打开 LM Studio → 进入 Developer → 选择 Local Server → 找到 Server Settings 选项卡 → 启用 \"Enable CORS\" 选项，然后重启服务器。",
+        howToEnable: "如何启用 CORS",
+        availableModels: "可用模型列表",
+        refresh: "🔄 刷新",
+        refreshStatus: "刷新状态",
+        serviceStatus: "服务状态",
+        serviceAddress: "服务地址",
+        loadedModels: "已加载模型",
+        none: "无",
+        checking: "检查中...",
+        paramPreset: "参数组预设",
+        presetDescription: "选择合适的参数预设以优化模型输出效果",
+        timeoutSettings: "超时设置",
+        promptPresetVersion: "反推预设版本",
+        newVersion: "新版预设",
+        oldVersion: "旧版预设",
+        premiumVersion: "臻品预设",
+        newVersionHintPrefix: "新版预设包含更多选项：",
+        newVersionHintOptions: "标签、简洁、详细、极详细、电影感、详细分析、短篇故事、优化扩展提示词",
+        oldVersionHintPrefix: "旧版预设包含：",
+        oldVersionHintOptions: "标签、极详细、短篇故事",
+        premiumVersionHintPrefix: "臻品预设：",
+        premiumVersionHintOptions: "图像反推、详细分析、Qwen3.5专业版，源自社区各位业界大佬",
+        fetchModelsTimeout: "获取模型列表超时",
+        fetchModelsTimeoutDesc: "从LM Studio服务器获取可用模型列表的最大等待时间",
+        apiCallTimeout: "API 调用超时",
+        apiCallTimeoutDesc: "与模型进行对话请求的最大等待时间",
+        unloadModelListTimeout: "模型列表卸载超时",
+        unloadModelListTimeoutDesc: "获取已加载模型列表用于卸载操作的最大等待时间",
+        unloadModelTimeout: "模型卸载超时",
+        unloadModelTimeoutDesc: "执行模型卸载操作的最大等待时间",
+        seconds: "秒",
+        saveAll: "💾 保存所有设置",
+        resetDefault: "🔄 恢复默认",
+        confirmReset: "确定要恢复默认设置吗？这将重置所有配置为默认值。",
+        saveSuccess: "所有设置已保存到配置文件",
+        saveSuccessRefresh: "设置已保存，请刷新页面以更新主节点的预设选项",
+        saveFailed: "保存设置失败",
+        resetSuccess: "已恢复默认设置并保存",
+        resetFailed: "保存默认设置失败",
+        ignore: "默认预设",
+        ignoreDesc: "使用当前节点设置的参数值，不进行预设参数替换。",
+        custom: "自定义参数",
+        customDesc: "维持用户当前在节点中的参数不做任何修改。",
+        precise: "精确模式",
+        balanced: "平衡模式",
+        creative: "创意模式",
+        preciseDesc: "适合需要精确回答的场景：较低的temperature减少随机性，适合代码、数学、逻辑推理等任务。",
+        balancedDesc: "适合大多数日常对话场景：平衡的参数设置，在准确性和创造性之间取得良好平衡。",
+        creativeDesc: "适合创意写作：较高的temperature增加创造性输出，适合故事、诗歌等创作。",
+        qwenThinkingGeneral: "Qwen3.6 思考(通用)",
+        qwenInstruct: "Qwen3.6 指令",
+        qwenThinkingGeneralDesc: "Qwen3.6官方推荐：适用于通用任务，让模型有更多创造性，适合推理、创意写作等。",
+        qwenInstructDesc: "Qwen3.6官方推荐：非思考模式，控制模型不要过度思考，适合直接回答。",
+        maxTokens: "Max Tokens",
+        temperature: "Temperature",
+        topP: "Top P",
+        topK: "Top K",
+        repetition: "Repetition",
+        presencePenalty: "Presence Penalty",
+        seed: "Seed",
+        showLogPanel: "日志信息栏管理",
+        enableLogPanel: "开启日志信息栏",
+        showLogPanelDesc: "在节点底部显示推理日志信息，包含模型、参数、耗时等详细信息",
+        logPanelTitle: "📋 推理日志",
+        clearLog: "清屏",
+        refreshModels: "🔄 刷新模型",
+        settings: "⚙️ 设置",
+        refreshModelsSuccess: "模型列表已刷新",
+        refreshModelsFailed: "获取模型列表失败",
+        noModelsFound: "未找到模型",
+        template: "模板",
+        templateManagement: "快捷系统提示词模板管理",
+        templateList: "模板列表",
+        createTemplate: "新建模板",
+        editTemplate: "编辑快捷系统提示词模板",
+        deleteTemplate: "删除模板",
+        templateName: "模板名称",
+        templateContent: "模板内容",
+        templateNamePlaceholder: "请输入模板名称",
+        templateContentPlaceholder: "请输入系统提示词内容",
+        noTemplates: "暂无模板，点击设置按钮进行模板管理",
+        confirmDelete: "确定要删除此模板吗？",
+        templateCreated: "模板创建成功",
+        templateUpdated: "模板更新成功",
+        templateDeleted: "模板删除成功",
+        templateCreateFailed: "模板创建失败",
+        templateUpdateFailed: "模板更新失败",
+        templateDeleteFailed: "模板删除失败",
+        templateNameRequired: "模板名称不能为空",
+        searchTemplates: "搜索模板...",
+        sortByName: "按名称排序",
+        sortByTime: "按时间排序",
+        applyTemplate: "应用模板",
+        templateApplied: "模板已应用",
+        manageTemplates: "管理模板",
+        selectTemplate: "选择模板",
+        templateTooltip: "点击选择系统提示词模板",
+        clearContent: "清空内容",
+        restoreContent: "恢复内容",
+        clearTooltip: "点击清空当前输入框内容",
+        restoreTooltip: "点击恢复上次清空的内容",
+        noContentToClear: "没有可清空的内容",
+        noContentToRestore: "没有可恢复的内容",
+        cancel: "取消",
+        confirm: "确定",
+        save: "保存",
+        edit: "编辑模板",
+        delete: "删除",
+        folderReadMode: "文件夹读取模式",
+        folderReadModeDesc: "选择批量打标时的文件夹处理方式",
+        recursiveMode: "递归遍历模式",
+        sequentialMode: "顺序轮次模式",
+        recursiveModeDesc: "一次性遍历所有子文件夹，处理全部图片",
+        sequentialModeDesc: "按文件夹名称顺序依次处理，支持断点续传",
+        folderReadModeHint: "递归模式适合一次性处理所有图片；顺序模式适合分批处理，可在中断后继续",
+        navSettings: "节点设置",
+        navTemplates: "模板管理",
+        helpTitle: "LM Studio 节点",
+        helpDescription: "连接本地LM Studio服务器，使用本地部署的大语言模型进行推理。",
+        helpFeatures: "功能特性",
+        helpFeature1: "支持本地LM Studio服务器连接",
+        helpFeature2: "支持多种参数预设（精确/平衡/创意模式）",
+        helpFeature3: "支持系统提示词模板管理",
+        helpFeature4: "支持图像反推和批量打标",
+        helpUsage: "使用说明",
+        helpUsage1: "启动LM Studio并开启Local Server",
+        helpUsage2: "在节点设置中配置服务器地址",
+        helpUsage3: "选择模型和参数预设开始对话",
+        helpInput: "输入",
+        helpInputDesc: "支持文本提示词和图像输入",
+        helpOutput: "输出",
+        helpOutputDesc: "返回模型生成的文本回复"
+    },
+    en: {
+        title: "🤖 LM Studio Node Settings",
+        statusMonitoring: "Service Status Monitoring",
+        serverStatus: "Server Status",
+        connected: "Connected",
+        disconnected: "Disconnected",
+        corsNotice: "⚠️ CORS Configuration Notice",
+        corsWarning: "If cross-origin issue detected, please ensure LM Studio server has CORS support enabled. Solution: Open LM Studio → Go to Developer → Select Local Server → Find Server Settings tab → Enable \"Enable CORS\" option, then restart the server.",
+        howToEnable: "How to Enable CORS",
+        availableModels: "Available Models",
+        refresh: "🔄 Refresh",
+        refreshStatus: "Refresh Status",
+        serviceStatus: "Status",
+        serviceAddress: "Service Address",
+        loadedModels: "Loaded Models",
+        none: "None",
+        checking: "Checking...",
+        paramPreset: "Parameter Preset",
+        presetDescription: "Select appropriate parameter preset to optimize model output",
+        timeoutSettings: "Timeout Settings",
+        promptPresetVersion: "Prompt Preset Version",
+        newVersion: "New Version",
+        oldVersion: "Old Version",
+        premiumVersion: "Premium Preset",
+        newVersionHintPrefix: "New presets include: ",
+        newVersionHintOptions: "Tags, Simple, Detailed, Extreme Detailed, Cinematic, Detailed Analysis, Short Story ...",
+        oldVersionHintPrefix: "Old presets include: ",
+        oldVersionHintOptions: "Tags, Extreme Detailed, Short Story",
+        premiumVersionHintPrefix: "Premium presets (from community experts): ",
+        premiumVersionHintOptions: "Image Caption, Detailed Analysis, Qwen3.5 Pro, from community experts",
+        fetchModelsTimeout: "Fetch Models Timeout",
+        fetchModelsTimeoutDesc: "Maximum wait time to retrieve available models from LM Studio server",
+        apiCallTimeout: "API Call Timeout",
+        apiCallTimeoutDesc: "Maximum wait time for chat completion requests",
+        unloadModelListTimeout: "Unload Model List Timeout",
+        unloadModelListTimeoutDesc: "Maximum wait time to get loaded models list for unload operations",
+        unloadModelTimeout: "Unload Model Timeout",
+        unloadModelTimeoutDesc: "Maximum wait time for model unload operations",
+        seconds: "S",
+        saveAll: "💾 Save All Settings",
+        resetDefault: "🔄 Reset Default",
+        confirmReset: "Are you sure you want to reset to default settings? This will reset all configurations.",
+        saveSuccess: "All settings saved to configuration file",
+        saveSuccessRefresh: "Settings saved, please refresh page to update main node preset options",
+        saveFailed: "Failed to save settings",
+        resetSuccess: "Reset to default and saved",
+        resetFailed: "Failed to save default settings",
+        ignore: "Default Preset",
+        ignoreDesc: "Uses the current node's parameter values without preset replacement.",
+        custom: "Custom",
+        customDesc: "Maintains user's current node parameters without any modification.",
+        precise: "Precise Mode",
+        balanced: "Balanced Mode",
+        creative: "Creative Mode",
+        preciseDesc: "For scenarios requiring precise answers: lower temperature reduces randomness, suitable for code, math, logic reasoning tasks.",
+        balancedDesc: "For most daily conversation scenarios: balanced parameters for good accuracy and creativity balance.",
+        creativeDesc: "For creative writing: higher temperature increases creative output, suitable for stories, poetry, etc.",
+        qwenThinkingGeneral: "Qwen3.6 Thinking (General)",
+        qwenInstruct: "Qwen3.6 Instruct",
+        qwenThinkingGeneralDesc: "Qwen3.6 official: For general tasks, allowing more creativity, suitable for reasoning and creative writing.",
+        qwenInstructDesc: "Qwen3.6 official: Non-thinking mode, controls the model from over-thinking, suitable for direct answers.",
+        maxTokens: "Max Tokens",
+        temperature: "Temperature",
+        topP: "Top P",
+        topK: "Top K",
+        repetition: "Repetition",
+        presencePenalty: "Presence Penalty",
+        seed: "Seed",
+        showLogPanel: "Log Panel Management",
+        enableLogPanel: "Enable Log Panel",
+        showLogPanelDesc: "Display inference log information at the bottom of the node, including model, parameters, duration, etc.",
+        logPanelTitle: "📋 Inference Log",
+        clearLog: "Clear",
+        refreshModels: "🔄 Refresh Models",
+        settings: "⚙️ Settings",
+        refreshModelsSuccess: "Model list refreshed",
+        refreshModelsFailed: "Failed to fetch model list",
+        noModelsFound: "No models found",
+        template: "Template",
+        templateManagement: "Quick System Prompt Template Management",
+        templateList: "Template List",
+        createTemplate: "Create Template",
+        editTemplate: "Edit Quick System Prompt Template",
+        deleteTemplate: "Delete Template",
+        templateName: "Template Name",
+        templateContent: "Template Content",
+        templateNamePlaceholder: "Enter template name",
+        templateContentPlaceholder: "Enter system prompt content",
+        noTemplates: "No templates yet, click button above to create",
+        confirmDelete: "Are you sure you want to delete this template?",
+        templateCreated: "Template created successfully",
+        templateUpdated: "Template updated successfully",
+        templateDeleted: "Template deleted successfully",
+        templateCreateFailed: "Failed to create template",
+        templateUpdateFailed: "Failed to update template",
+        templateDeleteFailed: "Failed to delete template",
+        templateNameRequired: "Template name is required",
+        noTemplates: "No templates yet, click the settings button to manage templates",
+        searchTemplates: "Search templates...",
+        sortByName: "Sort by name",
+        sortByTime: "Sort by time",
+        applyTemplate: "Apply Template",
+        templateApplied: "Template applied",
+        manageTemplates: "Manage Templates",
+        selectTemplate: "Select Template",
+        templateTooltip: "Click to select system prompt template",
+        clearContent: "Clear Content",
+        restoreContent: "Restore Content",
+        clearTooltip: "Click to clear current input content",
+        restoreTooltip: "Click to restore last cleared content",
+        noContentToClear: "No content to clear",
+        noContentToRestore: "No content to restore",
+        cancel: "Cancel",
+        confirm: "Confirm",
+        save: "Save",
+        edit: "Edit Template",
+        delete: "Delete",
+        folderReadMode: "Folder Read Mode",
+        folderReadModeDesc: "Select folder processing method for batch tagging",
+        recursiveMode: "Recursive Mode",
+        sequentialMode: "Sequential Mode",
+        recursiveModeDesc: "Traverse all subfolders at once, process all images",
+        sequentialModeDesc: "Process folders in order by name, supports resume",
+        folderReadModeHint: "Recursive mode is suitable for processing all images at once; Sequential mode is suitable for batch processing and can resume after interruption",
+        navSettings: "Node Settings",
+        navTemplates: "Template Manager",
+        helpTitle: "LM Studio Node",
+        helpDescription: "Connect to local LM Studio server and use locally deployed LLM for inference.",
+        helpFeatures: "Features",
+        helpFeature1: "Support local LM Studio server connection",
+        helpFeature2: "Support multiple parameter presets (Precise/Balanced/Creative mode)",
+        helpFeature3: "Support system prompt template management",
+        helpFeature4: "Support image captioning and batch tagging",
+        helpUsage: "Usage",
+        helpUsage1: "Start LM Studio and enable Local Server",
+        helpUsage2: "Configure server address in node settings",
+        helpUsage3: "Select model and parameter preset to start conversation",
+        helpInput: "Input",
+        helpInputDesc: "Support text prompt and image input",
+        helpOutput: "Output",
+        helpOutputDesc: "Return text response generated by the model"
+    }
+};
+
+function getLocale() {
+    const comfyLocale = app?.ui?.settings?.getSettingValue?.('Comfy.Locale');
+    return comfyLocale === 'zh-CN' || comfyLocale === 'zh' ? 'zh' : 'en';
+}
+
+function getLMStudioHelpHTML() {
+    const locale = getLocale();
+    const t = (key) => i18n[locale][key] || i18n['en'][key] || key;
+    return `<h3 style="margin:0 0 12px 0;color:#60a5fa;font-size:18px;font-weight:600;padding-bottom:8px;border-bottom:1px solid rgba(96, 165, 250, 0.2);letter-spacing:0.2px;">${t('helpTitle')}</h3>
+<p style="margin:0 0 16px 0;color:#e2e8f0;">${t('helpDescription')}</p>
+<h4 style="margin:12px 0 8px 0;color:#38bdf8;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${t('helpFeatures')}</h4>
+<ul style="margin:0;padding:0;">
+<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpFeature1')}</li>
+<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpFeature2')}</li>
+<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpFeature3')}</li>
+<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpFeature4')}</li>
+</ul>
+<h4 style="margin:12px 0 8px 0;color:#38bdf8;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${t('helpUsage')}</h4>
+<ul style="margin:0;padding:0;">
+<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpUsage1')}</li>
+<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpUsage2')}</li>
+<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpUsage3')}</li>
+</ul>
+<h4 style="margin:12px 0 8px 0;color:#38bdf8;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${t('helpInput')}</h4>
+<ul style="margin:0;padding:0;">
+<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpInputDesc')}</li>
+</ul>
+<h4 style="margin:12px 0 8px 0;color:#38bdf8;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">${t('helpOutput')}</h4>
+<ul style="margin:0;padding:0;">
+<li style="margin:4px 0;padding-left:6px;list-style:none;position:relative;color:#e2e8f0;">${t('helpOutputDesc')}</li>
+</ul>`;
+}
+
+function createLMStudioHelpPopup(description) {
+    const docElement = document.createElement('div');
+    docElement.style.cssText = `
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        position: absolute;
+        color: #e2e8f0;
+        font: 13px 'Segoe UI', system-ui, -apple-system, sans-serif;
+        line-height: 1.6;
+        padding: 20px 24px 24px 24px;
+        border-radius: 16px;
+        border: 1px solid rgba(99, 179, 237, 0.3);
+        z-index: 1000;
+        overflow: hidden;
+        max-width: 560px;
+        max-height: 600px;
+        min-width: 400px;
+        box-shadow: 
+            0 0 40px rgba(59, 130, 246, 0.15),
+            0 20px 60px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    `;
+
+    docElement.innerHTML = `<div style="overflow-y:auto;max-height:540px;padding-right:8px;scrollbar-width:thin;scrollbar-color:rgba(96,165,250,0.3) transparent;">${description}</div>`;
+
+    const accent = document.createElement('div');
+    accent.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #3b82f6, #06b6d4, #3b82f6);
+        border-radius: 16px 16px 0 0;
+        opacity: 0.8;
+    `;
+    docElement.insertBefore(accent, docElement.firstChild);
+
+    document.body.appendChild(docElement);
+    return docElement;
+}
+
+function $t(key) {
+    const locale = getLocale();
+    return i18n[locale][key] || i18n['en'][key] || key;
+}
+
+let templateTooltipEl = null;
+
+function showTemplateTooltip(btnEl) {
+    hideTemplateTooltip();
+    templateTooltipEl = document.createElement("div");
+    templateTooltipEl.style.cssText = `
+        position: fixed;
+        background: rgba(30, 41, 59, 0.95);
+        color: #e2e8f0;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+        z-index: 10004;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        pointer-events: none;
+        white-space: nowrap;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+    templateTooltipEl.textContent = $t('templateTooltip');
+    document.body.appendChild(templateTooltipEl);
+    
+    const btnRect = btnEl.getBoundingClientRect();
+    const tooltipRect = templateTooltipEl.getBoundingClientRect();
+    let left = btnRect.left + (btnRect.width / 2) - (tooltipRect.width / 2);
+    let top = btnRect.bottom + 6;
+    
+    if (left < 5) left = 5;
+    if (left + tooltipRect.width > window.innerWidth - 5) {
+        left = window.innerWidth - tooltipRect.width - 5;
+    }
+    if (top + tooltipRect.height > window.innerHeight - 5) {
+        top = btnRect.top - tooltipRect.height - 6;
+    }
+    
+    templateTooltipEl.style.left = left + "px";
+    templateTooltipEl.style.top = top + "px";
+}
+
+function hideTemplateTooltip() {
+    if (templateTooltipEl) {
+        templateTooltipEl.remove();
+        templateTooltipEl = null;
+    }
+}
+
+let clearTooltipEl = null;
+
+function showClearTooltip(btnEl, key) {
+    hideClearTooltip();
+    clearTooltipEl = document.createElement("div");
+    clearTooltipEl.style.cssText = `
+        position: fixed;
+        background: rgba(30, 41, 59, 0.95);
+        color: #e2e8f0;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+        z-index: 10004;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        pointer-events: none;
+        white-space: nowrap;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+    clearTooltipEl.textContent = $t(key);
+    document.body.appendChild(clearTooltipEl);
+    
+    const btnRect = btnEl.getBoundingClientRect();
+    const tooltipRect = clearTooltipEl.getBoundingClientRect();
+    let left = btnRect.left + (btnRect.width / 2) - (tooltipRect.width / 2);
+    let top = btnRect.bottom + 6;
+    
+    if (left < 5) left = 5;
+    if (left + tooltipRect.width > window.innerWidth - 5) {
+        left = window.innerWidth - tooltipRect.width - 5;
+    }
+    if (top + tooltipRect.height > window.innerHeight - 5) {
+        top = btnRect.top - tooltipRect.height - 6;
+    }
+    
+    clearTooltipEl.style.left = left + "px";
+    clearTooltipEl.style.top = top + "px";
+}
+
+function hideClearTooltip() {
+    if (clearTooltipEl) {
+        clearTooltipEl.remove();
+        clearTooltipEl = null;
+    }
+}
+
+function showToast(message, type = "info") {
+    const toast = document.createElement("div");
+    const bgColor = type === "success" ? "#22c55e" : type === "error" ? "#ef4444" : "#667eea";
+    toast.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: ${bgColor};
+        color: white;
+        padding: 16px 32px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 10003;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        animation: fadeScale 0.3s ease;
+        text-align: center;
+        min-width: 240px;
+    `;
+    toast.textContent = message;
+
+    const style = document.createElement("style");
+    style.textContent = `
+        @keyframes fadeScale {
+            from { transform: translate(-50%, -50%) scale(0.9); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes fadeScaleDialog {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @keyframes dropdownSlideIn {
+            from { transform: translateY(-8px) scale(0.95); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes dropdownSlideOut {
+            from { transform: translateY(0) scale(1); opacity: 1; }
+            to { transform: translateY(-8px) scale(0.95); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = "fadeScale 0.3s ease reverse";
+        setTimeout(() => toast.remove(), 300);
+    }, 1500);
+}
+
+function showConfirm(message, onConfirm, onCancel) {
+    const overlay = document.createElement("div");
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 10004;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+
+    const dialog = document.createElement("div");
+    dialog.style.cssText = `
+        background: #1f2937;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        padding: 24px 32px;
+        max-width: 400px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        animation: fadeScaleDialog 0.2s ease;
+    `;
+
+    const messageEl = document.createElement("p");
+    messageEl.style.cssText = `
+        color: #e8e8e8;
+        font-size: 15px;
+        line-height: 1.6;
+        margin: 0 0 24px 0;
+    `;
+    messageEl.textContent = message;
+
+    const buttonContainer = document.createElement("div");
+    buttonContainer.style.cssText = `
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+    `;
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "取消";
+    cancelBtn.style.cssText = `
+        padding: 10px 24px;
+        background: transparent;
+        color: #9ca3af;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    `;
+    cancelBtn.onmouseover = () => {
+        cancelBtn.style.background = "rgba(255, 255, 255, 0.1)";
+        cancelBtn.style.color = "#e8e8e8";
+    };
+    cancelBtn.onmouseout = () => {
+        cancelBtn.style.background = "transparent";
+        cancelBtn.style.color = "#9ca3af";
+    };
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.textContent = "确定";
+    confirmBtn.style.cssText = `
+        padding: 10px 24px;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    `;
+    confirmBtn.onmouseover = () => {
+        confirmBtn.style.background = "linear-gradient(135deg, #dc2626, #b91c1c)";
+        confirmBtn.style.transform = "translateY(-1px)";
+    };
+    confirmBtn.onmouseout = () => {
+        confirmBtn.style.background = "linear-gradient(135deg, #ef4444, #dc2626)";
+        confirmBtn.style.transform = "translateY(0)";
+    };
+
+    cancelBtn.onclick = () => {
+        overlay.remove();
+        if (onCancel) onCancel();
+    };
+
+    confirmBtn.onclick = () => {
+        overlay.remove();
+        if (onConfirm) onConfirm();
+    };
+
+    buttonContainer.appendChild(cancelBtn);
+    buttonContainer.appendChild(confirmBtn);
+    dialog.appendChild(messageEl);
+    dialog.appendChild(buttonContainer);
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+}
+
+app.registerExtension({
+    name: LMSTUDIO_EXT_ID,
+    
+    async beforeRegisterNodeDef(nodeType, nodeData, app) {
+        if (nodeData.name === "LMStudioNode") {
+            nodeType.prototype._createLogPanel = function() {
+                const host = document.createElement("div");
+                host.style.cssText = "width:100%;min-height:40px;max-height:120px;overflow-y:auto;background:var(--comfy-input-bg,#1f2430);border:1px solid var(--border-color,#404040);border-radius:6px;padding:6px 8px;font-size:11px;line-height:1.5;color:var(--input-text,#e5e7eb);box-sizing:border-box;white-space:pre-wrap;word-break:break-all;scrollbar-width:thin;scrollbar-color:rgba(96,165,250,0.5) transparent;";
+                host.textContent = "";
+                
+                host.classList.add("lmstudio-log-panel");
+                
+                const domWidget = this.addDOMWidget("lmstudio_log_panel", "div", host, {});
+                domWidget.serialize = false;
+                
+                this._logPanelHost = host;
+                
+                this._loadLogPanelConfig();
+            };
+            
+            nodeType.prototype._loadLogPanelConfig = async function() {
+                try {
+                    const response = await fetch("/zhihui/lmstudio/config");
+                    if (response.ok) {
+                        const config = await response.json();
+                        const showLog = config.show_log_panel !== false;
+                        this.lmstudioState.showLogPanel = showLog;
+                        if (this._logPanelHost) {
+                            this._logPanelHost.style.display = showLog ? "block" : "none";
+                        }
+                    }
+                } catch (e) {
+                    this.lmstudioState.showLogPanel = true;
+                }
+            };
+            
+            nodeType.prototype._updateLogPanel = function(logText) {
+                if (!this.lmstudioState?.showLogPanel || !this._logPanelHost) {
+                    return;
+                }
+                
+                this._logPanelHost.textContent = logText;
+                this._logPanelHost.scrollTop = this._logPanelHost.scrollHeight;
+            };
+            
+            const onNodeCreated = nodeType.prototype.onNodeCreated;
+            
+            nodeType.prototype.onNodeCreated = function() {
+                const result = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
+                
+                this._lmstudioHelp = false;
+                this._lmstudioHelpLocale = getLocale();
+                
+                if (!this.lmstudioState) {
+                    this.lmstudioState = {
+                        lastParamPreset: "Ignore",
+                        showLogPanel: true
+                    };
+                }
+                
+                const refreshModelsBtn = this.addWidget("button", $t('refreshModels'), null, async () => {
+                    await this._refreshModelsList();
+                });
+                refreshModelsBtn.serialize = false;
+                
+                const settingsBtn = this.addWidget("button", $t('settings'), null, () => {
+                    const existingDropdown = document.querySelector(".lmstudio-template-dropdown");
+                    if (existingDropdown) {
+                        existingDropdown.remove();
+                    }
+                    showLMStudioSettings(this);
+                });
+                settingsBtn.serialize = false;
+                
+                this._createLogPanel();
+                
+                setTimeout(() => {
+                    this._addTemplateButtonToInput();
+                }, 100);
+                
+                return result;
+            };
+            
+            nodeType.prototype._addTemplateButtonToInput = function() {
+                const systemPromptWidget = this.widgets?.find(w => w.name === "system_prompt");
+                if (!systemPromptWidget || !systemPromptWidget.inputEl) return;
+                
+                const inputEl = systemPromptWidget.inputEl;
+                const parentEl = inputEl.parentElement;
+                if (!parentEl) return;
+                
+                if (parentEl.querySelector('.lmstudio-btn-container')) return;
+                
+                parentEl.style.position = "relative";
+                parentEl.style.paddingTop = "20px";
+                parentEl.style.marginTop = "-18px";
+                
+                const btnContainer = document.createElement("div");
+                btnContainer.className = "lmstudio-btn-container";
+                btnContainer.style.cssText = `
+                    display: flex;
+                    gap: 4px;
+                    justify-content: flex-end;
+                    padding-right: 2px;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                `;
+                
+                const restoreBtn = document.createElement("button");
+                restoreBtn.type = "button";
+                restoreBtn.className = "lmstudio-restore-btn";
+                restoreBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto;"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>`;
+                restoreBtn.style.cssText = `
+                    width: 18px;
+                    height: 18px;
+                    padding: 0;
+                    background: rgba(34, 197, 94, 0.35);
+                    border: none;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s ease;
+                    color: rgba(34, 197, 94, 0.9);
+                `;
+                
+                restoreBtn.onmouseenter = () => {
+                    restoreBtn.style.background = "rgba(34, 197, 94, 0.6)";
+                    restoreBtn.style.color = "rgba(34, 197, 94, 1)";
+                    restoreBtn.style.transform = "scale(1.1)";
+                    showClearTooltip(restoreBtn, 'restoreTooltip');
+                };
+                restoreBtn.onmouseleave = () => {
+                    restoreBtn.style.background = "rgba(34, 197, 94, 0.35)";
+                    restoreBtn.style.color = "rgba(34, 197, 94, 0.9)";
+                    restoreBtn.style.transform = "scale(1)";
+                    hideClearTooltip();
+                };
+                
+                restoreBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (this._lastClearedContent !== undefined) {
+                        inputEl.value = this._lastClearedContent;
+                        systemPromptWidget.value = this._lastClearedContent;
+                        this._lastClearedContent = undefined;
+                        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        showToast($t('restoreContent'), "success");
+                    } else {
+                        showToast($t('noContentToRestore'), "warning");
+                    }
+                };
+                
+                btnContainer.appendChild(restoreBtn);
+                
+                const clearBtn = document.createElement("button");
+                clearBtn.type = "button";
+                clearBtn.className = "lmstudio-clear-btn";
+                clearBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+                clearBtn.style.cssText = `
+                    width: 18px;
+                    height: 18px;
+                    padding: 0;
+                    background: rgba(239, 68, 68, 0.35);
+                    border: none;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s ease;
+                    color: rgba(239, 68, 68, 0.9);
+                `;
+                
+                clearBtn.onmouseenter = () => {
+                    clearBtn.style.background = "rgba(239, 68, 68, 0.6)";
+                    clearBtn.style.color = "rgba(239, 68, 68, 1)";
+                    clearBtn.style.transform = "scale(1.1)";
+                    showClearTooltip(clearBtn, 'clearTooltip');
+                };
+                clearBtn.onmouseleave = () => {
+                    clearBtn.style.background = "rgba(239, 68, 68, 0.35)";
+                    clearBtn.style.color = "rgba(239, 68, 68, 0.9)";
+                    clearBtn.style.transform = "scale(1)";
+                    hideClearTooltip();
+                };
+                
+                clearBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (inputEl.value.trim()) {
+                        this._lastClearedContent = inputEl.value;
+                        inputEl.value = "";
+                        systemPromptWidget.value = "";
+                        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        showToast($t('clearContent'), "success");
+                    } else {
+                        showToast($t('noContentToClear'), "warning");
+                    }
+                };
+                
+                btnContainer.appendChild(clearBtn);
+                
+                const templateBtn = document.createElement("button");
+                templateBtn.type = "button";
+                templateBtn.className = "lmstudio-template-btn";
+                templateBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>`;
+                templateBtn.style.cssText = `
+                    width: 18px;
+                    height: 18px;
+                    padding: 0;
+                    background: rgba(102, 126, 234, 0.35);
+                    border: none;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s ease;
+                    color: rgba(102, 126, 234, 0.9);
+                `;
+                
+                templateBtn.onmouseenter = () => {
+                    templateBtn.style.background = "rgba(102, 126, 234, 0.6)";
+                    templateBtn.style.color = "rgba(102, 126, 234, 1)";
+                    templateBtn.style.transform = "scale(1.1)";
+                    showTemplateTooltip(templateBtn);
+                };
+                templateBtn.onmouseleave = () => {
+                    templateBtn.style.background = "rgba(102, 126, 234, 0.35)";
+                    templateBtn.style.color = "rgba(102, 126, 234, 0.9)";
+                    templateBtn.style.transform = "scale(1)";
+                    hideTemplateTooltip();
+                };
+                
+                templateBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rect = templateBtn.getBoundingClientRect();
+                    showTemplateSelector(this, rect);
+                };
+                
+                btnContainer.appendChild(templateBtn);
+                
+                parentEl.appendChild(btnContainer);
+                
+                this._templateBtn = templateBtn;
+                this._clearBtn = clearBtn;
+                this._restoreBtn = restoreBtn;
+            };
+            
+            nodeType.prototype._refreshModelsList = async function() {
+                const endpointWidget = this.widgets?.find(w => w.name === "endpoint");
+                const modelWidget = this.widgets?.find(w => w.name === "model");
+                
+                if (!endpointWidget || !modelWidget) {
+                    showToast($t('refreshModelsFailed'), "error");
+                    return;
+                }
+                
+                const endpoint = endpointWidget.value || "http://localhost:1234";
+                const base = endpoint.replace(/\/+$/, "").replace(/\/v1$/, "");
+                
+                let models = [];
+                
+                try {
+                    const response = await fetch(base + "/v1/models");
+                    if (response.ok) {
+                        const data = await response.json();
+                        models = data.data?.map(m => m.id) || [];
+                    }
+                } catch (e) {
+                    try {
+                        const response = await fetch(base + "/api/v1/models");
+                        if (response.ok) {
+                            const data = await response.json();
+                            models = data.models?.map(m => m.key) || [];
+                        }
+                    } catch (e2) {
+                        models = [];
+                    }
+                }
+                
+                if (models.length > 0) {
+                    modelWidget.options.values = models;
+                    modelWidget.value = models[0];
+                    showToast($t('refreshModelsSuccess'), "success");
+                } else {
+                    modelWidget.options.values = [$t('noModelsFound')];
+                    modelWidget.value = $t('noModelsFound');
+                    showToast($t('refreshModelsFailed'), "error");
+                }
+            };
+            
+            const onExecuted = nodeType.prototype.onExecuted;
+            nodeType.prototype.onExecuted = function(message) {
+                onExecuted?.apply(this, arguments);
+                
+                if (message?.log_info && this._logPanelHost) {
+                    const logText = message.log_info[0];
+                    if (logText && logText.trim()) {
+                        this._updateLogPanel(logText);
+                    }
+                }
+            };
+
+            const iconSize = 24;
+            const iconMargin = 4;
+            let helpElement = null;
+            let currentHelpLocale = null;
+
+            const drawFg = nodeType.prototype.onDrawForeground;
+            nodeType.prototype.onDrawForeground = function (ctx) {
+                const currentLocale = getLocale();
+                if (this._lmstudioHelpLocale !== currentLocale) {
+                    this._lmstudioHelpLocale = currentLocale;
+                }
+                
+                const r = drawFg ? drawFg.apply(this, arguments) : undefined;
+                if (this.flags.collapsed) return r;
+
+                const x = this.size[0] - iconSize - iconMargin;
+                const y = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - iconSize) / 2;
+
+                if (this._lmstudioHelp && helpElement === null) {
+                    currentHelpLocale = currentLocale;
+                    helpElement = createLMStudioHelpPopup(getLMStudioHelpHTML());
+                }
+                else if (!this._lmstudioHelp && helpElement !== null) {
+                    helpElement.remove();
+                    helpElement = null;
+                    currentHelpLocale = null;
+                }
+                else if (this._lmstudioHelp && helpElement !== null && currentHelpLocale !== currentLocale) {
+                    helpElement.querySelector('div').innerHTML = getLMStudioHelpHTML();
+                    currentHelpLocale = currentLocale;
+                }
+
+                if (this._lmstudioHelp && helpElement !== null) {
+                    const rect = ctx.canvas.getBoundingClientRect();
+                    const scaleX = rect.width / ctx.canvas.width;
+                    const scaleY = rect.height / ctx.canvas.height;
+
+                    const transform = new DOMMatrix()
+                        .scaleSelf(scaleX, scaleY)
+                        .multiplySelf(ctx.getTransform())
+                        .translateSelf(this.size[0] * scaleX * Math.max(1.0, window.devicePixelRatio), 0)
+                        .translateSelf(10, -32);
+
+                    const bcr = app.canvas.canvas.getBoundingClientRect();
+                    helpElement.style.left = `${transform.e + bcr.x}px`;
+                    helpElement.style.top = `${transform.f + bcr.y}px`;
+                }
+
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(iconSize / 32, iconSize / 32);
+                
+                ctx.beginPath();
+                ctx.arc(16, 16, 14, 0, Math.PI * 2);
+                ctx.fillStyle = this._lmstudioHelp ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.15)';
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(16, 16, 14, 0, Math.PI * 2);
+                ctx.strokeStyle = this._lmstudioHelp ? '#60a5fa' : 'rgba(96, 165, 250, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.font = 'bold 24px system-ui';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = this._lmstudioHelp ? '#93c5fd' : '#60a5fa';
+                ctx.fillText('?', 16, 19);
+                
+                ctx.restore();
+                return r;
+            };
+
+            const mouseDown = nodeType.prototype.onMouseDown;
+            nodeType.prototype.onMouseDown = function (e, localPos, canvas) {
+                const r = mouseDown ? mouseDown.apply(this, arguments) : undefined;
+                const iconX = this.size[0] - iconSize - iconMargin;
+                const iconY = -LiteGraph.NODE_TITLE_HEIGHT + (LiteGraph.NODE_TITLE_HEIGHT - iconSize) / 2;
+                if (
+                    localPos[0] > iconX &&
+                    localPos[0] < iconX + iconSize &&
+                    localPos[1] > iconY &&
+                    localPos[1] < iconY + iconSize
+                ) {
+                    this._lmstudioHelp = !this._lmstudioHelp;
+                    return true;
+                }
+                return r;
+            };
+
+            const onRemoved = nodeType.prototype.onRemoved;
+            nodeType.prototype.onRemoved = function () {
+                const r = onRemoved ? onRemoved.apply(this, []) : undefined;
+                if (helpElement) {
+                    helpElement.remove();
+                    helpElement = null;
+                    currentHelpLocale = null;
+                }
+                return r;
+            };
+        }
+    }
+});
+
+async function showTemplateSelector(node, btnRect) {
+    const overlay = document.createElement("div");
+    overlay.className = "lmstudio-template-dropdown";
+    overlay.style.cssText = `
+        position: fixed;
+        z-index: 10001;
+        animation: dropdownSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        transform-origin: top center;
+    `;
+    
+    const dialog = document.createElement("div");
+    dialog.style.cssText = `
+        width: 320px;
+        max-width: 90vw;
+        max-height: 350px;
+        background: #1f2937;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 12px;
+        color: #e8e8e8;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        display: flex;
+        flex-direction: column;
+    `;
+    
+    const header = document.createElement("div");
+    header.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    `;
+    
+    const title = document.createElement("h3");
+    title.style.cssText = `
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    `;
+    title.textContent = $t('selectTemplate');
+    
+    const closeBtn = document.createElement("button");
+    closeBtn.style.cssText = `
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        font-size: 12px;
+        transition: all 0.2s ease;
+    `;
+    closeBtn.innerHTML = "×";
+    closeBtn.onmouseover = () => {
+        closeBtn.style.background = "#b91c1c";
+        closeBtn.style.borderColor = "#ef4444";
+        closeBtn.style.color = "#fff";
+    };
+    closeBtn.onmouseout = () => {
+        closeBtn.style.background = "transparent";
+        closeBtn.style.borderColor = "rgba(255, 255, 255, 0.25)";
+        closeBtn.style.color = "#9ca3af";
+    };
+    
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    
+    const searchInput = document.createElement("input");
+    searchInput.type = "text";
+    searchInput.placeholder = $t('searchTemplates');
+    searchInput.style.cssText = `
+        width: 100%;
+        padding: 6px 10px;
+        background: #111827;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        color: #e8e8e8;
+        font-size: 12px;
+        margin-bottom: 8px;
+        box-sizing: border-box;
+    `;
+    
+    const listContainer = document.createElement("div");
+    listContainer.style.cssText = `
+        flex: 1;
+        overflow-y: auto;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        min-height: 60px;
+        max-height: 380px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(102, 126, 234, 0.5) rgba(255, 255, 255, 0.05);
+    `;
+    
+    const scrollbarStyle = document.createElement("style");
+    scrollbarStyle.textContent = `
+        .template-select-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .template-select-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+        .template-select-list::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, rgba(102, 126, 234, 0.6), rgba(118, 75, 162, 0.6));
+            border-radius: 3px;
+        }
+        .template-select-list::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, rgba(102, 126, 234, 0.8), rgba(118, 75, 162, 0.8));
+        }
+    `;
+    document.head.appendChild(scrollbarStyle);
+    listContainer.className = "template-select-list";
+    
+    const loadingEl = document.createElement("div");
+    loadingEl.style.cssText = `
+        padding: 20px;
+        text-align: center;
+        color: #9ca3af;
+        font-size: 12px;
+    `;
+    loadingEl.textContent = $t('checking');
+    listContainer.appendChild(loadingEl);
+    
+    dialog.appendChild(header);
+    dialog.appendChild(searchInput);
+    dialog.appendChild(listContainer);
+    
+    const manageBtn = document.createElement("button");
+    manageBtn.type = "button";
+    manageBtn.style.cssText = `
+        margin-top: 8px;
+        padding: 6px 0;
+        width: 100%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+    `;
+    manageBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> ${$t('manageTemplates')}`;
+    manageBtn.onmouseenter = () => { manageBtn.style.opacity = "0.85"; manageBtn.style.transform = "scale(1.02)"; };
+    manageBtn.onmouseleave = () => { manageBtn.style.opacity = "1"; manageBtn.style.transform = "scale(1)"; };
+    manageBtn.onclick = () => {
+        close();
+        showLMStudioSettings(node);
+    };
+    dialog.appendChild(manageBtn);
+    
+    overlay.appendChild(dialog);
+    
+    const close = () => {
+        overlay.style.animation = "dropdownSlideOut 0.15s ease forwards";
+        setTimeout(() => {
+            if (overlay.parentNode) overlay.remove();
+        }, 150);
+    };
+    
+    closeBtn.onclick = close;
+    
+    const handleClickOutside = (e) => {
+        if (!overlay.contains(e.target)) {
+            close();
+            document.removeEventListener("mousedown", handleClickOutside);
+        }
+    };
+    setTimeout(() => {
+        document.addEventListener("mousedown", handleClickOutside);
+    }, 10);
+    
+    const renderList = (templates, searchTerm = "") => {
+        let filtered = templates;
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            filtered = templates.filter(t => 
+                t.name.toLowerCase().includes(term) || 
+                t.content.toLowerCase().includes(term)
+            );
+        }
+        
+        if (filtered.length === 0) {
+            listContainer.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #9ca3af; font-size: 12px;">
+                    ${$t('noTemplates')}
+                </div>
+            `;
+            return;
+        }
+        
+        listContainer.innerHTML = filtered.map(template => `
+            <div class="template-select-item" data-id="${template.id}" style="
+                padding: 10px 12px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                cursor: pointer;
+                transition: background 0.15s ease;
+            ">
+                <div style="font-size: 14px; font-weight: 500; color: #e8e8e8;">
+                    ${template.name}
+                </div>
+            </div>
+        `).join("");
+        
+        listContainer.querySelectorAll(".template-select-item").forEach(item => {
+            item.onmouseover = () => {
+                item.style.background = "rgba(102, 126, 234, 0.15)";
+            };
+            item.onmouseout = () => {
+                item.style.background = "transparent";
+            };
+            item.onclick = () => {
+                const template = templates.find(t => t.id === item.dataset.id);
+                if (template) {
+                    const systemPromptWidget = node.widgets?.find(w => w.name === "system_prompt");
+                    if (systemPromptWidget) {
+                        systemPromptWidget.value = template.content;
+                        if (systemPromptWidget.callback) {
+                            systemPromptWidget.callback(template.content);
+                        }
+                        node.setDirtyCanvas(true, true);
+                        showToast($t('templateApplied'), "success");
+                    }
+                }
+                close();
+            };
+        });
+    };
+    
+    searchInput.addEventListener("input", (e) => {
+        const searchTerm = e.target.value;
+        renderList(currentTemplates, searchTerm);
+    });
+    
+    let currentTemplates = [];
+    
+    try {
+        const response = await fetch("/zhihui_nodes/qwen3vl/templates");
+        if (response.ok) {
+            const data = await response.json();
+            currentTemplates = data.templates || [];
+            renderList(currentTemplates);
+        } else {
+            listContainer.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #ef4444; font-size: 12px;">
+                    ${$t('templateDeleteFailed')}
+                </div>
+            `;
+        }
+    } catch (e) {
+        listContainer.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: #ef4444; font-size: 12px;">
+                ${$t('templateDeleteFailed')}
+            </div>
+        `;
+    }
+    
+    document.body.appendChild(overlay);
+    
+    const dialogRect = dialog.getBoundingClientRect();
+    let left = btnRect.left;
+    let top = btnRect.bottom + 4;
+    
+    if (left + dialogRect.width > window.innerWidth - 10) {
+        left = window.innerWidth - dialogRect.width - 10;
+    }
+    
+    if (top + dialogRect.height > window.innerHeight - 10) {
+        top = btnRect.top - dialogRect.height - 4;
+    }
+    
+    if (top < 10) {
+        top = 10;
+    }
+    
+    if (left < 10) {
+        left = 10;
+    }
+    
+    overlay.style.left = left + "px";
+    overlay.style.top = top + "px";
+    
+    searchInput.focus();
+}
+
+function showLMStudioSettings(node) {
+    const animStyle = document.createElement("style");
+    animStyle.id = "lmstudio-dialog-anim";
+    animStyle.textContent = `
+        @keyframes lmstudioDialogIn {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes lmstudioDialogOut {
+            from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            to { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+        }
+        @keyframes lmstudioOverlayIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes lmstudioOverlayOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    `;
+    document.head.appendChild(animStyle);
+
+    const overlay = document.createElement("div");
+    overlay.className = "comfy-modal-overlay";
+    overlay.style.cssText = `
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+        z-index: 10001;
+        opacity: 0;
+        animation: lmstudioOverlayIn 0.2s ease forwards;
+    `;
+
+    const dialog = document.createElement("div");
+    dialog.className = "comfy-modal";
+    dialog.style.cssText = `
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        width: 1188px;
+        height: auto;
+        max-height: 90vh;
+        background: #111827;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        padding: 16px 18px;
+        color: #e8e8e8;
+        opacity: 0;
+        animation: lmstudioDialogIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        z-index: 10002;
+        display: flex;
+        flex-direction: column;
+    `;
+    
+    const uniqueId = `lmstudio-settings-${Math.random().toString(36).substring(2, 9)}`;
+    
+    dialog.innerHTML = `
+        <style>
+            #${uniqueId} .ui-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 8px;
+                padding-bottom: 4px;
+            }
+            #${uniqueId} .ui-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: #f0f0f0;
+                margin: 0;
+            }
+            #${uniqueId} .nav-menu {
+                display: flex;
+                gap: 4px;
+                margin-bottom: 12px;
+                padding: 4px;
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 8px;
+            }
+            #${uniqueId} .nav-tab {
+                flex: 1;
+                padding: 10px 20px;
+                background: transparent;
+                border: none;
+                border-radius: 6px;
+                color: #9ca3af;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+            }
+            #${uniqueId} .nav-tab:hover {
+                background: rgba(102, 126, 234, 0.1);
+                color: #e8e8e8;
+            }
+            #${uniqueId} .nav-tab.active {
+                background: linear-gradient(135deg, #667eea, #5b67c8);
+                color: white;
+                box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            }
+            #${uniqueId} .nav-tab svg {
+                width: 16px;
+                height: 16px;
+            }
+            #${uniqueId} .page-content {
+                display: none;
+                width: 100%;
+            }
+            #${uniqueId} .page-content.active {
+                display: block;
+            }
+            #${uniqueId} #page-settings,
+            #${uniqueId} #page-templates {
+                min-height: 840px;
+                max-height: 840px;
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+            #${uniqueId} #page-settings::-webkit-scrollbar,
+            #${uniqueId} #page-templates::-webkit-scrollbar {
+                width: 6px;
+            }
+            #${uniqueId} #page-settings::-webkit-scrollbar-track,
+            #${uniqueId} #page-templates::-webkit-scrollbar-track {
+                background: rgba(102, 126, 234, 0.1);
+                border-radius: 3px;
+            }
+            #${uniqueId} #page-settings::-webkit-scrollbar-thumb,
+            #${uniqueId} #page-templates::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #667eea, #5b67c8);
+                border-radius: 3px;
+            }
+            #${uniqueId} .circle-close {
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                border: 1px solid rgba(255, 255, 255, 0.25);
+                background: #1f2937;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            }
+            #${uniqueId} .circle-close::before {
+                content: "×";
+                color: #e8e8e8;
+                font-size: 16px;
+                line-height: 1;
+            }
+            #${uniqueId} .circle-close:hover {
+                background: #b91c1c;
+                border-color: #ef4444;
+                box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+            }
+            #${uniqueId} .dashboard {
+                margin-bottom: 16px;
+                padding: 12px 16px;
+                background: linear-gradient(145deg, #1a202c, #2d3748);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                height: 245px;
+                min-height: 245px;
+                max-height: 245px;
+                overflow: hidden;
+                width: 1150px;
+            }
+            #${uniqueId} .dashboard-title {
+                margin: 0 0 10px 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            #${uniqueId} .dashboard-row {
+                display: flex;
+                align-items: flex-start;
+                gap: 10px;
+                margin-bottom: 10px;
+                flex-wrap: nowrap;
+            }
+            #${uniqueId} .dashboard-row:last-child {
+                margin-bottom: 0;
+            }
+            #${uniqueId} .dashboard-item {
+                background: rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 6px;
+                padding: 8px 12px;
+                flex-shrink: 0;
+            }
+            #${uniqueId} .dashboard-item.status {
+                width: 100px;
+                flex: 0 0 100px;
+            }
+            #${uniqueId} .dashboard-item.endpoint {
+                width: 200px;
+                flex: 0 0 200px;
+            }
+            #${uniqueId} .dashboard-item.loaded {
+                width: 350px;
+            }
+            #${uniqueId} .dashboard-item.models {
+                width: 432px;
+                flex: 0 0 432px;
+            }
+            #${uniqueId} #lmstudio-models-list {
+                height: 60px;
+                overflow-y: auto;
+            }
+            #${uniqueId} .dashboard-item-label {
+                font-size: 12px;
+                color: #667eea;
+                margin-bottom: 2px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                font-weight: 600;
+            }
+            #${uniqueId} .dashboard-item-value {
+                font-size: 14px;
+                color: #e8e8e8;
+                font-weight: 500;
+                word-break: break-all;
+                line-height: 1.4;
+                height: 60px;
+                overflow-y: auto;
+            }
+            #${uniqueId} .dashboard-item-value.connected {
+                color: #4ade80;
+            }
+            #${uniqueId} .dashboard-item-value.disconnected {
+                color: #f87171;
+            }
+            #${uniqueId} .dashboard-item-value.loading {
+                color: #fbbf24;
+            }
+            #${uniqueId} .dashboard-title {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            #${uniqueId} .dashboard-refresh {
+                padding: 6px 14px;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 500;
+                transition: background 0.2s ease;
+            }
+            #${uniqueId} .dashboard-refresh:hover {
+                background: #5b67c8;
+            }
+            #${uniqueId} .dashboard-refresh:disabled {
+                background: #4b5563;
+                cursor: not-allowed;
+            }
+            #${uniqueId} .models-list {
+                margin: 0;
+                padding-left: 16px;
+                font-size: 13px;
+                color: #e8e8e8;
+                line-height: 1.5;
+            }
+            #${uniqueId} .models-list li {
+                margin-bottom: 2px;
+            }
+            #${uniqueId} #lmstudio-models-list::-webkit-scrollbar {
+                width: 6px;
+            }
+            #${uniqueId} #lmstudio-models-list::-webkit-scrollbar-track {
+                background: rgba(102, 126, 234, 0.1);
+                border-radius: 3px;
+            }
+            #${uniqueId} #lmstudio-models-list::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #667eea, #5b67c8);
+                border-radius: 3px;
+            }
+            #${uniqueId} #lmstudio-models-list::-webkit-scrollbar-thumb:hover {
+                background: linear-gradient(180deg, #7c8ef0, #667eea);
+            }
+            #${uniqueId} .features-group {
+                margin-top: 16px;
+                padding: 16px;
+                background: linear-gradient(145deg, #1a202c, #2d3748);
+                border: 1px solid transparent;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+            }
+            #${uniqueId} .features-title {
+                margin: 0 0 12px 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: #e8e8e8;
+            }
+            #${uniqueId} .features-columns {
+                display: flex;
+                gap: 20px;
+            }
+            #${uniqueId} .features-column {
+                flex: 1;
+                padding: 12px;
+                background: rgba(0, 0, 0, 0.15);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                border-radius: 6px;
+            }
+            #${uniqueId} .features-column-title {
+                font-size: 13px;
+                font-weight: 600;
+                color: #667eea;
+                margin-bottom: 8px;
+            }
+            #${uniqueId} .features-column-desc {
+                font-size: 12px;
+                color: #e8e8e8;
+                line-height: 1.5;
+                margin-bottom: 8px;
+            }
+            #${uniqueId} .features-column-audience {
+                font-size: 11px;
+                color: #22c55e;
+                background: rgba(34, 197, 94, 0.1);
+                padding: 6px 10px;
+                border-radius: 4px;
+                margin-top: 8px;
+                border-left: 3px solid #22c55e;
+            }
+            #${uniqueId} .features-column-list {
+                margin: 0;
+                padding-left: 16px;
+                font-size: 11px;
+                color: #cbd5e1;
+                line-height: 1.6;
+            }
+            #${uniqueId} .settings-row {
+                display: flex;
+                gap: 16px;
+                margin-top: 16px;
+            }
+            #${uniqueId} .preset-section {
+                flex: 0 0 650px;
+                height: auto;
+                min-height: auto;
+                max-height: none;
+                padding: 12px 16px;
+                background: linear-gradient(145deg, #1a202c, #2d3748);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            #${uniqueId} .preset-title {
+                margin: 0 0 12px 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            #${uniqueId} .preset-row {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            #${uniqueId} .preset-select {
+                width: auto;
+                min-width: 140px;
+                max-width: 200px;
+                padding: 8px 12px;
+                background: #1f2937;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 6px;
+                color: #e8e8e8;
+                font-size: 13px;
+                cursor: pointer;
+                transition: border-color 0.2s ease;
+            }
+            #${uniqueId} .preset-select:hover {
+                border-color: #667eea;
+            }
+            #${uniqueId} .preset-select:focus {
+                outline: none;
+                border-color: #667eea;
+                box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+            }
+            #${uniqueId} .preset-apply-btn {
+                padding: 8px 16px;
+                background: #22c55e;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 500;
+                transition: background 0.2s ease;
+            }
+            #${uniqueId} .preset-apply-btn:hover {
+                background: #16a34a;
+            }
+            #${uniqueId} .timeout-section {
+                flex: 0 0 485px;
+                padding: 12px 16px;
+                background: linear-gradient(145deg, #1a202c, #2d3748);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+            }
+            #${uniqueId} .timeout-title {
+                margin: 0 0 8px 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            #${uniqueId} .timeout-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            #${uniqueId} .timeout-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                background: rgba(0, 0, 0, 0.2);
+                padding: 8px 10px;
+                border-radius: 6px;
+                width: fit-content;
+            }
+            #${uniqueId} .timeout-label {
+                font-size: 12px;
+                color: #9ca3af;
+                flex-shrink: 0;
+                min-width: 140px;
+            }
+            #${uniqueId} .timeout-input {
+                width: 35px;
+                padding: 6px 4px;
+                background: #1f2937;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 4px;
+                color: #e8e8e8;
+                font-size: 13px;
+                text-align: center;
+                -moz-appearance: textfield;
+            }
+            #${uniqueId} .timeout-input::-webkit-outer-spin-button,
+            #${uniqueId} .timeout-input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            #${uniqueId} .timeout-input:focus {
+                outline: none;
+                border-color: #667eea;
+                box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+            }
+            #${uniqueId} .timeout-unit {
+                font-size: 12px;
+                color: #667eea;
+            }
+            #${uniqueId} .prompt-version-section {
+                margin-top: 16px;
+                padding: 12px 16px;
+                background: linear-gradient(145deg, #1a202c, #2d3748);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+            }
+            #${uniqueId} .prompt-version-title {
+                margin: 0 0 8px 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            #${uniqueId} .prompt-version-row {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            #${uniqueId} .prompt-version-select {
+                width: 140px;
+                padding: 8px 12px;
+                background: #1f2937;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 6px;
+                color: #e8e8e8;
+                font-size: 13px;
+                cursor: pointer;
+            }
+            #${uniqueId} .prompt-version-select:focus {
+                outline: none;
+                border-color: #667eea;
+            }
+            #${uniqueId} .prompt-version-hint {
+                font-size: 12px;
+                color: #e2e8f0;
+                flex: 1;
+                padding: 8px 12px;
+                background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+                border: 1px solid rgba(102, 126, 234, 0.4);
+                border-radius: 6px;
+                line-height: 1.5;
+            }
+            #${uniqueId} .hint-options {
+                color: #fbbf24;
+                font-weight: 600;
+            }
+            #${uniqueId} .log-panel-section {
+                margin-top: 16px;
+                padding: 12px 16px;
+                background: linear-gradient(145deg, #1a202c, #2d3748);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+            }
+            #${uniqueId} .log-panel-title {
+                margin: 0 0 8px 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            #${uniqueId} .log-panel-row {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            #${uniqueId} .log-panel-checkbox {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+            }
+            #${uniqueId} .log-panel-checkbox input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                cursor: pointer;
+                accent-color: #4a6fa5;
+            }
+            #${uniqueId} .log-panel-checkbox-label {
+                font-size: 13px;
+                color: #e8e8e8;
+            }
+            #${uniqueId} .log-panel-hint {
+                font-size: 12px;
+                color: #9ca3af;
+                flex: 1;
+            }
+            #${uniqueId} .folder-read-mode-section {
+                margin-top: 16px;
+                padding: 12px 16px;
+                background: linear-gradient(145deg, #1a202c, #2d3748);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+            }
+            #${uniqueId} .folder-read-mode-title {
+                margin: 0 0 8px 0;
+                font-size: 14px;
+                font-weight: 600;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            #${uniqueId} .folder-read-mode-row {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            #${uniqueId} .folder-read-mode-options {
+                display: flex;
+                gap: 16px;
+            }
+            #${uniqueId} .folder-read-mode-option {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+                padding: 8px 12px;
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                transition: all 0.2s ease;
+            }
+            #${uniqueId} .folder-read-mode-option:hover {
+                background: rgba(102, 126, 234, 0.1);
+                border-color: rgba(102, 126, 234, 0.3);
+            }
+            #${uniqueId} .folder-read-mode-option.active {
+                border-color: #667eea;
+                background: rgba(102, 126, 234, 0.15);
+            }
+            #${uniqueId} .folder-read-mode-option input[type="radio"] {
+                width: 16px;
+                height: 16px;
+                cursor: pointer;
+                accent-color: #667eea;
+            }
+            #${uniqueId} .folder-read-mode-option-label {
+                font-size: 13px;
+                color: #e8e8e8;
+                font-weight: 500;
+            }
+            #${uniqueId} .folder-read-mode-option-desc {
+                font-size: 11px;
+                color: #9ca3af;
+                margin-top: 2px;
+            }
+            #${uniqueId} .folder-read-mode-hint {
+                font-size: 12px;
+                color: #fbbf24;
+                padding: 8px 12px;
+                background: rgba(251, 191, 36, 0.1);
+                border-radius: 6px;
+                border-left: 3px solid #fbbf24;
+            }
+            #${uniqueId} .template-section {
+                padding: 16px;
+                background: linear-gradient(145deg, #1a202c, #2d3748);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+            }
+            #${uniqueId} .template-title {
+                margin: 0 0 12px 0;
+                font-size: 16px;
+                font-weight: 600;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            #${uniqueId} .template-toolbar {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 12px;
+                flex-wrap: wrap;
+            }
+            #${uniqueId} .template-search {
+                flex: 1;
+                min-width: 150px;
+                padding: 8px 12px;
+                background: #1f2937;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 6px;
+                color: #e8e8e8;
+                font-size: 13px;
+            }
+            #${uniqueId} .template-search:focus {
+                outline: none;
+                border-color: #667eea;
+            }
+            #${uniqueId} .template-sort {
+                padding: 8px 12px;
+                background: #1f2937;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 6px;
+                color: #e8e8e8;
+                font-size: 13px;
+                cursor: pointer;
+            }
+            #${uniqueId} .template-create-btn {
+                padding: 8px 16px;
+                background: linear-gradient(135deg, #667eea, #5b67c8);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 500;
+                transition: all 0.2s ease;
+            }
+            #${uniqueId} .template-create-btn:hover {
+                background: linear-gradient(135deg, #5b67c8, #4a57b8);
+                transform: translateY(-1px);
+            }
+            #${uniqueId} .template-list {
+                max-height: 480px;
+                overflow-y: auto;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+            }
+            #${uniqueId} .template-list::-webkit-scrollbar {
+                width: 6px;
+            }
+            #${uniqueId} .template-list::-webkit-scrollbar-track {
+                background: rgba(102, 126, 234, 0.1);
+                border-radius: 3px;
+            }
+            #${uniqueId} .template-list::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #667eea, #5b67c8);
+                border-radius: 3px;
+            }
+            #${uniqueId} .template-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px 12px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                transition: background 0.2s ease;
+            }
+            #${uniqueId} .template-item:last-child {
+                border-bottom: none;
+            }
+            #${uniqueId} .template-item:hover {
+                background: rgba(102, 126, 234, 0.1);
+            }
+            #${uniqueId} .template-item-name {
+                font-size: 13px;
+                color: #e8e8e8;
+                font-weight: 500;
+                flex: 1;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            #${uniqueId} .template-item-time {
+                font-size: 11px;
+                color: #9ca3af;
+                margin-left: 8px;
+            }
+            #${uniqueId} .template-item-actions {
+                display: flex;
+                gap: 6px;
+                margin-left: 12px;
+            }
+            #${uniqueId} .template-action-btn {
+                padding: 4px 10px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 500;
+                transition: all 0.2s ease;
+            }
+            #${uniqueId} .template-edit-btn {
+                background: rgba(102, 126, 234, 0.2);
+                color: #667eea;
+            }
+            #${uniqueId} .template-edit-btn:hover {
+                background: rgba(102, 126, 234, 0.3);
+            }
+            #${uniqueId} .template-delete-btn {
+                background: rgba(239, 68, 68, 0.2);
+                color: #ef4444;
+            }
+            #${uniqueId} .template-delete-btn:hover {
+                background: rgba(239, 68, 68, 0.3);
+            }
+            #${uniqueId} .template-empty {
+                padding: 24px;
+                text-align: center;
+                color: #9ca3af;
+                font-size: 13px;
+            }
+            #${uniqueId} .timeout-apply-btn {
+                width: 100%;
+                padding: 10px 16px;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 500;
+                transition: background 0.2s ease;
+            }
+            #${uniqueId} .timeout-apply-btn:hover {
+                background: #5b67c8;
+            }
+            #${uniqueId} .save-section {
+                margin-top: 16px;
+                text-align: center;
+                display: flex;
+                gap: 12px;
+            }
+            #${uniqueId} .save-all-btn {
+                flex: 1;
+                padding: 12px 20px;
+                background: linear-gradient(135deg, #22c55e, #16a34a);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 600;
+                transition: all 0.2s ease;
+            }
+            #${uniqueId} .reset-default-btn {
+                flex: 1;
+                padding: 12px 20px;
+                background: linear-gradient(135deg, #3b82f6, #2563eb);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 600;
+                transition: all 0.2s ease;
+            }
+            #${uniqueId} .reset-default-btn:hover {
+                background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            }
+            #${uniqueId} .save-all-btn:hover {
+                background: linear-gradient(135deg, #16a34a, #15803d);
+            }
+            #${uniqueId} .preset-info {
+                font-size: 12px;
+                color: #9ca3af;
+                line-height: 1.5;
+                padding: 10px 12px;
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 6px;
+                border-left: 3px solid #667eea;
+            }
+            #${uniqueId} .preset-params-inline {
+                display: block;
+                margin-top: 6px;
+                padding-top: 6px;
+                border-top: 1px solid rgba(102, 126, 234, 0.3);
+                font-size: 12px;
+                color: #a8b2ff;
+                line-height: 1.4;
+            }
+            #${uniqueId} .cors-notice {
+                margin-top: 12px;
+                padding: 6px 16px;
+                background: linear-gradient(145deg, #1e3a5f, #2d4a6f);
+                border: 1px solid rgba(102, 126, 234, 0.3);
+                border-radius: 8px;
+            }
+            #${uniqueId} .cors-notice h5 {
+                margin: 0;
+            }
+            #${uniqueId} .cors-notice p {
+                margin: 0;
+            }
+            #${uniqueId} .cors-notice-title {
+                font-size: 13px;
+                font-weight: 600;
+                color: #60a5fa;
+                margin: 0 0 1px 0;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+            #${uniqueId} .cors-notice-content {
+                font-size: 12px;
+                color: #cbd5e1;
+                line-height: 1.2;
+                margin: 0;
+            }
+            #${uniqueId} .cors-notice-content strong {
+                color: #fbbf24;
+            }
+        </style>
+        <div id="${uniqueId}">
+            <div class="ui-header">
+                <h3 class="ui-title">${$t('title')}</h3>
+                <button class="circle-close" type="button"></button>
+            </div>
+            <div class="nav-menu">
+                <button class="nav-tab active" data-page="settings" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    ${$t('navSettings')}
+                </button>
+                <button class="nav-tab" data-page="templates" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="3" y1="9" x2="21" y2="9"></line>
+                        <line x1="9" y1="21" x2="9" y2="9"></line>
+                    </svg>
+                    ${$t('navTemplates')}
+                </button>
+            </div>
+            <div class="page-content active" id="page-settings">
+            <div class="dashboard">
+                <h4 class="dashboard-title" style="margin: 0 0 10px 0;">
+                    <span>📊</span>
+                    <span>${$t('statusMonitoring')}</span>
+                    <button class="dashboard-refresh" type="button">${$t('refreshStatus')}</button>
+                </h4>
+                <div class="dashboard-row">
+                    <div class="dashboard-item status">
+                        <div class="dashboard-item-label">${$t('serviceStatus')}</div>
+                        <div class="dashboard-item-value" id="lmstudio-status">${$t('disconnected')}</div>
+                    </div>
+                    <div class="dashboard-item endpoint">
+                        <div class="dashboard-item-label">${$t('serviceAddress')}</div>
+                        <div class="dashboard-item-value" id="lmstudio-endpoint">-</div>
+                    </div>
+                    <div class="dashboard-item loaded">
+                        <div class="dashboard-item-label">${$t('loadedModels')}</div>
+                        <div class="dashboard-item-value" id="lmstudio-loaded">-</div>
+                    </div>
+                    <div class="dashboard-item models">
+                        <div class="dashboard-item-label">${$t('availableModels')}</div>
+                        <div class="dashboard-item-value" id="lmstudio-models-list">-</div>
+                    </div>
+                </div>
+                <div class="cors-notice">
+                    <h5 class="cors-notice-title">
+                        <span>${$t('corsNotice')}</span>
+                    </h5>
+                    <p class="cors-notice-content">
+                        ${$t('corsWarning')}
+                    </p>
+                </div>
+            </div>
+            <div class="settings-row">
+                <div class="preset-section">
+                    <h4 class="preset-title">
+                        <span>⚙️</span>
+                        <span>${$t('paramPreset')}</span>
+                    </h4>
+                    <div class="preset-row">
+                        <select class="preset-select" id="lmstudio-preset-select">
+                            <option value="Ignore">${$t('ignore')}</option>
+                            <option value="Precise">${$t('precise')}</option>
+                            <option value="Balanced">${$t('balanced')}</option>
+                            <option value="Creative">${$t('creative')}</option>
+                            <option value="Qwen3.6 Thinking (General)">${$t('qwenThinkingGeneral')}</option>
+                            <option value="Qwen3.6 Instruct">${$t('qwenInstruct')}</option>
+                            <option value="Custom">${$t('custom')}</option>
+                        </select>
+                    </div>
+                    <div class="preset-info" id="lmstudio-preset-info">
+                        ${$t('presetDescription')}
+                    </div>
+                </div>
+                <div class="timeout-section">
+                    <h4 class="timeout-title">
+                        <span>⏱️</span>
+                        <span>${$t('timeoutSettings')}</span>
+                    </h4>
+                    <div class="timeout-grid">
+                        <div class="timeout-item">
+                            <label class="timeout-label">${$t('fetchModelsTimeout')}</label>
+                            <input type="number" class="timeout-input" id="lmstudio-timeout-fetch" min="1" max="60" step="1" value="5">
+                            <span class="timeout-unit">${$t('seconds')}</span>
+                        </div>
+                        <div class="timeout-item">
+                            <label class="timeout-label">${$t('apiCallTimeout')}</label>
+                            <input type="number" class="timeout-input" id="lmstudio-timeout-api" min="10" max="600" step="10" value="450">
+                            <span class="timeout-unit">${$t('seconds')}</span>
+                        </div>
+                        <div class="timeout-item">
+                            <label class="timeout-label">${$t('unloadModelListTimeout')}</label>
+                            <input type="number" class="timeout-input" id="lmstudio-timeout-list" min="1" max="60" step="1" value="10">
+                            <span class="timeout-unit">${$t('seconds')}</span>
+                        </div>
+                        <div class="timeout-item">
+                            <label class="timeout-label">${$t('unloadModelTimeout')}</label>
+                            <input type="number" class="timeout-input" id="lmstudio-timeout-unload" min="5" max="120" step="5" value="30">
+                            <span class="timeout-unit">${$t('seconds')}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="prompt-version-section">
+                <h4 class="prompt-version-title">
+                    <span>📋</span>
+                    <span>${$t('promptPresetVersion')}</span>
+                </h4>
+                <div class="prompt-version-row">
+                    <select class="prompt-version-select" id="lmstudio-prompt-version">
+                        <option value="new">${$t('newVersion')}</option>
+                        <option value="old">${$t('oldVersion')}</option>
+                        <option value="premium">${$t('premiumVersion')}</option>
+                    </select>
+                    <span class="prompt-version-hint">
+                        <span class="hint-prefix">${$t('newVersionHintPrefix')}</span>
+                        <span class="hint-options">${$t('newVersionHintOptions')}</span>
+                    </span>
+                </div>
+            </div>
+            <div class="log-panel-section">
+                <h4 class="log-panel-title">
+                    <span>📝</span>
+                    <span>${$t('showLogPanel')}</span>
+                </h4>
+                <div class="log-panel-row">
+                    <label class="log-panel-checkbox">
+                        <input type="checkbox" id="lmstudio-show-log-panel">
+                        <span class="log-panel-checkbox-label">${$t('enableLogPanel')}</span>
+                    </label>
+                    <span class="log-panel-hint">${$t('showLogPanelDesc')}</span>
+                </div>
+            </div>
+            <div class="folder-read-mode-section">
+                <h4 class="folder-read-mode-title">
+                    <span>📁</span>
+                    <span>${$t('folderReadMode')}</span>
+                </h4>
+                <div class="folder-read-mode-row">
+                    <div class="folder-read-mode-options">
+                        <label class="folder-read-mode-option" id="folder-mode-recursive-label">
+                            <input type="radio" name="folder_read_mode" value="recursive" id="lmstudio-folder-mode-recursive" checked>
+                            <div>
+                                <div class="folder-read-mode-option-label">${$t('recursiveMode')}</div>
+                                <div class="folder-read-mode-option-desc">${$t('recursiveModeDesc')}</div>
+                            </div>
+                        </label>
+                        <label class="folder-read-mode-option" id="folder-mode-sequential-label">
+                            <input type="radio" name="folder_read_mode" value="sequential" id="lmstudio-folder-mode-sequential">
+                            <div>
+                                <div class="folder-read-mode-option-label">${$t('sequentialMode')}</div>
+                                <div class="folder-read-mode-option-desc">${$t('sequentialModeDesc')}</div>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="folder-read-mode-hint">
+                        💡 ${$t('folderReadModeHint')}
+                    </div>
+                </div>
+            </div>
+            <div class="save-section">
+                <button class="reset-default-btn" type="button" id="lmstudio-reset-default">${$t('resetDefault')}</button>
+                <button class="save-all-btn" type="button" id="lmstudio-save-all">${$t('saveAll')}</button>
+            </div>
+            </div>
+            <div class="page-content" id="page-templates">
+            <div class="template-section">
+                <h4 class="template-title">
+                    <span>📋</span>
+                    <span>${$t('templateManagement')}</span>
+                </h4>
+                <div class="template-toolbar">
+                    <input type="text" class="template-search" id="lmstudio-template-search" placeholder="${$t('searchTemplates')}">
+                    <select class="template-sort" id="lmstudio-template-sort">
+                        <option value="name">${$t('sortByName')}</option>
+                        <option value="time">${$t('sortByTime')}</option>
+                    </select>
+                    <button class="template-create-btn" type="button" id="lmstudio-template-create">${$t('createTemplate')}</button>
+                </div>
+                <div class="template-list" id="lmstudio-template-list">
+                    <div class="template-empty">${$t('noTemplates')}</div>
+                </div>
+            </div>
+            </div>
+        </div>
+    `;
+    
+    const close = () => {
+        overlay.style.animation = "lmstudioOverlayOut 0.15s ease forwards";
+        dialog.style.animation = "lmstudioDialogOut 0.15s ease forwards";
+        setTimeout(() => {
+            document.removeEventListener("keydown", keydownHandler, true);
+            document.removeEventListener("keyup", keyupHandler, true);
+            document.removeEventListener("keypress", keypressHandler, true);
+            if (overlay.parentNode) document.body.removeChild(overlay);
+            const animStyleEl = document.getElementById("lmstudio-dialog-anim");
+            if (animStyleEl) animStyleEl.remove();
+        }, 150);
+    };
+
+    const keydownHandler = (e) => {
+        e.stopPropagation();
+    };
+
+    const keyupHandler = (e) => {
+        e.stopPropagation();
+    };
+
+    const keypressHandler = (e) => {
+        e.stopPropagation();
+    };
+
+    document.addEventListener("keydown", keydownHandler, true);
+    document.addEventListener("keyup", keyupHandler, true);
+    document.addEventListener("keypress", keypressHandler, true);
+    
+    const closeBtn = dialog.querySelector(".circle-close");
+    closeBtn.onclick = close;
+    
+    const navTabs = dialog.querySelectorAll(".nav-tab");
+    const switchPage = (pageName) => {
+        navTabs.forEach(tab => {
+            if (tab.dataset.page === pageName) {
+                tab.classList.add("active");
+            } else {
+                tab.classList.remove("active");
+            }
+        });
+        
+        const settingsPage = dialog.querySelector("#page-settings");
+        const templatesPage = dialog.querySelector("#page-templates");
+        
+        if (pageName === "settings") {
+            settingsPage.classList.add("active");
+            templatesPage.classList.remove("active");
+        } else {
+            settingsPage.classList.remove("active");
+            templatesPage.classList.add("active");
+        }
+    };
+    
+    navTabs.forEach(tab => {
+        tab.onclick = () => switchPage(tab.dataset.page);
+    });
+    
+    const refreshBtn = dialog.querySelector(".dashboard-refresh");
+    
+    const refreshDashboard = async () => {
+        const statusEl = dialog.querySelector("#lmstudio-status");
+        const endpointEl = dialog.querySelector("#lmstudio-endpoint");
+        const modelsListEl = dialog.querySelector("#lmstudio-models-list");
+        const loadedEl = dialog.querySelector("#lmstudio-loaded");  
+        const currentEndpoint = node.widgets?.find(w => w.name === "endpoint")?.value || "http://localhost:1234";
+        
+        endpointEl.textContent = currentEndpoint;
+        statusEl.textContent = $t('checking');
+        statusEl.className = "dashboard-item-value loading";
+        modelsListEl.textContent = "-";
+        loadedEl.textContent = "-";
+        
+        refreshBtn.disabled = true;
+        
+        try {
+            const base = currentEndpoint.replace(/\/+$/, "").replace(/\/v1$/, "");
+            const v1Url = base + "/v1/models";
+            const apiModelsUrl = base + "/api/v1/models";
+            
+            let availableModels = [];
+            let loadedModels = [];
+            
+            try {
+                const response = await fetch(v1Url);
+                if (response.ok) {
+                    const data = await response.json();
+                    availableModels = data.data?.map(m => m.id) || [];
+                }
+            } catch (e) {
+                availableModels = [];
+            }
+            
+            try {
+                const response = await fetch(apiModelsUrl);
+                if (response.ok) {
+                    const data = await response.json();
+                    const models = data.models || data.data || [];
+                    loadedModels = [];
+                    models.forEach(m => {
+                        if (m.loaded_instances && Array.isArray(m.loaded_instances)) {
+                            m.loaded_instances.forEach(inst => {
+                                if (inst.id) loadedModels.push(inst.id);
+                            });
+                        }
+                    });
+                }
+            } catch (e) {
+                loadedModels = [];
+            }
+            
+            statusEl.textContent = availableModels.length > 0 ? $t('connected') : $t('disconnected');
+            statusEl.className = "dashboard-item-value " + (availableModels.length > 0 ? "connected" : "disconnected");
+
+            if (availableModels.length > 0) {
+                modelsListEl.innerHTML = "<ul class='models-list'>" +
+                    availableModels.map(m => `<li>${m}</li>`).join("") +
+                    "</ul>";
+            } else {
+                modelsListEl.textContent = $t('disconnected');
+            }
+            
+            if (loadedModels.length > 0) {
+                loadedEl.innerHTML = loadedModels.map(m => `<div>${m}</div>`).join("");
+            } else {
+                loadedEl.textContent = $t('none');
+            }
+            
+        } catch (e) {
+            statusEl.textContent = $t('disconnected');
+            statusEl.className = "dashboard-item-value disconnected";
+        }
+        
+        refreshBtn.disabled = false;
+    };
+    
+    refreshBtn.onclick = refreshDashboard;
+    
+    const paramPresets = {
+        "Ignore": {
+            params: {
+                max_tokens: 2048,
+                temperature: 0.7,
+                top_p: 0.9,
+                top_k: 40,
+                repetition_penalty: 1.0
+            },
+            description: $t('ignoreDesc')
+        },
+        "Custom": {
+            params: {},
+            description: $t('customDesc')
+        },
+        "Precise": {
+            params: {
+                max_tokens: 4096,
+                temperature: 0.4,
+                top_p: 0.9,
+                top_k: 40,
+                repetition_penalty: 1.1
+            },
+            description: $t('preciseDesc')
+        },
+        "Balanced": {
+            params: {
+                max_tokens: 2048,
+                temperature: 0.75,
+                top_p: 0.92,
+                top_k: 45,
+                repetition_penalty: 1.0
+            },
+            description: $t('balancedDesc')
+        },
+        "Creative": {
+            params: {
+                max_tokens: 4096,
+                temperature: 0.9,
+                top_p: 0.95,
+                top_k: 60,
+                repetition_penalty: 1.05
+            },
+            description: $t('creativeDesc')
+        },
+        "Qwen3.6 Thinking (General)": {
+            params: {
+                max_tokens: 8192,
+                temperature: 1.0,
+                top_p: 0.95,
+                top_k: 20,
+                repetition_penalty: 1.0,
+                presence_penalty: 0.0
+            },
+            description: $t('qwenThinkingGeneralDesc')
+        },
+        "Qwen3.6 Instruct": {
+            params: {
+                max_tokens: 4096,
+                temperature: 0.7,
+                top_p: 0.80,
+                top_k: 20,
+                repetition_penalty: 1.0,
+                presence_penalty: 1.5
+            },
+            description: $t('qwenInstructDesc')
+        }
+    };
+    
+    const presetSelect = dialog.querySelector("#lmstudio-preset-select");
+    const presetInfo = dialog.querySelector("#lmstudio-preset-info");
+    const saveAllBtn = dialog.querySelector("#lmstudio-save-all");
+    const resetDefaultBtn = dialog.querySelector("#lmstudio-reset-default");
+    const timeoutFetchInput = dialog.querySelector("#lmstudio-timeout-fetch");
+    const timeoutApiInput = dialog.querySelector("#lmstudio-timeout-api");
+    const timeoutListInput = dialog.querySelector("#lmstudio-timeout-list");
+    const timeoutUnloadInput = dialog.querySelector("#lmstudio-timeout-unload");
+    const promptVersionSelect = dialog.querySelector("#lmstudio-prompt-version");
+    let originalPromptVersion = "new";
+    const showLogPanelCheckbox = dialog.querySelector("#lmstudio-show-log-panel");
+    
+    let templates = [];
+    let templateSearchInput = dialog.querySelector("#lmstudio-template-search");
+    let templateSortSelect = dialog.querySelector("#lmstudio-template-sort");
+    let templateListEl = dialog.querySelector("#lmstudio-template-list");
+    let templateCreateBtn = dialog.querySelector("#lmstudio-template-create");
+    
+    const loadTemplates = async () => {
+        try {
+            const response = await fetch("/zhihui_nodes/qwen3vl/templates");
+            if (response.ok) {
+                const data = await response.json();
+                templates = data.templates || [];
+                renderTemplateList();
+            }
+        } catch (e) {
+            templates = [];
+            renderTemplateList();
+        }
+    };
+    
+    const formatTime = (timestamp) => {
+        const date = new Date(timestamp * 1000);
+        return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+    
+    const renderTemplateList = () => {
+        let filteredTemplates = [...templates];
+        
+        const searchTerm = templateSearchInput.value.toLowerCase().trim();
+        if (searchTerm) {
+            filteredTemplates = filteredTemplates.filter(t => 
+                t.name.toLowerCase().includes(searchTerm) || 
+                t.content.toLowerCase().includes(searchTerm)
+            );
+        }
+        
+        const sortBy = templateSortSelect.value;
+        if (sortBy === "name") {
+            filteredTemplates.sort((a, b) => a.name.localeCompare(b.name));
+        } else {
+            filteredTemplates.sort((a, b) => b.updated_at - a.updated_at);
+        }
+        
+        if (filteredTemplates.length === 0) {
+            templateListEl.innerHTML = `<div class="template-empty">${$t('noTemplates')}</div>`;
+            return;
+        }
+        
+        templateListEl.innerHTML = filteredTemplates.map(template => `
+            <div class="template-item" data-id="${template.id}">
+                <span class="template-item-name" title="${template.name}">${template.name}</span>
+                <span class="template-item-time">${formatTime(template.updated_at)}</span>
+                <div class="template-item-actions">
+                    <button class="template-action-btn template-edit-btn" data-id="${template.id}">${$t('edit')}</button>
+                    <button class="template-action-btn template-delete-btn" data-id="${template.id}">${$t('delete')}</button>
+                </div>
+            </div>
+        `).join("");
+        
+        templateListEl.querySelectorAll(".template-edit-btn").forEach(btn => {
+            btn.onclick = () => showTemplateEditor(btn.dataset.id);
+        });
+        
+        templateListEl.querySelectorAll(".template-delete-btn").forEach(btn => {
+            btn.onclick = () => deleteTemplate(btn.dataset.id);
+        });
+    };
+    
+    const showTemplateEditor = (templateId = null) => {
+        const template = templateId ? templates.find(t => t.id === templateId) : null;
+        const isEdit = !!template;
+        
+        const editorOverlay = document.createElement("div");
+        editorOverlay.style.cssText = `
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10005;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        
+        const editorDialog = document.createElement("div");
+        editorDialog.style.cssText = `
+            width: 600px;
+            max-width: 90vw;
+            height: 85vh;
+            max-height: 800px;
+            background: #1f2937;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 24px;
+            color: #e8e8e8;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        `;
+        
+        editorDialog.innerHTML = `
+            <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">
+                ${isEdit ? $t('editTemplate') : $t('createTemplate')}
+            </h3>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #9ca3af;">
+                    ${$t('templateName')}
+                </label>
+                <input type="text" id="template-name-input" value="${template ? template.name : ''}" 
+                    placeholder="${$t('templateNamePlaceholder')}"
+                    style="width: 100%; padding: 10px 12px; background: #111827; border: 1px solid rgba(255, 255, 255, 0.15); 
+                    border-radius: 6px; color: #e8e8e8; font-size: 14px; box-sizing: border-box;">
+            </div>
+            <div style="margin-bottom: 20px; flex: 1; display: flex; flex-direction: column;">
+                <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #9ca3af;">
+                    ${$t('templateContent')}
+                </label>
+                <textarea id="template-content-input" placeholder="${$t('templateContentPlaceholder')}"
+                    style="width: 100%; flex: 1; min-height: 300px; padding: 10px 12px; background: #111827; 
+                    border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; color: #e8e8e8; 
+                    font-size: 13px; resize: none; box-sizing: border-box; font-family: inherit;">${template ? template.content : ''}</textarea>
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button id="template-cancel-btn" style="padding: 10px 24px; background: linear-gradient(135deg, #ef4444, #dc2626); 
+                    color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; 
+                    font-weight: 600; transition: all 0.2s ease;"
+                    onmouseover="this.style.background='linear-gradient(135deg, #f87171, #ef4444)';"
+                    onmouseout="this.style.background='linear-gradient(135deg, #ef4444, #dc2626)';">${$t('cancel')}</button>
+                <button id="template-save-btn" style="padding: 10px 24px; background: linear-gradient(135deg, #22c55e, #16a34a); 
+                    color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; 
+                    font-weight: 600; transition: all 0.2s ease;"
+                    onmouseover="this.style.background='linear-gradient(135deg, #4ade80, #22c55e)';"
+                    onmouseout="this.style.background='linear-gradient(135deg, #22c55e, #16a34a)';">${$t('save')}</button>
+            </div>
+        `;
+        
+        const closeEditor = () => {
+            editorOverlay.remove();
+        };
+        
+        editorDialog.querySelector("#template-cancel-btn").onclick = closeEditor;
+        
+        editorDialog.querySelector("#template-save-btn").onclick = async () => {
+            const nameInput = editorDialog.querySelector("#template-name-input");
+            const contentInput = editorDialog.querySelector("#template-content-input");
+            
+            const name = nameInput.value.trim();
+            const content = contentInput.value.trim();
+            
+            if (!name) {
+                showToast($t('templateNameRequired'), "error");
+                return;
+            }
+            
+            try {
+                let response;
+                if (isEdit) {
+                    response = await fetch(`/zhihui_nodes/qwen3vl/templates/${templateId}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name, content })
+                    });
+                } else {
+                    response = await fetch("/zhihui_nodes/qwen3vl/templates", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name, content })
+                    });
+                }
+                
+                const result = await response.json();
+                
+                if (result.status === "success") {
+                    showToast(isEdit ? $t('templateUpdated') : $t('templateCreated'), "success");
+                    closeEditor();
+                    await loadTemplates();
+                } else {
+                    showToast(isEdit ? $t('templateUpdateFailed') : $t('templateCreateFailed'), "error");
+                }
+            } catch (e) {
+                showToast(isEdit ? $t('templateUpdateFailed') : $t('templateCreateFailed'), "error");
+            }
+        };
+        
+        editorOverlay.appendChild(editorDialog);
+        document.body.appendChild(editorOverlay);
+        
+        editorDialog.querySelector("#template-name-input").focus();
+    };
+    
+    const deleteTemplate = async (templateId) => {
+        showConfirm($t('confirmDelete'), async () => {
+            try {
+                const response = await fetch(`/zhihui_nodes/qwen3vl/templates/${templateId}`, {
+                    method: "DELETE"
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === "success") {
+                    showToast($t('templateDeleted'), "success");
+                    await loadTemplates();
+                } else {
+                    showToast($t('templateDeleteFailed'), "error");
+                }
+            } catch (e) {
+                showToast($t('templateDeleteFailed'), "error");
+            }
+        });
+    };
+    
+    templateSearchInput.addEventListener("input", renderTemplateList);
+    templateSortSelect.addEventListener("change", renderTemplateList);
+    templateCreateBtn.onclick = () => showTemplateEditor();
+    
+    const loadConfig = async () => {
+        try {
+            const response = await fetch("/zhihui/lmstudio/config");
+            if (response.ok) {
+                const config = await response.json();
+                const savedPreset = config.preset || "Ignore";
+                presetSelect.value = savedPreset;
+                node.lmstudioState.lastParamPreset = savedPreset;
+                
+                const timeouts = config.timeouts || {};
+                timeoutFetchInput.value = timeouts.fetch_models || 5;
+                timeoutApiInput.value = timeouts.api_call || 450;
+                timeoutListInput.value = timeouts.unload_model_list || 10;
+                timeoutUnloadInput.value = timeouts.unload_model || 30;
+                
+                const promptVersion = config.prompt_version || "new";
+                promptVersionSelect.value = promptVersion;
+                originalPromptVersion = promptVersion;
+                updatePromptVersionHint();
+                
+                const showLogPanel = config.show_log_panel !== false;
+                showLogPanelCheckbox.checked = showLogPanel;
+                node.lmstudioState.showLogPanel = showLogPanel;
+                
+                const folderReadMode = config.folder_read_mode || "recursive";
+                const recursiveRadio = dialog.querySelector("#lmstudio-folder-mode-recursive");
+                const sequentialRadio = dialog.querySelector("#lmstudio-folder-mode-sequential");
+                if (folderReadMode === "sequential") {
+                    sequentialRadio.checked = true;
+                } else {
+                    recursiveRadio.checked = true;
+                }
+                updateFolderReadModeDisplay();
+                
+                updatePresetDisplay();
+            }
+        } catch (e) {
+            presetSelect.value = "Ignore";
+            timeoutFetchInput.value = 5;
+            timeoutApiInput.value = 450;
+            timeoutListInput.value = 10;
+            timeoutUnloadInput.value = 30;
+            promptVersionSelect.value = "new";
+            showLogPanelCheckbox.checked = true;
+            node.lmstudioState.showLogPanel = true;
+            updatePromptVersionHint();
+            updatePresetDisplay();
+        }
+    };
+    
+    const updateFolderReadModeDisplay = () => {
+        const recursiveLabel = dialog.querySelector("#folder-mode-recursive-label");
+        const sequentialLabel = dialog.querySelector("#folder-mode-sequential-label");
+        const recursiveRadio = dialog.querySelector("#lmstudio-folder-mode-recursive");
+        
+        if (recursiveRadio.checked) {
+            recursiveLabel.classList.add("active");
+            sequentialLabel.classList.remove("active");
+        } else {
+            recursiveLabel.classList.remove("active");
+            sequentialLabel.classList.add("active");
+        }
+    };
+    
+    const recursiveRadio = dialog.querySelector("#lmstudio-folder-mode-recursive");
+    const sequentialRadio = dialog.querySelector("#lmstudio-folder-mode-sequential");
+    recursiveRadio.addEventListener("change", updateFolderReadModeDisplay);
+    sequentialRadio.addEventListener("change", updateFolderReadModeDisplay);
+    
+    const updatePromptVersionHint = () => {
+        const hintEl = dialog.querySelector(".prompt-version-hint");
+        if (hintEl) {
+            const version = promptVersionSelect.value;
+            let prefixKey, optionsKey;
+            if (version === "premium") {
+                prefixKey = "premiumVersionHintPrefix";
+                optionsKey = "premiumVersionHintOptions";
+            } else if (version === "old") {
+                prefixKey = "oldVersionHintPrefix";
+                optionsKey = "oldVersionHintOptions";
+            } else {
+                prefixKey = "newVersionHintPrefix";
+                optionsKey = "newVersionHintOptions";
+            }
+            hintEl.innerHTML = `
+                <span class="hint-prefix">${$t(prefixKey)}</span>
+                <span class="hint-options">${$t(optionsKey)}</span>
+            `;
+        }
+    };
+    
+    promptVersionSelect.addEventListener("change", updatePromptVersionHint);
+    
+    const updatePresetDisplay = () => {
+        const selectedPreset = presetSelect.value;
+        const preset = paramPresets[selectedPreset];
+        
+        if (selectedPreset === "Custom" || selectedPreset === "Ignore") {
+            presetInfo.textContent = preset.description;
+            return;
+        }
+        
+        const paramsToShow = preset.params;
+        const labelMap = {
+            max_tokens: $t('maxTokens'),
+            temperature: $t('temperature'),
+            top_p: $t('topP'),
+            top_k: $t('topK'),
+            repetition_penalty: $t('repetition'),
+            presence_penalty: $t('presencePenalty'),
+            seed: $t('seed')
+        };
+        
+        const paramTexts = Object.entries(paramsToShow).map(([key, value]) => {
+            const label = labelMap[key] || key;
+            return `${label}: ${value}`;
+        });
+        
+        const paramsStr = paramTexts.join("，");
+        presetInfo.innerHTML = `${preset.description}<br><span class="preset-params-inline">${paramsStr}</span>`;
+    };
+    
+    presetSelect.addEventListener("change", () => {
+        node.lmstudioState.lastParamPreset = presetSelect.value;
+        updatePresetDisplay();
+    });
+    
+    const applyPresetToNode = (presetName) => {
+        const preset = paramPresets[presetName];
+        if (!preset || presetName === "Custom") return 0;
+        
+        const widgetMap = {
+            max_tokens: "max_tokens",
+            temperature: "temperature",
+            top_p: "top_p",
+            top_k: "top_k",
+            repetition_penalty: "repetition_penalty",
+            seed: "seed"
+        };
+        
+        let appliedCount = 0;
+        Object.entries(preset.params).forEach(([key, value]) => {
+            const widgetName = widgetMap[key];
+            if (widgetName) {
+                const widget = node.widgets?.find(w => w.name === widgetName);
+                if (widget) {
+                    widget.value = value;
+                    if (widget.callback) {
+                        widget.callback(value);
+                    }
+                    appliedCount++;
+                }
+            }
+        });
+        
+        return appliedCount;
+    };
+    
+    saveAllBtn.onclick = async () => {
+        const selectedPreset = presetSelect.value;
+        const showLogPanel = showLogPanelCheckbox.checked;
+        const folderReadMode = dialog.querySelector("#lmstudio-folder-mode-recursive").checked ? "recursive" : "sequential";
+
+        const config = {
+            preset: selectedPreset,
+            prompt_version: promptVersionSelect.value,
+            show_log_panel: showLogPanel,
+            folder_read_mode: folderReadMode,
+            timeouts: {
+                fetch_models: parseInt(timeoutFetchInput.value),
+                api_call: parseInt(timeoutApiInput.value),
+                unload_model_list: parseInt(timeoutListInput.value),
+                unload_model: parseInt(timeoutUnloadInput.value)
+            }
+        };
+
+        try {
+            const response = await fetch("/zhihui/lmstudio/config", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(config)
+            });
+
+            if (response.ok) {
+                node.lmstudioState.showLogPanel = showLogPanel;
+                if (node._logPanelHost) {
+                    node._logPanelHost.style.display = showLogPanel ? "block" : "none";
+                }
+                
+                let appliedCount = 0;
+                if (selectedPreset !== "Ignore") {
+                    appliedCount = applyPresetToNode(selectedPreset);
+                    if (appliedCount > 0) {
+                        node.setDirtyCanvas(true, true);
+                    }
+                }
+
+                const newPromptVersion = promptVersionSelect.value;
+                if (newPromptVersion !== originalPromptVersion) {
+                    originalPromptVersion = newPromptVersion;
+                    showToast($t('saveSuccessRefresh'), "success");
+                } else {
+                    showToast($t('saveSuccess'), "success");
+                }
+            } else {
+                showToast($t('saveFailed'), "error");
+            }
+        } catch (e) {
+            showToast($t('saveFailed') + ": " + e.message, "error");
+        }
+    };
+
+    resetDefaultBtn.onclick = () => {
+        showConfirm(
+            $t('confirmReset'),
+            async () => {
+                const needRefresh = originalPromptVersion !== "new";
+                
+                presetSelect.value = "Ignore";
+                node.lmstudioState.lastParamPreset = "Ignore";
+
+                timeoutFetchInput.value = 5;
+                timeoutApiInput.value = 450;
+                timeoutListInput.value = 10;
+                timeoutUnloadInput.value = 30;
+                promptVersionSelect.value = "new";
+                originalPromptVersion = "new";
+                showLogPanelCheckbox.checked = false;
+                node.lmstudioState.showLogPanel = false;
+                if (node._logPanelHost) {
+                    node._logPanelHost.style.display = "none";
+                }
+                
+                const recursiveRadio = dialog.querySelector("#lmstudio-folder-mode-recursive");
+                const sequentialRadio = dialog.querySelector("#lmstudio-folder-mode-sequential");
+                recursiveRadio.checked = true;
+                sequentialRadio.checked = false;
+                updateFolderReadModeDisplay();
+
+                updatePresetDisplay();
+
+                const config = {
+                    preset: "Ignore",
+                    prompt_version: "new",
+                    show_log_panel: false,
+                    folder_read_mode: "recursive",
+                    timeouts: {
+                        fetch_models: 5,
+                        api_call: 450,
+                        unload_model_list: 10,
+                        unload_model: 30
+                    }
+                };
+
+                try {
+                    const response = await fetch("/zhihui/lmstudio/config", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(config)
+                    });
+
+                    if (response.ok) {
+                        if (needRefresh) {
+                            showToast($t('saveSuccessRefresh'), "success");
+                        } else {
+                            showToast($t('resetSuccess'), "success");
+                        }
+                    } else {
+                        showToast($t('resetFailed'), "error");
+                    }
+                } catch (e) {
+                    showToast($t('resetFailed') + ": " + e.message, "error");
+                }
+            }
+        );
+    };
+
+    loadConfig();
+    loadTemplates();
+    
+    refreshDashboard();
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+}

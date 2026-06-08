@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Config files (contain user paths/API keys)
+.config.json
+.musubi_*.json
+.sdxl_config.json
+.sd15_config.json
+.flux_config.json
+.v2_save_paths.json
+.model_layer_*.json
+.model_diff_save_path.json
+
+# Claude Code
+.claude/
+
+# Internal tech docs (not for the public repo)
+V2_NODES_TECH_SPEC.md
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

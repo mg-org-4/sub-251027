@@ -105,13 +105,24 @@ document.addEventListener("keydown", (e) => {
   }
 }, true);
 
+// The node whose canvas is under the cursor — lets H toggle box visibility on hover (no click needed).
+let hoveredCanvasNode = null;
+document.addEventListener("keydown", (e) => {
+  if (!hoveredCanvasNode) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || (e.key !== "h" && e.key !== "H")) return;
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === "TEXTAREA" || ae.tagName === "INPUT" || ae.isContentEditable)) return;
+  e.preventDefault(); e.stopPropagation();
+  hoveredCanvasNode._toggleHideBoxes?.();
+}, true);
+
 function injectStyle() {
   if (document.getElementById("kjideo-style")) return;
   const s = document.createElement("style");
   s.id = "kjideo-style";
   s.textContent = `
     .kjideo-wrap { display:flex; flex-direction:column; overflow:hidden; position:relative; pointer-events:auto; gap:4px; }
-    .kjideo-canvas { cursor:crosshair; display:block; width:100%; height:auto; flex:0 0 auto; background:#1a1a1a; border-radius:4px; outline:none; }
+    .kjideo-canvas { cursor:crosshair; display:block; width:100%; height:auto; flex:0 0 auto; background:#1a1a1a; border-radius:4px; outline:none; touch-action:none; }
     .kjideo-bar { display:flex; align-items:center; gap:6px; font:11px sans-serif; color:#aaa; user-select:none; padding:0 2px; flex:0 0 auto; }
     .kjideo-panel { display:flex; flex-direction:column; gap:5px; padding:6px; background:#262626; border-radius:4px; font:11px sans-serif; color:#bbb; flex:0 0 auto; }
     .kjideo-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
@@ -119,7 +130,7 @@ function injectStyle() {
     .kjideo-btn:hover { border-color:#46b4e6; color:#fff; }
     .kjideo-btn.active { border-color:#46b4e6; color:#46b4e6; background:#2a3a42; }
     .kjideo-area { width:100%; box-sizing:border-box; background:#1d1d1d; border:1px solid #444; border-radius:4px; color:#ddd; font:13px monospace; padding:4px 6px; resize:vertical; min-height:36px; }
-    .kjideo-sw { width:20px; height:20px; border:1px solid #666; border-radius:3px; cursor:pointer; flex-shrink:0; position:relative; transition:transform .18s ease, box-shadow .12s ease, opacity .12s ease; }
+    .kjideo-sw { width:20px; height:20px; border:1px solid #666; border-radius:3px; cursor:pointer; flex-shrink:0; position:relative; touch-action:none; transition:transform .18s ease, box-shadow .12s ease, opacity .12s ease; }
     .kjideo-sw:hover { transform:scale(1.2); box-shadow:0 0 0 2px #46b4e6; z-index:3; }
     .kjideo-sw.dragging { opacity:.4; box-shadow:0 0 0 2px #46b4e6; }
     body.kjideo-dragging, body.kjideo-dragging * { cursor:move !important; }
@@ -129,7 +140,7 @@ function injectStyle() {
     .kjideo-bbox:focus { border-color:#46b4e6; outline:none; color:#fff; }
     .kjideo-menu { position:fixed; z-index:10000; background:#262626; border:1px solid #555; border-radius:6px; padding:4px; box-shadow:0 6px 20px rgba(0,0,0,0.55); font:12px sans-serif; color:#ddd; max-height:60vh; overflow-y:auto; min-width:210px; max-width:340px; }
     .kjideo-mhdr { font:11px sans-serif; color:#888; padding:2px 6px 4px; user-select:none; }
-    .kjideo-lrow { display:flex; align-items:center; gap:6px; padding:3px 5px; border-radius:4px; cursor:move; user-select:none; transition:transform .18s ease, box-shadow .12s ease, opacity .12s ease, background .12s; }
+    .kjideo-lrow { display:flex; align-items:center; gap:6px; padding:3px 5px; border-radius:4px; cursor:move; user-select:none; touch-action:none; transition:transform .18s ease, box-shadow .12s ease, opacity .12s ease, background .12s; }
     .kjideo-lrow:hover { background:#333; }
     .kjideo-lrow.active { background:#2a3a42; box-shadow:inset 0 0 0 1px #46b4e6; }
     .kjideo-lrow.dragging { opacity:.4; box-shadow:0 0 0 2px #46b4e6; background:#333; }
@@ -140,6 +151,12 @@ function injectStyle() {
     .kjideo-lbtn { background:none; border:none; color:#999; cursor:pointer; font:13px sans-serif; line-height:1; padding:2px 5px; border-radius:3px; flex:0 0 auto; }
     .kjideo-lbtn:hover { color:#fff; background:#444; }
     .kjideo-lbtn.del:hover { color:#fff; background:#a33; }
+    .kjideo-fs { position:fixed; inset:0; z-index:9000; background:rgba(0,0,0,0.72); display:flex; align-items:center; justify-content:center; }
+    .kjideo-fs-inner { position:relative; width:88vw; height:90vh; background:#1a1a1a; border:1px solid #444; border-radius:8px; box-shadow:0 12px 48px rgba(0,0,0,0.6); padding:12px; box-sizing:border-box; }
+    .kjideo-fs-inner .kjideo-wrap { height:100%; }
+    .kjideo-bgmenu { padding:7px; display:flex; flex-direction:column; gap:7px; min-width:170px; }
+    .kjideo-bgrow { display:flex; align-items:center; gap:8px; }
+    .kjideo-bglbl { color:#888; font:11px sans-serif; flex:0 0 auto; min-width:62px; }
   `;
   document.head.appendChild(s);
 }
@@ -246,7 +263,85 @@ app.registerExtension({
       bgSlider.style.cssText = "width:64px;flex:0 0 auto;";
       stopProp(bgSlider);
       bgSlider.addEventListener("input", () => { if (bgBrightnessWidget) bgBrightnessWidget.value = parseInt(bgSlider.value, 10); drawCanvas(); });
-      bar.appendChild(hint); bar.appendChild(liveLabel); bar.appendChild(grabBtn); bar.appendChild(bgSlider); bar.appendChild(tokenSpan); bar.appendChild(copyBtn); bar.appendChild(importBtn); bar.appendChild(clearBtn);
+      const guideSel = document.createElement("select");
+      guideSel.className = "kjideo-btn"; guideSel.style.cssText = "flex:0 0 auto;";
+      guideSel.title = "Composition guide overlay (editor view only)";
+      for (const [val, label] of [["none", "no guide"], ["thirds", "thirds"], ["grid", "grid"], ["golden", "golden ratio"], ["spiral", "golden spiral"]]) {
+        const o = document.createElement("option"); o.value = val; o.textContent = label; guideSel.appendChild(o);
+      }
+      guideSel.value = node.properties.guide || "none";
+      stopProp(guideSel);
+      guideSel.addEventListener("change", () => { node.properties.guide = guideSel.value; drawCanvas(); });
+      const fsBtn = document.createElement("button");
+      fsBtn.className = "kjideo-btn"; fsBtn.textContent = "⛶";
+      fsBtn.title = "Open in a larger window (Esc to close)";
+      stopProp(fsBtn);
+      fsBtn.addEventListener("click", () => node._fullscreen ? exitFs() : enterFs());
+      // Group the background/guide controls into one popup to keep the toolbar tidy.
+      const bgBtn = document.createElement("button");
+      bgBtn.className = "kjideo-btn"; bgBtn.textContent = "Background ▾";
+      bgBtn.title = "Background & guides: live preview, grab/clear, brightness, composition guide";
+      stopProp(bgBtn);
+      const GRID_INV = 130;       // slider shows cell SIZE: position = GRID_INV - divisions (right = larger cells)
+      const gridSlider = document.createElement("input");
+      gridSlider.type = "range"; gridSlider.min = "2"; gridSlider.max = "128"; gridSlider.step = "1";
+      gridSlider.value = GRID_INV - (node.properties.gridSize || 10);
+      gridSlider.style.cssText = "width:90px;flex:0 0 auto;";
+      gridSlider.title = "Grid cell size (drag right for larger cells); also the snap step";
+      stopProp(gridSlider);
+      gridSlider.addEventListener("input", () => { node.properties.gridSize = GRID_INV - parseInt(gridSlider.value, 10); drawCanvas(); });
+      const snapLabel = document.createElement("label");
+      snapLabel.style.cssText = "display:flex;align-items:center;gap:4px;cursor:pointer;";
+      const snapChk = document.createElement("input");
+      snapChk.type = "checkbox"; snapChk.checked = !!node.properties.snap;
+      snapChk.addEventListener("change", () => { node.properties.snap = snapChk.checked; });
+      snapLabel.appendChild(snapChk); snapLabel.appendChild(document.createTextNode("snap to grid"));
+      const guideColor = document.createElement("input");
+      guideColor.type = "color"; guideColor.value = node.properties.guideColor || "#ffffff";
+      guideColor.style.cssText = "width:32px;height:20px;flex:0 0 auto;padding:0;border:1px solid #555;background:none;";
+      stopProp(guideColor);
+      guideColor.addEventListener("input", () => { node.properties.guideColor = guideColor.value; drawCanvas(); });
+      const opacitySlider = document.createElement("input");
+      opacitySlider.type = "range"; opacitySlider.min = "0"; opacitySlider.max = "100"; opacitySlider.step = "1";
+      opacitySlider.value = node.properties.guideOpacity == null ? 100 : node.properties.guideOpacity;
+      opacitySlider.style.cssText = "width:90px;flex:0 0 auto;";
+      opacitySlider.title = "Guide/grid line opacity";
+      stopProp(opacitySlider);
+      opacitySlider.addEventListener("input", () => { node.properties.guideOpacity = parseInt(opacitySlider.value, 10); drawCanvas(); });
+      const bgMenu = document.createElement("div");
+      bgMenu.className = "kjideo-menu kjideo-bgmenu";
+      bgMenu.style.display = "none";
+      const bgRow = (labelText, el) => {
+        const r = document.createElement("div"); r.className = "kjideo-bgrow";
+        if (labelText) { const l = document.createElement("span"); l.className = "kjideo-bglbl"; l.textContent = labelText; r.appendChild(l); }
+        r.appendChild(el); bgMenu.appendChild(r);
+      };
+      bgRow("", liveLabel); bgRow("", grabBtn); bgRow("Brightness", bgSlider);
+      bgRow("Guide", guideSel); bgRow("Grid size", gridSlider); bgRow("", snapLabel);
+      bgRow("Line color", guideColor); bgRow("Line opacity", opacitySlider);
+      document.body.appendChild(bgMenu);
+      node._bgMenu = bgMenu;
+      function closeBgMenu() {
+        bgMenu.style.display = "none";
+        if (node._bgMenuDismiss) {
+          document.removeEventListener("pointerdown", node._bgMenuDismiss, true);
+          document.removeEventListener("mousedown", node._bgMenuDismiss, true);
+          node._bgMenuDismiss = null;
+        }
+      }
+      bgBtn.addEventListener("click", () => {
+        if (bgMenu.style.display !== "none") { closeBgMenu(); return; }
+        bgMenu.style.display = "";
+        const r = bgBtn.getBoundingClientRect();
+        bgMenu.style.left = Math.max(4, Math.min(r.left, window.innerWidth - bgMenu.offsetWidth - 4)) + "px";
+        bgMenu.style.top = Math.min(r.bottom + 4, window.innerHeight - bgMenu.offsetHeight - 4) + "px";
+        node._bgMenuDismiss = (e) => { if (!bgMenu.contains(e.target) && e.target !== bgBtn) closeBgMenu(); };
+        setTimeout(() => {
+          document.addEventListener("pointerdown", node._bgMenuDismiss, true);
+          document.addEventListener("mousedown", node._bgMenuDismiss, true);
+        }, 0);
+      });
+      bar.appendChild(hint); bar.appendChild(bgBtn); bar.appendChild(tokenSpan); bar.appendChild(copyBtn); bar.appendChild(importBtn); bar.appendChild(fsBtn); bar.appendChild(clearBtn);
       updateGrabBtn();
 
       // Persistent global style-palette row
@@ -261,7 +356,7 @@ app.registerExtension({
       canvasEl.tabIndex = 0;                                  // focusable, so it can receive key events
       canvasEl.title = "Drag to draw · Ctrl-drag force-draw over a box · click to select · shift-drag marquee-select · " +
         "shift-click toggle · drag a group to move all · alt-click overlap · dbl-click edit · right-click region list · " +
-        "Del remove (all selected) · Ctrl/Cmd+C/V/D copy/paste/duplicate";
+        "Del remove (all selected) · Ctrl/Cmd+C/V/D copy/paste/duplicate · H hide boxes (view)";
       const ctx = canvasEl.getContext("2d");
       addWheelPassthrough(wrap);
       addMiddleClickPan(canvasEl);
@@ -295,7 +390,7 @@ app.registerExtension({
 
       // ── canvas sizing ──
       // The display size is CSS-driven (width:100% + aspect-ratio); the backing store
-      // is sized to display × devicePixelRatio in prepCanvas() so text/lines stay crisp.
+      // is sized to display × devicePixelRatio in _draw() so text/lines stay crisp.
       function setCanvasSize(w, h) {
         canvasEl.style.aspectRatio = `${w} / ${h}`;          // display shape only
         if (node.graph) node.graph.setDirtyCanvas(true, true);
@@ -317,10 +412,55 @@ app.registerExtension({
         }
       }
       function fitNode() {
+        if (node._fullscreen) { fitFsCanvas(); return; }     // in the popup, size the canvas, not the node
         recalcWidgetHeight();
         // computeSize (stable min-heights), not last_y which creeps with growable widgets above.
         const minH = node.computeSize()[1];
         if (node.size[1] < minH) node.setSize([node.size[0], minH]);
+      }
+
+      // ── larger popup window (relocates the editor into a centered overlay) ──
+      function fitFsCanvas() {                                // fit the fixed-aspect canvas into the popup
+        if (!node._fullscreen || !node._fsInner) return;
+        const availW = node._fsInner.clientWidth - 24;
+        const availH = node._fsInner.clientHeight - 24 - 16 - bar.offsetHeight - styleBar.offsetHeight - panel.offsetHeight;
+        const aspect = (wWidget?.value || 1) / (hWidget?.value || 1);
+        let cw = availW, ch = cw / aspect;
+        if (ch > availH) { ch = Math.max(60, availH); cw = ch * aspect; }
+        if (cw > availW) { cw = availW; ch = cw / aspect; }
+        canvasEl.style.width = Math.round(cw) + "px";
+        canvasEl.style.height = Math.round(ch) + "px";
+        canvasEl.style.alignSelf = "center";
+        drawCanvas();
+      }
+      function onFsEsc(e) { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); exitFs(); } }
+      function enterFs() {
+        if (node._fullscreen) return;
+        node._fullscreen = true;
+        node._wrapHome = wrap.parentNode;                    // where to return the editor on close
+        const ov = document.createElement("div"); ov.className = "kjideo-fs";
+        const inner = document.createElement("div"); inner.className = "kjideo-fs-inner";
+        inner.appendChild(wrap);                             // move the SAME editor element in (keeps all state)
+        ov.appendChild(inner);
+        ov.addEventListener("mousedown", (e) => { if (e.target === ov) exitFs(); });  // backdrop closes
+        document.body.appendChild(ov);
+        node._fsOverlay = ov; node._fsInner = inner;
+        if (node.ideoEditor) node.ideoEditor.hidden = true;  // stop ComfyUI from reclaiming the element
+        document.addEventListener("keydown", onFsEsc, true);
+        window.addEventListener("resize", fitFsCanvas);
+        requestAnimationFrame(fitFsCanvas);
+      }
+      function exitFs() {
+        if (!node._fullscreen) return;
+        node._fullscreen = false;
+        document.removeEventListener("keydown", onFsEsc, true);
+        window.removeEventListener("resize", fitFsCanvas);
+        canvasEl.style.width = ""; canvasEl.style.height = ""; canvasEl.style.alignSelf = "";  // restore CSS sizing
+        if (node._wrapHome) node._wrapHome.appendChild(wrap);
+        node._fsOverlay?.remove(); node._fsOverlay = null; node._fsInner = null;
+        if (node.ideoEditor) node.ideoEditor.hidden = false;
+        if (node.graph) node.graph.setDirtyCanvas(true, true);
+        requestAnimationFrame(() => { fitNode(); drawCanvas(); });
       }
 
       // ── geometry helpers ── (logical CSS px = the displayed canvas size)
@@ -459,7 +599,70 @@ app.registerExtension({
         return mode === "move" ? { ...start, x, y } : normalizeBox({ ...start, x, y, w, h });
       }
 
+      // ── grid / guides ──
+      function gridN() { return Math.max(2, Math.min(128, node.properties.gridSize || 10)); }
+      function guideStroke(a) {
+        const c = hexRgb(node.properties.guideColor || "#ffffff") || { r: 255, g: 255, b: 255 };
+        const op = (node.properties.guideOpacity == null ? 100 : node.properties.guideOpacity) / 100;
+        return `rgba(${c.r},${c.g},${c.b},${(a * op).toFixed(3)})`;
+      }
+      // Snap a box's free edges to the (square) grid when snap-to-grid is on.
+      function snapBox(b, mode) {
+        if (!node.properties.snap) return b;
+        const W = logW(), H = logH(), cell = Math.min(W, H) / gridN();
+        const sx = cell / W, sy = cell / H, sn = (v, s) => Math.round(v / s) * s;
+        let { x, y, w, h } = b;
+        if (mode === "move") { x = sn(x, sx); y = sn(y, sy); }
+        else { const x2 = sn(x + w, sx), y2 = sn(y + h, sy); x = sn(x, sx); y = sn(y, sy); w = x2 - x; h = y2 - y; }
+        return normalizeBox({ ...b, x, y, w, h });
+      }
+
       // ── drawing ──
+      // Golden spiral: largest φ-rectangle fitting the canvas, subdivided into squares with quarter arcs.
+      function goldenSpiral(W, H) {
+        const phi = 1.6180339887;
+        let w, h;
+        if (W >= H) { if (W / H >= phi) { h = H; w = H * phi; } else { w = W; h = W / phi; } }
+        else { if (H / W >= phi) { w = W; h = W * phi; } else { h = H; w = H / phi; } }
+        let x = (W - w) / 2, y = (H - h) / 2;
+        ctx.save();
+        ctx.strokeStyle = guideStroke(0.25); ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+        ctx.strokeStyle = guideStroke(0.6); ctx.lineWidth = 1.5;
+        let phase = w >= h ? 0 : 1;
+        for (let i = 0; i < 12 && w > 1 && h > 1; i++, phase = (phase + 1) % 4) {
+          const s = Math.min(w, h);
+          let cx, cy, a0, a1;
+          if (phase === 0)      { cx = x + s;     cy = y + s;     a0 = Math.PI;       a1 = Math.PI * 1.5; x += s; w -= s; }
+          else if (phase === 1) { cx = x;         cy = y + s;     a0 = Math.PI * 1.5; a1 = Math.PI * 2;   y += s; h -= s; }
+          else if (phase === 2) { cx = x + w - s; cy = y;         a0 = 0;             a1 = Math.PI * 0.5; w -= s; }
+          else                  { cx = x + w;     cy = y + h - s; a0 = Math.PI * 0.5; a1 = Math.PI;       h -= s; }
+          ctx.beginPath(); ctx.arc(cx, cy, s, a0, a1); ctx.stroke();
+        }
+        ctx.restore();
+      }
+      // Composition guide overlay (rule of thirds / grid / golden ratio / spiral), drawn on the bg.
+      function drawGuide(W, H) {
+        const kind = node.properties.guide;
+        if (!kind || kind === "none") return;
+        if (kind === "spiral") { goldenSpiral(W, H); return; }
+        ctx.save();
+        ctx.lineWidth = 1;
+        if (kind === "grid") {                          // square cells (gridSize across the short edge), any aspect
+          ctx.strokeStyle = guideStroke(0.24);
+          const cell = Math.min(W, H) / gridN();
+          for (let px = cell; px < W - 0.5; px += cell) { const X = Math.round(px) + 0.5; ctx.beginPath(); ctx.moveTo(X, 0); ctx.lineTo(X, H); ctx.stroke(); }
+          for (let py = cell; py < H - 0.5; py += cell) { const Y = Math.round(py) + 0.5; ctx.beginPath(); ctx.moveTo(0, Y); ctx.lineTo(W, Y); ctx.stroke(); }
+          ctx.restore(); return;
+        }
+        const v = [], h = [];                           // thirds / golden: per-axis fractions (correct at any aspect)
+        if (kind === "thirds") { v.push(1 / 3, 2 / 3); h.push(1 / 3, 2 / 3); }
+        else if (kind === "golden") { const g = 1 / 1.6180339887; v.push(1 - g, g); h.push(1 - g, g); }
+        ctx.strokeStyle = guideStroke(kind === "golden" ? 0.45 : 0.28);
+        for (const fx of v) { const px = Math.round(fx * W) + 0.5; ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke(); }
+        for (const fy of h) { const py = Math.round(fy * H) + 0.5; ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke(); }
+        ctx.restore();
+      }
       let _rafPending = false;
       function drawCanvas() {
         if (_rafPending) return;
@@ -486,6 +689,8 @@ app.registerExtension({
           const g = Math.round(bri / 100 * 128);
           ctx.fillStyle = `rgb(${g},${g},${g})`; ctx.fillRect(0, 0, W, H);
         }
+        drawGuide(W, H);                                          // composition guide overlay
+        if (node._hideBoxes) return;                              // H: temporary background-only view
         // selection highlight only when the editor is focused or the node is selected
         const showSel = node._focused || node._selected;
         const aIdx = showSel ? node._activeIdx : -1;
@@ -515,13 +720,6 @@ app.registerExtension({
           ctx.strokeStyle = col; ctx.lineWidth = lw;
           ctx.strokeRect(x1 + lw / 2, y1 + lw / 2, w - lw, h - lw);  // inside the box so strip/badge align at y1
           ctx.setLineDash([]);
-          if (selected) {                                    // orange selection ring outside the box: solid = primary, dashed = others
-            const off = 3;
-            ctx.strokeStyle = "#ff8c00"; ctx.lineWidth = active ? 3 : 2;
-            if (!active) ctx.setLineDash([5, 3]);
-            ctx.strokeRect(x1 - off, y1 - off, w + off * 2, h + off * 2);
-            ctx.setLineDash([]);
-          }
           if (pal.length) {                                  // palette shown as a strip along the top edge
             const sw = w / pal.length, n = pal.length, sh = 7;
             for (let p = 0; p < n; p++) {
@@ -559,6 +757,13 @@ app.registerExtension({
           ctx.fillStyle = textOn(col);
           ctx.fillText(tr.tag, tr.x + 4, tr.y + 11);
           ctx.restore();
+          if (selected) {                                    // orange selection ring on top (above strip/tag): solid = primary, dashed = others
+            const olw = active ? 2 : 1;
+            ctx.strokeStyle = "#ff8c00"; ctx.lineWidth = olw;
+            if (!active) ctx.setLineDash([5, 3]);
+            ctx.strokeRect(x1 + olw / 2, y1 + olw / 2, w - olw, h - olw);
+            ctx.setLineDash([]);
+          }
         }
         if (node._marquee && node._marqueeActive) {           // rubber-band selection rectangle
           const r = marqueeRect();
@@ -605,7 +810,7 @@ app.registerExtension({
       }
 
       // ── pointer interaction ──
-      canvasEl.addEventListener("mousedown", (e) => {
+      canvasEl.addEventListener("pointerdown", (e) => {
         if (node._placing) {             // drop the duplicate being placed
           if (e.button === 0) { placeFollower(mouseN(e)); finishPlacing(); }
           else cancelPlacing();
@@ -613,11 +818,23 @@ app.registerExtension({
           return;
         }
         if (e.button !== 0) return;
+        if (node._hideBoxes) return;     // view-only while boxes are hidden (H)
         canvasEl.focus();                // so Delete/Backspace targets this editor
+        // capture the pointer so move/up keep coming even when the cursor leaves the node
+        try { canvasEl.setPointerCapture(e.pointerId); } catch (e2) {}
         node._hoverTitle = null; node._hoverBox = null;  // clear hover highlight while interacting
         const mN = mouseN(e);
         // Ctrl/Cmd forces drawing a new box even when starting over an existing one.
         const hit = (e.ctrlKey || e.metaKey) ? null : pickForSelection(mN, e.altKey);
+        // Touch double-tap opens the inline editor (dblclick may not fire on touch).
+        if (e.pointerType && e.pointerType !== "mouse") {
+          const last = node._lastTap, now = e.timeStamp;
+          if (hit && last && now - last.t < 350 && Math.abs(mN.x - last.x) < 0.03 && Math.abs(mN.y - last.y) < 0.03) {
+            node._lastTap = null; openInlineEditor(hit.index);
+            e.preventDefault(); e.stopPropagation(); return;
+          }
+          node._lastTap = { t: now, x: mN.x, y: mN.y };
+        }
         node._pendingCollapse = -1;
         node._groupStart = null;
         if (e.shiftKey) {                              // shift-drag = marquee select; shift-click = toggle
@@ -645,16 +862,16 @@ app.registerExtension({
         }
         node._drawing = true;
         node._dragStartN = mN;
-        document.addEventListener("mousemove", onMove);
-        document.addEventListener("mouseup", onUp);
+        document.addEventListener("pointermove", onMove);
+        document.addEventListener("pointerup", onUp);
         e.preventDefault(); e.stopPropagation();
         drawCanvas();   // panel rebuild/resize deferred to onUp so the canvas doesn't shift mid-drag
       });
 
-      canvasEl.addEventListener("mousemove", (e) => {
+      canvasEl.addEventListener("pointermove", (e) => {
         node._lastMouseN = mouseN(e);                        // track cursor for paste-under-cursor
         if (node._placing) { placeFollower(node._lastMouseN); return; }
-        if (node._drawing || node._marquee) return;
+        if (node._drawing || node._marquee || node._hideBoxes) return;
         const mN = mouseN(e);
         const force = e.ctrlKey || e.metaKey;               // Ctrl/Cmd = force-draw
         const ti = force ? null : titleAt(mN);
@@ -665,11 +882,15 @@ app.registerExtension({
         }
         canvasEl.style.cursor = ti != null ? "pointer" : (hit ? (cursorForBboxMode(hit.mode) || "crosshair") : "crosshair");
       });
-      canvasEl.addEventListener("mouseleave", () => {
+      canvasEl.addEventListener("pointerleave", () => {
+        if (hoveredCanvasNode === node) hoveredCanvasNode = null;
         if (node._hoverTitle !== null || node._hoverBox !== null) {
           node._hoverTitle = null; node._hoverBox = null; drawCanvas();
         }
       });
+      canvasEl.addEventListener("pointerenter", () => { hoveredCanvasNode = node; });
+      // H (while hovering the canvas): temporary background-only view (not serialized).
+      node._toggleHideBoxes = () => { node._hideBoxes = !node._hideBoxes; drawCanvas(); };
 
       // ── inline description editing (double-click a region) ──
       let inlineTa = null;
@@ -715,6 +936,7 @@ app.registerExtension({
         });
       }
       canvasEl.addEventListener("dblclick", (e) => {
+        if (node._hideBoxes) return;
         e.preventDefault(); e.stopPropagation();
         const cands = boxesAt(mouseN(e));     // edit the active box if it's under the cursor, else topmost
         const target = cands.find((c) => c.index === node._activeIdx) || cands[0];
@@ -761,7 +983,7 @@ app.registerExtension({
           if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancelPlacing(); }
           return;
         }
-        if (node._drawing) return;
+        if (node._drawing || node._hideBoxes) return;   // view-only while boxes are hidden (H)
         const ctrl = e.ctrlKey || e.metaKey;
         if ((e.key === "Delete" || e.key === "Backspace") && node._activeIdx >= 0) {
           e.preventDefault(); e.stopPropagation();
@@ -791,6 +1013,11 @@ app.registerExtension({
             dx = Math.min(Math.max(dx, -s.x), 1 - s.w - s.x);
             dy = Math.min(Math.max(dy, -s.y), 1 - s.h - s.y);
           }
+          if (node.properties.snap) {                 // snap the group's movement to whole grid cells
+            const cell = Math.min(logW(), logH()) / gridN();
+            dx = Math.round(dx / (cell / logW())) * (cell / logW());
+            dy = Math.round(dy / (cell / logH())) * (cell / logH());
+          }
           for (const i in node._groupStart) {
             const s = node._groupStart[i];
             node._boxes[i] = { ...s, x: s.x + dx, y: s.y + dy };
@@ -818,7 +1045,7 @@ app.registerExtension({
           drawCanvas(); updateBboxLabel();
           return;
         }
-        const nb = applyDrag(node._dragMode, node._boxAtStart, dN);
+        const nb = snapBox(applyDrag(node._dragMode, node._boxAtStart, dN), node._dragMode);
         delete nb.nobbox;            // moving/resizing places the element (gives it a bbox)
         node._boxes[node._activeIdx] = nb;
         drawCanvas(); updateBboxLabel();
@@ -826,8 +1053,8 @@ app.registerExtension({
       function onUp() {
         if (!node._drawing) return;
         node._drawing = false;
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
         // a click (no drag) on empty space drops the placeholder box and deselects everything
         const b = node._boxes[node._activeIdx];
         if (b && (b.w < 0.005 || b.h < 0.005) && node._dragMode === "draw") {
@@ -855,8 +1082,8 @@ app.registerExtension({
         node._marqueeStartHit = startHit;               // for the shift-click (no drag) toggle fallback
         node._marqueeActive = false;
         canvasEl.focus();
-        document.addEventListener("mousemove", onMarqueeMove);
-        document.addEventListener("mouseup", onMarqueeUp);
+        document.addEventListener("pointermove", onMarqueeMove);
+        document.addEventListener("pointerup", onMarqueeUp);
         drawCanvas();
       }
       function onMarqueeMove(e) {
@@ -874,8 +1101,8 @@ app.registerExtension({
         drawCanvas();
       }
       function onMarqueeUp() {
-        document.removeEventListener("mousemove", onMarqueeMove);
-        document.removeEventListener("mouseup", onMarqueeUp);
+        document.removeEventListener("pointermove", onMarqueeMove);
+        document.removeEventListener("pointerup", onMarqueeUp);
         if (!node._marqueeActive && node._marqueeStartHit >= 0) {   // shift-click on a box → toggle it
           const idx = node._marqueeStartHit;
           if (node._selection.has(idx) && node._selection.size > 1) {
@@ -1011,7 +1238,7 @@ app.registerExtension({
               buildRows();
             });
             // drag-reorder (vertical FLIP, mirrors the palette swatch reorder)
-            row.addEventListener("mousedown", (e) => {
+            row.addEventListener("pointerdown", (e) => {
               if (e.button !== 0 || e.target === dup || e.target === del) return;
               e.preventDefault(); e.stopPropagation();
               const sx = e.clientX, sy = e.clientY;
@@ -1043,8 +1270,8 @@ app.registerExtension({
                 }
               };
               const up = () => {
-                document.removeEventListener("mousemove", move);
-                document.removeEventListener("mouseup", up);
+                document.removeEventListener("pointermove", move);
+                document.removeEventListener("pointerup", up);
                 document.body.classList.remove("kjideo-dragging");
                 if (dragging) {
                   row.classList.remove("dragging");
@@ -1057,8 +1284,8 @@ app.registerExtension({
                   commit();
                 }
               };
-              document.addEventListener("mousemove", move);
-              document.addEventListener("mouseup", up);
+              document.addEventListener("pointermove", move);
+              document.addEventListener("pointerup", up);
             });
           });
         }
@@ -1081,7 +1308,7 @@ app.registerExtension({
 
       canvasEl.addEventListener("contextmenu", (e) => {
         e.preventDefault(); e.stopPropagation();
-        if (node._placing) return;
+        if (node._placing || node._hideBoxes) return;
         closeInlineEditor();
         openLayersMenu(e.clientX, e.clientY);
       });
@@ -1282,11 +1509,11 @@ app.registerExtension({
           container.appendChild(sw);
           const setColor = (hex2) => { arr[i] = hex2; inp.value = hex2; sw.style.background = hex2; sw.dataset.hex = hex2; onEdit(); };
           inp.addEventListener("input", () => setColor(inp.value));
-          sw.addEventListener("mouseenter", () => { hoveredSwatch = { sw, setColor }; });
-          sw.addEventListener("mouseleave", () => { if (hoveredSwatch && hoveredSwatch.sw === sw) hoveredSwatch = null; });
+          sw.addEventListener("pointerenter", () => { hoveredSwatch = { sw, setColor }; });
+          sw.addEventListener("pointerleave", () => { if (hoveredSwatch && hoveredSwatch.sw === sw) hoveredSwatch = null; });
           sw.addEventListener("wheel", (e) => e.stopPropagation());
           sw.addEventListener("contextmenu", (e) => { e.preventDefault(); e.stopPropagation(); arr.splice(i, 1); onStruct(); });
-          sw.addEventListener("mousedown", (e) => {
+          sw.addEventListener("pointerdown", (e) => {
             if (e.button !== 0) return;
             e.preventDefault(); e.stopPropagation();
             const sx = e.clientX, sy = e.clientY;
@@ -1318,8 +1545,8 @@ app.registerExtension({
               }
             };
             const up = () => {
-              document.removeEventListener("mousemove", move);
-              document.removeEventListener("mouseup", up);
+              document.removeEventListener("pointermove", move);
+              document.removeEventListener("pointerup", up);
               document.body.classList.remove("kjideo-dragging");
               if (dragging) {
                 sw.classList.remove("dragging");
@@ -1330,8 +1557,8 @@ app.registerExtension({
                 inp.click();                                 // no drag → treat as click, open the picker
               }
             };
-            document.addEventListener("mousemove", move);
-            document.addEventListener("mouseup", up);
+            document.addEventListener("pointermove", move);
+            document.addEventListener("pointerup", up);
           });
         });
         if (arr.length < max) {
@@ -1518,7 +1745,7 @@ app.registerExtension({
       // ── keep canvas + getMinHeight in sync while the node is resized ──
       let _resizing = false;
       chainCallback(node, "onResize", function () {
-        if (_resizing) return;
+        if (_resizing || node._fullscreen) return;
         _resizing = true;
         recalcWidgetHeight();
         // Resize clamp reads computeSize() before getMinHeight refreshes; re-grow with fresh min.
@@ -1583,7 +1810,14 @@ app.registerExtension({
 
       chainCallback(node, "onRemoved", function () {
         livePreviewNodes.delete(node);
+        if (hoveredCanvasNode === node) hoveredCanvasNode = null;
+        if (node._fullscreen) {                       // tear down the popup if open
+          document.removeEventListener("keydown", onFsEsc, true);
+          window.removeEventListener("resize", fitFsCanvas);
+          node._fsOverlay?.remove();
+        }
         node._visObserver?.disconnect();
+        closeBgMenu(); node._bgMenu?.remove();
         closeInlineEditor();
         closeLayersMenu();
         for (const ro of node._areaObservers) ro.disconnect();
@@ -1600,7 +1834,7 @@ app.registerExtension({
       }
       // Persist editor data by name (robust to widget-order changes across versions).
       chainCallback(node, "onSerialize", function (o) {
-        if (o) o.ideo = { boxes: node._boxes, palette: node._stylePalette };
+        if (o) o.ideo = { boxes: node._boxes, palette: node._stylePalette, importMode: findW("import_mode")?.value };
       });
       chainCallback(node, "onConfigure", function (o) {
         const raw = o && Array.isArray(o.widgets_values) ? o.widgets_values : [];
@@ -1618,9 +1852,19 @@ app.registerExtension({
         if (!pal) { try { const p = JSON.parse(stylePaletteWidget?.value || ""); if (isPal(p)) pal = p; } catch (e) {} }
         if (!pal) { for (const v of raw) { try { const p = JSON.parse(v); if (isPal(p)) { pal = p; break; } } catch (e) {} } }
         if (pal) node._stylePalette = pal.slice();
+        const im = o && o.ideo && o.ideo.importMode, imW = findW("import_mode");
+        if (im && imW) imW.value = im;                        // restore import_mode (index-based restore is unreliable here)
         hideDataWidgets();
         serialize();                                         // realign widget values for Python + future saves
         if (bgBrightnessWidget) bgSlider.value = bgBrightnessWidget.value;
+        // node.properties is restored after onNodeCreated, so resync the toolbar controls to it.
+        liveChk.checked = !!node.properties.liveBg;
+        if (liveChk.checked) livePreviewNodes.add(node); else livePreviewNodes.delete(node);
+        guideSel.value = node.properties.guide || "none";
+        gridSlider.value = GRID_INV - (node.properties.gridSize || 10);
+        snapChk.checked = !!node.properties.snap;
+        guideColor.value = node.properties.guideColor || "#ffffff";
+        opacitySlider.value = node.properties.guideOpacity == null ? 100 : node.properties.guideOpacity;
         syncCanvasToDims();
         rebuildStylePalette();
         renderPanel();

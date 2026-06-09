@@ -43,6 +43,9 @@ class _RuntimeStats:
         self.rf_eps: Optional[torch.Tensor] = None
         self.rf_prev_z: Optional[torch.Tensor] = None
         self.rf_prev_sigma: Optional[float] = None
+        self.rf_prev_v: Optional[torch.Tensor] = None
+        self.rf_path_len_l2: float = 0.0
+        self.rf_path_start_z: Optional[torch.Tensor] = None
         self.rf_step_count: int = 0
         self.rf_run_count: int = 0
         self.rf_sampler_sigmas: Optional[List[float]] = None
@@ -170,6 +173,60 @@ def _rf_scalar_fmt(value: Any, digits: int = 6) -> str:
     except Exception as exc:
         raise RuntimeError(f'{_RF_PREFIX} scalar formatting failed for value={value!r}: {exc}') from exc
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# RF gamma=1 health diagnostics helpers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _rf_flat_cosine(a: torch.Tensor, b: torch.Tensor) -> float:
+    """Cosine similarity over all elements. Returns nan for degenerate tensors."""
+    af = a.detach().float().flatten()
+    bf = b.detach().float().flatten()
+    denom = af.norm() * bf.norm()
+    if float(denom.item()) <= 1e-12:
+        return float('nan')
+    return float(torch.dot(af, bf).div(denom).item())
+
+
+def _rf_l2_mean(x: torch.Tensor) -> float:
+    """Batch-mean L2 norm, or plain L2 for vectors/scalars."""
+    xf = x.detach().float()
+    if xf.numel() == 0:
+        return 0.0
+    if xf.ndim <= 1:
+        return float(xf.norm().item())
+    return float(xf.flatten(1).norm(dim=1).mean().item())
+
+
+def _rf_q_abs(x: torch.Tensor, q: float) -> float:
+    """Absolute-value quantile for latent tail diagnostics."""
+    xf = x.detach().float().abs().flatten()
+    if xf.numel() == 0:
+        return 0.0
+    return float(torch.quantile(xf, float(q)).item())
+
+
+def _rf_reset_path_if_needed(
+    stats: Optional[Any],
+    ref_clean: torch.Tensor,
+    sigma_cur: float,
+) -> None:
+    """Reset path-length state at the start of a new/inverted RF trajectory."""
+    if stats is None:
+        return
+
+    prev_sigma = getattr(stats, 'rf_prev_sigma', None)
+    should_reset = (
+        getattr(stats, 'rf_path_start_z', None) is None
+        or prev_sigma is None
+        or float(sigma_cur) < float(prev_sigma) - 1e-6
+    )
+
+    if should_reset:
+        stats.rf_path_start_z = ref_clean.detach().clone()
+        stats.rf_path_len_l2 = 0.0
+        stats.rf_prev_z = ref_clean.detach().clone()
+        stats.rf_prev_v = None
+
 def _rf_print_step_quality(
     stats: Optional[Any],
     ref_clean: torch.Tensor,
@@ -179,11 +236,26 @@ def _rf_print_step_quality(
     delta: float,
     dz_abs: float,
     path_prev_speed: Optional[float],
+    v_model: Optional[torch.Tensor] = None,
+    z_prev: Optional[torch.Tensor] = None,
+    apply_model_fn: Optional[Any] = None,
+    base_model_kwargs: Optional[Dict[str, Any]] = None,
+    velocity_from_pred_fn: Optional[Any] = None,
+    parameterization: str = 'raw_velocity',
 ) -> Optional[float]:
     """Print cheap per-step RF trajectory diagnostics and return updated speed state.
 
-    This lives in verbose_prints.py on purpose: the RF builder should only own
-    trajectory construction, while diagnostic reductions/formatting stay here.
+    Existing linear metrics are kept but renamed as prior-line metrics. Those
+    metrics answer: "does this trajectory follow the seeded straight eps line?"
+
+    When ``v_model`` is supplied, this also prints RF-native gamma=1 health
+    metrics:
+      - x0 reconstruction from raw FLOW/FLUX velocity: x0_hat = z - sigma * v
+      - endpoint implicit ODE residual
+      - velocity smoothness vs previous step
+      - path-length ratio
+      - latent plausibility/tail stats
+
     The function performs tensor reductions only; it does not call the model and
     does not change sampling math.
     """
@@ -193,20 +265,23 @@ def _rf_print_step_quality(
     try:
         with torch.no_grad():
             sigma_f = max(0.0, min(1.0, float(sigma_cur)))
-            target_step = ((1.0 - sigma_f) * ref_clean.detach().float()) + (sigma_f * eps.detach().float())
             z_step = z.detach().float()
+            ref_f = ref_clean.detach().float()
+            eps_f = eps.detach().float()
+
+            # Straight-line prior diagnostics. For gamma=1 these are not a full
+            # health score; they only measure deviation from the seeded eps line.
+            target_step = ((1.0 - sigma_f) * ref_f) + (sigma_f * eps_f)
             diff_step = z_step - target_step
 
-            step_linear_mae = float(diff_step.abs().mean().item())
-            step_linear_rmse = float(diff_step.pow(2).mean().sqrt().item())
+            prior_line_mae = float(diff_step.abs().mean().item())
+            prior_line_rmse = float(diff_step.pow(2).mean().sqrt().item())
+            prior_line_cos = _rf_flat_cosine(z_step, target_step)
 
-            flat_z = z_step.flatten()
-            flat_t = target_step.flatten()
-            cos_denom = flat_z.norm() * flat_t.norm()
-            step_linear_cos = (
-                float(torch.dot(flat_z, flat_t).div(cos_denom).item())
-                if float(cos_denom.item()) > 1e-12 else float('nan')
-            )
+            # Backward-compatible aliases in case you search old logs mentally.
+            step_linear_mae = prior_line_mae
+            step_linear_rmse = prior_line_rmse
+            step_linear_cos = prior_line_cos
 
             step_speed = float(dz_abs) / max(abs(float(delta)), 1e-12)
             step_rough = (
@@ -214,7 +289,11 @@ def _rf_print_step_quality(
                 if path_prev_speed is not None else 0.0
             )
 
-            step_tail_ratio = float(z_step.abs().max().item()) / max(float(z_step.std().item()), 1e-12)
+            z_mean = float(z_step.mean().item())
+            z_std = float(z_step.std(unbiased=False).item())
+            z_q99 = _rf_q_abs(z_step, 0.99)
+            z_tail_q99 = z_q99 / max(z_std, 1e-12)
+            step_tail_ratio = float(z_step.abs().max().item()) / max(z_std, 1e-12)
 
             dims = tuple(range(1, z_step.ndim))
             if dims:
@@ -228,6 +307,93 @@ def _rf_print_step_quality(
             else:
                 step_mean_drift = abs(float(z_step.mean().item()) - float(target_step.mean().item()))
                 step_std_ratio_drift = 0.0
+
+            # Path-length ratio: curved is OK; exploding/looping is not.
+            _rf_reset_path_if_needed(stats, ref_clean, sigma_f)
+
+            prev_z_for_path = z_prev
+            if prev_z_for_path is None and stats is not None:
+                prev_z_for_path = getattr(stats, 'rf_prev_z', None)
+
+            path_ratio = float('nan')
+            if torch.is_tensor(prev_z_for_path):
+                prev_zf = prev_z_for_path.detach().float()
+                step_l2 = _rf_l2_mean(z_step - prev_zf)
+                if stats is not None:
+                    stats.rf_path_len_l2 = float(getattr(stats, 'rf_path_len_l2', 0.0)) + step_l2
+                    start_z = getattr(stats, 'rf_path_start_z', None)
+                    if torch.is_tensor(start_z):
+                        straight_l2 = _rf_l2_mean(z_step - start_z.detach().float())
+                        path_ratio = float(stats.rf_path_len_l2) / max(straight_l2, 1e-12)
+
+            # RF-native metrics, only available when caller passes current model velocity.
+            x0_mae = x0_rmse = x0_cos = float('nan')
+            ode_resid_rel = float('nan')
+            v_cos_prev = v_delta_rel = float('nan')
+
+            if v_model is None and callable(apply_model_fn):
+                # Optional diagnostic-only endpoint velocity call.
+                # rf_inversion.py stays math-only and passes callables here;
+                # verbose_prints.py owns the diagnostic computation.
+                try:
+                    kwargs = dict(base_model_kwargs or {})
+                    t_tensor = torch.full(
+                        (z.shape[0],),
+                        sigma_f,
+                        device=z.device,
+                        dtype=z.dtype,
+                    )
+                    raw = apply_model_fn(z.detach(), t_tensor, **kwargs)
+                    if callable(velocity_from_pred_fn):
+                        v_model = velocity_from_pred_fn(
+                            z.detach(),
+                            raw,
+                            sigma_f,
+                            parameterization,
+                        )
+                    else:
+                        v_model = raw
+                except Exception as exc:
+                    raise RuntimeError(
+                        f'{_rf_prefix(stats)} RF diagnostic endpoint velocity call failed at '
+                        f'σ={sigma_f:.6f}: {exc}'
+                    ) from exc
+
+            if torch.is_tensor(v_model):
+                v_cur = v_model.detach().float()
+
+                # FLOW/FLUX raw-velocity denoised estimate.
+                x0_hat = z_step - sigma_f * v_cur
+                x0_diff = x0_hat - ref_f
+                x0_mae = float(x0_diff.abs().mean().item())
+                x0_rmse = float(x0_diff.pow(2).mean().sqrt().item())
+                x0_cos = _rf_flat_cosine(x0_hat, ref_f)
+
+                # Endpoint implicit Euler residual:
+                # z_next should satisfy z_next = z_prev + Δσ * v(z_next, σ_next).
+                if torch.is_tensor(prev_z_for_path):
+                    prev_zf = prev_z_for_path.detach().float()
+                    ode_resid = z_step - prev_zf - float(delta) * v_cur
+                    ode_resid_abs = float(ode_resid.abs().mean().item())
+                    step_abs = float((z_step - prev_zf).abs().mean().item())
+                    ode_resid_rel = ode_resid_abs / max(step_abs, 1e-12)
+
+                prev_v = getattr(stats, 'rf_prev_v', None) if stats is not None else None
+                if torch.is_tensor(prev_v):
+                    prev_vf = prev_v.detach().float()
+                    v_cos_prev = _rf_flat_cosine(v_cur, prev_vf)
+                    v_delta_rel = float((v_cur - prev_vf).abs().mean().item()) / max(
+                        float(prev_vf.abs().mean().item()),
+                        1e-12,
+                    )
+
+                if stats is not None:
+                    stats.rf_prev_v = v_cur.detach().clone()
+
+            if stats is not None:
+                stats.rf_prev_z = z.detach().clone()
+                stats.rf_prev_sigma = float(sigma_f)
+
     except Exception as exc:
         raise RuntimeError(
             f'{_rf_prefix(stats)} RF step quality diagnostic failed at σ={float(sigma_cur):.6f}; '
@@ -238,8 +404,16 @@ def _rf_print_step_quality(
         stats,
         f'{_rf_prefix(stats)}       step_quality '
         f'speed={step_speed:.6f}  rough={step_rough:.6f}  '
-        f'linear_mae={step_linear_mae:.6f}  linear_rmse={step_linear_rmse:.6f}  '
-        f'linear_cos={step_linear_cos:.6f}  tail={step_tail_ratio:.6f}  '
+        f'prior_line_mae={prior_line_mae:.6f}  prior_line_rmse={prior_line_rmse:.6f}  '
+        f'prior_line_cos={prior_line_cos:.6f}  '
+        f'x0_mae={_rf_scalar_fmt(x0_mae)}  x0_rmse={_rf_scalar_fmt(x0_rmse)}  '
+        f'x0_cos={_rf_scalar_fmt(x0_cos)}  '
+        f'ode_resid_rel={_rf_scalar_fmt(ode_resid_rel)}  '
+        f'v_cos_prev={_rf_scalar_fmt(v_cos_prev)}  v_delta_rel={_rf_scalar_fmt(v_delta_rel)}  '
+        f'path_ratio={_rf_scalar_fmt(path_ratio)}  '
+        f'z_mean={z_mean:.6f}  z_std={z_std:.6f}  z_q99={z_q99:.6f}  '
+        f'z_tail_q99={z_tail_q99:.6f}  '
+        f'tail={step_tail_ratio:.6f}  '
         f'mean_drift={step_mean_drift:.6f}  std_ratio_drift={step_std_ratio_drift:.6f}'
     )
     return step_speed
@@ -633,6 +807,10 @@ __all__ = [
     '_rf_brief_obj',
     '_rf_tensor_stats',
     '_rf_scalar_fmt',
+    '_rf_flat_cosine',
+    '_rf_l2_mean',
+    '_rf_q_abs',
+    '_rf_reset_path_if_needed',
     '_rf_model_identity',
     '_rf_print_model_identity',
     '_rf_print_step_quality',

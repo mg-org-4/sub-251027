@@ -1058,11 +1058,6 @@ def _rf_build_cache_from_sampler_sigmas(
                     delta=macro_delta,
                     dz_abs=macro_dz_abs,
                     path_prev_speed=path_prev_speed,
-                    z_prev=macro_prev_z,
-                    apply_model_fn=apply_model_fn,
-                    base_model_kwargs=base_model_kwargs,
-                    velocity_from_pred_fn=_velocity_from_pred,
-                    parameterization=parameterization,
                 )
                 vp._rf_progress_snapshot(
                     macro_step_i,
@@ -1363,11 +1358,6 @@ def _rf_build_cache_from_sampler_sigmas(
             delta=delta,
             dz_abs=dz_abs,
             path_prev_speed=path_prev_speed,
-            z_prev=z_prev,
-            apply_model_fn=apply_model_fn,
-            base_model_kwargs=base_model_kwargs,
-            velocity_from_pred_fn=_velocity_from_pred,
-            parameterization=parameterization,
         )
 
         vp._rf_progress_snapshot(

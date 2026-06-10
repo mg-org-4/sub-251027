@@ -102,11 +102,9 @@ any_typ= AnyType("*")
 
 
 MAX_RESOLUTION = 88888
-CLIP_TYPE = ["sdxl", "sd3", "flux", "hunyuan_video", "stable_diffusion", "stable_audio", "mochi", "ltxv", 
-             "pixart", "cosmos", "lumina2", "wan","flux2", "ovis", "hidream", "chroma", "ace", "omnigen2", "qwen_image"]
 
-
-
+from nodes import CLIPLoader
+CLIP_TYPE = CLIPLoader.INPUT_TYPES()["required"]["type"][0]
 
 available_ckpt = folder_paths.get_filename_list("checkpoints")
 available_loras = folder_paths.get_filename_list("loras")

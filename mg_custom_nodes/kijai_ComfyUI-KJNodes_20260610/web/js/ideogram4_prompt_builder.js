@@ -25,17 +25,50 @@ function resultViewUrl(img) {
 
 // Nodes opted into "live background": feed them the sampling preview frames as they arrive.
 const livePreviewNodes = new Set();
+let _lastPreviewBlob = null;
+function feedPreviewBlob(blob) {
+  // Newer ComfyUI dispatches "b_preview_with_metadata"; older ones only "b_preview" — and both can
+  // fire for the same frame (same Blob), so dedupe by identity to avoid decoding twice.
+  if (!blob || blob === _lastPreviewBlob || !livePreviewNodes.size) return;
+  _lastPreviewBlob = blob;
+  createImageBitmap(blob).then((bmp) => {
+    let used = false;
+    for (const n of livePreviewNodes) { n._ideoSetLiveBg?.(bmp); used = true; }
+    if (!used && bmp.close) bmp.close();
+  }).catch(() => {});
+}
 try {
-  app.api?.addEventListener?.("b_preview", (e) => {
-    const blob = e?.detail;
-    if (!blob || !livePreviewNodes.size) return;
-    createImageBitmap(blob).then((bmp) => {
-      let used = false;
-      for (const n of livePreviewNodes) { n._ideoSetLiveBg?.(bmp); used = true; }
-      if (!used && bmp.close) bmp.close();
-    }).catch(() => {});
-  });
+  app.api?.addEventListener?.("b_preview", (e) => feedPreviewBlob(e?.detail));
+  app.api?.addEventListener?.("b_preview_with_metadata", (e) => feedPreviewBlob(e?.detail?.blob));
 } catch (e) {}
+
+// Named caption-JSON templates, each stored as its own file server-side via ComfyUI's userdata
+// API (under the ComfyUI user dir) so they persist across browsers/machines and survive clears.
+const TPL_DIR = "kjnodes/ideogram4/templates";
+const tplSafe = (s) => (s || "").replace(/[\/\\:*?"<>|]+/g, "_").trim();   // filesystem-safe name
+const tplFile = (name) => `${TPL_DIR}/${name}.json`;
+async function listTemplateNames() {
+  try {
+    const items = await app.api.listUserDataFullInfo(TPL_DIR);
+    return items.map((it) => it.path.split(/[\\/]/).pop() || "")
+      .filter((f) => /\.json$/i.test(f))
+      .map((f) => f.replace(/\.json$/i, ""))
+      .filter(Boolean).sort((a, b) => a.localeCompare(b));
+  } catch (e) { return []; }
+}
+async function loadTemplate(name) {
+  try { const r = await app.api.getUserData(tplFile(name)); if (r.status === 200) return await r.text(); } catch (e) {}
+  return null;
+}
+async function saveTemplate(name, caption) {
+  try {
+    await app.api.storeUserData(tplFile(name), caption, { overwrite: true, stringify: false, throwOnError: true });
+    return true;
+  } catch (e) { window.alert("Couldn't save the template to the server."); return false; }
+}
+async function deleteTemplate(name) {
+  try { await app.api.deleteUserData(tplFile(name)); } catch (e) {}
+}
 
 // Parse a #rrggbb hex into {r,g,b}, or null if malformed.
 function hexRgb(hex) {
@@ -157,6 +190,8 @@ function injectStyle() {
     .kjideo-bgmenu { padding:7px; display:flex; flex-direction:column; gap:7px; min-width:170px; }
     .kjideo-bgrow { display:flex; align-items:center; gap:8px; }
     .kjideo-bglbl { color:#888; font:11px sans-serif; flex:0 0 auto; min-width:62px; }
+    .kjideo-trow { padding:2px 4px; border-radius:4px; }
+    .kjideo-trow:hover { background:#333; }
   `;
   document.head.appendChild(s);
 }
@@ -341,7 +376,85 @@ app.registerExtension({
           document.addEventListener("mousedown", node._bgMenuDismiss, true);
         }, 0);
       });
-      bar.appendChild(hint); bar.appendChild(bgBtn); bar.appendChild(tokenSpan); bar.appendChild(copyBtn); bar.appendChild(importBtn); bar.appendChild(fsBtn); bar.appendChild(clearBtn);
+      // ── Templates popup: save/load named caption JSONs (server-side userdata) ──
+      const tplBtn = document.createElement("button");
+      tplBtn.className = "kjideo-btn"; tplBtn.textContent = "Templates ▾";
+      tplBtn.title = "Save / load the caption JSON as templates (stored on the server ComfyUI\\user\\default\\kjnodes\\ideogram4)";
+      stopProp(tplBtn);
+      const tplMenu = document.createElement("div");
+      tplMenu.className = "kjideo-menu kjideo-bgmenu";
+      tplMenu.style.display = "none";
+      document.body.appendChild(tplMenu);
+      node._tplMenu = tplMenu;
+      function closeTplMenu() {
+        tplMenu.style.display = "none";
+        if (node._tplDismiss) {
+          document.removeEventListener("pointerdown", node._tplDismiss, true);
+          document.removeEventListener("mousedown", node._tplDismiss, true);
+          node._tplDismiss = null;
+        }
+      }
+      async function buildTplMenu() {
+        tplMenu.innerHTML = "";
+        const saveRow = document.createElement("div"); saveRow.className = "kjideo-bgrow";
+        const saveBtn = document.createElement("button"); saveBtn.className = "kjideo-btn"; saveBtn.textContent = "+ Save as…";
+        saveBtn.addEventListener("click", async () => {
+          const name = tplSafe(window.prompt("Save template as:", "") || "");
+          if (!name) return;
+          const existing = await listTemplateNames();
+          if (existing.includes(name) && !window.confirm(`Overwrite template "${name}"?`)) return;
+          if (await saveTemplate(name, buildCaption())) buildTplMenu();
+        });
+        saveRow.appendChild(saveBtn); tplMenu.appendChild(saveRow);
+        const names = await listTemplateNames();
+        if (!names.length) {
+          const empty = document.createElement("div"); empty.className = "kjideo-mhdr"; empty.textContent = "No templates saved.";
+          tplMenu.appendChild(empty);
+        }
+        for (const name of names) {
+          const row = document.createElement("div"); row.className = "kjideo-bgrow kjideo-trow";
+          const txt = document.createElement("span");
+          txt.className = "kjideo-ltext"; txt.style.cssText = "flex:1 1 auto;cursor:pointer;"; txt.textContent = name; txt.title = "Load " + name + " (replaces everything)";
+          const ins = document.createElement("button"); ins.className = "kjideo-lbtn"; ins.textContent = "⊞"; ins.title = "Insert this template's boxes only into the current canvas";
+          const upd = document.createElement("button"); upd.className = "kjideo-lbtn"; upd.textContent = "⤓"; upd.title = "Save current (overwrite)";
+          const del = document.createElement("button"); del.className = "kjideo-lbtn del"; del.textContent = "✕"; del.title = "Delete template";
+          row.append(txt, ins, upd, del); tplMenu.appendChild(row);
+          txt.addEventListener("click", async () => {
+            const cap = tryParseCaption(await loadTemplate(name));
+            if (!cap) { window.alert("That template isn't a valid caption JSON."); return; }
+            loadCaption(cap); closeTplMenu();
+          });
+          ins.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const cap = tryParseCaption(await loadTemplate(name));
+            if (!cap) { window.alert("That template isn't a valid caption JSON."); return; }
+            insertCaptionBoxes(cap); closeTplMenu();
+          });
+          upd.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (await saveTemplate(name, buildCaption())) buildTplMenu();
+          });
+          del.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (!window.confirm(`Delete template "${name}"?`)) return;
+            await deleteTemplate(name); buildTplMenu();
+          });
+        }
+      }
+      tplBtn.addEventListener("click", async () => {
+        if (tplMenu.style.display !== "none") { closeTplMenu(); return; }
+        tplMenu.style.display = "";
+        await buildTplMenu();
+        const r = tplBtn.getBoundingClientRect();
+        tplMenu.style.left = Math.max(4, Math.min(r.left, window.innerWidth - tplMenu.offsetWidth - 4)) + "px";
+        tplMenu.style.top = Math.min(r.bottom + 4, window.innerHeight - tplMenu.offsetHeight - 4) + "px";
+        node._tplDismiss = (e) => { if (!tplMenu.contains(e.target) && e.target !== tplBtn) closeTplMenu(); };
+        setTimeout(() => {
+          document.addEventListener("pointerdown", node._tplDismiss, true);
+          document.addEventListener("mousedown", node._tplDismiss, true);
+        }, 0);
+      });
+      bar.appendChild(hint); bar.appendChild(tokenSpan); bar.appendChild(bgBtn); bar.appendChild(copyBtn); bar.appendChild(importBtn); bar.appendChild(tplBtn); bar.appendChild(fsBtn); bar.appendChild(clearBtn);
       updateGrabBtn();
 
       // Persistent global style-palette row
@@ -582,21 +695,24 @@ app.registerExtension({
       }
 
       function applyDrag(mode, start, dN) {
-        let { x, y, w, h } = start;
+        const { x, y, w, h } = start;
         const dx = dN.x, dy = dN.y;
-        switch (mode) {
-          case "move": x += dx; y += dy; x = clamp01(Math.min(x, 1 - w)); y = clamp01(Math.min(y, 1 - h)); break;
-          case "draw":
-          case "resize-br": w += dx; h += dy; break;
-          case "resize-tl": x += dx; y += dy; w -= dx; h -= dy; break;
-          case "resize-tr": y += dy; w += dx; h -= dy; break;
-          case "resize-bl": x += dx; w -= dx; h += dy; break;
-          case "resize-t": y += dy; h -= dy; break;
-          case "resize-b": h += dy; break;
-          case "resize-l": x += dx; w -= dx; break;
-          case "resize-r": w += dx; break;
+        if (mode === "move") {
+          return { ...start, x: clamp01(Math.min(x + dx, 1 - w)), y: clamp01(Math.min(y + dy, 1 - h)) };
         }
-        return mode === "move" ? { ...start, x, y } : normalizeBox({ ...start, x, y, w, h });
+        if (mode === "draw") {
+          return normalizeBox({ ...start, w: w + dx, h: h + dy });
+        }
+        // resize: move only the dragged edges (clamped to the canvas); the others stay anchored.
+        const suf = mode.slice(7);                 // "tl"|"tr"|"bl"|"br"|"t"|"b"|"l"|"r"
+        let l = x, t = y, r = x + w, b = y + h;
+        if (suf.includes("l")) l = clamp01(l + dx);
+        if (suf.includes("r")) r = clamp01(r + dx);
+        if (suf.includes("t")) t = clamp01(t + dy);
+        if (suf.includes("b")) b = clamp01(b + dy);
+        if (r < l) [l, r] = [r, l];                // crossing the opposite edge flips, no anchor drift
+        if (b < t) [t, b] = [b, t];
+        return { ...start, x: l, y: t, w: r - l, h: b - t };
       }
 
       // ── grid / guides ──
@@ -611,10 +727,12 @@ app.registerExtension({
         if (!node.properties.snap) return b;
         const W = logW(), H = logH(), cell = Math.min(W, H) / gridN();
         const sx = cell / W, sy = cell / H, sn = (v, s) => Math.round(v / s) * s;
-        let { x, y, w, h } = b;
-        if (mode === "move") { x = sn(x, sx); y = sn(y, sy); }
-        else { const x2 = sn(x + w, sx), y2 = sn(y + h, sy); x = sn(x, sx); y = sn(y, sy); w = x2 - x; h = y2 - y; }
-        return normalizeBox({ ...b, x, y, w, h });
+        const { x, y, w, h } = b;
+        if (mode === "move") {                          // snap position, preserve size
+          return { ...b, x: clamp01(Math.min(sn(x, sx), 1 - w)), y: clamp01(Math.min(sn(y, sy), 1 - h)) };
+        }
+        const x2 = sn(x + w, sx), y2 = sn(y + h, sy);   // draw/resize: snap the edges
+        return normalizeBox({ ...b, x: sn(x, sx), y: sn(y, sy), w: x2 - sn(x, sx), h: y2 - sn(y, sy) });
       }
 
       // ── drawing ──
@@ -777,9 +895,28 @@ app.registerExtension({
       }
 
       // ── serialization ──
-      function serialize() {
+      // Wired AND the source node isn't muted(2)/bypassed(4) — those keep the link but emit nothing.
+      const importConnected = () => {
+        const link = node.graph?.links?.[node.inputs?.find((i) => i.name === "import_json")?.link];
+        return !!link && ![2, 4].includes(node.graph.getNodeById(link.origin_id)?.mode);
+      };
+      function serialize() {                              // saved/restored value: clean boxes
         if (elementsWidget) elementsWidget.value = node._boxes.length ? JSON.stringify(node._boxes) : "";
         if (stylePaletteWidget) stylePaletteWidget.value = node._stylePalette.length ? JSON.stringify(node._stylePalette) : "";
+      }
+      // Queue-time value (not the saved value): when a wired import should drive the output — "always"
+      // mode, or empty in "when empty" mode — return a unique marker so ComfyUI can't cache-skip the
+      // node. It then re-executes and pushes the import back via ui, refreshing the editor. The server
+      // treats a non-list elements_data as empty (and ignores it entirely in "always" mode), so the
+      // nonce never affects the output.
+      if (elementsWidget) {
+        elementsWidget.serializeValue = () => {
+          const always = findW("import_mode")?.value === "always";
+          if (importConnected() && (always || !node._boxes.length)) {
+            return JSON.stringify({ _refresh: (node._serialSeq = (node._serialSeq || 0) + 1) });
+          }
+          return node._boxes.length ? JSON.stringify(node._boxes) : "";
+        };
       }
 
       function commit() { serialize(); renderPanel(); drawCanvas(); updateTokens(); }
@@ -862,8 +999,9 @@ app.registerExtension({
         }
         node._drawing = true;
         node._dragStartN = mN;
-        document.addEventListener("pointermove", onMove);
-        document.addEventListener("pointerup", onUp);
+        canvasEl.addEventListener("pointermove", onMove);
+        canvasEl.addEventListener("pointerup", onUp);
+        canvasEl.addEventListener("pointercancel", onUp);   // touch can cancel instead of up
         e.preventDefault(); e.stopPropagation();
         drawCanvas();   // panel rebuild/resize deferred to onUp so the canvas doesn't shift mid-drag
       });
@@ -1053,8 +1191,9 @@ app.registerExtension({
       function onUp() {
         if (!node._drawing) return;
         node._drawing = false;
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup", onUp);
+        canvasEl.removeEventListener("pointermove", onMove);
+        canvasEl.removeEventListener("pointerup", onUp);
+        canvasEl.removeEventListener("pointercancel", onUp);
         // a click (no drag) on empty space drops the placeholder box and deselects everything
         const b = node._boxes[node._activeIdx];
         if (b && (b.w < 0.005 || b.h < 0.005) && node._dragMode === "draw") {
@@ -1082,8 +1221,9 @@ app.registerExtension({
         node._marqueeStartHit = startHit;               // for the shift-click (no drag) toggle fallback
         node._marqueeActive = false;
         canvasEl.focus();
-        document.addEventListener("pointermove", onMarqueeMove);
-        document.addEventListener("pointerup", onMarqueeUp);
+        canvasEl.addEventListener("pointermove", onMarqueeMove);
+        canvasEl.addEventListener("pointerup", onMarqueeUp);
+        canvasEl.addEventListener("pointercancel", onMarqueeUp);
         drawCanvas();
       }
       function onMarqueeMove(e) {
@@ -1101,8 +1241,9 @@ app.registerExtension({
         drawCanvas();
       }
       function onMarqueeUp() {
-        document.removeEventListener("pointermove", onMarqueeMove);
-        document.removeEventListener("pointerup", onMarqueeUp);
+        canvasEl.removeEventListener("pointermove", onMarqueeMove);
+        canvasEl.removeEventListener("pointerup", onMarqueeUp);
+        canvasEl.removeEventListener("pointercancel", onMarqueeUp);
         if (!node._marqueeActive && node._marqueeStartHit >= 0) {   // shift-click on a box → toggle it
           const idx = node._marqueeStartHit;
           if (node._selection.has(idx) && node._selection.size > 1) {
@@ -1272,6 +1413,7 @@ app.registerExtension({
               const up = () => {
                 document.removeEventListener("pointermove", move);
                 document.removeEventListener("pointerup", up);
+                document.removeEventListener("pointercancel", up);
                 document.body.classList.remove("kjideo-dragging");
                 if (dragging) {
                   row.classList.remove("dragging");
@@ -1286,6 +1428,7 @@ app.registerExtension({
               };
               document.addEventListener("pointermove", move);
               document.addEventListener("pointerup", up);
+              document.addEventListener("pointercancel", up);
             });
           });
         }
@@ -1317,12 +1460,7 @@ app.registerExtension({
         closeInlineEditor();
         node._boxes = []; node._activeIdx = -1; node._selection = new Set(); node._stylePalette = [];
         node._lastImported = "";
-        commit(); rebuildStylePalette(); fitNode();
-        // Write a unique "empty" marker into elements_data so the next run isn't cache-skipped
-        // (ComfyUI caches on the input signature; an empty value would match the prior run and the
-        // node wouldn't re-execute). The server treats a non-list value as empty, then re-pulls the
-        // wired import per import_mode and repopulates the editor via ui.
-        if (elementsWidget) elementsWidget.value = JSON.stringify({ _cleared: (node._clearSeq = (node._clearSeq || 0) + 1) });
+        commit(); rebuildStylePalette(); fitNode();   // a wired import re-seeds on the next run (serializeValue cache-busts)
       });
 
       // ── build caption JSON (mirrors Python key order) ──
@@ -1445,6 +1583,20 @@ app.registerExtension({
         applyCaption(cap);
         syncCanvasToDims(); commit(); rebuildStylePalette(); fitNode();
       }
+      // Append a caption's regions to the current canvas (keeps existing boxes + caption fields).
+      function insertCaptionBoxes(cap) {
+        closeInlineEditor();
+        const cd = (cap && cap.compositional_deconstruction) || {};
+        const els = Array.isArray(cd.elements) ? cd.elements : [];
+        const added = els.map((el, i) => bboxElemToBox(el, i)).filter(Boolean);
+        if (!added.length) return;
+        const start = node._boxes.length;
+        node._boxes.push(...added);
+        node._selection = new Set();                      // select the inserted regions
+        for (let i = start; i < node._boxes.length; i++) node._selection.add(i);
+        node._activeIdx = node._boxes.length - 1;
+        commit(); fitNode();
+      }
       async function doImport() {
         let cap = null, txt = "";
         try { txt = (await navigator.clipboard.readText() || "").trim(); cap = tryParseCaption(txt); } catch (e) {}
@@ -1516,6 +1668,7 @@ app.registerExtension({
           sw.addEventListener("pointerdown", (e) => {
             if (e.button !== 0) return;
             e.preventDefault(); e.stopPropagation();
+            try { sw.setPointerCapture(e.pointerId); } catch (e2) {}  // capture so Nodes 2.0's WidgetDOM .stop can't swallow the drag
             const sx = e.clientX, sy = e.clientY;
             let dragging = false;
             const move = (me) => {
@@ -1545,8 +1698,9 @@ app.registerExtension({
               }
             };
             const up = () => {
-              document.removeEventListener("pointermove", move);
-              document.removeEventListener("pointerup", up);
+              sw.removeEventListener("pointermove", move);
+              sw.removeEventListener("pointerup", up);
+              sw.removeEventListener("pointercancel", up);
               document.body.classList.remove("kjideo-dragging");
               if (dragging) {
                 sw.classList.remove("dragging");
@@ -1557,8 +1711,9 @@ app.registerExtension({
                 inp.click();                                 // no drag → treat as click, open the picker
               }
             };
-            document.addEventListener("pointermove", move);
-            document.addEventListener("pointerup", up);
+            sw.addEventListener("pointermove", move);
+            sw.addEventListener("pointerup", up);
+            sw.addEventListener("pointercancel", up);
           });
         });
         if (arr.length < max) {
@@ -1673,8 +1828,17 @@ app.registerExtension({
         panel.style.minHeight = "";
         const col = (b.palette || []).find(Boolean) || "#bbb";
         const selN = node._selection.size;
-        hint.innerHTML = `<b style="color:${col}">region ${node._activeIdx + 1}</b>` +
-          (selN > 1 ? ` <span style="color:#888">(${selN} selected)</span>` : "");
+        // Build with DOM + style.color (a CSS value) — never innerHTML — since col comes from
+        // box data that may be loaded from an untrusted template/import (avoids HTML injection).
+        hint.textContent = "";
+        const tag = document.createElement("b");
+        tag.style.color = col; tag.textContent = "region " + (node._activeIdx + 1);
+        hint.appendChild(tag);
+        if (selN > 1) {
+          const s = document.createElement("span");
+          s.style.color = "#888"; s.textContent = ` (${selN} selected)`;
+          hint.appendChild(s);
+        }
 
         // type toggle
         const typeRow = document.createElement("div");
@@ -1818,6 +1982,7 @@ app.registerExtension({
         }
         node._visObserver?.disconnect();
         closeBgMenu(); node._bgMenu?.remove();
+        closeTplMenu(); node._tplMenu?.remove();
         closeInlineEditor();
         closeLayersMenu();
         for (const ro of node._areaObservers) ro.disconnect();
@@ -1856,7 +2021,10 @@ app.registerExtension({
         if (im && imW) imW.value = im;                        // restore import_mode (index-based restore is unreliable here)
         hideDataWidgets();
         serialize();                                         // realign widget values for Python + future saves
-        if (bgBrightnessWidget) bgSlider.value = bgBrightnessWidget.value;
+        if (bgBrightnessWidget) {
+          if (typeof bgBrightnessWidget.value !== "number") bgBrightnessWidget.value = 25;  // old workflows may restore ""
+          bgSlider.value = bgBrightnessWidget.value;
+        }
         // node.properties is restored after onNodeCreated, so resync the toolbar controls to it.
         liveChk.checked = !!node.properties.liveBg;
         if (liveChk.checked) livePreviewNodes.add(node); else livePreviewNodes.delete(node);

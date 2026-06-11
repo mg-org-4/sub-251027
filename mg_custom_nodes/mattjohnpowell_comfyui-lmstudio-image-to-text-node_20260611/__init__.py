@@ -2,6 +2,22 @@
 LM Studio Nodes for ComfyUI - Integration with local LLM models
 """
 
+import importlib
+import subprocess
+import sys
+
+def _ensure_lmstudio():
+    """Install lmstudio if it is not already available in the current Python environment."""
+    if importlib.util.find_spec("lmstudio") is None:
+        print("[ComfyExpo LM Studio] lmstudio SDK not found — installing...")
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "lmstudio"],
+            stdout=subprocess.DEVNULL,
+        )
+        print("[ComfyExpo LM Studio] lmstudio installed successfully.")
+
+_ensure_lmstudio()
+
 # Import all node classes from the main module file
 from .expo_lmstudio_imagetotext import (
     ExpoLmstudioUnified,

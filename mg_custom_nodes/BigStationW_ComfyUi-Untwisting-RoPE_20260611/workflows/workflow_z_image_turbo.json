@@ -1,8 +1,8 @@
 {
   "id": "44259803-f9d6-4eb1-a94a-75b8213649d0",
   "revision": 0,
-  "last_node_id": 632,
-  "last_link_id": 1557,
+  "last_node_id": 628,
+  "last_link_id": 1554,
   "nodes": [
     {
       "id": 333,
@@ -16,7 +16,7 @@
         46
       ],
       "flags": {},
-      "order": 18,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
@@ -58,7 +58,7 @@
         98
       ],
       "flags": {},
-      "order": 22,
+      "order": 20,
       "mode": 0,
       "inputs": [
         {
@@ -130,6 +130,114 @@
       ]
     },
     {
+      "id": 261,
+      "type": "VAELoader",
+      "pos": [
+        401.8293929216277,
+        1468.6068452940938
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            507,
+            750
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.21.0",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "z_image_vae.safetensors"
+      ]
+    },
+    {
+      "id": 601,
+      "type": "UNETLoader",
+      "pos": [
+        318.4707979380336,
+        1596.0524486504232
+      ],
+      "size": [
+        420.10165345254075,
+        102.39426790580865
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1528
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.22.0",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "Z-image\\z_image_turbo_bf16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 607,
+      "type": "CLIPTextEncode",
+      "pos": [
+        887.9401977810033,
+        1654.9431345297862
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1541
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            1534,
+            1535
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.21.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "Anime style, a woman with blonde hair plays piano."
+      ]
+    },
+    {
       "id": 259,
       "type": "CLIPTextEncode",
       "pos": [
@@ -141,7 +249,7 @@
         200
       ],
       "flags": {},
-      "order": 15,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
@@ -169,6 +277,88 @@
       ]
     },
     {
+      "id": 618,
+      "type": "CLIPLoader",
+      "pos": [
+        455.9699324836801,
+        1791.462131053674
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1541,
+            1542
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.21.1",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen_3_4b.safetensors",
+        "lumina2",
+        "default"
+      ]
+    },
+    {
+      "id": 619,
+      "type": "Note",
+      "pos": [
+        261.6234944497743,
+        980.8806213289101
+      ],
+      "size": [
+        289.0740052806825,
+        112.57343506692268
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "https://github.com/BigStationW/ComfyUi-Scale-Image-to-Total-Pixels-Advanced"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 614,
+      "type": "Note",
+      "pos": [
+        938.3272357908905,
+        1489.0086428159627
+      ],
+      "size": [
+        303.65604311050856,
+        116.00450279158758
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "You can create two CLIP Text Encode (one for the reference and one for the target), but personally, I find that using the target prompt for both yields better results."
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
       "id": 622,
       "type": "SamplerCustomAdvanced",
       "pos": [
@@ -180,7 +370,7 @@
         456.72464032296625
       ],
       "flags": {},
-      "order": 24,
+      "order": 22,
       "mode": 0,
       "inputs": [
         {
@@ -242,7 +432,7 @@
         515.9512940840721
       ],
       "flags": {},
-      "order": 26,
+      "order": 24,
       "mode": 0,
       "inputs": [
         {
@@ -271,7 +461,7 @@
         62.2083101328426
       ],
       "flags": {},
-      "order": 25,
+      "order": 23,
       "mode": 0,
       "inputs": [
         {
@@ -302,6 +492,45 @@
       "widgets_values": []
     },
     {
+      "id": 612,
+      "type": "LoadImage",
+      "pos": [
+        -102.84151691065208,
+        1161.3938579968244
+      ],
+      "size": [
+        282.798828125,
+        314.00000000000006
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1539
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.21.1",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ]
+    },
+    {
       "id": 615,
       "type": "Note",
       "pos": [
@@ -313,7 +542,7 @@
         112.57343506692268
       ],
       "flags": {},
-      "order": 1,
+      "order": 7,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -323,6 +552,47 @@
       ],
       "color": "#c09430",
       "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 31,
+      "type": "BasicScheduler",
+      "pos": [
+        1485.7528126778984,
+        1963.3681052602142
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1552
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            1546
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "BasicScheduler"
+      },
+      "widgets_values": [
+        "simple",
+        12,
+        1
+      ]
     },
     {
       "id": 282,
@@ -336,7 +606,7 @@
         168
       ],
       "flags": {},
-      "order": 19,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
@@ -385,117 +655,18 @@
       ]
     },
     {
-      "id": 626,
-      "type": "Note",
-      "pos": [
-        767.9979250531322,
-        485.3521046068554
-      ],
-      "size": [
-        285.24835336919455,
-        126.58960944919556
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "Some additional methods not included in the paper, intended to further improve the results. These can be bypassed/removed."
-      ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 618,
-      "type": "CLIPLoader",
-      "pos": [
-        348.0546585381528,
-        1777.2914052495867
-      ],
-      "size": [
-        383.91060020828695,
-        106
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            1541,
-            1542
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.21.1",
-        "Node name for S&R": "CLIPLoader"
-      },
-      "widgets_values": [
-        "Qwen2.5-VL-7B-Instruct.safetensors",
-        "qwen_image",
-        "default"
-      ]
-    },
-    {
-      "id": 607,
-      "type": "CLIPTextEncode",
-      "pos": [
-        887.9401977810033,
-        1654.9431345297862
-      ],
-      "size": [
-        400,
-        200
-      ],
-      "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 1541
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            1534,
-            1535
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.21.0",
-        "Node name for S&R": "CLIPTextEncode"
-      },
-      "widgets_values": [
-        "cartoon style, a woman playing tennis"
-      ]
-    },
-    {
       "id": 265,
       "type": "ImageScaleToTotalPixelsX",
       "pos": [
-        259.75990905927216,
-        898.8195249370913
+        246.99230874069832,
+        1164.5446997368606
       ],
       "size": [
         306.5982421875,
         220.0000000000001
       ],
       "flags": {},
-      "order": 16,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
@@ -552,175 +723,15 @@
       ]
     },
     {
-      "id": 612,
-      "type": "LoadImage",
-      "pos": [
-        -115.60904417257022,
-        775.1746606623585
-      ],
-      "size": [
-        282.798828125,
-        314.0000000000001
-      ],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            1539
-          ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.21.1",
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "example.png",
-        "image"
-      ]
-    },
-    {
-      "id": 31,
-      "type": "BasicScheduler",
-      "pos": [
-        1485.7528126778984,
-        1963.3681052602142
-      ],
-      "size": [
-        270,
-        106
-      ],
-      "flags": {},
-      "order": 23,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 1552
-        }
-      ],
-      "outputs": [
-        {
-          "name": "SIGMAS",
-          "type": "SIGMAS",
-          "links": [
-            1546
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.75",
-        "Node name for S&R": "BasicScheduler"
-      },
-      "widgets_values": [
-        "simple",
-        8,
-        1
-      ]
-    },
-    {
-      "id": 261,
-      "type": "VAELoader",
-      "pos": [
-        137.70006770877882,
-        1178.1445407639483
-      ],
-      "size": [
-        270,
-        58
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "links": [
-            507,
-            750
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.21.0",
-        "Node name for S&R": "VAELoader"
-      },
-      "widgets_values": [
-        "qwen_image_vae.safetensors"
-      ]
-    },
-    {
-      "id": 619,
+      "id": 626,
       "type": "Note",
       "pos": [
-        280.934479886327,
-        703.9040713484494
+        767.9979250531322,
+        485.3521046068554
       ],
       "size": [
-        289.0740052806825,
-        112.57343506692268
-      ],
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "https://github.com/BigStationW/ComfyUi-Scale-Image-to-Total-Pixels-Advanced"
-      ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 611,
-      "type": "Note",
-      "pos": [
-        1136.5010147632877,
-        989.6613423836438
-      ],
-      "size": [
-        289.0740052806825,
-        112.57343506692268
-      ],
-      "flags": {},
-      "order": 7,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "The only relevant values to change are beta, high_scale_start and low_scale_end"
-      ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 614,
-      "type": "Note",
-      "pos": [
-        939.7780745577777,
-        1491.9103867648785
-      ],
-      "size": [
-        303.65604311050856,
-        116.00450279158758
+        285.24835336919455,
+        126.58960944919556
       ],
       "flags": {},
       "order": 8,
@@ -729,163 +740,10 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "You can create two CLIP Text Encode (one for the reference and one for the target), but personally, I find that using the target prompt for both yields better results."
+        "Some additional methods not included in the paper, intended to further improve the results. These can be bypassed/removed."
       ],
       "color": "#c09430",
       "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 630,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        445.0147488540702,
-        1574.1802009838707
-      ],
-      "size": [
-        347.9253233959505,
-        85.60350938387933
-      ],
-      "flags": {},
-      "order": 17,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 1555
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            1556
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.21.0",
-        "Node name for S&R": "LoraLoaderModelOnly"
-      },
-      "widgets_values": [
-        "Qwen-Image\\Qwen-Image-2512-Lightning-8steps-V1.0-bf16.safetensors",
-        1
-      ]
-    },
-    {
-      "id": 601,
-      "type": "UNETLoader",
-      "pos": [
-        -102.46358844412804,
-        1568.9821308468736
-      ],
-      "size": [
-        420.10165345254075,
-        102.39426790580865
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            1555
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.22.0",
-        "Node name for S&R": "UNETLoader"
-      },
-      "widgets_values": [
-        "Qwen-Image\\qwen-image-2512.safetensors",
-        "default"
-      ]
-    },
-    {
-      "id": 631,
-      "type": "Note",
-      "pos": [
-        458.274959921439,
-        1393.9019464638484
-      ],
-      "size": [
-        303.65604311050856,
-        116.00450279158758
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning/blob/main/Qwen-Image-2512-Lightning-8steps-V1.0-bf16.safetensors"
-      ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 616,
-      "type": "Note",
-      "pos": [
-        1472.1181965831133,
-        1506.4408653175178
-      ],
-      "size": [
-        303.65604311050856,
-        116.00450279158758
-      ],
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "I strongly recommend using only SDE samplers like er_sde or euler_ancestral, adding noise during the process really helps eliminate some transfer style artifacts."
-      ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 229,
-      "type": "KSamplerSelect",
-      "pos": [
-        1465.8802446070147,
-        1668.9757189509317
-      ],
-      "size": [
-        315,
-        58
-      ],
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "SAMPLER",
-          "type": "SAMPLER",
-          "links": [
-            1545
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.5.0",
-        "Node name for S&R": "KSamplerSelect"
-      },
-      "widgets_values": [
-        "er_sde"
-      ]
     },
     {
       "id": 623,
@@ -899,7 +757,7 @@
         270
       ],
       "flags": {},
-      "order": 21,
+      "order": 19,
       "mode": 0,
       "inputs": [
         {
@@ -916,7 +774,7 @@
           "name": "unofficial_extensions",
           "shape": 7,
           "type": "UNTWISTING_ROPE_EXTENSIONS",
-          "link": 1557
+          "link": 1554
         }
       ],
       "outputs": [
@@ -942,22 +800,101 @@
         1.4,
         0.5,
         "0-999",
-        false
+        true
       ]
     },
     {
-      "id": 632,
+      "id": 229,
+      "type": "KSamplerSelect",
+      "pos": [
+        1465.8802446070147,
+        1668.9757189509317
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            1545
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.0",
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "er_sde"
+      ]
+    },
+    {
+      "id": 616,
+      "type": "Note",
+      "pos": [
+        1472.1181965831133,
+        1506.4408653175178
+      ],
+      "size": [
+        303.65604311050856,
+        116.00450279158758
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "I strongly recommend using only SDE samplers like er_sde or euler_ancestral, adding noise during the process really helps eliminate some transfer style artifacts."
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 611,
+      "type": "Note",
+      "pos": [
+        1133.528142202805,
+        986.688469823161
+      ],
+      "size": [
+        289.0740052806825,
+        112.57343506692268
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "The only relevant values to change are beta, high_scale_start and low_scale_end"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 628,
       "type": "UnofficialExtensions",
       "pos": [
-        752.5310568276018,
-        670.1668113729768
+        734.9158575574896,
+        680.1149980106868
       ],
       "size": [
         332.76171875,
         202
       ],
       "flags": {},
-      "order": 13,
+      "order": 12,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -965,7 +902,7 @@
           "name": "unofficial_extensions",
           "type": "UNTWISTING_ROPE_EXTENSIONS",
           "links": [
-            1557
+            1554
           ]
         }
       ],
@@ -995,13 +932,13 @@
         266
       ],
       "flags": {},
-      "order": 20,
+      "order": 18,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 1556
+          "link": 1528
         },
         {
           "name": "reference_latent",
@@ -1040,7 +977,7 @@
         "flowturbo_pc",
         0.5,
         0,
-        0.35,
+        0.00,
         20,
         false
       ]
@@ -1102,6 +1039,14 @@
       603,
       1,
       "LATENT"
+    ],
+    [
+      1528,
+      601,
+      0,
+      603,
+      0,
+      "MODEL"
     ],
     [
       1534,
@@ -1232,24 +1177,8 @@
       "MODEL"
     ],
     [
-      1555,
-      601,
-      0,
-      630,
-      0,
-      "MODEL"
-    ],
-    [
-      1556,
-      630,
-      0,
-      603,
-      0,
-      "MODEL"
-    ],
-    [
-      1557,
-      632,
+      1554,
+      628,
       0,
       623,
       2,
@@ -1260,10 +1189,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7400249944258255,
+      "scale": 0.672749994932567,
       "offset": [
-        -428.77664628262966,
-        -653.6214011580602
+        -407.7584592612911,
+        -694.2315756081084
       ]
     },
     "frontendVersion": "1.45.15",

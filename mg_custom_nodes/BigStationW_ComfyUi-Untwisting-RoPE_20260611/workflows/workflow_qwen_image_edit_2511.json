@@ -1,8 +1,8 @@
 {
   "id": "44259803-f9d6-4eb1-a94a-75b8213649d0",
   "revision": 0,
-  "last_node_id": 634,
-  "last_link_id": 1566,
+  "last_node_id": 637,
+  "last_link_id": 1568,
   "nodes": [
     {
       "id": 333,
@@ -16,7 +16,7 @@
         46
       ],
       "flags": {},
-      "order": 21,
+      "order": 23,
       "mode": 0,
       "inputs": [
         {
@@ -58,7 +58,7 @@
         98
       ],
       "flags": {},
-      "order": 24,
+      "order": 26,
       "mode": 0,
       "inputs": [
         {
@@ -96,6 +96,39 @@
       ]
     },
     {
+      "id": 229,
+      "type": "KSamplerSelect",
+      "pos": [
+        1465.8802446070147,
+        1668.9757189509317
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            1545
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.0",
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler_ancestral"
+      ]
+    },
+    {
       "id": 167,
       "type": "RandomNoise",
       "pos": [
@@ -107,7 +140,7 @@
         82
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -141,7 +174,7 @@
         116.00450279158758
       ],
       "flags": {},
-      "order": 1,
+      "order": 2,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -164,7 +197,7 @@
         456.72464032296625
       ],
       "flags": {},
-      "order": 26,
+      "order": 28,
       "mode": 0,
       "inputs": [
         {
@@ -226,7 +259,7 @@
         515.9512940840721
       ],
       "flags": {},
-      "order": 28,
+      "order": 30,
       "mode": 0,
       "inputs": [
         {
@@ -255,7 +288,7 @@
         62.2083101328426
       ],
       "flags": {},
-      "order": 27,
+      "order": 29,
       "mode": 0,
       "inputs": [
         {
@@ -297,7 +330,7 @@
         112.57343506692268
       ],
       "flags": {},
-      "order": 2,
+      "order": 3,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -320,7 +353,7 @@
         168
       ],
       "flags": {},
-      "order": 19,
+      "order": 21,
       "mode": 0,
       "inputs": [
         {
@@ -380,7 +413,7 @@
         106
       ],
       "flags": {},
-      "order": 25,
+      "order": 27,
       "mode": 0,
       "inputs": [
         {
@@ -421,7 +454,7 @@
         126.58960944919556
       ],
       "flags": {},
-      "order": 3,
+      "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -441,10 +474,10 @@
       ],
       "size": [
         306.5982421875,
-        214
+        220.0000000000001
       ],
       "flags": {},
-      "order": 15,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
@@ -504,38 +537,43 @@
       ]
     },
     {
-      "id": 261,
-      "type": "VAELoader",
+      "id": 629,
+      "type": "LoadImage",
       "pos": [
-        401.8293929216277,
-        1468.6068452940938
+        -140.0907890196538,
+        1973.6047431935674
       ],
       "size": [
-        270,
-        58
+        282.798828125,
+        314.00000000000006
       ],
       "flags": {},
-      "order": 4,
+      "order": 5,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
-          "name": "VAE",
-          "type": "VAE",
+          "name": "IMAGE",
+          "type": "IMAGE",
           "links": [
-            507,
-            750,
-            1561
+            1555
           ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
         }
       ],
+      "title": "IMAGE INPUT",
       "properties": {
         "cnr_id": "comfy-core",
-        "ver": "0.21.0",
-        "Node name for S&R": "VAELoader"
+        "ver": "0.21.1",
+        "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "flux2-vae.safetensors"
+        "image (23).png",
+        "image"
       ]
     },
     {
@@ -550,7 +588,7 @@
         200
       ],
       "flags": {},
-      "order": 17,
+      "order": 19,
       "mode": 0,
       "inputs": [
         {
@@ -578,68 +616,6 @@
       ]
     },
     {
-      "id": 607,
-      "type": "CLIPTextEncode",
-      "pos": [
-        887.9401977810033,
-        1654.9431345297862
-      ],
-      "size": [
-        400,
-        200
-      ],
-      "flags": {},
-      "order": 16,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 1541
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            1562
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.21.0",
-        "Node name for S&R": "CLIPTextEncode"
-      },
-      "widgets_values": [
-        "Turn this image into an anime-style drawing."
-      ]
-    },
-    {
-      "id": 619,
-      "type": "Note",
-      "pos": [
-        261.6234944497743,
-        980.8806213289101
-      ],
-      "size": [
-        289.0740052806825,
-        112.57343506692268
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "https://github.com/BigStationW/ComfyUi-Scale-Image-to-Total-Pixels-Advanced"
-      ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
       "id": 631,
       "type": "ConditioningAddImageReference",
       "pos": [
@@ -651,7 +627,7 @@
         138
       ],
       "flags": {},
-      "order": 20,
+      "order": 22,
       "mode": 0,
       "inputs": [
         {
@@ -727,18 +703,80 @@
       "bgcolor": "rgba(24,24,27,.9)"
     },
     {
+      "id": 607,
+      "type": "CLIPTextEncode",
+      "pos": [
+        887.9401977810033,
+        1654.9431345297862
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1541
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            1562
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.21.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "Turn this image into a painting."
+      ]
+    },
+    {
+      "id": 634,
+      "type": "Note",
+      "pos": [
+        1149.658067009617,
+        979.1797655514596
+      ],
+      "size": [
+        289.0740052806825,
+        112.57343506692268
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "The only relevant values to change are beta, high_scale_start and low_scale_end"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
       "id": 265,
       "type": "ImageScaleToTotalPixelsX",
       "pos": [
         246.99230874069832,
-        1164.5446997368606
+        985.7986605601063
       ],
       "size": [
         306.5982421875,
-        214
+        220.0000000000001
       ],
       "flags": {},
-      "order": 18,
+      "order": 20,
       "mode": 0,
       "inputs": [
         {
@@ -792,113 +830,15 @@
       ]
     },
     {
-      "id": 629,
-      "type": "LoadImage",
-      "pos": [
-        -140.0907890196538,
-        1973.6047431935674
-      ],
-      "size": [
-        282.798828125,
-        314.00000000000006
-      ],
-      "flags": {},
-      "order": 7,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            1555
-          ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": null
-        }
-      ],
-      "title": "IMAGE INPUT",
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.21.1",
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "image (59).png",
-        "image"
-      ]
-    },
-    {
-      "id": 623,
-      "type": "UntwistingRoPE",
-      "pos": [
-        1136.956054943152,
-        1171.7011951213472
-      ],
-      "size": [
-        270,
-        270
-      ],
-      "flags": {},
-      "order": 23,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 1549
-        },
-        {
-          "name": "rf_inversion",
-          "type": "LATENT",
-          "link": 1550
-        },
-        {
-          "name": "unofficial_extensions",
-          "shape": 7,
-          "type": "UNTWISTING_ROPE_EXTENSIONS",
-          "link": 1566
-        }
-      ],
-      "outputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "links": [
-            1551,
-            1552
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "untwistingrope",
-        "ver": "9fb6a19e82077dc54ddb120f202d474d01497cf7",
-        "Node name for S&R": "UntwistingRoPE"
-      },
-      "widgets_values": [
-        2.5,
-        1,
-        0,
-        1,
-        1.4,
-        0.5,
-        "0-999",
-        false
-      ]
-    },
-    {
       "id": 612,
       "type": "LoadImage",
       "pos": [
-        -102.84151691065208,
-        1161.3938579968244
+        -140.346246959602,
+        882.1030850283665
       ],
       "size": [
         282.798828125,
-        314.00000000000006
+        314.0000000000001
       ],
       "flags": {},
       "order": 8,
@@ -925,20 +865,60 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "HINQu5UXYAAnEQY.jpg",
+        "image (13).png",
         "image"
       ]
     },
     {
-      "id": 616,
-      "type": "Note",
+      "id": 635,
+      "type": "LoraLoaderModelOnly",
       "pos": [
-        1472.1181965831133,
-        1506.4408653175178
+        431.3133423200527,
+        1592.0041288743503
       ],
       "size": [
-        303.65604311050856,
-        116.00450279158758
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1566
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1567
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.21.0",
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Qwen-Image\\Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors",
+        1
+      ]
+    },
+    {
+      "id": 636,
+      "type": "Note",
+      "pos": [
+        403.8248034337811,
+        1433.7358834346799
+      ],
+      "size": [
+        315.5024842923524,
+        111.67533752711438
       ],
       "flags": {},
       "order": 9,
@@ -947,21 +927,21 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "I strongly recommend using only SDE samplers like er_sde or euler_ancestral, adding noise during the process really helps eliminate some transfer style artifacts."
+        "https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/blob/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
       ],
       "color": "#c09430",
       "bgcolor": "rgba(24,24,27,.9)"
     },
     {
-      "id": 229,
-      "type": "KSamplerSelect",
+      "id": 601,
+      "type": "UNETLoader",
       "pos": [
-        1465.8802446070147,
-        1668.9757189509317
+        -129.99018611910094,
+        1654.304465292482
       ],
       "size": [
-        315,
-        58
+        420.10165345254075,
+        102.39426790580865
       ],
       "flags": {},
       "order": 10,
@@ -969,43 +949,10 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "SAMPLER",
-          "type": "SAMPLER",
-          "links": [
-            1545
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.5.0",
-        "Node name for S&R": "KSamplerSelect"
-      },
-      "widgets_values": [
-        "euler_ancestral"
-      ]
-    },
-    {
-      "id": 601,
-      "type": "UNETLoader",
-      "pos": [
-        318.4707979380336,
-        1596.0524486504232
-      ],
-      "size": [
-        420.10165345254075,
-        102.39426790580865
-      ],
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            1528
+            1566
           ]
         }
       ],
@@ -1015,7 +962,7 @@
         "Node name for S&R": "UNETLoader"
       },
       "widgets_values": [
-        "Flux Klein\\flux-2-klein-9b.safetensors",
+        "Qwen-Image\\qwen-image-edit-2511.safetensors",
         "default"
       ]
     },
@@ -1031,7 +978,7 @@
         106
       ],
       "flags": {},
-      "order": 12,
+      "order": 11,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1050,21 +997,56 @@
         "Node name for S&R": "CLIPLoader"
       },
       "widgets_values": [
-        "qwen_3_8b.safetensors",
-        "flux2",
+        "Qwen2.5-VL-7B-Instruct.safetensors",
+        "qwen_image",
         "default"
       ]
     },
     {
-      "id": 611,
-      "type": "Note",
+      "id": 261,
+      "type": "VAELoader",
       "pos": [
-        1145.1572733432688,
-        902.1563553466156
+        152.06359067092927,
+        1246.7701641742344
       ],
       "size": [
-        279.1044491449052,
-        190.5600226272877
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            507,
+            750,
+            1561
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.21.0",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_vae.safetensors"
+      ]
+    },
+    {
+      "id": 619,
+      "type": "Note",
+      "pos": [
+        256.8357265190468,
+        795.7507454645408
+      ],
+      "size": [
+        289.0740052806825,
+        112.57343506692268
       ],
       "flags": {},
       "order": 13,
@@ -1073,24 +1055,105 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "The untwisting RoPE paper suggests patching only the single blocks on flux 1.\n\nFor flux 2 (e.g Klein 9b), the blocks are:\n- Double blocks: 0-7\n- Single blocks: 8-31\n\nPersonally, I find that it works best when all the blocks are enabled, therefore the default values range is 0-999"
+        "https://github.com/BigStationW/ComfyUi-Scale-Image-to-Total-Pixels-Advanced"
       ],
       "color": "#c09430",
       "bgcolor": "rgba(24,24,27,.9)"
     },
     {
-      "id": 634,
+      "id": 616,
+      "type": "Note",
+      "pos": [
+        1472.1181965831133,
+        1506.4408653175178
+      ],
+      "size": [
+        303.65604311050856,
+        116.00450279158758
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "I strongly recommend using only SDE samplers like er_sde or euler_ancestral, adding noise during the process really helps eliminate some transfer style artifacts."
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 623,
+      "type": "UntwistingRoPE",
+      "pos": [
+        1136.956054943152,
+        1171.7011951213472
+      ],
+      "size": [
+        270,
+        270
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1549
+        },
+        {
+          "name": "rf_inversion",
+          "type": "LATENT",
+          "link": 1550
+        },
+        {
+          "name": "unofficial_extensions",
+          "shape": 7,
+          "type": "UNTWISTING_ROPE_EXTENSIONS",
+          "link": 1568
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            1551,
+            1552
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "untwistingrope",
+        "ver": "9fb6a19e82077dc54ddb120f202d474d01497cf7",
+        "Node name for S&R": "UntwistingRoPE"
+      },
+      "widgets_values": [
+        2.5,
+        1,
+        0,
+        1,
+        1.4,
+        0.5,
+        "0-999",
+        true
+      ]
+    },
+    {
+      "id": 637,
       "type": "UnofficialExtensions",
       "pos": [
-        763.7844174962596,
-        733.5375741453837
+        752.5144423306588,
+        744.8146642908163
       ],
       "size": [
         332.76171875,
         202
       ],
       "flags": {},
-      "order": 14,
+      "order": 15,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1098,7 +1161,7 @@
           "name": "unofficial_extensions",
           "type": "UNTWISTING_ROPE_EXTENSIONS",
           "links": [
-            1566
+            1568
           ]
         }
       ],
@@ -1128,13 +1191,13 @@
         266
       ],
       "flags": {},
-      "order": 22,
+      "order": 24,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 1528
+          "link": 1567
         },
         {
           "name": "reference_latent",
@@ -1173,9 +1236,9 @@
         "flowturbo_pc",
         0.5,
         0,
-        0.35,
+        0.00,
         20,
-        true
+        false
       ]
     }
   ],
@@ -1219,14 +1282,6 @@
       603,
       1,
       "LATENT"
-    ],
-    [
-      1528,
-      601,
-      0,
-      603,
-      0,
-      "MODEL"
     ],
     [
       1539,
@@ -1422,7 +1477,23 @@
     ],
     [
       1566,
-      634,
+      601,
+      0,
+      635,
+      0,
+      "MODEL"
+    ],
+    [
+      1567,
+      635,
+      0,
+      603,
+      0,
+      "MODEL"
+    ],
+    [
+      1568,
+      637,
       0,
       623,
       2,
@@ -1433,10 +1504,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.8140274938684168,
+      "scale": 0.6727499949325699,
       "offset": [
-        -495.75807549032083,
-        -874.4674330704073
+        -351.83553722628983,
+        -574.1623622514214
       ]
     },
     "frontendVersion": "1.45.15",

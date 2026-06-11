@@ -1,4 +1,89 @@
-import { StaticBaseStyle } from './StaticBaseStyle.js';
+import { BaseStyle } from './BaseStyle.js';
+
+/**
+ * 电路板样式
+ * 实现智能递归避障、优先90/45度的电路板连线风格
+ * 基于 quick-connections 项目的 Liang-Barsky 线段裁剪算法
+ */
+export class CircuitBoardStyle extends BaseStyle {
+    constructor(animationManager) {
+        super(animationManager);
+        this.paths = [];
+        this.mapLinks = null;
+    }
+
+    /**
+     * 初始化样式
+     */
+    init() {
+        // 创建电路板连线地图实例
+        this.mapLinks = new MapLinks(this.animationManager.canvas);
+        this.mapLinks.lineSpace = Math.floor(3 + this.animationManager.lineWidth);
+    }
+
+    /**
+     * 清理资源
+     */
+    cleanup() {
+        if (this.mapLinks) {
+            this.paths = [];
+            this.mapLinks = null;
+        }
+    }
+
+    /**
+     * 计算单条连线路径
+     */
+    calculatePath(_outNode, _inNode, outPos, inPos, _link) {
+        // 对于单条连线，使用简单的L型路径作为备选
+        // 电路板主要通过getAllPaths批量计算路径
+        const horzDistance = Math.abs(inPos[0] - outPos[0]);
+        const vertDistance = Math.abs(inPos[1] - outPos[1]);
+        
+        let pathPoints;
+        if (horzDistance > vertDistance) {
+            pathPoints = [
+                outPos,
+                [inPos[0], outPos[1]],
+                inPos
+            ];
+        } else {
+            pathPoints = [
+                outPos,
+                [outPos[0], inPos[1]],
+                inPos
+            ];
+        }
+        
+        return {
+            points: pathPoints,
+            type: "angled"
+        };
+    }
+    
+    /**
+     * 获取所有路径
+     * @returns {Array} 路径数据数组
+     */
+    getAllPaths() {
+        // 如果mapLinks不存在，返回空路径数组
+        if (!this.mapLinks) return [];
+        
+        // 重新计算所有路径
+        const nodesByExecution = this.animationManager.canvas?.graph?.computeExecutionOrder?.() || [];
+        if (nodesByExecution && nodesByExecution.length > 0) {
+            try {
+                this.mapLinks.mapLinks(nodesByExecution);
+                return this.mapLinks.paths || [];
+            } catch (err) {
+                console.error("电路板路径计算错误:", err);
+                return [];
+            }
+        }
+        
+        return [];
+    }
+}
 
 /**
  * Liang-Barsky 线段裁剪算法
@@ -74,95 +159,22 @@ function liangBarsky(a, b, box, da, db) {
 }
 
 /**
- * 静态电路板样式
- * 完全复制CircuitBoardStyle的复杂避障算法以确保路径完全一致
+ * 电路板连线地图类
+ * 负责计算和管理节点之间的电路板风格连线
+ * 使用空间分区优化性能
  */
-export class StaticCircuitBoardStyle extends StaticBaseStyle {
-    constructor(animationManager) {
-        super(animationManager);
-        this.paths = [];
-        this.mapLinks = null;
-    }
-
+class MapLinks {
     /**
-     * 初始化样式
+     * 创建连线地图
+     * @param {Object} canvas - 绘图画布对象
      */
-    init() {
-        // 创建电路板连线地图实例 - 完全复制原版MapLinks
-        this.mapLinks = new StaticMapLinks(this.animationManager.canvas);
-        this.mapLinks.lineSpace = Math.floor(3 + this.animationManager.lineWidth);
-    }
-
-    /**
-     * 清理资源
-     */
-    cleanup() {
-        if (this.mapLinks) {
-            this.paths = [];
-            this.mapLinks = null;
-        }
-    }
-
-    /**
-     * 计算单条连线路径 - 与原版保持一致
-     */
-    calculatePath(_outNode, _inNode, outPos, inPos, _link) {
-        // 对于单条连线，使用简单的L型路径作为备选
-        const horzDistance = Math.abs(inPos[0] - outPos[0]);
-        const vertDistance = Math.abs(inPos[1] - outPos[1]);
-        
-        let pathPoints;
-        if (horzDistance > vertDistance) {
-            pathPoints = [
-                outPos,
-                [inPos[0], outPos[1]],
-                inPos
-            ];
-        } else {
-            pathPoints = [
-                outPos,
-                [outPos[0], inPos[1]],
-                inPos
-            ];
-        }
-        
-        return {
-            points: pathPoints,
-            type: "angled"
-        };
-    }
-
-    /**
-     * 获取所有路径 - 使用完整的MapLinks算法
-     */
-    getAllPaths() {
-        if (!this.mapLinks) return [];
-        
-        // 重新计算所有路径
-        const nodesByExecution = this.animationManager.canvas?.graph?.computeExecutionOrder?.() || [];
-        if (nodesByExecution && nodesByExecution.length > 0) {
-            try {
-                this.mapLinks.mapLinks(nodesByExecution);
-                return this.mapLinks.paths || [];
-            } catch (err) {
-                console.error("静态电路板路径计算错误:", err);
-                return [];
-            }
-        }
-        
-        return [];
-    }
-}
-
-// 完整复制MapLinks类 - 确保算法100%一致，并添加空间分区优化
-class StaticMapLinks {
     constructor(canvas) {
         this.canvas = canvas;
         this.nodesByRight = [];
         this.nodesById = [];
         this.lastPathId = 10000000;
         this.paths = [];
-        this.lineSpace = 5;
+        this.lineSpace = 5; // 线间距
         this.maxDirectLineDistance = Number.MAX_SAFE_INTEGER;
         this.debug = false;
         
@@ -172,6 +184,26 @@ class StaticMapLinks {
         this.bounds = null;
         this.gridWidth = 0;
         this.gridHeight = 0;
+    }
+
+    /**
+     * 获取输出端口位置（Vue nodes2.0 兼容）
+     */
+    _getOutputPos(node, slot, outArray) {
+        if (typeof node.getOutputPos === 'function') return node.getOutputPos(slot);
+        if (typeof node.getConnectionPos === 'function') return node.getConnectionPos(false, slot, outArray);
+        if (node?.slots?.[slot]?.pos) return node.slots[slot].pos;
+        return null;
+    }
+
+    /**
+     * 获取输入端口位置（Vue nodes2.0 兼容）
+     */
+    _getInputPos(node, slot, outArray) {
+        if (typeof node.getInputPos === 'function') return node.getInputPos(slot);
+        if (typeof node.getConnectionPos === 'function') return node.getConnectionPos(true, slot, outArray);
+        if (node?.slots?.[slot]?.pos) return node.slots[slot].pos;
+        return null;
     }
 
     /**
@@ -393,7 +425,7 @@ class StaticMapLinks {
     }
 
     /**
-     * 测试路径是否被节点阻挡 - 完全复制动态版本
+     * 测试路径是否被节点阻挡
      */
     testPath(path) {
         const len1 = (path.length - 1);
@@ -407,7 +439,7 @@ class StaticMapLinks {
     }
 
     /**
-     * 计算两点之间的电路板风格路径 - 完全复制动态版本
+     * 计算两点之间的电路板风格路径
      */
     mapFinalLink(outputXY, inputXY) {
         const { clipped } = this.findClippedNode(outputXY, inputXY);
@@ -502,7 +534,7 @@ class StaticMapLinks {
     }
 
     /**
-     * 递归计算避开障碍的路径 - 完全复制原版算法
+     * 递归计算避开障碍的路径
      */
     mapLink(outputXY, inputXY, targetNodeInfo, isBlocked, _lastDirection) {
         // 尝试简单路径
@@ -670,179 +702,6 @@ class StaticMapLinks {
     }
 
     /**
-     * 为画布中的所有节点计算电路板风格的连线 - 完全复制原版
-     */
-    mapLinks(nodesByExecution) {
-        if (!this.canvas.graph.links) {
-            console.error('Missing graph.links', this.canvas.graph);
-            return;
-        }
-
-        const startCalcTime = new Date().getTime();
-        this.links = [];
-        this.lastPathId = 1000000;
-        this.nodesByRight = [];
-        this.nodesById = {};
-        
-        // 初始化节点区域信息 - 完全复制原版逻辑
-        this.nodesByRight = nodesByExecution.map((node) => {
-            const barea = new Float32Array(4);
-            node.getBounding(barea);
-            const area = [
-                barea[0],
-                barea[1],
-                barea[0] + barea[2],
-                barea[1] + barea[3]
-            ];
-            const linesArea = Array.from(area);
-            linesArea[0] -= 5;
-            linesArea[1] -= 1;
-            linesArea[2] += 3;
-            linesArea[3] += 3;
-            const obj = { node, area, linesArea };
-            this.nodesById[node.id] = obj;
-            return obj;
-        });
-
-        // 构建空间分区索引以优化性能
-        this.buildSpatialIndex();
-        
-        // 动态调整网格大小以获得最佳性能
-        this.optimizeGridSize(nodesByExecution.length);
-
-        // 计算所有连线 - 完全复制原版的嵌套filter逻辑
-        this.paths = [];
-        
-        this.nodesByRight.filter((nodeI) => {
-            const { node } = nodeI;
-            if (!node.outputs) {
-                return false;
-            }
-            
-            node.outputs.filter((output, slot) => {
-                if (!output.links) {
-                    return false;
-                }
-
-                const linkPos = new Float32Array(2);
-                const outputXYConnection = node.getConnectionPos(false, slot, linkPos);
-                const outputNodeInfo = this.nodesById[node.id];
-                let outputXY = Array.from(outputXYConnection);
-                
-                output.links.filter((linkId) => {
-                    // 关键！调整输出点到节点右边缘
-                    outputXY[0] = outputNodeInfo.linesArea[2];
-                    
-                    const link = this.canvas.graph.links[linkId];
-                    if (!link) {
-                        return false;
-                    }
-                    
-                    const targetNode = this.canvas.graph.getNodeById(link.target_id);
-                    if (!targetNode) {
-                        return false;
-                    }
-
-                    const inputLinkPos = new Float32Array(2);
-                    const inputXYConnection = targetNode.getConnectionPos(
-                        true,
-                        link.target_slot,
-                        inputLinkPos
-                    );
-                    const inputXY = Array.from(inputXYConnection);
-                    const nodeInfo = this.nodesById[targetNode.id];
-                    // 关键！调整输入点到节点左边缘
-                    inputXY[0] = nodeInfo.linesArea[0] - 1;
-
-                    // 检查起点和终点是否被节点阻挡
-                    const inputBlockedByNode = this.getNodeOnPos(inputXY);
-                    const outputBlockedByNode = this.getNodeOnPos(outputXY);
-
-                    let path = null;
-                    
-                    // 如果起点和终点没有被阻挡，计算避让路径
-                    if (!inputBlockedByNode && !outputBlockedByNode) {
-                        const pathFound = this.mapLink(outputXY, inputXY, nodeInfo, {}, null);
-                        if (pathFound && pathFound.length > 2) {
-                            // 关键！组合完整路径：真实连接点 + 计算路径 + 真实连接点
-                            path = [outputXYConnection, ...pathFound, inputXYConnection];
-                            this.expandTargetNodeLinesArea(nodeInfo, path);
-                        }
-                    }
-                    
-                    // 如果没有找到有效路径，使用直连
-                    if (!path) {
-                        path = [outputXYConnection, outputXY, inputXY, inputXYConnection];
-                    }
-                    
-                    // 扩展源节点的线条区域并保存路径
-                    this.expandSourceNodeLinesArea(nodeI, path);
-                    
-                    // 获取连线颜色
-                    const baseColor = (output.color || 
-                        (this.canvas.default_connection_color_byType && 
-                         this.canvas.default_connection_color_byType[output.type]) ||
-                        (this.canvas.default_connection_color && 
-                         this.canvas.default_connection_color.input_on) ||
-                        "#ff0000");
-
-                    this.paths.push({
-                        path,
-                        from: outputXYConnection,
-                        to: inputXYConnection,
-                        baseColor: link.color || baseColor,
-                        originNode: node,
-                        targetNode,
-                        originSlot: slot,
-                        targetSlot: link.target_slot,
-                        type: "angled", // 角线类型
-                        link: {
-                            origin_id: link.origin_id,
-                            target_id: link.target_id,
-                            origin_slot: link.origin_slot,
-                            target_slot: link.target_slot,
-                            ...link
-                        } // 添加完整的link信息以便进行显示模式判断
-                    });
-                    
-                    // 关键！为下一条线预留空间
-                    outputXY = [
-                        outputXY[0] + this.lineSpace,
-                        outputXY[1]
-                    ];
-                    
-                    return false;
-                });
-                
-                return false;
-            });
-            
-            return false;
-        });
-        
-        // 记录计算时间
-        this.lastCalculate = new Date().getTime();
-        this.lastCalcTime = this.lastCalculate - startCalcTime;
-    }
-
-    /**
-     * 获取某个点上的节点
-     */
-    getNodeOnPos(xy) {
-        for (let i = 0; i < this.nodesByRight.length; ++i) {
-            const nodeI = this.nodesByRight[i];
-            const { linesArea } = nodeI;
-            if (xy[0] >= linesArea[0] &&
-                xy[1] >= linesArea[1] &&
-                xy[0] < linesArea[2] &&
-                xy[1] < linesArea[3]) {
-                return nodeI;
-            }
-        }
-        return null;
-    }
-
-    /**
      * 扩展源节点的线条区域
      */
     expandSourceNodeLinesArea(sourceNodeInfo, path) {
@@ -876,16 +735,217 @@ class StaticMapLinks {
     }
 
     /**
-     * 获取基础颜色的辅助方法
+     * 获取某个点上的节点
      */
-    getBaseColor(outNode, link) {
-        return (outNode.outputs && outNode.outputs[link.origin_slot] && outNode.outputs[link.origin_slot].color)
-            || (this.canvas.default_connection_color_byType && 
-                outNode.outputs && 
-                outNode.outputs[link.origin_slot] && 
-                this.canvas.default_connection_color_byType[outNode.outputs[link.origin_slot].type])
-            || (this.canvas.default_connection_color && 
-                this.canvas.default_connection_color.input_on)
-            || "#999999";
+    getNodeOnPos(xy) {
+        for (let i = 0; i < this.nodesByRight.length; ++i) {
+            const nodeI = this.nodesByRight[i];
+            const { linesArea } = nodeI;
+            if (xy[0] >= linesArea[0] &&
+                xy[1] >= linesArea[1] &&
+                xy[0] < linesArea[2] &&
+                xy[1] < linesArea[3]) {
+                return nodeI;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 为画布中的所有节点计算电路板风格的连线
+     */
+    mapLinks(nodesByExecution) {
+        if (!this.canvas.graph.links) {
+            console.error('Missing graph.links', this.canvas.graph);
+            return;
+        }
+
+        const startCalcTime = new Date().getTime();
+        this.links = [];
+        this.lastPathId = 1000000;
+        this.nodesByRight = [];
+        this.nodesById = {};
+        
+        // 初始化节点区域信息
+        this.nodesByRight = nodesByExecution.map((node) => {
+            const barea = new Float32Array(4);
+            node.getBounding(barea);
+            const area = [
+                barea[0],
+                barea[1],
+                barea[0] + barea[2],
+                barea[1] + barea[3]
+            ];
+            const linesArea = Array.from(area);
+            linesArea[0] -= 5;
+            linesArea[1] -= 1;
+            linesArea[2] += 3;
+            linesArea[3] += 3;
+            const obj = { node, area, linesArea };
+            this.nodesById[node.id] = obj;
+            return obj;
+        });
+
+        // 构建空间分区索引以优化性能
+        this.buildSpatialIndex();
+        
+        // 动态调整网格大小以获得最佳性能
+        this.optimizeGridSize(nodesByExecution.length);
+
+        // 计算所有连线
+        this.paths = [];
+        
+        this.nodesByRight.filter((nodeI) => {
+            const { node } = nodeI;
+            if (!node.outputs) {
+                return false;
+            }
+            
+            node.outputs.filter((output, slot) => {
+                if (!output.links) {
+                    return false;
+                }
+
+                const linkPos = new Float32Array(2);
+                const outputXYConnection = this._getOutputPos(node, slot, linkPos);
+                const outputNodeInfo = this.nodesById[node.id];
+                let outputXY = Array.from(outputXYConnection);
+                
+                output.links.filter((linkId) => {
+                    outputXY[0] = outputNodeInfo.linesArea[2];
+                    
+                    const link = this.canvas.graph.links[linkId];
+                    if (!link) {
+                        return false;
+                    }
+                    
+                    const targetNode = this.canvas.graph.getNodeById(link.target_id);
+                    if (!targetNode) {
+                        return false;
+                    }
+
+                    const inputLinkPos = new Float32Array(2);
+                    const inputXYConnection = this._getInputPos(targetNode, link.target_slot, inputLinkPos);
+                    const inputXY = Array.from(inputXYConnection);
+                    const nodeInfo = this.nodesById[targetNode.id];
+                    inputXY[0] = nodeInfo.linesArea[0] - 1;
+
+                    // 检查起点和终点是否被节点阻挡
+                    const inputBlockedByNode = this.getNodeOnPos(inputXY);
+                    const outputBlockedByNode = this.getNodeOnPos(outputXY);
+
+                    let path = null;
+                    
+                    // 如果起点和终点没有被阻挡，计算避让路径
+                    if (!inputBlockedByNode && !outputBlockedByNode) {
+                        const pathFound = this.mapLink(outputXY, inputXY, nodeInfo, {}, null);
+                        if (pathFound && pathFound.length > 2) {
+                            path = [outputXYConnection, ...pathFound, inputXYConnection];
+                            this.expandTargetNodeLinesArea(nodeInfo, path);
+                        }
+                    }
+                    
+                    // 如果没有找到有效路径，使用直连
+                    if (!path) {
+                        path = [outputXYConnection, outputXY, inputXY, inputXYConnection];
+                    }
+                    
+                    // 扩展源节点的线条区域并保存路径
+                    this.expandSourceNodeLinesArea(nodeI, path);
+                    
+                    // 获取连线颜色
+                    const baseColor = (output.color || 
+                        (this.canvas.default_connection_color_byType && 
+                         this.canvas.default_connection_color_byType[output.type]) ||
+                        (this.canvas.default_connection_color && 
+                         this.canvas.default_connection_color.input_on) ||
+                        "#ff0000");                    this.paths.push({
+                        path,
+                        from: outputXYConnection,
+                        to: inputXYConnection,
+                        baseColor: link.color || baseColor,
+                        originNode: node,
+                        targetNode,
+                        originSlot: slot,
+                        targetSlot: link.target_slot,
+                        type: "angled", // 角线类型
+                        link: {
+                            origin_id: link.origin_id,
+                            target_id: link.target_id,
+                            origin_slot: link.origin_slot,
+                            target_slot: link.target_slot,
+                            ...link
+                        } // 添加完整的link信息以便进行显示模式判断
+                    });
+                    
+                    // 为下一条线预留空间
+                    outputXY = [
+                        outputXY[0] + this.lineSpace,
+                        outputXY[1]
+                    ];
+                    
+                    return false;
+                });
+                
+                return false;
+            });
+            
+            return false;
+        });
+        
+        // 处理 subgraph 输入输出连线
+        this._processSubgraphLinks();
+        
+        // 记录计算时间
+        this.lastCalculate = new Date().getTime();
+        this.lastCalcTime = this.lastCalculate - startCalcTime;
+    }
+
+    /**
+     * 处理 subgraph 输入输出节点的连线
+     */
+    _processSubgraphLinks() {
+        const graph = this.canvas.graph;
+        if (!graph || (!graph.inputNode && !graph.outputNode)) return;
+
+        const allLinks = Object.values(graph.links || {});
+
+        allLinks.forEach(link => {
+            const isSubgraphOrigin = link.origin_id === -10;
+            const isSubgraphTarget = link.target_id === -20;
+            if (!isSubgraphOrigin && !isSubgraphTarget) return;
+
+            const outNode = isSubgraphOrigin ? graph.inputNode : graph._nodes_by_id[link.origin_id];
+            const inNode = isSubgraphTarget ? graph.outputNode : graph._nodes_by_id[link.target_id];
+            if (!outNode || !inNode) return;
+
+            const outPos = this._getOutputPos(outNode, link.origin_slot, new Float32Array(2));
+            const inPos = this._getInputPos(inNode, link.target_slot, new Float32Array(2));
+            if (!outPos || !inPos) return;
+
+            let pathFound = null;
+            try {
+                pathFound = this.mapLink(outPos, inPos, null, {}, null);
+            } catch(e) {}
+            const path = pathFound || [outPos, [inPos[0], outPos[1]], inPos];
+
+            const outType = isSubgraphOrigin ? outNode.slots?.[link.origin_slot]?.type : outNode.outputs?.[link.origin_slot]?.type;
+            const baseColor = (this.canvas.default_connection_color_byType?.[outType]) ||
+                (this.canvas.default_connection_color?.input_on) ||
+                "#ff0000";
+
+            this.paths.push({
+                path,
+                from: [...outPos],
+                to: [...inPos],
+                baseColor: link.color || baseColor,
+                originNode: outNode,
+                targetNode: inNode,
+                originSlot: link.origin_slot,
+                targetSlot: link.target_slot,
+                type: "angled",
+                link: { ...link }
+            });
+        });
     }
 }

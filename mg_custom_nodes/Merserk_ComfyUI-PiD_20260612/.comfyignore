@@ -1,0 +1,19 @@
+# Development/cache files not needed in the Comfy Registry package
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+Thumbs.db
+*.zip
+
+# Legacy source/checkpoint caches should not be published with the node.
+vendor/

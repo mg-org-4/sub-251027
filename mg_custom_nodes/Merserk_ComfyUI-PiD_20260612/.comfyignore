@@ -15,5 +15,5 @@ venv/
 Thumbs.db
 *.zip
 
-# PiD source/checkpoints are downloaded lazily by the node; do not publish them.
+# Legacy source/checkpoint caches should not be published with the node.
 vendor/

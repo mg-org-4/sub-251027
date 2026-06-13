@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger("fl_fill_nodes")
+
 # AI NODES
 from .nodes.ai.FL_Fal_Gemini_ImageEdit import FL_Fal_Gemini_ImageEdit
 from .nodes.ai.FL_Fal_GPTImage2_Edit import FL_Fal_GPTImage2_Edit
@@ -26,8 +30,8 @@ try:
     from .nodes.ai.FL_VertexVeo3 import FL_Veo3VideoGen
 except ImportError as e:
     _GENAI_NODES_AVAILABLE = False
-    print(f"[FL Fill-Nodes] Warning: Could not load Google Gemini/Vertex nodes: {e}")
-    print("[FL Fill-Nodes] Install google-genai with a compatible websockets version to enable these nodes.")
+    logger.warning("Could not load Google Gemini/Vertex nodes: %s", e)
+    logger.info("Install google-genai with a compatible websockets version to enable these nodes.")
 
 # API_TOOLS NODES
 from .nodes.api_tools.FL_API_Base64_ImageLoader import FL_API_Base64_ImageLoader
@@ -196,6 +200,7 @@ from .nodes.utility.FL_RandomRange import FL_RandomNumber
 from .nodes.utility.FL_RandomShapeGenerator import FL_RandomShapeGenerator
 from .nodes.utility.FL_SD_Slices import FL_SDUltimate_Slices
 from .nodes.utility.FL_SeparateMasks import FL_SeparateMaskComponents
+from .nodes.utility.FL_ShowText import FL_ShowText
 from .nodes.utility.FL_StringToLoraName import FL_StringToLoraName
 from .nodes.utility.FL_Switch import FL_Switch
 from .nodes.utility.FL_Switch_Big import FL_Switch_Big
@@ -449,6 +454,7 @@ NODE_CLASS_MAPPINGS = {
     "FL_RandomShapeGenerator": FL_RandomShapeGenerator,
     "FL_KartelJobInput": FL_KartelJobInput,
     "FL_KartelJobOutput": FL_KartelJobOutput,
+    "FL_ShowText": FL_ShowText,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -652,6 +658,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FL_RandomShapeGenerator": "FL Random Shape Generator",
     "FL_KartelJobInput": "FL Kartel Job Input",
     "FL_KartelJobOutput": "FL Kartel Job Output",
+    "FL_ShowText": "FL Show Text",
 }
 
 # Conditionally register google-genai nodes if the SDK loaded successfully

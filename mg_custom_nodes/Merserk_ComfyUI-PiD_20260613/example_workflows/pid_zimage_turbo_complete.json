@@ -1,5 +1,5 @@
 {
-  "id": "pid_flux2_complete.json",
+  "id": "pid_zimage_turbo_complete.json",
   "revision": 0,
   "last_node_id": 13,
   "last_link_id": 13,
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "Flux2 PiD complete workflow\nModels: flux2_dev + mistral_3_small_flux2.\nRecommended PiD capture: 50 steps, capture 46.\nPiD output: 512 latent -> 2048 image with 2k/scale 4.\nUse 2kto4k and 1024 latent for 4K."
+        "Z-Image-Turbo PiD complete workflow\nModels: z_image_turbo + qwen_3_4b.\nRecommended latent is final x0: 9 steps, capture 9, CFG 1.\nOptional compare: capture 7.\nUse 2kto4k and 1024 latent for 4K."
       ]
     },
     {
@@ -62,20 +62,20 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "flux2_dev_fp8mixed.safetensors",
+        "z_image_turbo_bf16.safetensors",
         "default"
       ]
     },
     {
       "id": 3,
-      "type": "ModelSamplingFlux",
+      "type": "ModelSamplingAuraFlow",
       "pos": [
         -720,
         -130
       ],
       "size": [
-        340,
-        150
+        260,
+        92
       ],
       "flags": {},
       "order": 3,
@@ -99,13 +99,10 @@
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "ModelSamplingFlux"
+        "Node name for S&R": "ModelSamplingAuraFlow"
       },
       "widgets_values": [
-        1.15,
-        0.5,
-        512,
-        512
+        3.0
       ]
     },
     {
@@ -146,8 +143,8 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "mistral_3_small_flux2_bf16.safetensors",
-        "flux2",
+        "qwen_3_4b.safetensors",
+        "lumina2",
         "default"
       ]
     },
@@ -335,7 +332,8 @@
       "widgets_values": [
         "2k",
         "512x512 (1:1)",
-        1
+        1,
+        "zimage-turbo"
       ]
     },
     {
@@ -401,12 +399,12 @@
       "widgets_values": [
         0,
         "randomize",
-        50,
-        4.0,
+        9,
+        1.0,
         "euler",
         "flowmatch_euler_discrete",
         1.0,
-        46,
+        9,
         3.0
       ]
     },
@@ -451,7 +449,7 @@
         "Node name for S&R": "PiDPrepare"
       },
       "widgets_values": [
-        "flux2",
+        "zimage-turbo",
         "2k",
         4,
         0.0,
@@ -575,7 +573,7 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "pid-flux2"
+        "pid-zimage-turbo"
       ]
     }
   ],

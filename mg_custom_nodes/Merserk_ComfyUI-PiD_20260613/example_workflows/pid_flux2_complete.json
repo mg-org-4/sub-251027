@@ -1,5 +1,5 @@
 {
-  "id": "pid_qwenimage_complete.json",
+  "id": "pid_flux2_complete.json",
   "revision": 0,
   "last_node_id": 13,
   "last_link_id": 13,
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "Qwen-Image PiD complete workflow\nModels: qwen_image + qwen_2.5_vl_7b.\nRecommended PiD capture: 50 steps, capture 44.\nNVIDIA PiD provides only 2kto4k for Qwen-Image.\nSet latent to 1024 for 4K output."
+        "Flux2 PiD complete workflow\nModels: flux2_dev + mistral_3_small_flux2.\nRecommended PiD capture: 50 steps, capture 46.\nPiD output: 512 latent -> 2048 image with 2k/scale 4.\nUse 2kto4k and 1024 latent for 4K."
       ]
     },
     {
@@ -62,20 +62,20 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "qwen_image_fp8_e4m3fn.safetensors",
+        "flux2_dev_fp8mixed.safetensors",
         "default"
       ]
     },
     {
       "id": 3,
-      "type": "ModelSamplingAuraFlow",
+      "type": "ModelSamplingFlux",
       "pos": [
         -720,
         -130
       ],
       "size": [
-        260,
-        92
+        340,
+        150
       ],
       "flags": {},
       "order": 3,
@@ -99,10 +99,13 @@
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "ModelSamplingAuraFlow"
+        "Node name for S&R": "ModelSamplingFlux"
       },
       "widgets_values": [
-        3.0
+        1.15,
+        0.5,
+        512,
+        512
       ]
     },
     {
@@ -143,8 +146,8 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "qwen_2.5_vl_7b_fp8_scaled.safetensors",
-        "qwen_image",
+        "mistral_3_small_flux2_bf16.safetensors",
+        "flux2",
         "default"
       ]
     },
@@ -330,9 +333,10 @@
         "Node name for S&R": "PiDEmptyLatentImage"
       },
       "widgets_values": [
-        "2kto4k",
-        "1024x1024 (1:1)",
-        1
+        "2k",
+        "512x512 (1:1)",
+        1,
+        "flux2"
       ]
     },
     {
@@ -403,7 +407,7 @@
         "euler",
         "flowmatch_euler_discrete",
         1.0,
-        44,
+        46,
         3.0
       ]
     },
@@ -448,8 +452,8 @@
         "Node name for S&R": "PiDPrepare"
       },
       "widgets_values": [
-        "qwenimage",
-        "2kto4k",
+        "flux2",
+        "2k",
         4,
         0.0,
         true,
@@ -572,7 +576,7 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "pid-qwenimage"
+        "pid-flux2"
       ]
     }
   ],

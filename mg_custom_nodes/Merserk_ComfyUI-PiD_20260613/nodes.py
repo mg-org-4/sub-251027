@@ -9,6 +9,8 @@ try:
     from .pid_decode import NODE_DISPLAY_NAME_MAPPINGS as DECODE_DISPLAY_NAME_MAPPINGS
     from .pid_text_prompt import NODE_CLASS_MAPPINGS as PROMPT_CLASS_MAPPINGS
     from .pid_text_prompt import NODE_DISPLAY_NAME_MAPPINGS as PROMPT_DISPLAY_NAME_MAPPINGS
+    from .pid_caption_creator import NODE_CLASS_MAPPINGS as CAPTION_CLASS_MAPPINGS
+    from .pid_caption_creator import NODE_DISPLAY_NAME_MAPPINGS as CAPTION_DISPLAY_NAME_MAPPINGS
     from .pid_ksampler_capture import NODE_CLASS_MAPPINGS as CAPTURE_CLASS_MAPPINGS
     from .pid_ksampler_capture import NODE_DISPLAY_NAME_MAPPINGS as CAPTURE_DISPLAY_NAME_MAPPINGS
     from .pid_prepare import NODE_CLASS_MAPPINGS as PREPARE_CLASS_MAPPINGS
@@ -26,6 +28,8 @@ except ImportError:  # Allows `python -c "import nodes"` from this folder.
     from pid_decode import NODE_DISPLAY_NAME_MAPPINGS as DECODE_DISPLAY_NAME_MAPPINGS
     from pid_text_prompt import NODE_CLASS_MAPPINGS as PROMPT_CLASS_MAPPINGS
     from pid_text_prompt import NODE_DISPLAY_NAME_MAPPINGS as PROMPT_DISPLAY_NAME_MAPPINGS
+    from pid_caption_creator import NODE_CLASS_MAPPINGS as CAPTION_CLASS_MAPPINGS
+    from pid_caption_creator import NODE_DISPLAY_NAME_MAPPINGS as CAPTION_DISPLAY_NAME_MAPPINGS
     from pid_ksampler_capture import NODE_CLASS_MAPPINGS as CAPTURE_CLASS_MAPPINGS
     from pid_ksampler_capture import NODE_DISPLAY_NAME_MAPPINGS as CAPTURE_DISPLAY_NAME_MAPPINGS
     from pid_prepare import NODE_CLASS_MAPPINGS as PREPARE_CLASS_MAPPINGS
@@ -42,6 +46,7 @@ except ImportError:  # Allows `python -c "import nodes"` from this folder.
 NODE_CLASS_MAPPINGS = {
     **DECODE_CLASS_MAPPINGS,
     **PROMPT_CLASS_MAPPINGS,
+    **CAPTION_CLASS_MAPPINGS,
     **CAPTURE_CLASS_MAPPINGS,
     **PREPARE_CLASS_MAPPINGS,
     **SAMPLE_CLASS_MAPPINGS,
@@ -53,6 +58,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     **DECODE_DISPLAY_NAME_MAPPINGS,
     **PROMPT_DISPLAY_NAME_MAPPINGS,
+    **CAPTION_DISPLAY_NAME_MAPPINGS,
     **CAPTURE_DISPLAY_NAME_MAPPINGS,
     **PREPARE_DISPLAY_NAME_MAPPINGS,
     **SAMPLE_DISPLAY_NAME_MAPPINGS,

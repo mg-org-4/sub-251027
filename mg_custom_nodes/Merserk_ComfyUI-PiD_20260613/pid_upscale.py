@@ -4,7 +4,7 @@ import math
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -61,16 +61,7 @@ PID_UPSCALE_BACKBONES = [
     if "2k" in info.ckpt_types
 ]
 UPSCALE_FACTOR_CHOICES = ["2x", "4x", "6x", "8x"]
-STRENGTH_CHOICES = ["off", "low", "medium", "high"]
-STRENGTH_SIGMAS = {
-    "off": 0.0,
-    "low": 0.2,
-    "medium": 0.4,
-    "high": 0.6,
-}
-PID_UPSCALE_TILE_SIZE = 512
-PID_UPSCALE_TILE_OVERLAP = 64
-PID_UPSCALE_SMALL_EDGE = 512
+PID_UPSCALE_CKPT_TYPES = ["2k", "2kto4k"]
 PID_UPSCALE_NATIVE_SCALE = 4
 PID_UPSCALE_STEPS = 4
 PID_UPSCALE_CFG = 1.0
@@ -104,6 +95,31 @@ class SpatialTile:
     y: int
     width: int
     height: int
+
+
+@dataclass(frozen=True)
+class UpscaleProfile:
+    tile_size: int
+    tile_overlap: int
+    small_edge: int
+
+
+PID_UPSCALE_PROFILES: Dict[str, UpscaleProfile] = {
+    "2k": UpscaleProfile(tile_size=512, tile_overlap=64, small_edge=512),
+    "2kto4k": UpscaleProfile(tile_size=1024, tile_overlap=128, small_edge=1024),
+}
+
+
+def _upscale_profile_for(pid_ckpt_type: str) -> UpscaleProfile:
+    ckpt_type = str(pid_ckpt_type).strip()
+    try:
+        profile = PID_UPSCALE_PROFILES[ckpt_type]
+    except KeyError as exc:
+        raise PiDNodeError(
+            f"Unknown PiD Upscale pid_ckpt_type={pid_ckpt_type!r}; expected one of {PID_UPSCALE_CKPT_TYPES}"
+        ) from exc
+    validate_tile_settings(profile.tile_size, profile.tile_overlap)
+    return profile
 
 
 def validate_tile_settings(tile_size: int, overlap: int) -> None:
@@ -266,11 +282,16 @@ def _parse_upscale_factor(upscale_factor: str) -> int:
     return factor
 
 
-def _parse_strength_sigma(strength: str) -> float:
-    key = str(strength).strip().lower()
-    if key not in STRENGTH_SIGMAS:
-        raise PiDNodeError(f"Unknown PiD Upscale strength={strength!r}; expected one of {STRENGTH_CHOICES}")
-    return float(STRENGTH_SIGMAS[key])
+def _parse_strength_sigma(strength) -> float:
+    try:
+        sigma = float(strength)
+    except (TypeError, ValueError) as exc:
+        raise PiDNodeError(
+            f"Unknown PiD Upscale strength={strength!r}; expected a numeric sigma from 0.0 to 1.0."
+        ) from exc
+    if sigma < 0.0 or sigma > 1.0:
+        raise PiDNodeError(f"PiD Upscale strength sigma must be between 0.0 and 1.0; got {sigma}.")
+    return sigma
 
 
 def _add_latent_noise(clean_latent: torch.Tensor, sigma: float, seed: int) -> torch.Tensor:
@@ -455,6 +476,7 @@ def _pid_upscale_once(
     vae,
     spec,
     image: torch.Tensor,
+    caption: str,
     seed: int,
     sigma: float,
     progress_callback: Optional[Callable[[int, int], None]],
@@ -465,7 +487,7 @@ def _pid_upscale_once(
     base_w = int(latent_cpu.shape[-1]) * int(spec.latent_downscale)
     infer_image_size = (base_h * PID_UPSCALE_NATIVE_SCALE, base_w * PID_UPSCALE_NATIVE_SCALE)
     out = session.sample(
-        "",
+        caption or "",
         latent_cpu,
         float(sigma),
         infer_image_size,
@@ -480,15 +502,15 @@ def _pid_upscale_once(
     return image_out
 
 
-def _planned_pid_calls(width: int, height: int, latent_downscale: int) -> int:
-    if max(int(width), int(height)) < PID_UPSCALE_SMALL_EDGE:
-        scale = float(PID_UPSCALE_SMALL_EDGE) / float(max(int(width), int(height)))
+def _planned_pid_calls(width: int, height: int, latent_downscale: int, profile: UpscaleProfile) -> int:
+    if max(int(width), int(height)) < profile.small_edge:
+        scale = float(profile.small_edge) / float(max(int(width), int(height)))
         pre_w = _round_to_multiple(int(width) * scale, latent_downscale)
         pre_h = _round_to_multiple(int(height) * scale, latent_downscale)
         work_w = pre_w * PID_UPSCALE_NATIVE_SCALE
         work_h = pre_h * PID_UPSCALE_NATIVE_SCALE
-        return 1 + len(generate_tiles(work_w, work_h, PID_UPSCALE_TILE_SIZE, PID_UPSCALE_TILE_OVERLAP))
-    return len(generate_tiles(int(width), int(height), PID_UPSCALE_TILE_SIZE, PID_UPSCALE_TILE_OVERLAP))
+        return 1 + len(generate_tiles(work_w, work_h, profile.tile_size, profile.tile_overlap))
+    return len(generate_tiles(int(width), int(height), profile.tile_size, profile.tile_overlap))
 
 
 def _run_tiled_upscale(
@@ -496,21 +518,22 @@ def _run_tiled_upscale(
     pid_once: Callable[[torch.Tensor, int], torch.Tensor],
     seed_base: int,
     latent_downscale: int,
+    profile: UpscaleProfile,
 ) -> torch.Tensor:
     original_h, original_w = int(image.shape[0]), int(image.shape[1])
 
     working = image
     next_seed = int(seed_base)
-    if max(original_w, original_h) < PID_UPSCALE_SMALL_EDGE:
-        pre_input = _resize_to_long_edge(working, PID_UPSCALE_SMALL_EDGE, latent_downscale)
+    if max(original_w, original_h) < profile.small_edge:
+        pre_input = _resize_to_long_edge(working, profile.small_edge, latent_downscale)
         working = pid_once(pre_input, next_seed)
         next_seed += 1
 
     work_h, work_w = int(working.shape[0]), int(working.shape[1])
-    tiles = generate_tiles(work_w, work_h, PID_UPSCALE_TILE_SIZE, PID_UPSCALE_TILE_OVERLAP)
+    tiles = generate_tiles(work_w, work_h, profile.tile_size, profile.tile_overlap)
     tile_outputs = []
     for tile in tiles:
-        tile_input = extract_reflect_tile(working, tile, PID_UPSCALE_TILE_SIZE)
+        tile_input = extract_reflect_tile(working, tile, profile.tile_size)
         tile_outputs.append((tile, pid_once(tile_input, next_seed + tile.index)))
 
     output_w = work_w * PID_UPSCALE_NATIVE_SCALE
@@ -522,7 +545,7 @@ def _run_tiled_upscale(
         output_width=output_w,
         output_height=output_h,
         scale=PID_UPSCALE_NATIVE_SCALE,
-        overlap=PID_UPSCALE_TILE_OVERLAP,
+        overlap=profile.tile_overlap,
     )
 
 
@@ -532,12 +555,16 @@ class PiDUpscale:
         return {
             "required": {
                 "image": ("IMAGE",),
+                "pid_ckpt_type": (PID_UPSCALE_CKPT_TYPES, {"default": "2k"}),
                 "backbone": (PID_UPSCALE_BACKBONES, {"default": "flux"}),
                 "auto_download": ("BOOLEAN", {"default": True}),
                 "model_precision": (MODEL_PRECISION_CHOICES, {"default": "bf16"}),
                 "upscale_factor": (UPSCALE_FACTOR_CHOICES, {"default": "4x"}),
-                "strength": (STRENGTH_CHOICES, {"default": "medium"}),
-            }
+                "strength": ("FLOAT", {"default": 0.4, "min": 0.0, "max": 1.0, "step": 0.1, "round": 0.01}),
+            },
+            "optional": {
+                "caption": ("STRING", {"forceInput": True}),
+            },
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -548,28 +575,36 @@ class PiDUpscale:
     def upscale(
         self,
         image,
+        pid_ckpt_type: str,
         backbone: str,
         auto_download: bool,
         model_precision: str = "bf16",
         upscale_factor: str = "4x",
-        strength: str = "medium",
+        strength=0.4,
+        caption: str = "",
     ):
         _require_comfy()
         backbone = str(backbone).strip()
         if backbone not in PID_UPSCALE_BACKBONES:
-            raise PiDNodeError(f"PiD Upscale backbone={backbone!r} does not support the 2k/512px checkpoint.")
+            raise PiDNodeError(
+                f"PiD Upscale backbone={backbone!r} does not have a supported image VAE mapping. "
+                f"Expected one of {PID_UPSCALE_BACKBONES}."
+            )
 
+        pid_ckpt_type = str(pid_ckpt_type).strip()
+        caption = str(caption or "").strip()
+        profile = _upscale_profile_for(pid_ckpt_type)
         factor = _parse_upscale_factor(upscale_factor)
         sigma = _parse_strength_sigma(strength)
         images = _ensure_image_batch(image)
         _, original_h, original_w, _ = images.shape
 
-        spec = _checkpoint_for(backbone, "2k", model_precision)
+        spec = _checkpoint_for(backbone, pid_ckpt_type, model_precision)
         if int(spec.scale) != PID_UPSCALE_NATIVE_SCALE:
             raise PiDNodeError(f"PiD Upscale expected a native 4x PiD checkpoint, got scale={spec.scale}.")
 
         total_pid_calls = sum(
-            _planned_pid_calls(original_w, original_h, spec.latent_downscale)
+            _planned_pid_calls(original_w, original_h, spec.latent_downscale, profile)
             for _ in range(int(images.shape[0]))
         )
         total_steps = max(1, total_pid_calls * PID_UPSCALE_STEPS)
@@ -595,6 +630,7 @@ class PiDUpscale:
                         vae,
                         spec,
                         tile_image,
+                        caption,
                         int(seed),
                         sigma,
                         aggregate_progress if pbar is not None else None,
@@ -607,7 +643,9 @@ class PiDUpscale:
                 for batch_index, single_image in enumerate(images):
                     print(
                         f"[ComfyUI-PiD] PiD Upscale image {batch_index + 1}/{images.shape[0]}: "
-                        f"{original_w}x{original_h}, backbone={backbone}, factor={factor}x, "
+                        f"{original_w}x{original_h}, backbone={backbone}, pid_ckpt_type={pid_ckpt_type}, "
+                        f"checkpoint={spec.diffusion_filename}, tile={profile.tile_size}, factor={factor}x, "
+                        f"output={original_w * factor}x{original_h * factor}, caption_chars={len(caption)}, "
                         f"strength={strength} (sigma={sigma:g})",
                         flush=True,
                     )
@@ -616,6 +654,7 @@ class PiDUpscale:
                         run_pid_once,
                         seed_base=batch_index * 100000,
                         latent_downscale=spec.latent_downscale,
+                        profile=profile,
                     )
                     final = _resize_image(stitched, original_w * factor, original_h * factor)
                     outputs.append(final)
@@ -623,7 +662,19 @@ class PiDUpscale:
         except Exception as exc:
             _free_cuda_memory(aggressive=True)
             infer_size = (original_h * factor, original_w * factor)
-            raise _format_pid_runtime_error(exc, infer_size, f"{backbone}/2k", PID_UPSCALE_NATIVE_SCALE) from exc
+            context = (
+                f"{exc}\n"
+                f"PiD Upscale context: input={original_w}x{original_h}, output={original_w * factor}x{original_h * factor}, "
+                f"backbone={backbone}, pid_ckpt_type={pid_ckpt_type}, checkpoint={spec.diffusion_filename}, "
+                f"tile={profile.tile_size}, overlap={profile.tile_overlap}, factor={factor}x, "
+                f"caption_chars={len(caption)}, strength={strength}, sigma={sigma:g}."
+            )
+            raise _format_pid_runtime_error(
+                RuntimeError(context),
+                infer_size,
+                f"{backbone}/{pid_ckpt_type}/{spec.diffusion_filename}",
+                PID_UPSCALE_NATIVE_SCALE,
+            ) from exc
         finally:
             del vae
             _free_cuda_memory(aggressive=True)

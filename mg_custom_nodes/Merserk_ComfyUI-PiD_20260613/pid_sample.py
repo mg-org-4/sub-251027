@@ -108,7 +108,7 @@ class PiDSample:
             raise _format_pid_runtime_error(
                 exc,
                 infer_image_size,
-                f"{prepared.backbone}/{prepared.pid_ckpt_type}",
+                f"{prepared.backbone}/{prepared.pid_ckpt_type}/{spec.diffusion_filename}",
                 int(prepared.scale),
             ) from exc
 

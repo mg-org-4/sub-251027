@@ -1,8 +1,8 @@
 {
   "id": "pid_upscale_complete.json",
   "revision": 0,
-  "last_node_id": 4,
-  "last_link_id": 2,
+  "last_node_id": 5,
+  "last_link_id": 4,
   "nodes": [
     {
       "id": 1,
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "PiD Upscale complete workflow\nLoad image -> PiD Upscale -> Save image.\nDefaults: flux, auto-download enabled, bf16, 4x, medium strength."
+        "PiD Upscale complete workflow\nLoad image -> PiD Caption Creator -> PiD Upscale -> Save image.\nDefaults: 2k, flux, auto-download enabled, bf16, 4x, strength 0.4."
       ]
     },
     {
@@ -45,7 +45,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            1
+            1,
+            2
           ]
         },
         {
@@ -68,12 +69,92 @@
       "id": 3,
       "type": "PiDUpscale",
       "pos": [
-        -300,
+        160,
         80
       ],
       "size": [
         320,
         170
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 2
+        },
+        {
+          "name": "caption",
+          "type": "STRING",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-pid",
+        "ver": "0.2.3",
+        "Node name for S&R": "PiDUpscale"
+      },
+      "widgets_values": [
+        "2k",
+        "flux",
+        true,
+        "bf16",
+        "4x",
+        0.4
+      ]
+    },
+    {
+      "id": 4,
+      "type": "SaveImage",
+      "pos": [
+        580,
+        50
+      ],
+      "size": [
+        430,
+        360
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 4
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.64",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "pid_upscale_complete"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "PiDCaptionCreator",
+      "pos": [
+        -300,
+        80
+      ],
+      "size": [
+        360,
+        220
       ],
       "flags": {},
       "order": 2,
@@ -87,55 +168,26 @@
       ],
       "outputs": [
         {
-          "name": "image",
-          "type": "IMAGE",
+          "name": "text",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "caption",
+          "type": "STRING",
           "links": [
-            2
+            3
           ]
         }
       ],
       "properties": {
         "cnr_id": "comfyui-pid",
         "ver": "0.2.3",
-        "Node name for S&R": "PiDUpscale"
+        "Node name for S&R": "PiDCaptionCreator"
       },
       "widgets_values": [
-        "flux",
         true,
-        "bf16",
-        "4x",
-        "medium"
-      ]
-    },
-    {
-      "id": 4,
-      "type": "SaveImage",
-      "pos": [
-        120,
-        50
-      ],
-      "size": [
-        430,
-        360
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 2
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.64",
-        "Node name for S&R": "SaveImage"
-      },
-      "widgets_values": [
-        "pid_upscale_complete"
+        ""
       ]
     }
   ],
@@ -144,12 +196,28 @@
       1,
       2,
       0,
-      3,
+      5,
       0,
       "IMAGE"
     ],
     [
       2,
+      2,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      5,
+      1,
+      3,
+      1,
+      "STRING"
+    ],
+    [
+      4,
       3,
       0,
       4,

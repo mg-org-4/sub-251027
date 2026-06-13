@@ -1,8 +1,8 @@
 {
-  "id": "pid_flux2_klein_4b_complete.json",
+  "id": "pid_flux_complete.json",
   "revision": 0,
   "last_node_id": 13,
-  "last_link_id": 13,
+  "last_link_id": 14,
   "nodes": [
     {
       "id": 1,
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "Flux2-Klein-4B PiD complete workflow\nModels: flux-2-klein-4b + qwen_3_4b.\nRecommended latent is final x0: 4 steps, capture 4.\nOptional compare: capture 2 or 3.\nUse 2kto4k and 1024 latent for 4K."
+        "Flux PiD complete workflow\nModels: flux1-dev + t5xxl + clip_l.\nRecommended PiD capture: 28 steps, capture 24.\nPiD output: 512 latent -> 2048 image with 2k/scale 4.\nUse 2kto4k and 1024 latent for 4K."
       ]
     },
     {
@@ -62,7 +62,7 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "flux-2-klein-4b-fp8.safetensors",
+        "flux1-dev.safetensors",
         "default"
       ]
     },
@@ -92,7 +92,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            5
+            6
           ]
         }
       ],
@@ -110,7 +110,7 @@
     },
     {
       "id": 4,
-      "type": "CLIPLoader",
+      "type": "DualCLIPLoader",
       "pos": [
         -1120,
         70
@@ -129,14 +129,14 @@
           "type": "CLIP",
           "links": [
             2,
-            4
+            5
           ]
         }
       ],
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "CLIPLoader",
+        "Node name for S&R": "DualCLIPLoader",
         "enableTabs": false,
         "tabWidth": 65,
         "tabXOffset": 10,
@@ -146,9 +146,9 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "qwen_3_4b.safetensors",
-        "flux2",
-        "default"
+        "t5xxl_fp16.safetensors",
+        "clip_l.safetensors",
+        "flux"
       ]
     },
     {
@@ -171,14 +171,15 @@
           "name": "text",
           "type": "STRING",
           "links": [
-            3
+            3,
+            4
           ]
         },
         {
           "name": "caption",
           "type": "STRING",
           "links": [
-            10
+            11
           ]
         }
       ],
@@ -194,14 +195,14 @@
     },
     {
       "id": 6,
-      "type": "CLIPTextEncode",
+      "type": "CLIPTextEncodeFlux",
       "pos": [
         -120,
-        -360
+        -395
       ],
       "size": [
-        300,
-        220
+        330,
+        260
       ],
       "flags": {},
       "order": 5,
@@ -213,67 +214,20 @@
           "link": 2
         },
         {
-          "name": "text",
+          "name": "clip_l",
           "type": "STRING",
           "widget": {
-            "name": "text"
+            "name": "clip_l"
           },
           "link": 3
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            6
-          ]
-        }
-      ],
-      "title": "CLIP Text Encode (Positive Prompt)",
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.73",
-        "Node name for S&R": "CLIPTextEncode",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65
-      },
-      "widgets_values": [
-        ""
-      ]
-    },
-    {
-      "id": 7,
-      "type": "CLIPTextEncode",
-      "pos": [
-        -120,
-        -70
-      ],
-      "size": [
-        300,
-        220
-      ],
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 4
         },
         {
-          "name": "text",
+          "name": "t5xxl",
           "type": "STRING",
           "widget": {
-            "name": "text"
+            "name": "t5xxl"
           },
-          "link": null
+          "link": 4
         }
       ],
       "outputs": [
@@ -285,21 +239,74 @@
           ]
         }
       ],
-      "title": "CLIP Text Encode (Negative Prompt)",
+      "title": "CLIP Text Encode Flux (Positive)",
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "CLIPTextEncode",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65
+        "Node name for S&R": "CLIPTextEncodeFlux"
       },
       "widgets_values": [
-        ""
+        "",
+        "",
+        3.5
+      ]
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncodeFlux",
+      "pos": [
+        -120,
+        -70
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 5
+        },
+        {
+          "name": "clip_l",
+          "type": "STRING",
+          "widget": {
+            "name": "clip_l"
+          },
+          "link": null
+        },
+        {
+          "name": "t5xxl",
+          "type": "STRING",
+          "widget": {
+            "name": "t5xxl"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "title": "CLIP Text Encode Flux (Negative)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.73",
+        "Node name for S&R": "CLIPTextEncodeFlux"
+      },
+      "widgets_values": [
+        "",
+        "",
+        3.5
       ]
     },
     {
@@ -323,7 +330,7 @@
           "type": "LATENT",
           "slot_index": 0,
           "links": [
-            8
+            9
           ]
         }
       ],
@@ -335,7 +342,8 @@
       "widgets_values": [
         "2k",
         "512x512 (1:1)",
-        1
+        1,
+        "flux"
       ]
     },
     {
@@ -356,22 +364,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 5
+          "link": 6
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 6
+          "link": 7
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 7
+          "link": 8
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 8
+          "link": 9
         }
       ],
       "outputs": [
@@ -384,7 +392,7 @@
           "name": "pid_latent",
           "type": "LATENT",
           "links": [
-            9
+            10
           ]
         },
         {
@@ -401,12 +409,12 @@
       "widgets_values": [
         0,
         "randomize",
-        4,
+        28,
         1.0,
         "euler",
         "flowmatch_euler_discrete",
         1.0,
-        4,
+        24,
         3.0
       ]
     },
@@ -428,12 +436,12 @@
         {
           "name": "latent",
           "type": "LATENT",
-          "link": 9
+          "link": 10
         },
         {
           "name": "caption",
           "type": "STRING",
-          "link": 10
+          "link": 11
         }
       ],
       "outputs": [
@@ -441,7 +449,7 @@
           "name": "prepared",
           "type": "PID_PREP",
           "links": [
-            11
+            12
           ]
         }
       ],
@@ -451,7 +459,7 @@
         "Node name for S&R": "PiDPrepare"
       },
       "widgets_values": [
-        "flux2-klein-4b",
+        "flux",
         "2k",
         4,
         0.0,
@@ -478,7 +486,7 @@
         {
           "name": "prepared",
           "type": "PID_PREP",
-          "link": 11
+          "link": 12
         }
       ],
       "outputs": [
@@ -486,7 +494,7 @@
           "name": "sampled",
           "type": "PID_SAMPLES",
           "links": [
-            12
+            13
           ]
         }
       ],
@@ -521,7 +529,7 @@
         {
           "name": "sampled",
           "type": "PID_SAMPLES",
-          "link": 12
+          "link": 13
         }
       ],
       "outputs": [
@@ -529,7 +537,7 @@
           "name": "image",
           "type": "IMAGE",
           "links": [
-            13
+            14
           ]
         }
       ],
@@ -558,7 +566,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 13
+          "link": 14
         }
       ],
       "outputs": [],
@@ -575,7 +583,7 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "pid-flux2-klein-4b"
+        "pid-flux"
       ]
     }
   ],
@@ -606,6 +614,14 @@
     ],
     [
       4,
+      5,
+      0,
+      6,
+      2,
+      "STRING"
+    ],
+    [
+      5,
       4,
       0,
       7,
@@ -613,7 +629,7 @@
       "CLIP"
     ],
     [
-      5,
+      6,
       3,
       0,
       9,
@@ -621,7 +637,7 @@
       "MODEL"
     ],
     [
-      6,
+      7,
       6,
       0,
       9,
@@ -629,7 +645,7 @@
       "CONDITIONING"
     ],
     [
-      7,
+      8,
       7,
       0,
       9,
@@ -637,7 +653,7 @@
       "CONDITIONING"
     ],
     [
-      8,
+      9,
       8,
       0,
       9,
@@ -645,7 +661,7 @@
       "LATENT"
     ],
     [
-      9,
+      10,
       9,
       1,
       10,
@@ -653,7 +669,7 @@
       "LATENT"
     ],
     [
-      10,
+      11,
       5,
       1,
       10,
@@ -661,7 +677,7 @@
       "STRING"
     ],
     [
-      11,
+      12,
       10,
       0,
       11,
@@ -669,7 +685,7 @@
       "PID_PREP"
     ],
     [
-      12,
+      13,
       11,
       0,
       12,
@@ -677,7 +693,7 @@
       "PID_SAMPLES"
     ],
     [
-      13,
+      14,
       12,
       0,
       13,

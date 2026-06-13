@@ -12,7 +12,7 @@ import shutil
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import torch
 
@@ -43,6 +43,33 @@ NATIVE_PID_SUBFOLDER = "nvidia_pid"
 PID_CKPT_TYPES = ["2k", "2kto4k"]
 MODEL_PRECISION_CHOICES = ["bf16", "fp8"]
 NATIVE_PID_STUDENT_T_LIST = (0.999, 0.866, 0.634, 0.342, 0.0)
+
+# These are the base/LDM image sizes that PiD will decode from.
+# Final PiD output is normally 4x these dimensions for the released LDM checkpoints.
+PID_BASE_RESOLUTIONS: Dict[str, Tuple[Tuple[str, int, int], ...]] = {
+    "2k": (
+        ("512x512 (1:1)", 512, 512),
+        ("576x432 (4:3)", 576, 432),
+        ("432x576 (3:4)", 432, 576),
+        ("624x416 (3:2)", 624, 416),
+        ("416x624 (2:3)", 416, 624),
+        ("672x384 (16:9)", 672, 384),
+        ("384x672 (9:16)", 384, 672),
+        ("784x336 (21:9)", 784, 336),
+        ("336x784 (9:21)", 336, 784),
+    ),
+    "2kto4k": (
+        ("1024x1024 (1:1)", 1024, 1024),
+        ("1024x768 (4:3)", 1024, 768),
+        ("768x1024 (3:4)", 768, 1024),
+        ("1008x672 (3:2)", 1008, 672),
+        ("672x1008 (2:3)", 672, 1008),
+        ("1024x576 (16:9)", 1024, 576),
+        ("576x1024 (9:16)", 576, 1024),
+        ("1008x432 (21:9)", 1008, 432),
+        ("432x1008 (9:21)", 432, 1008),
+    ),
+}
 
 
 class PiDNodeError(RuntimeError):
@@ -112,6 +139,33 @@ PID_NATIVE_FILES: Dict[Tuple[str, str, str], str] = {
 }
 
 BACKBONE_CHOICES = list(PID_BACKBONES.keys())
+
+
+def _pid_base_resolution_labels(ckpt_type: str) -> List[str]:
+    return [label for label, _width, _height in PID_BASE_RESOLUTIONS[str(ckpt_type)]]
+
+
+def _pid_base_resolution_size_map(ckpt_type: str) -> Dict[str, Tuple[int, int]]:
+    return {
+        label: (int(width), int(height))
+        for label, width, height in PID_BASE_RESOLUTIONS[str(ckpt_type)]
+    }
+
+
+def _pid_valid_base_sizes(ckpt_type: str) -> Tuple[Tuple[int, int], ...]:
+    return tuple((int(width), int(height)) for _label, width, height in PID_BASE_RESOLUTIONS[str(ckpt_type)])
+
+
+def _format_pid_valid_base_sizes(ckpt_type: str) -> str:
+    return ", ".join(f"{width}x{height}" for width, height in _pid_valid_base_sizes(ckpt_type))
+
+
+def _pid_size_class_hint(ckpt_type: str) -> str:
+    if str(ckpt_type) == "2k":
+        return "512-class base latents such as 512x512"
+    if str(ckpt_type) == "2kto4k":
+        return "1024-class base latents such as 1024x1024"
+    return "a matching trained base latent size"
 
 
 def _require_comfy() -> None:
@@ -202,6 +256,25 @@ def _log_native_decode_plan(infer_image_size: Tuple[int, int]) -> None:
     )
 
 
+def _log_pid_decode_plan(
+    spec: NativePiDModelSpec,
+    latent_shape: Tuple[int, ...],
+    base_size: Tuple[int, int],
+    infer_image_size: Tuple[int, int],
+    sigma: float,
+) -> None:
+    base_h, base_w = int(base_size[0]), int(base_size[1])
+    out_h, out_w = int(infer_image_size[0]), int(infer_image_size[1])
+    print(
+        "[ComfyUI-PiD] native decode plan: "
+        f"backbone={spec.backbone}, ckpt={spec.ckpt_type}, precision={spec.model_precision}, "
+        f"model={spec.diffusion_filename}, latent_shape={list(latent_shape)}, "
+        f"base={base_w}x{base_h}, output={out_w}x{out_h}, sigma={float(sigma):.6f}, "
+        f"gpu_capacity={_vram_total_gb():.1f} GiB",
+        flush=True,
+    )
+
+
 def _normalize_model_precision(model_precision: str) -> str:
     if isinstance(model_precision, bool):
         return "bf16"
@@ -223,6 +296,12 @@ def _checkpoint_for(backbone: str, ckpt_type: str, model_precision: str = "bf16"
         raise PiDNodeError(
             f"{info.label} does not have a native Comfy-Org {ckpt_type!r} PiD model. "
             f"Supported pid_ckpt_type values: {supported}."
+        )
+    if model_precision == "fp8" and info.registry_key == "flux2" and ckpt_type == "2kto4k":
+        raise PiDNodeError(
+            "Flux2 / Flux2-Klein PiD 2kto4k must use model_precision='bf16'. "
+            "The FP8/MXFP8 Comfy-Org Flux2 4K file maps to the older pre-_2606 checkpoint "
+            "family that NVIDIA replaced because it can produce color drift/artifacts."
         )
     try:
         filename = PID_NATIVE_FILES[(model_precision, info.registry_key, ckpt_type)]
@@ -364,6 +443,24 @@ def _latent_pid_sigma(latent: dict, fallback: float) -> float:
 def _infer_lq_size_from_latent(samples: torch.Tensor, backbone: str) -> Tuple[int, int]:
     info = PID_BACKBONES.get(str(backbone).strip(), PID_BACKBONES["zimage"])
     return int(samples.shape[-2]) * int(info.latent_downscale), int(samples.shape[-1]) * int(info.latent_downscale)
+
+
+def _validate_pid_base_resolution(
+    spec: NativePiDModelSpec,
+    base_size: Tuple[int, int],
+) -> None:
+    base_h, base_w = int(base_size[0]), int(base_size[1])
+    valid_sizes = set(_pid_valid_base_sizes(spec.ckpt_type))
+    if (base_w, base_h) in valid_sizes:
+        return
+    raise PiDNodeError(
+        f"{spec.label} supports pid_ckpt_type={spec.ckpt_type!r}, but that checkpoint must be paired with "
+        f"{_pid_size_class_hint(spec.ckpt_type)}. Got a {base_w}x{base_h} base/LDM latent. "
+        f"Valid {spec.ckpt_type!r} base sizes are: {_format_pid_valid_base_sizes(spec.ckpt_type)}. "
+        "For Flux2-Klein 2K output, set PiD Empty Latent to '2k' / '512x512 (1:1)' "
+        "and set ModelSamplingFlux width/height to 512. For 4K output from a 1024 latent, "
+        "use pid_ckpt_type='2kto4k'."
+    )
 
 
 def _preferred_model_folder(folder_name: str, preferred_leaf: str) -> Path:
@@ -863,11 +960,11 @@ class PiDDecode:
         samples_cpu = samples.detach().to("cpu").contiguous()
         samples_cpu, sigma = _prepare_latent_for_pid_backbone(samples_cpu, sigma, backbone)
         h, w = _infer_lq_size_from_latent(samples, backbone)
+        _validate_pid_base_resolution(spec, (h, w))
         infer_image_size = (int(h) * int(scale), int(w) * int(scale))
+        _log_pid_decode_plan(spec, tuple(samples.shape), (h, w), infer_image_size, sigma)
         del samples
         latent = None
-
-        _log_native_decode_plan(infer_image_size)
 
         if unload_comfy_before_pid:
             _free_cuda_memory(aggressive=bool(aggressive_cleanup))
@@ -895,7 +992,12 @@ class PiDDecode:
             _log_cuda_peak_memory("direct native decode")
         except Exception as exc:
             _free_cuda_memory(aggressive=True)
-            raise _format_pid_runtime_error(exc, infer_image_size, f"{backbone}/{pid_ckpt_type}", int(scale)) from exc
+            raise _format_pid_runtime_error(
+                exc,
+                infer_image_size,
+                f"{backbone}/{pid_ckpt_type}/{spec.diffusion_filename}",
+                int(scale),
+            ) from exc
 
         image = _native_pixel_to_comfy_image(out)
         del out

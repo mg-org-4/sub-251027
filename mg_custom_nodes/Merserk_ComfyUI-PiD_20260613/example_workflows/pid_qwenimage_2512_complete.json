@@ -1,7 +1,7 @@
 {
-  "id": "pid_sd3_complete.json",
+  "id": "pid_qwenimage_2512_complete.json",
   "revision": 0,
-  "last_node_id": 12,
+  "last_node_id": 13,
   "last_link_id": 13,
   "nodes": [
     {
@@ -22,19 +22,19 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "SD3 PiD complete workflow\nUses Load Checkpoint for SD3/SD3.5 model+CLIP.\nRecommended PiD capture: 28 steps, capture 24.\nPiD output: 512 latent -> 2048 image with 2k/scale 4.\nUse 2kto4k and 1024 latent for 4K."
+        "Qwen-Image-2512 PiD complete workflow\nModels: qwen_image_2512 + qwen_2.5_vl_7b.\nRecommended PiD capture: 50 steps, capture 44.\nNVIDIA PiD provides only 2kto4k for this backbone.\nSet latent to 1024 for 4K output."
       ]
     },
     {
       "id": 2,
-      "type": "CheckpointLoaderSimple",
+      "type": "UNETLoader",
       "pos": [
         -1120,
         -130
       ],
       "size": [
         340,
-        98
+        148
       ],
       "flags": {},
       "order": 1,
@@ -45,26 +45,14 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            1,
-            2,
-            4
+            1
           ]
-        },
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": []
-        },
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "links": []
         }
       ],
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "CheckpointLoaderSimple",
+        "Node name for S&R": "UNETLoader",
         "enableTabs": false,
         "tabWidth": 65,
         "tabXOffset": 10,
@@ -74,19 +62,20 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "sd3.5_large_fp8_scaled.safetensors"
+        "qwen_image_2512_fp8_e4m3fn.safetensors",
+        "default"
       ]
     },
     {
       "id": 3,
-      "type": "ModelSamplingSD3",
+      "type": "ModelSamplingAuraFlow",
       "pos": [
         -720,
         -130
       ],
       "size": [
-        220,
-        70
+        260,
+        92
       ],
       "flags": {},
       "order": 3,
@@ -110,7 +99,7 @@
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "ModelSamplingSD3"
+        "Node name for S&R": "ModelSamplingAuraFlow"
       },
       "widgets_values": [
         3.0
@@ -118,6 +107,49 @@
     },
     {
       "id": 4,
+      "type": "CLIPLoader",
+      "pos": [
+        -1120,
+        70
+      ],
+      "size": [
+        340,
+        179
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2,
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.73",
+        "Node name for S&R": "CLIPLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+        "qwen_image",
+        "default"
+      ]
+    },
+    {
+      "id": 5,
       "type": "PiDTextPrompt",
       "pos": [
         -690,
@@ -158,7 +190,7 @@
       ]
     },
     {
-      "id": 5,
+      "id": 6,
       "type": "CLIPTextEncode",
       "pos": [
         -120,
@@ -213,7 +245,7 @@
       ]
     },
     {
-      "id": 6,
+      "id": 7,
       "type": "CLIPTextEncode",
       "pos": [
         -120,
@@ -268,7 +300,7 @@
       ]
     },
     {
-      "id": 7,
+      "id": 8,
       "type": "PiDEmptyLatentImage",
       "pos": [
         -690,
@@ -298,13 +330,14 @@
         "Node name for S&R": "PiDEmptyLatentImage"
       },
       "widgets_values": [
-        "2k",
-        "512x512 (1:1)",
-        1
+        "2kto4k",
+        "1024x1024 (1:1)",
+        1,
+        "qwenimage-2512"
       ]
     },
     {
-      "id": 8,
+      "id": 9,
       "type": "PiDKSamplerCapture",
       "pos": [
         260,
@@ -366,17 +399,17 @@
       "widgets_values": [
         0,
         "randomize",
-        28,
+        50,
         4.0,
         "euler",
         "flowmatch_euler_discrete",
         1.0,
-        24,
+        44,
         3.0
       ]
     },
     {
-      "id": 9,
+      "id": 10,
       "type": "PiDPrepare",
       "pos": [
         650,
@@ -416,8 +449,8 @@
         "Node name for S&R": "PiDPrepare"
       },
       "widgets_values": [
-        "sd3",
-        "2k",
+        "qwenimage-2512",
+        "2kto4k",
         4,
         0.0,
         true,
@@ -426,7 +459,7 @@
       ]
     },
     {
-      "id": 10,
+      "id": 11,
       "type": "PiDSample",
       "pos": [
         1050,
@@ -469,7 +502,7 @@
       ]
     },
     {
-      "id": 11,
+      "id": 12,
       "type": "PiDFinalize",
       "pos": [
         1510,
@@ -506,7 +539,7 @@
       "widgets_values": []
     },
     {
-      "id": 12,
+      "id": 13,
       "type": "SaveImage",
       "pos": [
         1760,
@@ -540,7 +573,7 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "pid-sd3"
+        "pid-qwenimage-2512"
       ]
     }
   ],
@@ -555,97 +588,97 @@
     ],
     [
       2,
-      2,
-      0,
-      5,
-      0,
-      "CLIP"
-    ],
-    [
-      3,
       4,
-      0,
-      5,
-      1,
-      "STRING"
-    ],
-    [
-      4,
-      2,
       0,
       6,
       0,
       "CLIP"
     ],
     [
+      3,
+      5,
+      0,
+      6,
+      1,
+      "STRING"
+    ],
+    [
+      4,
+      4,
+      0,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
       5,
       3,
       0,
-      8,
+      9,
       0,
       "MODEL"
     ],
     [
       6,
-      5,
+      6,
       0,
-      8,
+      9,
       1,
       "CONDITIONING"
     ],
     [
       7,
-      6,
+      7,
       0,
-      8,
+      9,
       2,
       "CONDITIONING"
     ],
     [
       8,
-      7,
-      0,
       8,
+      0,
+      9,
       3,
       "LATENT"
     ],
     [
       9,
-      8,
-      1,
       9,
+      1,
+      10,
       0,
       "LATENT"
     ],
     [
       10,
-      4,
+      5,
       1,
-      9,
+      10,
       1,
       "STRING"
     ],
     [
       11,
-      9,
-      0,
       10,
+      0,
+      11,
       0,
       "PID_PREP"
     ],
     [
       12,
-      10,
-      0,
       11,
+      0,
+      12,
       0,
       "PID_SAMPLES"
     ],
     [
       13,
-      11,
-      0,
       12,
+      0,
+      13,
       0,
       "IMAGE"
     ]

@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "SDXL PiD complete workflow\nUses Load Checkpoint for SDXL model+CLIP.\nRecommended PiD capture: 30 steps, capture 26.\nSDXL PiD automatically converts captured latent/sigma.\nNVIDIA PiD provides only 2kto4k for SDXL."
+        "SDXL PiD complete workflow\nUses Load Checkpoint for SDXL model+CLIP.\nRecommended PiD capture: 30 steps, capture 26.\nSDXL PiD automatically converts captured latent/sigma.\nDefault output: 1024 latent -> 4096 image. NVIDIA PiD provides only 2kto4k for SDXL."
       ]
     },
     {
@@ -45,15 +45,16 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            1,
-            3,
             4
           ]
         },
         {
           "name": "CLIP",
           "type": "CLIP",
-          "links": []
+          "links": [
+            1,
+            3
+          ]
         },
         {
           "name": "VAE",
@@ -230,7 +231,7 @@
     },
     {
       "id": 6,
-      "type": "EmptyLatentImage",
+      "type": "PiDEmptyLatentImage",
       "pos": [
         -690,
         360
@@ -245,7 +246,7 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "LATENT",
+          "name": "latent",
           "type": "LATENT",
           "slot_index": 0,
           "links": [
@@ -254,9 +255,9 @@
         }
       ],
       "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.73",
-        "Node name for S&R": "EmptyLatentImage",
+        "cnr_id": "comfyui-pid",
+        "ver": "0.8.2",
+        "Node name for S&R": "PiDEmptyLatentImage",
         "enableTabs": false,
         "tabWidth": 65,
         "tabXOffset": 10,
@@ -266,9 +267,10 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        512,
-        512,
-        1
+        "2kto4k",
+        "1024x1024 (1:1)",
+        1,
+        "sdxl"
       ]
     },
     {
@@ -516,7 +518,7 @@
     [
       1,
       2,
-      0,
+      1,
       4,
       0,
       "CLIP"
@@ -532,7 +534,7 @@
     [
       3,
       2,
-      0,
+      1,
       5,
       0,
       "CLIP"

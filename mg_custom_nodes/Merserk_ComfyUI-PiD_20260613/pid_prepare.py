@@ -17,9 +17,11 @@ try:
         _latent_pid_sigma,
         _validate_latent_source_backbone,
         _infer_lq_size_from_latent,
+        _log_pid_decode_plan,
         _free_cuda_memory,
         _normalize_scale_for_checkpoint,
         _prepare_latent_for_pid_backbone,
+        _validate_pid_base_resolution,
     )
 except ImportError:  # pragma: no cover
     from pid_decode import (
@@ -33,9 +35,11 @@ except ImportError:  # pragma: no cover
         _latent_pid_sigma,
         _validate_latent_source_backbone,
         _infer_lq_size_from_latent,
+        _log_pid_decode_plan,
         _free_cuda_memory,
         _normalize_scale_for_checkpoint,
         _prepare_latent_for_pid_backbone,
+        _validate_pid_base_resolution,
     )
 
 
@@ -119,7 +123,9 @@ class PiDPrepare:
         samples_cpu = samples.detach().to("cpu").contiguous()
         samples_cpu, sigma = _prepare_latent_for_pid_backbone(samples_cpu, sigma, backbone)
         h, w = _infer_lq_size_from_latent(samples, backbone)
+        _validate_pid_base_resolution(ckpt, (h, w))
         infer_image_size = (int(h) * int(scale), int(w) * int(scale))
+        _log_pid_decode_plan(ckpt, tuple(samples.shape), (h, w), infer_image_size, sigma)
 
         if cleanup_after_prepare:
             _free_cuda_memory(aggressive=True)

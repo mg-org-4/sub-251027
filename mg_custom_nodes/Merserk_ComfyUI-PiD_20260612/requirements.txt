@@ -1,3 +1,0 @@
-# Native Comfy-Org PiD downloads.
-# Torch, safetensors, and ComfyUI runtime packages are provided by ComfyUI.
-huggingface-hub>=0.36.0,<1.0

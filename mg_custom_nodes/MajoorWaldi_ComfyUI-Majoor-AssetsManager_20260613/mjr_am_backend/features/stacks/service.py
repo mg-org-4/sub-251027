@@ -1,0 +1,696 @@
+"""
+Asset stacks service — groups assets produced by the same workflow execution.
+
+A *stack* is a set of assets that share the same `job_id` (the prompt_id from
+ComfyUI execution).  For example a single workflow run might produce a mask,
+a controlnet guide, intermediate images, and the final output — all sharing
+the same job_id.  This service manages their grouping.
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass
+from typing import Any
+
+from ...adapters.db.sqlite import Sqlite
+from ...shared import Result, get_logger
+
+logger = get_logger(__name__)
+
+MAX_STACK_NAME_LEN = 200
+MAX_STACK_MEMBERS = 500
+
+
+@dataclass
+class StackInfo:
+    id: int
+    job_id: str
+    name: str
+    cover_asset_id: int | None
+    asset_count: int
+    created_at: str
+    updated_at: str
+
+
+@dataclass
+class StackMember:
+    asset_id: int
+    filename: str
+    filepath: str
+    kind: str
+    size: int
+    mtime: int
+    width: int | None
+    height: int | None
+
+
+class StacksService:
+    """CRUD operations for asset stacks."""
+
+    def __init__(self, db: Sqlite):
+        self.db = db
+
+    # ── Stack CRUD ───────────────────────────────────────────────────────
+
+    async def create_or_get_stack(self, job_id: str, name: str = "") -> Result[int]:
+        """Return the stack id for *job_id*, creating a new row if needed."""
+        normalized_job_id = _normalize_job_id(job_id)
+        if not normalized_job_id:
+            return Result.Err("INVALID_INPUT", "job_id is required")
+        normalized_name = _normalize_stack_name(name)
+
+        existing_stack_id = await self._find_stack_id_by_job_id(normalized_job_id)
+        if existing_stack_id is not None:
+            return Result.Ok(existing_stack_id)
+
+        inserted = await self._insert_stack_row(normalized_job_id, normalized_name)
+        if inserted.ok:
+            return inserted
+
+        existing_stack_id = await self._find_stack_id_by_job_id(normalized_job_id)
+        if existing_stack_id is not None:
+            return Result.Ok(existing_stack_id)
+        return Result.Err("DB_ERROR", inserted.error or "Failed to create stack")
+
+    async def get_stack(self, stack_id: int) -> Result[StackInfo]:
+        row = await self.db.aquery(
+            "SELECT * FROM asset_stacks WHERE id = ?", (stack_id,)
+        )
+        if not row.ok or not row.data:
+            return Result.Err("NOT_FOUND", f"Stack {stack_id} not found")
+        return Result.Ok(_row_to_stack_info(row.data[0]))
+
+    async def get_stack_by_job_id(self, job_id: str) -> Result[StackInfo]:
+        row = await self.db.aquery(
+            "SELECT * FROM asset_stacks WHERE job_id = ?", (str(job_id).strip(),)
+        )
+        if not row.ok or not row.data:
+            return Result.Err("NOT_FOUND", f"No stack for job_id={job_id}")
+        return Result.Ok(_row_to_stack_info(row.data[0]))
+
+    async def list_stacks(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        include_total: bool = False,
+    ) -> Result[dict[str, Any]]:
+        limit = max(1, min(200, int(limit)))
+        offset = max(0, int(offset))
+
+        rows_res = await self.db.aquery(
+            "SELECT s.*, "
+            "  a.filename AS cover_filename, a.filepath AS cover_filepath, "
+            "  a.kind AS cover_kind, a.width AS cover_width, a.height AS cover_height "
+            "FROM asset_stacks s "
+            "LEFT JOIN assets a ON s.cover_asset_id = a.id "
+            "WHERE s.asset_count > 0 "
+            "ORDER BY s.created_at DESC "
+            "LIMIT ? OFFSET ?",
+            (limit, offset),
+        )
+        if not rows_res.ok:
+            return Result.Err("DB_ERROR", rows_res.error or "Failed to list stacks")
+
+        stacks = []
+        for r in rows_res.data or []:
+            info = _row_to_stack_info(r)
+            entry: dict[str, Any] = {
+                "id": info.id,
+                "job_id": info.job_id,
+                "name": info.name,
+                "cover_asset_id": info.cover_asset_id,
+                "asset_count": info.asset_count,
+                "created_at": info.created_at,
+                "updated_at": info.updated_at,
+                "cover_filename": r.get("cover_filename"),
+                "cover_filepath": r.get("cover_filepath"),
+                "cover_kind": r.get("cover_kind"),
+                "cover_width": r.get("cover_width"),
+                "cover_height": r.get("cover_height"),
+            }
+            stacks.append(entry)
+
+        total = None
+        if include_total:
+            count_res = await self.db.aquery(
+                "SELECT COUNT(*) as total FROM asset_stacks WHERE asset_count > 0"
+            )
+            if count_res.ok and count_res.data:
+                total = int(count_res.data[0]["total"])
+
+        return Result.Ok({"stacks": stacks, "total": total, "limit": limit, "offset": offset})
+
+    # ── Membership ───────────────────────────────────────────────────────
+
+    async def assign_asset(self, asset_id: int, stack_id: int) -> Result[bool]:
+        """Assign an asset to a stack and update the stack's asset_count.
+
+        If the asset was previously in a different stack, that stack's count
+        is refreshed as well (cascade on job_id change).
+        """
+        old_res = await self.db.aquery(
+            "SELECT stack_id FROM assets WHERE id = ?", (asset_id,)
+        )
+        old_stack_id = None
+        if old_res.ok and old_res.data:
+            old_stack_id = old_res.data[0].get("stack_id")
+            if old_stack_id is not None:
+                old_stack_id = int(old_stack_id)
+
+        res = await self.db.aexecute(
+            "UPDATE assets SET stack_id = ? WHERE id = ?", (stack_id, asset_id)
+        )
+        if not res.ok:
+            return Result.Err("DB_ERROR", res.error or "Failed to assign asset to stack")
+        await self._refresh_stack_count(stack_id)
+        if old_stack_id and old_stack_id != stack_id:
+            await self._refresh_stack_count(old_stack_id)
+        return Result.Ok(True)
+
+    async def assign_asset_by_job_id(self, asset_id: int, job_id: str) -> Result[int]:
+        """Ensure a stack exists for *job_id*, assign the asset, return stack_id."""
+        stack_res = await self.create_or_get_stack(job_id)
+        if not stack_res.ok:
+            return stack_res
+        stack_id = _coerce_stack_id(stack_res.data)
+        if stack_id is None:
+            return Result.Err("DB_ERROR", "Stack created but id is invalid")
+        assign_res = await self.assign_asset(asset_id, stack_id)
+        if not assign_res.ok:
+            return Result.Err(str(assign_res.code or "DB_ERROR"), assign_res.error or "Failed to assign asset")
+        return Result.Ok(stack_id)
+
+    async def get_members(self, stack_id: int, limit: int | None = None) -> Result[list[dict[str, Any]]]:
+        """Return all assets belonging to a stack."""
+        limit_value = int(limit or 0)
+        if limit_value < 0:
+            return Result.Err("INVALID_INPUT", "limit must be >= 0")
+        limit_sql = " LIMIT ?" if limit_value > 0 else ""
+        params: tuple[Any, ...] = (stack_id, limit_value) if limit_value > 0 else (stack_id,)
+        res = await self.db.aquery(
+            "SELECT a.id, a.filename, a.subfolder, a.filepath, a.kind, a.ext, "
+            "  a.size, a.mtime, a.width, a.height, a.duration, "
+            "  a.source, a.source AS type, a.root_id, "
+            "  a.source_node_id, a.source_node_type, "
+            "  COALESCE(m.rating, 0) as rating, "
+            "  COALESCE((SELECT '[' || group_concat(json_quote(name)) || ']' FROM ("
+            "    SELECT t.name AS name FROM asset_tags at JOIN tags t ON t.id = at.tag_id "
+            "    WHERE at.asset_id = a.id ORDER BY t.name"
+            "  )), '[]') as tags, "
+            "  m.has_workflow, m.has_generation_data "
+            "FROM assets a "
+            "LEFT JOIN asset_metadata m ON a.id = m.asset_id "
+            "WHERE a.stack_id = ? "
+            f"ORDER BY a.mtime ASC{limit_sql}",
+            params,
+        )
+        if not res.ok:
+            return Result.Err("DB_ERROR", res.error or "Failed to get stack members")
+        return Result.Ok([dict(r) for r in res.data or []])
+
+    async def get_members_by_job_id(self, job_id: str) -> Result[list[dict[str, Any]]]:
+        """Return all assets sharing *job_id* (even if no stack row exists yet)."""
+        res = await self.db.aquery(
+            "SELECT a.id, a.filename, a.subfolder, a.filepath, a.kind, a.ext, "
+            "  a.size, a.mtime, a.width, a.height, a.duration, "
+            "  a.source, a.source AS type, a.root_id, "
+            "  a.source_node_id, a.source_node_type, "
+            "  COALESCE(m.rating, 0) as rating, "
+            "  COALESCE((SELECT '[' || group_concat(json_quote(name)) || ']' FROM ("
+            "    SELECT t.name AS name FROM asset_tags at JOIN tags t ON t.id = at.tag_id "
+            "    WHERE at.asset_id = a.id ORDER BY t.name"
+            "  )), '[]') as tags, "
+            "  m.has_workflow, m.has_generation_data "
+            "FROM assets a "
+            "LEFT JOIN asset_metadata m ON a.id = m.asset_id "
+            "WHERE a.job_id = ? "
+            "ORDER BY a.mtime ASC",
+            (str(job_id).strip(),),
+        )
+        if not res.ok:
+            return Result.Err("DB_ERROR", res.error or "Failed to get members by job_id")
+        return Result.Ok([dict(r) for r in res.data or []])
+
+    async def get_members_by_source_node(
+        self,
+        source_node_id: str,
+        *,
+        job_id: str = "",
+        latest_job: bool = True,
+        limit: int = MAX_STACK_MEMBERS,
+    ) -> Result[list[dict[str, Any]]]:
+        """Return assets produced by a ComfyUI output node.
+
+        When no explicit job_id is provided, latest_job narrows the result to
+        the most recent execution for that node. This gives the canvas node
+        selection a useful "current run" context instead of showing all history.
+        """
+        node_id = str(source_node_id or "").strip()
+        if not node_id:
+            return Result.Err("INVALID_INPUT", "source_node_id is required")
+        normalized_job_id = _normalize_job_id(job_id)
+        safe_limit = max(1, min(MAX_STACK_MEMBERS, int(limit or MAX_STACK_MEMBERS)))
+
+        if latest_job and not normalized_job_id:
+            latest_res = await self.db.aquery(
+                "SELECT job_id FROM assets "
+                "WHERE source_node_id = ? AND job_id IS NOT NULL AND job_id != '' "
+                "ORDER BY mtime DESC LIMIT 1",
+                (node_id,),
+            )
+            if not latest_res.ok:
+                return Result.Err("DB_ERROR", latest_res.error or "Failed to get latest node job")
+            if latest_res.data:
+                normalized_job_id = str(latest_res.data[0].get("job_id") or "").strip()
+
+        where = "a.source_node_id = ?"
+        params: list[Any] = [node_id]
+        if normalized_job_id:
+            where += " AND a.job_id = ?"
+            params.append(normalized_job_id)
+        params.append(safe_limit)
+
+        res = await self.db.aquery(
+            "SELECT a.id, a.filename, a.subfolder, a.filepath, a.kind, a.ext, "
+            "  a.size, a.mtime, a.width, a.height, a.duration, "
+            "  a.source, a.source AS type, a.root_id, a.job_id, a.stack_id, "
+            "  a.source_node_id, a.source_node_type, "
+            "  COALESCE(m.rating, 0) as rating, "
+            "  COALESCE((SELECT '[' || group_concat(json_quote(name)) || ']' FROM ("
+            "    SELECT t.name AS name FROM asset_tags at JOIN tags t ON t.id = at.tag_id "
+            "    WHERE at.asset_id = a.id ORDER BY t.name"
+            "  )), '[]') as tags, "
+            "  m.has_workflow, m.has_generation_data "
+            "FROM assets a "
+            "LEFT JOIN asset_metadata m ON a.id = m.asset_id "
+            f"WHERE {where} "
+            "ORDER BY a.mtime DESC "
+            "LIMIT ?",
+            tuple(params),
+        )
+        if not res.ok:
+            return Result.Err("DB_ERROR", res.error or "Failed to get members by source_node_id")
+        return Result.Ok([dict(r) for r in res.data or []])
+
+    # ── Cover management ─────────────────────────────────────────────────
+
+    async def update_name(self, stack_id: int, name: str) -> Result[bool]:
+        """Update the display name of a stack."""
+        normalized = _normalize_stack_name(name)
+        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        res = await self.db.aexecute(
+            "UPDATE asset_stacks SET name = ?, updated_at = ? WHERE id = ?",
+            (normalized, now, stack_id),
+        )
+        if not res.ok:
+            return Result.Err("DB_ERROR", res.error or "Failed to update stack name")
+        return Result.Ok(True)
+
+    async def set_cover(self, stack_id: int, cover_asset_id: int) -> Result[bool]:
+        check = await self.db.aquery(
+            "SELECT 1 FROM assets WHERE id = ? AND stack_id = ?",
+            (cover_asset_id, stack_id),
+        )
+        if not check.ok or not check.data:
+            return Result.Err("INVALID_INPUT", "Asset does not belong to this stack")
+        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        res = await self.db.aexecute(
+            "UPDATE asset_stacks SET cover_asset_id = ?, updated_at = ? WHERE id = ?",
+            (cover_asset_id, now, stack_id),
+        )
+        if not res.ok:
+            return Result.Err("DB_ERROR", res.error or "Failed to set cover")
+        return Result.Ok(True)
+
+    async def auto_select_cover(self, stack_id: int) -> Result[int | None]:
+        """Pick the best cover asset for a stack (last generated image, or last file)."""
+        preferred_queries = (
+            "SELECT id FROM assets "
+            "WHERE stack_id = ? AND kind = 'image' "
+            "ORDER BY mtime DESC LIMIT 1",
+            "SELECT id FROM assets WHERE stack_id = ? ORDER BY mtime DESC LIMIT 1",
+        )
+        for query in preferred_queries:
+            selected_cover = await self._select_cover_candidate(stack_id, query)
+            if selected_cover.ok and selected_cover.data is not None:
+                return selected_cover
+            if not selected_cover.ok:
+                return selected_cover
+        return Result.Ok(None)
+
+    async def _select_cover_candidate(self, stack_id: int, query: str) -> Result[int | None]:
+        res = await self.db.aquery(query, (stack_id,))
+        if not res.ok or not res.data:
+            return Result.Ok(None)
+
+        cover_id = int(res.data[0]["id"])
+        set_cover_res = await self.set_cover(stack_id, cover_id)
+        if not set_cover_res.ok:
+            return Result.Err(
+                set_cover_res.code or "DB_ERROR",
+                set_cover_res.error or "Failed to set cover",
+            )
+        return Result.Ok(cover_id)
+
+    # ── Dissolve / merge ─────────────────────────────────────────────────
+
+    async def dissolve(self, stack_id: int) -> Result[bool]:
+        """Remove the stack and un-assign all member assets."""
+        await self.db.aexecute(
+            "UPDATE assets SET stack_id = NULL WHERE stack_id = ?", (stack_id,)
+        )
+        await self.db.aexecute(
+            "DELETE FROM asset_stacks WHERE id = ?", (stack_id,)
+        )
+        return Result.Ok(True)
+
+    async def merge_into(self, target_stack_id: int, source_stack_ids: list[int]) -> Result[bool]:
+        """Move all assets from source stacks into target, then delete sources."""
+        for src_id in source_stack_ids:
+            if src_id == target_stack_id:
+                continue
+            await self.db.aexecute(
+                "UPDATE assets SET stack_id = ? WHERE stack_id = ?",
+                (target_stack_id, src_id),
+            )
+            await self.db.aexecute(
+                "DELETE FROM asset_stacks WHERE id = ?", (src_id,)
+            )
+        await self._refresh_stack_count(target_stack_id)
+        return Result.Ok(True)
+
+    # ── Auto-stacking ────────────────────────────────────────────────────
+
+    async def _query_pending_job_ids_res(self, exact_job_id: str) -> Result[list[dict[str, Any]]]:
+        if exact_job_id:
+            return await self.db.aquery(
+                "SELECT DISTINCT job_id FROM assets "
+                "WHERE job_id = ? AND stack_id IS NULL",
+                (exact_job_id,),
+            )
+        return await self.db.aquery(
+            "SELECT DISTINCT job_id FROM assets "
+            "WHERE job_id IS NOT NULL AND job_id != '' AND stack_id IS NULL"
+        )
+
+    @staticmethod
+    def _collect_job_ids(rows: list | None) -> list[str]:
+        job_ids: list[str] = []
+        for row in rows or []:
+            current_job_id = str(row.get("job_id") or "").strip()
+            if current_job_id:
+                job_ids.append(current_job_id)
+        return job_ids
+
+    async def auto_stack_by_job_id(self, job_id: str | None = None) -> Result[dict[str, Any]]:
+        """Scan for assets with a job_id but no stack_id, and group them.
+
+        When *job_id* is provided, only that exact execution job is finalized.
+        """
+        exact_job_id = str(job_id or "").strip()
+
+        res = await self._query_pending_job_ids_res(exact_job_id)
+        if not res.ok:
+            return Result.Err("DB_ERROR", res.error or "Failed to query pending stacks")
+
+        job_ids = self._collect_job_ids(res.data)
+
+        created = 0
+        finalized: list[dict[str, Any]] = []
+
+        for current_job_id in job_ids:
+            finalized_entry = await self._finalize_job_stack(current_job_id)
+            if not finalized_entry:
+                continue
+            created += 1
+            finalized.append(finalized_entry)
+
+        logger.info("Auto-stacking finalized %d stack(s)", created)
+        return Result.Ok(
+            {
+                "created": created,
+                "targeted_job_id": exact_job_id or None,
+                "stacks": finalized,
+            }
+        )
+
+    async def auto_stack_by_workflow_hash(self, mtime_window_s: int = 30) -> Result[int]:
+        """Heuristic stacking for assets without job_id.
+
+        Groups assets sharing the same workflow_hash whose mtime values are
+        within *mtime_window_s* seconds of each other.  This is a fallback
+        when core assets is not enabled.
+
+        Returns the number of newly created stacks.
+        """
+        res = await self.db.aquery(
+            "SELECT a.id, a.mtime, m.workflow_hash "
+            "FROM assets a "
+            "JOIN asset_metadata m ON a.id = m.asset_id "
+            "WHERE a.stack_id IS NULL "
+            "  AND (a.job_id IS NULL OR a.job_id = '') "
+            "  AND m.workflow_hash IS NOT NULL AND m.workflow_hash != '' "
+            "ORDER BY m.workflow_hash, a.mtime"
+        )
+        if not res.ok or not res.data:
+            return Result.Ok(0)
+
+        groups = _group_workflow_hash_rows(res.data, mtime_window_s)
+        created = await self._create_stacks_for_workflow_groups(groups)
+
+        logger.info("Heuristic stacking created %d stacks", created)
+        return Result.Ok(created)
+
+    # ── Internal helpers ─────────────────────────────────────────────────
+
+    async def _refresh_stack_count(self, stack_id: int) -> None:
+        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        await self.db.aexecute(
+            "UPDATE asset_stacks SET "
+            "  asset_count = (SELECT COUNT(*) FROM assets WHERE stack_id = ?), "
+            "  updated_at = ? "
+            "WHERE id = ?",
+            (stack_id, now, stack_id),
+        )
+
+    async def _find_stack_id_by_job_id(self, job_id: str) -> int | None:
+        existing = await self.db.aquery(
+            "SELECT id FROM asset_stacks WHERE job_id = ?", (job_id,)
+        )
+        if existing.ok and existing.data:
+            return int(existing.data[0]["id"])
+        return None
+
+    async def _insert_stack_row(self, job_id: str, name: str) -> Result[int]:
+        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        insert = await self.db.aexecute(
+            "INSERT INTO asset_stacks (job_id, name, asset_count, created_at, updated_at) "
+            "VALUES (?, ?, 0, ?, ?)",
+            (job_id, name, now, now),
+        )
+        if not insert.ok:
+            return Result.Err("DB_ERROR", insert.error or "Failed to create stack")
+
+        created_stack_id = await self._find_stack_id_by_job_id(job_id)
+        if created_stack_id is not None:
+            return Result.Ok(created_stack_id)
+        return Result.Err("DB_ERROR", "Stack created but id not found")
+
+    async def _create_stacks_for_workflow_groups(self, groups: list[list[dict[str, Any]]]) -> int:
+        created = 0
+        for group in groups:
+            if await self._assign_workflow_group_to_stack(group):
+                created += 1
+        return created
+
+    async def _assign_workflow_group_to_stack(self, group: list[dict[str, Any]]) -> bool:
+        synthetic_job_id, workflow_hash = _workflow_group_identity(group)
+        stack_res = await self.create_or_get_stack(synthetic_job_id)
+        if not stack_res.ok:
+            return False
+        stack_id = _coerce_stack_id(stack_res.data)
+        if stack_id is None:
+            logger.warning("Invalid synthetic stack id for workflow_hash=%s", workflow_hash)
+            return False
+
+        for member in group:
+            await self.db.aexecute(
+                "UPDATE assets SET stack_id = ? WHERE id = ?",
+                (stack_id, int(member["id"])),
+            )
+        await self._refresh_stack_count(stack_id)
+        cover_res = await self.auto_select_cover(stack_id)
+        if not cover_res.ok:
+            logger.warning("Failed to auto-select cover for workflow_hash=%s: %s", workflow_hash, cover_res.error)
+            return False
+        return True
+
+    async def _finalize_job_stack(self, job_id: str) -> dict[str, Any] | None:
+        current_job_id = str(job_id or "").strip()
+        if not current_job_id:
+            return None
+
+        async with self.db.atransaction(mode="immediate") as tx:
+            if not tx.ok:
+                logger.warning("Failed to begin stack finalization transaction for job_id=%s: %s", current_job_id, tx.error)
+                return None
+
+            member_count = await self._count_assets_for_job_id(current_job_id)
+            if member_count <= 1:
+                await self._clear_singleton_job_stack(current_job_id)
+                return None
+
+            stack_res = await self.create_or_get_stack(current_job_id)
+            if not stack_res.ok:
+                logger.warning("Failed to create stack for job_id=%s: %s", current_job_id, stack_res.error)
+                return None
+            stack_id = _coerce_stack_id(stack_res.data)
+            if stack_id is None:
+                logger.warning("Invalid stack id for job_id=%s", current_job_id)
+                return None
+
+            assign_res = await self.db.aexecute(
+                "UPDATE assets SET stack_id = ? "
+                "WHERE job_id = ? AND stack_id IS NULL",
+                (stack_id, current_job_id),
+            )
+            if not assign_res.ok:
+                logger.warning("Failed to assign assets to stack for job_id=%s: %s", current_job_id, assign_res.error)
+                return None
+
+            member_count = await self._count_assets_for_stack_id(stack_id)
+
+            await self._refresh_stack_count(stack_id)
+            cover_res = await self.auto_select_cover(stack_id)
+            if not cover_res.ok:
+                logger.warning("Failed to auto-select cover for job_id=%s: %s", current_job_id, cover_res.error)
+                return None
+
+        return {
+            "job_id": current_job_id,
+            "stack_id": stack_id,
+            "asset_count": member_count,
+        }
+
+    async def _count_assets_for_job_id(self, job_id: str) -> int:
+        count_res = await self.db.aquery(
+            "SELECT COUNT(*) AS total FROM assets WHERE job_id = ?",
+            (job_id,),
+        )
+        return _extract_count(count_res.data if count_res.ok else None)
+
+    async def _count_assets_for_stack_id(self, stack_id: int) -> int:
+        count_res = await self.db.aquery(
+            "SELECT COUNT(*) AS total FROM assets WHERE stack_id = ?",
+            (stack_id,),
+        )
+        return _extract_count(count_res.data if count_res.ok else None)
+
+    async def _clear_singleton_job_stack(self, job_id: str) -> None:
+        stack_id = await self._find_stack_id_by_job_id(job_id)
+        if stack_id is None:
+            return
+        await self.db.aexecute(
+            "UPDATE assets SET stack_id = NULL WHERE job_id = ?",
+            (job_id,),
+        )
+        await self.db.aexecute(
+            "DELETE FROM asset_stacks WHERE id = ?",
+            (stack_id,),
+        )
+
+
+def _row_to_stack_info(row: dict[str, Any]) -> StackInfo:
+    return StackInfo(
+        id=int(row.get("id") or 0),
+        job_id=str(row.get("job_id") or ""),
+        name=str(row.get("name") or ""),
+        cover_asset_id=int(row["cover_asset_id"]) if row.get("cover_asset_id") else None,
+        asset_count=int(row.get("asset_count") or 0),
+        created_at=str(row.get("created_at") or ""),
+        updated_at=str(row.get("updated_at") or ""),
+    )
+
+
+def _normalize_job_id(job_id: str | None) -> str:
+    return str(job_id or "").strip()
+
+
+def _normalize_stack_name(name: str | None) -> str:
+    return str(name or "").strip()[:MAX_STACK_NAME_LEN]
+
+
+def _group_workflow_hash_rows(
+    rows: list[dict[str, Any]],
+    mtime_window_s: int,
+) -> list[list[dict[str, Any]]]:
+    groups: list[list[dict[str, Any]]] = []
+    current_group: list[dict[str, Any]] = []
+    previous_hash = ""
+    previous_mtime = 0
+
+    for row in rows:
+        workflow_hash = str(row.get("workflow_hash") or "")
+        mtime = int(row.get("mtime") or 0)
+        if _belongs_to_current_workflow_group(
+            workflow_hash,
+            mtime,
+            previous_hash,
+            previous_mtime,
+            mtime_window_s,
+        ):
+            current_group.append(dict(row))
+        else:
+            _append_if_multi_member(groups, current_group)
+            current_group = [dict(row)]
+        previous_hash = workflow_hash
+        previous_mtime = mtime
+
+    _append_if_multi_member(groups, current_group)
+    return groups
+
+
+def _belongs_to_current_workflow_group(
+    workflow_hash: str,
+    mtime: int,
+    previous_hash: str,
+    previous_mtime: int,
+    mtime_window_s: int,
+) -> bool:
+    return workflow_hash == previous_hash and abs(mtime - previous_mtime) <= mtime_window_s
+
+
+def _append_if_multi_member(groups: list[list[dict[str, Any]]], group: list[dict[str, Any]]) -> None:
+    if len(group) > 1:
+        groups.append(group)
+
+
+def _workflow_group_identity(group: list[dict[str, Any]]) -> tuple[str, str]:
+    workflow_hash = str(group[0].get("workflow_hash") or "")
+    mtime = int(group[0].get("mtime") or 0)
+    return f"wfh:{workflow_hash}:{mtime}", workflow_hash
+
+
+def _coerce_stack_id(value: object) -> int | None:
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+        try:
+            parsed = int(raw)
+        except ValueError:
+            return None
+        return parsed if parsed > 0 else None
+    return None
+
+
+def _extract_count(rows: list[dict[str, Any]] | None) -> int:
+    if not rows:
+        return 0
+    try:
+        return int(rows[0].get("total") or 0)
+    except Exception:
+        return 0

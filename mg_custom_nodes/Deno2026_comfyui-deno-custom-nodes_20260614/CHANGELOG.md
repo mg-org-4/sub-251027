@@ -4,6 +4,26 @@ Public, user-facing release notes for Deno Custom Nodes.
 
 This file intentionally stays short. Detailed engineering notes belong in issues, pull requests, and `SESSION_HANDOFF.md`.
 
+## Unreleased
+
+## 0.7.32 - 2026-06-14
+
+- Added Prompt Only final prompt extraction for Local LLM Loader, so Ollama and LM Studio models that add analysis text can pass only the final prompt downstream.
+- Models that cannot follow the Prompt Only format now stop with a clear error instead of sending analysis text into the workflow.
+
+## 0.7.31 - 2026-06-14
+
+- Hardened Local LLM Loader's local Ollama / LM Studio HTTP path so non-local URLs are rejected before any connection is opened.
+
+## 0.7.30 - 2026-06-13
+
+- Fixed release test compatibility for the Local LLM Loader and Reviewer package validation.
+
+## 0.7.29 - 2026-06-13
+
+- Added Local LLM Loader for local Ollama and LM Studio prompt workflows, with separate Stop LLM and Unload LLM controls.
+- Added Local LLM Reviewer for gating IMAGE and AUDIO save paths from review text, including one-shot approval and reviewer-side rerun controls.
+
 ## 0.7.28 - 2026-06-03
 
 - Improved ComfyUI Manager, Comfy Registry, and GitHub discovery metadata for Bernini Prompt Guide, Bernini conditioning helpers, Wan2.2, reference video edit, and prompt guide searches.

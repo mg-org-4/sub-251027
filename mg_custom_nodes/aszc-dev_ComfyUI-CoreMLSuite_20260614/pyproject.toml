@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "comfyui-coremlsuite"
+description = "This extension contains a set of custom nodes for ComfyUI that allow you to use Core ML models in your ComfyUI workflows."
+version = "2.1.2"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    # torch is provided by the host (ComfyUI) and intentionally left unpinned
+    # here: a hard torch cap would downgrade the host's torch and break its
+    # torchvision/torchaudio ABI. coreml-diffusion pulls torch>=2.7 transitively.
+    # >=0.1.6: model-version auto-detection (convert(model_version=None)) and the
+    # dropped <3.13 Python cap (kept in sync with this package's requires-python).
+    "coreml-diffusion>=0.1.6,<0.2",
+    "coremltools>=9,<10",
+    "numpy>=2,<3",
+]
+
+[project.urls]
+Repository = "https://github.com/aszc-dev/ComfyUI-CoreMLSuite"
+
+[tool.hatch.build.targets.wheel]
+packages = ["coreml_suite"]
+
+[tool.comfy]
+PublisherId = "aszc-dev"
+DisplayName = "ComfyUI-CoreMLSuite"
+Icon = "https://raw.githubusercontent.com/aszc-dev/ComfyUI-CoreMLSuite/main/assets/snake.png"
+requires-comfyui = ">=0.3.27"
+
+[dependency-groups]
+dev = [
+    "pillow>=12.2.0",
+    "psutil>=7.2.2",
+    "pytest>=9.0.3",
+]
+comfy = [
+    "comfyui-frontend-package==1.14.6",
+    "torchvision",
+    "torchaudio",
+    "torchsde",
+    "einops",
+    "tokenizers>=0.13.3",
+    "safetensors>=0.4.2",
+    "aiohttp>=3.11.8",
+    "yarl>=1.18.0",
+    "kornia>=0.7.1",
+    "spandrel",
+    "soundfile",
+    "sentencepiece",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "unit: framework-free unit test (Tier 0)",
+    "smoke: macOS-ARM smoke test on a synthetic micro-model (Tier 1)",
+    "m2: requires Apple Silicon + Neural Engine (Tier 2)",
+]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib", "--confcutdir=tests"]

@@ -1,0 +1,17 @@
+__pycache__
+.vscode
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.code-workspace
+models/
+# SuperBeasts model weights
+*.onnx
+*.orig.onnx
+*.pth
+*.safetensors
+MODEL_INFO.json
+SHA256SUMS.txt
+arc/

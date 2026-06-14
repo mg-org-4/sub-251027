@@ -1,5 +1,5 @@
 import numpy as np
-from PIL import Image, ImageOps, ImageDraw, ImageFilter, ImageEnhance, ImageCms
+from PIL import Image, ImageOps, ImageDraw, ImageFilter, ImageEnhance
 from PIL.PngImagePlugin import PngInfo
 import torch
 import torch.nn.functional as F
@@ -11,6 +11,11 @@ import urllib.request, pathlib, shutil, tempfile
 from typing import Dict, Any, List
 import importlib.util
 import sys
+import threading
+import contextlib
+import ctypes
+import gc
+from collections import OrderedDict
 
 
 # Use importlib to probe for the optional global `config` module without triggering static
@@ -258,7 +263,65 @@ class SBLoadModel:
     # Shown in ComfyUI when the user clicks the "?" icon on the node title-bar.
     DESCRIPTION = __doc__
 
-    _model_cache: Dict[str, Dict[str, Any]] = {}
+    _model_cache: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+    _cache_lock = threading.RLock()
+    _init_locks: Dict[str, threading.Lock] = {}
+
+    @classmethod
+    def _cache_limit(cls) -> int:
+        raw = os.environ.get("SUPERBEASTS_MODEL_CACHE_MAX", "4")
+        try:
+            return max(1, int(raw))
+        except ValueError:
+            print(f"[SuperBeasts] Warning: invalid SUPERBEASTS_MODEL_CACHE_MAX={raw!r}; using 4")
+            return 4
+
+    @classmethod
+    def _cleanup_cached_model(cls, cache_key: str, model_info: Dict[str, Any]) -> None:
+        model_obj = model_info.get("model")
+        if model_obj is not None and hasattr(model_obj, "to"):
+            try:
+                model_obj.to("cpu")
+            except Exception as e:
+                print(f"[SuperBeasts] Warning: cleanup model.to('cpu') failed for {cache_key}: {e}")
+
+        session_obj = model_info.get("session")
+        close_fn = getattr(session_obj, "close", None) if session_obj is not None else None
+        if callable(close_fn):
+            try:
+                close_fn()
+            except Exception as e:
+                print(f"[SuperBeasts] Warning: cleanup session.close() failed for {cache_key}: {e}")
+
+        print(f"[SuperBeasts] Evicted cached model: {cache_key}")
+
+    @classmethod
+    def _evict_lru_locked(cls) -> List[tuple]:
+        evicted = []
+        limit = cls._cache_limit()
+        while len(cls._model_cache) > limit:
+            old_key, old_model = cls._model_cache.popitem(last=False)
+            cls._init_locks.pop(old_key, None)
+            evicted.append((old_key, old_model))
+        return evicted
+
+    @classmethod
+    def unload_model(cls, cache_key: str) -> bool:
+        """Explicitly unload one cached model entry by cache key."""
+        with cls._cache_lock:
+            model_info = cls._model_cache.pop(cache_key, None)
+            cls._init_locks.pop(cache_key, None)
+        if model_info is None:
+            print(f"[SuperBeasts] Cache key not found for unload: {cache_key}")
+            return False
+        model_lock = model_info.get("lock")
+        if model_lock is not None:
+            with model_lock:
+                model_info["_pending_dispose"] = True
+        else:
+            model_info["_pending_dispose"] = True
+        print(f"[SuperBeasts] Removed cache entry (deferred disposal): {cache_key}")
+        return True
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -418,195 +481,842 @@ class SBLoadModel:
                     # Non-critical: metadata missing – warn once.
                     print(f"[SuperBeasts] Warning: metadata file not found for {_meta_filename}")
 
-        # --- Security: check SHA-256 digest (raises if mismatch) ---
-        try:
-            _verify_model_checksum(model_path)
-        except Exception as _ck_err:
-            # Surface early so users see a clear error in ComfyUI
-            raise
-
-        # Use cache if possible
-        if model_path in self._model_cache:
-            return (self._model_cache[model_path], )
-
-        # We defer importing onnxruntime unless we end up loading an ONNX model
-        ort = None  # type: ignore[assignment]
-
-        # Optionally set device context
-        dev_ctx = None
-        if device == "GPU":
-            dev_ctx = "/GPU:0"
-        elif device == "CPU":
-            dev_ctx = "/CPU:0"
-
-        # Determine patch size from filename
-        patch_size = self._parse_patch_size(filename)
-
-        # --------------------------------------------------------------
-        # 1. TorchScript checkpoint – no external architecture required
-        # --------------------------------------------------------------
-        if model_path.lower().endswith('.pt'):
+        # Resolve backend identity before keying cache so equivalent UI choices
+        # (e.g. AUTO vs CPU when only CPU is available) share one backend object.
+        model_ext = os.path.splitext(model_path)[1].lower()
+        resolved_torch_device = None
+        resolved_ort_provider = None
+        avail_prov_for_key = None
+        ort_for_key = None
+        if model_ext in ('.pt', '.safetensors'):
             import torch
-
-            device_str = 'cuda' if device == 'GPU' and torch.cuda.is_available() else 'cpu'
-
+            resolved_torch_device = 'cuda' if device == 'GPU' and torch.cuda.is_available() else 'cpu'
+            resolved_backend = f"TORCH:{resolved_torch_device}"
+        else:
             try:
-                model_pt = torch.jit.load(model_path, map_location=device_str)
+                import onnxruntime as ort_for_key  # type: ignore
             except Exception as e:
-                raise RuntimeError(f"Failed to load TorchScript model: {e}")
+                raise RuntimeError(
+                    "onnxruntime is required for SuperBeasts ONNX models. Install with:\n"
+                    " pip install onnxruntime-gpu  # (or onnxruntime for CPU)\n\n" + str(e)
+                ) from e
 
-            model_pt.eval()
+            avail_prov_for_key = ort_for_key.get_available_providers()
+            cuda_available = 'CUDAExecutionProvider' in avail_prov_for_key
+            dml_available = 'DmlExecutionProvider' in avail_prov_for_key
 
-            model_info = {
-                "model": model_pt,
-                "device": device_str,
-                "patch_size": patch_size,
-                "type": "torchscript",
-            }
+            resolved_ort_provider = 'CPUExecutionProvider'
+            if device == "GPU":
+                if cuda_available:
+                    resolved_ort_provider = 'CUDAExecutionProvider'
+                elif dml_available:
+                    resolved_ort_provider = 'DmlExecutionProvider'
+            elif device == "AUTO":
+                if cuda_available:
+                    resolved_ort_provider = 'CUDAExecutionProvider'
+                elif dml_available:
+                    resolved_ort_provider = 'DmlExecutionProvider'
+            resolved_backend = f"ORT:{resolved_ort_provider}"
 
-        # --------------------------------------------------------------
-        # 2. Safetensors + Python architecture (requires contextual_residual_unet_v4.py)
-        # --------------------------------------------------------------
-        elif model_path.lower().endswith('.safetensors'):
-            import torch
-            from safetensors.torch import load_file as safe_load
-            import importlib.util, sys, pathlib
-            model_dir = pathlib.Path(__file__).parent / 'torch_models'
-            model_dir.mkdir(exist_ok=True)
+        # Use a backend-aware cache key. The old model_path-only key could return
+        # an incompatible backend object after device/provider changes.
+        cache_key = f"{os.path.abspath(model_path)}|{resolved_backend}"
+        with self._cache_lock:
+            cached_model = self._model_cache.get(cache_key)
+            if cached_model is not None:
+                self._model_cache.move_to_end(cache_key)
+                return (cached_model, )
+            init_lock = self._init_locks.get(cache_key)
+            if init_lock is None:
+                init_lock = threading.Lock()
+                self._init_locks[cache_key] = init_lock
 
-            # ------------------------------------------------------------------
-            # Ensure architecture implementation file is present – download on
-            # demand if missing so repo stays lean for users who only use ONNX.
-            # ------------------------------------------------------------------
-            arch_filename = 'contextual_residual_unet_v4_pt.py'
-            module_path = (model_dir / arch_filename).resolve()
-            if not module_path.exists():
+        # Serialize costly cache-miss initialization (checksum/load/session creation) per key.
+        with init_lock:
+            with self._cache_lock:
+                cached_model = self._model_cache.get(cache_key)
+                if cached_model is not None:
+                    self._model_cache.move_to_end(cache_key)
+                    return (cached_model, )
+
+            # --- Security: check SHA-256 digest (raises if mismatch) ---
+            try:
+                _verify_model_checksum(model_path)
+            except Exception:
+                # Surface early so users see a clear error in ComfyUI
+                raise
+
+            # We defer importing onnxruntime unless we end up loading an ONNX model
+            ort = ort_for_key  # type: ignore[assignment]
+
+            # Optionally set device context
+            dev_ctx = None
+            if device == "GPU":
+                dev_ctx = "/GPU:0"
+            elif device == "CPU":
+                dev_ctx = "/CPU:0"
+
+            # Determine patch size from filename
+            patch_size = self._parse_patch_size(filename)
+
+            # --------------------------------------------------------------
+            # 1. TorchScript checkpoint – no external architecture required
+            # --------------------------------------------------------------
+            if model_path.lower().endswith('.pt'):
+                import torch
+
+                device_str = resolved_torch_device if resolved_torch_device is not None else 'cpu'
+
                 try:
-                    rel_path_arch = f"{family}/TorchModel/{arch_filename}"
-                    _download_remote_model(rel_path_arch, str(module_path))
+                    model_pt = torch.jit.load(model_path, map_location=device_str)
                 except Exception as e:
-                    raise RuntimeError(
-                        "Required architecture file was not found locally and automatic download failed.\n" + str(e)
-                    )
-
-            # ------------------------------------------------------------------
-            # Safety guard – ensure we never import a file outside our plugin dir
-            # even if the relative path is somehow manipulated.
-            # ------------------------------------------------------------------
-
-            allowed_root = model_dir.resolve()
-            if not str(module_path).startswith(str(allowed_root)):
-                raise RuntimeError("Blocked unsafe module import: path escapes plugin directory")
-
-            sys.path.append(str(model_dir))
-            spec = importlib.util.spec_from_file_location('contextual_residual_unet_v4_pt', module_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)  # type: ignore
-            ContextualResidualUNetV4Torch = module.ContextualResidualUNetV4Torch
-
-            device_str = 'cuda' if device == 'GPU' and torch.cuda.is_available() else 'cpu'
-
-            # Prefer TorchScript if it exists next to the safetensors
-            base_no_ext = os.path.splitext(model_path)[0]
-            pt_path_candidates = [base_no_ext + '.pt', base_no_ext + '_scripted.pt']
-            pt_path = next((p for p in pt_path_candidates if os.path.isfile(p)), None)
-            if pt_path and os.path.isfile(pt_path):
-                try:
-                    model_pt = torch.jit.load(pt_path, map_location=device_str)
-                    model_pt.eval()
-                except Exception as e:
-                    raise RuntimeError(f"Failed to load TorchScript companion file {pt_path}: {e}")
-            else:
-                # Fall back to python architecture + direct state_dict load (legacy path)
-                model_pt = ContextualResidualUNetV4Torch()
-
-                state_in = safe_load(model_path, device='cpu')
-                try:
-                    model_pt.load_state_dict(state_in, strict=True)
-                except Exception as e:
-                    raise RuntimeError("Checkpoint did not match architecture and no .pt file found. "
-                                       "Convert the model to TorchScript to avoid mismatches.\n" + str(e))
+                    raise RuntimeError(f"Failed to load TorchScript model: {e}") from e
 
                 model_pt.eval()
 
-            model_info = {
-                "model": model_pt,
-                "device": device_str,
-                "patch_size": patch_size,
-                "type": "torch",
-            }
+                model_info = {
+                    "model": model_pt,
+                    "device": device_str,
+                    "cache_key": cache_key,
+                    "_pending_dispose": False,
+                    "patch_size": patch_size,
+                    "type": "torchscript",
+                    "lock": threading.RLock(),
+                }
 
-        # Load ONNX with onnxruntime (import lazily so safetensors users don't need it)
-        else:
-            if ort is None:
-                try:
-                    import onnxruntime as ort  # type: ignore
-                except Exception as e:
-                    raise RuntimeError(
-                        "onnxruntime is required for SuperBeasts ONNX models. Install with:\n"
-                        " pip install onnxruntime-gpu  # (or onnxruntime for CPU)\n\n" + str(e)
-                    )
+            # --------------------------------------------------------------
+            # 2. Safetensors + Python architecture (requires contextual_residual_unet_v4.py)
+            # --------------------------------------------------------------
+            elif model_path.lower().endswith('.safetensors'):
+                import torch
+                from safetensors.torch import load_file as safe_load
+                import importlib.util, sys, pathlib
+                model_dir = pathlib.Path(__file__).parent / 'torch_models'
+                model_dir.mkdir(exist_ok=True)
 
-            providers: List[str]
-            avail_prov = ort.get_available_providers()
-            print(f"[SuperBeasts] ONNX Runtime providers available: {avail_prov}")
-            cuda_available = 'CUDAExecutionProvider' in avail_prov
-            dml_available = 'DmlExecutionProvider' in avail_prov
+                # ------------------------------------------------------------------
+                # Ensure architecture implementation file is present – download on
+                # demand if missing so repo stays lean for users who only use ONNX.
+                # ------------------------------------------------------------------
+                arch_filename = 'contextual_residual_unet_v4_pt.py'
+                module_path = (model_dir / arch_filename).resolve()
+                if not module_path.exists():
+                    try:
+                        rel_path_arch = f"{family}/TorchModel/{arch_filename}"
+                        _download_remote_model(rel_path_arch, str(module_path))
+                    except Exception as e:
+                        raise RuntimeError(
+                            "Required architecture file was not found locally and automatic download failed.\n" + str(e)
+                        ) from e
 
-            chosen_provider = 'CPUExecutionProvider'
+                # ------------------------------------------------------------------
+                # Safety guard – ensure we never import a file outside our plugin dir
+                # even if the relative path is somehow manipulated.
+                # ------------------------------------------------------------------
+                allowed_root = model_dir.resolve()
+                if not str(module_path).startswith(str(allowed_root)):
+                    raise RuntimeError("Blocked unsafe module import: path escapes plugin directory")
 
-            if device == "GPU":
-                if cuda_available:
-                    chosen_provider = 'CUDAExecutionProvider'
-                elif dml_available:
-                    chosen_provider = 'DmlExecutionProvider'
-            elif device == "AUTO":
-                if cuda_available:
-                    chosen_provider = 'CUDAExecutionProvider'
-                elif dml_available:
-                    chosen_provider = 'DmlExecutionProvider'
+                sys.path.append(str(model_dir))
+                spec = importlib.util.spec_from_file_location('contextual_residual_unet_v4_pt', module_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)  # type: ignore
+                ContextualResidualUNetV4Torch = module.ContextualResidualUNetV4Torch
 
-            if chosen_provider != 'CPUExecutionProvider':
-                providers = [chosen_provider, 'CPUExecutionProvider']
+                device_str = resolved_torch_device if resolved_torch_device is not None else 'cpu'
+
+                # Prefer TorchScript if it exists next to the safetensors
+                base_no_ext = os.path.splitext(model_path)[0]
+                pt_path_candidates = [base_no_ext + '.pt', base_no_ext + '_scripted.pt']
+                pt_path = next((p for p in pt_path_candidates if os.path.isfile(p)), None)
+                if pt_path and os.path.isfile(pt_path):
+                    try:
+                        model_pt = torch.jit.load(pt_path, map_location=device_str)
+                        model_pt.eval()
+                    except Exception as e:
+                        raise RuntimeError(f"Failed to load TorchScript companion file {pt_path}: {e}") from e
+                else:
+                    # Fall back to python architecture + direct state_dict load (legacy path)
+                    model_pt = ContextualResidualUNetV4Torch()
+
+                    state_in = safe_load(model_path, device='cpu')
+                    try:
+                        model_pt.load_state_dict(state_in, strict=True)
+                    except Exception as e:
+                        raise RuntimeError(
+                            "Checkpoint did not match architecture and no .pt file found. "
+                            "Convert the model to TorchScript to avoid mismatches.\n" + str(e)
+                        ) from e
+
+                    model_pt = model_pt.to(device_str)
+                    model_pt.eval()
+
+                model_info = {
+                    "model": model_pt,
+                    "device": device_str,
+                    "cache_key": cache_key,
+                    "_pending_dispose": False,
+                    "patch_size": patch_size,
+                    "type": "torch",
+                    "lock": threading.RLock(),
+                }
+
+            # Load ONNX with onnxruntime (import lazily so safetensors users don't need it)
             else:
-                providers = ['CPUExecutionProvider']
+                if ort is None:
+                    try:
+                        import onnxruntime as ort  # type: ignore
+                    except Exception as e:
+                        raise RuntimeError(
+                            "onnxruntime is required for SuperBeasts ONNX models. Install with:\n"
+                            " pip install onnxruntime-gpu  # (or onnxruntime for CPU)\n\n" + str(e)
+                        ) from e
 
-            print(f"[SuperBeasts] Using ORT providers: {providers}")
+                providers: List[str]
+                avail_prov = avail_prov_for_key if avail_prov_for_key is not None else ort.get_available_providers()
+                print(f"[SuperBeasts] ONNX Runtime providers available: {avail_prov}")
+                chosen_provider = resolved_ort_provider if resolved_ort_provider is not None else 'CPUExecutionProvider'
 
-            # Create session
-            session_opts = ort.SessionOptions()
-            session_opts.log_severity_level = 3  # suppress info logs
-            session = ort.InferenceSession(model_path, session_options=session_opts, providers=providers)
+                if chosen_provider != 'CPUExecutionProvider':
+                    providers = [chosen_provider, 'CPUExecutionProvider']
+                else:
+                    providers = ['CPUExecutionProvider']
 
-            input_names = [i.name for i in session.get_inputs()]
+                print(f"[SuperBeasts] Using ORT providers: {providers}")
 
-            model_info = {
-                "session": session,
-                "input_names": input_names,
-                "patch_size": patch_size,
-                "path": model_path,
-                "type": "onnx",
-            }
+                # Create session.  Keep ORT's per-session CPU thread pools bounded;
+                # ComfyUI already runs alongside PyTorch and other native extensions,
+                # and unbounded ORT pools can stall the prompt worker under repeated
+                # node execution.
+                session_opts = ort.SessionOptions()
+                session_opts.log_severity_level = 3  # suppress info logs
 
-        # Attach metadata path if we fetched it earlier
-        if '_meta_path' in locals() and os.path.isfile(_meta_path):
-            model_info["metadata_path"] = _meta_path
-        
-        # Cache and return
-        self._model_cache[model_path] = model_info
-        return (model_info, )
+                def _safe_env_threads(name: str, default: int = 1) -> int:
+                    raw = os.environ.get(name, str(default))
+                    try:
+                        return max(1, int(raw))
+                    except ValueError:
+                        print(f"[SuperBeasts] Warning: invalid {name}={raw!r}; using {default}")
+                        return default
 
+                intra_threads = _safe_env_threads("SUPERBEASTS_ORT_INTRA_THREADS", 1)
+                inter_threads = _safe_env_threads("SUPERBEASTS_ORT_INTER_THREADS", 1)
 
-sRGB_profile = ImageCms.createProfile("sRGB")
-Lab_profile = ImageCms.createProfile("LAB")
+                try:
+                    session_opts.intra_op_num_threads = intra_threads
+                except Exception:
+                    # Older ORT builds may not expose this option.
+                    pass
+                try:
+                    session_opts.inter_op_num_threads = inter_threads
+                except Exception:
+                    # Older ORT builds may not expose this option.
+                    pass
+                try:
+                    session_opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+                except Exception:
+                    # Older ORT builds may not expose this option.
+                    pass
+
+                session = ort.InferenceSession(model_path, session_options=session_opts, providers=providers)
+
+                session_inputs = session.get_inputs()
+                input_names = [i.name for i in session_inputs]
+                input_shapes = [i.shape for i in session_inputs]
+                output_shapes = [o.shape for o in session.get_outputs()]
+
+                model_info = {
+                    "session": session,
+                    "input_names": input_names,
+                    "input_shapes": input_shapes,
+                    "output_shapes": output_shapes,
+                    "cache_key": cache_key,
+                    "_pending_dispose": False,
+                    "patch_size": patch_size,
+                    "path": model_path,
+                    "type": "onnx",
+                    "lock": threading.RLock(),
+                }
+
+            # Attach metadata path if we fetched it earlier
+            if '_meta_path' in locals() and os.path.isfile(_meta_path):
+                model_info["metadata_path"] = _meta_path
+
+            evicted_models = []
+            # Cache and return.  If another prompt loaded the same model while this
+            # call was initializing, reuse the first object so all executions share
+            # one lock-protected backend instance.
+            with self._cache_lock:
+                cached_model = self._model_cache.get(cache_key)
+                if cached_model is not None:
+                    self._model_cache.move_to_end(cache_key)
+                    return (cached_model, )
+                self._model_cache[cache_key] = model_info
+                self._model_cache.move_to_end(cache_key)
+                evicted_models = self._evict_lru_locked()
+
+            for evicted_key, evicted_model in evicted_models:
+                evicted_lock = evicted_model.get("lock") if isinstance(evicted_model, dict) else None
+                if evicted_lock is not None:
+                    with evicted_lock:
+                        evicted_model["_pending_dispose"] = True
+                else:
+                    evicted_model["_pending_dispose"] = True
+                print(f"[SuperBeasts] Evicted cache entry (deferred disposal): {evicted_key}")
+            return (model_info, )
+
 
 # Tensor to PIL
 def tensor2pil(image):
-    return Image.fromarray(np.clip(255. * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+    arr = image.detach().cpu().numpy()
+    if arr.ndim == 4:
+        arr = arr[0]
+    if arr.ndim == 2:
+        return Image.fromarray(np.clip(arr * 255.0, 0, 255).astype(np.uint8), mode='L')
+    if arr.ndim == 3 and arr.shape[-1] == 1:
+        return Image.fromarray(np.clip(arr[..., 0] * 255.0, 0, 255).astype(np.uint8), mode='L')
+    if arr.ndim != 3:
+        raise ValueError(f"Expected image tensor with 2 or 3 dims, got shape {arr.shape}")
+    return Image.fromarray(np.clip(arr * 255.0, 0, 255).astype(np.uint8))
 
 # PIL to Tensor
 def pil2tensor(image):
     return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)
+
+
+_LAB_EPSILON = 216.0 / 24389.0
+_LAB_KAPPA = 24389.0 / 27.0
+_D65_WHITE = np.array([0.95047, 1.0, 1.08883], dtype=np.float32)
+_SRGB_TO_XYZ = np.array([
+    [0.4124564, 0.3575761, 0.1804375],
+    [0.2126729, 0.7151522, 0.0721750],
+    [0.0193339, 0.1191920, 0.9503041],
+], dtype=np.float32)
+_XYZ_TO_SRGB = np.array([
+    [ 3.2404542, -1.5371385, -0.4985314],
+    [-0.9692660,  1.8760108,  0.0415560],
+    [ 0.0556434, -0.2040259,  1.0572252],
+], dtype=np.float32)
+
+# HDR Effects can run after large sampler allocations. Serializing only this
+# node's native LAB work prevents concurrent HDR invocations from multiplying
+# the bounded chunk temporaries under WSL/ComfyUI memory pressure.
+_HDR_EFFECTS_LOCK = threading.RLock()
+
+
+def _safe_positive_int_env(name: str, default: int, minimum: int = 1) -> int:
+    raw = os.environ.get(name, str(default))
+    try:
+        return max(minimum, int(raw))
+    except ValueError:
+        print(f"[SuperBeasts] Warning: invalid {name}={raw!r}; using {default}")
+        return max(minimum, default)
+
+
+def _safe_bool_env(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in {"", "0", "false", "no", "off"}
+
+
+def _hdr_debug(msg: str) -> None:
+    if _safe_bool_env("SUPERBEASTS_HDR_DEBUG", False):
+        print(f"[SuperBeasts][HDR] {msg}")
+
+
+_LIBC_MALLOC_TRIM = None
+_LIBC_MALLOC_TRIM_PROBED = False
+_LIBC_MALLOC_TRIM_WARNED = False
+
+
+def _warn_malloc_trim_once(reason: str) -> None:
+    """Report the first Linux malloc_trim failure without flooding queued runs."""
+    global _LIBC_MALLOC_TRIM_WARNED
+    if not _LIBC_MALLOC_TRIM_WARNED:
+        _LIBC_MALLOC_TRIM_WARNED = True
+        print(f"[SuperBeasts][HDR] malloc_trim unavailable: {reason}", file=sys.stderr)
+
+
+def _trim_native_heap() -> None:
+    """Return freed NumPy/Pillow native heap pages to WSL when available.
+
+    Repeated large HDR frames can leave glibc arenas resident even after Python
+    references are gone.  Under WSL this can turn the third or fourth queued
+    generation into a whole-VM wedge instead of a Python MemoryError.  The call
+    is Linux/glibc-only, is skipped elsewhere, and warns once on Linux failure.
+    """
+    global _LIBC_MALLOC_TRIM, _LIBC_MALLOC_TRIM_PROBED
+    if not _safe_bool_env("SUPERBEASTS_HDR_MALLOC_TRIM", True):
+        return
+    if not sys.platform.startswith("linux"):
+        return
+    if not _LIBC_MALLOC_TRIM_PROBED:
+        _LIBC_MALLOC_TRIM_PROBED = True
+        try:
+            libc = ctypes.CDLL("libc.so.6")
+            _LIBC_MALLOC_TRIM = getattr(libc, "malloc_trim", None)
+            if _LIBC_MALLOC_TRIM is None:
+                _warn_malloc_trim_once("libc.so.6 does not expose malloc_trim")
+            else:
+                _LIBC_MALLOC_TRIM.argtypes = [ctypes.c_size_t]
+                _LIBC_MALLOC_TRIM.restype = ctypes.c_int
+        except Exception as exc:
+            _LIBC_MALLOC_TRIM = None
+            _warn_malloc_trim_once(f"probe failed: {exc}")
+    if _LIBC_MALLOC_TRIM is not None:
+        try:
+            _LIBC_MALLOC_TRIM(0)
+        except Exception as exc:
+            _warn_malloc_trim_once(f"call failed: {exc}")
+
+
+def _hdr_rows_per_chunk(width: int) -> int:
+    max_chunk_pixels = _safe_positive_int_env("SUPERBEASTS_HDR_CHUNK_PIXELS", 262_144, 4096)
+    return max(1, max_chunk_pixels // max(1, int(width)))
+
+
+def _tensor_image_to_rgb_u8_chunked(image: torch.Tensor) -> np.ndarray:
+    """Convert one Comfy IMAGE frame to an RGB uint8 ndarray with bounded temps."""
+    tensor = image.detach().cpu()
+    if tensor.ndim == 4:
+        if tensor.shape[0] != 1:
+            raise ValueError(f"Expected a single frame, got tensor shape {tuple(tensor.shape)}")
+        tensor = tensor[0]
+    if tensor.ndim == 2:
+        tensor = tensor.unsqueeze(-1)
+    if tensor.ndim != 3:
+        raise ValueError(f"Expected image tensor with shape HxWxC, got {tuple(tensor.shape)}")
+
+    height, width, channels = (int(v) for v in tensor.shape)
+    if channels not in (1, 3, 4):
+        raise ValueError(f"Expected 1, 3, or 4 channels, got tensor shape {tuple(tensor.shape)}")
+
+    arr = np.ascontiguousarray(tensor.numpy())
+    rgb_u8 = np.empty((height, width, 3), dtype=np.uint8)
+    rows_per_chunk = _hdr_rows_per_chunk(width)
+
+    for y0 in range(0, height, rows_per_chunk):
+        y1 = min(height, y0 + rows_per_chunk)
+        chunk = arr[y0:y1]
+        if channels == 1:
+            src = chunk[..., 0]
+            tmp = np.clip(src * 255.0, 0.0, 255.0).astype(np.uint8)
+            rgb_u8[y0:y1, :, 0] = tmp
+            rgb_u8[y0:y1, :, 1] = tmp
+            rgb_u8[y0:y1, :, 2] = tmp
+            del tmp
+        else:
+            tmp = np.clip(chunk[..., :3] * 255.0, 0.0, 255.0).astype(np.uint8)
+            rgb_u8[y0:y1] = tmp
+            del tmp
+        del chunk
+
+    return rgb_u8
+
+
+def _rgb_luma_float(rgb: np.ndarray) -> np.ndarray:
+    rgb_f = np.asarray(rgb, dtype=np.float32)
+    return rgb_f[..., 0] * np.float32(0.299) + rgb_f[..., 1] * np.float32(0.587) + rgb_f[..., 2] * np.float32(0.114)
+
+
+def _rgb_luma_sum(rgb_u8: np.ndarray) -> float:
+    height, width = rgb_u8.shape[:2]
+    rows_per_chunk = _hdr_rows_per_chunk(width)
+    total = 0.0
+    for y0 in range(0, height, rows_per_chunk):
+        y1 = min(height, y0 + rows_per_chunk)
+        total += float(_rgb_luma_float(rgb_u8[y0:y1]).sum(dtype=np.float64))
+    return total
+
+
+def _postprocess_rgb_u8_to_tensor_chunked(
+    rgb_u8: np.ndarray,
+    out_frame: torch.Tensor,
+    contrast: float,
+    enhance_color: float,
+) -> None:
+    """Apply PIL-equivalent contrast/color intent and write directly to output."""
+    if out_frame.device.type != "cpu":
+        raise ValueError("HDR Effects writes CPU IMAGE tensors")
+    if out_frame.dtype != torch.float32:
+        raise ValueError(f"HDR Effects expected float32 output, got {out_frame.dtype}")
+
+    height, width = rgb_u8.shape[:2]
+    if tuple(out_frame.shape) != (height, width, 3):
+        raise ValueError(f"Output frame shape mismatch: expected {(height, width, 3)}, got {tuple(out_frame.shape)}")
+
+    out_np = out_frame.numpy()
+    rows_per_chunk = _hdr_rows_per_chunk(width)
+    contrast_factor = np.float32(1.0 + float(contrast))
+    color_factor = np.float32(1.0 + float(enhance_color) * 0.2)
+
+    # PIL ImageEnhance.Contrast uses the mean luminance of the whole image as
+    # the degenerate image.  Compute it before chunked writes so the result is
+    # independent of chunk boundaries.
+    mean_luma = np.float32(_rgb_luma_sum(rgb_u8) / max(1, height * width) + 0.5)
+
+    for y0 in range(0, height, rows_per_chunk):
+        y1 = min(height, y0 + rows_per_chunk)
+        work = rgb_u8[y0:y1].astype(np.float32)
+
+        if contrast_factor != 1.0:
+            work *= contrast_factor
+            work += mean_luma * np.float32(1.0 - contrast_factor)
+            np.clip(work, 0.0, 255.0, out=work)
+
+        if color_factor != 1.0:
+            gray = _rgb_luma_float(work)
+            work *= color_factor
+            work += gray[..., None] * np.float32(1.0 - color_factor)
+            np.clip(work, 0.0, 255.0, out=work)
+            del gray
+
+        work *= np.float32(1.0 / 255.0)
+        np.clip(work, 0.0, 1.0, out=work)
+        out_np[y0:y1] = work
+        del work
+
+
+def _srgb_to_linear(rgb):
+    rgb = np.asarray(rgb, dtype=np.float32)
+    out = rgb / np.float32(12.92)
+    high = rgb > np.float32(0.04045)
+    if np.any(high):
+        out[high] = ((rgb[high] + np.float32(0.055)) / np.float32(1.055)) ** np.float32(2.4)
+    return out
+
+
+def _linear_to_srgb(rgb):
+    rgb = np.asarray(rgb, dtype=np.float32)
+    out = rgb * np.float32(12.92)
+    high = rgb > np.float32(0.0031308)
+    if np.any(high):
+        out[high] = (
+            np.float32(1.055) * np.power(np.maximum(rgb[high], np.float32(0.0)), np.float32(1.0 / 2.4))
+            - np.float32(0.055)
+        )
+    return out
+
+
+def _f_xyz_to_lab(t):
+    t = np.asarray(t, dtype=np.float32)
+    out = (_LAB_KAPPA * t + np.float32(16.0)) / np.float32(116.0)
+    high = t > np.float32(_LAB_EPSILON)
+    if np.any(high):
+        out[high] = np.cbrt(t[high])
+    return out
+
+
+def _f_lab_to_xyz(t):
+    t = np.asarray(t, dtype=np.float32)
+    t3 = t * t * t
+    out = (np.float32(116.0) * t - np.float32(16.0)) / np.float32(_LAB_KAPPA)
+    high = t3 > np.float32(_LAB_EPSILON)
+    if np.any(high):
+        out[high] = t3[high]
+    return out
+
+
+def _rgb_to_lab_components(img: Image.Image):
+    rgb_img = img if img.mode == 'RGB' else img.convert('RGB')
+    rgb_u8 = np.ascontiguousarray(np.asarray(rgb_img, dtype=np.uint8))
+    if rgb_u8.ndim != 3 or rgb_u8.shape[2] != 3:
+        raise ValueError(f"Expected RGB image array with shape HxWx3, got {rgb_u8.shape}")
+
+    height, width = rgb_u8.shape[:2]
+    l_uint8 = np.empty((height, width), dtype=np.uint8)
+    a_out = np.empty((height, width), dtype=np.float32)
+    b_out = np.empty((height, width), dtype=np.float32)
+
+    max_chunk_pixels = 1_048_576
+    rows_per_chunk = max(1, max_chunk_pixels // max(1, width))
+    rgb_to_xyz = _SRGB_TO_XYZ
+    white_x = _D65_WHITE[0]
+    white_y = _D65_WHITE[1]
+    white_z = _D65_WHITE[2]
+
+    for y0 in range(0, height, rows_per_chunk):
+        y1 = min(height, y0 + rows_per_chunk)
+        rgb = rgb_u8[y0:y1].astype(np.float32) / 255.0
+        linear_rgb = _srgb_to_linear(rgb)
+
+        r = linear_rgb[..., 0]
+        g = linear_rgb[..., 1]
+        bl = linear_rgb[..., 2]
+
+        x = (rgb_to_xyz[0, 0] * r + rgb_to_xyz[0, 1] * g + rgb_to_xyz[0, 2] * bl) / white_x
+        y = (rgb_to_xyz[1, 0] * r + rgb_to_xyz[1, 1] * g + rgb_to_xyz[1, 2] * bl) / white_y
+        z = (rgb_to_xyz[2, 0] * r + rgb_to_xyz[2, 1] * g + rgb_to_xyz[2, 2] * bl) / white_z
+
+        fx = _f_xyz_to_lab(x)
+        fy = _f_xyz_to_lab(y)
+        fz = _f_xyz_to_lab(z)
+
+        lightness = (np.float32(116.0) * fy) - np.float32(16.0)
+        a = np.float32(500.0) * (fx - fy)
+        b = np.float32(200.0) * (fy - fz)
+
+        l_uint8[y0:y1] = np.clip(lightness * (255.0 / 100.0), 0, 255).astype(np.uint8)
+        a_out[y0:y1] = a.astype(np.float32, copy=False)
+        b_out[y0:y1] = b.astype(np.float32, copy=False)
+
+    return l_uint8, a_out, b_out
+
+
+def _linear_srgb_channel_to_u8(channel: np.ndarray) -> np.ndarray:
+    """Convert one linear-light sRGB channel to uint8 sRGB.
+
+    Kept channel-wise so HDR Effects does not allocate several full-frame
+    HxWx3 float32 temporaries while converting LAB back to RGB.  Some NumPy
+    builds have crashed in those native ufunc/matmul paths under ComfyUI's
+    large-image memory pressure instead of raising MemoryError.
+    """
+    srgb = _linear_to_srgb(channel)
+    np.clip(srgb, 0.0, 1.0, out=srgb)
+    srgb *= np.float32(255.0)
+    srgb += np.float32(0.5)
+    return srgb.astype(np.uint8)
+
+
+def _lab_components_to_rgb(l_uint8: np.ndarray, a: np.ndarray, b: np.ndarray) -> Image.Image:
+    l_uint8 = np.ascontiguousarray(l_uint8)
+    a = np.ascontiguousarray(a, dtype=np.float32)
+    b = np.ascontiguousarray(b, dtype=np.float32)
+
+    if l_uint8.ndim != 2:
+        raise ValueError(f"Expected 2D LAB luminance channel, got shape {l_uint8.shape}")
+    if a.shape != l_uint8.shape or b.shape != l_uint8.shape:
+        raise ValueError(
+            "LAB channel shape mismatch: "
+            f"L={l_uint8.shape}, a={a.shape}, b={b.shape}"
+        )
+
+    height, width = l_uint8.shape
+    rgb_u8 = np.empty((height, width, 3), dtype=np.uint8)
+
+    # Process rows in bounded chunks.  This avoids the previous full-frame LAB,
+    # XYZ, linear-RGB and matrix-multiply temporaries while preserving the same
+    # D65/LAB math.  Keep the chunk size large enough to avoid Python-loop cost
+    # on normal images but small enough for 4K/8K frames and batched Comfy runs.
+    max_chunk_pixels = 1_048_576
+    rows_per_chunk = max(1, max_chunk_pixels // max(1, width))
+    xyz_to_rgb = _XYZ_TO_SRGB
+    white_x = _D65_WHITE[0]
+    white_y = _D65_WHITE[1]
+    white_z = _D65_WHITE[2]
+
+    for y0 in range(0, height, rows_per_chunk):
+        y1 = min(height, y0 + rows_per_chunk)
+
+        lightness = l_uint8[y0:y1].astype(np.float32, copy=False) * (100.0 / 255.0)
+        fy = (lightness + 16.0) / 116.0
+        fx = a[y0:y1] / 500.0 + fy
+        fz = fy - b[y0:y1] / 200.0
+
+        x = _f_lab_to_xyz(fx) * white_x
+        y = _f_lab_to_xyz(fy) * white_y
+        z = _f_lab_to_xyz(fz) * white_z
+
+        # Inline the XYZ->linear sRGB matrix multiply channel-wise.  This keeps
+        # execution inside simple 2D ufuncs instead of NumPy's 3D matmul path.
+        r = xyz_to_rgb[0, 0] * x + xyz_to_rgb[0, 1] * y + xyz_to_rgb[0, 2] * z
+        g = xyz_to_rgb[1, 0] * x + xyz_to_rgb[1, 1] * y + xyz_to_rgb[1, 2] * z
+        bl = xyz_to_rgb[2, 0] * x + xyz_to_rgb[2, 1] * y + xyz_to_rgb[2, 2] * z
+
+        rgb_u8[y0:y1, :, 0] = _linear_srgb_channel_to_u8(r)
+        rgb_u8[y0:y1, :, 1] = _linear_srgb_channel_to_u8(g)
+        rgb_u8[y0:y1, :, 2] = _linear_srgb_channel_to_u8(bl)
+
+    return Image.fromarray(rgb_u8, mode='RGB')
+
+
+def _apply_hdr_luminance_chunk(
+    l_uint8: np.ndarray,
+    hdr_intensity: float,
+    shadow_intensity: float,
+    highlight_intensity: float,
+    gamma_intensity: float,
+) -> np.ndarray:
+    """Apply the HDR node's luminance math to one uint8 L* chunk.
+
+    The old adjust_shadows_non_linear/adjust_highlights_non_linear calls
+    allocated two extra full-frame arrays, but merge_adjustments_with_blend_modes
+    never used those arrays. This keeps the effective per-pixel math from
+    merge_adjustments_with_blend_modes followed by apply_gamma_correction so the
+    result is independent of chunk boundaries.
+    """
+    base = np.asarray(l_uint8, dtype=np.float32)
+
+    scaled_shadow_intensity = shadow_intensity ** 2 * hdr_intensity
+    scaled_highlight_intensity = highlight_intensity ** 2 * hdr_intensity
+
+    shadow_mask = np.clip((1.0 - (base / 255.0)) ** 2, 0.0, 1.0)
+    highlight_mask = np.clip((base / 255.0) ** 2, 0.0, 1.0)
+
+    adjusted_shadows = np.clip(base * (1.0 - shadow_mask * scaled_shadow_intensity), 0.0, 255.0)
+    adjusted_highlights = np.clip(base + (255.0 - base) * highlight_mask * scaled_highlight_intensity, 0.0, 255.0)
+    adjusted_luminance = np.clip(adjusted_shadows + adjusted_highlights - base, 0.0, 255.0)
+
+    final_luminance_u8 = np.clip(
+        base * (1.0 - hdr_intensity) + adjusted_luminance * hdr_intensity,
+        0.0,
+        255.0,
+    ).astype(np.uint8)
+
+    if gamma_intensity != 0:
+        gamma_corrected = 1.0 / (1.1 - gamma_intensity)
+        final_luminance = 255.0 * ((final_luminance_u8.astype(np.float32) / 255.0) ** gamma_corrected)
+        return np.clip(final_luminance, 0.0, 255.0).astype(np.uint8)
+
+    return final_luminance_u8
+
+
+def _smoothstep(edge0: float, edge1: float, x: np.ndarray) -> np.ndarray:
+    """Return a smooth 0..1 ramp for float arrays."""
+    if edge1 <= edge0:
+        return np.asarray(x >= edge1, dtype=np.float32)
+    t = np.clip((np.asarray(x, dtype=np.float32) - edge0) / (edge1 - edge0), 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
+def _stabilize_dark_lab_chroma(
+    rgb_u8: np.ndarray,
+    base_l_uint8: np.ndarray,
+    adjusted_l_uint8: np.ndarray,
+    a: np.ndarray,
+    b: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Dampen unstable Lab chroma for near-neutral deep-shadow pixels.
+
+    The HDR pass changes only L*.  Reusing the original Lab a/b after pushing a
+    near-black pixel darker can turn tiny RGB quantization/model noise into
+    out-of-gamut chroma that clips back as coloured speckles.  Apply the guard
+    only where the source pixel was dark and nearly neutral, so intentionally
+    coloured dark pixels keep their hue.
+    """
+    base_l = np.asarray(base_l_uint8, dtype=np.float32)
+    adjusted_l = np.asarray(adjusted_l_uint8, dtype=np.float32)
+
+    rgb = np.asarray(rgb_u8, dtype=np.float32)
+    rgb_spread = rgb.max(axis=-1) - rgb.min(axis=-1)
+
+    # 1.0 for nearly neutral dark pixels, 0.0 for intentionally coloured pixels.
+    neutral_weight = 1.0 - _smoothstep(6.0, 24.0, rgb_spread)
+
+    # Full chroma is preserved above ~12.5% L*.  It fades smoothly to neutral in
+    # the bottom ~3% where Lab hue is least stable and RGB clipping is most visible.
+    dark_gate = _smoothstep(8.0, 32.0, np.minimum(base_l, adjusted_l))
+
+    # If the HDR luminance step crushes a pixel darker, scale chroma with that
+    # luminance loss.  The +1 avoids division spikes on black pixels.
+    luminance_ratio = np.clip((adjusted_l + 1.0) / (base_l + 1.0), 0.0, 1.0)
+    neutral_shadow_scale = dark_gate * luminance_ratio
+    chroma_scale = (1.0 - neutral_weight) + neutral_shadow_scale * neutral_weight
+
+    return (
+        np.asarray(a, dtype=np.float32) * chroma_scale,
+        np.asarray(b, dtype=np.float32) * chroma_scale,
+    )
+
+
+def _lab_chunk_to_rgb_u8(l_uint8: np.ndarray, a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Convert one LAB chunk to RGB using the same math as _lab_components_to_rgb."""
+    lightness = np.asarray(l_uint8, dtype=np.float32) * (100.0 / 255.0)
+    fy = (lightness + 16.0) / 116.0
+    fx = np.asarray(a, dtype=np.float32) / 500.0 + fy
+    fz = fy - np.asarray(b, dtype=np.float32) / 200.0
+
+    x = _f_lab_to_xyz(fx) * _D65_WHITE[0]
+    y = _f_lab_to_xyz(fy) * _D65_WHITE[1]
+    z = _f_lab_to_xyz(fz) * _D65_WHITE[2]
+
+    r = _XYZ_TO_SRGB[0, 0] * x + _XYZ_TO_SRGB[0, 1] * y + _XYZ_TO_SRGB[0, 2] * z
+    g = _XYZ_TO_SRGB[1, 0] * x + _XYZ_TO_SRGB[1, 1] * y + _XYZ_TO_SRGB[1, 2] * z
+    bl = _XYZ_TO_SRGB[2, 0] * x + _XYZ_TO_SRGB[2, 1] * y + _XYZ_TO_SRGB[2, 2] * z
+
+    out = np.empty((*l_uint8.shape, 3), dtype=np.uint8)
+    out[..., 0] = _linear_srgb_channel_to_u8(r)
+    out[..., 1] = _linear_srgb_channel_to_u8(g)
+    out[..., 2] = _linear_srgb_channel_to_u8(bl)
+    return out
+
+
+def _apply_hdr_effect_u8_chunked(
+    rgb_u8: np.ndarray,
+    hdr_intensity: float,
+    shadow_intensity: float,
+    highlight_intensity: float,
+    gamma_intensity: float,
+) -> np.ndarray:
+    """Apply HDR luminance adjustment to an RGB uint8 array with bounded temps."""
+    rgb_u8 = np.ascontiguousarray(rgb_u8, dtype=np.uint8)
+    if rgb_u8.ndim != 3 or rgb_u8.shape[2] != 3:
+        raise ValueError(f"Expected RGB image array with shape HxWx3, got {rgb_u8.shape}")
+
+    height, width = rgb_u8.shape[:2]
+    rgb_out = np.empty((height, width, 3), dtype=np.uint8)
+    rows_per_chunk = _hdr_rows_per_chunk(width)
+
+    for y0 in range(0, height, rows_per_chunk):
+        y1 = min(height, y0 + rows_per_chunk)
+
+        rgb = rgb_u8[y0:y1].astype(np.float32) / 255.0
+        linear_rgb = _srgb_to_linear(rgb)
+
+        r = linear_rgb[..., 0]
+        g = linear_rgb[..., 1]
+        bl = linear_rgb[..., 2]
+
+        x = (_SRGB_TO_XYZ[0, 0] * r + _SRGB_TO_XYZ[0, 1] * g + _SRGB_TO_XYZ[0, 2] * bl) / _D65_WHITE[0]
+        y = (_SRGB_TO_XYZ[1, 0] * r + _SRGB_TO_XYZ[1, 1] * g + _SRGB_TO_XYZ[1, 2] * bl) / _D65_WHITE[1]
+        z = (_SRGB_TO_XYZ[2, 0] * r + _SRGB_TO_XYZ[2, 1] * g + _SRGB_TO_XYZ[2, 2] * bl) / _D65_WHITE[2]
+
+        fx = _f_xyz_to_lab(x)
+        fy = _f_xyz_to_lab(y)
+        fz = _f_xyz_to_lab(z)
+
+        lightness = (np.float32(116.0) * fy) - np.float32(16.0)
+        a = np.float32(500.0) * (fx - fy)
+        b = np.float32(200.0) * (fy - fz)
+
+        l_uint8 = np.clip(lightness * (255.0 / 100.0), 0, 255).astype(np.uint8)
+        adjusted_l = _apply_hdr_luminance_chunk(
+            l_uint8,
+            hdr_intensity=hdr_intensity,
+            shadow_intensity=shadow_intensity,
+            highlight_intensity=highlight_intensity,
+            gamma_intensity=gamma_intensity,
+        )
+        stable_a, stable_b = _stabilize_dark_lab_chroma(rgb_u8[y0:y1], l_uint8, adjusted_l, a, b)
+        rgb_out[y0:y1] = _lab_chunk_to_rgb_u8(adjusted_l, stable_a, stable_b)
+
+        del (
+            rgb, linear_rgb, r, g, bl, x, y, z, fx, fy, fz, lightness,
+            a, b, l_uint8, adjusted_l, stable_a, stable_b,
+        )
+
+    return rgb_out
+
+
+def _apply_hdr_effect_chunked(
+    img: Image.Image,
+    hdr_intensity: float,
+    shadow_intensity: float,
+    highlight_intensity: float,
+    gamma_intensity: float,
+) -> Image.Image:
+    """Compatibility wrapper around the low-memory uint8 HDR path."""
+    rgb_img = img if img.mode == 'RGB' else img.convert('RGB')
+    rgb_u8 = np.ascontiguousarray(np.asarray(rgb_img, dtype=np.uint8))
+    rgb_out = _apply_hdr_effect_u8_chunked(
+        rgb_u8,
+        hdr_intensity=hdr_intensity,
+        shadow_intensity=shadow_intensity,
+        highlight_intensity=highlight_intensity,
+        gamma_intensity=gamma_intensity,
+    )
+    return Image.fromarray(rgb_out, mode='RGB')
 
 
 def adjust_shadows(luminance_array, shadow_intensity, hdr_intensity):
@@ -689,11 +1399,46 @@ def apply_gamma_correction(lum_array, gamma):
 # create a wrapper function that can apply a function to multiple images in a batch while passing all other arguments to the function
 def apply_to_batch(func):
     def wrapper(self, image, *args, **kwargs):
-        images = []
-        for img in image:
-            images.append(func(self, img, *args, **kwargs))
-        batch_tensor = torch.cat(images, dim=0)
-        return (batch_tensor, )
+        output = None
+        image_count = 0
+        try:
+            if image is None:
+                raise ValueError("HDR Effects expected an IMAGE tensor, got None")
+
+            image_count = int(image.shape[0]) if hasattr(image, "shape") else len(image)
+            for index, img in enumerate(image):
+                result = func(self, img, *args, **kwargs)
+                if not isinstance(result, torch.Tensor):
+                    raise TypeError(f"Batched node function returned {type(result)!r}, expected torch.Tensor")
+                if result.ndim < 1 or result.shape[0] != 1:
+                    raise ValueError(f"Batched node function must return shape (1, ...), got {tuple(result.shape)}")
+
+                if output is None:
+                    output = result.new_empty((image_count, *result.shape[1:]))
+                elif result.shape[1:] != output.shape[1:]:
+                    raise ValueError(
+                        "Batched node function returned inconsistent frame shapes: "
+                        f"expected {(1, *output.shape[1:])}, got {tuple(result.shape)}"
+                    )
+
+                output[index].copy_(result[0])
+                del result
+
+                # Large HDR frames create PIL/NumPy/Torch temporaries outside the
+                # Python tensor allocator. Release each frame before processing the
+                # next one instead of retaining a list and then torch.cat'ing it.
+                if output[index].numel() >= 16_777_216:
+                    gc.collect()
+                    _trim_native_heap()
+
+            if output is None:
+                raise ValueError("HDR Effects received an empty image batch")
+            return (output, )
+        finally:
+            output = None
+            if image_count > 1:
+                gc.collect()
+                _trim_native_heap()
     return wrapper
 
 class HDREffects:
@@ -714,50 +1459,71 @@ class HDREffects:
     FUNCTION = 'apply_hdr2'
     CATEGORY = 'SuperBeastsAI/Image'
     
-    @apply_to_batch
     def apply_hdr2(self, image, hdr_intensity=0.5, shadow_intensity=0.25, highlight_intensity=0.75, gamma_intensity=0.25, contrast=0.1, enhance_color=0.25):
-        # Load the image
-        img = tensor2pil(image)
-        
-        # Step 1: Convert RGB to LAB for better color preservation
-        img_lab = ImageCms.profileToProfile(img, sRGB_profile, Lab_profile, outputMode='LAB')
+        # Process the whole batch here instead of using @apply_to_batch.  For
+        # 3800x5568 frames, the generic wrapper's per-frame return tensor would
+        # overlap with the final output tensor.  This path writes each frame
+        # directly into the preallocated output and avoids PIL ImageEnhance's
+        # full-frame intermediate images.
+        if image is None:
+            raise ValueError("HDR Effects expected an IMAGE tensor, got None")
+        if not isinstance(image, torch.Tensor):
+            raise TypeError(f"HDR Effects expected a torch.Tensor IMAGE, got {type(image)!r}")
+        if image.ndim == 3:
+            image = image.unsqueeze(0)
+        if image.ndim != 4:
+            raise ValueError(f"HDR Effects expected IMAGE shape BHWC, got {tuple(image.shape)}")
+        if image.shape[-1] not in (1, 3, 4):
+            raise ValueError(f"HDR Effects expected 1, 3, or 4 channels, got shape {tuple(image.shape)}")
 
-        # Extract L, A, and B channels
-        luminance, a, b = img_lab.split()
-        
-        # Convert luminance to a NumPy array for processing
-        lum_array = np.array(luminance, dtype=np.float32)
+        image_count = int(image.shape[0])
+        if image_count == 0:
+            raise ValueError("HDR Effects received an empty image batch")
 
-        # Preparing adjustment layers (shadows, midtones, highlights)
-        # This example assumes you have methods to extract or calculate these adjustments
-        shadows_adjusted = adjust_shadows_non_linear(luminance, shadow_intensity)
-        highlights_adjusted = adjust_highlights_non_linear(luminance, highlight_intensity)
+        height = int(image.shape[1])
+        width = int(image.shape[2])
+        output = None
+        rgb_u8 = None
+        hdr_u8 = None
 
+        try:
+            output = torch.empty((image_count, height, width, 3), dtype=torch.float32, device="cpu")
+            with _HDR_EFFECTS_LOCK:
+                for index in range(image_count):
+                    _hdr_debug(f"frame {index + 1}/{image_count}: tensor -> rgb_u8 start shape={tuple(image[index].shape)}")
+                    rgb_u8 = _tensor_image_to_rgb_u8_chunked(image[index])
+                    _hdr_debug(f"frame {index + 1}/{image_count}: HDR LAB chunks start")
+                    hdr_u8 = _apply_hdr_effect_u8_chunked(
+                        rgb_u8,
+                        hdr_intensity=hdr_intensity,
+                        shadow_intensity=shadow_intensity,
+                        highlight_intensity=highlight_intensity,
+                        gamma_intensity=gamma_intensity,
+                    )
+                    rgb_u8 = None
 
-        merged_adjustments = merge_adjustments_with_blend_modes(lum_array, shadows_adjusted, highlights_adjusted, hdr_intensity, shadow_intensity, highlight_intensity)
+                    _hdr_debug(f"frame {index + 1}/{image_count}: contrast/color -> output tensor start")
+                    _postprocess_rgb_u8_to_tensor_chunked(
+                        hdr_u8,
+                        output[index],
+                        contrast=contrast,
+                        enhance_color=enhance_color,
+                    )
+                    hdr_u8 = None
 
-        # Apply gamma correction with a base_gamma value (define based on desired effect)
-        gamma_corrected = apply_gamma_correction(np.array(merged_adjustments), gamma_intensity)
-        gamma_corrected = Image.fromarray(gamma_corrected).resize(a.size)
+                    if output[index].numel() >= 16_777_216:
+                        gc.collect()
+                        _trim_native_heap()
+                    _hdr_debug(f"frame {index + 1}/{image_count}: done")
 
-
-        # Merge L channel back with original A and B channels
-        adjusted_lab = Image.merge('LAB', (gamma_corrected, a, b))
-
-        # Step 3: Convert LAB back to RGB
-        img_adjusted = ImageCms.profileToProfile(adjusted_lab, Lab_profile, sRGB_profile, outputMode='RGB')
-        
-        
-        # Enhance contrast
-        enhancer = ImageEnhance.Contrast(img_adjusted)
-        contrast_adjusted = enhancer.enhance(1 + contrast)
-
-        
-        # Enhance color saturation
-        enhancer = ImageEnhance.Color(contrast_adjusted)
-        color_adjusted = enhancer.enhance(1 + enhance_color * 0.2)
-         
-        return pil2tensor(color_adjusted)
+            return (output, )
+        except Exception:
+            output = None
+            rgb_u8 = None
+            hdr_u8 = None
+            gc.collect()
+            _trim_native_heap()
+            raise
 
 class MakeResizedMaskBatch:
     DESCRIPTION = "Combine up to 12 individual masks/batches into one mask batch, automatically sizing/cropping each mask to the requested width/height. Useful for building consistent video masks."
@@ -832,6 +1598,50 @@ class MakeResizedMaskBatch:
 
         return (result,)
 
+
+
+
+
+def _write_spca_blend_to_output(
+    orig_np_full: np.ndarray,
+    residual_full: np.ndarray,
+    strength: float,
+    out_frame: torch.Tensor,
+) -> None:
+    """Write SuperPop blended output directly into one Comfy IMAGE frame.
+
+    This preserves the previous PIL round-trip quantization:
+    Image.fromarray((clip(base + residual * s) * 255).astype(uint8))
+    followed by pil2tensor(...).
+    """
+    if out_frame.device.type != "cpu":
+        raise ValueError("SuperPopColorAdjustment writes CPU IMAGE tensors")
+    if out_frame.dtype != torch.float32:
+        raise ValueError(f"SuperPopColorAdjustment expected float32 output, got {out_frame.dtype}")
+
+    height, width = orig_np_full.shape[:2]
+    if tuple(out_frame.shape) != (height, width, 3):
+        raise ValueError(
+            f"SuperPopColorAdjustment output frame shape mismatch: "
+            f"expected {(height, width, 3)}, got {tuple(out_frame.shape)}"
+        )
+
+    out_np = out_frame.numpy()
+    rows_per_chunk = _hdr_rows_per_chunk(width)
+    s = np.float32(float(strength))
+    inv255 = np.float32(1.0 / 255.0)
+
+    for y0 in range(0, height, rows_per_chunk):
+        y1 = min(height, y0 + rows_per_chunk)
+        work = orig_np_full[y0:y1].astype(np.float32, copy=True)
+        work += residual_full[y0:y1] * s
+        np.clip(work, 0.0, 1.0, out=work)
+        work *= np.float32(255.0)
+        # Match astype(np.uint8) truncation from the previous PIL path.
+        quantized = work.astype(np.uint8).astype(np.float32)
+        quantized *= inv255
+        out_np[y0:y1] = quantized
+        del work, quantized
 
 
 def adjust_brightness(image, brightness_factor):
@@ -1218,8 +2028,11 @@ class SuperPopColorAdjustment:
             else:
                 ctx_np_local = ctx_np
 
+            model_lock = sb_model_info.get("lock") if isinstance(sb_model_info, dict) else None
+            run_lock = model_lock if model_lock is not None else contextlib.nullcontext()
+
             # --- Torch path ---
-            if isinstance(sb_model_info, dict) and sb_model_info.get("type") == "torch":
+            if isinstance(sb_model_info, dict) and sb_model_info.get("type") in {"torch", "torchscript"}:
                 import torch
                 model_pt = sb_model_info["model"]
                 device_str = sb_model_info["device"]
@@ -1227,12 +2040,13 @@ class SuperPopColorAdjustment:
                 # Prepare inputs NCHW float32
                 tile_np = _add_extra_color_channels_np(np.asarray(pil_image, dtype=np.float32) / 255.0)
 
-                tile_t = torch.from_numpy(tile_np.transpose(2,0,1)).unsqueeze(0).to(device_str)
-                ctx_t = torch.from_numpy(ctx_np_local.transpose(2,0,1)).unsqueeze(0).to(device_str)
+                tile_t = torch.from_numpy(np.ascontiguousarray(tile_np.transpose(2,0,1))).unsqueeze(0).to(device_str)
+                ctx_t = torch.from_numpy(np.ascontiguousarray(ctx_np_local.transpose(2,0,1))).unsqueeze(0).to(device_str)
 
-                with torch.no_grad():
-                    residual = model_pt(tile_t, ctx_t)
-                residual_np = residual.squeeze(0).cpu().numpy().transpose(1,2,0)
+                with run_lock:
+                    with torch.inference_mode():
+                        residual = model_pt(tile_t, ctx_t)
+                    residual_np = residual.detach().squeeze(0).cpu().numpy().transpose(1,2,0)
 
                 tile_base = np.asarray(pil_image, dtype=np.float32) / 255.0
                 corrected_np = np.clip(tile_base + residual_np, 0.0, 1.0)
@@ -1243,6 +2057,8 @@ class SuperPopColorAdjustment:
                 import onnxruntime as ort  # type: ignore
                 session: ort.InferenceSession = sb_model_info["session"]
                 input_names: List[str] = sb_model_info["input_names"]
+                input_shapes = sb_model_info.get("input_shapes")
+                output_shapes = sb_model_info.get("output_shapes")
 
                 # Prepare inputs (NHWC float32)
                 ctx_np_batch = ctx_np_local[np.newaxis, ...]  # add batch dim
@@ -1251,22 +2067,45 @@ class SuperPopColorAdjustment:
                 tile_np = tile_np[np.newaxis, ...]
 
                 # Some exported models keep NHWC; others are converted to NCHW. Detect by checking input shape channels position.
+                def shape_is_nchw(shape, expected_channels: int) -> bool:
+                    if not isinstance(shape, (list, tuple)) or len(shape) != 4:
+                        return False
+                    c_first = shape[1]
+                    c_last = shape[3]
+                    first_matches = isinstance(c_first, (int, np.integer)) and int(c_first) == expected_channels
+                    last_matches = isinstance(c_last, (int, np.integer)) and int(c_last) == expected_channels
+                    return first_matches and not last_matches
+
                 def maybe_transpose(inp: np.ndarray, shape) -> np.ndarray:
-                    # shape may have None for batch, use length check
-                    if len(shape) == 4 and shape[1] == 3:  # likely NCHW
+                    expected_channels = int(inp.shape[-1])
+                    if shape_is_nchw(shape, expected_channels):
                         return np.transpose(inp, (0, 3, 1, 2))
                     return inp  # assume NHWC
 
-                tile_ready = maybe_transpose(tile_np, session.get_inputs()[0].shape)
-                ctx_ready = maybe_transpose(ctx_np_batch, session.get_inputs()[1].shape)
+                if input_shapes is None:
+                    input_shapes = [i.shape for i in session.get_inputs()]
+                if output_shapes is None:
+                    output_shapes = [o.shape for o in session.get_outputs()]
+
+                tile_ready = maybe_transpose(tile_np, input_shapes[0])
+                ctx_ready = maybe_transpose(ctx_np_batch, input_shapes[1])
 
                 ort_inputs = {
-                    input_names[0]: tile_ready.astype(np.float32),
-                    input_names[1]: ctx_ready.astype(np.float32),
+                    input_names[0]: np.ascontiguousarray(tile_ready, dtype=np.float32),
+                    input_names[1]: np.ascontiguousarray(ctx_ready, dtype=np.float32),
                 }
 
-                pred_residual = session.run(None, ort_inputs)[0]
-                if pred_residual.shape[1] == 3 and pred_residual.ndim == 4:  # NCHW output
+                with run_lock:
+                    pred_residual = session.run(None, ort_inputs)[0]
+                expected_output_channels = int(np.asarray(pil_image).shape[-1])
+                output_shape = output_shapes[0] if output_shapes else None
+                if pred_residual.ndim == 4 and shape_is_nchw(output_shape, expected_output_channels):
+                    pred_residual = np.transpose(pred_residual, (0, 2, 3, 1))
+                elif (
+                    pred_residual.ndim == 4
+                    and pred_residual.shape[1] == expected_output_channels
+                    and pred_residual.shape[-1] != expected_output_channels
+                ):
                     pred_residual = np.transpose(pred_residual, (0, 2, 3, 1))
                 residual_np = pred_residual[0]
 
@@ -1339,8 +2178,50 @@ class SuperPopColorAdjustment:
 
     def apply_adjustment(self, model, image, max_strength=1.0, count=1, overlap=0.5,
                          initial_context_for_batch=False, context=None):
-        # Ensure *image* is a batch tensor – iterate over each frame
-        output_tensors: list[torch.Tensor] = []
+        if image is None:
+            raise ValueError("SuperPopColorAdjustment expected an IMAGE tensor, got None")
+        if not isinstance(image, torch.Tensor):
+            raise TypeError(f"SuperPopColorAdjustment expected a torch.Tensor IMAGE, got {type(image)!r}")
+        if image.ndim == 3:
+            image = image.unsqueeze(0)
+        if image.ndim != 4:
+            raise ValueError(f"SuperPopColorAdjustment expected IMAGE shape BHWC, got {tuple(image.shape)}")
+        if image.shape[-1] != 3:
+            raise ValueError(f"SuperPopColorAdjustment expected 3-channel IMAGE, got {tuple(image.shape)}")
+
+        image_count = int(image.shape[0])
+        if image_count == 0:
+            raise ValueError("SuperPopColorAdjustment received an empty image batch")
+        if context is not None:
+            if not isinstance(context, torch.Tensor):
+                raise TypeError(
+                    f"SuperPopColorAdjustment expected a torch.Tensor context IMAGE, got {type(context)!r}"
+                )
+            if context.ndim == 3:
+                context = context.unsqueeze(0)
+            if context.ndim != 4:
+                raise ValueError(
+                    f"SuperPopColorAdjustment expected context IMAGE shape BHWC, got {tuple(context.shape)}"
+                )
+            if context.shape[-1] != 3:
+                raise ValueError(
+                    f"SuperPopColorAdjustment expected 3-channel context IMAGE, got {tuple(context.shape)}"
+                )
+            context_count = int(context.shape[0])
+            if context_count == 0:
+                raise ValueError("SuperPopColorAdjustment received an empty context batch")
+        count = int(count)
+        if count < 1:
+            raise ValueError(f"SuperPopColorAdjustment count must be >= 1, got {count}")
+
+        height = int(image.shape[1])
+        width = int(image.shape[2])
+        output_total = image_count * count
+
+        # Preallocate the final batch.  The old list + torch.cat path held every
+        # per-strength tensor and then allocated the full cat result on top of
+        # them, which is a multi-GB peak for 3800x5568 batches.
+        images_batch = torch.empty((output_total, height, width, 3), dtype=torch.float32, device="cpu")
         filename_prefixes: list[str] = []
         residual_tensors: list[torch.Tensor] = []
 
@@ -1402,6 +2283,7 @@ class SuperPopColorAdjustment:
             orig_np_full = np.array(original_pil, dtype=np.float32) / 255.0
 
             # ctx_np_global already prepared above
+            weight_full = self._create_patch_weight_map(patch_size, patch_size, overlap_px)
 
             for y in y_positions:
                 for x in x_positions:
@@ -1462,7 +2344,6 @@ class SuperPopColorAdjustment:
                         residual_patch = corrected_crop - orig_cropped
 
                     # Weight map for smooth blending (same crop)
-                    weight_full = self._create_patch_weight_map(patch_size, patch_size, overlap_px)
                     if target_h != patch_size or target_w != patch_size:
                         weight = weight_full[pad_top:pad_top + target_h, pad_left:pad_left + target_w]
                     else:
@@ -1476,40 +2357,41 @@ class SuperPopColorAdjustment:
             counter = np.maximum(counter, 1e-6)
             residual_full = residual_acc / counter
 
-            # Generate blended outputs for this frame
+            # Generate blended outputs for this frame directly into the final
+            # batch tensor.  Keep one residual tensor per source frame and reuse
+            # the reference for multiple strengths; residuals are read-only in
+            # the downstream blend node, so this avoids duplicating the same
+            # 250+ MB residual when count > 1.
             strengths = [max_strength * (count - i) / count for i in range(count)]
-            for s in strengths:
-                blended_np = np.clip(orig_np_full + residual_full * s, 0.0, 1.0)
-                blended_pil = Image.fromarray((blended_np * 255.0).astype(np.uint8))
-
-                # Convert blended PIL → tensor and append to batch list
-                output_tensors.append(pil2tensor(blended_pil))
-
-                # Build filename prefix string per‐image (we will join later)
+            residual_tensor = torch.from_numpy(np.ascontiguousarray(residual_full)).unsqueeze(0).float()
+            for strength_index, s in enumerate(strengths):
+                out_index = idx * count + strength_index
+                _write_spca_blend_to_output(orig_np_full, residual_full, s, images_batch[out_index])
                 filename_prefixes.append(f"SPCA_{s:.2f}_")
-
-                # Store residual for this output so downstream nodes can re-blend
-                residual_tensor = torch.from_numpy(residual_full).unsqueeze(0).float()
                 residual_tensors.append(residual_tensor)
+
             # Update progress bar
             if pbar is not None:
                 pbar.update_absolute(idx + 1)
 
+            # Release large per-frame temporaries before the next iteration.
+            del original_pil, ctx_np_global, residual_acc, counter, orig_np_full, residual_full, weight_full, residual_tensor
+            # For long batches this improves prompt-to-prompt memory stability.
+            gc.collect()
+            _trim_native_heap()
+
         # ------------------------------------------------------------------
-        # Finalise outputs – convert accumulated lists to batched tensors and
-        # join filename prefixes into a single string (Save Image expects str)
+        # Finalise outputs – filename prefix string is consumed by Save Image.
         # ------------------------------------------------------------------
 
-        if not output_tensors:
-            # Fallback – no processing happened; return originals and zero residual.
-            images_batch = image
-            residual_batch = [torch.zeros_like(image)]
-            filename_prefix_str = ""
-        else:
-            images_batch = torch.cat(output_tensors, dim=0)
-            residual_batch = residual_tensors  # keep list per-frame
-            filename_prefix_str = "".join(filename_prefixes)
+        filename_prefix_str = "".join(filename_prefixes)
+        residual_batch = residual_tensors  # keep list per output image
 
+        # Encourage prompt-to-prompt release of large temporary NumPy/PIL objects.
+        # This does not unload cached models; it only reduces repeated-generation
+        # accumulation pressure around this node.
+        gc.collect()
+        _trim_native_heap()
         return (images_batch, filename_prefix_str, residual_batch)
 
 class SuperPopResidualBlend:
@@ -1553,14 +2435,14 @@ class SuperPopResidualBlend:
         elif isinstance(image, (list, tuple)):
             image_list = list(image)
         else:
-            raise TypeError("Unsupported image type for SuperPopResidualBlend – expected torch.Tensor or list of tensors.")
+            raise TypeError("Unsupported image type for SuperPopResidualBlend - expected torch.Tensor or list of tensors.")
 
         if isinstance(residual, torch.Tensor):
             residual_list = list(residual)
         elif isinstance(residual, (list, tuple)):
             residual_list = list(residual)
         else:
-            raise TypeError("Unsupported residual type for SuperPopResidualBlend – expected torch.Tensor or list of tensors.")
+            raise TypeError("Unsupported residual type for SuperPopResidualBlend - expected torch.Tensor or list of tensors.")
 
         # Simple broadcast if we only got one residual for many images
         if len(residual_list) == 1 and len(image_list) > 1:
@@ -1580,20 +2462,27 @@ class SuperPopResidualBlend:
             # Ensure on same device (fallback to img_t's device)
             res_t = res_t.to(img_t.device)
 
-            # Both tensors may include an extra leading batch/channel dimension; squeeze safely
-            img = img_t.squeeze().clamp(0,1)
-            res = res_t.squeeze()
+            # Strip only an optional leading batch axis so valid singleton
+            # spatial dimensions remain intact.
+            if img_t.ndim == 4 and img_t.shape[0] == 1:
+                img = img_t[0]
+            else:
+                img = img_t
+            if res_t.ndim == 4 and res_t.shape[0] == 1:
+                res = res_t[0]
+            else:
+                res = res_t
+            img = img.clamp(0, 1)
 
-            # Quantise the source to 8-bit – SuperPopColorAdjustment converted the
+            # Quantise the source to 8-bit - SuperPopColorAdjustment converted the
             # original tensor to PIL (uint8) before computing residuals.  Without
-            # replicating that rounding we would blend residuals into a higher-
+            # replicating that truncation we would blend residuals into a higher-
             # precision version of the source, leading to small but noticeable
-            # mismatches (especially at strength = 1.0).  By rounding to the
-            # same 0–255 integer grid first we guarantee that
-            #   original + residual == corrected
-            img_q = (img * 255.0).round().div(255.0)
+            # mismatches. Match the direct SPCA path at both quantization points.
+            img_q = img.mul(255.0).to(torch.uint8).to(torch.float32).div(255.0)
 
             blended = (img_q + res * strength).clamp(0,1)
+            blended = blended.mul(255.0).to(torch.uint8).to(torch.float32).div(255.0)
 
             # Restore missing channel dimension if blend lost it (should stay (C,H,W))
             if blended.ndim == 2:

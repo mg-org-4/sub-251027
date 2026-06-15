@@ -1,12 +1,12 @@
 # ComfyUI-Darkroom
 
-Professional color grading and film emulation suite for ComfyUI — 49 nodes, 161 film stocks, 35 spectral neg×print LUTs, 102 lens profiles, reference-driven Color Match, colorist scopes, full CMYK print workflow, zero API costs.
+Professional color grading and film emulation suite for ComfyUI — 53 nodes, 161 film stocks, 35 spectral neg×print LUTs, 102 lens profiles, reference-driven Color Match, colorist scopes, full CMYK print workflow, zero API costs.
 
 The most complete color toolset in the ComfyUI ecosystem. From physics-based film emulation to DaVinci Resolve-level color grading, Camera Raw processing, optical simulation, LUT export, ACES color management, and magazine-ready CMYK print output — everything runs locally with no external dependencies.
 
 ## Nodes
 
-### Film Emulation (7 nodes)
+### Film Emulation (10 nodes)
 
 | Node | Description |
 |------|-------------|
@@ -17,12 +17,16 @@ The most complete color toolset in the ComfyUI ecosystem. From physics-based fil
 | **Halation** | Physics-based light bounce from film base. Screen-blended highlight glow with disk blur. |
 | **Print Stock** | Photographic paper simulation — the negative-to-print chain. |
 | **Cross Process** | E-6 in C-41 and C-41 in E-6 cross-processing color shifts. |
+| **Adjacency Acutance** | Film development edge effects (Mackie lines): a density overshoot on the bright side of an edge and an undershoot on the dark side, the organic 3D acutance of large-format film rather than digital over-sharpening. Asymmetric and edge-localized, with an asymmetry control (1 = symmetric, higher = filmic). Optional bromide drag adds the density-minus streaks that trail from bright areas in the direction of gravity or tank agitation. Derived from a published reaction-diffusion edge-effect model (implemented as the cheaper chemical-spread convolution). Physically inspired, not per-film calibrated. |
+| **Reciprocity Failure** | Simulates film reciprocity failure (the Schwarzschild effect) at long exposures: the per-channel color cast that no digital sensor has, plus crushed shadows. Pick a film and an exposure time and the long-exposure character is applied from the manufacturer datasheet corrections (Kodak E-31 and Fuji datasheets). Six stocks: B&W general, T-Max, Portra 400, Ektachrome E100 (cyan/blue cast), Provia 100F (magenta), Velvia 50 (green). Datasheet-character-grounded, not per-roll calibrated; film aging is a separate concern. |
+| **Spectral B&W (Ortho/Pan)** | Black and white conversion driven by a film's spectral sensitivity. Orthochromatic renders red dark and blue light (white skies, dark skin and lips), panchromatic is natural, and an extended-red mode lightens reds and foliage. Five sensitivity types. The RGB weights are derived from real spectral sensitivity curves integrated against the Mallett-Yuksel sRGB spectral basis, a principled channel mixer rather than hand-picked numbers. An sRGB image cannot carry a real spectrum, so this is a spectral approximation of the ortho/pan tonal character. |
 
-### Camera Raw Tools (9 nodes)
+### Camera Raw Tools (10 nodes)
 
 | Node | Description |
 |------|-------------|
 | **White Balance** | Color temperature (Kelvin) and tint adjustment via Planckian locus approximation. |
+| **Auto White Balance** | Automatic color-cast removal by estimating the scene illuminant from the image (no temperature input). Four classical methods in one dropdown: Gray World, White Patch (Max-RGB), Shades of Gray (Minkowski norm, the robust default), and Gray Edge (gradient-based, often best). Corrects via a von Kries diagonal in linear light and preserves overall brightness. Strength blend. Pure numpy, no learned weights. A robust "remove the obvious cast" auto-WB, not a trained neural matcher. |
 | **Exposure & Tone** | EV-stop exposure, S-curve contrast, parametric shadows/highlights/whites/blacks. |
 | **HSL Selective** | Per-hue adjustments to hue, saturation, and luminance across 8 color bands with smooth feathering. |
 | **Clarity / Texture / Dehaze** | Local contrast enhancement, surface texture detail, and atmospheric haze removal. |
@@ -140,7 +144,7 @@ The baker is vendored at `third_party/spectral_film_lut/` (MIT, JanLohse/spectra
 
 | Node | Description |
 |------|-------------|
-| **Halftone** | AM clustered-dot halftone screening, the newsprint / comic look. Reproduces continuous tone as a grid of round ink dots whose size grows with tone. Mono (black-on-white, single angle) or color (naive CMYK separation screened at the standard rosette angles 15/75/0/45 so it makes a real rosette). Resolution-independent screen frequency (lines across the long edge), supersampled dot edges, GCR control for CMYK, strength blend for a subtle screen overlay. GPU-accelerated. This is a stylize effect, not a calibrated proof (use CMYK Soft-Proof for that). |
+| **Halftone** | Halftone screening, the newsprint / comic look. Reproduces continuous tone as a grid of ink dots whose size grows with tone. Four dot shapes (round, line for an engraving screen, square, ellipse for chain dots) and two methods: AM clustered dots (angled, with the standard CMYK rosette 15/75/0/45) or FM dispersed Bayer dither. Mono (black on white) or color (naive CMYK separation). Resolution-independent screen frequency (lines across the long edge), supersampled dot edges, GCR control, strength blend for a subtle screen overlay. Dot shapes are tone-linearized, so changing the shape changes the dot geometry, not the overall tone. GPU-accelerated. This is a stylize effect, not a calibrated proof (use CMYK Soft-Proof for that). |
 
 ### Pipeline — LUT & Color Management (7 nodes)
 
@@ -179,10 +183,10 @@ LUT Identity ─► lattice ──┤                                           
 A 3D LUT is a per-pixel color lookup. It has no idea about neighboring pixels. So only nodes that transform each pixel independently can be baked:
 
 **Allowed in the bake chain:**
-Film Stock (Color), Film Stock (B&W), Print Stock, Cross Process, White Balance, Exposure & Tone, HSL Selective, Vibrance, Tone Curve, Lift Gamma Gain, OkLab Color, Log Wheels, 3-Way Color Balance, Hue vs Hue, Hue vs Sat, Lum vs Sat, Sat vs Sat, Color Warper, Color Space Transform, ACES Tonemap, LUT Apply.
+Film Stock (Color), Film Stock (B&W), Print Stock, Cross Process, Reciprocity Failure, Spectral B&W (Ortho/Pan), White Balance, Exposure & Tone, HSL Selective, Vibrance, Tone Curve, Lift Gamma Gain, OkLab Color, Log Wheels, 3-Way Color Balance, Hue vs Hue, Hue vs Sat, Lum vs Sat, Sat vs Sat, Color Warper, Color Space Transform, ACES Tonemap, LUT Apply.
 
 **NOT allowed in the bake chain** (they use pixel neighborhoods and will corrupt the lattice):
-Film Grain, Film Grain Pro, Halftone, Halation, Clarity / Texture / Dehaze, Sharpening Pro, Noise Reduction, Skin Tone Uniformity, Color Qualifier (partial — uses local masks), Chromatic Aberration, Vignette, Lens Distortion, Perspective Correct, Lens Profile.
+Film Grain, Film Grain Pro, Halftone, Adjacency Acutance, Halation, Clarity / Texture / Dehaze, Sharpening Pro, Noise Reduction, Skin Tone Uniformity, Color Qualifier (partial — uses local masks), Auto White Balance (content-adaptive — estimates the illuminant per image), Chromatic Aberration, Vignette, Lens Distortion, Perspective Correct, Lens Profile.
 
 If you want spatial effects on your final image, apply them to `graded_photo` **after** Extract, not inside the bake chain.
 
@@ -198,7 +202,7 @@ git clone https://github.com/jeremieLouvaert/ComfyUI-Darkroom.git
 pip install -r ComfyUI-Darkroom/requirements.txt
 ```
 
-Restart ComfyUI. All 49 nodes appear under **AKURATE/Darkroom/** with subcategories: Film (incl. Spectral), Raw, Grading (incl. Color Match), Lens, Pipeline, RAW, Scopes, Print.
+Restart ComfyUI. All 53 nodes appear under **AKURATE/Darkroom/** with subcategories: Film (incl. Spectral), Raw, Grading (incl. Color Match), Lens, Pipeline, RAW, Scopes, Print.
 
 ### Dependencies
 

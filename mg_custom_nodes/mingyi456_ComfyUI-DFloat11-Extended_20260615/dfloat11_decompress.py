@@ -1,11 +1,11 @@
 import cupy as cp
 from importlib.resources import files
 import math
-
 import torch
-
 from dfloat11.dfloat11 import TensorManager
 import gc
+
+from .state_dict_shapes import state_dict_mapping
 
 ptx_path = str(files("dfloat11").joinpath("decode.ptx"))
 _decode = cp.RawModule(path=ptx_path).get_function('decode')
@@ -740,10 +740,188 @@ def decompress_state_dict_flux_2_klein_9b(df11_state_dict):
 
     return reconstructed_state_dict
 
+def decompress_state_dict_zimage(df11_state_dict):
+    bf16_sizes = state_dict_mapping["ZImage"]
+    reconstructed_state_dict = {}
+    
+    layers_modules = (
+        "attention.qkv",
+        "attention.out",
+        "feed_forward.w1",
+        "feed_forward.w2",
+        "feed_forward.w3",
+        "adaLN_modulation.0"
+    )
+    noise_refiner_modules = layers_modules
+    context_refiner_modules = (
+        "attention.qkv",
+        "attention.out",
+        "feed_forward.w1",
+        "feed_forward.w2",
+        "feed_forward.w3",
+    )
+    
+    for block_num in range(30):
+        compression_block = f"layers.{block_num}"
+        compressed_modules = layers_modules
+        
+        cuda_device = torch.device("cuda")
+        
+        target_modules = [f"{compression_block}.{module}.weight" for module in compressed_modules]
+        
+        luts = df11_state_dict.pop(f"{compression_block}.luts").to("cuda")
+        encoded_exponent = df11_state_dict.pop(f"{compression_block}.encoded_exponent").to("cuda")
+        sign_mantissa = df11_state_dict.pop(f"{compression_block}.sign_mantissa").to("cuda")
+        output_positions = df11_state_dict.pop(f"{compression_block}.output_positions").to("cuda")
+        gaps = df11_state_dict.pop(f"{compression_block}.gaps").to("cuda")
+        split_positions = df11_state_dict.pop(f"{compression_block}.split_positions")
+    
+        n_elements = sign_mantissa.numel()
+        n_bytes = encoded_exponent.numel()
+        n_luts = luts.shape[0]
+    
+        reconstructed = TensorManager.allocate_bfloat16(cuda_device, n_elements)
+    
+        output_positions_np = output_positions.cpu().view(torch.uint32).numpy()
+        shared_mem_size = threads_per_block[0] * 4 + 4 + (output_positions_np[1:] - output_positions_np[:-1]).max().item() * 2
+        # print(f'Using {shared_mem_size} bytes of shared memory.')
+    
+        blocks_per_grid = (int(math.ceil(n_bytes / (threads_per_block[0] * bytes_per_thread))), )
+        
+        with cp.cuda.Device(cuda_device.index):
+            _decode(grid=blocks_per_grid, block=threads_per_block, shared_mem=shared_mem_size, args=[
+                luts.data_ptr(),
+                encoded_exponent.data_ptr(),
+                sign_mantissa.data_ptr(),
+                output_positions.data_ptr(),
+                gaps.data_ptr(),
+                reconstructed.data_ptr(),
+                n_luts, n_bytes, n_elements
+            ])
+    
+        reconstructed_weights = torch.tensor_split(reconstructed, split_positions)
+    
+        for target_module, reconstructed_weight in zip(target_modules, reconstructed_weights):
+            reconstructed_state_dict[target_module] = reconstructed_weight.cpu().view(bf16_sizes[target_module])
+        
+        del luts
+        del encoded_exponent
+        del sign_mantissa
+        del output_positions
+        del gaps
+        del split_positions
+    
+    for block_num in range(2):
+        compression_block = f"noise_refiner.{block_num}"
+        compressed_modules = noise_refiner_modules
+        
+        cuda_device = torch.device("cuda")
+        
+        target_modules = [f"{compression_block}.{module}.weight" for module in compressed_modules]
+        
+        luts = df11_state_dict.pop(f"{compression_block}.luts").to("cuda")
+        encoded_exponent = df11_state_dict.pop(f"{compression_block}.encoded_exponent").to("cuda")
+        sign_mantissa = df11_state_dict.pop(f"{compression_block}.sign_mantissa").to("cuda")
+        output_positions = df11_state_dict.pop(f"{compression_block}.output_positions").to("cuda")
+        gaps = df11_state_dict.pop(f"{compression_block}.gaps").to("cuda")
+        split_positions = df11_state_dict.pop(f"{compression_block}.split_positions")
+    
+        n_elements = sign_mantissa.numel()
+        n_bytes = encoded_exponent.numel()
+        n_luts = luts.shape[0]
+    
+        reconstructed = TensorManager.allocate_bfloat16(cuda_device, n_elements)
+    
+        output_positions_np = output_positions.cpu().view(torch.uint32).numpy()
+        shared_mem_size = threads_per_block[0] * 4 + 4 + (output_positions_np[1:] - output_positions_np[:-1]).max().item() * 2
+        # print(f'Using {shared_mem_size} bytes of shared memory.')
+    
+        blocks_per_grid = (int(math.ceil(n_bytes / (threads_per_block[0] * bytes_per_thread))), )
+        
+        with cp.cuda.Device(cuda_device.index):
+            _decode(grid=blocks_per_grid, block=threads_per_block, shared_mem=shared_mem_size, args=[
+                luts.data_ptr(),
+                encoded_exponent.data_ptr(),
+                sign_mantissa.data_ptr(),
+                output_positions.data_ptr(),
+                gaps.data_ptr(),
+                reconstructed.data_ptr(),
+                n_luts, n_bytes, n_elements
+            ])
+    
+        reconstructed_weights = torch.tensor_split(reconstructed, split_positions)
+    
+        for target_module, reconstructed_weight in zip(target_modules, reconstructed_weights):
+            reconstructed_state_dict[target_module] = reconstructed_weight.cpu().view(bf16_sizes[target_module])
+        
+        del luts
+        del encoded_exponent
+        del sign_mantissa
+        del output_positions
+        del gaps
+        del split_positions
+
+    for block_num in range(2):
+        compression_block = f"context_refiner.{block_num}"
+        compressed_modules = context_refiner_modules
+        
+        cuda_device = torch.device("cuda")
+        
+        target_modules = [f"{compression_block}.{module}.weight" for module in compressed_modules]
+        
+        luts = df11_state_dict.pop(f"{compression_block}.luts").to("cuda")
+        encoded_exponent = df11_state_dict.pop(f"{compression_block}.encoded_exponent").to("cuda")
+        sign_mantissa = df11_state_dict.pop(f"{compression_block}.sign_mantissa").to("cuda")
+        output_positions = df11_state_dict.pop(f"{compression_block}.output_positions").to("cuda")
+        gaps = df11_state_dict.pop(f"{compression_block}.gaps").to("cuda")
+        split_positions = df11_state_dict.pop(f"{compression_block}.split_positions")
+    
+        n_elements = sign_mantissa.numel()
+        n_bytes = encoded_exponent.numel()
+        n_luts = luts.shape[0]
+    
+        reconstructed = TensorManager.allocate_bfloat16(cuda_device, n_elements)
+    
+        output_positions_np = output_positions.cpu().view(torch.uint32).numpy()
+        shared_mem_size = threads_per_block[0] * 4 + 4 + (output_positions_np[1:] - output_positions_np[:-1]).max().item() * 2
+        # print(f'Using {shared_mem_size} bytes of shared memory.')
+    
+        blocks_per_grid = (int(math.ceil(n_bytes / (threads_per_block[0] * bytes_per_thread))), )
+        
+        with cp.cuda.Device(cuda_device.index):
+            _decode(grid=blocks_per_grid, block=threads_per_block, shared_mem=shared_mem_size, args=[
+                luts.data_ptr(),
+                encoded_exponent.data_ptr(),
+                sign_mantissa.data_ptr(),
+                output_positions.data_ptr(),
+                gaps.data_ptr(),
+                reconstructed.data_ptr(),
+                n_luts, n_bytes, n_elements
+            ])
+    
+        reconstructed_weights = torch.tensor_split(reconstructed, split_positions)
+    
+        for target_module, reconstructed_weight in zip(target_modules, reconstructed_weights):
+            reconstructed_state_dict[target_module] = reconstructed_weight.cpu().view(bf16_sizes[target_module])
+        
+        del luts
+        del encoded_exponent
+        del sign_mantissa
+        del output_positions
+        del gaps
+        del split_positions
+    
+    uncompressed_keys = bf16_sizes.keys() & df11_state_dict.keys()
+    reconstructed_state_dict.update(df11_state_dict)
+    del df11_state_dict
+    
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    return reconstructed_state_dict
+
 decompress_state_dict_func_map = {
     "Flux.2-Klein-4B": decompress_state_dict_flux_2_klein_4b,
     "Flux.2-Klein-9B": decompress_state_dict_flux_2_klein_9b,
+    "ZImage": decompress_state_dict_zimage,
 }
-
-
-

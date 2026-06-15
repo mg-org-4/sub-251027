@@ -172,7 +172,7 @@ class DFloat11Decompressor:
         return {
             "required": {
                 "dfloat11_model_name": (folder_paths.get_filename_list("diffusion_models"),),
-                "decompress_recipe": (["Flux.2-Klein-4B", "Flux.2-Klein-9B"],),
+                "decompress_recipe": (list(decompress_state_dict_func_map.keys()),),
                 "weight_dtype": (["default", "fp8_e4m3fn", "fp8_e4m3fn_fast", "fp8_e5m2"],)
             }
         }

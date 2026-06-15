@@ -323,7 +323,7 @@ MODEL_TO_PATTERN_DICT = {
         r"final_norm.linear": [],
     },
     
-    "Lens":  {
+    "Lens": {
         r"txt_in": [],
         r"transformer_blocks\.\d+": (
             "attn.img_qkv",

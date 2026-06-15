@@ -1,24 +1,25 @@
-import struct
-import numpy as np
-import io
-from server import PromptServer, BinaryEventTypes
-from pathlib import Path
-from PIL import Image
 import base64
-from io import BytesIO
-import torch
-import tempfile
+import io
 import os
+import struct
+import tempfile
 
+import numpy as np
+import torch
+from PIL import Image
+from server import BinaryEventTypes, PromptServer
 
 class Hy3DtoTD:
     #https://github.com/kijai/ComfyUI-Hunyuan3DWrapper
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
-                "trimesh": ("TRIMESH",),
                 "broadcast": ("BOOLEAN", {"default": False}),
+            },
+            "optional": {
+                "trimesh": ("TRIMESH",),
+                "mesh": ("MESH",),
             }
         }
 
@@ -27,14 +28,25 @@ class Hy3DtoTD:
     OUTPUT_NODE = True
     CATEGORY = "TouchDesigner"
 
-    def send_mesh(self, trimesh, broadcast):
+    def send_mesh(self, broadcast, trimesh=None, mesh=None):
         try:
-            processed_mesh = self.process_mesh(trimesh)
-            return self._send_to_td(processed_mesh, broadcast)
+            if trimesh is not None and mesh is not None:
+                raise ValueError("Please connect only one input: trimesh or mesh, not both.")
+
+            if trimesh is not None:
+                vertices, colors = self.process_trimesh(trimesh)
+            elif mesh is not None:
+                vertices, colors = self.process_comfy_mesh(mesh)
+            else:
+                raise ValueError("Please connect either a trimesh or mesh input.")
+
+            return self._send_to_td(vertices, colors, broadcast)
+
         except Exception as e:
             raise ValueError(f"Error processing mesh: {str(e)}")
 
-    def process_mesh(self, mesh):
+
+    def process_trimesh(self, mesh):
         try:
             import trimesh
 
@@ -43,6 +55,7 @@ class Hy3DtoTD:
                 for m in mesh.geometry.values():
                     if isinstance(m, trimesh.Trimesh):
                         meshes.append(m)
+
                 if meshes:
                     mesh = trimesh.util.concatenate(meshes)
                 else:
@@ -53,46 +66,211 @@ class Hy3DtoTD:
 
             mesh.fix_normals()
 
-            if hasattr(mesh.visual, 'vertex_colors') and mesh.visual.vertex_colors is not None:
-                pass
-            elif hasattr(mesh.visual, 'uv') and mesh.visual.uv is not None:
-                mesh.visual = mesh.visual.to_color()
-            else:
-                mesh.visual = trimesh.visual.ColorVisuals(mesh)
-                mesh.visual.vertex_colors = np.tile([200, 200, 200, 255], (len(mesh.vertices), 1))
+            vertices = np.asarray(mesh.vertices, dtype=np.float32)
+            vertex_count = len(vertices)
 
-            return mesh
+            if hasattr(mesh.visual, "vertex_colors") and mesh.visual.vertex_colors is not None:
+                colors = np.asarray(mesh.visual.vertex_colors)
+            elif hasattr(mesh.visual, "uv") and mesh.visual.uv is not None:
+                try:
+                    mesh.visual = mesh.visual.to_color()
+                    colors = np.asarray(mesh.visual.vertex_colors)
+                except Exception:
+                    colors = np.tile([200, 200, 200, 255], (vertex_count, 1))
+            else:
+                colors = np.tile([200, 200, 200, 255], (vertex_count, 1))
+
+            colors = self._normalize_colors(colors, vertex_count)
+
+            return vertices, colors
 
         except ImportError:
             raise ImportError("Please install the trimesh library: pip install trimesh")
         except Exception as e:
-            raise ValueError(f"Error processing mesh: {str(e)}")
+            raise ValueError(f"Error processing trimesh: {str(e)}")
 
-    def _send_to_td(self, mesh, broadcast):
+    def process_comfy_mesh(self, mesh):
         try:
-            import trimesh
+            if isinstance(mesh, list):
+                if len(mesh) == 0:
+                    raise ValueError("Empty mesh list received")
+                mesh = mesh[0]
 
-            buffer = io.BytesIO()
-            mesh.export(file_obj=buffer, file_type='ply')
-            binary_data = buffer.getvalue()
-            buffer.close()
+            vertices = self._extract_comfy_mesh_vertices(mesh)
+            vertex_count = len(vertices)
+
+            colors = self._extract_comfy_mesh_colors(mesh, vertex_count)
+            colors = self._normalize_colors(colors, vertex_count)
+
+            return vertices, colors
+
+        except Exception as e:
+            raise ValueError(f"Error processing ComfyUI mesh: {str(e)}")
+
+    def _extract_comfy_mesh_vertices(self, mesh):
+        vertices = None
+
+        if hasattr(mesh, "vertices") and mesh.vertices is not None:
+            vertices = mesh.vertices
+        elif isinstance(mesh, dict) and "vertices" in mesh:
+            vertices = mesh["vertices"]
+        elif isinstance(mesh, (tuple, list)) and len(mesh) > 0:
+            vertices = mesh[0]
+
+        if vertices is None:
+            raise ValueError("Cannot find vertices in ComfyUI mesh")
+
+        vertices = self._to_numpy(vertices)
+        vertices = self._squeeze_batch(vertices)
+        vertices = np.asarray(vertices, dtype=np.float32)
+
+        if vertices.ndim != 2 or vertices.shape[1] < 3:
+            raise ValueError(f"Invalid vertices shape: {vertices.shape}")
+
+        return vertices[:, :3]
+
+    def _extract_comfy_mesh_colors(self, mesh, vertex_count):
+        colors = None
+
+        if hasattr(mesh, "vertex_colors") and mesh.vertex_colors is not None:
+            colors = mesh.vertex_colors
+        elif hasattr(mesh, "colors") and mesh.colors is not None:
+            colors = mesh.colors
+        elif hasattr(mesh, "visual") and mesh.visual is not None:
+            if hasattr(mesh.visual, "vertex_colors") and mesh.visual.vertex_colors is not None:
+                colors = mesh.visual.vertex_colors
+        elif isinstance(mesh, dict) and "vertex_colors" in mesh:
+            colors = mesh["vertex_colors"]
+        elif isinstance(mesh, dict) and "colors" in mesh:
+            colors = mesh["colors"]
+
+        if colors is None:
+            colors = np.tile([200, 200, 200, 255], (vertex_count, 1))
+
+        return colors
+
+    def _to_numpy(self, value):
+        if value is None:
+            return None
+
+        if hasattr(value, "detach"):
+            value = value.detach()
+        if hasattr(value, "cpu"):
+            value = value.cpu()
+        if hasattr(value, "numpy"):
+            value = value.numpy()
+
+        return np.asarray(value)
+
+    def _squeeze_batch(self, value):
+        value = np.asarray(value)
+
+        if value.ndim == 3 and value.shape[0] == 1:
+            value = value[0]
+
+        return value
+
+    def _normalize_colors(self, colors, vertex_count):
+        colors = self._to_numpy(colors)
+
+        if colors is None:
+            colors = np.tile([200, 200, 200, 255], (vertex_count, 1))
+
+        colors = self._squeeze_batch(colors)
+        colors = np.asarray(colors)
+
+        if colors.ndim == 1:
+            if colors.shape[0] in (3, 4):
+                colors = np.tile(colors, (vertex_count, 1))
+            else:
+                colors = np.column_stack([colors, colors, colors])
+
+        if colors.ndim != 2:
+            colors = np.tile([200, 200, 200, 255], (vertex_count, 1))
+
+        if len(colors) != vertex_count:
+            if len(colors) > vertex_count:
+                colors = colors[:vertex_count]
+            elif len(colors) > 0:
+                last_color = colors[-1]
+                padding = np.tile(last_color, (vertex_count - len(colors), 1))
+                colors = np.vstack([colors, padding])
+            else:
+                colors = np.tile([200, 200, 200, 255], (vertex_count, 1))
+
+        if colors.dtype != np.uint8:
+            if colors.size > 0 and colors.max() <= 1.0:
+                colors = (np.clip(colors, 0, 1) * 255).astype(np.uint8)
+            else:
+                colors = np.clip(colors, 0, 255).astype(np.uint8)
+
+        if colors.shape[1] == 1:
+            colors = np.repeat(colors, 3, axis=1)
+
+        if colors.shape[1] == 2:
+            colors = np.repeat(colors[:, :1], 3, axis=1)
+
+        if colors.shape[1] == 3:
+            alpha = np.full((vertex_count, 1), 255, dtype=np.uint8)
+            colors = np.concatenate([colors, alpha], axis=1)
+
+        if colors.shape[1] > 4:
+            colors = colors[:, :4]
+
+        if colors.shape[1] < 4:
+            default_colors = np.tile([200, 200, 200, 255], (vertex_count, 1)).astype(np.uint8)
+            default_colors[:, :colors.shape[1]] = colors
+            colors = default_colors
+
+        return colors[:, :4].astype(np.uint8)
+
+    def _send_to_td(self, vertices, colors, broadcast):
+        try:
+            vertices = np.asarray(vertices, dtype=np.float32)
+            vertex_count = len(vertices)
+            colors = self._normalize_colors(colors, vertex_count)
+
+            dtype_vertex = np.dtype([
+                ("pos", "<f4", 3),
+                ("color", "u1", 4)
+            ])
+
+            vertex_data = np.empty(vertex_count, dtype=dtype_vertex)
+            vertex_data["pos"] = vertices[:, :3]
+            vertex_data["color"] = colors[:, :4]
+
+            header = (
+                "ply\n"
+                "format binary_little_endian 1.0\n"
+                f"element vertex {vertex_count}\n"
+                "property float x\n"
+                "property float y\n"
+                "property float z\n"
+                "property uchar red\n"
+                "property uchar green\n"
+                "property uchar blue\n"
+                "property uchar alpha\n"
+                "end_header\n"
+            ).encode("ascii")
+
+            binary_data = header + vertex_data.tobytes()
 
             server = PromptServer.instance
             sid = None if broadcast else server.client_id
             server.send_sync(1000, binary_data, sid=sid)
 
-            return {"ui": {
-                "mesh": [{
-                    "source": "websocket",
-                    "content-type": "model/ply",
-                    "type": "output",
-                }]
-            }}
-        except ImportError:
-            raise ImportError("Please install the trimesh library: pip install trimesh")
-        except Exception as e:
-            raise ValueError(f"Error sending mesh to TouchDesigner: {str(e)}")
+            return {
+                "ui": {
+                    "mesh": [{
+                        "source": "websocket",
+                        "content-type": "model/ply",
+                        "type": "output",
+                    }]
+                }
+            }
 
+        except Exception as e:
+            raise ValueError(f"Error sending point PLY to TouchDesigner: {str(e)}")
 
 class Tripo3DtoTD:
     #https://github.com/VAST-AI-Research/ComfyUI-Tripo
@@ -336,11 +514,6 @@ class ImagetoTD_JPEG:
     CATEGORY = "TouchDesigner"
 
     def send_images(self, images, broadcast, quality):
-        import numpy as np
-        from PIL import Image
-        import io
-        import struct
-
         results = []
         for tensor in images:
             array = 255.0 * tensor.cpu().numpy()
@@ -719,7 +892,7 @@ class LoadTDImage:
     def load_image(self, image):
         try:
             imgdata = base64.b64decode(image)
-            img = Image.open(BytesIO(imgdata))
+            img = Image.open(io.BytesIO(imgdata))
 
             width, height = img.size
 
@@ -959,14 +1132,24 @@ class AudiotoTD:
                 "type": "output",
             }]
         }}
-
 class GaussianSplattingtoTD:
     @classmethod
     def INPUT_TYPES(s):
         return {
-            "required": {
-                "ply_path": ("STRING",),
-                "broadcast": ("BOOLEAN", {"default": False}),
+            "required": {},
+            "optional": {
+                "splat": ("SPLAT", {
+                    "tooltip": "Optional input source. Choose either this SPLAT input or ply_path. If both are provided, SPLAT will be used and ply_path will be ignored."
+                }),
+                "ply_path": ("STRING", {
+                    "forceInput": True,
+                    "default": "",
+                    "tooltip": "Optional input source. Choose either a PLY file path or the SPLAT input. If both are provided, SPLAT will be used and ply_path will be ignored."
+                }),
+                "broadcast": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Send to all connected ComfyUI frontend clients. If disabled, the data is sent only to the current client."
+                }),
             }
         }
 
@@ -975,17 +1158,115 @@ class GaussianSplattingtoTD:
     OUTPUT_NODE = True
     CATEGORY = "TouchDesigner"
 
-    def send_gaussian_splatting(self, ply_path, broadcast):
+    def send_gaussian_splatting(self, splat=None, ply_path="", broadcast=False):
         try:
-            gs_data = self.process_ply(ply_path)
+            has_splat = splat is not None
+            has_ply = bool(ply_path and ply_path.strip())
+
+            if has_splat and has_ply:
+                print(
+                    "[GaussianSplattingtoTD] Both SPLAT and ply_path were provided. "
+                    "Using SPLAT input and ignoring ply_path."
+                )
+
+            if has_splat:
+                gs_data = self.process_splat(splat)
+            elif has_ply:
+                gs_data = self.process_ply(ply_path)
+            else:
+                raise ValueError(
+                    "No input source provided. Please connect a SPLAT input or provide a ply_path. "
+                    "Choose one of them."
+                )
+
             return self._send_to_td(gs_data, broadcast)
+
         except Exception as e:
             raise ValueError(f"Error processing Gaussian Splatting data: {str(e)}")
 
+    def process_splat(self, splat):
+        def t2n(x):
+            if x is None:
+                return None
+            if isinstance(x, torch.Tensor):
+                return x.detach().cpu().float().numpy()
+            return np.asarray(x, dtype=np.float32)
+
+        positions = t2n(getattr(splat, 'positions'))
+        scales    = t2n(getattr(splat, 'scales'))
+        rotations = t2n(getattr(splat, 'rotations'))
+        opacities = t2n(getattr(splat, 'opacities'))
+        sh        = t2n(getattr(splat, 'sh'))
+
+        counts = getattr(splat, 'counts', None)
+        if counts is not None:
+            counts = t2n(counts)
+
+        if positions is None:
+            raise ValueError("SPLAT is missing required field: positions")
+        if scales is None:
+            raise ValueError("SPLAT is missing required field: scales")
+        if rotations is None:
+            raise ValueError("SPLAT is missing required field: rotations")
+        if opacities is None:
+            raise ValueError("SPLAT is missing required field: opacities")
+        if sh is None:
+            raise ValueError("SPLAT is missing required field: sh")
+
+        # Validate batched dimensions
+        if positions.ndim != 3:
+            raise ValueError(f"Expected positions shape (B, N, 3), got {positions.shape}")
+        if scales.ndim != 3:
+            raise ValueError(f"Expected scales shape (B, N, 3), got {scales.shape}")
+        if rotations.ndim != 3:
+            raise ValueError(f"Expected rotations shape (B, N, 4), got {rotations.shape}")
+        if opacities.ndim != 3:
+            raise ValueError(f"Expected opacities shape (B, N, 1), got {opacities.shape}")
+        if sh.ndim != 4:
+            raise ValueError(f"Expected sh shape (B, N, K, 3), got {sh.shape}")
+
+        positions = positions[0]      # (N, 3)
+        scales    = scales[0]         # (N, 3)
+        rotations = rotations[0]      # (N, 4)
+        opacities = opacities[0]      # (N, 1)
+        sh        = sh[0]             # (N, K, 3)
+
+        # Use counts[0] to remove padded points if available
+        if counts is not None:
+            n_real = int(counts[0])
+            positions = positions[:n_real]
+            scales    = scales[:n_real]
+            rotations = rotations[:n_real]
+            opacities = opacities[:n_real]
+            sh        = sh[:n_real]
+
+        f_dc = sh[:, 0, :].astype(np.float32)
+
+        # Convert activated SPLAT values back to standard 3DGS PLY parameter space:
+        eps = 1e-6
+
+        op = np.clip(opacities.reshape(-1), eps, 1.0 - eps).astype(np.float32)
+        opacity_logit = np.log(op / (1.0 - op))  # inverse sigmoid
+
+        sc = np.clip(scales, eps, None).astype(np.float32)
+        scale_log = np.log(sc)                   # inverse exp
+
+        gs_data = {
+            'positions': positions.astype(np.float32),
+            'colors':    f_dc,
+            'opacity':   opacity_logit,
+            'scales':    scale_log,
+            'rotations': rotations.astype(np.float32),
+        }
+
+        return gs_data
+
     def process_ply(self, ply_path):
         try:
+            import os
+            import numpy as np
             from plyfile import PlyData
-            
+
             if not ply_path.startswith(('http://', 'https://')) and not os.path.isabs(ply_path):
                 try:
                     import folder_paths
@@ -993,33 +1274,60 @@ class GaussianSplattingtoTD:
                     local_path = os.path.join(output_dir, ply_path)
                     if os.path.exists(local_path):
                         ply_path = local_path
-                except:
+                except Exception:
                     pass
-            
+
             if not os.path.exists(ply_path):
                 raise ValueError(f"PLY file not found: {ply_path}")
-            
+
             plydata = PlyData.read(ply_path)
             vertex = plydata['vertex']
-            
-            required_props = ['x', 'y', 'z', 'f_dc_0', 'f_dc_1', 'f_dc_2', 
-                            'opacity', 'scale_0', 'scale_1', 'scale_2', 
-                            'rot_0', 'rot_1', 'rot_2', 'rot_3']
-            
-            missing_props = [prop for prop in required_props if prop not in vertex.data.dtype.names]
+
+            required_props = [
+                'x', 'y', 'z',
+                'f_dc_0', 'f_dc_1', 'f_dc_2',
+                'opacity',
+                'scale_0', 'scale_1', 'scale_2',
+                'rot_0', 'rot_1', 'rot_2', 'rot_3'
+            ]
+
+            missing_props = [
+                prop for prop in required_props
+                if prop not in vertex.data.dtype.names
+            ]
+
             if missing_props:
                 raise ValueError(f"Missing properties in PLY file: {missing_props}")
-            
-            gs_data = {
-                'positions': np.stack([vertex['x'], vertex['y'], vertex['z']], axis=1).astype(np.float32),
-                'colors': np.stack([vertex['f_dc_0'], vertex['f_dc_1'], vertex['f_dc_2']], axis=1).astype(np.float32),
+
+            return {
+                'positions': np.stack([
+                    vertex['x'],
+                    vertex['y'],
+                    vertex['z']
+                ], axis=1).astype(np.float32),
+
+                'colors': np.stack([
+                    vertex['f_dc_0'],
+                    vertex['f_dc_1'],
+                    vertex['f_dc_2']
+                ], axis=1).astype(np.float32),
+
                 'opacity': vertex['opacity'].astype(np.float32),
-                'scales': np.stack([vertex['scale_0'], vertex['scale_1'], vertex['scale_2']], axis=1).astype(np.float32),
-                'rotations': np.stack([vertex['rot_0'], vertex['rot_1'], vertex['rot_2'], vertex['rot_3']], axis=1).astype(np.float32),
+
+                'scales': np.stack([
+                    vertex['scale_0'],
+                    vertex['scale_1'],
+                    vertex['scale_2']
+                ], axis=1).astype(np.float32),
+
+                'rotations': np.stack([
+                    vertex['rot_0'],
+                    vertex['rot_1'],
+                    vertex['rot_2'],
+                    vertex['rot_3']
+                ], axis=1).astype(np.float32),
             }
-            
-            return gs_data
-            
+
         except ImportError:
             raise ImportError("Please install the plyfile library: pip install plyfile")
         except Exception as e:
@@ -1027,74 +1335,61 @@ class GaussianSplattingtoTD:
 
     def _send_to_td(self, gs_data, broadcast):
         try:
+            import numpy as np
+            from server import PromptServer
+
             num_points = len(gs_data['positions'])
-            
-            header = [
-                "ply",
-                "format binary_little_endian 1.0",
-                f"element vertex {num_points}",
-                "property float x",
-                "property float y",
-                "property float z",
-                "property float f_dc_0",
-                "property float f_dc_1",
-                "property float f_dc_2",
-                "property float opacity",
-                "property float scale_0",
-                "property float scale_1",
-                "property float scale_2",
-                "property float rot_0",
-                "property float rot_1",
-                "property float rot_2",
-                "property float rot_3",
+
+            header = (
+                "ply\n"
+                "format binary_little_endian 1.0\n"
+                f"element vertex {num_points}\n"
+                "property float x\n"
+                "property float y\n"
+                "property float z\n"
+                "property float f_dc_0\n"
+                "property float f_dc_1\n"
+                "property float f_dc_2\n"
+                "property float opacity\n"
+                "property float scale_0\n"
+                "property float scale_1\n"
+                "property float scale_2\n"
+                "property float rot_0\n"
+                "property float rot_1\n"
+                "property float rot_2\n"
+                "property float rot_3\n"
                 "end_header\n"
-            ]
-            header = '\n'.join(header).encode('ascii')
-            
-            binary_data = bytearray()
-            for i in range(num_points):
-                binary_data.extend(struct.pack('<fff', 
-                    gs_data['positions'][i, 0], 
-                    gs_data['positions'][i, 1], 
-                    gs_data['positions'][i, 2]))
-                
-                binary_data.extend(struct.pack('<fff', 
-                    gs_data['colors'][i, 0], 
-                    gs_data['colors'][i, 1], 
-                    gs_data['colors'][i, 2]))
-                
-                binary_data.extend(struct.pack('<f', gs_data['opacity'][i]))
-                
-                binary_data.extend(struct.pack('<fff', 
-                    gs_data['scales'][i, 0], 
-                    gs_data['scales'][i, 1], 
-                    gs_data['scales'][i, 2]))
-                
-                binary_data.extend(struct.pack('<ffff', 
-                    gs_data['rotations'][i, 0], 
-                    gs_data['rotations'][i, 1], 
-                    gs_data['rotations'][i, 2], 
-                    gs_data['rotations'][i, 3]))
-            
-            buffer = io.BytesIO()
-            buffer.write(header)
-            buffer.write(binary_data)
-            binary_output = buffer.getvalue()
-            buffer.close()
-            
+            ).encode('ascii')
+
+            # Vectorized packing:
+            # 14 float32 values per point:
+            # xyz + f_dc_rgb + opacity + scale_xyz + rotation_wxyz
+            interleaved = np.concatenate([
+                gs_data['positions'],                 # 3
+                gs_data['colors'],                    # 3
+                gs_data['opacity'].reshape(-1, 1),    # 1
+                gs_data['scales'],                    # 3
+                gs_data['rotations'],                 # 4
+            ], axis=1).astype('<f4')
+
+            binary_output = header + interleaved.tobytes()
+
             server = PromptServer.instance
             sid = None if broadcast else server.client_id
+
             server.send_sync(1003, binary_output, sid=sid)
-            
-            return {"ui": {
-                "gaussian_splatting": [{
-                    "source": "websocket",
-                    "content-type": "model/ply",
-                    "type": "output",
-                    "point_count": num_points,
-                }]
-            }}
-            
+
+            return {
+                "ui": {
+                    "gaussian_splatting": [{
+                        "source": "websocket",
+                        "content-type": "model/ply",
+                        "type": "output",
+                        "point_count": num_points,
+                    }]
+                }
+            }
+
         except Exception as e:
             raise ValueError(f"Error sending Gaussian Splatting data: {str(e)}")
 

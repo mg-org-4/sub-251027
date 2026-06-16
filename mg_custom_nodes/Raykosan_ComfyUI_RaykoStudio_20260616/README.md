@@ -136,17 +136,17 @@ Connect the `rgba` output to any node that accepts ComfyUI image tensors (e.g., 
 # 🦊 RS Any Switch  
 **A dynamic switch node for ComfyUI that allows you to switch between multiple inputs of ANY data type with an intuitive toggle interface.**  
 
-<img width="720" height="492" alt="Screenshot_1" src="https://github.com/user-attachments/assets/8c153c02-04a7-4e61-b686-8d4eddc13fa9" />
+<img width="487" height="503" alt="Screenshot_1" src="https://github.com/user-attachments/assets/ce176948-c70a-4e6e-9554-1cf2d1e348ff" />
  
 ### 🔥 Features  
 **Universal Type Support** - Accepts any data type (IMAGE, LATENT, MODEL, AUDIO, VIDEO, TEXT, etc.)  
 **Dynamic Inputs** - Inputs are created automatically as you connect nodes (up to 20) 
 **Smart Slot Management** - Empty slots are automatically removed, keeping your workflow clean  
-**Visual Toggle Interface** - Each connected input has an ON/OFF toggle switch with the source node name  
+**Visual Toggle Interface** - Each connected input has an ON/OFF toggle switch with the source node name (multilingual)  
 **Exclusive Selection** - Only one input can be active at a time  
 **Persistent State** - Active slot selection is saved with your workflow  
 **Auto-Numbering** - Inputs are automatically numbered (Input 1, Input 2, etc.)  
-**Smart Display** - Shows connected node names with automatic truncation (max 25 chars)  
+**Smart Display** - Shows connected node names with automatic truncation (max 20 chars, multilingual)  
 **Visual Status Bar** - Green/red bordered indicator showing current active slot or OFF state  
 
 ### 🪛 Usage  
@@ -351,11 +351,12 @@ Click "✔️ ACCEPT" to pass selected images to next nodes. Only selected image
 ---
 ---
 
-# 🦊 RS Image to Latent  
+# 🦊 RS Image to Latent & 🦊 RS Image to Latent (simplified)  
 **A powerful and user-friendly ComfyUI node that converts images to latents with intelligent size optimization.**  
 
-<img width="400" height="460" alt="1" src="https://github.com/user-attachments/assets/aa67d7af-d612-43c5-9e99-1914094d73ad" />  
+<img width="973" height="646" alt="Screenshot_1" src="https://github.com/user-attachments/assets/7b038c0f-a3a2-4034-8906-c0e01b6e4480" />
 
+## 🦊 RS Image to Latent  
 ### 🔥 Features  
 - **Multiple sizing modes** - Auto, Preset, Custom, or Megapixels  
 - **VAE-aware** - Automatically detects divisibility requirements  
@@ -401,6 +402,19 @@ width_px - Final width in pixels
 height_px - Final height in pixels  
 width_latent - Latent width (width/8)  
 height_latent - Latent height (height/8)  
+
+## 🦊 RS Image to Latent (simplified)  
+**A simplified node that converts images to latent with intelligent size optimization.**  
+
+### 🔥 Features  
+- **Minimum settings** - Only batch size  
+- **Default settings:**  
+Automatically determines the multiplicity from VAE  
+Rounds the image size to a multiple of the value  
+If the size has changed, it will be resized via lanczos  
+If it is already multiple, it encodes directly without a recycle  
+Supports batch_size to create a batch of identical latents  
+Returns 3 outputs: latent, width_px, height_px  
 
 ---
 ---

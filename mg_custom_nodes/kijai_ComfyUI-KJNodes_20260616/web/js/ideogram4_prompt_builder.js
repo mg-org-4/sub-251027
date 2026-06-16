@@ -171,6 +171,7 @@ function sweepOrphanDocks() {
 function applyDockTransform(n) {
   const c = app.canvas, fl = n._dockEl, gr = n.properties.dockGraph;
   if (!c || !fl || !gr) return;
+  if (n.graph && c.graph && n.graph !== c.graph) return;   // off-screen (sub)graph; visibility handled in tickDocks
   let nodeEl = null;
   if (window.LiteGraph?.vueNodesMode && n.id != null) {        // cache; re-query only if it's gone (virtualization)
     nodeEl = n._dockNodeEl;
@@ -198,16 +199,19 @@ function applyDockTransform(n) {
   const order = n.graph?.nodes?.indexOf(n);            // sit at the node DOM-widget layer (not above everything)
   if (order != null && order >= 0) fl.style.zIndex = String(order);
 }
-// Dock chrome follows the node's color theme (title → header, body → background); falls back to dark when uncolored.
+// Dock chrome follows the node: color theme (title → header, body → background; dark fallback when uncolored)
+// and pinned state (node pinned → dock locked, no drag/resize).
 function applyDockTheme(n) {
   const fl = n._dockEl; if (!fl) return;
-  const sig = (n.color || "") + "|" + (n.bgcolor || "");
+  const pinned = !!(n.flags && n.flags.pinned);
+  const sig = (n.color || "") + "|" + (n.bgcolor || "") + "|" + pinned;
   if (n._dockTheme === sig) return;
   n._dockTheme = sig;
   const set = (k, v) => (v ? fl.style.setProperty(k, v) : fl.style.removeProperty(k));
   set("--kj-dock-bg", n.bgcolor);
   set("--kj-dock-head", n.color);
   set("--kj-dock-border", n.color || n.bgcolor);
+  fl.classList.toggle("pinned", pinned);
 }
 // Event-driven loop: woken by canvas redraws (dirty-gated) + resize, self-stops when settled.
 const DOCK_IDLE_STOP = 6;        // stop after this many frames with no further wake
@@ -215,7 +219,10 @@ let _dockRAF = 0, _dockLoopSig = "", _dockLastMode = null, _dockIdle = 0, _dockW
 function tickDocks() {
   const c = app.canvas;
   if (c && pinnedDocks.size) {
-    for (const n of pinnedDocks) applyDockTheme(n);   // cheap: cached, only writes on color change
+    for (const n of pinnedDocks) {                    // cheap: cached theme, plus hide docks whose (sub)graph isn't on screen
+      applyDockTheme(n);
+      if (n._dockEl) n._dockEl.style.display = (n.graph && c.graph && n.graph !== c.graph) ? "none" : "";
+    }
     const vue = !!window.LiteGraph?.vueNodesMode;
     if (vue !== _dockLastMode) {                  // legacy↔2.0 flip rebuilds the node DOM — force re-parent + re-place
       _dockLastMode = vue; _dockLoopSig = "";
@@ -346,6 +353,9 @@ function injectStyle() {
     .kjideo-dock.minimized { min-height:0 !important; height:auto !important; }
     .kjideo-dock.minimized .kjideo-dock-body { display:none; }
     .kjideo-dock.minimized .kjideo-rsz { display:none; }
+    .kjideo-dock.pinned .kjideo-rsz { display:none; }          /* node pinned → locked, like the node */
+    .kjideo-dock.pinned .kjideo-dock-head { cursor:default; }
+    .kjideo-dock.snap-ready { box-shadow:0 -3px 0 0 #46b4e6, 0 8px 30px rgba(0,0,0,0.55); }   /* upper border lit = release to snap */
     .kjideo-dock-head { display:flex; align-items:center; gap:6px; padding:4px 8px; background:var(--kj-dock-head,#262626); cursor:move; font:12px sans-serif; color:#ccc; user-select:none; border-bottom:1px solid rgba(0,0,0,0.25); flex:0 0 auto; }
     .kjideo-dock-head .kjideo-btn { padding:1px 7px; }
     .kjideo-dock-body { flex:1 1 auto; min-height:0; padding:8px; box-sizing:border-box; overflow:hidden; }
@@ -382,7 +392,7 @@ app.registerExtension({
           w.hidden = true;
           w.computeSize = () => [0, -4];
         }
-        for (const name of ["elements_data", "style_palette_data", "bg_brightness"]) {
+        for (const name of ["elements_data", "style_palette_data", "bg_brightness", "output_format"]) {
           const i = node.inputs?.findIndex((inp) => inp.name === name);
           if (i != null && i !== -1) node.removeInput(i);
         }
@@ -839,7 +849,7 @@ app.registerExtension({
       }
       // Resize from any edge/corner; N/W edges shift the anchor. Units: graph px pinned (÷scale), else screen px.
       function startDockResize(e, dir, fl) {
-        if (e.button !== 0) return;
+        if (e.button !== 0 || node.flags?.pinned) return;    // node pinned → not resizable, like the node
         e.preventDefault(); e.stopPropagation();
         const pinned = !!node.properties.dockPinned;
         const scale = (pinned && app.canvas) ? (app.canvas.ds.scale || 1) : 1;
@@ -921,22 +931,36 @@ app.registerExtension({
         // drag the panel by its header (graph-space when pinned, screen-space otherwise)
         head.addEventListener("pointerdown", (e) => {
           if (e.target === pinBtn || e.target === minBtn || e.target === fsBtn || e.button !== 0) return;
+          if (node.flags?.pinned) return;                    // node pinned → dock is locked too
           e.preventDefault();
           const sx0 = e.clientX, sy0 = e.clientY;
           const pinned = node.properties.dockPinned;
           const scale = pinned ? (app.canvas.ds.scale || 1) : 1;
           const gx0 = pinned ? node.properties.dockGraph.x : 0, gy0 = pinned ? node.properties.dockGraph.y : 0;
           const ox = fl.offsetLeft, oy = fl.offsetTop;
+          let snapReady = false;
           dragPointer(e, head, (me) => {
             if (pinned) {                                  // move the panel by writing its transform directly (no full redraw)
-              node.properties.dockGraph.x = gx0 + (me.clientX - sx0) / scale;
-              node.properties.dockGraph.y = gy0 + (me.clientY - sy0) / scale;
+              const gx = gx0 + (me.clientX - sx0) / scale, gy = gy0 + (me.clientY - sy0) / scale;
+              const snap = 26 / scale, underY = node.size[1] + 2;   // "home" slot: flush under the node
+              snapReady = Math.abs(gx) < snap && Math.abs(gy - underY) < snap;   // just highlight; snap on release
+              fl.classList.toggle("snap-ready", snapReady);
+              node.properties.dockGraph.x = gx; node.properties.dockGraph.y = gy;  // follow the cursor freely
               applyDockTransform(node);
             } else {
               fl.style.left = Math.max(0, Math.min(ox + me.clientX - sx0, window.innerWidth - 60)) + "px";
               fl.style.top = Math.max(0, Math.min(oy + me.clientY - sy0, window.innerHeight - 30)) + "px";
             }
-          }, () => { saveDockGeom(); flushChange(); });
+          }, () => {
+            if (snapReady) {                               // commit the snap: flush under the node, matching its width
+              const w = Math.round(node.size[0]);
+              node.properties.dockGraph.x = 0; node.properties.dockGraph.y = node.size[1] + 2;
+              if (node.properties.dockGraph.w !== w) { node.properties.dockGraph.w = w; fl.style.width = w + "px"; }
+              node._dockSig = ""; applyDockTransform(node);
+            }
+            fl.classList.remove("snap-ready");
+            saveDockGeom(); flushChange();
+          });
         });
         try { node._dockRO = new ResizeObserver(() => { fitFsCanvas(); saveDockGeom(); }); node._dockRO.observe(fl); } catch (e) {}
         // editor slot is collapsed (getMinHeight→0) — shrink the node to its widgets
@@ -955,7 +979,7 @@ app.registerExtension({
         undock();
         if (!honor) requestAnimationFrame(() => {             // no reliable geometry — place a default under the node
           const g = node.properties.dockGraph;
-          g.x = 0; g.y = node.size[1] + 12;
+          g.x = 0; g.y = node.size[1] + 2;
           if (fresh) { g.w = Math.round(node.size[0]); if (node._dockEl) node._dockEl.style.width = g.w + "px"; }
           node._dockSig = ""; applyDockTransform(node); saveDockGeom();
         });
@@ -2049,10 +2073,20 @@ app.registerExtension({
         setWidgetVal("medium", sd.medium || "");
         node._stylePalette = Array.isArray(sd.color_palette) ? sd.color_palette.slice() : [];
       }
+      // Lenient fixer: slice the outermost {...} (drops ``` fences / prose), then strip trailing
+      // commas before } or ] — the string alt matches first so quoted commas are left untouched.
+      function repairJson(s) {
+        const i = s.indexOf("{"), j = s.lastIndexOf("}");
+        const t = (i !== -1 && j > i) ? s.slice(i, j + 1) : s;
+        return t.replace(/("(?:[^"\\]|\\.)*")|,(\s*[}\]])/g, (m, str, close) => str || close);
+      }
       function tryParseCaption(t) {
         if (!t) return null;
-        try { const o = JSON.parse(t); return (o && typeof o === "object" && o.compositional_deconstruction) ? o : null; }
-        catch (e) { return null; }
+        for (const cand of [t, repairJson(t)]) {
+          try { const o = JSON.parse(cand); if (o && typeof o === "object" && o.compositional_deconstruction) return o; }
+          catch (e) {}
+        }
+        return null;
       }
       // Apply a parsed caption to the editor and refresh everything.
       function loadCaption(cap) {

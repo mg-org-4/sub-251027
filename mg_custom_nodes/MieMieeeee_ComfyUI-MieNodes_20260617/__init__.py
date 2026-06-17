@@ -1,0 +1,228 @@
+import sys
+import types
+from pathlib import Path
+
+_INTERNAL_PACKAGE = "_mienodes_internal"
+_ROOT_DIR = Path(__file__).resolve().parent
+if _INTERNAL_PACKAGE not in sys.modules:
+    _pkg = types.ModuleType(_INTERNAL_PACKAGE)
+    _pkg.__path__ = [str(_ROOT_DIR)]
+    _pkg.__package__ = _INTERNAL_PACKAGE
+    sys.modules[_INTERNAL_PACKAGE] = _pkg
+
+from _mienodes_internal.nodes.common import ShowAnythingMie, ShowAndSaveAnythingMie, SaveAnythingAsFile, CompareFiles, GetAbsolutePath, GetFileInfo, \
+    GetDirectoryFilesInfo, CopyFiles, DeleteFiles, ClassicAspectRatio, StringConcat, SimpleTextNode, RichTextNode
+from _mienodes_internal.nodes.files import BatchRenameFiles, BatchDeleteFiles, BatchEditTextFiles, BatchSyncImageCaptionFiles, \
+    SummaryTextFiles, BatchConvertImageFiles, DedupImageFiles, ModelDownloader, HFRepoDownloader
+from _mienodes_internal.nodes.llm import TextTranslator, PromptGenerator, KontextPromptGenerator, AddUserKontextPreset, RemoveUserKontextPreset, \
+    FrameTransitionPromptGenerator, HunyuanVideoI2VPromptGenerator, HunyuanVideoT2VPromptGenerator, ZImagePromptGenerator, Flux2PromptGenerator, FluxKleinT2VPromptGenerator, LTX2PromptGenerator, BerniniPromptGenerator
+from _mienodes_internal.services.llm import SetGeneralLLMServiceConnector, SetSiliconFlowLLMServiceConnector, \
+    SetGithubModelsLLMServiceConnector, SetZhiPuLLMServiceConnector, SetZhiPuCodeLLMServiceConnector, SetKimiLLMServiceConnector, \
+    SetDeepSeekLLMServiceConnector, SetGeminiLLMServiceConnector, SetBailianLLMServiceConnector, \
+    SetMiniMaxLLMServiceConnector, SetMiniMaxTokenPlanLLMServiceConnector, \
+    SetMiMoLLMServiceConnector, SetMiMoTokenPlanLLMServiceConnector, \
+    CheckLLMServiceConnectivity, CallLLMService
+from _mienodes_internal.nodes.media import WavConcat, QwenTTSNode, SingleImageToVideo, AddNumberWatermarkForImage, AddTextWatermarkForImage
+from _mienodes_internal.services.tts import SetBailianTTSConnector
+from _mienodes_internal.nodes.loop import MieLoopStart, MieLoopResume, MieLoopBodyIn, MieLoopBodyOut, MieLoopEnd, MieLoopGetIndex, MieLoopParamGetInt, MieLoopParamGetFloat, \
+    MieLoopParamGetString, MieLoopParamGetBool, MieLoopStateGetInt, MieLoopStateGetFloat, MieLoopStateGetString, \
+    MieLoopStateGetBool, MieLoopStateSet, MieImageSelectFrame, MieLoopStateSetImage, MieLoopStateGetImage, MieLoopStateCleanupImage, \
+    MieLoopStateSetInt, MieLoopStateSetFloat, MieLoopStateSetString, MieLoopStateSetBool, \
+    MieLoopCollectImage, MieLoopFinalizeImages, MieLoopCleanupImages, MieImageGrid, \
+    MieLoopCollectText, MieLoopFinalizeTextList, MieLoopCleanupText, MieLoopCollectJSON, MieLoopFinalizeJSONList, MieLoopCleanupJSON, \
+    MieLoopCollectAudio, MieLoopFinalizeAudio, MieLoopCleanupAudio
+from _mienodes_internal.core.utils import add_suffix, add_emoji
+
+WEB_DIRECTORY = "./js"
+
+NODE_CLASS_MAPPINGS = {
+    add_suffix("BatchRenameFiles"): BatchRenameFiles,
+    add_suffix("BatchDeleteFiles"): BatchDeleteFiles,
+    add_suffix("BatchEditTextFiles"): BatchEditTextFiles,
+    add_suffix("BatchSyncImageCaptionFiles"): BatchSyncImageCaptionFiles,
+    add_suffix("SummaryTextFiles"): SummaryTextFiles,
+    add_suffix("BatchConvertImageFiles"): BatchConvertImageFiles,
+    add_suffix("DedupImageFiles"): DedupImageFiles,
+    add_suffix("ShowAnything"): ShowAnythingMie,
+    add_suffix("ShowAndSaveAnything"): ShowAndSaveAnythingMie,
+    add_suffix("SaveAnythingAsFile"): SaveAnythingAsFile,
+    add_suffix("CompareFiles"): CompareFiles,
+    add_suffix("ModelDownloader"): ModelDownloader,
+    add_suffix("HFRepoDownloader"): HFRepoDownloader,
+    add_suffix("SetGeneralLLMServiceConnector"): SetGeneralLLMServiceConnector,
+    add_suffix("SetSiliconFlowLLMServiceConnector"): SetSiliconFlowLLMServiceConnector,
+    add_suffix("SetGithubModelsLLMServiceConnector"): SetGithubModelsLLMServiceConnector,
+    add_suffix("SetKimiLLMServiceConnector"): SetKimiLLMServiceConnector,
+    add_suffix("SetZhiPuLLMServiceConnector"): SetZhiPuLLMServiceConnector,
+    add_suffix("SetZhiPuCodeLLMServiceConnector"): SetZhiPuCodeLLMServiceConnector,
+    add_suffix("SetDeepSeekLLMServiceConnector"): SetDeepSeekLLMServiceConnector,
+    add_suffix("SetGeminiLLMServiceConnector"): SetGeminiLLMServiceConnector,
+    add_suffix("SetBailianLLMServiceConnector"): SetBailianLLMServiceConnector,
+    add_suffix("SetMiniMaxLLMServiceConnector"): SetMiniMaxLLMServiceConnector,
+    add_suffix("SetMiniMaxTokenPlanLLMServiceConnector"): SetMiniMaxTokenPlanLLMServiceConnector,
+    add_suffix("SetMiMoLLMServiceConnector"): SetMiMoLLMServiceConnector,
+    add_suffix("SetMiMoTokenPlanLLMServiceConnector"): SetMiMoTokenPlanLLMServiceConnector,
+    add_suffix("CheckLLMServiceConnectivity"): CheckLLMServiceConnectivity,
+    add_suffix("CallLLMService"): CallLLMService,
+    add_suffix("Translator"): TextTranslator,
+    add_suffix("PromptGenerator"): PromptGenerator,
+    add_suffix("KontextPromptGenerator"): KontextPromptGenerator,
+    add_suffix("AddUserKontextPreset"): AddUserKontextPreset,
+    add_suffix("RemoveUserKontextPreset"): RemoveUserKontextPreset,
+    add_suffix("FrameTransitionPromptGenerator"): FrameTransitionPromptGenerator,
+    add_suffix("HunyuanVideoI2VPromptGenerator"): HunyuanVideoI2VPromptGenerator,
+    add_suffix("HunyuanVideoT2VPromptGenerator"): HunyuanVideoT2VPromptGenerator,
+    add_suffix("ZImagePromptGenerator"): ZImagePromptGenerator,
+    add_suffix("Flux2PromptGenerator"): Flux2PromptGenerator,
+    add_suffix("FluxKleinT2VPromptGenerator"): FluxKleinT2VPromptGenerator,
+    add_suffix("LTX2PromptGenerator"): LTX2PromptGenerator,
+    add_suffix("BerniniPromptGenerator"): BerniniPromptGenerator,
+    add_suffix("GetAbsolutePath"): GetAbsolutePath,
+    add_suffix("GetFileInfo"): GetFileInfo,
+    add_suffix("GetDirectoryFilesInfo"): GetDirectoryFilesInfo,
+    add_suffix("CopyFiles"): CopyFiles,
+    add_suffix("DeleteFiles"): DeleteFiles,
+    add_suffix("StringConcat"): StringConcat,
+    add_suffix("WavConcat"): WavConcat,
+    add_suffix("QwenTTSNode"): QwenTTSNode,
+    add_suffix("SetBailianTTSConnector"): SetBailianTTSConnector,
+    add_suffix("SingleImageToVideo"): SingleImageToVideo,
+    add_suffix("AddNumberWatermarkForImage"): AddNumberWatermarkForImage,
+    add_suffix("AddTextWatermarkForImage"): AddTextWatermarkForImage,
+    add_suffix("ClassicAspectRatio"): ClassicAspectRatio,
+    add_suffix('SimpleTextNode'): SimpleTextNode,
+    add_suffix('RichTextNode'): RichTextNode,
+    add_suffix("MieLoopStart"): MieLoopStart,
+    add_suffix("MieLoopResume"): MieLoopResume,
+    add_suffix("MieLoopBodyIn"): MieLoopBodyIn,
+    add_suffix("MieLoopBodyOut"): MieLoopBodyOut,
+    add_suffix("MieLoopEnd"): MieLoopEnd,
+    add_suffix("MieLoopGetIndex"): MieLoopGetIndex,
+    add_suffix("MieLoopParamGetInt"): MieLoopParamGetInt,
+    add_suffix("MieLoopParamGetFloat"): MieLoopParamGetFloat,
+    add_suffix("MieLoopParamGetString"): MieLoopParamGetString,
+    add_suffix("MieLoopParamGetBool"): MieLoopParamGetBool,
+    add_suffix("MieLoopStateGetInt"): MieLoopStateGetInt,
+    add_suffix("MieLoopStateGetFloat"): MieLoopStateGetFloat,
+    add_suffix("MieLoopStateGetString"): MieLoopStateGetString,
+    add_suffix("MieLoopStateGetBool"): MieLoopStateGetBool,
+    add_suffix("MieLoopStateSet"): MieLoopStateSet,
+    add_suffix("MieImageSelectFrame"): MieImageSelectFrame,
+    add_suffix("MieLoopStateSetImage"): MieLoopStateSetImage,
+    add_suffix("MieLoopStateSetInt"): MieLoopStateSetInt,
+    add_suffix("MieLoopStateSetFloat"): MieLoopStateSetFloat,
+    add_suffix("MieLoopStateSetString"): MieLoopStateSetString,
+    add_suffix("MieLoopStateSetBool"): MieLoopStateSetBool,
+    add_suffix("MieLoopStateGetImage"): MieLoopStateGetImage,
+    add_suffix("MieLoopStateCleanupImage"): MieLoopStateCleanupImage,
+    add_suffix("MieLoopCollectImage"): MieLoopCollectImage,
+    add_suffix("MieLoopFinalizeImages"): MieLoopFinalizeImages,
+    add_suffix("MieLoopCleanupImages"): MieLoopCleanupImages,
+    add_suffix("MieImageGrid"): MieImageGrid,
+    add_suffix("MieLoopCollectText"): MieLoopCollectText,
+    add_suffix("MieLoopFinalizeTextList"): MieLoopFinalizeTextList,
+    add_suffix("MieLoopCleanupText"): MieLoopCleanupText,
+    add_suffix("MieLoopCollectJSON"): MieLoopCollectJSON,
+    add_suffix("MieLoopFinalizeJSONList"): MieLoopFinalizeJSONList,
+    add_suffix("MieLoopCleanupJSON"): MieLoopCleanupJSON,
+    add_suffix("MieLoopCollectAudio"): MieLoopCollectAudio,
+    add_suffix("MieLoopFinalizeAudio"): MieLoopFinalizeAudio,
+    add_suffix("MieLoopCleanupAudio"): MieLoopCleanupAudio,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    add_suffix("BatchRenameFiles"): add_emoji("Batch Rename Files"),
+    add_suffix("BatchDeleteFiles"): add_emoji("Batch Delete Files"),
+    add_suffix("BatchEditTextFiles"): add_emoji("Batch Edit Text Files"),
+    add_suffix("BatchSyncImageCaptionFiles"): add_emoji("Batch Sync Image Caption Files"),
+    add_suffix("SummaryTextFiles"): add_emoji("Summary Text Files"),
+    add_suffix("BatchConvertImageFiles"): add_emoji("Batch Convert Image Files"),
+    add_suffix("DedupImageFiles"): add_emoji("Dedup Image Files"),
+    add_suffix("ShowAnything"): add_emoji("Show Anything"),
+    add_suffix("ShowAndSaveAnything"): add_emoji("Show And Save Anything"),
+    add_suffix("SaveAnythingAsFile"): add_emoji("Save Anything As File"),
+    add_suffix("CompareFiles"): add_emoji("Compare Files"),
+    add_suffix("SetGeneralLLMServiceConnector"): add_emoji("Set General LLM Service Connector"),
+    add_suffix("SetSiliconFlowLLMServiceConnector"): add_emoji("Set SiliconFlow LLM Service Connector"),
+    add_suffix("SetGithubModelsLLMServiceConnector"): add_emoji("Set Github Models LLM Service Connector"),
+    add_suffix("SetZhiPuLLMServiceConnector"): add_emoji("Set ZhiPu LLM Service Connector (not token plan)"),
+    add_suffix("SetZhiPuCodeLLMServiceConnector"): add_emoji("Set ZhiPu Code LLM Service Connector (Token Plan)"),
+    add_suffix("SetKimiLLMServiceConnector"): add_emoji("Set Kimi LLM Service Connector"),
+    add_suffix("SetDeepSeekLLMServiceConnector"): add_emoji("Set DeepSeek LLM Service Connector"),
+    add_suffix("SetGeminiLLMServiceConnector"): add_emoji("Set Gemini LLM Service Connector"),
+    add_suffix("SetBailianLLMServiceConnector"): add_emoji("Set Bailian LLM Service Connector"),
+    add_suffix("SetMiniMaxLLMServiceConnector"): add_emoji("Set MiniMax LLM Service Connector"),
+    add_suffix("SetMiniMaxTokenPlanLLMServiceConnector"): add_emoji("Set MiniMax Token Plan LLM Service Connector"),
+    add_suffix("SetMiMoLLMServiceConnector"): add_emoji("Set MiMo LLM Service Connector"),
+    add_suffix("SetMiMoTokenPlanLLMServiceConnector"): add_emoji("Set MiMo Token Plan LLM Service Connector"),
+    add_suffix("CheckLLMServiceConnectivity"): add_emoji("Check LLM Service Connectivity"),
+    add_suffix("CallLLMService"): add_emoji("Call LLM Service"),
+    add_suffix("ModelDownloader"): add_emoji("Model Downloader"),
+    add_suffix("HFRepoDownloader"): add_emoji("HF Repo Downloader"),
+    add_suffix("Translator"): add_emoji("Translator"),
+    add_suffix("PromptGenerator"): add_emoji("Prompt Generator"),
+    add_suffix("KontextPromptGenerator"): add_emoji("Kontext Prompt Generator"),
+    add_suffix("FrameTransitionPromptGenerator"): add_emoji("Frame Transition Prompt Generator"),
+    add_suffix("AddUserKontextPreset"): add_emoji("Add User Kontext Preset"),
+    add_suffix("RemoveUserKontextPreset"): add_emoji("Remove User Kontext Preset"),
+    add_suffix("HunyuanVideoI2VPromptGenerator"): add_emoji("Hunyuan Video I2V Prompt Generator"),
+    add_suffix("HunyuanVideoT2VPromptGenerator"): add_emoji("Hunyuan Video T2V Prompt Generator"),
+    add_suffix("ZImagePromptGenerator"): add_emoji("Z-Image Prompt Generator"),
+    add_suffix("Flux2PromptGenerator"): add_emoji("Flux2 Prompt Generator"),
+    add_suffix("FluxKleinT2VPromptGenerator"): add_emoji("Flux Klein T2V Prompt Generator"),
+    add_suffix("LTX2PromptGenerator"): add_emoji("LTX2 Prompt Generator"),
+    add_suffix("BerniniPromptGenerator"): add_emoji("Bernini Prompt Generator"),
+    add_suffix("GetAbsolutePath"): add_emoji("Get Absolute Path"),
+    add_suffix("GetFileInfo"): add_emoji("Get File Info"),
+    add_suffix("GetDirectoryFilesInfo"): add_emoji("Get Directory Files Info"),
+    add_suffix("CopyFiles"): add_emoji("Copy Files"),
+    add_suffix("DeleteFiles"): add_emoji("Delete Files"),
+    add_suffix("StringConcat"): add_emoji("String Concat"),
+    add_suffix("WavConcat"): add_emoji("Wav Concat"),
+    add_suffix("QwenTTSNode"): add_emoji("Qwen TTS"),
+    add_suffix("SetBailianTTSConnector"): add_emoji("Set Bailian TTS Connector"),
+    add_suffix("SingleImageToVideo"): add_emoji("Single Image To Video"),
+    add_suffix("AddNumberWatermarkForImage"): add_emoji("Add Number Watermark For Image"),
+    add_suffix("AddTextWatermarkForImage"): add_emoji("Add Text Watermark For Image"),
+    add_suffix("ClassicAspectRatio"): add_emoji("Classic Aspect Ratio"),
+    add_suffix('SimpleTextNode'): add_emoji('Simple Text'),
+    add_suffix('RichTextNode'): add_emoji('Rich Text'),
+    add_suffix("MieLoopStart"): add_emoji("Mie Loop Start"),
+    add_suffix("MieLoopResume"): add_emoji("Mie Loop Resume"),
+    add_suffix("MieLoopBodyIn"): add_emoji("Mie Loop Body In"),
+    add_suffix("MieLoopBodyOut"): add_emoji("Mie Loop Body Out"),
+    add_suffix("MieLoopEnd"): add_emoji("Mie Loop End"),
+    add_suffix("MieLoopGetIndex"): add_emoji("Mie Loop Get Index"),
+    add_suffix("MieLoopParamGetInt"): add_emoji("Mie Loop Param Get Int"),
+    add_suffix("MieLoopParamGetFloat"): add_emoji("Mie Loop Param Get Float"),
+    add_suffix("MieLoopParamGetString"): add_emoji("Mie Loop Param Get String"),
+    add_suffix("MieLoopParamGetBool"): add_emoji("Mie Loop Param Get Bool"),
+    add_suffix("MieLoopStateGetInt"): add_emoji("Mie Loop State Get Int"),
+    add_suffix("MieLoopStateGetFloat"): add_emoji("Mie Loop State Get Float"),
+    add_suffix("MieLoopStateGetString"): add_emoji("Mie Loop State Get String"),
+    add_suffix("MieLoopStateGetBool"): add_emoji("Mie Loop State Get Bool"),
+    add_suffix("MieLoopStateSet"): add_emoji("Mie Loop State Set"),
+    add_suffix("MieImageSelectFrame"): add_emoji("Mie Image Select Frame"),
+    add_suffix("MieLoopStateSetImage"): add_emoji("Mie Loop State Set Image"),
+    add_suffix("MieLoopStateSetInt"): add_emoji("Mie Loop State Set Int"),
+    add_suffix("MieLoopStateSetFloat"): add_emoji("Mie Loop State Set Float"),
+    add_suffix("MieLoopStateSetString"): add_emoji("Mie Loop State Set String"),
+    add_suffix("MieLoopStateSetBool"): add_emoji("Mie Loop State Set Bool"),
+    add_suffix("MieLoopStateGetImage"): add_emoji("Mie Loop State Get Image"),
+    add_suffix("MieLoopStateCleanupImage"): add_emoji("Mie Loop State Cleanup Image"),
+    add_suffix("MieLoopCollectImage"): add_emoji("Mie Loop Collect Image"),
+    add_suffix("MieLoopFinalizeImages"): add_emoji("Mie Loop Finalize Images"),
+    add_suffix("MieLoopCleanupImages"): add_emoji("Mie Loop Cleanup Images"),
+    add_suffix("MieImageGrid"): add_emoji("Mie Image Grid"),
+    add_suffix("MieLoopCollectText"): add_emoji("Mie Loop Collect Text"),
+    add_suffix("MieLoopFinalizeTextList"): add_emoji("Mie Loop Finalize Text List"),
+    add_suffix("MieLoopCleanupText"): add_emoji("Mie Loop Cleanup Text"),
+    add_suffix("MieLoopCollectJSON"): add_emoji("Mie Loop Collect JSON"),
+    add_suffix("MieLoopFinalizeJSONList"): add_emoji("Mie Loop Finalize JSON List"),
+    add_suffix("MieLoopCleanupJSON"): add_emoji("Mie Loop Cleanup JSON"),
+    add_suffix("MieLoopCollectAudio"): add_emoji("Mie Loop Collect Audio"),
+    add_suffix("MieLoopFinalizeAudio"): add_emoji("Mie Loop Finalize Audio"),
+    add_suffix("MieLoopCleanupAudio"): add_emoji("Mie Loop Cleanup Audio"),
+}
+
+__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]

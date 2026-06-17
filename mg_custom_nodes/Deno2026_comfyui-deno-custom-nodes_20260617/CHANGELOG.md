@@ -6,6 +6,23 @@ This file intentionally stays short. Detailed engineering notes belong in issues
 
 ## Unreleased
 
+## 0.7.39 - 2026-06-17
+
+- Improved Ideogram Director language translation recovery: if Google is blocked or unreachable, the node now explains the network/region issue, lets users switch to MyMemory, LibreTranslate, or a custom LibreTranslate server, and stops Generate/Copy JSON instead of silently passing a non-English prompt downstream.
+- Kept Ideogram Director TEXT box words protected during translated editing and final English output conversion.
+- Shortened the Ideogram Director top-bar layout button to `Layouts` so it stays readable at normal node widths.
+
+## 0.7.38 - 2026-06-16
+
+- Added a Deno Custom Nodes banner for the ComfyUI Manager and Registry listing.
+- Added Ideogram Director `Language` view so board descriptions can be read and edited in another language while final output stays model-ready English.
+- Improved tiny or overlapping Ideogram Director bbox editing by making the number badge a reliable drag handle.
+- Fixed Ideogram Director's resolution popup so it opens as a viewport overlay instead of being clipped inside the node.
+
+## 0.7.37 - 2026-06-16
+
+- Fixed Local LLM Loader `Seed Mode` so `increment`, `decrement`, and `randomize` update the visible seed after each queued run without shifting saved workflow widget values.
+
 ## 0.7.36 - 2026-06-16
 
 - Fixed Ideogram Director's Desktop/Recreate-node sizing path so the editor recovers to a usable board instead of collapsing into a narrow rail or clipping Generate.

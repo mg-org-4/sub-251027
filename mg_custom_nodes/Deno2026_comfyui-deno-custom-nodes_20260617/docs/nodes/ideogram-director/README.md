@@ -28,8 +28,33 @@ approves those nodes separately.
 
 ## Current State (2026-06-16)
 
-- JS rev marker: `IDD_REV = "r2026.06.16-recreate-size-j"` in `web/js/deno_ideogram_director.js` (check the served
+- JS rev marker: `IDD_REV = "r2026.06.17-translate-fallback-c"` in `web/js/deno_ideogram_director.js` (check the served
   JS for this string after a sync; the user needs Ctrl+Shift+R to pick up a new rev).
+- Resolution popup hardening (0.7.38, 2026-06-16): the resolution control
+  popup is a `document.body` fixed overlay anchored to the top-bar size button. Do not mount it back
+  inside `resWrap` or the node/board DOM, because Desktop/Easy-Install can clip or swallow it inside
+  the custom node canvas area. Escape/outside click closes it; node removal removes the body popup
+  and viewport listeners.
+- Language follow-up (0.7.38, 2026-06-16): the top-bar button is simply
+  `Language` and opens a fullscreen grid selector instead of a long dropdown. English is the default
+  baseline and `Original` is not shown as a choice. Legacy `Original (as written)` saved values are
+  normalized to English for compatibility. Selecting another language translates editable description
+  fields for the board view while final output stays English. Literal TEXT box `text` values are never
+  translated, so signs/logos/poster words stay exact.
+- Translation fallback follow-up (local, 2026-06-17): Google remains the default online translation
+  engine. If the Language helper cannot reach Google, the node must show a concise recovery popup
+  rather than silently failing. The popup states that Google Translate can be blocked or rate-limited
+  by the user's network/region and that this is not a DENO node error. It then lets the user choose
+  and save `MyMemory`, `LibreTranslate`, or `LibreTranslate Custom URL`, and retries the same board
+  translation with the selected engine. The selected engine is a saved hidden widget shared by both
+  the editor-view translation and the final English output conversion. Generate and Copy JSON both
+  preflight the final English conversion; if every engine fails or the user cancels, generation/copy
+  stops instead of silently passing a non-English prompt downstream. Literal TEXT box words remain
+  protected in every engine path.
+- Top-bar compact-label follow-up (local, 2026-06-17): the layout gallery launcher displays
+  `Layouts` in the top bar, while the tooltip and gallery title still say Layout presets. The button
+  must stay single-line with nowrap/ellipsis rules, because the Language button and seed controls can
+  otherwise squeeze `Layout Presets` into an ugly two-line button at normal node widths.
 - Desktop regression report (2026-06-16): user reproduced a `0.7.35` Desktop-only collapse where
   clicking the wrong region can leave the Director with only the narrow right rail visible and a
   huge blank body. Portable/Easy-Install verification is not enough for this class of bug. Before
@@ -48,6 +73,10 @@ approves those nodes separately.
   `recreate-size-j` treats a marked size below the Director minimum as invalid and restores the
   user-approved default `850x1000`, then runs the top-bar fit pass so `Generate` / `Regenerate`
   stays visible instead of clipping at the right edge.
+- Bbox drag-handle follow-up (0.7.38, 2026-06-16): when boxes are tiny or
+  overlapping, the top-left number badge is the primary move handle. It sits above the enlarged
+  resize-handle hit area and starts `move` directly, so users can drag from the number label while
+  edge/corner handles remain available for resizing.
 - Sizing hotfix (2026-06-16): a user report that Ideogram Director can shrink to about half height
   after interaction was confirmed as a real `computeSize()` contract risk. Normal synthetic clicks
   stayed stable, but a Comfy/LiteGraph fit path equivalent to
@@ -160,13 +189,14 @@ approves those nodes separately.
   (active segment filled — green Fixed / amber Random — number dims when Random; rev `-j`);
   node-owned Ctrl+Z/Y (never reaches graph undo; text fields keep native undo); board/photo/bbox
   wheel and middle-click are canvas-first (ComfyUI zoom/pan), while the right rail and gallery lists
-  keep local wheel scroll; Copy JSON copies the OFFICIAL caption.
+  keep local wheel scroll; Language can translate the editable board view while Copy JSON copies
+  the OFFICIAL caption in the configured output language.
   **Paste JSON opens a dialog** (rev `-h`): the user Ctrl+V's the caption into a textarea then clicks
   Paste (Ctrl+Enter also applies; garbage → inline error, board untouched) — more reliable than reading
   the clipboard directly. Accepts official captions (fenced too) and the internal board format.
-- Top bar (rev `incoming-json-keep-board-a`): **"Layout Presets" button** · spacer ·
+- Top bar (rev `incoming-json-keep-board-a`): **"Layouts" button** · spacer ·
   Incoming JSON Prompt status (`Ask Before Replacing`, `Always Replace`, `Prompt Needs Review`, or `JSON Needs Review`) · resolution
-  chip · Translate On/Off · seed switch · Generate. Apply/Keep controls live inside the board
+  chip · Language · seed switch · Generate. Apply/Keep controls live inside the board
   notice only, not duplicated in the top bar.
   The duplicate internal node title and `Caption✓` text are intentionally removed because the ComfyUI
   node title already names the node and the seed controls must remain visible at the default size.
@@ -242,12 +272,11 @@ approves those nodes separately.
   subject wording trips the safety filter; webp conversion center-crops 9% per edge to kill thin
   print-matte borders.
 - Standalone `(Deno) Translator` is paused and excluded from registration. The Director's built-in
-  control remains a persistent `Translate On/Off` toggle, not a language search/selector. Source
-  language is detected automatically. Users can write the board in Korean or another native
-  language, then turn Translate on so the node outputs model-ready English for the sampler. The
-  board stays in the user's language. Description fields are converted to English, but TEXT boxes
-  keep the exact typed words so signs, logos, headlines, and poster text are not translated
-  accidentally.
+  language control is a fullscreen `Language` grid, not a long dropdown. Source language is
+  detected automatically. Users can read and edit the board in Korean or another native language;
+  the final prompt output is English for the sampler. Only
+  editable description fields are translated. TEXT boxes keep the exact typed words so signs, logos,
+  headlines, and poster text are not translated accidentally.
 - Style quality pass (2026-06-14): art presets that were pulling outputs toward photo/realistic,
   overly dark, or weak pixel/wireframe looks were reworded in both `IDD_STYLES` and
   `tmp/hook50/style_catalog*.json`. Keep future art presets medium-clear but avoid self-defeating

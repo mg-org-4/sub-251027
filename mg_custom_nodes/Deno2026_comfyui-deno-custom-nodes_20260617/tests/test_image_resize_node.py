@@ -336,7 +336,7 @@ def test_preview_nodes_preserve_user_resized_node_size():
 def test_ideogram_director_compute_size_guard_allows_user_shrink():
     script = (REPO_ROOT / "web" / "js" / "deno_ideogram_director.js").read_text(encoding="utf-8")
 
-    assert 'IDD_REV = "r2026.06.16-recreate-size-j"' in script
+    assert 'IDD_REV = "r2026.06.17-translate-fallback-c"' in script
     assert "let iddUserResizing = false;" in script
     assert "const preserveCurrent = !iddUserResizing;" in script
     assert "preserveCurrent ? iddSizeValue(current, 0) : 0" in script
@@ -358,6 +358,18 @@ def test_ideogram_director_recreate_node_restores_default_size_when_small():
     assert "marked && !recreatedTooSmall" in script
     assert ": [IDD_DEFAULT_W, IDD_DEFAULT_H];" in script
     assert "layoutStage(); fitTopBarSoon();" in script
+
+
+def test_ideogram_director_bbox_number_badge_is_primary_drag_handle():
+    script = (REPO_ROOT / "web" / "js" / "deno_ideogram_director.js").read_text(encoding="utf-8")
+
+    assert 'tag.dataset.role = "move-handle";' in script
+    assert 'tag.title = "Drag this number to move the box";' in script
+    assert 'tag.addEventListener("pointerdown", (e) => onBoxDown(e, i, "move"));' in script
+    assert ".idd-box .tag{position:absolute;top:0;left:0;z-index:6;" in script
+    assert "cursor:move;touch-action:none;user-select:none;" in script
+    assert ".idd-h{position:absolute;width:9px;height:9px" in script
+    assert "z-index:4;display:none;box-sizing:border-box;" in script
 
 
 def test_ideogram_director_dom_widget_keeps_full_width_in_desktop():
@@ -2205,6 +2217,9 @@ def test_local_llm_refiner_declares_batch_prompt_contract_and_frontend_preview()
     assert "isShiftedCustomModelValue" in script
     assert "function safeAppGraph" in script
     assert "installReviewerGraphToPromptHook" in script
+    assert "function applyLocalLLMAfterGenerateSeedModes(output)" in script
+    assert "applyLocalLLMAfterGenerateSeedModes(result?.output)" in script
+    assert "function nextLocalLLMSeedValue(seed, mode)" in script
     assert "collectReviewerAncestors" in script
     assert "collectPromptLinkAncestors" in script
     assert "pruneUnreferencedPromptAncestors" in script
@@ -3896,6 +3911,7 @@ def test_local_llm_refiner_normalizes_prompts_seed_modes_and_local_urls():
     assert module._seed_for_index(7, "fixed", 2) == 7
     assert module._seed_for_index(7, "increment", 2) == 9
     assert module._seed_for_index(7, "decrement", 9) == 0
+    assert module._normalize_seed_mode("random") == "randomize"
     assert module._normalize_lm_openai_url("http://127.0.0.1:1234") == "http://127.0.0.1:1234/v1"
     assert module._normalize_comfy_vram_policy("Auto") == "Auto: unload only before first LLM call"
     assert module._normalize_comfy_vram_policy("Always free") == "Always unload before each LLM call"

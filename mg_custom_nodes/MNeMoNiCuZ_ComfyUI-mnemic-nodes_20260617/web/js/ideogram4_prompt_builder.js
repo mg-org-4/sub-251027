@@ -122,17 +122,20 @@ app.registerExtension({
       const findW = (n) => node.widgets?.find((w) => w.name === n);
       const elementsWidget = findW("elements_data");
       const stylePaletteWidget = findW("style_palette_data");
-      const bgBrightnessWidget = findW("bg_brightness");
-      if (bgBrightnessWidget && typeof bgBrightnessWidget.value !== "number") bgBrightnessWidget.value = 25;
       const wWidget = findW("width"), hWidget = findW("height");
-      // Hide the data widgets while keeping them serializable.
+      // Hide the data widgets while keeping them serializable. `type = "hidden"` is the
+      // convention both the legacy canvas widget renderer and the newer Vue-based widget
+      // panel (ComfyUI "3.0" frontend) skip entirely; the plain `.hidden`/`computeSize`
+      // trick only affects the legacy canvas renderer, which is why these were showing
+      // up as full widgets under the newer frontend.
       function hideDataWidgets() {
-        for (const w of [elementsWidget, stylePaletteWidget, bgBrightnessWidget]) {
+        for (const w of [elementsWidget, stylePaletteWidget]) {
           if (!w) continue;
           w.hidden = true;
           w.computeSize = () => [0, -4];
+          if (w.type !== "hidden") { w.origType = w.origType || w.type; w.type = "hidden"; }
         }
-        for (const name of ["elements_data", "style_palette_data", "bg_brightness"]) {
+        for (const name of ["elements_data", "style_palette_data"]) {
           const i = node.inputs?.findIndex((inp) => inp.name === name);
           if (i != null && i !== -1) node.removeInput(i);
         }
@@ -173,6 +176,13 @@ app.registerExtension({
       // ── dynamic region_N input pins: one STRING input per region ──
       // region_N maps to the region tagged N on the canvas (positional). A connected
       // string overrides that region's description at run time (Python side).
+      // The wire name stays region_N (stable — renaming disconnects wires); the label
+      // is derived from the box description so users see something meaningful.
+      function labelForBox(b, idx) {
+        const raw = (b.type === "text" ? (b.text || b.desc) : (b.desc || b.text)) || "";
+        const trimmed = raw.trim().slice(0, 32);
+        return trimmed || `region_${idx + 1}`;
+      }
       function syncRegionInputs() {
         if (!node.inputs) node.inputs = [];
         const want = node._boxes.length;
@@ -184,17 +194,19 @@ app.registerExtension({
         for (let i = node.inputs.length - 1; i >= 0 && have > want; i--) {
           if (REGION_INPUT_RE.test(node.inputs[i].name)) { node.removeInput(i); have--; }
         }
-        // Renumber by position so region_N always matches the canvas tag N.
+        // Renumber by position and update the display label from the box description.
         let k = 0;
         for (const inp of node.inputs) {
           if (!REGION_INPUT_RE.test(inp.name)) continue;
+          const boxIdx = k;
           k++;
           const name = `region_${k}`;
           if (inp.name !== name) {
             inp.name = name;
-            inp.label = name;
             if (inp.localized_name) inp.localized_name = name;
           }
+          const label = labelForBox(node._boxes[boxIdx] || {}, boxIdx);
+          if (inp.label !== label) inp.label = label;
         }
         if (node.graph) node.graph.setDirtyCanvas(true, true);
       }
@@ -247,14 +259,7 @@ app.registerExtension({
       });
       liveLabel.appendChild(liveChk); liveLabel.appendChild(document.createTextNode("Live"));
       if (liveChk.checked) livePreviewNodes.add(node);
-      const bgSlider = document.createElement("input");
-      bgSlider.type = "range"; bgSlider.min = "0"; bgSlider.max = "100"; bgSlider.step = "1";
-      bgSlider.value = bgBrightnessWidget ? bgBrightnessWidget.value : 25;
-      bgSlider.title = "Background brightness (image or blank canvas)";
-      bgSlider.style.cssText = "width:64px;flex:0 0 auto;";
-      stopProp(bgSlider);
-      bgSlider.addEventListener("input", () => { if (bgBrightnessWidget) bgBrightnessWidget.value = parseInt(bgSlider.value, 10); drawCanvas(); });
-      bar.appendChild(hint); bar.appendChild(addRegionBtn); bar.appendChild(liveLabel); bar.appendChild(grabBtn); bar.appendChild(bgSlider); bar.appendChild(tokenSpan); bar.appendChild(copyBtn); bar.appendChild(importBtn); bar.appendChild(clearBtn);
+      bar.appendChild(hint); bar.appendChild(addRegionBtn); bar.appendChild(liveLabel); bar.appendChild(grabBtn); bar.appendChild(tokenSpan); bar.appendChild(copyBtn); bar.appendChild(importBtn); bar.appendChild(clearBtn);
       updateGrabBtn();
 
       // Persistent global style-palette row
@@ -470,15 +475,11 @@ app.registerExtension({
         if (canvasEl.width !== bw || canvasEl.height !== bh) { canvasEl.width = bw; canvasEl.height = bh; }
         ctx.setTransform(d, 0, 0, d, 0, 0);
         ctx.clearRect(0, 0, W, H);
-        let bri = bgBrightnessWidget ? bgBrightnessWidget.value : 25;
-        if (typeof bri !== "number" || isNaN(bri)) bri = 25;       // guard against unset widget value
-        if (node._bgImg) {                                         // reference image, dimmed by brightness
+        if (node._bgImg) {                                         // reference image, fully dimmed to black
           ctx.drawImage(node._bgImg, 0, 0, W, H);
-          const dim = 1 - bri / 100;
-          if (dim > 0) { ctx.fillStyle = `rgba(0,0,0,${dim})`; ctx.fillRect(0, 0, W, H); }
-        } else {                                                   // blank canvas grey from brightness
-          const g = Math.round(bri / 100 * 128);
-          ctx.fillStyle = `rgb(${g},${g},${g})`; ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = "rgba(0,0,0,1)"; ctx.fillRect(0, 0, W, H);
+        } else {                                                   // blank canvas, black
+          ctx.fillStyle = "rgb(0,0,0)"; ctx.fillRect(0, 0, W, H);
         }
         // active box only when the editor is focused or the node is selected
         const aIdx = (node._focused || node._selected) ? node._activeIdx : -1;
@@ -551,8 +552,8 @@ app.registerExtension({
       }
 
       function commit() { serialize(); syncRegionInputs(); renderPanel(); drawCanvas(); updateTokens(); }
-      // Live text edit: persist + repaint + token count, without rebuilding the panel.
-      function touch() { serialize(); drawCanvas(); updateTokens(); }
+      // Live text edit: persist + repaint + token count + label sync, without rebuilding the panel.
+      function touch() { serialize(); syncRegionInputs(); drawCanvas(); updateTokens(); }
 
       function removeBox(i) {
         node._boxes.splice(i, 1);
@@ -1234,7 +1235,8 @@ app.registerExtension({
         // note: the matching input pin overrides this description when connected
         const note = document.createElement("div");
         note.className = "mnideo-note";
-        note.textContent = `input pin region_${node._activeIdx + 1} overrides this description when connected`;
+        const pinLabel = labelForBox(b, node._activeIdx);
+        note.textContent = `input pin "${pinLabel}" (region_${node._activeIdx + 1}) overrides this description when connected`;
         panel.appendChild(note);
 
         // palette
@@ -1368,7 +1370,6 @@ app.registerExtension({
         serialize();                                         // realign widget values for Python + future saves
         syncRegionInputs();                                  // reconcile region_N pins with restored regions
         updateStyleWidgets();
-        if (bgBrightnessWidget) bgSlider.value = bgBrightnessWidget.value;
         syncCanvasToDims();
         rebuildStylePalette();
         renderPanel();

@@ -1,0 +1,1919 @@
+"""
+Health check endpoints.
+"""
+import asyncio
+import hashlib
+import os
+import re
+from collections.abc import Mapping
+from pathlib import Path
+
+from aiohttp import web
+from mjr_am_backend.adapters.comfy_core import get_capabilities as get_comfy_core_capabilities
+from mjr_am_backend.adapters.comfy_core import get_input_directory
+from mjr_am_backend.config import (
+    EXECUTION_IDLE_GRACE_SECONDS,
+    MEDIA_PROBE_BACKEND,
+    OUTPUT_ROOT,
+    TO_THREAD_TIMEOUT_S,
+    get_runtime_index_dir,
+    get_runtime_output_root,
+    get_tool_paths,
+    set_index_directory_override,
+)
+from mjr_am_backend.custom_roots import resolve_custom_root
+from mjr_am_backend.runtime_activity import (
+    get_runtime_activity_status,
+    mark_generation_finished,
+    mark_generation_started,
+)
+from mjr_am_backend.shared import ErrorCode, Result, get_logger, sanitize_error_message
+from mjr_am_backend.tool_detect import get_tool_status
+from mjr_am_backend.utils import parse_bool
+
+from ..core import (
+    _check_rate_limit,
+    _csrf_error,
+    _has_configured_write_token,
+    _is_loopback_request,
+    _json_response,
+    _read_json,
+    _require_authenticated_user,
+    _require_services,
+    _require_write_access,
+    audit_log_write,
+)
+from ..core.security import (
+    _is_loopback_ip,
+    _refresh_trusted_proxy_cache,
+    _request_transport_is_secure,
+    _safe_mode_enabled,
+)
+from .db_maintenance import is_db_maintenance_active
+from .filesystem import _invalidate_fs_list_cache, _kickoff_background_scan
+
+SECURITY_PREF_KEYS = {
+    "safe_mode",
+    "allow_write",
+    "require_auth",
+    "allow_remote_write",
+    "allow_insecure_token_transport",
+    "allow_delete",
+    "allow_rename",
+    "allow_open_in_folder",
+    "allow_reset_index",
+    "api_token",
+}
+_VALID_PROBE_MODES = {"auto", "exiftool", "ffprobe", "both"}
+_CUSTOM_ROOT_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
+_WRITE_TOKEN_COOKIE_NAME = "mjr_write_token"
+logger = get_logger(__name__)
+
+
+def _settings_rate_limit_response(
+    request: web.Request,
+    endpoint: str,
+    *,
+    max_requests: int,
+    window_seconds: int,
+) -> web.Response | None:
+    allowed, retry_after = _check_rate_limit(
+        request,
+        endpoint,
+        max_requests=max_requests,
+        window_seconds=window_seconds,
+    )
+    if allowed:
+        return None
+    return _json_response(
+        Result.Err(
+            "RATE_LIMITED",
+            "Rate limit exceeded. Please wait before retrying.",
+            retry_after=retry_after,
+        )
+    )
+
+
+def _extract_probe_mode(body: dict) -> tuple[str, str | None]:
+    raw_mode = body.get("mode")
+    if raw_mode is None:
+        raw_mode = body.get("media_probe_backend")
+    normalized = str(raw_mode or "").strip().lower()
+    if not normalized:
+        return "", "Missing probe backend mode"
+    if normalized not in _VALID_PROBE_MODES:
+        return "", f"Invalid probe backend mode: {normalized}"
+    return normalized, None
+
+
+def _hash_api_token(token: str) -> str:
+    try:
+        normalized = str(token or "").strip()
+    except Exception:
+        normalized = ""
+    try:
+        pepper = str(os.environ.get("MAJOOR_API_TOKEN_PEPPER") or "").strip()
+    except Exception:
+        pepper = ""
+    payload = f"{pepper}\0{normalized}".encode("utf-8", errors="ignore")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _is_valid_custom_root_id(value: object) -> bool:
+    try:
+        return bool(_CUSTOM_ROOT_ID_RE.match(str(value or "")))
+    except Exception:
+        return False
+
+
+def _is_secure_request_transport(request: web.Request) -> bool:
+    try:
+        peer = str(getattr(request, "remote", "") or "").strip()
+    except Exception:
+        peer = ""
+    if not peer:
+        try:
+            peer = str(getattr(request.transport, "get_extra_info", lambda *_args, **_kwargs: None)("peername") or "")
+        except Exception:
+            peer = ""
+    try:
+        scheme = str(getattr(request, "scheme", "") or "").strip().lower()
+    except Exception:
+        scheme = ""
+    headers: Mapping[str, str]
+    try:
+        headers = request.headers
+    except Exception:
+        headers = {}
+    return bool(_request_transport_is_secure(peer_ip=peer, headers=headers, request_scheme=scheme))
+
+
+def _bootstrap_enabled() -> bool:
+    try:
+        raw = str(os.environ.get("MAJOOR_ALLOW_BOOTSTRAP") or "").strip().lower()
+    except Exception:
+        raw = ""
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    # User-facing toggle: if "Allow Remote Full Access" is explicitly enabled in
+    # Settings -> Security, treat that as consent to bootstrap remote sessions
+    # so users can connect from another LAN machine without setting env vars.
+    try:
+        from mjr_am_backend.routes.core.security_prefs_snapshot import get_security_pref
+
+        if get_security_pref("allow_remote_write") is True:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _bootstrap_allows_insecure_transport() -> bool:
+    """
+    Return True when the operator has explicitly opted into accepting bootstrap
+    token delivery over plain HTTP (e.g. trusted LAN). Reads the persisted UI
+    pref `allow_insecure_token_transport` and the legacy env var fallback.
+    """
+    try:
+        from mjr_am_backend.routes.core.security_prefs_snapshot import get_security_pref
+
+        snapshot = get_security_pref("allow_insecure_token_transport")
+        if snapshot is True:
+            return True
+        if snapshot is False:
+            return False
+    except Exception:
+        pass
+    try:
+        raw = str(os.environ.get("MAJOOR_ALLOW_INSECURE_TOKEN_TRANSPORT") or "").strip().lower()
+    except Exception:
+        raw = ""
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _should_expose_token_response() -> bool:
+    try:
+        raw = str(os.environ.get("MAJOOR_EXPOSE_TOKEN_IN_RESPONSE") or "").strip().lower()
+    except Exception:
+        raw = ""
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _token_hint(token: object) -> str:
+    normalized = str(token or "").strip()
+    if not normalized:
+        return ""
+    tail = normalized[-4:] if len(normalized) >= 4 else normalized
+    return f"...{tail}"
+
+
+def _set_write_token_cookie(response: web.StreamResponse, request: web.Request, token: str) -> None:
+    normalized = str(token or "").strip()
+    if not normalized:
+        return
+    try:
+        scheme = str(getattr(request, "scheme", "") or "").strip().lower()
+    except Exception:
+        scheme = ""
+    secure_cookie = scheme == "https"
+    try:
+        response.set_cookie(
+            _WRITE_TOKEN_COOKIE_NAME,
+            normalized,
+            httponly=True,
+            samesite="Strict",
+            secure=secure_cookie,
+            path="/",
+        )
+    except Exception:
+        return
+
+
+def _extract_metadata_fallback_payload(body: dict) -> tuple[object | None, object | None]:
+    image = body.get("image", None)
+    media = body.get("media", None)
+    if image is not None or media is not None:
+        return image, media
+    prefs = body.get("prefs") if isinstance(body.get("prefs"), dict) else {}
+    image = prefs.get("image", None) if isinstance(prefs, dict) else None
+    media = prefs.get("media", None) if isinstance(prefs, dict) else None
+    return image, media
+
+
+def _extract_vector_search_payload(body: dict) -> object | None:
+    if "enabled" in body:
+        return body.get("enabled")
+    prefs = body.get("prefs") if isinstance(body.get("prefs"), dict) else {}
+    if isinstance(prefs, dict) and "enabled" in prefs:
+        return prefs.get("enabled")
+    return None
+
+
+def _extract_vector_caption_on_index_payload(body: dict) -> object | None:
+    for key in ("caption_on_index", "captionOnIndex"):
+        if key in body:
+            return body.get(key)
+    prefs = body.get("prefs") if isinstance(body.get("prefs"), dict) else {}
+    if isinstance(prefs, dict):
+        for key in ("caption_on_index", "captionOnIndex"):
+            if key in prefs:
+                return prefs.get(key)
+    return None
+
+
+def _extract_vector_index_on_scan_payload(body: dict) -> object | None:
+    for key in ("index_on_scan", "indexOnScan"):
+        if key in body:
+            return body.get(key)
+    prefs = body.get("prefs") if isinstance(body.get("prefs"), dict) else {}
+    if isinstance(prefs, dict):
+        for key in ("index_on_scan", "indexOnScan"):
+            if key in prefs:
+                return prefs.get(key)
+    return None
+
+
+def _extract_vector_unload_after_use_payload(body: dict) -> object | None:
+    for key in ("unload_after_use", "unloadAfterUse"):
+        if key in body:
+            return body.get(key)
+    prefs = body.get("prefs") if isinstance(body.get("prefs"), dict) else {}
+    if isinstance(prefs, dict):
+        for key in ("unload_after_use", "unloadAfterUse"):
+            if key in prefs:
+                return prefs.get(key)
+    return None
+
+
+def _extract_vector_concurrency_payload(body: dict) -> object | None:
+    for key in ("concurrency", "vector_concurrency", "vectorConcurrency"):
+        if key in body:
+            return body.get(key)
+    prefs = body.get("prefs") if isinstance(body.get("prefs"), dict) else {}
+    if isinstance(prefs, dict):
+        for key in ("concurrency", "vector_concurrency", "vectorConcurrency"):
+            if key in prefs:
+                return prefs.get(key)
+    return None
+
+
+def _str_token_from_body(source: dict, *keys: str) -> str | None:
+    for key in keys:
+        if key in source:
+            return str(source.get(key) or "")
+    return None
+
+def _extract_execution_grouping_payload(body: dict) -> object | None:
+    if "enabled" in body:
+        return body.get("enabled")
+    prefs = body.get("prefs") if isinstance(body.get("prefs"), dict) else {}
+    if isinstance(prefs, dict) and "enabled" in prefs:
+        return prefs.get("enabled")
+    return None
+
+
+def _extract_huggingface_token_payload(body: dict) -> str | None:
+    result = _str_token_from_body(body, "token", "huggingface_token")
+    if result is not None:
+        return result
+    prefs = body.get("prefs") if isinstance(body.get("prefs"), dict) else {}
+    if isinstance(prefs, dict):
+        return _str_token_from_body(prefs, "token", "huggingface_token")
+    return None
+
+
+def _extract_ai_verbose_logs_payload(body: dict) -> object | None:
+    if "enabled" in body:
+        return body.get("enabled")
+    if "verbose" in body:
+        return body.get("verbose")
+    prefs = body.get("prefs") if isinstance(body.get("prefs"), dict) else {}
+    if isinstance(prefs, dict):
+        if "enabled" in prefs:
+            return prefs.get("enabled")
+        if "verbose" in prefs:
+            return prefs.get("verbose")
+    return None
+
+
+def _extract_route_verbose_logs_payload(body: dict) -> object | None:
+    return _extract_ai_verbose_logs_payload(body)
+
+
+def _extract_startup_verbose_logs_payload(body: dict) -> object | None:
+    return _extract_ai_verbose_logs_payload(body)
+
+
+def _extract_ltxav_rgb_fallback_payload(body: dict) -> object | None:
+    return _extract_ai_verbose_logs_payload(body)
+
+
+def _build_security_prefs(body: dict) -> dict[str, object]:
+    prefs: dict[str, object] = {}
+    for key in SECURITY_PREF_KEYS:
+        if key not in body:
+            continue
+        if key == "api_token":
+            token = str(body[key] or "").strip()
+            if token:
+                prefs["api_token_hash"] = _hash_api_token(token)
+        else:
+            prefs[key] = parse_bool(body[key], False)
+    if "apiToken" in body and "api_token_hash" not in prefs:
+        token = str(body.get("apiToken") or "").strip()
+        if token:
+            prefs["api_token_hash"] = _hash_api_token(token)
+    return prefs
+
+
+def _safe_runtime_status(service: object) -> dict:
+    try:
+        getter = getattr(service, "get_runtime_status", None)
+        if callable(getter):
+            payload = getter()
+            if isinstance(payload, dict):
+                return payload
+    except Exception:
+        pass
+    return {}
+
+
+def _safe_watcher_pending_count(watcher: object) -> int:
+    try:
+        get_pending = getattr(watcher, "get_pending_count", None)
+        if callable(get_pending):
+            return int(get_pending() or 0)
+    except Exception:
+        pass
+    return 0
+
+
+def _safe_watcher_is_running(watcher: object) -> bool:
+    try:
+        raw = getattr(watcher, "is_running", False)
+        value = raw() if callable(raw) else raw
+        return bool(value)
+    except Exception:
+        return False
+
+
+def _safe_watcher_directories(watcher: object) -> list[str]:
+    try:
+        raw = getattr(watcher, "watched_directories", [])
+        value = raw() if callable(raw) else raw
+        if isinstance(value, (list, tuple, set)):
+            return [str(path) for path in value if path]
+    except Exception:
+        pass
+    return []
+
+
+def _runtime_status_payload(db: object, index: object, watcher: object) -> dict:
+    return {
+        "db": _safe_runtime_status(db),
+        "index": _safe_runtime_status(index),
+        "watcher": {
+            "enabled": _safe_watcher_is_running(watcher),
+            "pending_files": _safe_watcher_pending_count(watcher),
+        },
+        "execution": get_runtime_activity_status(),
+        "comfy_core": get_comfy_core_capabilities(),
+        "maintenance_active": is_db_maintenance_active(),
+    }
+
+
+def _vector_runtime_diagnostics(svc: dict | None) -> dict:
+    vector_service = (svc or {}).get("vector_service") if isinstance(svc, dict) else None
+    if not vector_service:
+        return {"enabled": False, "loaded": False, "degraded": False, "last_error": None}
+    try:
+        getter = getattr(vector_service, "get_runtime_status", None)
+        payload = getter() if callable(getter) else {}
+        if isinstance(payload, dict):
+            payload.setdefault("enabled", True)
+            payload.setdefault("degraded", False)
+            return payload
+    except Exception:
+        pass
+    return {"enabled": True, "loaded": True, "degraded": False, "last_error": None}
+
+
+def register_health_routes(routes: web.RouteTableDef) -> None:
+    """Register health and diagnostics routes."""
+    async def _audit_settings_write(
+        services: dict | None,
+        request: web.Request,
+        operation: str,
+        target: str,
+        result: Result,
+        **details: object,
+    ) -> None:
+        try:
+            await audit_log_write(
+                services if isinstance(services, dict) else {},
+                request=request,
+                operation=operation,
+                target=target,
+                result=result,
+                details=details or None,
+            )
+        except Exception as exc:
+            logger.debug("Settings audit logging skipped for %s: %s", operation, exc)
+
+    async def _runtime_output_root(svc: dict | None) -> str:
+        try:
+            settings_service = (svc or {}).get("settings") if isinstance(svc, dict) else None
+            if settings_service:
+                override = await settings_service.get_output_directory()
+                if override:
+                    return str(Path(override).resolve(strict=False))
+        except Exception:
+            pass
+        return str(Path(OUTPUT_ROOT).resolve(strict=False))
+
+    @routes.get("/mjr/am/health")
+    async def health(request):
+        """Get health status."""
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        try:
+            result = await asyncio.wait_for(svc['health'].status(), timeout=TO_THREAD_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            result = Result.Err(ErrorCode.TIMEOUT, "Health status timed out")
+        except Exception as exc:
+            result = Result.Err(
+                ErrorCode.DEGRADED,
+                sanitize_error_message(exc, "Health status failed"),
+            )
+
+        if result.ok and isinstance(result.data, dict):
+            vector_diag = _vector_runtime_diagnostics(svc if isinstance(svc, dict) else None)
+            result.data["vector"] = vector_diag
+            try:
+                overall = str(result.data.get("overall") or "healthy")
+                if bool(vector_diag.get("degraded")) and overall == "healthy":
+                    result.data["overall"] = "degraded"
+            except Exception:
+                pass
+            # Attach the bootstrap report so callers get one coherent status snapshot.
+            try:
+                from mjr_am_backend.bootstrap_report import get_report
+                result.data["bootstrap"] = get_report()
+            except Exception:
+                pass
+        return _json_response(result)
+
+    @routes.get("/mjr/am/health/counters")
+    async def health_counters(request):
+        """Get database counters."""
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        scope = (request.query.get("scope") or "output").strip().lower()
+        custom_root_id = request.query.get("custom_root_id") or request.query.get("root_id") or None
+
+        roots = None
+        out_root = await _runtime_output_root(svc)
+        if scope == "output":
+            roots = [out_root]
+        elif scope == "input":
+            roots = [str(Path(get_input_directory()).resolve(strict=False))]
+        elif scope == "all":
+            roots = [
+                out_root,
+                str(Path(get_input_directory()).resolve(strict=False)),
+            ]
+        elif scope == "custom":
+            if not _is_valid_custom_root_id(custom_root_id):
+                return _json_response(Result.Err(ErrorCode.INVALID_INPUT, "Invalid custom_root_id"))
+            root_result = resolve_custom_root(str(custom_root_id or ""))
+            if not root_result.ok:
+                return _json_response(Result.Err(ErrorCode.INVALID_INPUT, root_result.error))
+            roots = [str(Path(str(root_result.data)).resolve(strict=False))]
+        else:
+            return _json_response(Result.Err(ErrorCode.INVALID_INPUT, f"Unknown scope: {scope}"))
+
+        try:
+            result = await asyncio.wait_for(svc['health'].get_counters(roots=roots), timeout=TO_THREAD_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            result = Result.Err(ErrorCode.TIMEOUT, "Health counters timed out")
+        except Exception as exc:
+            result = Result.Err(
+                ErrorCode.DEGRADED,
+                sanitize_error_message(exc, "Health counters failed"),
+            )
+        if result.ok:
+            if isinstance(result.data, dict):
+                result.data["scope"] = scope
+                if scope == "custom":
+                    result.data["custom_root_id"] = custom_root_id
+                try:
+                    index_svc = svc.get("index") if isinstance(svc, dict) else None
+                    if index_svc and hasattr(index_svc, "get_runtime_status"):
+                        idx_rt = index_svc.get_runtime_status() or {}
+                        result.data["enrichment_queue_length"] = int(idx_rt.get("enrichment_queue_length") or 0)
+                        result.data["scan_active"] = bool(idx_rt.get("scan_active"))
+                except Exception:
+                    result.data["enrichment_queue_length"] = 0
+                    result.data["scan_active"] = False
+                try:
+                    watcher = svc.get("watcher") if isinstance(svc, dict) else None
+                    watcher_scope = svc.get("watcher_scope") if isinstance(svc, dict) else None
+                    result.data["watcher"] = {
+                        "enabled": _safe_watcher_is_running(watcher),
+                        "directories": _safe_watcher_directories(watcher),
+                        "scope": (watcher_scope or {}).get("scope") if isinstance(watcher_scope, dict) else None,
+                        "custom_root_id": (watcher_scope or {}).get("custom_root_id") if isinstance(watcher_scope, dict) else None,
+                    }
+                except Exception:
+                    result.data["watcher"] = {"enabled": False, "directories": [], "scope": None, "custom_root_id": None}
+        return _json_response(result)
+
+    @routes.get("/mjr/am/health/db")
+    async def health_db(request):
+        """
+        DB-focused diagnostics endpoint.
+
+        Exposes explicit lock/corruption/recovery state so operators can diagnose
+        reset/scan issues without parsing logs.
+        """
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        db = svc.get("db") if isinstance(svc, dict) else None
+        if not db:
+            return _json_response(Result.Err(ErrorCode.SERVICE_UNAVAILABLE, "Database service unavailable"))
+
+        # Safe defaults if adapter doesn't expose diagnostics yet.
+        diagnostics = {
+            "locked": False,
+            "malformed": False,
+            "recovery_state": "unknown",
+            "maintenance_active": is_db_maintenance_active(),
+        }
+
+        try:
+            getter = getattr(db, "get_diagnostics", None)
+            if callable(getter):
+                payload = getter()
+                if isinstance(payload, dict):
+                    diagnostics = payload
+                    diagnostics["maintenance_active"] = is_db_maintenance_active()
+        except Exception as exc:
+            diagnostics = {
+                "locked": False,
+                "malformed": False,
+                "recovery_state": "unknown",
+                "maintenance_active": is_db_maintenance_active(),
+                "error": sanitize_error_message(exc, "Failed to read DB diagnostics"),
+            }
+
+        # Include quick liveness check for context.
+        available = False
+        error = None
+        try:
+            q = await db.aexecute("SELECT 1 as ok", fetch=True)
+            available = bool(q.ok)
+            if not q.ok:
+                error = q.error
+        except Exception as exc:
+            available = False
+            error = sanitize_error_message(exc, "DB liveness check failed")
+
+        vector_diag = _vector_runtime_diagnostics(svc if isinstance(svc, dict) else None)
+        overall = "healthy"
+        if not available:
+            overall = "unhealthy"
+        elif bool(vector_diag.get("degraded")):
+            overall = "degraded"
+
+        return _json_response(
+            Result.Ok(
+                {
+                    "available": available,
+                    "error": error,
+                    "diagnostics": diagnostics,
+                    "vector": vector_diag,
+                    "overall": overall,
+                }
+            )
+        )
+
+    @routes.get("/mjr/am/status")
+    async def runtime_status(request):
+        """
+        Lightweight runtime status for diagnostics/dashboard.
+
+        Returns:
+        - SQLite active connections
+        - enrichment queue length
+        - watcher pending files
+        """
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        db = svc.get("db") if isinstance(svc, dict) else None
+        index = svc.get("index") if isinstance(svc, dict) else None
+        watcher = svc.get("watcher") if isinstance(svc, dict) else None
+
+        payload = _runtime_status_payload(db, index, watcher)
+        return _json_response(Result.Ok(payload))
+
+    @routes.get("/mjr/am/runtime/execution")
+    async def get_execution_runtime(request):
+        return _json_response(Result.Ok(get_runtime_activity_status()))
+
+    @routes.post("/mjr/am/runtime/execution")
+    async def update_execution_runtime(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err("CSRF", csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+
+        if "active" not in body and "running" not in body:
+            return _json_response(Result.Err("INVALID_INPUT", "Missing active flag"))
+
+        active = parse_bool(body.get("active", body.get("running")), False)
+        prompt_id = str(body.get("prompt_id") or body.get("promptId") or "").strip()
+        raw_cooldown_ms = body.get("cooldown_ms", body.get("cooldownMs"))
+        try:
+            cooldown_ms = max(
+                0,
+                min(
+                    300_000,
+                    int(raw_cooldown_ms if raw_cooldown_ms is not None else int(EXECUTION_IDLE_GRACE_SECONDS * 1000.0)),
+                ),
+            )
+        except Exception:
+            cooldown_ms = int(EXECUTION_IDLE_GRACE_SECONDS * 1000.0)
+
+        if active:
+            payload = mark_generation_started(prompt_id)
+        else:
+            payload = mark_generation_finished(
+                prompt_id,
+                cooldown_seconds=float(cooldown_ms) / 1000.0,
+            )
+        return _json_response(Result.Ok(payload))
+
+    @routes.get("/mjr/am/config")
+    async def get_config(request):
+        """
+        Get configuration (output directory, etc.).
+        """
+        svc, _ = await _require_services()
+
+        probe_mode = MEDIA_PROBE_BACKEND
+        output_root = await _runtime_output_root(svc)
+
+        settings_service = None
+        if svc:
+            settings_service = svc.get("settings")
+            if settings_service:
+                try:
+                    # FIX: await the async method
+                    probe_mode = await settings_service.get_probe_backend()
+                except Exception:
+                    # fallback to defaults
+                    pass
+
+        return _json_response(Result.Ok({
+            "output_directory": output_root,
+            "index_directory": get_runtime_index_dir(),
+            "tool_paths": get_tool_paths(),
+            "media_probe_backend": probe_mode,
+            "metadata_fallback": (
+                await settings_service.get_metadata_fallback_prefs()
+                if (svc and settings_service)
+                else {"image": True, "media": True}
+            ),
+        }))
+
+    @routes.get("/mjr/am/settings/output-directory")
+    async def get_output_directory_setting(request):
+        user_auth = _require_authenticated_user(request)
+        if not user_auth.ok:
+            return _json_response(
+                Result.Err(user_auth.code or "AUTH_REQUIRED", user_auth.error or "Authentication required"),
+                status=401,
+            )
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+        value = await settings_service.get_output_directory()
+        return _json_response(Result.Ok({"output_directory": value or ""}))
+
+    @routes.post("/mjr/am/settings/output-directory")
+    async def update_output_directory_setting(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err("CSRF", csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+        raw_value = body.get("output_directory")
+        value = "" if raw_value is None else str(raw_value).strip()
+        if value:
+            try:
+                normalized_path = Path(value).expanduser().resolve(strict=True)
+            except Exception:
+                return _json_response(Result.Err("INVALID_INPUT", "output_directory must be an existing directory"))
+            if not normalized_path.is_dir():
+                return _json_response(Result.Err("INVALID_INPUT", "output_directory must be a directory"))
+            value = str(normalized_path)
+        old_output_dir = get_runtime_output_root()
+        result = await settings_service.set_output_directory(value)
+        if not result.ok:
+            return _json_response(result)
+        new_output_dir = get_runtime_output_root()
+        # Best-effort: update the watcher, invalidate the listing cache, and
+        # kick off an initial scan for the new directory.
+        try:
+            watcher = svc.get("watcher") if isinstance(svc, dict) else None
+            if watcher and old_output_dir != new_output_dir:
+                try:
+                    watcher.remove_path(old_output_dir)
+                except Exception:
+                    pass
+                if new_output_dir:
+                    try:
+                        watcher.add_path(new_output_dir, source="output", root_id=None)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        try:
+            await _invalidate_fs_list_cache()
+        except Exception:
+            pass
+        if new_output_dir and new_output_dir != old_output_dir:
+            try:
+                await _kickoff_background_scan(
+                    new_output_dir,
+                    source="output",
+                    root_id=None,
+                    recursive=True,
+                    incremental=True,
+                    respect_bg_scan_on_list=False,
+                )
+            except Exception:
+                pass
+        response_result = Result.Ok({"output_directory": result.data})
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_output_directory",
+            "settings:output_directory",
+            response_result,
+            previous=old_output_dir,
+            current=str(result.data or ""),
+        )
+        return _json_response(response_result)
+
+    @routes.get("/mjr/am/settings/index-directory")
+    async def get_index_directory_setting(request):
+        user_auth = _require_authenticated_user(request)
+        if not user_auth.ok:
+            return _json_response(
+                Result.Err(user_auth.code or "AUTH_REQUIRED", user_auth.error or "Authentication required"),
+                status=401,
+            )
+        return _json_response(Result.Ok({"index_directory": get_runtime_index_dir()}))
+
+    @routes.post("/mjr/am/settings/index-directory")
+    async def update_index_directory_setting(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err("CSRF", csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+
+        body = body_res.data or {}
+        raw_value = body.get("index_directory")
+        value = "" if raw_value is None else str(raw_value).strip()
+
+        if value:
+            try:
+                normalized_path = Path(value).expanduser().resolve(strict=False)
+            except Exception:
+                return _json_response(Result.Err("INVALID_INPUT", "index_directory path is invalid"))
+            if normalized_path.exists() and not normalized_path.is_dir():
+                return _json_response(Result.Err("INVALID_INPUT", "index_directory must be a directory, not a file"))
+            if not normalized_path.exists():
+                try:
+                    normalized_path.mkdir(parents=True, exist_ok=True)
+                except Exception:
+                    return _json_response(
+                        Result.Err("INVALID_INPUT", f"Cannot create index directory: {normalized_path}")
+                    )
+            value = str(normalized_path)
+
+        previous = get_runtime_index_dir()
+        try:
+            new_value = set_index_directory_override(value)
+        except Exception as exc:
+            logger.warning("Failed to persist index directory override: %s", exc)
+            return _json_response(Result.Err("DB_ERROR", "Failed to persist index directory override"))
+
+        response_result = Result.Ok(
+            {
+                "index_directory": new_value or get_runtime_index_dir(),
+                "requires_restart": True,
+            }
+        )
+        svc, _ = await _require_services()
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_index_directory",
+            "settings:index_directory",
+            response_result,
+            previous=previous,
+            current=str(new_value or ""),
+        )
+        return _json_response(response_result)
+
+    @routes.post("/mjr/am/settings/probe-backend")
+    async def update_probe_backend(request):
+        """
+        Update media probe backend preference (ExifTool, FFprobe, Both, Auto).
+        """
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err(ErrorCode.CSRF, csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err(ErrorCode.SERVICE_UNAVAILABLE, "Settings service unavailable"))
+
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+
+        mode, mode_error = _extract_probe_mode(body)
+        if not mode:
+            return _json_response(Result.Err("INVALID_INPUT", mode_error or "Missing probe backend mode"))
+
+        result = await settings_service.set_probe_backend(mode)
+        if result.ok:
+            response_result = Result.Ok({"media_probe_backend": result.data})
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_probe_backend",
+                "settings:probe_backend",
+                response_result,
+                mode=mode,
+            )
+            return _json_response(response_result)
+        await _audit_settings_write(svc, request, "settings_probe_backend", "settings:probe_backend", result, mode=mode)
+        return _json_response(result)
+
+    @routes.get("/mjr/am/settings/metadata-fallback")
+    async def get_metadata_fallback_settings(request):
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+
+        prefs = await settings_service.get_metadata_fallback_prefs()
+        return _json_response(Result.Ok({"prefs": prefs}))
+
+    @routes.post("/mjr/am/settings/metadata-fallback")
+    async def update_metadata_fallback_settings(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err(ErrorCode.CSRF, csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err(ErrorCode.SERVICE_UNAVAILABLE, "Settings service unavailable"))
+
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+
+        image, media = _extract_metadata_fallback_payload(body)
+
+        result = await settings_service.set_metadata_fallback_prefs(image=image, media=media)
+        if not result.ok:
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_metadata_fallback",
+                "settings:metadata_fallback",
+                result,
+                image=image,
+                media=media,
+            )
+            return _json_response(result)
+        response_result = Result.Ok({"prefs": result.data or {}})
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_metadata_fallback",
+            "settings:metadata_fallback",
+            response_result,
+            image=image,
+            media=media,
+        )
+        return _json_response(response_result)
+
+    @routes.get("/mjr/am/settings/vector-search")
+    async def get_vector_search_settings(request):
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+
+        enabled = await settings_service.get_vector_search_enabled()
+        caption_on_index = await settings_service.get_vector_caption_on_index_enabled()
+        index_on_scan = await settings_service.get_vector_index_on_scan_enabled()
+        concurrency = await settings_service.get_vector_concurrency()
+        unload_after_use = await settings_service.get_vector_unload_after_use_enabled()
+        return _json_response(
+            Result.Ok(
+                {
+                    "prefs": {
+                        "enabled": bool(enabled),
+                        "caption_on_index": bool(caption_on_index),
+                        "index_on_scan": bool(index_on_scan),
+                        "concurrency": int(concurrency),
+                        "unload_after_use": bool(unload_after_use),
+                    }
+                }
+            )
+        )
+
+    @routes.post("/mjr/am/settings/vector-search")
+    async def update_vector_search_settings(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err(ErrorCode.CSRF, csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err(ErrorCode.SERVICE_UNAVAILABLE, "Settings service unavailable"))
+
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+
+        enabled = _extract_vector_search_payload(body)
+        caption_on_index = _extract_vector_caption_on_index_payload(body)
+        index_on_scan = _extract_vector_index_on_scan_payload(body)
+        concurrency = _extract_vector_concurrency_payload(body)
+        unload_after_use = _extract_vector_unload_after_use_payload(body)
+        if (
+            enabled is None
+            and caption_on_index is None
+            and index_on_scan is None
+            and concurrency is None
+            and unload_after_use is None
+        ):
+            return _json_response(Result.Err("INVALID_INPUT", "Missing vector-search settings value"))
+
+        if enabled is not None:
+            result = await settings_service.set_vector_search_enabled(enabled)
+            if result.ok and not bool(result.data):
+                try:
+                    from ...features.index.vector_runtime import unload_vector_runtime_models
+
+                    unload_vector_runtime_models(svc)
+                except Exception:
+                    pass
+        else:
+            result = Result.Ok(await settings_service.get_vector_search_enabled())
+        caption_result = (
+            await settings_service.set_vector_caption_on_index_enabled(caption_on_index)
+            if caption_on_index is not None
+            else Result.Ok(await settings_service.get_vector_caption_on_index_enabled())
+        )
+        index_result = (
+            await settings_service.set_vector_index_on_scan_enabled(index_on_scan)
+            if index_on_scan is not None
+            else Result.Ok(await settings_service.get_vector_index_on_scan_enabled())
+        )
+        concurrency_result = (
+            await settings_service.set_vector_concurrency(concurrency)
+            if concurrency is not None
+            else Result.Ok(await settings_service.get_vector_concurrency())
+        )
+        unload_after_use_result = (
+            await settings_service.set_vector_unload_after_use_enabled(unload_after_use)
+            if unload_after_use is not None
+            else Result.Ok(await settings_service.get_vector_unload_after_use_enabled())
+        )
+        if result.ok and not caption_result.ok:
+            result = caption_result
+        if result.ok and not index_result.ok:
+            result = index_result
+        if result.ok and not concurrency_result.ok:
+            result = concurrency_result
+        if result.ok and not unload_after_use_result.ok:
+            result = unload_after_use_result
+        if not result.ok:
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_vector_search",
+                "settings:vector_search",
+                result,
+                enabled=enabled,
+                caption_on_index=caption_on_index,
+                index_on_scan=index_on_scan,
+                concurrency=concurrency,
+                unload_after_use=unload_after_use,
+            )
+            return _json_response(result)
+        response_result = Result.Ok(
+            {
+                "prefs": {
+                    "enabled": bool(result.data),
+                    "caption_on_index": bool(caption_result.data),
+                    "index_on_scan": bool(index_result.data),
+                    "concurrency": int(concurrency_result.data),
+                    "unload_after_use": bool(unload_after_use_result.data),
+                }
+            }
+        )
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_vector_search",
+            "settings:vector_search",
+            response_result,
+            enabled=enabled,
+            caption_on_index=caption_on_index,
+            index_on_scan=index_on_scan,
+            concurrency=concurrency,
+            unload_after_use=unload_after_use,
+        )
+        return _json_response(response_result)
+
+    @routes.post("/mjr/am/settings/vector-search/unload")
+    async def unload_vector_models(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err(ErrorCode.CSRF, csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+        from ...features.index.vector_runtime import unload_vector_runtime_models
+
+        result = unload_vector_runtime_models(svc, purge_comfy_models=True)
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_vector_unload",
+            "settings:vector_unload",
+            result,
+        )
+        return _json_response(result)
+
+    @routes.get("/mjr/am/settings/execution-grouping")
+    async def get_execution_grouping_settings(request):
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+
+        enabled = await settings_service.get_execution_grouping_enabled()
+        return _json_response(Result.Ok({"prefs": {"enabled": bool(enabled)}}))
+
+    @routes.post("/mjr/am/settings/execution-grouping")
+    async def update_execution_grouping_settings(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err(ErrorCode.CSRF, csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err(ErrorCode.SERVICE_UNAVAILABLE, "Settings service unavailable"))
+
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+
+        enabled = _extract_execution_grouping_payload(body)
+        if enabled is None:
+            return _json_response(Result.Err("INVALID_INPUT", "Missing execution-grouping enabled value"))
+
+        result = await settings_service.set_execution_grouping_enabled(enabled)
+        if not result.ok:
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_execution_grouping",
+                "settings:execution_grouping",
+                result,
+                enabled=enabled,
+            )
+            return _json_response(result)
+        response_result = Result.Ok({"prefs": {"enabled": bool(result.data)}})
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_execution_grouping",
+            "settings:execution_grouping",
+            response_result,
+            enabled=enabled,
+        )
+        return _json_response(response_result)
+
+    @routes.get("/mjr/am/settings/huggingface")
+    async def get_huggingface_settings(request):
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+
+        info = await settings_service.get_huggingface_token_info()
+        return _json_response(Result.Ok({"prefs": info}))
+
+    @routes.post("/mjr/am/settings/huggingface")
+    async def update_huggingface_settings(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err(ErrorCode.CSRF, csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err(ErrorCode.SERVICE_UNAVAILABLE, "Settings service unavailable"))
+
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+
+        token = _extract_huggingface_token_payload(body)
+        if token is None:
+            return _json_response(Result.Err("INVALID_INPUT", "Missing huggingface token value"))
+
+        result = await settings_service.set_huggingface_token(token)
+        if not result.ok:
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_huggingface",
+                "settings:huggingface",
+                result,
+                token_present=bool(str(token or "").strip()),
+            )
+            return _json_response(result)
+        response_result = Result.Ok({"prefs": result.data or {}})
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_huggingface",
+            "settings:huggingface",
+            response_result,
+            token_present=bool(str(token or "").strip()),
+        )
+        return _json_response(response_result)
+
+    @routes.get("/mjr/am/settings/ai-logging")
+    async def get_ai_logging_settings(request):
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+
+        enabled = await settings_service.get_ai_verbose_logs_enabled()
+        return _json_response(Result.Ok({"prefs": {"enabled": bool(enabled)}}))
+
+    @routes.post("/mjr/am/settings/ai-logging")
+    async def update_ai_logging_settings(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err(ErrorCode.CSRF, csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err(ErrorCode.SERVICE_UNAVAILABLE, "Settings service unavailable"))
+
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+
+        enabled = _extract_ai_verbose_logs_payload(body)
+        if enabled is None:
+            return _json_response(Result.Err("INVALID_INPUT", "Missing AI verbose logging value"))
+
+        result = await settings_service.set_ai_verbose_logs_enabled(enabled)
+        if not result.ok:
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_ai_logging",
+                "settings:ai_logging",
+                result,
+                enabled=enabled,
+            )
+            return _json_response(result)
+        response_result = Result.Ok({"prefs": {"enabled": bool(result.data)}})
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_ai_logging",
+            "settings:ai_logging",
+            response_result,
+            enabled=enabled,
+        )
+        return _json_response(response_result)
+
+    @routes.get("/mjr/am/settings/route-logging")
+    async def get_route_logging_settings(request):
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+
+        enabled = await settings_service.get_route_verbose_logs_enabled()
+        return _json_response(Result.Ok({"prefs": {"enabled": bool(enabled)}}))
+
+    @routes.post("/mjr/am/settings/route-logging")
+    async def update_route_logging_settings(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err(ErrorCode.CSRF, csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err(ErrorCode.SERVICE_UNAVAILABLE, "Settings service unavailable"))
+
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+
+        enabled = _extract_route_verbose_logs_payload(body)
+        if enabled is None:
+            return _json_response(Result.Err("INVALID_INPUT", "Missing route logging value"))
+
+        result = await settings_service.set_route_verbose_logs_enabled(enabled)
+        if not result.ok:
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_route_logging",
+                "settings:route_logging",
+                result,
+                enabled=enabled,
+            )
+            return _json_response(result)
+        response_result = Result.Ok({"prefs": {"enabled": bool(result.data)}})
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_route_logging",
+            "settings:route_logging",
+            response_result,
+            enabled=enabled,
+        )
+        return _json_response(response_result)
+
+    @routes.get("/mjr/am/settings/startup-logging")
+    async def get_startup_logging_settings(request):
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+
+        enabled = await settings_service.get_startup_verbose_logs_enabled()
+        return _json_response(Result.Ok({"prefs": {"enabled": bool(enabled)}}))
+
+    @routes.post("/mjr/am/settings/startup-logging")
+    async def update_startup_logging_settings(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err(ErrorCode.CSRF, csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err(ErrorCode.SERVICE_UNAVAILABLE, "Settings service unavailable"))
+
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+
+        enabled = _extract_startup_verbose_logs_payload(body)
+        if enabled is None:
+            return _json_response(Result.Err("INVALID_INPUT", "Missing startup logging value"))
+
+        result = await settings_service.set_startup_verbose_logs_enabled(enabled)
+        if not result.ok:
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_startup_logging",
+                "settings:startup_logging",
+                result,
+                enabled=enabled,
+            )
+            return _json_response(result)
+        response_result = Result.Ok({"prefs": {"enabled": bool(result.data)}})
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_startup_logging",
+            "settings:startup_logging",
+            response_result,
+            enabled=enabled,
+        )
+        return _json_response(response_result)
+
+    @routes.get("/mjr/am/settings/ltxav-rgb-fallback")
+    async def get_ltxav_rgb_fallback_settings(request):
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+
+        enabled = await settings_service.get_ltxav_rgb_fallback_enabled()
+        return _json_response(Result.Ok({"prefs": {"enabled": bool(enabled)}}))
+
+    @routes.post("/mjr/am/settings/ltxav-rgb-fallback")
+    async def update_ltxav_rgb_fallback_settings(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err(ErrorCode.CSRF, csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err(ErrorCode.SERVICE_UNAVAILABLE, "Settings service unavailable"))
+
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+
+        enabled = _extract_ltxav_rgb_fallback_payload(body)
+        if enabled is None:
+            return _json_response(Result.Err("INVALID_INPUT", "Missing LTXAV RGB fallback value"))
+
+        result = await settings_service.set_ltxav_rgb_fallback_enabled(enabled)
+        if not result.ok:
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_ltxav_rgb_fallback",
+                "settings:ltxav_rgb_fallback",
+                result,
+                enabled=enabled,
+            )
+            return _json_response(result)
+
+        response_result = Result.Ok({"prefs": {"enabled": bool(result.data)}})
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_ltxav_rgb_fallback",
+            "settings:ltxav_rgb_fallback",
+            response_result,
+            enabled=enabled,
+        )
+        return _json_response(response_result)
+
+    @routes.get("/mjr/am/settings/workflow-roots")
+    async def get_workflow_roots_setting(request):
+        user_auth = _require_authenticated_user(request)
+        if not user_auth.ok:
+            return _json_response(
+                Result.Err(user_auth.code or "AUTH_REQUIRED", user_auth.error or "Authentication required"),
+                status=401,
+            )
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+        settings_service = svc.get("settings") if isinstance(svc, dict) else None
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+        roots = await settings_service.get_workflow_roots()
+        return _json_response(Result.Ok({"workflow_roots": roots, "workflow_roots_text": "\n".join(roots)}))
+
+    @routes.post("/mjr/am/settings/workflow-roots")
+    async def update_workflow_roots_setting(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err("CSRF", csrf))
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+        settings_service = svc.get("settings") if isinstance(svc, dict) else None
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+        raw_value = body.get("workflow_roots")
+        if raw_value is None:
+            raw_value = body.get("workflow_roots_text")
+        roots_raw = raw_value if isinstance(raw_value, list) else str(raw_value or "")
+        try:
+            normalized_roots = settings_service._normalize_workflow_roots(roots_raw)
+        except Exception:
+            normalized_roots = []
+        for root in normalized_roots:
+            path = Path(root)
+            if path.exists() and not path.is_dir():
+                return _json_response(Result.Err("INVALID_INPUT", "workflow root must be a directory, not a file"))
+            if not path.exists():
+                try:
+                    path.mkdir(parents=True, exist_ok=True)
+                except Exception:
+                    return _json_response(Result.Err("INVALID_INPUT", f"Cannot create workflow root: {path}"))
+        previous = await settings_service.get_workflow_roots()
+        result = await settings_service.set_workflow_roots(normalized_roots)
+        if not result.ok:
+            return _json_response(result)
+        response_result = Result.Ok(
+            {
+                "workflow_roots": result.data or [],
+                "workflow_roots_text": "\n".join(result.data or []),
+            }
+        )
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_workflow_roots",
+            "settings:workflow_roots",
+            response_result,
+            previous=previous,
+            current=result.data or [],
+        )
+        return _json_response(response_result)
+
+    @routes.get("/mjr/am/settings/security")
+    async def get_security_settings(request):
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+
+        prefs = await settings_service.get_security_prefs(include_secret=False)
+        return _json_response(Result.Ok({"prefs": prefs}))
+
+    @routes.post("/mjr/am/settings/security")
+    async def update_security_settings(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err("CSRF", csrf))
+
+        auth = _require_write_access(request)
+        if not auth.ok:
+            if _has_configured_write_token():
+                return _json_response(auth)
+            user_auth = _require_authenticated_user(request)
+            auth_mode = str((user_auth.meta or {}).get("auth_mode") or "").strip().lower()
+            if not (user_auth.ok and auth_mode == "comfy_user"):
+                return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+
+        body_res = await _read_json(request)
+        if not body_res.ok:
+            return _json_response(body_res)
+        body = body_res.data or {}
+
+        prefs = _build_security_prefs(body)
+        if not prefs:
+            return _json_response(Result.Err("INVALID_INPUT", "No security settings provided"))
+
+        result = await settings_service.set_security_prefs(prefs)
+        if result.ok:
+            try:
+                _safe_mode_enabled.cache_clear()
+            except Exception:
+                pass
+            try:
+                _refresh_trusted_proxy_cache()
+            except Exception:
+                pass
+            current_prefs = result.data or (await settings_service.get_security_prefs())
+            response_result = Result.Ok({"prefs": current_prefs})
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_security",
+                "settings:security",
+                response_result,
+                keys=sorted(str(k) for k in prefs.keys()),
+            )
+            return _json_response(response_result)
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_security",
+            "settings:security",
+            result,
+            keys=sorted(str(k) for k in prefs.keys()),
+        )
+        return _json_response(result)
+
+    @routes.post("/mjr/am/settings/security/rotate-token")
+    async def rotate_security_token(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err("CSRF", csrf))
+        limited = _settings_rate_limit_response(
+            request,
+            "settings_rotate_token",
+            max_requests=5,
+            window_seconds=60,
+        )
+        if limited is not None:
+            return limited
+
+        auth = _require_write_access(request)
+        if not auth.ok:
+            return _json_response(auth)
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+        if not _is_secure_request_transport(request) and not _bootstrap_allows_insecure_transport():
+            return _json_response(
+                Result.Err(
+                    "FORBIDDEN",
+                    "Token rotation response is only allowed over HTTPS or loopback transport. Enable 'Allow HTTP Token Transport' in Settings -> Security to opt into plain-HTTP delivery on a trusted LAN.",
+                )
+            )
+
+        result = await settings_service.rotate_api_token()
+        if not result.ok:
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_rotate_token",
+                "settings:security_token",
+                result,
+                action="rotate",
+            )
+            return _json_response(result)
+        token = str((result.data or {}).get("api_token") or "").strip()
+        if _is_loopback_request(request):
+            try:
+                scheme = str(getattr(request, "scheme", "") or "").strip().lower()
+            except Exception:
+                scheme = ""
+            if scheme != "https":
+                logger.debug("Token rotation over plain HTTP loopback (expected for local ComfyUI).")
+        payload = {"token_hint": _token_hint(token)}
+        if token and _should_expose_token_response():
+            payload["token"] = token
+        response = _json_response(Result.Ok(payload))
+        _set_write_token_cookie(response, request, token)
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_rotate_token",
+            "settings:security_token",
+            Result.Ok({"token_hint": _token_hint(token)}),
+            action="rotate",
+            token_hint=_token_hint(token),
+        )
+        return response
+
+    @routes.post("/mjr/am/settings/security/bootstrap-token")
+    async def bootstrap_security_token(request):
+        csrf = _csrf_error(request)
+        if csrf:
+            return _json_response(Result.Err("CSRF", csrf))
+        limited = _settings_rate_limit_response(
+            request,
+            "settings_bootstrap_token",
+            max_requests=20,
+            window_seconds=60,
+        )
+        if limited is not None:
+            return limited
+
+        # SECURITY: Use raw socket peer IP for bootstrap — never trust XFF headers
+        # for token delivery. This prevents proxy misconfiguration from leaking
+        # the session token to remote clients.
+        try:
+            _raw_peer = str(getattr(request, "remote", None) or "").strip()
+        except Exception:
+            _raw_peer = ""
+        is_loopback = _is_loopback_ip(_raw_peer) if _raw_peer else False
+        remote_bootstrap_bypass_write_auth = False
+        has_configured_token = _has_configured_write_token()
+
+        # Remote bootstrap is allowed in two cases:
+        #   1. MAJOOR_ALLOW_BOOTSTRAP=1 explicitly enables initial remote provisioning.
+        #   2. No persistent token exists yet and the request is tied to an authenticated
+        #      ComfyUI user, which keeps first-run remote UX simple without opening an
+        #      unauthenticated bootstrap path on exposed instances.
+        #   3. A persistent token already exists, but an authenticated ComfyUI user is
+        #      re-establishing the browser session on a secure transport.
+        # Loopback is always allowed because only local processes can reach it.
+        if not is_loopback:
+            remote_bootstrap_bypass_write_auth = _bootstrap_enabled()
+            if not remote_bootstrap_bypass_write_auth:
+                user_auth = _require_authenticated_user(request)
+                auth_mode = str((user_auth.meta or {}).get("auth_mode") or "").strip().lower()
+                remote_bootstrap_bypass_write_auth = bool(user_auth.ok and auth_mode == "comfy_user")
+                if not remote_bootstrap_bypass_write_auth:
+                    if has_configured_token:
+                        return _json_response(
+                            Result.Err(
+                                "FORBIDDEN",
+                                "Bootstrap token recovery is restricted when an API token is already configured. Sign in to ComfyUI and retry on a secure session.",
+                            )
+                        )
+                    return _json_response(
+                        Result.Err(
+                            "BOOTSTRAP_DISABLED",
+                            "Bootstrap token is disabled for remote clients unless an authenticated ComfyUI user is requesting initial provisioning. Sign in to ComfyUI and retry, or enable 'Allow Remote Full Access' in Settings -> Security (or set MAJOOR_ALLOW_BOOTSTRAP=1).",
+                        )
+                    )
+
+        auth = _require_write_access(request)
+        if not auth.ok:
+            if not is_loopback:
+                if remote_bootstrap_bypass_write_auth:
+                    pass
+                else:
+                    return _json_response(auth)
+            else:
+                # Loopback is local-only. Allow bootstrap recovery so the local browser can
+                # re-establish its Majoor write session even when token auth is already required.
+                pass
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        settings_service = svc.get("settings")
+        if not settings_service:
+            return _json_response(Result.Err("SERVICE_UNAVAILABLE", "Settings service unavailable"))
+        if not _is_secure_request_transport(request) and not _bootstrap_allows_insecure_transport():
+            return _json_response(
+                Result.Err(
+                    "FORBIDDEN",
+                    "Token bootstrap response is only allowed over HTTPS or loopback transport. Enable 'Allow HTTP Token Transport' in Settings -> Security to opt into plain-HTTP delivery on a trusted LAN.",
+                )
+            )
+
+        result = await settings_service.bootstrap_api_token()
+        if not result.ok:
+            await _audit_settings_write(
+                svc,
+                request,
+                "settings_bootstrap_token",
+                "settings:security_token",
+                result,
+                action="bootstrap",
+                loopback=bool(is_loopback),
+            )
+            return _json_response(result)
+        token = str((result.data or {}).get("api_token") or "").strip()
+        if is_loopback:
+            try:
+                scheme = str(getattr(request, "scheme", "") or "").strip().lower()
+            except Exception:
+                scheme = ""
+            if scheme != "https":
+                logger.debug("Token bootstrap over plain HTTP loopback (expected for local ComfyUI).")
+        payload = {"token_hint": _token_hint(token)}
+        # Include plain token in body for loopback: only local processes can reach loopback,
+        # so returning the token in the JSON body is safe and allows the frontend to cache
+        # it in sessionStorage without any user action.
+        if token and (is_loopback or _should_expose_token_response()):
+            payload["token"] = token
+        response = _json_response(Result.Ok(payload))
+        _set_write_token_cookie(response, request, token)
+        await _audit_settings_write(
+            svc,
+            request,
+            "settings_bootstrap_token",
+            "settings:security_token",
+            Result.Ok({"token_hint": _token_hint(token)}),
+            action="bootstrap",
+            loopback=bool(is_loopback),
+            token_hint=_token_hint(token),
+        )
+        return response
+
+    @routes.get("/mjr/am/tools/status")
+    async def tools_status(request):
+        """
+        Get status of external tools (ExifTool, FFprobe).
+        Returns availability and version info.
+        """
+        status = get_tool_status()
+        return _json_response(Result.Ok(status))
+
+    @routes.get("/mjr/am/roots")
+    async def get_roots(request):
+        """
+        Get core roots and custom roots.
+        """
+        from mjr_am_backend.custom_roots import list_custom_roots
+
+        svc, error_result = await _require_services()
+        if error_result:
+            return _json_response(error_result)
+
+        try:
+            raw_input_dir = get_input_directory()
+            input_directory = str(Path(raw_input_dir).resolve(strict=False)) if raw_input_dir else ""
+        except Exception:
+            input_directory = ""
+
+        roots = {
+            "output_directory": await _runtime_output_root(svc),
+            "input_directory": input_directory,
+        }
+
+        custom = list_custom_roots()
+        if custom.ok:
+            roots["custom_roots"] = custom.data
+        else:
+            roots["custom_roots"] = []
+            roots["custom_roots_error"] = custom.error
+
+        return _json_response(Result.Ok(roots))

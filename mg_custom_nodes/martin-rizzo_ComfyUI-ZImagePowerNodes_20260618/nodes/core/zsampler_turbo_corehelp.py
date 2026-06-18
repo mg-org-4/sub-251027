@@ -14,34 +14,38 @@ import torch
 import torch.nn.functional as F
 from typing         import Callable, cast
 from torch          import Tensor
-from comfy.samplers import KSAMPLER, sampler_object
+from comfy.samplers import KSAMPLER, ksampler, sampler_object
 
 
-#==================== EULER Ancestral Spectral Sampler =====================#
+#================= Adjusted Spectral Distribution Sampler ==================#
 
-class EulerAss(KSAMPLER):
+class SpectralAdjustedSampler(KSAMPLER):
     """
-    Euler Ancestral Spectral Sampler
+    Wrapper class that intercepts the noise generation process of a base
+    sampler to apply custom spectral adjustments to the noise distribution.
 
-    This is Euler Ancestral but slightly modified so that the applied
-    noise has an adjusted spectral distribution.
+    This sampler modifies the noise by tilting its frequency spectrum based on
+    the current sigma level during the diffusion process, allowing control over
+    the image noise generation characteristics.
 
     Args:
         alpha_tilting:   Frequency tilt applied to the spectrum.
                          If a single value is provided, it represents a constant tilt.
                          If a tuple is given, it represents the start and end tilting
-                         values for a step-varying effect. Default is (0.1, -1.0).
+                         values for a step-varying effect.
         alpha_sharpness: Sharpness of the exponential alpha interpolation curve
-                         used when `alpha_tilting` is a tuple with two values.
-                         A value of 1.0 indicates linear interpolation. Default is 1.0.
-        sigma_range:     Optional tuple of two floats (sigma_start, sigma_end) for the
-                         sigma range used to calculate the alpha interpolation.
-                         Typically leaving this empty. Default is (0.9999, 0.0).
+                         used when `alpha_tilting` is a tuple. 1.0 represents linear.
+        sigma_range:     Tuple of (start, end) sigma values defining the range
+                         over which the interpolation occurs.
+        inner_sampler:   The base `KSAMPLER` instance to be wrapped, which will
+                         handle the core diffusion sampling steps.
     Notes:
-        This implementation is heavily inspired by the frequency-decoupled energy
-        transfer paradigm described in the paper "Colored Noise Diffusion Sampling".
-        However, it represents a standalone adaptation and is not an exact replication
-        of the full, dynamic timestep-dependent framework proposed in the original paper.
+        This implementation explores specific spectral manipulation inspired by
+        the energy transfer concepts found in "Colored Noise Diffusion Sampling".
+        While it utilizes the fundamental premise of frequency-domain noise
+        modulation, this is a custom implementation intended for experimentation
+        and does not strictly map to the algorithmic specifications or the
+        framework detailed in the source paper.
     References:
         Inspired by: Davidson H., Issachar N., & Benaim S. (2026). "Colored Noise Diffusion
         Sampling". arXiv preprint arXiv:2605.30332. https://arxiv.org/abs/2605.30332
@@ -49,30 +53,29 @@ class EulerAss(KSAMPLER):
     def __init__(self,
                  alpha_tilting  : tuple[float,float] | float = (0.1, -1.0),
                  alpha_sharpness: float                      = 1.0,
-                 sigma_range    : tuple[float,float]         = (0.9999, 0.0)
+                 sigma_range    : tuple[float,float]         = (0.9999, 0.0),
+                 *,
+                 inner_sampler  : KSAMPLER,
                  ):
-        # duplicate Euler Ancestral object but with a modified sampler
-        euler_ancestral = sampler_object("euler_ancestral")
-        super().__init__(sampler_function = (lambda *a,**kw: self._eulera_sampler_with_custom_noise(*a, **kw)),
-                         extra_options    = euler_ancestral.extra_options.copy(),
-                         inpaint_options  = euler_ancestral.inpaint_options.copy()
-                         )
-        self._euler_ancestral    = euler_ancestral
+        self._inner_sampler      = inner_sampler
         self._ea_alpha_tilting   = alpha_tilting
         self._ea_alpha_sharpness = alpha_sharpness
         self._ea_sigma_range     = sigma_range
+        super().__init__(sampler_function = (lambda *a,**kw: self._inner_sampler_with_custom_noise(*a, **kw)),
+                         extra_options    = inner_sampler.extra_options.copy(),
+                         inpaint_options  = inner_sampler.inpaint_options.copy()
+                         )
 
+    def _inner_sampler_with_custom_noise(self,
+                                         model : object,
+                                         noise : Tensor,
+                                         sigmas: Tensor,
+                                         *args,**kwargs,
+                                         ) -> Tensor:
+        """Execute the inner sampler but using a custom modified noise.
 
-    def _eulera_sampler_with_custom_noise(self,
-                                          model : object,
-                                          noise : Tensor,
-                                          sigmas: Tensor,
-                                          *args,**kwargs,
-                                          ) -> Tensor:
-        """Execute the Euler Ancestral sampler but with custom noise.
-
-        This method is registered by the class `__init__` and is invoked by ComfyUI
-        multiple times during the denoising process.
+        This method is registered by the class `__init__` and is invoked
+        by ComfyUI multiple times during the denoising process.
         """
         # get the base noise sampler provided by ComfyUI
         base_noise_sampler = kwargs.pop("noise_sampler", None)
@@ -82,11 +85,10 @@ class EulerAss(KSAMPLER):
         # get my custom noise sampler
         custom_noise_sampler = (lambda *a,**kw: self._custom_noise_sampler(base_noise_sampler, *a, **kw))
 
-        # use Euler Ancestral but with my custom noise sampler
-        return self._euler_ancestral.sampler_function(model, noise, sigmas, *args,
-                                                      noise_sampler = custom_noise_sampler,
-                                                      **kwargs)
-
+        # execute the inner sampler but with my custom noise sampler
+        return self._inner_sampler.sampler_function(model, noise, sigmas, *args,
+                                                    noise_sampler = custom_noise_sampler,
+                                                    **kwargs)
 
     def _custom_noise_sampler(self,
                               base_noise_sampler: Callable,
@@ -95,8 +97,8 @@ class EulerAss(KSAMPLER):
                               ) -> Tensor:
         """Generates noise with an adjusted spectral distribution.
 
-        This method is registered by `_eulera_sampler_with_custom_noise(...)` and
-        is invoked by ComfyUI multiple times during the denoising process.
+        This method is registered by `_inner_sampler_with_custom_noise(...)`
+        and is invoked by ComfyUI multiple times during the denoising process.
         Args:
             base_noise_sampler: The original function used by ComfyUI to generate noise.
             sigma             : The sigma value for which the noise should be spectrally adjusted.
@@ -118,79 +120,120 @@ class EulerAss(KSAMPLER):
 
         # use the base sampler to generate standard noise and then adjust its spectral distribution
         noise = base_noise_sampler(sigma, *args, **kwargs)
-        return self.adjust_spectral_distribution(noise, alpha=alpha, force_zero_mean=False)
+        return _adjust_spectral_distribution(noise, alpha=alpha, force_zero_mean=False)
 
 
-    @staticmethod
-    def adjust_spectral_distribution(noise: Tensor,
-                                     *,
-                                     alpha                : float,
-                                     power_gamma          : float = 0.5,
-                                     normalize_per_channel: bool  = False,
-                                     force_zero_mean      : bool  = False,
-                                     energy_scale         : float = 1.0,
-                                     eps                  : float = 1e-06,
-                                     ) -> Tensor:
-        """
-        Apply frequency-based scaling to a noise tensor, shaping its spectral power distribution.
-        Args:
-            noise                : The input tensor with the noise to adjust the spectral power distribution.
-                                   shape = [batch, channels, height, width]
-            alpha                : Scaling factor that dictates the decay of power across frequencies.
-            power_gamma          : Base exponent for frequency scaling. Default is 0.5.
-            normalize_per_channel: If False (default/recommended), normalize each sample/image as
-                                   a unit (Instance Normalization).
-                                   If True, normalizes each channel independently, keeping channels
-                                   independent (Channel Normalization). Default is False.
-            force_zero_mean      : If True, the function will subtract the mean of the noise tensor
-                                   before applying the spectral adjustments. Default is False.
-            energy_scale         : Scaling factor for the final energy. Default is 1.0.
-            eps                  : Small constant for numerical stability during division or clamping.
-        Returns:
-            A tensor with adjusted frequency characteristics.
-        """
-        device, dtype = noise.device, noise.dtype
-        B, C, H, W    = noise.shape
+#==================== EULER Ancestral Spectral Sampler =====================#
 
-        # define spatial normalization dimensions
-        norm_dims = (2, 3) if normalize_per_channel else (1, 2, 3)
+class EulerAss(SpectralAdjustedSampler):
+    """
+    Euler Ancestral Spectral Sampler.
 
-        # create 2D frequency grid (squared frequency magnitude)
-        u = torch.fft.fftfreq(H, device=device, dtype=dtype).view(H, 1)
-        v = torch.fft.fftfreq(W, device=device, dtype=dtype).view(1, W)
-        spectral_scale_grid = u**2 + v**2
+    A variant of the Euler Ancestral sampler that incorporates custom frequency
+    spectrum adjustments to the stochastic noise component during the diffusion
+    process.
 
-        # avoid division by zero in the DC component (frequency)
-        spectral_scale_grid[0, 0] = 1.0
+    Args:
+        alpha_tilting:   Frequency tilt applied to the spectrum.
+                         If a single value is provided, it represents a constant tilt.
+                         If a tuple is given, it represents the start and end tilting
+                         values for a step-varying effect. Default is (0.1, -1.0).
+        alpha_sharpness: Sharpness of the exponential alpha interpolation curve
+                         used when `alpha_tilting` is a tuple. 1.0 represents linear.
+                         Default is 1.0.
+        sigma_range:     Tuple of (start, end) sigma values defining the range
+                         over which the interpolation occurs. Default is (0.9999, 0.0).
+        eta:             The stochasticity factor (ancestral noise intensity).
+                         If `None`, the default value of the underlying sampler is used.
+        s_noise:         The noise scaling factor applied to the ancestral component.
+                         If `None`, the default value of the underlying sampler is used.
+    """
+    def __init__(self,
+                 alpha_tilting  : tuple[float,float] | float = (0.1, -1.0),
+                 alpha_sharpness: float                      = 1.0,
+                 sigma_range    : tuple[float,float]         = (0.9999, 0.0),
+                 *,
+                 eta    : float | None = None,
+                 s_noise: float | None = None,
+                 ):
+        eulera_options = {}
+        if eta     is not None: eulera_options["eta"]     = eta
+        if s_noise is not None: eulera_options["s_noise"] = s_noise
 
-        # calculate the filter magnitude
-        # [note: in 2d physics often use "(alpha+1.0)" to match 1D energy decay]
-        spectral_filter = spectral_scale_grid ** (power_gamma * alpha)
-
-        # optional spatial domain mean normalization
-        if force_zero_mean:
-            noise = noise - noise.mean(dim=norm_dims, keepdim=True)
-
-        # transform to frequency domain, filter, and return to spatial domain
-        noise_fft = torch.fft.fft2(noise, dim=(-2, -1))
-        noise_fft = noise_fft / spectral_filter  #< automatic broadcasting over [B, C, H, W]
-
-        # return to spatial domain (keep the real part)
-        filtered = torch.fft.ifft2(noise_fft, dim=(-2, -1)).real
-
-        # final intensity/energy normalization
-        std = filtered.std(dim=norm_dims, keepdim=True).clamp(min=eps)
-        return filtered * (energy_scale / std)
+        euler_ancestral = sampler_from_name("euler_ancestral", eulera_options)
+        super().__init__(alpha_tilting, alpha_sharpness, sigma_range, inner_sampler=euler_ancestral)
 
 
+#==================== DPM-Solver++ SDE Spectral Sampler ====================#
 
-def sampler_from_name(name: str) -> KSAMPLER:
-    if isinstance(name, str) and name == "euler_ass":
-        return EulerAss()
-    elif isinstance(name, str):
-        return sampler_object(name)
-    else:
+class DPMPP_SDEss(SpectralAdjustedSampler):
+    """
+    DPM-Solver++ SDE Spectral Sampler.
+
+    A variant of the DPM-Solver++ SDE sampler that incorporates custom frequency
+    spectrum adjustments to the stochastic noise component during the diffusion
+    process.
+
+    Args:
+        alpha_tilting:   Frequency tilt applied to the spectrum.
+                         If a single value is provided, it represents a constant tilt.
+                         If a tuple is given, it represents the start and end tilting
+                         values for a step-varying effect. Default is (0.1, -1.0).
+        alpha_sharpness: Sharpness of the exponential alpha interpolation curve
+                         used when `alpha_tilting` is a tuple. 1.0 represents linear.
+                         Default is 1.0.
+        sigma_range:     Tuple of (start, end) sigma values defining the range
+                         over which the interpolation occurs. Default is (0.9999, 0.0).
+        eta:             Stochasticity factor for the SDE sampler.
+        s_noise:         Additional noise scaling factor.
+        r:               Order parameter for the DPM-Solver++ algorithm.
+        noise_device:    The device to allocate the noise generation, defaults to 'cpu'.
+    """
+    def __init__(self,
+                 alpha_tilting  : tuple[float,float] | float = (0.1, -1.0),
+                 alpha_sharpness: float                      = 1.0,
+                 sigma_range    : tuple[float,float]         = (0.9999, 0.0),
+                 *,
+                 eta         : float | None = None,
+                 s_noise     : float | None = None,
+                 r           : float | None = None,
+                 noise_device: str = "cpu"
+                 ):
+        dpmpp_options = {}
+        if eta     is not None: dpmpp_options["eta"]     = eta
+        if s_noise is not None: dpmpp_options["s_noise"] = s_noise
+        if r       is not None: dpmpp_options["r"]       = r
+        if noise_device == 'cpu':
+            dpmpp_sde = sampler_from_name("dpmpp_sde", extra_options=dpmpp_options)
+        else:
+            dpmpp_sde = sampler_from_name("dpmpp_sde_gpu", extra_options=dpmpp_options)
+
+        super().__init__(alpha_tilting, alpha_sharpness, sigma_range, inner_sampler=dpmpp_sde)
+
+
+
+
+
+
+
+def sampler_from_name(name: str, extra_options={}) -> KSAMPLER:
+    if not isinstance(name,str):
         raise ValueError(f"Sampler name must be a string, not '{type(name)}'")
+
+    if name == "euler_ancestral":
+        return ksampler("euler_ancestral", extra_options=extra_options)
+
+    elif name == "dpmpp_sde":
+        return ksampler("dpmpp_sde", extra_options=extra_options)
+
+    elif name == "dpmpp_sde_gpu":
+        return ksampler("dpmpp_sde_gpu", extra_options=extra_options)
+
+    elif name == "euler_ass":
+        return EulerAss()
+
+    else:
+        return sampler_object(name)
 
 
 #============================ NOISE PROCESSING =============================#
@@ -333,6 +376,67 @@ def inject_freq_noise(x    : Tensor,
                               align_corners = False)
 
     return x
+
+
+def _adjust_spectral_distribution(noise: Tensor,
+                                  *,
+                                  alpha                : float,
+                                  power_gamma          : float = 0.5,
+                                  normalize_per_channel: bool  = False,
+                                  force_zero_mean      : bool  = False,
+                                  energy_scale         : float = 1.0,
+                                  eps                  : float = 1e-06,
+                                  ) -> Tensor:
+    """
+    Apply frequency-based scaling to a noise tensor, shaping its spectral power distribution.
+    Args:
+        noise                : The input tensor with the noise to adjust the spectral power distribution.
+                                shape = [batch, channels, height, width]
+        alpha                : Scaling factor that dictates the decay of power across frequencies.
+        power_gamma          : Base exponent for frequency scaling. Default is 0.5.
+        normalize_per_channel: If False (default/recommended), normalize each sample/image as
+                                a unit (Instance Normalization).
+                                If True, normalizes each channel independently, keeping channels
+                                independent (Channel Normalization). Default is False.
+        force_zero_mean      : If True, the function will subtract the mean of the noise tensor
+                                before applying the spectral adjustments. Default is False.
+        energy_scale         : Scaling factor for the final energy. Default is 1.0.
+        eps                  : Small constant for numerical stability during division or clamping.
+    Returns:
+        A tensor with adjusted frequency characteristics.
+    """
+    device, dtype = noise.device, noise.dtype
+    B, C, H, W    = noise.shape
+
+    # define spatial normalization dimensions
+    norm_dims = (2, 3) if normalize_per_channel else (1, 2, 3)
+
+    # create 2D frequency grid (squared frequency magnitude)
+    u = torch.fft.fftfreq(H, device=device, dtype=dtype).view(H, 1)
+    v = torch.fft.fftfreq(W, device=device, dtype=dtype).view(1, W)
+    spectral_scale_grid = u**2 + v**2
+
+    # avoid division by zero in the DC component (frequency)
+    spectral_scale_grid[0, 0] = 1.0
+
+    # calculate the filter magnitude
+    # [note: in 2d physics often use "(alpha+1.0)" to match 1D energy decay]
+    spectral_filter = spectral_scale_grid ** (power_gamma * alpha)
+
+    # optional spatial domain mean normalization
+    if force_zero_mean:
+        noise = noise - noise.mean(dim=norm_dims, keepdim=True)
+
+    # transform to frequency domain, filter, and return to spatial domain
+    noise_fft = torch.fft.fft2(noise, dim=(-2, -1))
+    noise_fft = noise_fft / spectral_filter  #< automatic broadcasting over [B, C, H, W]
+
+    # return to spatial domain (keep the real part)
+    filtered = torch.fft.ifft2(noise_fft, dim=(-2, -1)).real
+
+    # final intensity/energy normalization
+    std = filtered.std(dim=norm_dims, keepdim=True).clamp(min=eps)
+    return filtered * (energy_scale / std)
 
 
 #============================ SIGMA OPERATIONS =============================#

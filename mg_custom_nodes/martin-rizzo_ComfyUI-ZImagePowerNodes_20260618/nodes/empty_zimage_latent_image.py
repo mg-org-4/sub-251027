@@ -37,10 +37,6 @@ SCALES_BY_NAME = {
     "medium (recommended)" : 1.3,
     "large"                : 1.6,
 }
-ORIENTATION_LABELS = {
-    True : "horizontal",
-    False: "vertical"
-}
 
 DEFAULT_ASPECT_RATIO = "3:2  (photo)"
 DEFAULT_SCALE        = "medium (recommended)"
@@ -64,21 +60,25 @@ class EmptyZImageLatentImage(io.ComfyNode):
                 "Create a new batch of empty latent images to be used as a starting point for denoising with the Z-Image model."
             ),
             inputs=[
-                io.Boolean.Input("orientation",
-                                 default=False, label_on=ORIENTATION_LABELS[True], label_off=ORIENTATION_LABELS[False],
-                                 tooltip="Sets the orientation of the image. ",
+                io.Boolean.Input("horizontal",
+                                 default=False, label_on="yes", label_off="no",
+                                 tooltip="When enabled, the generated images will have a landscape orientation. "
+                                         "By default, the node produces portrait images prioritizing mobile use. ",
                                 ),
                 io.Combo.Input  ("ratio",
                                  default=DEFAULT_ASPECT_RATIO, options=cls.ratios(),
-                                 tooltip="The aspect ratio of the image.",
-                                ),
+                                 tooltip="The aspect ratio for the generated images. This affects the width-to-height "
+                                         "proportion of the image. ",
+                                 ),
                 io.Combo.Input  ("size",
                                  default=DEFAULT_SCALE, options=cls.sizes(),
-                                 tooltip="The relative size for the image.",
-                                ),
+                                 tooltip="The relative size of the generated images. Larger sizes can lead to more "
+                                         "detailed results but require more computational resources and may cause "
+                                         "hallucinations in some cases. ",
+                                  ),
                 io.Int.Input    ("batch_size",
                                  default=1, min=1, max=4096,
-                                 tooltip="The number of images to generate in a single batch.",
+                                 tooltip="The number of images to generate in a single processing batch.",
                                 ),
             ],
             outputs=[
@@ -88,16 +88,15 @@ class EmptyZImageLatentImage(io.ComfyNode):
 
     #__ FUNCTION __________________________________________
     @classmethod
-    def execute(cls, orientation: bool, ratio: str, size: str, batch_size: int) -> io.NodeOutput:
+    def execute(cls, horizontal: bool, ratio: str, size: str, batch_size: int) -> io.NodeOutput:
         GRID_SIZE         = 32
         LATENT_CHANNELS   = 16  #< z-image latent has 16 channels
         LATENT_BLOCK_SIZE =  8  #< 8x8 pixels per latent block
-        selected_orientation = ORIENTATION_LABELS[orientation]
 
         scale                         = SCALES_BY_NAME.get(size, 1.0)
         desired_width, desired_height = LANDSCAPE_SIZES_BY_ASPECT_RATIO.get(ratio, (1024, 1024))
         desired_width, desired_height = desired_width * scale, desired_height * scale
-        if selected_orientation == "vertical":
+        if not horizontal:
             desired_width, desired_height = desired_height, desired_width
 
         # fix image size to be divisible by the grid

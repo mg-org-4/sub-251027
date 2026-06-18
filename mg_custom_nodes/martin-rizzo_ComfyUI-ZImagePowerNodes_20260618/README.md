@@ -90,7 +90,7 @@ I've also included some smaller utility nodes to make things easier. There's a V
 
 ## Examples
 
-[__/workflows__](/workflows)  
+[__/workflows/release__](/workflows/release)  
 This folder contains reference workflows demonstrating the use of the Power Nodes across various tasks.
 These are simple yet powerful examples that serve as an excellent resource for understanding how to utilize
 each node.
@@ -158,7 +158,7 @@ The easiest way to install the nodes is through [ComfyUI-Manager](https://github
 
 ## Recommended Checkpoints
 
-The workflows in the [/workflows directory](/workflows) are preconfigured for these checkpoints. The BF16 version is the heaviest and is the one used by ComfyUI in their example workflows. Between FP8 and GGUF, I can tell you that FP8 is a bit faster since ComfyUI has native support for safetensors. However, generally speaking, GGUF offers better quality for its size, even though it's slower. If speed and native support weren't factors, I'd recommend GGUF without hesitation.
+The workflows in the [/workflows directory](/workflows/release) are preconfigured for these checkpoints. The BF16 version is the heaviest and is the one used by ComfyUI in their example workflows. Between FP8 and GGUF, I can tell you that FP8 is a bit faster since ComfyUI has native support for safetensors. However, generally speaking, GGUF offers better quality for its size, even though it's slower. If speed and native support weren't factors, I'd recommend GGUF without hesitation.
 
 Note: If you plan to use FP8 checkpoints other than the ones recommended here, be sure to test them carefully as most FP8 models I've tried give poor results due to naive truncation to FP8, which significantly reduces precision (instead of using scaling and mixing in higher-precision data types).
 

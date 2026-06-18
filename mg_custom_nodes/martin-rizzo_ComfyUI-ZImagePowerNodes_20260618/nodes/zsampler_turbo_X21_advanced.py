@@ -1,5 +1,5 @@
 """
-File    : zsampler_turbo_X21.py
+File    : zsampler_turbo_X21_advanced.py
 Purpose : Experimental version node for denoising latent images with "Z-Sampler Turbo" (second/third Gen).
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Jun 6, 2026
@@ -20,12 +20,12 @@ from comfy_api.latest              import io
 from .custom_widgets               import Separator
 from .core.progress_bar            import ProgressPreview
 from .core.zsampler_turbo_core     import zsampler_turbo_core
-from .core.zsampler_turbo_corehelp import EulerAss
+from .core.zsampler_turbo_corehelp import EulerAss, DPMPP_SDEss
 from .custom_widgets               import Separator
 
 
-class ZSamplerTurboX21(io.ComfyNode):
-    xTITLE         = "Z-Sampler Turbo ^G2.1"
+class ZSamplerTurboX21Advanced(io.ComfyNode):
+    xTITLE         = "Z-Sampler Turbo ^G2.1 (Advanced)"
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -87,7 +87,7 @@ class ZSamplerTurboX21(io.ComfyNode):
                                               "until it seems right to you. ",
                                      ),
 
-                Separator.Input("divider", mode="divider"),#=======================================
+                Separator.Input("divider1", mode="divider"),#======================================
 
                 io.Boolean.Input     ("turbo_creativity",
                                       default=False, label_on="yes", label_off="no",
@@ -95,24 +95,39 @@ class ZSamplerTurboX21(io.ComfyNode):
                                               "in compositions while maintaining the general style and tone color. "
                                               "Be aware that this may lead to hallucinations. ",
                                      ),
+                io.Boolean.Input     ("alternative_refiner",
+                                      default=False, label_on="yes", label_off="no",
+                                      tooltip="Enables an alternative refiner using the DPM++ SDE sampler during the "
+                                              "final stage. This enhances contrast and sharpness in fine details but "
+                                              "increases overall processing time. ",
+                                     ),
+                io.Boolean.Input     ("disable_ibias",
+                                      default=False, label_on="yes", label_off="no",
+                                      tooltip="Disables the custom adjustment for the intensity noise bias (ibias)."
+                                              "When this option is activated, the ibias parameter is ignored and not "
+                                              "calculated during the denoising process. ",
+                                     ),
                 io.Boolean.Input     ("old_scheduler",
                                       default=False, label_on="yes", label_off="no",
                                       tooltip="Enables the legacy scheduler with a different set of sigmas. Although "
                                               "the new scheduler is optimized for general quality, this old version "
                                               "may produce better results in specific cases. ",
                                      ),
+
+                Separator.Input("divider2", mode="divider"),#======================================
+
                 io.Combo.Input       ("spectral_tilt",
-                                      options=["no", "stage3", "stages23", "stages123"],
+                                      options=["no", "stage3", "stages23", "stages123", "stages12X"],
                                       tooltip=""
                                      ),
                 io.Float.Input       ("spectral_tilt_start",
                                       default=0.1, min=-10, max=10, step=0.1,
                                       ),
                 io.Float.Input       ("spectral_tilt_end",
-                                      default=-1.0, min=-10, max=10, step=0.1,
+                                      default=-3.0, min=-10, max=10, step=0.1,
                                      ),
                 io.Float.Input       ("spectral_tilt_sharpness",
-                                      default=1.0, min=0.0, max=10.0, step=0.1,
+                                      default=2.0, min=0.0, max=10.0, step=0.1,
                                      ),
                 # io.Boolean.Input     ("noise_injection",
                 #                       default=False, label_on="yes", label_off="no",
@@ -145,13 +160,14 @@ class ZSamplerTurboX21(io.ComfyNode):
                 steps                  : int,
                 ibias                  : float,
                 turbo_creativity       : bool,
+                alternative_refiner    : bool, 
                 old_scheduler          : bool,
+                disable_ibias          : bool,
                 spectral_tilt          : str,
                 spectral_tilt_start    : float,
                 spectral_tilt_end      : float,
                 spectral_tilt_sharpness: float,
-                noise_injection       : bool = False,
-                alternative_refiner   : bool = False,
+                noise_injection        : bool = False,
                 *,
                 positive_stg2 : list | None = None,
                 positive_stg3 : list | None = None,
@@ -200,17 +216,20 @@ class ZSamplerTurboX21(io.ComfyNode):
         #
         weak_stg2_prompt_influence = (positive_stg3 is None)
 
-        # set samplers for each stage
-        samplers: list[str|object] = [ "euler" , "euler", "euler" ]
+        # define samplers for each stage;
+        # when "Spectral Tilt" is enabled, a custom sampler is used (EulerAss)
         alpha_tilting = (spectral_tilt_start, spectral_tilt_end)
+        samplers: list[str|object] = [ "euler" , "euler", "euler" ]
         if "1" in spectral_tilt: samplers[0] = EulerAss(alpha_tilting, alpha_sharpness=spectral_tilt_sharpness)
         if "2" in spectral_tilt: samplers[1] = EulerAss(alpha_tilting, alpha_sharpness=spectral_tilt_sharpness)
         if "3" in spectral_tilt: samplers[2] = EulerAss(alpha_tilting, alpha_sharpness=spectral_tilt_sharpness)
 
-        # set "dpmpp_sde" as the stage3 sampler
+        # if alternative refiner is selected -> set "dpmpp_sde" as the sampler for stage 3;
+        # when "Spectral Tilt" is enabled, a custom sampler is used (DPMPP_SDEss)
         if alternative_refiner:
             samplers[2] = "dpmpp_sde"
-
+            if "3" in spectral_tilt:
+                samplers[2] = DPMPP_SDEss(alpha_tilting, alpha_sharpness=spectral_tilt_sharpness)
 
         # run the Z-Sampler Turbo core method on the latent image
         latent_output = zsampler_turbo_core(
@@ -219,7 +238,7 @@ class ZSamplerTurboX21(io.ComfyNode):
             positive,
             seed  = seed,
             steps = steps,
-            initial_noise_bias_level  = initial_noise_bias_level,
+            initial_noise_bias_level  = initial_noise_bias_level if not disable_ibias else 0,
             initial_noise_overdose    = initial_noise_overdose,
             noise_est_sample_size     = "full_size",
             sigma_preset_name         = "bravo" if not old_scheduler else "alpha",

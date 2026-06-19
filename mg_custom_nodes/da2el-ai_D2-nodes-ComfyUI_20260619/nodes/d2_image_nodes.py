@@ -652,6 +652,7 @@ class D2_EmptyImageAlpha(io.ComfyNode):
                 io.Int.Input("green", default=0, min=0, max=255, step=1),
                 io.Int.Input("blue", default=0, min=0, max=255, step=1),
                 io.Float.Input("alpha", default=1.0, min=0, max=1.0, step=0.001),
+                io.Boolean.Input("output_alpha", default=True, optional=True),
                 io.Custom("D2_COLOR_CANVAS").Input("sample", optional=True),
             ],
             outputs=[
@@ -660,10 +661,14 @@ class D2_EmptyImageAlpha(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, width, height, batch_size=1, red=0, green=0, blue=0, alpha=1.0, sample=None) -> io.NodeOutput:
+    def execute(cls, width, height, batch_size=1, red=0, green=0, blue=0, alpha=1.0, output_alpha=True, sample=None) -> io.NodeOutput:
         r = torch.full([batch_size, height, width, 1], red / 255.0)
         g = torch.full([batch_size, height, width, 1], green / 255.0)
         b = torch.full([batch_size, height, width, 1], blue / 255.0)
+        # output_alpha が False の時はαチャンネルを付与せず RGB(3ch) で出力する
+        # （RGB前提のノード = Anima ControlNet-LLLite 等にそのまま渡せる）
+        if output_alpha == False:
+            return io.NodeOutput(torch.cat((r, g, b), dim=-1))
         # アルファチャンネル追加
         a = torch.full([batch_size, height, width, 1], alpha)
         # RGBAを結合
@@ -909,6 +914,8 @@ class D2_CutByMask(io.ComfyNode):
         - mask_size: マスクのサイズ
         - image_size: 入力画像のサイズ（入力画像の位置を保持した状態で周囲が透明になる）
         - square_thumb: サムネイル用途。マスクエリアを中心に最大サイズの正方形を切り取る。padding, min_width/height は無視される
+    - round_to: 切り出す矩形の幅・高さを指定単位に切り上げる（none / 8px / 16px / 32px / 64px）
+        - cut_type が rectangle の時のみ有効。中心を保ったまま拡張し、元画像の外側には広げない
 
     input optional:
     - padding: マスクエリアを拡張するピクセル数（初期値 0）
@@ -933,6 +940,7 @@ class D2_CutByMask(io.ComfyNode):
                 io.Mask.Input("mask"),
                 io.Combo.Input("cut_type", options=["mask", "rectangle", "square_thumb"]),
                 io.Combo.Input("output_size", options=["mask_size", "image_size"]),
+                io.Combo.Input("round_to", options=["none", "8px", "16px", "32px", "64px"], optional=True),
                 io.Int.Input("padding", default=0, min=0, max=1000, optional=True),
                 io.Int.Input("min_width", default=0, min=0, max=10000, optional=True),
                 io.Int.Input("min_height", default=0, min=0, max=10000, optional=True),
@@ -946,7 +954,7 @@ class D2_CutByMask(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, images, mask, cut_type, output_size, padding=0, min_width=0, min_height=0, output_alpha=True) -> io.NodeOutput:
+    def execute(cls, images, mask, cut_type, output_size, round_to="none", padding=0, min_width=0, min_height=0, output_alpha=True) -> io.NodeOutput:
         # ComfyUIでの画像形状: [batch, height, width, channels]
         # マスク形状: [batch, height, width] または [height, width]
         
@@ -1005,6 +1013,12 @@ class D2_CutByMask(io.ComfyNode):
             center_y = (y_min_nz + y_max_nz) // 2
             # 矩形領域を検証
             rect = mask_util.validate_rectangle(rect, center_x, center_y, width, height, min_width, min_height)
+
+        # round_to 指定時、矩形サイズを指定単位に切り上げる（cut_type == "rectangle" のみ）
+        # mask / square_thumb では影響しない。元画像の外側には広げない
+        if cut_type == "rectangle" and round_to != "none":
+            multiple = int(round_to.replace("px", ""))
+            rect = mask_util.round_up_rect_to_multiple(rect, multiple, width, height)
 
         # 矩形領域を取得 (この部分は共通化)
         x_min, y_min, rect_width, rect_height = rect

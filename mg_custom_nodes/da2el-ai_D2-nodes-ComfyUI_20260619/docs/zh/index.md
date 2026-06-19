@@ -183,6 +183,16 @@
 
 ## :blossom: 更新日誌
 
+**2026.06.18**
+
+- `D2_QueueButton`：可通過拖放收納至畫面上方的動作列（actionbar）
+- `D2_QueueButton`：修正變更 Batch count 時會反映前一個值的問題
+
+**2026.06.15**
+
+- `D2_CutByMask`：新增 `round_to`，可將裁剪矩形向上取整到 8px 等單位
+- `D2_EmptyImageAlpha`：新增 `output_alpha`，可不附加 α 通道而以 RGB 輸出
+
 **2026.06.10**
 
 - `D2_PromptSanitizer`：新增 `remove_extra_comma`，用於整理多餘的逗號

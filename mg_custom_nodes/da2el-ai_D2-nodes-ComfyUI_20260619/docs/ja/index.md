@@ -184,6 +184,16 @@ D2 Nodes ComfyUI
 ## :blossom: Changelog
 
 
+**2026.06.18**
+
+- `D2_QueueButton`: 画面上部のアクションバーへドラッグ＆ドロップで収納できるように
+- `D2_QueueButton`: Batch count を変更すると1手前の値が反映される不具合を修正
+
+**2026.06.15**
+
+- `D2_CutByMask`: 切り出す短形を8px等の単位に切り上げる `round_to` を追加
+- `D2_EmptyImageAlpha`: αチャンネルを付与せず RGB 出力する `output_alpha` を追加
+
 **2026.06.10**
 
 - `D2_PromptSanitizer`: 余分なカンマを整理する `remove_extra_comma` を追加

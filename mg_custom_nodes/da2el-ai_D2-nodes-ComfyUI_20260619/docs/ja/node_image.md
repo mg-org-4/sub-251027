@@ -333,6 +333,8 @@ D:\ComfyUI\output\foo.png
 </figure>
 
 - EmptyImage にαチャンネル（透明度）を追加
+- `output_alpha` を `false` にするとαチャンネルを付与せず RGB（3ch）で出力する
+    - RGB を前提とするノード（Anima ControlNet-LLLite など）に渡せる
 
 
 ---
@@ -374,6 +376,10 @@ D:\ComfyUI\output\foo.png
 - `output_size`: 出力する画像サイズ
     - `mask_size`: マスクのサイズ
     - `image_size`: 入力画像のサイズ（入力画像の位置を保持した状態で周囲が透明になる）
+- `round_to`: 切り出す短形の幅・高さを指定単位に切り上げる（初期値 `none`）
+    - `none` / `8px` / `16px` / `32px` / `64px` から選択
+    - `cut_type` が `rectangle` の時のみ有効（`mask` / `square_thumb` では無視）
+    - 8px単位で生成するローカルモデルでエッジがボケるのを防ぐ用途。中心を保ったまま拡張し、元画像の外側には広げない
 - `padding`: マスクエリアを拡張するピクセル数（初期値 0）
 - `min_width`: マスクサイズの最小幅（初期値 0）
 - `min_height`: マスクサイズの最小高さ（初期値 0）

@@ -408,13 +408,13 @@ def _resolve_color_var(line        : str,
         if line[i].isdigit():
             # read compressed mode (only a number)
             format_idx = 1 #< equivalent to "C"
-            color_idx  = int(line[i]) ; i += 1
+            color_idx  = (int(line[i])-1) % 10 ; i += 1
         else:
             # read normal mode (letter+number)
             if i>=line_length or not line[i].isalpha(): break
             format_idx = FORMAT_MAP.get(line[i],999) ; i += 1
             if i>=line_length or not line[i].isdigit(): break
-            color_idx = int(line[i]) ; i += 1
+            color_idx  = (int(line[i])-1) % 10 ; i += 1
 
         if not resolved_color and color_idx < COLOR_IDX_LIMIT and format_idx < FORMAT_IDX_LIMIT:
             color = color_tuples[color_idx][format_idx]

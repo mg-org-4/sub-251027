@@ -131,17 +131,12 @@ class GalleryDialogDelegate {
      *
      * @param {Object|null} item - The data object representing the item, or `null` if no item is selected.
      * @param {string}      htmlClass   - CSS class to be applied to the img tag
-     * @param {string}      cacheBuster - A string to be appended to URLs to prevent image caching.
      * @returns {string}
      *    The HTML string representing the image element
      *    or an empty string if the item or thumbnail is missing.
      */
-    htmlItemImage(item, name, options, cacheBuster, htmlClass) {
-        if( !item?.thumbnail ) {
-            return "";
-        }
-        const imageURL = item.thumbnail + cacheBuster;
-        return `<img class="${htmlClass}" src="${imageURL}" loading="lazy" alt="${name | ""}"/>`;
+    htmlItemImage(_item, _value, _options, _htmlClass) {
+        throw new Error("Method 'htmlItemImage(..)' must be implemented by your subclass if your GalleryDialog is intended to show images.");
     }
 
     /**
@@ -152,12 +147,11 @@ class GalleryDialogDelegate {
      * the item's name as a header, the item's image, and its description.
      *
      * @param {Object|null} item - The data object representing the item, or `null` if no item is selected.
-     * @param {string}      cacheBuster - A string to be appended to URLs to prevent image caching.
      * @returns {string}
      *    The HTML string representing the content of the details panel.
      */
-    htmlItemDetailsPane(item, name, options, cacheBuster) {
-        const imageHTML = this.htmlItemImage(item, name, options, cacheBuster, 'zipn-image');
+    htmlItemDetailsPane(item, name, options) {
+        const imageHTML = this.htmlItemImage(item, name, options, 'zipn-image');
         return `
            <h1>${name || ""}</h1>
            ${imageHTML}
@@ -192,11 +186,11 @@ class _VariantsSubDialogDelegate extends GalleryDialogDelegate {
     getCategories() {
         return null;
     }
-    htmlItemImage(item, name, options, cacheBuster, htmlClass) {
-        return this.mainDelegate.htmlItemImage(item, name, options, cacheBuster, htmlClass);
+    htmlItemImage(item, name, options, htmlClass) {
+        return this.mainDelegate.htmlItemImage(item, name, options, htmlClass);
     }
-    htmlItemDetailsPane(item, name, options, cacheBuster) {
-        return this.mainDelegate.htmlItemDetailsPane(item, name, options, cacheBuster);
+    htmlItemDetailsPane(item, name, options) {
+        return this.mainDelegate.htmlItemDetailsPane(item, name, options);
     }
 }
 
@@ -464,7 +458,7 @@ class _GalleryDialog extends ComfyDialog {
             newCardEl.scrollIntoView(options);
         }
         // re-render details pane
-        _GalleryDialog.renderDetails(this.detailsPaneEL, detailsID, this.groupsByIDX || this.itemsByIDX, this.delegate, this.options, this.options.cache_buster);
+        _GalleryDialog.renderDetails(this.detailsPaneEL, detailsID, this.groupsByIDX || this.itemsByIDX, this.delegate, this.options);
     }
 
     /**
@@ -515,7 +509,7 @@ class _GalleryDialog extends ComfyDialog {
 
         // apply filters and re-render gallery
         this.resultItems = _GalleryDialog.filterItems( this.textFilter, this.categoryFilter, this.searchNameIndex );
-        _GalleryDialog.renderResults( this.searchResultsEl, this.getViewMode(), this.resultItems, this.delegate, this.initialCardIDX, this.options.cache_buster );
+        _GalleryDialog.renderResults( this.searchResultsEl, this.getViewMode(), this.resultItems, this.options, this.delegate, this.initialCardIDX);
 
         // disable focus if there are no results
         if( this.resultItems.length == 0 ) { this.resultIndex = null; }
@@ -540,19 +534,15 @@ class _GalleryDialog extends ComfyDialog {
      * @param {GalleryDialogDelegate} delegate      - The object responsible for rendering each item.
      * @param {string|null}           initialItemID - The ID of the initially selected item, which will receive
      *                                                 an additional CSS class ('initial') for highlighting.
-     * @param {string|null}           cacheBuster_  - A string used as a cache buster appended to each thumbnail
-     *                                                 image URL to ensure that the browser fetches the latest
-     *                                                 version of images.
      * @example
      * const items = [
      *   { idx: 0, name: 'Modern Look', thumbnail: '/images/modern.jpg' },
      *   { idx: 1, name: 'Retro Feel' , thumbnail: '/images/retro.jpg' }
      * ];
-     * renderResults(document.getElementById('gallery-container'), 'grid', items, delegate, 0, Date.now());
+     * renderResults(document.getElementById('gallery-container'), 'grid', items, this.options, delegate, 0);
      */
-    static renderResults(containerEl, viewMode, items, delegate, initialItemID = null, cacheBuster_ = null) {
+    static renderResults(containerEl, viewMode, items, dialogOptions, delegate, initialItemID = null) {
         const baseClass   = `zipn-${viewMode}`;
-        const cacheBuster = cacheBuster_ ? '&cache=' + cacheBuster_ : '';
         containerEl.className = baseClass;
 
         containerEl.innerHTML = items.map( itemOrGroup => {
@@ -560,7 +550,7 @@ class _GalleryDialog extends ComfyDialog {
             const name = itemOrGroup.displayName || itemOrGroup.name;
             const item = itemOrGroup.variants ? itemOrGroup.variants[0] : itemOrGroup;
             const extraClass = item.idx === initialItemID ? ' initial' : '';
-            const thumbnailHTML = delegate.htmlItemImage(item, name, this.options, cacheBuster, `zipn-thumb`);
+            const thumbnailHTML = delegate.htmlItemImage(item, name, dialogOptions, `zipn-thumb`);
             return `
                 <div class="${baseClass}-card${extraClass}" id="zipn-element-${idx}" data-id="${idx}">
                     ${thumbnailHTML}
@@ -570,16 +560,15 @@ class _GalleryDialog extends ComfyDialog {
         }).join('');
     }
 
-    static renderDetails(detailsPaneEl, itemID, itemsByID, delegate, dialogOptions, cacheBuster_ = null) {
-        const cacheBuster = cacheBuster_ ? '&cache=' + cacheBuster_ : '';
+    static renderDetails(detailsPaneEl, itemID, itemsByID, delegate, dialogOptions) {
         if( itemID == null ) {
-            detailsPaneEl.innerHTML = delegate.htmlItemDetailsPane(null, "", dialogOptions, cacheBuster);
+            detailsPaneEl.innerHTML = delegate.htmlItemDetailsPane(null, "", dialogOptions);
             return;
         }
         const itemOrGroup = itemsByID[ itemID ];
         const name        = itemOrGroup.displayName || itemOrGroup.name;
         const item        = itemOrGroup.variants ? itemOrGroup.variants[0] : itemOrGroup;
-        detailsPaneEl.innerHTML = delegate.htmlItemDetailsPane(item, name, dialogOptions, cacheBuster);
+        detailsPaneEl.innerHTML = delegate.htmlItemDetailsPane(item, name, dialogOptions);
     }
 
     /**
@@ -746,8 +735,6 @@ class _GalleryDialog extends ComfyDialog {
             this.subDialog.delegate.variants = item.variants;
             this.setVisibility(false);
             this.subDialog.launch({title: item.name, size:"small", view_mode:"list"}, item.variants[0].name, (selectedName, canceled) => {
-                console.log("##>> selectedName:", selectedName);
-                console.log("##>> canceled:", canceled);
                 if( canceled ) { this.setVisibility(true); return; }
                 this.onSelectItem?.(selectedName);
                 this.close();

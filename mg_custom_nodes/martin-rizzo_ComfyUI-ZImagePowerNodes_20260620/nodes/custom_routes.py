@@ -17,7 +17,6 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 import os
 import re
 from aiohttp                     import web
-from functools                   import cache
 from server                      import PromptServer
 from aiohttp                     import web
 from .core.style                 import StyleSet
@@ -48,7 +47,7 @@ def _styles_as_list(styles: StyleSet, add_none=False):
 
     # add "none" option if requested
     if add_none:
-        result.append(["none", "", "", "", "none.jpg"])
+        result.append(["none"])
 
     for style in styles:
         style_data : list[str] = [
@@ -56,7 +55,7 @@ def _styles_as_list(styles: StyleSet, add_none=False):
             style.category,              # 1: category
             style.description,           # 2: description
             style.comma_separated_tags,  # 3: tags (comma-separated)
-            f"{style.slug}.jpg",         # 4: thumbnail filename (e.g. "casual_photo.jpg")
+            style.slug,                  # 4: url-friendly slug (used for thumbnail filenames)
         ]
         result.append(style_data)
     return result

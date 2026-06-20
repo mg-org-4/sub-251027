@@ -53,7 +53,6 @@ function addStyleGalleryButton(node, name, data) {
             label    : `🖼️  ${buttonTitle} ...`,
             serialize: true,
             options  : {
-                version     : "1.0.0",
                 dialog_title: dialogTitle,
                 prev_index  : prevIndex,
                 ...options
@@ -72,14 +71,15 @@ function addStyleGalleryButton(node, name, data) {
         //     console.log("Alternative action with shift key pressed");
         //     return;
         // }
-        const options        = button.options;
-        const prevWidget     = button.node.widgets[options.prev_index];
-        const version        = options.version || "1.0";
-        const dialog_options = options.dialog || {};
+        const options       = button.options;
+        const prevWidget    = button.node.widgets[options.prev_index];
+        const endpoint      = options.endpoint   || "";
+        const imagesURL     = options.images_url || "";
+        const dialogOptions = options.dialog || {};
 
-        const styleDialog  = requireVisualStyleGalleryDialog(version);
+        const styleDialog  = requireVisualStyleGalleryDialog(endpoint, imagesURL);
         const currentStyle = prevWidget.value?.replace(/^"|"$/g, '');
-        styleDialog.launch( dialog_options, currentStyle, (selectedStyle) =>
+        styleDialog.launch( dialogOptions, currentStyle, (selectedStyle) =>
         {
             // ensure the selected style name is properly quoted
             if( selectedStyle!="" && selectedStyle!="-" && selectedStyle!="none" ) {

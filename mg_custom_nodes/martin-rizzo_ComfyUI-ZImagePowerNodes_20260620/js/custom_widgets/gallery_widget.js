@@ -25,6 +25,7 @@
  */
 export { GalleryWidget, GalleryWidgetDelegate };
 import { LiteGraph } from "../comfyui_bridge.js";
+const DEFAULT_CACHE_BUSTER = Math.floor(Date.now() / 3600000);
 
 
 //#========================= GalleryWidgetDelegate =========================#
@@ -257,8 +258,9 @@ class GalleryWidget {
 
         /** @type {Object} The configuration options passed to the widget */
         this.options = {
-            height          : 48,
+            height        : 48,
             allow_variants: false,
+            cache_buster  : DEFAULT_CACHE_BUSTER,
             ...options
         };
 

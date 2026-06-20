@@ -41,8 +41,7 @@ function init(self, categoryWidget, styleWidget) {
     self.selectedByCategory = {};
 
     // performs an asynchronous request to the server to get styles (version 0.9)
-    console.log("##>> fetching visual styles");
-    fetchVisualStyleArray("0.9").then( styles => {
+    fetchVisualStyleArray("/zi_power/styles/by_version?v=0.9").then( styles => {
         let stylesByCategory = {};
         for( let i=0 ; i<styles.length ; ++i ) {
             const name     = `"${styles[i].name}"`; //< quoted name

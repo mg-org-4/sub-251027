@@ -21,17 +21,17 @@ import { api } from "../../../scripts/api.js";
 import { GalleryDialog, GalleryDialogDelegate } from "./gallery_dialog.js";
 import { GalleryWidget, GalleryWidgetDelegate } from "./gallery_widget.js";
 
-// Cache of promises to avoid duplicate requests for the same color palette version.
-const _fetchPalettesCache = new Map();
+// Cache of promises to avoid duplicate requests for the same endpoint.
+const _fetchesByEndpoint = new Map();
 
-// Registry of dialogs for each color palette version.
-const _dialogRegistry = new Map();
+// Registry of dialogs for each color-palete database endpoint.
+const _dialogsByEndpoint = new Map();
 
 
 //#==========================================================================#
 //#                           FETCH COLOR PALETTES                           #
-//# FIRST generation of UI fetched the items directly using this function    #
-//# and loaded them into a native ComfyUI combo-box. Currently, the function #
+//# The FIRST generation of UI fetched items directly using this function    #
+//# and loaded them into a native ComfyUI combobox. Currently, this function #
 //# is internally invoked from GALLERY DIALOG and the GALLERY WIDGET.        #
 
 /**
@@ -40,9 +40,9 @@ const _dialogRegistry = new Map();
  * Note: The implementation looks a bit complex because of the caching system.
  * It uses an immediately-invoked function (IIFE) to cache the ongoing promise
  * right away, ensuring we don't trigger duplicate network requests for the
- * same version.
+ * same endpoint URL.
  *
- * @param {string} version - The version of the color palettes to fetch.
+ * @param {string} endpoint - The full endpoint URL to fetch the palettes from.
  * @returns {Promise<Array<Object>>}
  *     Resolves to the array of formatted color palettes.
  *     Each element in the array is an object with the following properties:
@@ -53,37 +53,32 @@ const _dialogRegistry = new Map();
  *       - colors     : Array of color objects, each containing a name and a hex code (Array<{name: string, hex: string}>)
  * @example
  *   // Using async/await
- *   const palettes = await fetchColorPaletteArray('1.0.0');
+ *   const palettes = await fetchColorPaletteArray('/zi_power/palettes/by_version?v=1.0');
  *   console.log(`Loaded ${palettes.length} palettes.`);
  * @example
  *   // Using promises (.then)
- *   fetchColorPaletteArray('1.0.0').then(palettes => {
+ *   fetchColorPaletteArray('/zi_power/styles/by_version?v=1.0').then(palettes => {
  *       console.log(`Loaded ${palettes.length} palettes.`);
  *   });
  */
-async function fetchColorPaletteArray(version)
+async function fetchColorPaletteArray(endpoint)
 {
-    if( typeof version !== 'string' || !version.trim() ) {
-        console.error(`Invalid version parameter: "${version}". Expected a non-empty string.`);
+    if( typeof endpoint !== 'string' || !endpoint.trim() ) {
+        console.error(`Invalid endpoint parameter: "${endpoint}". Expected a non-empty string.`);
         return [];
     }
 
-    // normalize version string to "x.y.z" format
-    const parts = version.split('.');
-    while( parts.length < 3 ) { parts.push('0'); }
-    version = parts.join('.');
-
-    // if the version already exists in cache,
-    // either the ongoing promise or resolved result
+    // if the endpoint already exists in the "fetch cache"
+    // (either the ongoing promise or resolved result),
     // RETURN IT!
-    if( _fetchPalettesCache.has(version) ) {
-        return _fetchPalettesCache.get(version);
+    if( _fetchesByEndpoint.has(endpoint) ) {
+        return _fetchesByEndpoint.get(endpoint);
     }
     // encapsulate the fetch process in a promise
     const fetchPromise = (async () => {
         try {
-            // fetch the palettes for the given version
-            const response = await api.fetchApi(`/zi_power/palettes/by_version?v=${encodeURIComponent(version)}`);
+            // fetch the palettes for the given endpoint
+            const response = await api.fetchApi(endpoint);
             if( !response.ok ) { throw new Error(`HTTP ${response.status}`); }
 
             // validate that the response is an actual array
@@ -111,30 +106,30 @@ async function fetchColorPaletteArray(version)
             });
 
         } catch (error) {
-            // if failed, delete the cache for this version to allow future retries
-            console.error(`Failed to fetch palettes for version ${version}: ${error.message}`);
-            _fetchPalettesCache.delete(version);
+            // if failed, delete the cache for this endpoint to allow future retries
+            console.error(`Failed to fetch palettes from "${endpoint}": ${error.message}`);
+            _fetchesByEndpoint.delete(endpoint);
             return [];
         }
     })();
 
     // store the promise in cache for future use
-    _fetchPalettesCache.set(version, fetchPromise);
+    _fetchesByEndpoint.set(endpoint, fetchPromise);
     return fetchPromise;
 }
 
 
 //#=========================================================================#
 //#                         PALETTE GALLERY DIALOG                          #
-//# SECOND generation of UI added a button within the node that launched a  #
+//# The SECOND generation of UI added a node button that launched a         #
 //# GALLERY DIALOG, which in turn modified a native combo-box in ComfyUI.   #
 //#                                                                         #
 
 class PaletteGalleryDialogDelegate extends GalleryDialogDelegate {
 
-    constructor(version) {
+    constructor(endpoint) {
         super();
-        this._version = version; //< the version of the palettes to fetch
+        this.endpoint = endpoint;
     }
 
     /**
@@ -149,7 +144,7 @@ class PaletteGalleryDialogDelegate extends GalleryDialogDelegate {
      *       - thumbnail  : URL for the item's thumbnail image (string)
      */
     async fetchItemArray() {
-        return fetchColorPaletteArray(this._version);
+        return fetchColorPaletteArray(this.endpoint);
     }
 
     /**
@@ -161,7 +156,7 @@ class PaletteGalleryDialogDelegate extends GalleryDialogDelegate {
      *    The HTML string representing the image element
      *    or an empty string if the item or thumbnail is missing.
      */
-    htmlItemImage(item, _value, _options, _cacheBuster, htmlClass) {
+    htmlItemImage(item, _value, _options, htmlClass) {
         if( !item ) { return ""; }
         const colorBars = item.colors.map(color => `
             <div style="
@@ -184,42 +179,42 @@ class PaletteGalleryDialogDelegate extends GalleryDialogDelegate {
 }
 
 /**
- * Returns a palette selection dialog containing the specified palette database version
- * @param {string} version - Version of the palette database to show (e.g., "1.0")
+ * Returns a palette selection dialog containing the palettes loaded from the specified endpoint.
+ * @param {string} endpoint - The full endpoint URL to fetch the palettes from.
  * @returns {GalleryDialog}
- *   The gallery dialog instance for the specified version
+ *   The gallery dialog instance for the specified endpoint
  * @example
- *   const paletteDialog  = requireColorPaletteGalleryDialog("1.2");
+ *   const paletteDialog  = requireColorPaletteGalleryDialog("/api/palettes/v1/list");
  *   const currentPalette = "Volcano";
  *   paletteDialog.launch({}, currentPalette, (selectedPalette) => {
  *       console.log("Selected Palette: " + selectedPalette);
  *   });
  */
-function requireColorPaletteGalleryDialog(version) {
+function requireColorPaletteGalleryDialog(endpoint) {
 
-    // check if a dialog is already registered for the specified version
-    const dialog = _dialogRegistry.get(version);
+    // check if a dialog is already registered for the specified endpoint
+    const dialog = _dialogsByEndpoint.get(endpoint);
     if( dialog ) { return dialog; }
 
-    // if no dialog exists for this version, create a new one
-    const newDelegate = new PaletteGalleryDialogDelegate(version);
+    // if no dialog exists for this endpoint, create a new one
+    const newDelegate = new PaletteGalleryDialogDelegate(endpoint);
     const newDialog   = new GalleryDialog(newDelegate);
-    _dialogRegistry.set(version, newDialog);
+    _dialogsByEndpoint.set(endpoint, newDialog);
     return newDialog;
 }
 
 
 //#=========================================================================#
 //#                         PALETTE GALLERY WIDGET                          #
-//# THIRD generation of UI uses GALLERY WIDGET to launch the GALLERY DIALOG,#
-//# these gallery widgets are customized by 'delegate' objects.             #
+//#   The THIRD generation of UI uses a "GALLERY WIDGET" to launch a        #
+//#   "GALLERY DIALOG", both of them customized by 'delegate' objects.      #
 //#                                                                         #
 
 class PaletteWidgetDelegate extends GalleryWidgetDelegate {
 
-    constructor(version) {
+    constructor(endpoint) {
         super();
-        this.version = version; //< the version of the palettes to fetch
+        this.endpoint = endpoint;
     }
 
     /**
@@ -234,7 +229,7 @@ class PaletteWidgetDelegate extends GalleryWidgetDelegate {
      *       - thumbnail  : URL for the item's thumbnail image (string)
      */
     async fetchItemArray() {
-        return fetchColorPaletteArray(this.version);
+        return fetchColorPaletteArray(this.endpoint);
     }
 
     getItemText(item) {
@@ -276,12 +271,12 @@ class PaletteWidgetDelegate extends GalleryWidgetDelegate {
 function addColorPaletteGalleryWidget(node, name, data) {
     const type           = data[0];
     const options        = data[1] || {};
-    const version        = options.version || '1.0';
+    const endpoint       = options.endpoint || "";
     const dialog_options = options.dialog || {};
-    let   widget  = new GalleryWidget(type, node, name, options, new PaletteWidgetDelegate(version), (widget) =>
+    let widget = new GalleryWidget(type, node, name, options, new PaletteWidgetDelegate(endpoint), (widget) =>
     {
         // launch dialog and update widget value
-        const paletteDialog  = requireColorPaletteGalleryDialog(version);
+        const paletteDialog  = requireColorPaletteGalleryDialog(endpoint);
         const currentPalette = widget.value;
         paletteDialog.launch( dialog_options, currentPalette, (selectedPalette) => {
             widget.forceUpdate( selectedPalette );

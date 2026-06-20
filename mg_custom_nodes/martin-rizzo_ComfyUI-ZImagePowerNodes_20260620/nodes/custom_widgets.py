@@ -19,6 +19,12 @@ from comfy_api.latest import io
 _ALLOWED_DIALOG_SIZES      = ("small", "default")
 _ALLOWED_DIALOG_VIEW_MODES = ("grid", "list")
 
+def _get_styles_endpoint(version: str) -> str:
+    return f"/zi_power/styles/by_version?v={version}"
+
+def _get_palettes_endpoint(version: str) -> str:
+    return f"/zi_power/palettes/by_version?v={version}"
+
 
 #========================= PALETTE SELECTOR WIDGET =========================#
 
@@ -31,6 +37,7 @@ class PaletteSelector:
         def __init__(self,
                      id              : str, *,
                      version         : str  | None = None,
+                     endpoint        : str  | None = None,
                      height          : int  | None = None,
                      dialog_title    : str  | None = None,
                      dialog_icon     : str  | None = None,
@@ -43,22 +50,26 @@ class PaletteSelector:
             <hr>A color palette selector widget.
 
             Args:
-                id (str):                A unique identifier for the input component.
-                version (str):           The version of the palette database to load (e.g., "1.0").
-                height (int):            The height of the widget in pixels.
-                dialog_title (str):      The title of the dialog window displayed for palette selection.
-                dialog_icon (str):       The icon to display as a prefix of the dialog title.
-                                         * For PrimeIcons   : Use "pi.[icon name]" e.g., "pi.pi-image"; (see https://primevue.org/icons/#list)
-                                         * For Pictogrammers: Use "mdi.[icon name]" e.g., "mdi.mdi-image"; (see https://pictogrammers.com/library/mdi)
-                                         * An empty string removes the icon from the title
-                dialog_size (str):       The size of the dialog window. Supported values: "small" or "default".
-                dialog_view_mode (str):  The view mode for the dialog window. Supported values: "grid" or "list".
-                                         If provided, the user cannot change the view mode.
-                allow_variants (bool): If True, the widget treats "//" as a separator in palette names.
-                                         The left part is considered the primary name, and the right part
-                                         is considered its variation.
-                tooltip (str):           A tooltip description for the widget.
+                id (str):               A unique identifier for the input component.
+                version (str):          The version of the palette database to load (e.g., "1.0").
+                endpoint (str):         The endpoint to use for loading the palette database.
+                                        (if specified then `version` will not be taken into account.)
+                height (int):           The height of the widget in pixels.
+                dialog_title (str):     The title of the dialog window displayed for palette selection.
+                dialog_icon (str):      The icon to display as a prefix of the dialog title.
+                                        * For PrimeIcons   : Use "pi.[icon name]" e.g., "pi.pi-image"; (see https://primevue.org/icons/#list)
+                                        * For Pictogrammers: Use "mdi.[icon name]" e.g., "mdi.mdi-image"; (see https://pictogrammers.com/library/mdi)
+                                        * An empty string removes the icon from the title
+                dialog_size (str):      The size of the dialog window. Supported values: "small" or "default".
+                dialog_view_mode (str): The view mode for the dialog window. Supported values: "grid" or "list".
+                                        If provided, the user cannot change the view mode.
+                allow_variants (bool):  If True, the widget treats "//" as a separator in palette names.
+                                        The left part is considered the primary name, and the right part
+                                        is considered its variation.
+                tooltip (str):          A tooltip description for the widget.
             """
+            if not version and not endpoint:
+                raise ValueError("Either version or endpoint must be specified.")
             if not dialog_title:
                 dialog_title = "Select Palette"
 
@@ -67,8 +78,13 @@ class PaletteSelector:
             }
 
             if version is not None:
-                extra_dict["version"]           = version
-                extra_dict["dialog"]["version"] = version
+                default_endpoint = _get_palettes_endpoint(version)
+                extra_dict["endpoint"]           = default_endpoint
+                extra_dict["dialog"]["endpoint"] = default_endpoint
+
+            if endpoint is not None:
+                extra_dict["endpoint"]           = endpoint
+                extra_dict["dialog"]["endpoint"] = endpoint
 
             if height is not None:
                 extra_dict["height"] = height
@@ -113,30 +129,39 @@ class StyleSelector:
         def __init__(self,
                      id              : str, *,
                      version         : str  | None = None,
+                     endpoint        : str  | None = None,
+                     images_url      : str  | None = None,
                      height          : int  | None = None,
                      dialog_title    : str  | None = None,
                      dialog_icon     : str  | None = None,
                      dialog_size     : str  | None = None,
                      dialog_view_mode: str  | None = None,
-                     allow_variants: bool | None = None,
+                     allow_variants  : bool | None = None,
                      tooltip         : str  | None = None,
                      ):
             """
             <hr>A visual style selector widget.
 
             Args:
-                id (str):                A unique identifier for the input component.
-                version (str):           The version of the style database to load (e.g., "1.0").
-                height (int):            The height of the widget in pixels.
-                dialog_title (str):      The title of the dialog window displayed for style selection.
-                dialog_size (str):       The size of the dialog window. Supported values: "small" or "default".
-                dialog_view_mode (str):  The view mode for the dialog window. Supported values: "grid" or "list".
-                                         If provided, the user cannot change the view mode.
-                allow_variants (bool): If True, the widget treats "//" as a separator in style names.
-                                         The left part is considered the primary name, and the right part
-                                         is considered its variation.
-                tooltip (str):           A tooltip description for the widget.
+                id (str):               A unique identifier for the input component.
+                version (str):          The version of the style database to load (e.g., "1.0").
+                endpoint (str):         The endpoint to use for loading the style database.
+                                        (if specified then `version` will not be taken into account.)
+                images_url (str):       The template for building the URL of each style preview image.
+                height (int):           The height of the widget in pixels.
+                dialog_title (str):     The title of the dialog window displayed for style selection.
+                dialog_size (str):      The size of the dialog window. Supported values: "small" or "default".
+                dialog_view_mode (str): The view mode for the dialog window. Supported values: "grid" or "list".
+                                        (if provided, the user cannot change the view mode.)
+                allow_variants (bool):  If True, the widget treats "//" as a separator in style names.
+                                        The left part is considered the primary name, and the right part
+                                        is considered its variation.
+                tooltip (str):          A tooltip description for the widget.
             """
+            if not version and not endpoint:
+                raise ValueError("Either `version` or `endpoint` must be specified.")
+            if not images_url:
+                raise ValueError("The `images_url` parameter must be specified.")
             if not dialog_title:
                 dialog_title = "Select Style"
 
@@ -145,8 +170,16 @@ class StyleSelector:
             }
 
             if version is not None:
-                extra_dict["version"] = version
-                extra_dict["dialog"]["version"] = version
+                default_endpoint = _get_styles_endpoint(version)
+                extra_dict["endpoint"]           = default_endpoint
+                extra_dict["dialog"]["endpoint"] = default_endpoint
+
+            if endpoint is not None:
+                extra_dict["endpoint"]           = endpoint
+                extra_dict["dialog"]["endpoint"] = endpoint
+
+            if images_url is not None:
+                extra_dict["images_url"] = images_url
 
             if height is not None:
                 extra_dict["height"] = height
@@ -247,11 +280,12 @@ class StyleGalleryButton:
         def __init__(self,
                      id              : str,
                      version         : str  | None = None,
+                     endpoint        : str  | None = None,
                      dialog_title    : str  | None = None,
                      dialog_icon     : str  | None = None,
                      dialog_size     : str  | None = None,
                      dialog_view_mode: str  | None = None,
-                     allow_variants: bool | None = None,
+                     allow_variants  : bool | None = None,
                      tooltip         : str  | None = None,
                      ):
             """
@@ -262,18 +296,39 @@ class StyleGalleryButton:
 
             Args:
                 id (str):                A unique identifier for the input component.
-                version (str, optional): The version of the visual styles to display in the
-                                         style gallery. This parameter can be used for backwards
-                                         compatibility with older versions of the styles. If not
-                                         provided, the latest version will be used.
+                version (str):           The version of the style database to load (e.g., "1.0").
+                endpoint (str):          The endpoint to use for loading the style database.
+                                         (if specified then `version` will not be taken into account.)
+                dialog_title (str):      The title of the dialog window displayed for style selection.
+                dialog_icon (str):       The icon to display as a prefix of the dialog title.
+                                         * For PrimeIcons   : Use "pi.[icon name]" e.g., "pi.pi-image"; (see https://primevue.org/icons/#list)
+                                         * For Pictogrammers: Use "mdi.[icon name]" e.g., "mdi.mdi-image"; (see https://pictogrammers.com/library/mdi)
+                                         * An empty string removes the icon from the title
+                dialog_size (str):       The size of the dialog window. Supported values: "small" or "default".
+                dialog_view_mode (str):  The view mode for the dialog window. Supported values: "grid" or "list".
+                                         (if provided, the user cannot change the view mode.)
+                allow_variants (bool):   If True, the widget treats "//" as a separator in style names.
+                                         The left part is considered the primary name, and the right part
+                                         is considered its variation.
+                tooltip (str):           A tooltip description for the widget.
             """
+            if not version and not endpoint:
+                raise ValueError("Either version or endpoint must be specified.")
+
             extra_dict: dict[str,Any] = {
-                "title": "Select Style",
-                "dialog": {},
+                "title"     : "Select Style",
+                "dialog"    : {},
+                "images_url": "/zi_power/styles/samples?file={slug}.jpg&cb={cachebuster}"
             }
 
             if version is not None:
-                extra_dict["version"] = version
+                version_endpoint = _get_styles_endpoint(version)
+                extra_dict["endpoint"] = version_endpoint
+                extra_dict["dialog"]["endpoint"] = version_endpoint
+
+            if endpoint is not None:
+                extra_dict["endpoint"] = endpoint
+                extra_dict["dialog"]["endpoint"] = endpoint
 
             if dialog_title is not None:
                 extra_dict["title"] = dialog_title

@@ -1,5 +1,0 @@
-python-dotenv
-brotli
-zstd
-librosa
-imageio

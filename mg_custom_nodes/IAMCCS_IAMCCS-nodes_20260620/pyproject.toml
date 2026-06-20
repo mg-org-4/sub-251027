@@ -1,0 +1,14 @@
+[project]
+name = "iamccs-wan-lora-fixer-stack"
+version = "1.4.9"
+description = "IAMCCS nodes for ComfyUI: multi-LoRA stack + MODEL IO WAN/Flow remap + LTX-2 LoRA/tools + LTX-2 Extension Module + AutoLink Set/Get + Converter (frontend) + Frame Designer V2."
+license = { text = "MIT" }
+authors = [
+  { name = "Carmine Cristallo Scalzi (IAMCCS)", email = "info@carminecristalloscalzi.com" }
+]
+
+[tool.comfy]
+publisher_id = "iamccs"
+display_name = "IAMCCS WAN LoRA Fixer Stack"
+icon = "icon.png"
+requires_comfyui = ">=3.0.0"

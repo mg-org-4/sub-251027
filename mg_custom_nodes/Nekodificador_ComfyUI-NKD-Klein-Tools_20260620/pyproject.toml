@@ -1,0 +1,22 @@
+[build-system]
+requires = ["flit_core>=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "comfyui-nkd-klein-tools"
+version = "1.9.3"
+description = "NKD Klein Presampling and Postsampling nodes for Flux Klein workflows in ComfyUI"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = []
+classifiers = [
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Repository = "https://github.com/Nekodificador/ComfyUI-NKD-Klein-Tools"
+
+[tool.comfy]
+PublisherId = "nekodificador"
+DisplayName = "NKD Klein Tools"

@@ -1,4 +1,4 @@
-"""
+﻿"""
 XB-ToolBox ROCm 优化节点 (v5.0)
 ================================
 8 个节点，专为 AMD ROCm GPU 设计，零外部依赖。
@@ -221,47 +221,6 @@ def _vae_force_fp32() -> bool:
     return not g.get("fp16_ok", False)
 
 
-def _vae_safe_cast(tensor: torch.Tensor) -> torch.Tensor:
-    """老架构 GPU 上，将 fp16/bf16 输入转为 fp32 保护 MIOpen 卷积。
-    FLUX/SD3/WanVideo 等新模型默认输出 bf16，老卡对 bf16 的排斥比 fp16 更剧烈。"""
-    if tensor.dtype in (torch.float16, torch.bfloat16) and _vae_force_fp32():
-        return tensor.float()
-    return tensor
-
-
-def _vae_align_dtype(vae, tensor: torch.Tensor):
-    """旧架构上强制 VAE 模型权重精度对齐输入张量。
-    兼容旧式 VAE (first_stage_model.dtype) 和新式 AutoencodingEngine (无 .dtype)。
-    返回原始 dtype 供 _vae_restore_dtype 恢复，无需恢复时返回 None。"""
-    if not _vae_force_fp32() or not hasattr(vae, 'first_stage_model'):
-        return None
-    model = vae.first_stage_model
-    try:
-        model_dtype = model.dtype
-    except AttributeError:
-        # AutoencodingEngine 等新式 VAE 没有 .dtype，从参数推断
-        try:
-            model_dtype = next(model.parameters()).dtype
-        except (StopIteration, AttributeError):
-            return None
-    if model_dtype != tensor.dtype:
-        try:
-            model.to(tensor.dtype)
-        except Exception:
-            return None
-        return model_dtype
-    return None
-
-
-def _vae_restore_dtype(vae, orig_dtype):
-    """恢复 VAE 模型权重到原始精度。"""
-    if orig_dtype is not None and hasattr(vae, 'first_stage_model'):
-        try:
-            vae.first_stage_model.to(orig_dtype)
-        except Exception:
-            pass
-
-
 def _get_spatial_compression(vae) -> int:
     """获取 VAE 空间压缩比，兼容多种属性名和 ComfyUI 原生接口。
     优先级: spatial_compression_decode (正确拼写)
@@ -463,7 +422,7 @@ class XB_ROCmVAEDecode:
         return {"required": {
             "samples": ("LATENT",),
             "vae": ("VAE",),
-            "tile": ("INT", {"default": 0, "min": 0, "max": 2048, "step": 64,
+            "tile": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 64,
                              "tooltip": "0=根据GPU架构自动选择 手动可覆盖"}),
             "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16,
                                 "tooltip": "0=自动(tile/8)"}),
@@ -477,17 +436,9 @@ class XB_ROCmVAEDecode:
         g = gpu_info(); tune()
         lat = samples["samples"]
 
-        # 嵌套张量不做 unbind：官方 decode_tiled 内部原生处理 NestedTensor
-        # （官方 VAEDecodeTiled 也不做 unbind，直接透传）
-
-        # 🛡️ 强制显存连续性校验 (嵌套张量跳过，由其内部各子张量自行处理)
+        # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
         if not lat.is_nested and not lat.is_contiguous():
             lat = lat.contiguous()
-
-        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
-        lat = _vae_safe_cast(lat)
-        # 🛡️ VAE 模型权重对齐输入精度
-        _orig_dtype = _vae_align_dtype(vae, lat)
 
         if tile == 0: tile = g["tile"]
 
@@ -500,18 +451,22 @@ class XB_ROCmVAEDecode:
         else:
             overlap_xy = overlap // spatial_comp
 
-        # 官方防线：防止重叠区超过分块（潜空间校验，对齐 VAEDecodeTiled）
         if tile_x < overlap_xy * 4:
             overlap_xy = tile_x // 4
 
+        lat_h, lat_w = lat.shape[-2], lat.shape[-1]
+        use_fast = (tile_x >= lat_h and tile_y >= lat_w)
+
         _do_cleanup("pre", cleanup)
         try:
-            img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
+            if use_fast:
+                img = vae.decode(lat)
+            else:
+                img = vae.decode_tiled(lat, tile_x=tile_x, tile_y=tile_y, overlap=overlap_xy)
         except AttributeError:
             print(f"  ⚠️ ROCm VAE Decode: tiled not available, fallback to standard")
             img = vae.decode(lat)
         finally:
-            _vae_restore_dtype(vae, _orig_dtype)
             _do_cleanup("post", cleanup)
         if img.dim() == 5:
             img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])
@@ -531,7 +486,7 @@ class XB_ROCmVAEEncode:
         return {"required": {
             "pixels": ("IMAGE",),
             "vae": ("VAE",),
-            "tile": ("INT", {"default": 0, "min": 0, "max": 2048, "step": 64,
+            "tile": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 64,
                              "tooltip": "0=自动"}),
             "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16,
                                 "tooltip": "0=自动"}),
@@ -551,11 +506,6 @@ class XB_ROCmVAEEncode:
         # 🛡️ 强制显存连续性校验
         if not pixels.is_contiguous():
             pixels = pixels.contiguous()
-
-        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
-        pixels = _vae_safe_cast(pixels)
-        # 🛡️ VAE 模型权重对齐输入精度
-        _orig_dtype = _vae_align_dtype(vae, pixels)
 
         if tile == 0: tile = g["tile"]
         if overlap == 0: overlap = max(32, tile // 8)
@@ -587,7 +537,6 @@ class XB_ROCmVAEEncode:
             print(f"  ⚠️ ROCm VAE Encode: tiled not available, fallback to standard")
             lat = vae.encode(pixels)
         finally:
-            _vae_restore_dtype(vae, _orig_dtype)
             _do_cleanup("post", cleanup)
         return ({"samples": lat},)
 
@@ -606,7 +555,7 @@ class XB_ROCmVAEDecodeTemporal:
         return {"required": {
             "samples": ("LATENT",),
             "vae": ("VAE",),
-            "tile": ("INT", {"default": 0, "min": 0, "max": 2048, "step": 64,
+            "tile": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 64,
                              "tooltip": "空间分块 0=自动"}),
             "overlap": ("INT", {"default": 0, "min": 0, "max": 256, "step": 16,
                                 "tooltip": "空间重叠 0=自动(tile/8, 最小32)"}),
@@ -629,11 +578,6 @@ class XB_ROCmVAEDecodeTemporal:
         # 🛡️ 强制显存连续性校验 (嵌套张量跳过)
         if not lat.is_nested and not lat.is_contiguous():
             lat = lat.contiguous()
-
-        # 🛡️ 老架构 GPU 强制 VAE 输入转 fp32
-        lat = _vae_safe_cast(lat)
-        # 🛡️ VAE 模型权重对齐输入精度
-        _orig_dtype = _vae_align_dtype(vae, lat)
 
         if lat.dim() == 5:
             B, C, F, H, W = lat.shape; is_vid = True
@@ -686,7 +630,6 @@ class XB_ROCmVAEDecodeTemporal:
             print(f"  ⚠️ ROCm VAE Temporal: decode_tiled not available, fallback to standard")
             img = vae.decode(lat)
         finally:
-            _vae_restore_dtype(vae, _orig_dtype)
             _do_cleanup("post", cleanup)
         if img.dim() == 5:
             img = img.reshape(-1, img.shape[-3], img.shape[-2], img.shape[-1])

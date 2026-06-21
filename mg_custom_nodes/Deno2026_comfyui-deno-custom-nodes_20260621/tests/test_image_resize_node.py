@@ -312,6 +312,26 @@ def test_deno_node_help_update_state_has_badge():
     assert "handleOutsideHelpPointerDown" in script
     assert "handleOutsideHelpWheel" in script
     assert 'document.addEventListener("wheel", handleOutsideHelpWheel, true)' in script
+    assert "TIP_BUTTON_CLASS" in script
+    assert "deno-node-tip-button" in script
+    assert "LOCAL_LLM_CHAIN_TIP" in script
+    assert "DenoLocalLLMRefiner" in script
+    assert "Tip: Using LLM nodes in a chain" in script
+    assert "[LLM 1: Generate JSON prompt]" in script
+    assert "      ↓" in script
+    assert "Model After Run: Keep loaded" in script
+    assert "[Last LLM: Final cleanup]" in script
+    assert "Model After Run: Unload after run" in script
+    assert "isCanvasTipButtonHit" in script
+    assert "openCanvasTipPopup" in script
+    assert "openDomTipPopup" in script
+    assert "const tipPopupState = popupState.get(`${nodeKey}:tip`)" in script
+    tip_draw = script.split("function drawCanvasTipButton", 1)[1].split("function patchCanvasHelpButton", 1)[0]
+    assert "ctx.save();" in tip_draw
+    assert "ctx.restore();" in tip_draw
+    assert 'event.key === "Escape"' in script
+    assert "getNodeTip(node)" in script
+    assert "helpButton.before(tipButton)" in script
     assert 'style.cursor = "pointer"' in script
     assert "showStatusTooltip" not in script
     assert "deno-node-help-status-tip" not in script
@@ -415,7 +435,7 @@ def test_preview_nodes_preserve_user_resized_node_size():
 def test_ideogram_director_compute_size_guard_allows_user_shrink():
     script = (REPO_ROOT / "web" / "js" / "deno_ideogram_director.js").read_text(encoding="utf-8")
 
-    assert 'IDD_REV = "r2026.06.20-copy-rail-a"' in script
+    assert 'IDD_REV = "r2026.06.21-canvas-hotfix-a"' in script
     assert "let iddUserResizing = false;" in script
     assert "const preserveCurrent = !iddUserResizing;" in script
     assert "preserveCurrent ? iddSizeValue(current, 0) : 0" in script

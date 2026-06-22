@@ -154,6 +154,9 @@ app.registerExtension({
                 
                 if ((this.flags && this.flags.collapsed) || (!this.rs_img1 && !this.rs_img2)) return r;
                 
+                // Сохраняем состояние Canvas, чтобы не сломать нативную отрисовку LiteGraph
+                ctx.save();
+                
                 const getVal = (name, def) => {
                     const w = this.widgets?.find(w => w.name === name);
                     return w !== undefined ? w.value : def;
@@ -218,15 +221,15 @@ app.registerExtension({
                 ];
                 
                 const buttonWidth = w;
-                const sliderWidth = buttonWidth - LABEL_WIDTH - INFO_WIDTH - RESET_WIDTH - 5 * INNER_PADDING;
+                const sliderWidth = buttonWidth - LABEL_WIDTH - INFO_WIDTH - RESET_WIDTH - 6 * INNER_PADDING;
                 
                 widgets.forEach((widget, i) => {
                     const rowY = widgetsY + i * (ROW_HEIGHT + ROW_GAP);
                     
                     const labelX = padding + INNER_PADDING;
-                    const infoX = labelX + LABEL_WIDTH + INNER_PADDING;
-                    const sliderX = infoX + INFO_WIDTH + INNER_PADDING;
-                    const resetX = sliderX + sliderWidth + INNER_PADDING;
+                    const sliderX = labelX + LABEL_WIDTH + INNER_PADDING * 2;
+                    const infoX = sliderX + sliderWidth + INNER_PADDING;
+                    const resetX = infoX + INFO_WIDTH + INNER_PADDING;
                     
                     drawRoundedRect(ctx, padding, rowY, buttonWidth, ROW_HEIGHT, CORNER_RADIUS);
                     ctx.fillStyle = "#252525";
@@ -241,17 +244,6 @@ app.registerExtension({
                     ctx.textBaseline = "middle";
                     const labelText = `${widget.icon} ${widget.label}`;
                     ctx.fillText(labelText, labelX, rowY + ROW_HEIGHT / 2);
-                    
-                    const infoRect = { x: infoX, y: rowY + 2, w: INFO_WIDTH, h: ROW_HEIGHT - 4 };
-                    drawRoundedRect(ctx, infoX, rowY + 2, INFO_WIDTH, ROW_HEIGHT - 4, 4);
-                    ctx.fillStyle = "#3B3B3B";
-                    ctx.fill();
-                    
-                    ctx.font = "12px monospace";
-                    ctx.fillStyle = "#e0e0e0";
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "middle";
-                    ctx.fillText(widget.format(widget.value), infoX + INFO_WIDTH / 2, rowY + ROW_HEIGHT / 2);
                     
                     const sliderTrackY = rowY + ROW_HEIGHT / 2;
                     ctx.beginPath();
@@ -275,6 +267,17 @@ app.registerExtension({
                     ctx.strokeStyle = "#ffffff";
                     ctx.lineWidth = 1;
                     ctx.stroke();
+                    
+                    const infoRect = { x: infoX, y: rowY + 2, w: INFO_WIDTH, h: ROW_HEIGHT - 4 };
+                    drawRoundedRect(ctx, infoX, rowY + 2, INFO_WIDTH, ROW_HEIGHT - 4, 4);
+                    ctx.fillStyle = "#3B3B3B";
+                    ctx.fill();
+                    
+                    ctx.font = "12px monospace";
+                    ctx.fillStyle = "#e0e0e0";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(widget.format(widget.value), infoX + INFO_WIDTH / 2, rowY + ROW_HEIGHT / 2);
                     
                     const resetRect = { x: resetX, y: rowY, w: RESET_WIDTH, h: ROW_HEIGHT };
                     ctx.font = "12px Arial";
@@ -312,6 +315,9 @@ app.registerExtension({
                 ctx.fillText("🔄️ Reset All Parameters", padding + buttonWidth / 2, resetAllY + resetAllHeight / 2);
                 
                 this.rs_resetAllRect = { x: padding, y: resetAllY, w: buttonWidth, h: resetAllHeight };
+                
+                // Восстанавливаем состояние Canvas, чтобы не сломать нативную отрисовку LiteGraph
+                ctx.restore();
                 
                 return r;
             };

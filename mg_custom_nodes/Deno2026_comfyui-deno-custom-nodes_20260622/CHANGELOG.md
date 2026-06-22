@@ -6,6 +6,14 @@ This file intentionally stays short. Detailed engineering notes belong in privat
 
 ## Unreleased
 
+## 0.7.56 - 2026-06-22
+
+- Fixed Visual Fold on Desktop so folded nodes with DOM text widgets no longer leave prompt boxes visible under the folded chip.
+
+## 0.7.55 - 2026-06-22
+
+- Fixed Visual Fold and Align so their toolbar integration no longer blocks ComfyUI's own multi-selection floating controls.
+
 ## 0.7.54 - 2026-06-21
 
 - Fixed Ideogram Director bbox editing so drawing, moving, and resizing boxes keeps responding inside the node on more ComfyUI browser/runtime setups.

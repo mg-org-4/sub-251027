@@ -1,0 +1,282 @@
+/**
+ * Runtime status dashboard widget for Majoor.
+ * Renders a floating overlay inside the Assets Manager panel showing live
+ * DB / enrichment-queue / watcher metrics fetched from the backend.
+ */
+
+import {
+    getRuntimeStatus,
+    getSecuritySettings,
+    hasRuntimeSecurityToken,
+} from "../../api/client.js";
+import { t } from "../i18n.js";
+import { DEFAULT_SETTINGS, loadMajoorSettings } from "./settingsCore.js";
+
+const RUNTIME_DASHBOARD_ID = "mjr-runtime-status-dashboard";
+const RUNTIME_AUTO_HIDE_MS = 30_000;
+
+function getRuntimeDashboardMode() {
+    try {
+        const settings = loadMajoorSettings();
+        const mode = String(
+            settings?.observability?.runtimeDashboardMode ||
+                DEFAULT_SETTINGS.observability.runtimeDashboardMode,
+        );
+        return ["autoHide30", "always", "hidden"].includes(mode) ? mode : "autoHide30";
+    } catch {
+        return "autoHide30";
+    }
+}
+
+function removeRuntimeStatusDashboard() {
+    try {
+        document.getElementById(RUNTIME_DASHBOARD_ID)?.remove?.();
+    } catch (e) {
+        console.debug?.(e);
+    }
+}
+
+function clearRuntimeDashboardHideTimer() {
+    try {
+        if (window.__MJR_RUNTIME_STATUS_HIDE_TIMEOUT__) {
+            clearTimeout(window.__MJR_RUNTIME_STATUS_HIDE_TIMEOUT__);
+            window.__MJR_RUNTIME_STATUS_HIDE_TIMEOUT__ = null;
+        }
+    } catch (e) {
+        console.debug?.(e);
+    }
+}
+
+function ensureDashboardLine(el: any, key: any) {
+    const storeKey = key === "auth" ? "__mjrAuthLine" : "__mjrMetricsLine";
+    if (el?.[storeKey]) {
+        return el[storeKey];
+    }
+    const line = document.createElement("div");
+    line.style.whiteSpace = "nowrap";
+    line.style.lineHeight = "1.35";
+    if (key === "auth") {
+        line.style.marginTop = "4px";
+        line.style.fontWeight = "600";
+    }
+    el.appendChild(line);
+    el[storeKey] = line;
+    return line;
+}
+
+function buildWriteAuthSummary(prefs: any) {
+    const tokenHint = String(prefs?.token_hint || "").trim();
+    const hasToken = hasRuntimeSecurityToken();
+    const sessionHint = tokenHint || (hasToken ? "(session)" : "");
+    const allowWrite = prefs?.allow_write !== false;
+    const requireAuth = prefs?.require_auth === true;
+    const tokenConfigured = prefs?.token_configured === true;
+
+    if (!allowWrite) {
+        return {
+            text: t("runtime.writeAuthBlocked", "Write auth: writes blocked by server"),
+            color: "#ff9b9b",
+        };
+    }
+    if (hasToken) {
+        return {
+            text: t("runtime.writeAuthActive", "Write auth: active {tokenHint}", {
+                tokenHint: sessionHint || "(session)",
+            }),
+            color: "#7ee0a0",
+        };
+    }
+    if (requireAuth && tokenConfigured) {
+        return {
+            text: t("runtime.writeAuthMissing", "Write auth: missing in this browser {tokenHint}", {
+                tokenHint: sessionHint || "(server token configured)",
+            }),
+            color: "#f1c36d",
+        };
+    }
+    if (requireAuth) {
+        return {
+            text: t("runtime.writeAuthRequired", "Write auth: required"),
+            color: "#f1c36d",
+        };
+    }
+    if (prefs && typeof prefs === "object") {
+        return {
+            text: t("runtime.writeAuthNotRequired", "Write auth: not required"),
+            color: "#8fd0ff",
+        };
+    }
+    return {
+        text: t("runtime.writeAuthUnknown", "Write auth: unknown"),
+        color: "#c8ced8",
+    };
+}
+
+// --- DOM helpers ----------------------------------------------------------
+
+function ensureRuntimeStatusDashboard() {
+    try {
+        const mode = getRuntimeDashboardMode();
+        if (mode === "hidden" || window.__MJR_RUNTIME_STATUS_HIDDEN__) {
+            removeRuntimeStatusDashboard();
+            return null;
+        }
+
+        const host = document.querySelector(".mjr-assets-manager.mjr-am-container");
+        const existing = document.getElementById(RUNTIME_DASHBOARD_ID);
+        if (!host) {
+            try {
+                existing?.remove?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+            return null;
+        }
+
+        // Anchor to the Assets Manager container (not the scrollable grid),
+        // so the widget stays fixed while the grid scrolls and disappears when panel closes.
+        try {
+            const hostPos = String(getComputedStyle(host).position || "").toLowerCase();
+            if (!hostPos || hostPos === "static") {
+                (host as HTMLElement).style.position = "relative";
+            }
+        } catch (e) {
+            console.debug?.(e);
+        }
+
+        let el = document.getElementById(RUNTIME_DASHBOARD_ID);
+        if (!el) {
+            el = document.createElement("div");
+            el.id = RUNTIME_DASHBOARD_ID;
+            el.style.position = "absolute";
+            el.style.bottom = "10px";
+            el.style.right = "10px";
+            el.style.zIndex = "9999";
+            el.style.padding = "6px 10px";
+            el.style.borderRadius = "10px";
+            el.style.border = "1px solid rgba(255,255,255,0.16)";
+            el.style.background = "rgba(0,0,0,0.45)";
+            el.style.backdropFilter = "blur(4px)";
+            el.style.color = "var(--content-fg, #fff)";
+            el.style.fontSize = "11px";
+            el.style.pointerEvents = "none";
+            el.style.display = "flex";
+            el.style.flexDirection = "column";
+            host.appendChild(el);
+        } else if (el.parentElement !== host) {
+            host.appendChild(el);
+        }
+        return el;
+    } catch {
+        return null;
+    }
+}
+
+async function refreshRuntimeStatusDashboard() {
+    const el = ensureRuntimeStatusDashboard();
+    if (!el) return false;
+    const metricsEl = ensureDashboardLine(el, "metrics");
+    const authEl = ensureDashboardLine(el, "auth");
+    try {
+        const [runtimeRes, securityRes] = await Promise.all([
+            getRuntimeStatus(),
+            getSecuritySettings(),
+        ]);
+        let runtimeTitle = t("runtime.unavailable", "Runtime: unavailable");
+        if (!runtimeRes?.ok || !runtimeRes?.data) {
+            metricsEl.textContent = runtimeTitle;
+        } else {
+            const db = runtimeRes.data.db || {};
+            const idx = runtimeRes.data.index || {};
+            const w = runtimeRes.data.watcher || {};
+            const active = Number(db.active_connections || 0);
+            const enrichQ = Number(idx.enrichment_queue_length || 0);
+            const pending = Number(w.pending_files || 0);
+            metricsEl.textContent = t(
+                "runtime.metricsLine",
+                "DB active: {active} | Enrich Q: {enrichQ} | Watcher pending: {pending}",
+                { active, enrichQ, pending },
+            );
+            runtimeTitle = t(
+                "runtime.metricsTitle",
+                "Runtime Metrics\nDB active connections: {active}\nEnrichment queue: {enrichQ}\nWatcher pending files: {pending}",
+                { active, enrichQ, pending },
+            );
+        }
+        const authSummary = buildWriteAuthSummary(securityRes?.data?.prefs || null);
+        authEl.textContent = authSummary.text;
+        authEl.style.color = authSummary.color;
+        el.title = `${runtimeTitle}\n${authSummary.text}`;
+        return true;
+    } catch {
+        metricsEl.textContent = t("runtime.unavailable", "Runtime: unavailable");
+        authEl.textContent = t("runtime.writeAuthUnknown", "Write auth: unknown");
+        authEl.style.color = "#c8ced8";
+        el.title = `${t("runtime.unavailable", "Runtime: unavailable")}\n${authEl.textContent}`;
+        return true;
+    }
+}
+
+export function startRuntimeStatusDashboard(): void {
+    try {
+        const mode = getRuntimeDashboardMode();
+        if (mode === "hidden") {
+            window.__MJR_RUNTIME_STATUS_HIDDEN__ = true;
+            clearRuntimeDashboardHideTimer();
+            removeRuntimeStatusDashboard();
+            return;
+        }
+        if (!window.__MJR_RUNTIME_STATUS_SETTINGS_LISTENER__) {
+            window.__MJR_RUNTIME_STATUS_SETTINGS_LISTENER__ = (event: any) => {
+                if (event?.detail?.key !== "observability.runtimeDashboardMode") return;
+                const nextMode = getRuntimeDashboardMode();
+                window.__MJR_RUNTIME_STATUS_HIDDEN__ = nextMode === "hidden";
+                clearRuntimeDashboardHideTimer();
+                removeRuntimeStatusDashboard();
+                if (nextMode !== "hidden") {
+                    startRuntimeStatusDashboard();
+                }
+            };
+            window.addEventListener?.(
+                "mjr-settings-changed",
+                window.__MJR_RUNTIME_STATUS_SETTINGS_LISTENER__,
+            );
+        }
+        window.__MJR_RUNTIME_STATUS_HIDDEN__ = false;
+        clearRuntimeDashboardHideTimer();
+        if (mode === "autoHide30") {
+            window.__MJR_RUNTIME_STATUS_HIDE_TIMEOUT__ = setTimeout(() => {
+                window.__MJR_RUNTIME_STATUS_HIDDEN__ = true;
+                removeRuntimeStatusDashboard();
+            }, RUNTIME_AUTO_HIDE_MS);
+        }
+        refreshRuntimeStatusDashboard().catch(() => {});
+        if (window.__MJR_RUNTIME_STATUS_INFLIGHT__ == null) {
+            window.__MJR_RUNTIME_STATUS_INFLIGHT__ = false;
+        }
+        if (window.__MJR_RUNTIME_STATUS_MISS_COUNT__ == null) {
+            window.__MJR_RUNTIME_STATUS_MISS_COUNT__ = 0;
+        }
+        if (!window.__MJR_RUNTIME_STATUS_INTERVAL__) {
+            window.__MJR_RUNTIME_STATUS_INTERVAL__ = setInterval(() => {
+                if (window.__MJR_RUNTIME_STATUS_INFLIGHT__) return;
+                window.__MJR_RUNTIME_STATUS_INFLIGHT__ = true;
+                refreshRuntimeStatusDashboard()
+                    .then((visible) => {
+                        if (visible) {
+                            window.__MJR_RUNTIME_STATUS_MISS_COUNT__ = 0;
+                            return;
+                        }
+                        window.__MJR_RUNTIME_STATUS_MISS_COUNT__ =
+                            Number(window.__MJR_RUNTIME_STATUS_MISS_COUNT__ || 0) + 1;
+                    })
+                    .catch(() => {})
+                    .finally(() => {
+                        window.__MJR_RUNTIME_STATUS_INFLIGHT__ = false;
+                    });
+            }, 10000);
+        }
+    } catch (e) {
+        console.debug?.(e);
+    }
+}

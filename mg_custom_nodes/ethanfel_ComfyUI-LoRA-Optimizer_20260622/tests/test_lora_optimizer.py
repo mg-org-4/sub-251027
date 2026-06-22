@@ -4129,6 +4129,25 @@ class TestDiffCacheRamLimit(unittest.TestCase):
             cache = lora_optimizer._DiffCache(mode="auto", ram_pct=0.5)
         self.assertEqual(cache._ram_limit, 50 * 1024 ** 3)
 
+    @unittest.skipIf(torch is None, "torch is not installed")
+    def test_disk_guard_skips_caching_when_volume_low(self):
+        cache = lora_optimizer._DiffCache(mode="disk")
+        low = types.SimpleNamespace(free=1 * 1024 ** 3, total=100 * 1024 ** 3,
+                                    used=99 * 1024 ** 3)
+        with mock.patch("shutil.disk_usage", return_value=low):
+            cache.put(("alias_a", 0), torch.zeros(4, 4))
+        self.assertNotIn(("alias_a", 0), cache)  # skipped -> caller recomputes
+        self.assertTrue(cache._disk_full)
+
+    @unittest.skipIf(torch is None, "torch is not installed")
+    def test_disk_caches_when_space_available(self):
+        cache = lora_optimizer._DiffCache(mode="disk")
+        ok = types.SimpleNamespace(free=50 * 1024 ** 3, total=100 * 1024 ** 3,
+                                   used=50 * 1024 ** 3)
+        with mock.patch("shutil.disk_usage", return_value=ok):
+            cache.put(("alias_a", 0), torch.zeros(4, 4))
+        self.assertIn(("alias_a", 0), cache)
+
 
 @unittest.skipIf(torch is None, "torch is not installed in this environment")
 class TestDiffCacheWarming(unittest.TestCase):
@@ -4175,6 +4194,128 @@ class TestDiffCacheWarming(unittest.TestCase):
         self.assertEqual(
             plain["prefix_stats"]["alias_a"]["conflict_ratio"],
             warmed["prefix_stats"]["alias_a"]["conflict_ratio"])
+
+
+def _sd(keys):
+    return {k: (torch.zeros(2, 2) if torch is not None else None) for k in keys}
+
+
+@unittest.skipIf(torch is None, "torch is not installed")
+class AnimaDetectionTests(unittest.TestCase):
+    """Anima (CircleStone Labs / Cosmos-Predict2 DiT) detection — real key forms."""
+
+    det = staticmethod(lambda s: lora_optimizer.LoRAOptimizer._detect_architecture(s))
+
+    def test_diffusion_pipe_comfyui_form(self):
+        s = _sd(["diffusion_model.blocks.0.self_attn.q_proj.lora_down.weight",
+                 "diffusion_model.blocks.0.cross_attn.output_proj.lora_up.weight",
+                 "diffusion_model.blocks.0.mlp.layer1.lora_down.weight",
+                 "diffusion_model.llm_adapter.blocks.0.cross_attn.k_proj.lora_down.weight"])
+        self.assertEqual(self.det(s), "anima")
+
+    def test_kohya_form(self):
+        s = _sd(["lora_unet_blocks_0_self_attn_q_proj.lora_down.weight",
+                 "lora_unet_blocks_0_cross_attn_output_proj.lora_up.weight",
+                 "lora_unet_blocks_0_mlp_layer1.lora_down.weight",
+                 "lora_te_layers_0_self_attn_q_proj.lora_down.weight"])
+        self.assertEqual(self.det(s), "anima")
+
+    def test_no_collision_acestep_wan_ltx(self):
+        # These previously-supported archs must still win, not get mistaken for Anima.
+        ace = _sd(["diffusion_model.layers.0.self_attn.q_proj.lora_down.weight",
+                   "diffusion_model.layers.0.cross_attn.k_proj.lora_up.weight"])
+        wan = _sd(["diffusion_model.blocks.0.self_attn.q.a",
+                   "diffusion_model.blocks.0.cross_attn.k.b",
+                   "diffusion_model.blocks.0.ffn.0.c"])
+        ltx = _sd(["transformer_blocks.0.attn1.to_q.a", "adaln_single.linear.b"])
+        self.assertEqual(self.det(ace), "acestep")
+        self.assertEqual(self.det(wan), "wan")
+        self.assertEqual(self.det(ltx), "ltx")
+
+
+@unittest.skipIf(torch is None, "torch is not installed")
+class AnimaNormalizationTests(unittest.TestCase):
+    """All trainer forms normalize to canonical diffusion_model.blocks.N.* keys."""
+
+    norm = staticmethod(lambda s: lora_optimizer.LoRAOptimizer._normalize_keys_anima(s))
+
+    def test_diffusion_pipe_passthrough(self):
+        s = _sd(["diffusion_model.blocks.0.self_attn.q_proj.lora_down.weight"])
+        self.assertIn("diffusion_model.blocks.0.self_attn.q_proj.lora_down.weight", self.norm(s))
+
+    def test_kohya_restores_dots(self):
+        n = self.norm(_sd([
+            "lora_unet_blocks_0_self_attn_q_proj.lora_down.weight",
+            "lora_unet_blocks_0_cross_attn_output_proj.lora_up.weight",
+            "lora_unet_blocks_0_mlp_layer1.lora_down.weight",
+            "lora_unet_blocks_0_adaln_modulation_self_attn_1.lora_up.weight",
+            "lora_unet_llm_adapter_blocks_0_cross_attn_q_proj.lora_down.weight",
+        ]))
+        for expect in [
+            "diffusion_model.blocks.0.self_attn.q_proj.lora_down.weight",
+            "diffusion_model.blocks.0.cross_attn.output_proj.lora_up.weight",
+            "diffusion_model.blocks.0.mlp.layer1.lora_down.weight",
+            "diffusion_model.blocks.0.adaln_modulation_self_attn.1.lora_up.weight",
+            "diffusion_model.llm_adapter.blocks.0.cross_attn.q_proj.lora_down.weight",
+        ]:
+            self.assertIn(expect, n)
+
+    def test_diffusers_to_canonical(self):
+        n = self.norm(_sd([
+            "transformer_blocks.0.attn1.to_q.lora_down.weight",
+            "transformer_blocks.0.attn2.to_out.0.lora_up.weight",
+            "transformer_blocks.0.ff.net.0.proj.lora_down.weight",
+        ]))
+        for expect in [
+            "diffusion_model.blocks.0.self_attn.q_proj.lora_down.weight",
+            "diffusion_model.blocks.0.cross_attn.output_proj.lora_up.weight",
+            "diffusion_model.blocks.0.mlp.layer1.lora_down.weight",
+        ]:
+            self.assertIn(expect, n)
+
+    def test_three_forms_converge(self):
+        a = self.norm(_sd(["diffusion_model.blocks.0.self_attn.q_proj.w"]))
+        b = self.norm(_sd(["lora_unet_blocks_0_self_attn_q_proj.w"]))
+        c = self.norm(_sd(["transformer_blocks.0.attn1.to_q.w"]))
+        key = "diffusion_model.blocks.0.self_attn.q_proj.w"
+        self.assertIn(key, a)
+        self.assertIn(key, b)
+        self.assertIn(key, c)
+
+
+class TargetIsAudioTests(unittest.TestCase):
+    """The audio_only / no_audio key_filter classifier (LTX-2 / ACE-Step)."""
+
+    def _g(self, label_prefix, target_key=None, aliases=None):
+        return {"label_prefix": label_prefix,
+                "target_key": target_key if target_key is not None else label_prefix,
+                "aliases": aliases or [label_prefix]}
+
+    def test_ltx2_audio_layers_classified_audio(self):
+        is_audio = lora_optimizer.LoRAAutoTuner._target_is_audio
+        for k in [
+            "diffusion_model.audio_embeddings_connector.transformer_1d_blocks.0.attn1.to_q",
+            "diffusion_model.audio_adaln_single.linear",
+            "diffusion_model.audio_patchify_proj",
+            "diffusion_model.audio_proj_out",
+            "diffusion_model.av_ca_audio_scale_shift_adaln_single.linear",
+        ]:
+            self.assertTrue(is_audio(self._g(k)), k)
+
+    def test_video_layers_classified_non_audio(self):
+        is_audio = lora_optimizer.LoRAAutoTuner._target_is_audio
+        for k in [
+            "diffusion_model.transformer_blocks.0.attn1.to_q",
+            "diffusion_model.video_embeddings_connector.transformer_1d_blocks.0.attn1.to_k",
+            "diffusion_model.av_ca_video_scale_shift_adaln_single.linear",
+            "diffusion_model.patchify_proj",
+        ]:
+            self.assertFalse(is_audio(self._g(k)), k)
+
+    def test_matches_via_target_key_tuple(self):
+        is_audio = lora_optimizer.LoRAAutoTuner._target_is_audio
+        g = self._g("alias", target_key=("diffusion_model.audio_proj_out.weight", 0), aliases=["alias"])
+        self.assertTrue(is_audio(g))
 
 
 if __name__ == "__main__":

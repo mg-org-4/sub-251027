@@ -81,7 +81,21 @@ def _triton_svdvals(mat2d: torch.Tensor, n_sv: int) -> torch.Tensor:
             return s.squeeze(0)[:n_sv]
         except Exception:
             pass
-    return torch.linalg.svdvals(mat2d)[:n_sv]
+    try:
+        return torch.linalg.svdvals(mat2d)[:n_sv]
+    except Exception:
+        # ROCm/MAGMA can fail to converge; CPU LAPACK is stable. Jitter as a last
+        # resort to separate repeated singular values.
+        m_cpu = mat2d.detach().to("cpu", torch.float32)
+        try:
+            return torch.linalg.svdvals(m_cpu)[:n_sv]
+        except Exception:
+            scale = m_cpu.abs().mean()
+            if scale > 0:
+                g = torch.Generator().manual_seed(0)
+                m_cpu = m_cpu + (scale * 1e-6) * torch.randn(
+                    m_cpu.shape, generator=g, dtype=m_cpu.dtype)
+            return torch.linalg.svdvals(m_cpu)[:n_sv]
 
 
 TUNER_DATA_DIR = os.path.join(folder_paths.models_dir, "tuner_data")
@@ -124,6 +138,25 @@ def _group_merge_cache_key(label_prefix, is_clip, pf_mode, pf_density, pf_sign,
 
 AUTOTUNER_MEMORY_DIR = os.path.join(folder_paths.models_dir, "autotuner_memory")
 os.makedirs(AUTOTUNER_MEMORY_DIR, exist_ok=True)
+
+# Don't write caches when the volume is nearly full. Atomic writes (tmp + replace)
+# already prevent truncated files, but consuming the last free bytes can starve the
+# rest of the run and the model/diff caches; skip the write and keep going.
+_AUTOTUNER_MIN_FREE_MB = 100
+
+def _autotuner_have_disk_space(context):
+    try:
+        import shutil
+        free_mb = shutil.disk_usage(AUTOTUNER_MEMORY_DIR).free / (1024 * 1024)
+    except Exception:
+        return True  # can't tell — don't block
+    if free_mb < _AUTOTUNER_MIN_FREE_MB:
+        logging.warning(f"[{context}] Only {free_mb:.0f}MB free on the autotuner_memory "
+                        f"volume (<{_AUTOTUNER_MIN_FREE_MB}MB) — skipping cache write to "
+                        f"avoid filling the disk.")
+        return False
+    return True
+
 AUTOTUNER_MEMORY_VERSION = 1
 # Bump whenever ranking-relevant behavior changes (scoring formula, candidate
 # selection, sampling) — not just on memory/config format changes. Stale
@@ -319,7 +352,7 @@ _VIDEO_ARCH_ORTHOGONAL_FLOOR = {"wan": 1.0, "ltx": 1.0, "acestep": 1.0}
 _ARCH_TO_PRESET = {
     "sdxl": "sd_unet", "sd15": "sd_unet", "unknown": "sd_unet",
     "flux": "dit", "wan": "dit", "zimage": "dit", "ltx": "dit",
-    "ideogram4": "dit",
+    "ideogram4": "dit", "anima": "dit",
     "acestep": "acestep_dit",
     "qwen_image": "llm",
 }
@@ -445,12 +478,15 @@ class LoRAStack:
                                "'low_conflict': only apply where this LoRA agrees with the majority — safe, avoids contested weights. "
                                "'high_conflict': only apply where this LoRA disagrees — forces this LoRA to dominate contested regions."
                 }),
-                "key_filter": (["all", "shared_only", "unique_only"], {
+                "key_filter": (["all", "shared_only", "unique_only", "audio_only", "no_audio"], {
                     "default": "all",
-                    "tooltip": "Filter which keys this LoRA contributes based on how many LoRAs share each key. "
+                    "tooltip": "Filter which keys this LoRA contributes. "
                                "'all': contribute all keys (default). "
-                               "'shared_only': only contribute to keys present in 2+ LoRAs. "
-                               "'unique_only': only contribute to keys present in exactly 1 LoRA."
+                               "'shared_only': only keys present in 2+ LoRAs. "
+                               "'unique_only': only keys present in exactly 1 LoRA. "
+                               "'audio_only': only audio layers (LTX-2 / ACE-Step audio modules). "
+                               "'no_audio': only non-audio (video) layers. "
+                               "e.g. merge two LTX LoRAs but keep one's sound: set the other to 'no_audio'."
                 }),
             },
             "optional": {
@@ -542,12 +578,15 @@ class LoRAStackDynamic:
                            f"'low_conflict': only where this LoRA agrees with the majority. "
                            f"'high_conflict': only where this LoRA disagrees."
             })
-            inputs["required"][f"key_filter_{i}"] = (["all", "shared_only", "unique_only"], {
+            inputs["required"][f"key_filter_{i}"] = (
+                ["all", "shared_only", "unique_only", "audio_only", "no_audio"], {
                 "default": "all",
                 "tooltip": f"LoRA #{i} key filter. "
                            f"'all': contribute all keys (default). "
-                           f"'shared_only': only contribute to keys present in 2+ LoRAs. "
-                           f"'unique_only': only contribute to keys present in exactly 1 LoRA."
+                           f"'shared_only': only keys present in 2+ LoRAs. "
+                           f"'unique_only': only keys present in exactly 1 LoRA. "
+                           f"'audio_only': only audio layers (LTX-2 / ACE-Step). "
+                           f"'no_audio': only non-audio (video) layers."
             })
         inputs["optional"] = {
             "lora_stack": ("LORA_STACK", {"tooltip": "Connect another LoRA Stack node here to add even more LoRAs to the list."}),
@@ -676,6 +715,13 @@ class _DiffCache:
         self._ram_limit = None
         self._cache_dir = None
         self._disk_failed = False
+        self._disk_bytes = 0
+        self._disk_full = False
+        # Never let the diff cache fill the temp volume — keep this much free.
+        # When writing would drop below it, stop disk-caching and recompute the
+        # overflow on demand (a large model x several LoRAs can otherwise spill
+        # tens of GB of full-rank diffs).
+        self._disk_min_free = 5 * 1024 * 1024 * 1024  # 5 GB
         if mode in ("disk", "auto"):
             import tempfile, atexit, weakref
             self._cache_dir = tempfile.mkdtemp(prefix="lora_diff_cache_",
@@ -705,6 +751,25 @@ class _DiffCache:
             return False
         # auto: spill to disk if RAM limit would be exceeded
         return (self._ram_bytes + tensor_bytes) > self._ram_limit
+
+    def _disk_has_space(self, tensor_bytes):
+        """True if writing tensor_bytes keeps the temp volume above the reserve."""
+        if self._disk_full:
+            return False
+        try:
+            import shutil
+            free = shutil.disk_usage(self._cache_dir).free
+        except Exception:
+            return True  # can't tell — don't block
+        if free - tensor_bytes < self._disk_min_free:
+            self._disk_full = True
+            logging.warning(
+                f"[DiffCache] Temp volume low on space ({free / 1024**3:.1f}GB free) — "
+                f"stopping disk caching ({self._disk_bytes / 1024**3:.1f}GB cached so far); "
+                f"remaining diffs will be recomputed on demand. Free up space, point "
+                f"ComfyUI's temp dir at a larger drive, or set diff_cache_mode=disabled.")
+            return False
+        return True
 
     def prefetch(self, keys):
         """Load disk entries into a prefetch buffer in a background thread."""
@@ -760,6 +825,10 @@ class _DiffCache:
         cached = cached.cpu()
         tensor_bytes = cached.nelement() * cached.element_size()
         if self._use_disk(tensor_bytes) and not self._disk_failed:
+            if not self._disk_has_space(tensor_bytes):
+                # Volume nearly full: skip caching this diff entirely (it will be
+                # recomputed on the get() miss) rather than fill the disk or blow RAM.
+                return
             try:
                 import hashlib, numpy as np
                 name_hash = hashlib.sha256(f"{key[0]}_{key[1]}".encode()).hexdigest()[:16]
@@ -768,6 +837,7 @@ class _DiffCache:
                 disk_t = cached.half() if cached.dtype == torch.bfloat16 else cached
                 np.save(path, disk_t.numpy())
                 self._disk_store[key] = path
+                self._disk_bytes += tensor_bytes
                 return
             except Exception as e:
                 self._disk_failed = True
@@ -867,7 +937,7 @@ class _LoRAMergeBase:
         """
         Detect model architecture from LoRA key patterns.
         Returns: 'zimage', 'flux', 'wan', 'acestep', 'sdxl', 'sd15', 'ltx',
-        'qwen_image', 'ideogram4', or 'unknown'.
+        'qwen_image', 'ideogram4', 'anima', or 'unknown'.
         """
         keys = list(lora_sd.keys())
         keys_str = ' '.join(k.lower() for k in keys)
@@ -936,6 +1006,26 @@ class _LoRAMergeBase:
             return 'flux'
         if any('double_blocks' in k or 'single_blocks' in k for k in keys):
             return 'flux'
+
+        # Anima (CircleStone Labs) — a Cosmos-Predict2 DiT with SPLIT QKV. MUST be
+        # checked before ACE-Step / Wan / LTX: its blocks.N.self_attn.q_proj and
+        # its Qwen3 text encoder (lora_te_layers_N_*) otherwise match those.
+        # Unambiguous discriminators: the unique `llm_adapter`, the Cosmos triple
+        # `adaln_modulation_{self_attn,cross_attn,mlp}`, the GPT2 `mlp.layer1/2`,
+        # and `{self_attn,cross_attn}.output_proj`. (The 'lora_unet' prefix some
+        # trainers emit is a convention — Anima is a DiT, not a UNet.)
+        if any('llm_adapter' in k for k in keys):
+            return 'anima'
+        _anima_block = any(('blocks.' in k or 'blocks_' in k)
+                           and ('self_attn' in k or 'cross_attn' in k) for k in keys)
+        if _anima_block and any(
+                'adaln_modulation_self_attn' in k or 'adaln_modulation_cross_attn' in k
+                or 'mlp.layer1' in k or 'mlp.layer2' in k
+                or '_mlp_layer1' in k or '_mlp_layer2' in k
+                or 'self_attn.output_proj' in k or 'cross_attn.output_proj' in k
+                or '_self_attn_output_proj' in k or '_cross_attn_output_proj' in k
+                for k in keys):
+            return 'anima'
 
         # ACE-Step v1.5: layers.N with self_attn/cross_attn using q_proj/k_proj/v_proj
         if any('layers.' in k and ('self_attn' in k or 'cross_attn' in k)
@@ -1437,6 +1527,65 @@ class _LoRAMergeBase:
         return normalized
 
     @staticmethod
+    def _normalize_keys_anima(lora_sd):
+        """
+        Normalize Anima (CircleStone Labs / Cosmos-Predict2 DiT) LoRA keys to the
+        canonical ComfyUI format:
+            diffusion_model.blocks.N.{self_attn,cross_attn}.{q,k,v,output}_proj
+            diffusion_model.blocks.N.mlp.layer1 / layer2
+            diffusion_model.blocks.N.adaln_modulation_{self_attn,cross_attn,mlp}.N
+            diffusion_model.llm_adapter.blocks.N.*
+            diffusion_model.final_layer.{linear, adaln_modulation.N}
+
+        Anima uses SPLIT QKV (separate q/k/v) — no fuse/refuse handling needed.
+        Converts:
+          - diffusion-pipe / ComfyUI  (diffusion_model.blocks.N.*)  — already canonical
+          - Kohya sd-scripts          (lora_unet_blocks_N_*)        — underscore→dot restore
+          - Diffusers Cosmos          (transformer_blocks.N.attn1/attn2.to_*) — best effort
+        Text-encoder (Qwen3) lora_te_* keys pass through unchanged.
+        """
+        normalized = {}
+        for k, v in lora_sd.items():
+            nk = k
+            if nk.startswith('base_model.model.'):
+                nk = nk[len('base_model.model.'):]
+            if nk.startswith('transformer.') and 'transformer_blocks' not in nk[:13]:
+                nk = nk[len('transformer.'):]
+
+            if nk.startswith('lora_unet_'):
+                # Kohya: dots were flattened to underscores; restore structural dots.
+                nk = 'diffusion_model.' + nk[len('lora_unet_'):]
+                nk = re.sub(r'^diffusion_model\.llm_adapter_blocks_(\d+)_',
+                            r'diffusion_model.llm_adapter.blocks.\1.', nk)
+                nk = re.sub(r'^diffusion_model\.blocks_(\d+)_',
+                            r'diffusion_model.blocks.\1.', nk)
+                nk = re.sub(r'(self_attn|cross_attn)_(q|k|v|output)_proj', r'\1.\2_proj', nk)
+                nk = re.sub(r'(self_attn|cross_attn)_(q|k)_norm', r'\1.\2_norm', nk)
+                nk = re.sub(r'mlp_(layer\d)', r'mlp.\1', nk)
+                nk = re.sub(r'adaln_modulation_(self_attn|cross_attn|mlp)_(\d+)',
+                            r'adaln_modulation_\1.\2', nk)
+                nk = re.sub(r'final_layer_(linear|adaln_modulation)', r'final_layer.\1', nk)
+                nk = re.sub(r'(final_layer\.adaln_modulation)_(\d+)', r'\1.\2', nk)
+            elif nk.startswith('transformer_blocks.'):
+                # Diffusers Cosmos -> canonical native names.
+                nk = nk.replace('transformer_blocks.', 'diffusion_model.blocks.', 1)
+                nk = nk.replace('.attn1.', '.self_attn.').replace('.attn2.', '.cross_attn.')
+                nk = nk.replace('.to_out.0', '.output_proj')
+                nk = (nk.replace('.to_q', '.q_proj').replace('.to_k', '.k_proj')
+                        .replace('.to_v', '.v_proj'))
+                nk = nk.replace('.norm_q', '.q_norm').replace('.norm_k', '.k_norm')
+                nk = nk.replace('.ff.net.0.proj', '.mlp.layer1').replace('.ff.net.2', '.mlp.layer2')
+            elif nk.startswith(('blocks.', 'llm_adapter.', 'final_layer.', 'net.')):
+                if nk.startswith('net.'):
+                    nk = nk[len('net.'):]
+                nk = 'diffusion_model.' + nk
+
+            # Collapse the internal 'net.' root if a diffusion_model.net.* key slipped through.
+            nk = nk.replace('diffusion_model.net.', 'diffusion_model.')
+            normalized[nk] = v
+        return normalized
+
+    @staticmethod
     def _normalize_keys_qwen_image(lora_sd):
         """
         Normalize Qwen-Image LoRA keys to canonical format.
@@ -1642,6 +1791,8 @@ class _LoRAMergeBase:
             return cls._normalize_keys_qwen_image(lora_sd)
         elif architecture == 'ideogram4':
             return cls._normalize_keys_ideogram4(lora_sd)
+        elif architecture == 'anima':
+            return cls._normalize_keys_anima(lora_sd)
         return lora_sd  # unknown — pass through unchanged
 
     @staticmethod
@@ -1869,6 +2020,7 @@ class _LoRAMergeBase:
             clip_target_keys.add(v)
             if isinstance(v, tuple):
                 clip_target_keys.add(v[0])
+        dropped = []
         for prefix in all_lora_prefixes:
             target_key, is_clip = self._resolve_target_key(prefix, model_keys, clip_keys)
             if target_key is None:
@@ -1878,6 +2030,7 @@ class _LoRAMergeBase:
                 elif prefix in clip_target_keys:
                     target_key, is_clip = prefix, True
                 else:
+                    dropped.append(prefix)
                     continue
             group_id = self._make_target_group_id(target_key, is_clip)
             entry = grouped.setdefault(group_id, {
@@ -1886,6 +2039,15 @@ class _LoRAMergeBase:
                 "aliases": [],
             })
             entry["aliases"].append(prefix)
+
+        if dropped:
+            sample = ", ".join(sorted(dropped)[:8])
+            logging.warning(
+                f"[LoRA Optimizer] {len(dropped)} LoRA key(s) did not map to any model/CLIP "
+                f"weight and were SKIPPED (not in the merge). Sample: {sample}. "
+                f"If these are expected layers (e.g. LTX-2 audio), either the model doesn't "
+                f"expose them to LoRA (a plain Load LoRA would skip them too) or the key "
+                f"format isn't recognized by key normalization.")
 
         ordered = {}
         prepared = []
@@ -1909,6 +2071,22 @@ class _LoRAMergeBase:
     @staticmethod
     def _group_target_key(target_group):
         return target_group["target_key"]
+
+    @staticmethod
+    def _target_is_audio(target_group):
+        """True if this target group is an audio layer (LTX-2 / ACE-Step style).
+
+        Heuristic: the substring 'audio' appears in the LoRA prefix or the resolved
+        model key. Covers LTX-2's audio_embeddings_connector, audio_adaln_single,
+        audio_patchify_proj, audio_proj_out, av_ca_audio_* and the per-block audio
+        sublayers. Used by the `audio_only` / `no_audio` key_filter modes.
+        """
+        tk = target_group.get("target_key")
+        if isinstance(tk, tuple):
+            tk = tk[0]
+        parts = [target_group.get("label_prefix", ""), str(tk)]
+        parts.extend(a for a in target_group.get("aliases", []) if isinstance(a, str))
+        return any("audio" in p.lower() for p in parts)
 
     def _resolve_target_shape(self, target_key, is_clip, model, clip):
         """Resolve the actual target tensor shape for a target key."""
@@ -2114,11 +2292,16 @@ class _LoRAMergeBase:
         filtered = {}
         eff_strengths = {}
         rank_sums = {}
+        is_audio_group = self._target_is_audio(target_group)
         for i, diff in aggregated.items():
             kf = active_loras[i].get("key_filter", "all")
             if kf == "shared_only" and raw_n < 2:
                 continue
             if kf == "unique_only" and raw_n != 1:
+                continue
+            if kf == "audio_only" and not is_audio_group:
+                continue
+            if kf == "no_audio" and is_audio_group:
                 continue
             filtered[i] = diff
             eff_strengths[i] = self._resolve_branch_strength(
@@ -3176,6 +3359,50 @@ class _LoRAMergeBase:
 
     @staticmethod
     @torch.no_grad()
+    def _truncated_svd_robust(mat, rank):
+        """Truncated SVD -> (U[:, :rank], S[:rank], V[:, :rank]).
+
+        Robust to SVD non-convergence, which is common on ROCm/MAGMA for
+        ill-conditioned or repeated-singular-value matrices ("failed to converge
+        ... too many repeated singular values"). Tries the input device, then
+        retries on CPU (LAPACK is far more stable), then on CPU with a tiny jitter
+        that separates repeated singular values. Returns None if all attempts fail.
+        """
+        min_dim = min(mat.shape)
+        rank = max(1, min(rank, min_dim))
+
+        def _compute(m):
+            if rank > min_dim // 2:
+                U, S, Vh = torch.linalg.svd(m, full_matrices=False)
+                return U[:, :rank], S[:rank], Vh[:rank, :].T
+            q = min(rank + max(20, rank // 5), min_dim)
+            U, S, V = torch.svd_lowrank(m, q=q, niter=4)
+            return U[:, :rank], S[:rank], V[:, :rank]
+
+        try:
+            return _compute(mat)
+        except Exception:
+            pass
+        mat_cpu = mat.detach().to("cpu", torch.float32)
+        try:
+            return _compute(mat_cpu)
+        except Exception:
+            pass
+        try:
+            scale = mat_cpu.abs().mean()
+            if scale > 0:
+                g = torch.Generator().manual_seed(0)
+                mat_cpu = mat_cpu + (scale * 1e-6) * torch.randn(
+                    mat_cpu.shape, generator=g, dtype=mat_cpu.dtype)
+            U, S, Vh = torch.linalg.svd(mat_cpu, full_matrices=False)
+            return U[:, :rank], S[:rank], Vh[:rank, :].T
+        except Exception:
+            logging.warning("[LoRA Optimizer] SVD failed to converge on all paths "
+                            "(GPU/CPU/jitter); keeping the dense diff for this layer.")
+            return None
+
+    @staticmethod
+    @torch.no_grad()
     def _compress_to_lowrank(diff, rank, svd_device=None, output_dtype=None):
         """
         Re-compress a full-rank diff tensor to low-rank via truncated SVD.
@@ -3196,20 +3423,13 @@ class _LoRAMergeBase:
         # Move to requested device for SVD (GPU is much faster for matmul-heavy randomized SVD)
         if svd_device is not None and mat.device != svd_device:
             mat = mat.to(svd_device)
-        if rank > min(mat.shape) // 2:
-            U, S, Vh = torch.linalg.svd(mat, full_matrices=False)
-            del mat
-            U = U[:, :rank]
-            S = S[:rank]
-            V = Vh[:rank, :].T
-            del Vh
-        else:
-            q_oversample = min(rank + max(20, rank // 5), min(mat.shape))
-            U, S, V = torch.svd_lowrank(mat, q=q_oversample, niter=4)
-            del mat
-            U = U[:, :rank]
-            S = S[:rank]
-            V = V[:, :rank]
+        svd = LoRAOptimizer._truncated_svd_robust(mat, rank)
+        del mat
+        if svd is None:
+            # SVD failed on every device/path — signal the caller to keep the
+            # dense diff rather than crash (seen on ROCm for repeated singular values).
+            return None
+        U, S, V = svd
         # U: [out, rank], S: [rank], V: [in, rank]
         # Reconstruct as: mat_up = U * sqrt(S), mat_down = sqrt(S) * V^T
         # Return on CPU for storage (ComfyUI moves to device when applying)
@@ -5365,6 +5585,16 @@ class LoRAOptimizer(_LoRAMergeBase):
                             new_pair_entries[(i, j)][prefix] = pair_entry
 
         group_items = list(target_groups.values())
+        # Coverage check: the loop below recomputes any target group the cache
+        # doesn't cover (it never drops a group), but surface partial coverage so
+        # a stale/incomplete cache is visible rather than silently masked.
+        if cached_analysis is not None:
+            _covered = sum(1 for g in group_items
+                           if g["label_prefix"] in cached_analysis)
+            if _covered < len(group_items):
+                logging.info(
+                    f"[AutoTuner Analysis Cache] Covers {_covered}/{len(group_items)} "
+                    f"target groups — recomputing the remaining {len(group_items) - _covered}.")
         if use_gpu:
             for target_group in group_items:
                 prefix = target_group["label_prefix"]
@@ -5718,12 +5948,17 @@ class LoRAOptimizer(_LoRAMergeBase):
         pieces = []
         lora_weights = {}
         has_conflict_modes = False
+        is_audio_group = self._target_is_audio(target_group)
 
         for i, item in enumerate(active_loras):
             kf = item.get("key_filter", "all")
             if kf == "shared_only" and raw_n_loras < 2:
                 continue
             if kf == "unique_only" and raw_n_loras != 1:
+                continue
+            if kf == "audio_only" and not is_audio_group:
+                continue
+            if kf == "no_audio" and is_audio_group:
                 continue
             if item.get("conflict_mode", "all") != "all":
                 has_conflict_modes = True
@@ -6061,6 +6296,7 @@ class LoRAOptimizer(_LoRAMergeBase):
                     'sd15': 'SD 1.5',
                     'ltx': 'LTX Video',
                     'qwen_image': 'Qwen-Image',
+                    'anima': 'Anima (Cosmos-Predict2 DiT)',
                 }
                 lines.append(f"Detected architecture: {arch_names.get(detected_arch, detected_arch)}")
             if normalize_keys == "enabled":
@@ -6075,6 +6311,7 @@ class LoRAOptimizer(_LoRAMergeBase):
                 'sdxl': 'SDXL',
                 'ltx': 'LTX Video',
                 'qwen_image': 'Qwen-Image',
+                'anima': 'Anima (Cosmos-Predict2 DiT)',
             }
             lines.append(f"Architecture: {arch_names.get(detected_arch, detected_arch)} (auto-detected)")
             lines.append(f"Key normalization: enabled")
@@ -6649,11 +6886,26 @@ class LoRAOptimizer(_LoRAMergeBase):
             logging.info(f"[LoRA Optimizer]   Compute device: {compute_device}"
                          f" ({'sequential' if use_gpu else 'threaded'})")
             t_pass1 = time.time()
+            # Periodic console progress so a long Pass 1 (many groups / LoRAs) isn't silent.
+            _p1_total = len(target_groups)
+            _p1 = {"n": 0, "logged": 0.0}
+            _p1_every = max(1, _p1_total // 10)
+
+            def _p1_progress():
+                _p1["n"] += 1
+                c = _p1["n"]
+                now = time.monotonic()
+                if c == _p1_total or (c % _p1_every == 0 and now - _p1["logged"] >= 1.0):
+                    _p1["logged"] = now
+                    logging.info(f"[LoRA Optimizer]   Analyzed {c}/{_p1_total} target "
+                                 f"groups ({time.time() - t_pass1:.0f}s)")
+
             analysis_data = self._run_group_analysis(
                 target_groups, active_loras, model, clip, compute_device,
                 clip_strength_multiplier=clip_strength_multiplier,
                 merge_refinement=merge_refinement,
                 decision_smoothing=decision_smoothing,
+                progress_cb=_p1_progress,
             )
             all_key_targets = analysis_data["all_key_targets"]
             target_groups = analysis_data["target_groups"]
@@ -7215,8 +7467,13 @@ class LoRAOptimizer(_LoRAMergeBase):
                 merged_diff = merged_diff.cpu()
             if should_compress:
                 patch = self._compress_to_lowrank(merged_diff, compress_rank, svd_device=resolved_svd_device)
-                del merged_diff
-                is_compressed = True
+                if patch is None:
+                    # SVD failed to converge (e.g. ROCm) — keep the dense diff.
+                    patch = ("diff", (merged_diff.cpu() if merged_diff.is_cuda else merged_diff,))
+                    is_compressed = False
+                else:
+                    del merged_diff
+                    is_compressed = True
             else:
                 patch = ("diff", (merged_diff,))
                 is_compressed = False
@@ -8524,6 +8781,8 @@ class LoRAAutoTuner(LoRAOptimizer):
         stack order and overlaid (caller wins), so concurrent processes
         tuning overlapping stacks don't drop each other's prefixes."""
         from datetime import datetime
+        if not _autotuner_have_disk_space("AutoTuner Analysis Cache"):
+            return
         path = LoRAAutoTuner._analysis_cache_path(names_only_hash)
         try:
             with open(path) as f:
@@ -8591,6 +8850,8 @@ class LoRAAutoTuner(LoRAOptimizer):
     def _analysis_partial_save(names_only_hash, per_prefix, source_loras):
         """Atomic write of partial analysis checkpoint to disk."""
         from datetime import datetime
+        if not _autotuner_have_disk_space("AutoTuner Analysis Partial"):
+            return
         path = LoRAAutoTuner._analysis_partial_path(names_only_hash)
         entry = {
             "analysis_version": 1,
@@ -9320,6 +9581,8 @@ class LoRAAutoTuner(LoRAOptimizer):
     def _memory_save(lora_hash, settings_hash, settings, source_loras, tuner_data):
         """Atomic write of memory entry to disk."""
         from datetime import datetime
+        if not _autotuner_have_disk_space("AutoTuner Memory"):
+            return
         path = LoRAAutoTuner._memory_file_path(lora_hash, settings_hash)
         entry = {
             "memory_version": AUTOTUNER_MEMORY_VERSION,
@@ -9979,12 +10242,28 @@ class LoRAAutoTuner(LoRAOptimizer):
                 self._analysis_partial_save(
                     names_only_hash, partial_accumulated, source_loras_for_cache)
 
+        # Periodic console progress — Pass 1 over many groups (esp. with several
+        # LoRAs) is otherwise silent until done.
+        _p1_total = len(target_groups)
+        _p1 = {"n": 0, "logged": 0.0}
+        _p1_every = max(1, _p1_total // 10)
+
+        def _p1_progress():
+            pbar.update(1)
+            _p1["n"] += 1
+            c = _p1["n"]
+            now = time.monotonic()
+            if c == _p1_total or (c % _p1_every == 0 and now - _p1["logged"] >= 1.0):
+                _p1["logged"] = now
+                logging.info(f"[LoRA AutoTuner]     Analyzed {c}/{_p1_total} target "
+                             f"groups ({time.time() - t_start:.0f}s)")
+
         analysis_data = self._run_group_analysis(
             target_groups, active_loras, model, clip, compute_device,
             clip_strength_multiplier=clip_strength_multiplier,
             merge_refinement="none",
             decision_smoothing=decision_smoothing,
-            progress_cb=lambda: pbar.update(1),
+            progress_cb=_p1_progress,
             cached_analysis=cached_analysis,
             track_new_entries=True,
             on_prefix_done=_on_prefix_done,
@@ -11589,6 +11868,13 @@ class SaveMergedLoRA:
             save_dtype = torch.float16
         logging.info(f"[Save Merged LoRA] Output dtype: {save_dtype}")
 
+        # SVD decomposition is the bottleneck here — especially with a high auto
+        # rank over many diffs. The diffs live on CPU, so run the SVD on the GPU
+        # when one is available (_compress_to_lowrank moves each diff to the device).
+        svd_device = LoRAOptimizer._get_compute_device()
+        if svd_device.type != "cpu":
+            logging.info(f"[Save Merged LoRA] SVD device: {svd_device}")
+
         state_dict = {}
 
         for is_clip, patches in [(False, model_patches), (True, clip_patches)]:
@@ -11605,7 +11891,10 @@ class SaveMergedLoRA:
                 if isinstance(patch, (LoKrAdapter, LoHaAdapter)):
                     diff_tensor = _LoRAMergeBase._expand_patch_to_diff(patch)
                     rank = fallback_rank if auto_rank else save_rank
-                    compressed = LoRAOptimizer._compress_to_lowrank(diff_tensor, rank, output_dtype=save_dtype)
+                    compressed = LoRAOptimizer._compress_to_lowrank(diff_tensor, rank, svd_device=svd_device, output_dtype=save_dtype)
+                    if compressed is None:
+                        logging.warning(f"[Save Merged LoRA] SVD failed for {lora_prefix}; skipping this layer.")
+                        continue
                     mat_up, mat_down, alpha, mid, _, _ = compressed.weights
                     alpha = float(alpha)
                 elif isinstance(patch, LoRAAdapter):
@@ -11619,14 +11908,24 @@ class SaveMergedLoRA:
                     # Skip LoCon (mid != None): mid tensor requires special reshape handling.
                     if target_rank > 0 and current_rank > target_rank and mid is None:
                         diff = _LoRAMergeBase._expand_patch_to_diff(patch)
-                        compressed = LoRAOptimizer._compress_to_lowrank(diff, target_rank, output_dtype=save_dtype)
+                        compressed = LoRAOptimizer._compress_to_lowrank(diff, target_rank, svd_device=svd_device, output_dtype=save_dtype)
                         del diff
-                        mat_up, mat_down, alpha, mid, _, _ = compressed.weights
-                        alpha = float(alpha)
+                        if compressed is None:
+                            logging.warning(f"[Save Merged LoRA] SVD failed for {lora_prefix}; saving at full patch rank.")
+                        else:
+                            mat_up, mat_down, alpha, mid, _, _ = compressed.weights
+                            alpha = float(alpha)
                 elif isinstance(patch, tuple) and len(patch) == 2 and patch[0] == "diff":
                     diff_tensor = patch[1][0]
+                    # All-zero diff (untrained layer) merges to nothing — skip it
+                    # rather than waste an SVD and write a dead layer to the file.
+                    if diff_tensor.abs().amax().item() == 0:
+                        continue
                     rank = fallback_rank if auto_rank else save_rank
-                    compressed = LoRAOptimizer._compress_to_lowrank(diff_tensor, rank, output_dtype=save_dtype)
+                    compressed = LoRAOptimizer._compress_to_lowrank(diff_tensor, rank, svd_device=svd_device, output_dtype=save_dtype)
+                    if compressed is None:
+                        logging.warning(f"[Save Merged LoRA] SVD failed for {lora_prefix}; skipping this layer.")
+                        continue
                     mat_up, mat_down, alpha, mid, _, _ = compressed.weights
                     alpha = float(alpha)
                 else:
@@ -11679,43 +11978,61 @@ class SaveMergedLoRA:
         if prefixes:
             logging.info(f"[Save Merged LoRA] Sample prefixes: {prefixes[:3]} ... ({len(prefixes)} total)")
 
+        # Reconstruction-error check is a diagnostic — sample a few diffs rather
+        # than reconstructing all of them on CPU (that's minutes on a large model
+        # like LTX-2, and drags vram_budget GPU patches back to CPU). 32 is plenty.
         svd_errors = []
+        _MAX_SVD_CHECKS = 32
         for is_clip, patches in [(False, model_patches), (True, clip_patches)]:
+            if len(svd_errors) >= _MAX_SVD_CHECKS:
+                break
             for target_key, patch in patches.items():
-                key_info = key_map.get(target_key)
-                if key_info is None:
+                if len(svd_errors) >= _MAX_SVD_CHECKS:
+                    break
+                if not (isinstance(patch, tuple) and patch[0] == "diff"):
                     continue
-                if isinstance(key_info, dict):
-                    lora_prefix = key_info.get("canonical_prefix")
-                else:
-                    lora_prefix = key_info
+                key_info = key_map.get(target_key)
+                lora_prefix = (key_info.get("canonical_prefix")
+                               if isinstance(key_info, dict) else key_info)
                 if not lora_prefix:
                     continue
                 up_key = f"{lora_prefix}.lora_up.weight"
-                down_key = f"{lora_prefix}.lora_down.weight"
-                alpha_key = f"{lora_prefix}.alpha"
-                if up_key not in state_dict:
+                if up_key not in state_dict:  # e.g. an all-zero layer we skipped
                     continue
-                saved_up = state_dict[up_key].float()
-                saved_down = state_dict[down_key].float()
-                saved_alpha = state_dict[alpha_key].item()
-                rank = saved_down.shape[0]
-                scale = saved_alpha / rank
-                reconstructed = torch.mm(saved_up, saved_down) * scale
-                if isinstance(patch, tuple) and patch[0] == "diff":
-                    original_diff = patch[1][0].float()
-                    strength = clip_strength if is_clip else output_strength
-                    reference = original_diff * strength if bake_strength else original_diff
-                    original_norm = reference.norm().item()
-                    if original_norm > 0:
-                        error = (reconstructed - reference).norm().item() / original_norm
-                        svd_errors.append(error)
+                original_diff = patch[1][0].float()
+                strength = clip_strength if is_clip else output_strength
+                reference = original_diff * strength if bake_strength else original_diff
+                original_norm = reference.norm().item()
+                if original_norm <= 0:
+                    continue
+                # Diagnostic only — never let it abort the save (device/shape, etc.).
+                try:
+                    saved_up = state_dict[up_key].float()
+                    saved_down = state_dict[f"{lora_prefix}.lora_down.weight"].float()
+                    rank = saved_down.shape[0]
+                    scale = state_dict[f"{lora_prefix}.alpha"].item() / rank
+                    reconstructed = torch.mm(saved_up, saved_down) * scale
+                    ref = reference.to(reconstructed.device)
+                    svd_errors.append((reconstructed - ref).norm().item() / original_norm)
+                except Exception:
+                    pass
         if svd_errors:
             avg_error = sum(svd_errors) / len(svd_errors)
             max_error = max(svd_errors)
             logging.info(f"[Save Merged LoRA] SVD reconstruction error: "
                          f"avg={avg_error:.4f}, max={max_error:.4f} "
                          f"({len(svd_errors)} diffs checked)")
+            # High error = the merged diffs are higher-rank than the save rank can
+            # capture (common for TIES / refine merges). A larger save_rank retains
+            # more detail. Only nudge in auto mode; a fixed save_rank is the user's call.
+            eff_rank = fallback_rank if auto_rank else save_rank
+            if avg_error > 0.05 or max_error > 0.20:
+                suggested = min(eff_rank * 2, 1024) if eff_rank > 0 else 256
+                logging.warning(
+                    f"[Save Merged LoRA] Lossy compression at rank {eff_rank} "
+                    f"(avg {avg_error*100:.1f}%, max {max_error*100:.1f}% reconstruction "
+                    f"error) — the merge is higher-rank than this. For more fidelity set "
+                    f"save_rank to ~{suggested} (larger file); rank 0 = auto.")
 
         # Build safetensors metadata header
         metadata = {"tool": "ComfyUI-ZImage-LoRA-Merger"}

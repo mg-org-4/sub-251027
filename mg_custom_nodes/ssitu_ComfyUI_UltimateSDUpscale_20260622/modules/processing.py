@@ -4,6 +4,9 @@ import torch
 import math
 from nodes import common_ksampler, VAEEncode, VAEDecode, VAEDecodeTiled
 from comfy_extras.nodes_custom_sampler import SamplerCustom
+import comfy.sample
+import comfy.model_management
+import latent_preview
 from usdu_utils import pil_to_tensor, tensor_to_pil, get_crop_region, expand_crop, crop_cond
 from modules import shared
 from tqdm import tqdm
@@ -56,6 +59,7 @@ class StableDiffusionProcessing:
         custom_sampler=None,
         custom_sigmas=None,
         batch_size=1,
+        guider=None,
     ):
         # Variables used by the USDU script
         self.init_images = [init_img]
@@ -67,8 +71,11 @@ class StableDiffusionProcessing:
         self.rows = round(self.height / tile_height)
         self.cols = round(self.width / tile_width)
 
+        # Guider-based sampling (guider encapsulates model + conditioning + cfg)
+        self.guider = guider
+
         # ComfyUI Sampler inputs
-        self.model = model
+        self.model = guider.model_patcher if guider is not None else model
         self.positive = positive
         self.negative = negative
         self.vae = vae
@@ -83,7 +90,7 @@ class StableDiffusionProcessing:
         self.custom_sampler = custom_sampler
         self.custom_sigmas = custom_sigmas
 
-        if (custom_sampler is not None) ^ (custom_sigmas is not None):
+        if guider is None and (custom_sampler is not None) ^ (custom_sigmas is not None):
             logger.warning("Both custom sampler and custom sigmas must be provided, defaulting to widget sampler and sigmas")
 
         # Variables used only by this script
@@ -175,6 +182,23 @@ def sample(model, seed, steps, cfg, sampler_name, scheduler, positive, negative,
     return samples
 
 
+def sample_with_guider(guider, sampler, sigmas, seed, latent):
+    """Sample using a guider (which encapsulates model, conditioning, and cfg)."""
+    latent_image = latent["samples"]
+    latent_image = comfy.sample.fix_empty_latent_channels(guider.model_patcher, latent_image)
+
+    noise = comfy.sample.prepare_noise(latent_image, seed)
+
+    callback = latent_preview.prepare_callback(guider.model_patcher, sigmas.shape[-1] - 1)
+    disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+
+    samples = guider.sample(noise, latent_image, sampler, sigmas,
+                            denoise_mask=latent.get("noise_mask", None),
+                            callback=callback, disable_pbar=disable_pbar, seed=seed)
+    samples = samples.to(comfy.model_management.intermediate_device())
+    return {"samples": samples}
+
+
 def process_images(p: StableDiffusionProcessing) -> Processed:
     # Where the main image generation happens in A1111
 
@@ -229,18 +253,23 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
         if tile.size != tile_size:
             tiles[i] = tile.resize(tile_size, Image.Resampling.LANCZOS)
 
-    # Crop conditioning
-    positive_cropped = crop_cond(p.positive, crop_region, p.init_size, init_image.size, tile_size)
-    negative_cropped = crop_cond(p.negative, crop_region, p.init_size, init_image.size, tile_size)
-
     # Encode the image
     batched_tiles = torch.cat([pil_to_tensor(tile) for tile in tiles], dim=0)
     (latent,) = p.vae_encoder.encode(p.vae, batched_tiles)
 
-    with crop_model_cond(p.model, crop_region, p.init_size, init_image.size, tile_size) as model:
-        # Generate samples
-        samples = sample(model, p.seed, p.steps, p.cfg, p.sampler_name, p.scheduler, positive_cropped,
-                        negative_cropped, latent, p.denoise, p.custom_sampler, p.custom_sigmas)
+    if p.guider is not None:
+        # Guider-based sampling
+        with crop_model_cond(p.model, crop_region, p.init_size, init_image.size, tile_size) as model:
+            samples = sample_with_guider(p.guider, p.custom_sampler, p.custom_sigmas, p.seed, latent)
+    else:
+        # Crop conditioning
+        positive_cropped = crop_cond(p.positive, crop_region, p.init_size, init_image.size, tile_size)
+        negative_cropped = crop_cond(p.negative, crop_region, p.init_size, init_image.size, tile_size)
+
+        with crop_model_cond(p.model, crop_region, p.init_size, init_image.size, tile_size) as model:
+            # Generate samples
+            samples = sample(model, p.seed, p.steps, p.cfg, p.sampler_name, p.scheduler, positive_cropped,
+                            negative_cropped, latent, p.denoise, p.custom_sampler, p.custom_sigmas)
 
     # Update the progress bar
     if p.progress_bar_enabled:
@@ -356,15 +385,21 @@ def process_batch_tiles(
     batched_tensors = torch.cat([pil_to_tensor(tile) for tile, _ in batch_tiles], dim=0)
     (latent,) = p.vae_encoder.encode(p.vae, batched_tensors)
 
-    # Crop conditioning using the full list of regions (first tile size assumed uniform)
     first_tile_size = batch_tile_sizes[0]
-    positive_cropped = crop_cond(p.positive, batch_crop_regions, p.init_size, images[0].size, first_tile_size)
-    negative_cropped = crop_cond(p.negative, batch_crop_regions, p.init_size, images[0].size, first_tile_size)
 
-    with crop_model_cond(p.model, batch_crop_regions, p.init_size, images[0].size, first_tile_size) as model:
-        samples = sample(model, p.seed, p.steps, p.cfg, p.sampler_name, p.scheduler,
-                         positive_cropped, negative_cropped, latent, p.denoise,
-                         p.custom_sampler, p.custom_sigmas)
+    if p.guider is not None:
+        # Guider-based sampling
+        with crop_model_cond(p.model, batch_crop_regions, p.init_size, images[0].size, first_tile_size) as model:
+            samples = sample_with_guider(p.guider, p.custom_sampler, p.custom_sigmas, p.seed, latent)
+    else:
+        # Crop conditioning using the full list of regions (first tile size assumed uniform)
+        positive_cropped = crop_cond(p.positive, batch_crop_regions, p.init_size, images[0].size, first_tile_size)
+        negative_cropped = crop_cond(p.negative, batch_crop_regions, p.init_size, images[0].size, first_tile_size)
+
+        with crop_model_cond(p.model, batch_crop_regions, p.init_size, images[0].size, first_tile_size) as model:
+            samples = sample(model, p.seed, p.steps, p.cfg, p.sampler_name, p.scheduler,
+                             positive_cropped, negative_cropped, latent, p.denoise,
+                             p.custom_sampler, p.custom_sigmas)
 
     # Update progress bar once per batch call (one step per tile coord)
     if p.progress_bar_enabled:

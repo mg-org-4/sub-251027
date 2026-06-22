@@ -250,3 +250,92 @@ class TestMainWorkflow:
         logger.info(f"Diff1: {diff1}, Diff2: {diff2}")
         assert diff1 < 0.011, f"{im1_filename} doesn't match its test image."
         assert diff2 < 0.011, f"{im2_filename} doesn't match its test image."
+
+    def test_upscale_with_dual_model_guider(
+        self,
+        base_image,
+        loaded_checkpoint,
+        upscale_model,
+        node_classes,
+        seed,
+        batch_size,
+        test_dirs: DirectoryConfig,
+    ):
+        """Generate upscaled images using DualModelGuider with the same model for both inputs.
+
+        With the same model for positive and negative passes, DualModelGuider
+        produces the same result as standard CFG. Output should match the
+        standard workflow test images.
+        """
+        image, positive, negative = base_image
+        model, clip, vae = loaded_checkpoint
+
+        with torch.inference_mode():
+            # Build a DualModelGuider with same model for both positive and negative passes
+            (guider,) = execute(
+                node_classes["DualModelGuider"],
+                model, positive, 8.0,
+                model_negative=model, negative=negative,
+            )
+
+            # Use BasicScheduler with same params as standard test: normal, 5 steps, denoise=0.7
+            (sigmas,) = execute(node_classes["BasicScheduler"], model, "normal", 5, 0.7)
+
+            # Use euler sampler (same as standard test)
+            (sampler,) = execute(node_classes["KSamplerSelect"], "euler")
+
+            # Run upscale with the guider node
+            usdu = node_classes["UltimateSDUpscaleGuider"]
+            (upscaled,) = usdu().upscale(
+                image=image,
+                guider=guider,
+                sampler=sampler,
+                sigmas=sigmas,
+                vae=vae,
+                upscale_by=2.00000004,
+                seed=seed,
+                upscale_model=upscale_model,
+                mode_type="Chess",
+                tile_width=512,
+                tile_height=512,
+                mask_blur=8,
+                tile_padding=32,
+                seam_fix_mode="None",
+                seam_fix_denoise=1.0,
+                seam_fix_width=64,
+                seam_fix_mask_blur=8,
+                seam_fix_padding=16,
+                force_uniform_tiles=True,
+                tiled_decode=False,
+                batch_size=batch_size,
+            )
+
+        # Save images
+        im1_filename = image_name_format("dual_model_guider_image1", EXT, batch_size)
+        im2_filename = image_name_format("dual_model_guider_image2", EXT, batch_size)
+        sample_dir = test_dirs.sample_images
+        upscaled_img1_path = sample_dir / CATEGORY / im1_filename
+        upscaled_img2_path = sample_dir / CATEGORY / im2_filename
+        save_image(upscaled[0], upscaled_img1_path)
+        save_image(upscaled[1], upscaled_img2_path)
+        # Load to account for compression
+        upscaled = torch.cat(
+            [load_image(upscaled_img1_path), load_image(upscaled_img2_path)]
+        )
+        # Verify against the standard workflow test images (should produce identical output)
+        logger = logging.getLogger("test_upscale_with_dual_model_guider")
+        test_image_dir = test_dirs.test_images
+        im1_upscaled = upscaled[0]
+        im2_upscaled = upscaled[1]
+
+        # Compare against the same reference images as the standard upscale test
+        ref_im1_filename = image_name_format("upscaled_image1", EXT, batch_size)
+        ref_im2_filename = image_name_format("upscaled_image2", EXT, batch_size)
+        test_im1 = load_image(test_image_dir / CATEGORY / ref_im1_filename)
+        test_im2 = load_image(test_image_dir / CATEGORY / ref_im2_filename)
+
+        diff1 = img_tensor_mae(blur(im1_upscaled), blur(test_im1))
+        diff2 = img_tensor_mae(blur(im2_upscaled), blur(test_im2))
+        logger.info(f"Diff1: {diff1}, Diff2: {diff2}")
+        assert diff1 < 0.01, "DualModel guider upscaled Image 1 doesn't match standard workflow test image."
+        assert diff2 < 0.01, "DualModel guider upscaled Image 2 doesn't match standard workflow test image."

@@ -25,6 +25,28 @@ def apply_circular_padding(model):
     else:
         apply_padding(model, 'circular')
 
+def adapt_clip_text_encoder_keys(sd, model):
+    # transformers >=5 dropped the CLIPTextModel ".text_model" submodule, so its
+    # state_dict keys differ from 4.x checkpoints. Remap the checkpoint's
+    # text_encoder keys to whichever layout the built model expects (both ways).
+    model_keys = set(model.state_dict().keys())
+    if all(k in model_keys for k in sd):
+        return sd
+    new_sd = {}
+    for k, v in sd.items():
+        nk = k
+        if k not in model_keys:
+            if ".text_encoder.text_model." in k:
+                cand = k.replace(".text_encoder.text_model.", ".text_encoder.", 1)
+            elif ".text_encoder." in k:
+                cand = k.replace(".text_encoder.", ".text_encoder.text_model.", 1)
+            else:
+                cand = k
+            if cand in model_keys:
+                nk = cand
+        new_sd[nk] = v
+    return new_sd
+
 ChordModelType = io.Custom("chord_model")
 
 class ChordLoadModel(io.ComfyNode):
@@ -54,6 +76,7 @@ class ChordLoadModel(io.ComfyNode):
         config = OmegaConf.load(os.path.join(os.path.dirname(__file__), "config/chord.yaml"))
         model = ChordModel(config)
         sd = load_torch_file(ckpt_path, safe_load=True)
+        sd = adapt_clip_text_encoder_keys(sd, model)
         try:
             model.load_state_dict(sd)
         except RuntimeError as e:

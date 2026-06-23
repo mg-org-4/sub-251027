@@ -1,28 +1,24 @@
 import { BaseSmartWidget } from "./BaseSmartWidget.js";
-import { SmartLoading } from "./SmartLoading.js";
-import { api } from "../../../../scripts/api.js";
 import { allow_debug } from "../js_shared.js";
+import { app } from "../../../scripts/app.js";
+import { domCtx } from "./DomCtx.js";
 
-export class SmartImage extends BaseSmartWidget {
-  constructor(x, y, width, height, node, options = {}) {
+export class SmartText extends BaseSmartWidget {
+  constructor(x, y, node, options = {}) {
     super(node);
     this.myX = x;
     this.myY = y;
-    this.width = width;
-    this.height = height;
-    this.originalWidth = this.width;
-    this.originalHeight = this.height;
+
     this.placeholderColor = "grey";
     this.img = new Image(); // Create an image object
-    this.imgLoaded = false; // Track if the image has been loaded
-    this.apiEndpoint = "/itools/request_load_img"; // API endpoint for fetching the image
-    this.filenamePrefix = "iToolsTestImg";
+    this.imgLoaded = true;
+
+    this.text = "iTools";
     this.isPicked = false;
     this.isResizing = false; // Track if the user is resizing
     this.resizeAnchor = null; // Store the anchor point being resized (e.g., 'top-left', 'right', etc.)
     this.resizeThreshold = 10; // Distance threshold for detecting resize areas
-    this.onImgLoaded = null;
-    this.onImgClosed = null;
+
     this.isUnderCover = false;
 
     this.isSelected = false;
@@ -34,6 +30,48 @@ export class SmartImage extends BaseSmartWidget {
     this.closeButtonHeight = 10;
     this.closeButtonOffsetX = 10;
     this.closeButtonOffsetY = 10;
+    this.onClosed = null;
+
+    // properties of text
+    this.textColor = "brown";
+    this.fontSize = 102;
+    this.fontWeight = "bolder"; // Options: normal, bold, bolder, lighter, or numeric (100–900)
+    this.handleScale = 2.5;
+    this.width = this.fontSize * this.handleScale;
+    this.height = (this.fontSize * this.handleScale) / 2;
+    this.isItalic = false;
+    this.fonts = [
+      "Arial",
+      "Verdana",
+      "Tahoma",
+      "Trebuchet MS",
+      "Times New Roman",
+      "Georgia",
+      "Palatino Linotype",
+      "Courier New",
+      "Consolas",
+      "Lucida Console",
+      "Comic Sans MS",
+    ];
+    this.fontIndex = 0;
+    this.fonts = [
+      "Arial",
+      "Verdana",
+      "Tahoma",
+      "Trebuchet MS",
+      "Times New Roman",
+      "Georgia",
+      "Palatino Linotype",
+      "Courier New",
+      "Consolas",
+      "Lucida Console",
+      "Comic Sans MS",
+    ];
+    this.fontName = this.fonts[this.fontIndex];
+    this.font = `${this.isItalic ? "italic" : ""} ${this.fontWeight} ${this.fontSize}px ${this.fontName}`;
+    this.textAlign = "center";
+    this.textBaseline = "middle";
+    this.isTextObject = true;
 
     // properties for rotation
     this.rotateThreshold = 15;
@@ -46,14 +84,26 @@ export class SmartImage extends BaseSmartWidget {
       y: this.height / 2,
     };
 
-    this.loader = null;
-    this.isMasked = false;
-
     // Apply options if provided
     Object.assign(this, options);
 
     // Add self to the node
     node.addCustomWidget(this);
+  }
+  cycleFont() {
+    this.fontIndex = (this.fontIndex + 1) % this.fonts.length;
+    this.fontName = this.fonts[this.fontIndex];
+  }
+  cycleFontWeight() {
+    const weights = ["normal", "bold"]; //, "bolder", "lighter"/"100", "200", "300", "400", "500", "600", "700", "800", "900"];
+    const currentIndex = weights.indexOf(this.fontWeight);
+    this.fontWeight = weights[(currentIndex + 1) % weights.length];
+    this.font = `${this.fontWeight} ${this.fontSize}px ${this.fontName}`;
+  }
+
+  toggleItalic() {
+    this.isItalic = !this.isItalic;
+    this.font = `${this.isItalic ? "italic" : "normal"} ${this.fontWeight} ${this.fontSize}px ${this.fontName}`;
   }
 
   // Method to handle rotation start
@@ -97,272 +147,11 @@ export class SmartImage extends BaseSmartWidget {
     this.initialRotationAngle = this.rotationAngle;
   }
 
-  updateImage(newSrc) {
-    if (!newSrc) {
-      console.error("Invalid image source provided.");
-      return;
-    }
-
-    // Reset the imgLoaded flag
-    this.imgLoaded = false;
-
-    // Set the new image source
-    this.img.src = ""; // Clear the previous source to ensure proper reloading
-    this.img.src = newSrc;
-
-    // Handle image loading events
-    this.img.onload = () => {
-      this.imgLoaded = true;
-      if (this.onImgLoaded) this.onImgLoaded();
-    };
-
-    this.img.onerror = () => {
-      console.error("Failed to load the new image.");
-    };
-  }
-
-  async fetchImageFromAPI() {
-    const formData = new FormData();
-    formData.append("filename_prefix", this.filenamePrefix || "iToolsTestImg");
-    try {
-      const response = await api.fetchApi(this.apiEndpoint, {
-        method: "POST",
-        body: formData,
-      });
-      const result = await response.json();
-      if (result.status === "success") {
-        const { img } = result.data;
-
-        function hexToBase64(hexString) {
-          if (!hexString || typeof hexString !== "string") {
-            console.error("Invalid hexadecimal string provided.");
-            return "";
-          }
-          const chunkSize = 1024 * 1024; // Process in chunks of 1MB
-          let base64 = "";
-          for (let i = 0; i < hexString.length; i += chunkSize * 2) {
-            const chunk = hexString.slice(i, i + chunkSize * 2);
-            let binaryString = "";
-            for (let c = 0; c < chunk.length; c += 2) {
-              const byte = parseInt(chunk.substr(c, 2), 16);
-              binaryString += String.fromCharCode(byte);
-            }
-            base64 += btoa(binaryString);
-          }
-          return base64;
-        }
-
-        this.img.src = `data:image/png;base64,${hexToBase64(img)}`;
-        this.img.onload = () => {
-          this.imgLoaded = true;
-          if (this.onImgLoaded) this.onImgLoaded();
-        };
-        this.img.onerror = () => {
-          console.error("Failed to load image from API");
-        };
-        if (allow_debug) console.log("Image received successfully.");
-      } else {
-        console.error("Error fetching image:", result.message);
-      }
-    } catch (error) {
-      console.error("Error communicating with the API:", error);
-    }
-  }
-
-  async fetchMaskedImageFromAPI() {
-    const formData = new FormData();
-    formData.append("filename_prefix", "iToolsMaskedImg");
-    try {
-      const response = await api.fetchApi(this.apiEndpoint, {
-        method: "POST",
-        body: formData,
-      });
-      const result = await response.json();
-      if (result.status === "success") {
-        const { img } = result.data;
-
-        function hexToBase64(hexString) {
-          if (!hexString || typeof hexString !== "string") {
-            console.error("Invalid hexadecimal string provided.");
-            return "";
-          }
-          let binaryString = "";
-          for (let i = 0; i < hexString.length; i += 2) {
-            const byte = parseInt(hexString.substr(i, 2), 16);
-            binaryString += String.fromCharCode(byte);
-          }
-          return btoa(binaryString);
-        }
-
-        this.img.src = `data:image/png;base64,${hexToBase64(img)}`;
-        this.img.onload = async () => {
-          const bounds = await this.cropVisibleArea();
-        };
-        this.img.onerror = () => {
-          console.error("Failed to load Masked image from API");
-        };
-        if (allow_debug) console.log("Masked image received successfully.");
-        this.loader.markDelete = true;
-        this.node.setDirtyCanvas(true, true);
-      } else {
-        console.error("Error fetching image:", result.message);
-      }
-    } catch (error) {
-      console.error("Error communicating with the API:", error);
-    } finally {
-      this.isMasked = true;
-      this.loader.markDelete = true;
-      this.loader.isVisible = false;
-    }
-  }
-
-  async requestMaskedImage(img_file) {
-    this.loader.isVisible = true;
-
-    const formData = new FormData();
-    formData.append("image", img_file);
-
-    try {
-      const response = await api.fetchApi("/itools/request_mask_img", {
-        method: "POST",
-        body: formData,
-        headers: {
-          enctype: "multipart/form-data",
-        },
-      });
-
-      const result = await response.json();
-
-      if (result.status === "success") {
-        this.fetchMaskedImageFromAPI();
-      } else {
-        console.error("Error:", result.message);
-      }
-    } catch (error) {
-      console.error("Error fetching the drawing:", error);
-    } finally {
-      // this.isMasked = true;
-      // this.loader.markDelete = true;
-      // this.loader.isVisible = false;
-    }
-  }
-
-  async cropVisibleArea() {
-    if (!this.img || !this.img.complete) return;
-
-    // Create a temporary canvas to analyze the image
-    const tempCanvas = document.createElement("canvas");
-    const tempCtx = tempCanvas.getContext("2d");
-    tempCanvas.width = this.img.width;
-    tempCanvas.height = this.img.height;
-
-    // Draw the image on temporary canvas
-    tempCtx.drawImage(this.img, 0, 0);
-
-    // Get image data to analyze pixels
-    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-    const data = imageData.data;
-
-    // Initialize bounds
-    let minX = tempCanvas.width;
-    let minY = tempCanvas.height;
-    let maxX = 0;
-    let maxY = 0;
-
-    // Scan through all pixels to find the bounds of non-transparent area
-    for (let y = 0; y < tempCanvas.height; y++) {
-      for (let x = 0; x < tempCanvas.width; x++) {
-        const alpha = data[(y * tempCanvas.width + x) * 4 + 3];
-        if (alpha > 0) {
-          // If pixel is not fully transparent
-          minX = Math.min(minX, x);
-          minY = Math.min(minY, y);
-          maxX = Math.max(maxX, x);
-          maxY = Math.max(maxY, y);
-        }
-      }
-    }
-
-    // Calculate new dimensions (no padding)
-    const croppedWidth = maxX - minX;
-    const croppedHeight = maxY - minY;
-
-    // Create final canvas for cropped image
-    const cropCanvas = document.createElement("canvas");
-    const cropCtx = cropCanvas.getContext("2d");
-    cropCanvas.width = croppedWidth;
-    cropCanvas.height = croppedHeight;
-
-    // Draw cropped area
-    cropCtx.drawImage(
-      this.img,
-      minX,
-      minY,
-      croppedWidth,
-      croppedHeight, // Source coordinates
-      0,
-      0,
-      croppedWidth,
-      croppedHeight // Destination coordinates
-    );
-
-    // Calculate scaling factors to fit within original dimensions while maintaining aspect ratio
-    const scaleX = this.width / croppedWidth;
-    const scaleY = this.height / croppedHeight;
-    const scale = Math.min(scaleX, scaleY); // Use the smaller scale to fit within bounds
-
-    // Calculate new dimensions for the resized image
-    const resizedWidth = croppedWidth * scale;
-    const resizedHeight = croppedHeight * scale;
-
-    // Update this.width and this.height to match the aspect ratio of the cropped bounding box
-    this.width = resizedWidth;
-    this.height = resizedHeight;
-
-    // Create a canvas for the resized image
-    const resizeCanvas = document.createElement("canvas");
-    const resizeCtx = resizeCanvas.getContext("2d");
-    resizeCanvas.width = resizedWidth;
-    resizeCanvas.height = resizedHeight;
-
-    // Draw the cropped image onto the resized canvas, maintaining aspect ratio
-    resizeCtx.drawImage(
-      cropCanvas,
-      0,
-      0,
-      croppedWidth,
-      croppedHeight, // Source coordinates (cropped image)
-      0,
-      0,
-      resizedWidth,
-      resizedHeight // Destination coordinates (resized)
-    );
-
-    // Update the image with the resized and cropped version
-    return new Promise((resolve) => {
-      const resizedImage = new Image();
-      resizedImage.onload = () => {
-        this.img = resizedImage;
-        resolve({
-          width: this.width,
-          height: this.height,
-          x: minX,
-          y: minY,
-        });
-      };
-      resizedImage.src = resizeCanvas.toDataURL();
-      // store new originals
-      this.originalWidth = this.width;
-      this.originalHeight = this.height;
-    });
-  }
-
   handleDown() {
     if (this.isUnderCover) return;
     if (this.closeButton && this.isMouseInCloseButtonArea()) {
       this.markDelete = true;
-      if (this.onImgClosed) this.onImgClosed();
-      //this.delete
+      if (this.onClosed) this.onClosed();
     }
     if (this.isMouseInResizeArea()) {
       this.isResizing = true;
@@ -395,11 +184,6 @@ export class SmartImage extends BaseSmartWidget {
       // Corrected clamping logic
       this.myX = Math.max(canvasX, Math.min(newX, canvasX + width));
       this.myY = Math.max(canvasY, Math.min(newY, canvasY + height));
-    }
-
-    if (this.loader) {
-      this.loader.myX = this.myX + this.width / 2;
-      this.loader.myY = this.myY + this.height / 2;
     }
   }
 
@@ -659,6 +443,7 @@ export class SmartImage extends BaseSmartWidget {
       default:
         break;
     }
+    this.fontSize = this.width / this.handleScale;
   }
 
   fillImage(pa, scale, offsetY = 80) {
@@ -717,13 +502,13 @@ export class SmartImage extends BaseSmartWidget {
     if (scale === -1 || scale === 0) scale = 1;
     else if (scale === 1) scale = 2;
     else if (scale === 2) scale = 4;
-
     const { myX, myY, width, height, rotationAngle } = this;
 
     // Save the context state before transformations
     ctx.save();
 
     // Calculate the scaled dimensions and offsets
+    //if(allow_debug){console.log('SCALE is',scale);}
     const scaledWidth = width * scale;
     const scaledHeight = height * scale;
     const scaledX = (myX - xOffset) * scale;
@@ -738,21 +523,22 @@ export class SmartImage extends BaseSmartWidget {
     // Translate back to the top-left corner of the scaled image
     ctx.translate(-scaledWidth / 2, -scaledHeight / 2);
 
-    // Draw the image or placeholder
-    if (this.imgLoaded) {
-      ctx.drawImage(this.img, 0, 0, scaledWidth, scaledHeight);
-    } else {
-      ctx.fillStyle = this.placeholderColor;
-      ctx.fillRect(0, 0, scaledWidth, scaledHeight);
-    }
+    // Plot the text
+    ctx.fillStyle = this.textColor;
+    ctx.font = `${this.isItalic ? "italic" : ""} ${this.fontWeight} ${this.fontSize * scale}px ${this.fontName}`;
+    ctx.textAlign = this.textAlign;
+    ctx.textBaseline = this.textBaseline;
+    ctx.fillText(this.text, scaledWidth / 2, scaledHeight / 2);
 
     // Restore the context state
     ctx.restore();
 
     // plot preview
     this.isPlotted = true;
+    if (this.node?._useDomCtx) domCtx.requestRedraw();
     setTimeout(() => {
       this.isPlotted = false;
+      if (this.node?._useDomCtx) domCtx.requestRedraw();
     }, 200);
   }
 
@@ -772,14 +558,17 @@ export class SmartImage extends BaseSmartWidget {
 
     // Translate back to the top-left corner of the image
     ctx.translate(-this.myX - this.width / 2, -this.myY - this.height / 2);
-    // rotation
 
-    // Draw the image or placeholder
-    if (!this.imgLoaded) {
-      ctx.fillStyle = this.placeholderColor;
+    // Draw the text
+    if (this.text) {
+      ctx.fillStyle = "rgba(128, 128, 128, 0.0)";
       ctx.fillRect(this.myX, this.myY, this.width, this.height);
-    } else {
-      ctx.drawImage(this.img, this.myX, this.myY, this.width, this.height);
+
+      ctx.fillStyle = this.textColor;
+      ctx.font = `${this.isItalic ? "italic" : ""} ${this.fontWeight} ${this.fontSize}px ${this.fontName}`;
+      ctx.textAlign = this.textAlign;
+      ctx.textBaseline = this.textBaseline;
+      ctx.fillText(this.text, this.myX + this.width / 2, this.myY + this.height / 2);
     }
 
     // Draw resize handles (small outlined squares) at the edges and corners
@@ -823,7 +612,7 @@ export class SmartImage extends BaseSmartWidget {
       ); // Right
     }
 
-    // draw rotate dots
+    // Draw rotate dots
     if ((this.isMouseInRotatedArea() && this.isSelected) || this.isRotating) {
       const handleSize = 16; // Diameter of the handle
       const radius = handleSize / 2;
@@ -923,11 +712,6 @@ export class SmartImage extends BaseSmartWidget {
           this.myY + this.closeButtonOffsetY + this.closeButtonHeight / 2 + 0
         );
       }
-    }
-
-    // Draw loader
-    if (!this.loader) {
-      this.loader = new SmartLoading(this.myX + this.width / 2, this.myY + this.height / 2, this.node);
     }
 
     ctx.restore();

@@ -1,75 +1,35 @@
 import { BaseSmartWidget } from "./BaseSmartWidget.js";
 import { allow_debug } from "../js_shared.js";
+import { app } from "../../../scripts/app.js";
 
-export class SmartText extends BaseSmartWidget {
-  constructor(x, y, node, options = {}) {
+export class SmartLayer extends BaseSmartWidget {
+  constructor(x, y, width, height, node, options = {}) {
     super(node);
     this.myX = x;
     this.myY = y;
-
+    this.width = width;
+    this.height = height;
+    this.yOffset = -30
+    this.originalWidth = this.width;
+    this.originalHeight = this.height;
     this.placeholderColor = "grey";
     this.img = new Image(); // Create an image object
-    this.imgLoaded = true;
-
-    this.text = "iTools";
+    this.imgLoaded = false; // Track if the image has been loaded
     this.isPicked = false;
     this.isResizing = false; // Track if the user is resizing
     this.resizeAnchor = null; // Store the anchor point being resized (e.g., 'top-left', 'right', etc.)
     this.resizeThreshold = 10; // Distance threshold for detecting resize areas
-
+    this.onImgLoaded = null;
+    this.onImgClosed = null;
     this.isUnderCover = false;
+    this.isSelected = true;
 
-    this.isSelected = false;
-    this.buttonXoffset = 5;
-    this.buttonYoffset = 5;
-
+    // properties for close button
     this.closeButton = false;
     this.closeButtonWidth = 10;
     this.closeButtonHeight = 10;
     this.closeButtonOffsetX = 10;
     this.closeButtonOffsetY = 10;
-    this.onClosed = null;
-
-    // properties of text
-    this.textColor = "brown";
-    this.fontSize = 102;
-    this.fontWeight = "bolder"; // Options: normal, bold, bolder, lighter, or numeric (100–900)
-    this.handleScale = 2.5;
-    this.width = this.fontSize * this.handleScale;
-    this.height = (this.fontSize * this.handleScale) / 2;
-    this.isItalic = false;
-    this.fonts = [
-      "Arial",
-      "Verdana",
-      "Tahoma",
-      "Trebuchet MS",
-      "Times New Roman",
-      "Georgia",
-      "Palatino Linotype",
-      "Courier New",
-      "Consolas",
-      "Lucida Console",
-      "Comic Sans MS",
-    ];
-    this.fontIndex = 0;
-    this.fonts = [
-      "Arial",
-      "Verdana",
-      "Tahoma",
-      "Trebuchet MS",
-      "Times New Roman",
-      "Georgia",
-      "Palatino Linotype",
-      "Courier New",
-      "Consolas",
-      "Lucida Console",
-      "Comic Sans MS",
-    ];
-    this.fontName = this.fonts[this.fontIndex];
-    this.font = `${this.isItalic ? "italic" : ""} ${this.fontWeight} ${this.fontSize}px ${this.fontName}`;
-    this.textAlign = "center";
-    this.textBaseline = "middle";
-    this.isTextObject = true;
 
     // properties for rotation
     this.rotateThreshold = 15;
@@ -82,26 +42,15 @@ export class SmartText extends BaseSmartWidget {
       y: this.height / 2,
     };
 
+    this.loader = null;
+    this.isMasked = false;
+
     // Apply options if provided
     Object.assign(this, options);
 
+    // this.autoAddSelfToNode = false
     // Add self to the node
-    node.addCustomWidget(this);
-  }
-  cycleFont() {
-    this.fontIndex = (this.fontIndex + 1) % this.fonts.length;
-    this.fontName = this.fonts[this.fontIndex];
-  }
-  cycleFontWeight() {
-    const weights = ["normal", "bold"]; //, "bolder", "lighter"/"100", "200", "300", "400", "500", "600", "700", "800", "900"];
-    const currentIndex = weights.indexOf(this.fontWeight);
-    this.fontWeight = weights[(currentIndex + 1) % weights.length];
-    this.font = `${this.fontWeight} ${this.fontSize}px ${this.fontName}`;
-  }
-
-  toggleItalic() {
-    this.isItalic = !this.isItalic;
-    this.font = `${this.isItalic ? "italic" : "normal"} ${this.fontWeight} ${this.fontSize}px ${this.fontName}`;
+    if (this.autoAddSelfToNode) node.addCustomWidget(this);
   }
 
   // Method to handle rotation start
@@ -145,11 +94,36 @@ export class SmartText extends BaseSmartWidget {
     this.initialRotationAngle = this.rotationAngle;
   }
 
+  updateImage(newSrc) {
+    if (!newSrc) {
+      console.error("Invalid image source provided.");
+      return;
+    }
+
+    // Reset the imgLoaded flag
+    this.imgLoaded = false;
+
+    // Set the new image source
+    this.img.src = ""; // Clear the previous source to ensure proper reloading
+    this.img.src = newSrc;
+
+    // Handle image loading events
+    this.img.onload = () => {
+      this.imgLoaded = true;
+      if (this.onImgLoaded) this.onImgLoaded();
+    };
+
+    this.img.onerror = () => {
+      console.error("Failed to load the new image.");
+    };
+  }
+
   handleDown() {
     if (this.isUnderCover) return;
     if (this.closeButton && this.isMouseInCloseButtonArea()) {
       this.markDelete = true;
-      if (this.onClosed) this.onClosed();
+      if (this.onImgClosed) this.onImgClosed();
+      //this.delete
     }
     if (this.isMouseInResizeArea()) {
       this.isResizing = true;
@@ -157,6 +131,7 @@ export class SmartText extends BaseSmartWidget {
     } else if (this.isMouseInRotatedArea()) {
       this.handleRotateStart();
     } else if (this.isMouseIn(-20) && this.isSelected && !this.isUnderCover) {
+      if(allow_debug) console.log('layer picked',);
       this.isPicked = true;
       this.pickOffset = {
         x: this.mousePos.x - this.myX,
@@ -167,9 +142,9 @@ export class SmartText extends BaseSmartWidget {
 
   handleMove() {
     const canvasX = 0,
-      canvasY = 80,
-      width = 512 - this.width,
-      height = 512 - this.height;
+      canvasY = this.yOffset,
+      width = this.node.width - this.width,
+      height = this.node.height - this.height;
 
     if (this.isResizing) {
       this.resizeImage();
@@ -182,6 +157,11 @@ export class SmartText extends BaseSmartWidget {
       // Corrected clamping logic
       this.myX = Math.max(canvasX, Math.min(newX, canvasX + width));
       this.myY = Math.max(canvasY, Math.min(newY, canvasY + height));
+    }
+
+    if (this.loader) {
+      this.loader.myX = this.myX + this.width / 2;
+      this.loader.myY = this.myY + this.height / 2;
     }
   }
 
@@ -441,7 +421,6 @@ export class SmartText extends BaseSmartWidget {
       default:
         break;
     }
-    this.fontSize = this.width / this.handleScale;
   }
 
   fillImage(pa, scale, offsetY = 80) {
@@ -489,55 +468,6 @@ export class SmartText extends BaseSmartWidget {
     this.myY = (512 - this.height) / 2 + offsetY;
   }
 
-  plotImageOnCanvas(ctx, xOffset, yOffset, scale) {
-    if (!ctx || !(ctx instanceof CanvasRenderingContext2D)) {
-      console.error("Invalid canvas context provided.");
-      return;
-    }
-    // if (allow_debug) {
-    //   console.log("scale", scale);
-    // }
-    if (scale === -1 || scale === 0) scale = 1;
-    else if (scale === 1) scale = 2;
-    else if (scale === 2) scale = 4;
-    const { myX, myY, width, height, rotationAngle } = this;
-
-    // Save the context state before transformations
-    ctx.save();
-
-    // Calculate the scaled dimensions and offsets
-    //if(allow_debug){console.log('SCALE is',scale);}
-    const scaledWidth = width * scale;
-    const scaledHeight = height * scale;
-    const scaledX = (myX - xOffset) * scale;
-    const scaledY = (myY - yOffset) * scale;
-
-    // Translate to the center of the scaled image
-    ctx.translate(scaledX + scaledWidth / 2, scaledY + scaledHeight / 2);
-
-    // Rotate the context
-    ctx.rotate((rotationAngle * Math.PI) / 180);
-
-    // Translate back to the top-left corner of the scaled image
-    ctx.translate(-scaledWidth / 2, -scaledHeight / 2);
-
-    // Plot the text
-    ctx.fillStyle = this.textColor;
-    ctx.font = `${this.isItalic ? "italic" : ""} ${this.fontWeight} ${this.fontSize * scale}px ${this.fontName}`;
-    ctx.textAlign = this.textAlign;
-    ctx.textBaseline = this.textBaseline;
-    ctx.fillText(this.text, scaledWidth / 2, scaledHeight / 2);
-
-    // Restore the context state
-    ctx.restore();
-
-    // plot preview
-    this.isPlotted = true;
-    setTimeout(() => {
-      this.isPlotted = false;
-    }, 200);
-  }
-
   draw(ctx) {
     if (this.markDelete) return;
 
@@ -554,17 +484,14 @@ export class SmartText extends BaseSmartWidget {
 
     // Translate back to the top-left corner of the image
     ctx.translate(-this.myX - this.width / 2, -this.myY - this.height / 2);
+    // rotation
 
-    // Draw the text
-    if (this.text) {
-      ctx.fillStyle = "rgba(128, 128, 128, 0.0)";
+    // Draw the image or placeholder
+    if (!this.imgLoaded) {
+      ctx.fillStyle = this.placeholderColor;
       ctx.fillRect(this.myX, this.myY, this.width, this.height);
-
-      ctx.fillStyle = this.textColor;
-      ctx.font = `${this.isItalic ? "italic" : ""} ${this.fontWeight} ${this.fontSize}px ${this.fontName}`;
-      ctx.textAlign = this.textAlign;
-      ctx.textBaseline = this.textBaseline;
-      ctx.fillText(this.text, this.myX + this.width / 2, this.myY + this.height / 2);
+    } else {
+      ctx.drawImage(this.img, this.myX, this.myY, this.width, this.height);
     }
 
     // Draw resize handles (small outlined squares) at the edges and corners
@@ -608,7 +535,7 @@ export class SmartText extends BaseSmartWidget {
       ); // Right
     }
 
-    // Draw rotate dots
+    // draw rotate dots
     if ((this.isMouseInRotatedArea() && this.isSelected) || this.isRotating) {
       const handleSize = 16; // Diameter of the handle
       const radius = handleSize / 2;
@@ -708,6 +635,11 @@ export class SmartText extends BaseSmartWidget {
           this.myY + this.closeButtonOffsetY + this.closeButtonHeight / 2 + 0
         );
       }
+    }
+
+    // Draw loader
+    if (!this.loader) {
+      this.loader = new SmartLoading(this.myX + this.width / 2, this.myY + this.height / 2, this.node);
     }
 
     ctx.restore();

@@ -1,19 +1,24 @@
 import { BaseSmartWidget } from "./BaseSmartWidget.js";
+import { SmartLoading } from "./SmartLoading.js";
+import { api } from "../../../../scripts/api.js";
 import { allow_debug } from "../js_shared.js";
+import { app } from "../../../../scripts/app.js";
+import { domCtx } from "./DomCtx.js";
 
-export class SmartLayer extends BaseSmartWidget {
+export class SmartImage extends BaseSmartWidget {
   constructor(x, y, width, height, node, options = {}) {
     super(node);
     this.myX = x;
     this.myY = y;
     this.width = width;
     this.height = height;
-    this.yOffset = -30
     this.originalWidth = this.width;
     this.originalHeight = this.height;
     this.placeholderColor = "grey";
     this.img = new Image(); // Create an image object
     this.imgLoaded = false; // Track if the image has been loaded
+    this.apiEndpoint = "/itools/request_load_img"; // API endpoint for fetching the image
+    this.filenamePrefix = "iToolsTestImg";
     this.isPicked = false;
     this.isResizing = false; // Track if the user is resizing
     this.resizeAnchor = null; // Store the anchor point being resized (e.g., 'top-left', 'right', etc.)
@@ -21,9 +26,11 @@ export class SmartLayer extends BaseSmartWidget {
     this.onImgLoaded = null;
     this.onImgClosed = null;
     this.isUnderCover = false;
-    this.isSelected = true;
 
-    // properties for close button
+    this.isSelected = false;
+    this.buttonXoffset = 5;
+    this.buttonYoffset = 5;
+
     this.closeButton = false;
     this.closeButtonWidth = 10;
     this.closeButtonHeight = 10;
@@ -47,9 +54,8 @@ export class SmartLayer extends BaseSmartWidget {
     // Apply options if provided
     Object.assign(this, options);
 
-    // this.autoAddSelfToNode = false
     // Add self to the node
-    if (this.autoAddSelfToNode) node.addCustomWidget(this);
+    node.addCustomWidget(this);
   }
 
   // Method to handle rotation start
@@ -110,11 +116,250 @@ export class SmartLayer extends BaseSmartWidget {
     this.img.onload = () => {
       this.imgLoaded = true;
       if (this.onImgLoaded) this.onImgLoaded();
+      if (this.node?._useDomCtx) domCtx.requestRedraw();
     };
 
     this.img.onerror = () => {
       console.error("Failed to load the new image.");
     };
+  }
+
+  async fetchImageFromAPI() {
+    const formData = new FormData();
+    formData.append("filename_prefix", this.filenamePrefix || "iToolsTestImg");
+    try {
+      const response = await api.fetchApi(this.apiEndpoint, {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      if (result.status === "success") {
+        const { img } = result.data;
+
+        function hexToBase64(hexString) {
+          if (!hexString || typeof hexString !== "string") {
+            console.error("Invalid hexadecimal string provided.");
+            return "";
+          }
+          const chunkSize = 1024 * 1024; // Process in chunks of 1MB
+          let base64 = "";
+          for (let i = 0; i < hexString.length; i += chunkSize * 2) {
+            const chunk = hexString.slice(i, i + chunkSize * 2);
+            let binaryString = "";
+            for (let c = 0; c < chunk.length; c += 2) {
+              const byte = parseInt(chunk.substr(c, 2), 16);
+              binaryString += String.fromCharCode(byte);
+            }
+            base64 += btoa(binaryString);
+          }
+          return base64;
+        }
+
+        this.img.src = `data:image/png;base64,${hexToBase64(img)}`;
+        this.img.onload = () => {
+          this.imgLoaded = true;
+          if (this.onImgLoaded) this.onImgLoaded();
+          if (this.node?._useDomCtx) domCtx.requestRedraw();
+        };
+        this.img.onerror = () => {
+          console.error("Failed to load image from API");
+        };
+        if (allow_debug) console.log("Image received successfully.");
+      } else {
+        console.error("Error fetching image:", result.message);
+      }
+    } catch (error) {
+      console.error("Error communicating with the API:", error);
+    }
+  }
+
+  async fetchMaskedImageFromAPI() {
+    const formData = new FormData();
+    formData.append("filename_prefix", "iToolsMaskedImg");
+    try {
+      const response = await api.fetchApi(this.apiEndpoint, {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      if (result.status === "success") {
+        const { img } = result.data;
+
+        function hexToBase64(hexString) {
+          if (!hexString || typeof hexString !== "string") {
+            console.error("Invalid hexadecimal string provided.");
+            return "";
+          }
+          let binaryString = "";
+          for (let i = 0; i < hexString.length; i += 2) {
+            const byte = parseInt(hexString.substr(i, 2), 16);
+            binaryString += String.fromCharCode(byte);
+          }
+          return btoa(binaryString);
+        }
+
+        this.img.src = `data:image/png;base64,${hexToBase64(img)}`;
+        this.img.onload = async () => {
+          const bounds = await this.cropVisibleArea();
+          if (this.node?._useDomCtx) domCtx.requestRedraw();
+        };
+        this.img.onerror = () => {
+          console.error("Failed to load Masked image from API");
+        };
+        if (allow_debug) console.log("Masked image received successfully.");
+        this.loader.markDelete = true;
+        this.node.setDirtyCanvas(true, true);
+      } else {
+        console.error("Error fetching image:", result.message);
+      }
+    } catch (error) {
+      console.error("Error communicating with the API:", error);
+    } finally {
+      this.isMasked = true;
+      this.loader.markDelete = true;
+      this.loader.isVisible = false;
+    }
+  }
+
+  async requestMaskedImage(img_file) {
+    this.loader.isVisible = true;
+
+    const formData = new FormData();
+    formData.append("image", img_file);
+
+    try {
+      const response = await api.fetchApi("/itools/request_mask_img", {
+        method: "POST",
+        body: formData,
+        headers: {
+          enctype: "multipart/form-data",
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.status === "success") {
+        this.fetchMaskedImageFromAPI();
+      } else {
+        console.error("Error:", result.message);
+      }
+    } catch (error) {
+      console.error("Error fetching the drawing:", error);
+    } finally {
+      // this.isMasked = true;
+      // this.loader.markDelete = true;
+      // this.loader.isVisible = false;
+    }
+  }
+
+  async cropVisibleArea() {
+    if (!this.img || !this.img.complete) return;
+
+    // Create a temporary canvas to analyze the image
+    const tempCanvas = document.createElement("canvas");
+    const tempCtx = tempCanvas.getContext("2d");
+    tempCanvas.width = this.img.width;
+    tempCanvas.height = this.img.height;
+
+    // Draw the image on temporary canvas
+    tempCtx.drawImage(this.img, 0, 0);
+
+    // Get image data to analyze pixels
+    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    const data = imageData.data;
+
+    // Initialize bounds
+    let minX = tempCanvas.width;
+    let minY = tempCanvas.height;
+    let maxX = 0;
+    let maxY = 0;
+
+    // Scan through all pixels to find the bounds of non-transparent area
+    for (let y = 0; y < tempCanvas.height; y++) {
+      for (let x = 0; x < tempCanvas.width; x++) {
+        const alpha = data[(y * tempCanvas.width + x) * 4 + 3];
+        if (alpha > 0) {
+          // If pixel is not fully transparent
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+
+    // Calculate new dimensions (no padding)
+    const croppedWidth = maxX - minX;
+    const croppedHeight = maxY - minY;
+
+    // Create final canvas for cropped image
+    const cropCanvas = document.createElement("canvas");
+    const cropCtx = cropCanvas.getContext("2d");
+    cropCanvas.width = croppedWidth;
+    cropCanvas.height = croppedHeight;
+
+    // Draw cropped area
+    cropCtx.drawImage(
+      this.img,
+      minX,
+      minY,
+      croppedWidth,
+      croppedHeight, // Source coordinates
+      0,
+      0,
+      croppedWidth,
+      croppedHeight // Destination coordinates
+    );
+
+    // Calculate scaling factors to fit within original dimensions while maintaining aspect ratio
+    const scaleX = this.width / croppedWidth;
+    const scaleY = this.height / croppedHeight;
+    const scale = Math.min(scaleX, scaleY); // Use the smaller scale to fit within bounds
+
+    // Calculate new dimensions for the resized image
+    const resizedWidth = croppedWidth * scale;
+    const resizedHeight = croppedHeight * scale;
+
+    // Update this.width and this.height to match the aspect ratio of the cropped bounding box
+    this.width = resizedWidth;
+    this.height = resizedHeight;
+
+    // Create a canvas for the resized image
+    const resizeCanvas = document.createElement("canvas");
+    const resizeCtx = resizeCanvas.getContext("2d");
+    resizeCanvas.width = resizedWidth;
+    resizeCanvas.height = resizedHeight;
+
+    // Draw the cropped image onto the resized canvas, maintaining aspect ratio
+    resizeCtx.drawImage(
+      cropCanvas,
+      0,
+      0,
+      croppedWidth,
+      croppedHeight, // Source coordinates (cropped image)
+      0,
+      0,
+      resizedWidth,
+      resizedHeight // Destination coordinates (resized)
+    );
+
+    // Update the image with the resized and cropped version
+    return new Promise((resolve) => {
+      const resizedImage = new Image();
+      resizedImage.onload = () => {
+        this.img = resizedImage;
+        resolve({
+          width: this.width,
+          height: this.height,
+          x: minX,
+          y: minY,
+        });
+      };
+      resizedImage.src = resizeCanvas.toDataURL();
+      // store new originals
+      this.originalWidth = this.width;
+      this.originalHeight = this.height;
+    });
   }
 
   handleDown() {
@@ -130,7 +375,6 @@ export class SmartLayer extends BaseSmartWidget {
     } else if (this.isMouseInRotatedArea()) {
       this.handleRotateStart();
     } else if (this.isMouseIn(-20) && this.isSelected && !this.isUnderCover) {
-      if(allow_debug) console.log('layer picked',);
       this.isPicked = true;
       this.pickOffset = {
         x: this.mousePos.x - this.myX,
@@ -141,9 +385,9 @@ export class SmartLayer extends BaseSmartWidget {
 
   handleMove() {
     const canvasX = 0,
-      canvasY = this.yOffset,
-      width = this.node.width - this.width,
-      height = this.node.height - this.height;
+      canvasY = 80,
+      width = 512 - this.width,
+      height = 512 - this.height;
 
     if (this.isResizing) {
       this.resizeImage();
@@ -465,6 +709,58 @@ export class SmartLayer extends BaseSmartWidget {
     // Center the image in the available space
     this.myX = (512 - this.width) / 2;
     this.myY = (512 - this.height) / 2 + offsetY;
+  }
+
+  plotImageOnCanvas(ctx, xOffset, yOffset, scale) {
+    if (!ctx || !(ctx instanceof CanvasRenderingContext2D)) {
+      console.error("Invalid canvas context provided.");
+      return;
+    }
+    // if (allow_debug) {
+    //   console.log("scale", scale);
+    // }
+    if (scale === -1 || scale === 0) scale = 1;
+    else if (scale === 1) scale = 2;
+    else if (scale === 2) scale = 4;
+
+    const { myX, myY, width, height, rotationAngle } = this;
+
+    // Save the context state before transformations
+    ctx.save();
+
+    // Calculate the scaled dimensions and offsets
+    const scaledWidth = width * scale;
+    const scaledHeight = height * scale;
+    const scaledX = (myX - xOffset) * scale;
+    const scaledY = (myY - yOffset) * scale;
+
+    // Translate to the center of the scaled image
+    ctx.translate(scaledX + scaledWidth / 2, scaledY + scaledHeight / 2);
+
+    // Rotate the context
+    ctx.rotate((rotationAngle * Math.PI) / 180);
+
+    // Translate back to the top-left corner of the scaled image
+    ctx.translate(-scaledWidth / 2, -scaledHeight / 2);
+
+    // Draw the image or placeholder
+    if (this.imgLoaded) {
+      ctx.drawImage(this.img, 0, 0, scaledWidth, scaledHeight);
+    } else {
+      ctx.fillStyle = this.placeholderColor;
+      ctx.fillRect(0, 0, scaledWidth, scaledHeight);
+    }
+
+    // Restore the context state
+    ctx.restore();
+
+    // plot preview
+    this.isPlotted = true;
+    if (this.node?._useDomCtx) domCtx.requestRedraw();
+    setTimeout(() => {
+      this.isPlotted = false;
+      if (this.node?._useDomCtx) domCtx.requestRedraw();
+    }, 200);
   }
 
   draw(ctx) {

@@ -25,13 +25,12 @@ Whether you're a casual user or a power user, iTools brings quality-of-life impr
 </table>
 
 ## Known issues:
-5 of 21 nodes are not yet compatible with ComfyUI Node.2 (Beta). I’m working to make most nodes fully supported in both modes, but frequent ComfyUI updates may cause occasional issues. Keep in mind that Node.2 is also still in (Beta).
+4 of 22 nodes are not yet compatible with ComfyUI Node.2 (Beta). I’m working to make most nodes fully supported in both modes, but frequent ComfyUI updates may cause occasional issues. Keep in mind that Node.2 is also still in (Beta).
 
 #### Unsupported Nodes in Node.2:
 - iTools Prompt Record
 - iTools Image Preview
 - iTools Image Compare
-- iTools Paint Node (Beta)
 - iTools Crop Node (Beta)
 
 For full functionality, use the classic node system.
@@ -123,6 +122,11 @@ Reset size and rotation when double-clicking the image
 - **`Alt`** – Stamps an image onto the background or foreground layer.  
 - **`Alt`** (while the color picker is visible) – Swaps the position of the color palette.
 - **`Double Click`** – Will Reset selecting image or text rotation.  
+---
+### **iTools Image Adjustments 🎛️:**
+
+Fine-tune your images directly within ComfyUI, a node that can run on its own or within a workflow. I'm not the first to do it, but I did it the way I like it. live updates, no extra windows, can work separately, support drag-and-drop / pasting, save your edits directly or pass the result to the next node.
+
 ---
 ### **iTools Image Loader Plus:**
 

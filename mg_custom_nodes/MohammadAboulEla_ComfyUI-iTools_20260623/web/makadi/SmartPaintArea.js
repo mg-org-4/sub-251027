@@ -3,6 +3,7 @@ import { app } from "../../../../scripts/app.js";
 import { api } from "../../../../scripts/api.js";
 import { allow_debug } from "../js_shared.js";
 import {  drawAngledStrips } from "../utils.js";
+import { domCtx } from "./DomCtx.js";
 
 
 export class SmartPaintArea extends BaseSmartWidget {
@@ -65,7 +66,7 @@ export class SmartPaintArea extends BaseSmartWidget {
     }
   
     draw(ctx) {
-      this.node.setSize([512, 592]);
+      if (!this.node._useDomCtx) this.node.setSize([512, 592]);
       if (this.ctx === null) this.ctx = ctx;
       const { x, y } = this.mousePos;
   
@@ -187,9 +188,19 @@ export class SmartPaintArea extends BaseSmartWidget {
       const scaleFactorY = Math.min(1, maxPreviewSize / newY);
       this.scaleFactor = Math.min(scaleFactorX, scaleFactorY);
   
-      // Center the canvas on the x and y axis of the node
+      // Center the canvas on the x and y axis of the node.
+      // In DOM mode the toolbar occupies y=0..80 inside the widget, so center
+      // the paint area in the remaining space below the toolbar instead of
+      // using the legacy nodeYoffset (which was tuned for the litegraph title
+      // strip).
       this.myX = (this.node.width - newX * this.scaleFactor) / 2;
-      this.myY = (this.node.height + this.nodeYoffset - newY * this.scaleFactor) / 2;
+      if (this.node._useDomCtx) {
+        const toolbarBottom = 25;
+        const available = this.node.height - toolbarBottom;
+        this.myY = toolbarBottom + (available - newY * this.scaleFactor) / 2;
+      } else {
+        this.myY = (this.node.height + this.nodeYoffset - newY * this.scaleFactor) / 2;
+      }
   
       // Update the width and height properties
       this.width = newX;
@@ -321,15 +332,17 @@ export class SmartPaintArea extends BaseSmartWidget {
         fgImg.onload = () => {
           this.foregroundCtx.clearRect(0, 0, this.width, this.height);
           this.foregroundCtx.drawImage(fgImg, 0, 0);
+          if (this.node?._useDomCtx) domCtx.requestRedraw();
         };
       }
-  
+
       if (this.tempBackground) {
         let bgImg = new Image();
         bgImg.src = this.tempBackground;
         bgImg.onload = () => {
           this.backgroundCtx.clearRect(0, 0, this.width, this.height);
           this.backgroundCtx.drawImage(bgImg, 0, 0);
+          if (this.node?._useDomCtx) domCtx.requestRedraw();
         };
       }
     }
@@ -444,6 +457,7 @@ export class SmartPaintArea extends BaseSmartWidget {
             const fgX = (this.width - fgImg.width) / 2;
             const fgY = (this.height - fgImg.height) / 2;
             this.foregroundCtx.drawImage(fgImg, fgX, fgY);
+            if (this.node?._useDomCtx) domCtx.requestRedraw();
           };
   
           // Load the background image
@@ -458,6 +472,7 @@ export class SmartPaintArea extends BaseSmartWidget {
             const bgX = (this.width - bgImg.width) / 2;
             const bgY = (this.height - bgImg.height) / 2;
             this.backgroundCtx.drawImage(bgImg, bgX, bgY);
+            if (this.node?._useDomCtx) domCtx.requestRedraw();
           };
           if (allow_debug) console.log("Drawing received successfully.");
         } else {
@@ -557,6 +572,7 @@ export class SmartPaintArea extends BaseSmartWidget {
         fgImg.onload = () => {
           this.foregroundCtx.clearRect(0, 0, this.width, this.height);
           this.foregroundCtx.drawImage(fgImg, 0, 0);
+          if (this.node?._useDomCtx) domCtx.requestRedraw();
         };
       }
       if (state.background) {
@@ -565,6 +581,7 @@ export class SmartPaintArea extends BaseSmartWidget {
         bgImg.onload = () => {
           this.backgroundCtx.clearRect(0, 0, this.width, this.height);
           this.backgroundCtx.drawImage(bgImg, 0, 0);
+          if (this.node?._useDomCtx) domCtx.requestRedraw();
         };
       }
     }

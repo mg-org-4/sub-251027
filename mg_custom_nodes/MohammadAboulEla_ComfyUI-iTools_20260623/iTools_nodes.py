@@ -9,7 +9,7 @@ import folder_paths  # type: ignore
 import node_helpers  # type: ignore
 import numpy as np  # type: ignore
 import torch  # type: ignore
-from PIL import Image, ImageSequence, ImageOps  # type: ignore
+from PIL import Image, ImageSequence, ImageOps, ImageEnhance  # type: ignore
 from .backend.checker_board import ChessTensor, ChessPattern
 from nodes import common_ksampler, SaveImage, PreviewImage  # type: ignore
 import json
@@ -40,9 +40,12 @@ from .backend.shared import (
     get_user_dev_mode,
     get_user_dev_mode2,
 )
-from comfy.cli_args import args  # type: ignore
 from .backend import iserver
+from comfy.cli_args import args  # type: ignore
 import re
+import base64
+import io as py_io
+from comfy_api.latest import io
 
 
 class IToolsLoadImagePlus:
@@ -1179,9 +1182,117 @@ class IToolsPromptBuilder:
         if "PromptBuilderWidget" in kwargs:
             data = kwargs["PromptBuilderWidget"]
             style = data.get("style", "none")
-            # print("ITOOLS_PROMPT_BUILDER_STYLE",style)
-            if style != "none":
+            print("ITOOLS_PROMPT_BUILDER_STYLE",style)
+            if style == "random":
                 return float("nan")  # Force re-execution if template is "random"
+            return False
+
+# V3 Nodes
+class IToolsImageAdjust(io.ComfyNode):
+    # related imports
+    """
+    import base64
+    import io as py_io
+    import json
+    import torch
+    import numpy as np
+    from PIL import Image, ImageEnhance, ImageFilter
+    from comfy_api.latest import io
+    """
+
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="iToolsImageAdjust", # same as node mapping
+            display_name="Image Adjustments 🎛️", # same as node mapping
+            category="iTools",
+            description=(
+                "Upload an image, right click to paste image from clipboard, or connect one from the workflow, then use the "
+                "brightness and contrast sliders to adjust it. A connected IMAGE "
+                "input takes priority over a manually uploaded image."
+            ),
+            inputs=[
+                io.Image.Input(
+                    "image",
+                    optional=True,
+                    tooltip="Optional IMAGE from another node. Takes priority over the uploaded image.",
+                ),
+                # widget_state stores all DOM widget values as a JSON string.
+                # The JS extension removes the default text widget and replaces
+                # it with the custom DOM widget (upload area + sliders).
+                io.String.Input(
+                    "widget_state",
+                    default='{"brightness":0,"contrast":100,"saturation":100,"temperature":0,"gamma":100,"sharpness":100,"hue":0,"imagePath":""}',
+                ),
+            ],
+            outputs=[
+                io.Image.Output(display_name="image"),
+            ],
+        )
+
+    @classmethod
+    def execute(
+        cls,
+        widget_state: str = '{"brightness":0,"contrast":100,"saturation":100,"temperature":0,"gamma":100,"sharpness":100,"hue":0,"imagePath":""}',
+        image=None,
+    ) -> io.NodeOutput:
+        state = json.loads(widget_state)
+        processed_data = state.get("processedImageData", "")
+        image_data     = state.get("imageData", "")
+        image_path     = state.get("imagePath", "")
+
+        # Primary path: JS has already rendered all adjustments into processedImageData.
+        # We just decode it — preview and output are guaranteed to match.
+        if processed_data:
+            if "," in processed_data:
+                processed_data = processed_data.split(",", 1)[1]
+            pil_img = Image.open(py_io.BytesIO(base64.b64decode(processed_data))).convert("RGB")
+
+        # Fallback: API / headless mode / optimal workflow path — JS does not send processedImageData bloat
+        elif image is not None or image_data or image_path:
+            if image is not None:
+                arr = (image[0].cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
+                pil_img = Image.fromarray(arr).convert("RGB")
+            elif image_data:
+                raw = image_data.split(",", 1)[1] if "," in image_data else image_data
+                pil_img = Image.open(py_io.BytesIO(base64.b64decode(raw))).convert("RGB")
+            elif image_path:
+                full_path = folder_paths.get_annotated_filepath(image_path)
+                pil_img = node_helpers.pillow(Image.open, full_path).convert("RGB")
+
+            brightness  = state.get("brightness",  0)   / 100.0
+            contrast    = state.get("contrast",   100)  / 100.0
+            saturation  = state.get("saturation", 100)  / 100.0
+            temperature = state.get("temperature", 0)
+            gamma       = state.get("gamma",      100)  / 100.0
+            sharpness   = state.get("sharpness",  100)  / 100.0
+            hue_shift   = state.get("hue",          0)
+
+            pil_img = ImageEnhance.Brightness(pil_img).enhance(max(0.0, 1.0 + brightness))
+            pil_img = ImageEnhance.Contrast(pil_img).enhance(max(0.0, contrast))
+            pil_img = ImageEnhance.Color(pil_img).enhance(max(0.0, saturation))
+            if temperature != 0:
+                arr = np.array(pil_img).astype(np.float32)
+                s = temperature / 100.0
+                arr[:, :, 0] = np.clip(arr[:, :, 0] * (1.0 + s * 0.3), 0, 255)
+                arr[:, :, 2] = np.clip(arr[:, :, 2] * (1.0 - s * 0.3), 0, 255)
+                pil_img = Image.fromarray(arr.astype(np.uint8))
+            if gamma != 1.0:
+                arr = np.array(pil_img).astype(np.float32) / 255.0
+                arr = np.power(np.clip(arr, 0, 1), 1.0 / max(gamma, 0.01))
+                pil_img = Image.fromarray((arr * 255).astype(np.uint8))
+            pil_img = ImageEnhance.Sharpness(pil_img).enhance(max(0.0, sharpness))
+            if hue_shift != 0:
+                hsv = np.array(pil_img.convert("HSV")).astype(np.int32)
+                hsv[:, :, 0] = (hsv[:, :, 0] + int(hue_shift / 360.0 * 255)) % 256
+                pil_img = Image.fromarray(hsv.astype(np.uint8), "HSV").convert("RGB")
+
+        else:
+            pil_img = Image.new("RGB", (512, 512), (64, 64, 64))
+
+        out_arr = np.array(pil_img).astype(np.float32) / 255.0
+        out_tensor = torch.from_numpy(out_arr).unsqueeze(0)
+        return io.NodeOutput(out_tensor)
 
 
 # A dictionary that contains all nodes you want to export with their names
@@ -1208,6 +1319,7 @@ NODE_CLASS_MAPPINGS = {
     "iToolsPromptRecord": IToolsPromptRecord,
     "iToolsInstructorNode": IToolsInstructorNode,
     "iToolsPromptBuilder": IToolsPromptBuilder,
+    "iToolsImageAdjust": IToolsImageAdjust,
 }
 
 BASE_MAPPINGS = {
@@ -1232,16 +1344,13 @@ BASE_MAPPINGS = {
     "iToolsPromptRecord": "Prompt Record 🪶",
     "iToolsInstructorNode": "Instructor 👨🏻‍🏫",
     "iToolsPromptBuilder": "Prompt Builder 🛖",
+    "iToolsImageAdjust": "Image Adjustments", # V3 node so name is overriden by node display name
 }
-
-use_simple_names = get_user_node_display_name_preferences()
-allow_beta_nodes = get_user_dev_mode()
-allow_dev_nodes = get_user_dev_mode2()
-allow_experimental_nodes = False
 
 
 # INIT NODE DISPLAY NAME MAPPINGS
 def get_node_display_name_mappings():
+    use_simple_names = get_user_node_display_name_preferences()
     if use_simple_names:
         return BASE_MAPPINGS
 
@@ -1254,6 +1363,10 @@ NODE_DISPLAY_NAME_MAPPINGS = get_node_display_name_mappings()
 
 
 def append_extra_nodes():
+    use_simple_names = get_user_node_display_name_preferences()
+    allow_beta_nodes = get_user_dev_mode()
+    allow_dev_nodes = get_user_dev_mode2()
+    allow_experimental_nodes = False
     if allow_beta_nodes:
         try:
             from .experimental.experimental_nodes import (

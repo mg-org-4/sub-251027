@@ -13,7 +13,7 @@ A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nun
 
 **Currently under development and testing. Debug logs are being output extensively. This does not affect functionality.**
 
-> Latest release: [v2.4.6 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.4.6)
+> Latest release: [v2.4.7 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.4.7)
 > 
 
 ## Source
@@ -224,7 +224,13 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 
 ## Changelog
 
-### v2.4.6 (latest)
+### v2.4.7 (latest)
+- **Fixed**: ComfyUI startup `[ERROR] loss` / `[ERROR] logits` messages from Hugging Face `transformers` `@auto_docstring` when importing Qwen3 VL / Qwen2.5 VL `*CausalLMOutputWithPast`. This is **not a defect in this node's LoRA loading logic**. Because it is unclear when Hugging Face will address this upstream, this node absorbs the issue by wrapping `get_args_doc_from_source` inside `prestartup_script.py` only (no `site-packages` edits, no stderr filtering).
+- **Upstream auto-disable (fully automatic)**: On every ComfyUI start, the patch probes upstream `ModelOutputArgs` and runs a subprocess Qwen VL import test. Once `transformers` is fixed upstream, the patch **skips itself** automatically on the next start. **No environment variables or user toggles** (unlike v2.4.6 `apply_rotary_emb` compat, which still allows `QWENIMAGE_ROTARY_COMPAT` opt-out).
+- **Note**: LoRA behavior is unchanged. The root cause is upstream `transformers` Qwen VL `@auto_docstring` validation when those `ModelOutput` classes are imported (often via other custom nodes or workflows).
+- **Technical Details**: See [v2.4.7 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.4.7) for complete explanation
+
+### v2.4.6
 - **Fixed**: ComfyUI **0.24.x** startup failure when **ComfyUI-nunchaku** imports Qwen Image nodes (`ImportError: cannot import name 'apply_rotary_emb' from 'comfy.ldm.qwen_image.model'`). Adds an early `prestartup_script.py` shim that aliases `apply_rotary_emb` to ComfyUI's `apply_rope1` from this custom node only (no ComfyUI-nunchaku file edits).
 - **Technical Details**: See [v2.4.6 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.4.6) for complete explanation
 

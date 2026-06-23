@@ -18,6 +18,8 @@ The optimizer has five merge algorithms. Each prefix in the model can use a diff
 | [SLERP](#slerp) | Low-conflict, similar-magnitude LoRAs | Magnitude-preserving |
 | [Consensus](#consensus-merging) | Highly similar LoRAs (high cosine similarity) | Importance-weighted, spectral cleanup |
 
+> **Preserving a style LoRA.** Orthogonal LoRAs are *blended* (weighted_average / SLERP) by default — the right behaviour for combining characters/concepts, but it averages a style LoRA down. To keep one LoRA at full strength, turn on its **`preserve`** flag on the Stack node: the rest blend normally and the tagged LoRA's full delta is added on top. This is opt-in — the analyzer can't tell "preserve this style" from "blend these characters", so it never does additive automatically. See [Tips → "my style LoRA disappears"](Tips-and-Troubleshooting#my-style-lora-disappears-when-merged-with-a-contentcharacter-lora).
+
 ---
 
 ## Weighted Sum
@@ -68,10 +70,10 @@ Same as weighted sum, but divided by the sum of strengths. This ensures the outp
 
 ### Properties
 
-- Fair blending — each LoRA contributes proportionally
+- Fair blending — each LoRA contributes proportionally (the right default for combining characters/concepts)
 - Prevents magnitude inflation from stacking
 - Fully compressible by SVD (linear operation)
-- Doesn't handle sign conflicts (opposing contributions cancel partially)
+- **Note:** because it divides by `Σ|strength|`, a LoRA's *absolute* contribution is a convex fraction — a single style LoRA gets averaged down. That is intentional for blends; to hold one LoRA at full strength instead, use its **`preserve`** flag (it is then added on top of the blend rather than averaged in).
 
 ---
 

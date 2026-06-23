@@ -385,13 +385,15 @@ class LoRAOptimizerTests(unittest.TestCase):
         }
 
         enriched, _report, _strategy = editor.analyze_and_enrich(
-            [("demo", 1.0, 1.0, "all", "shared_only")],
+            [("demo", 1.0, 1.0, "all", "shared_only", True)],
             "auto",
             conflict_mode_1="auto",
         )
 
-        self.assertEqual(len(enriched[0]), 5)
+        # tuple grew to 6 with the preserve flag; key_filter + preserve round-trip
+        self.assertEqual(len(enriched[0]), 6)
         self.assertEqual(enriched[0][4], "shared_only")
+        self.assertIs(enriched[0][5], True)
 
     def test_save_merged_lora_uses_canonical_prefix(self):
         saver = lora_optimizer.SaveMergedLoRA()
@@ -815,6 +817,298 @@ class LoRAOptimizerTests(unittest.TestCase):
 
 
 @unittest.skipIf(torch is None, "torch is not installed in this environment")
+class PrefixModeRoutingTests(unittest.TestCase):
+    """Orthogonal groups BLEND by default (weighted_average / slerp). Additive
+    preservation is never auto-selected — the analyzer can't tell 'preserve this
+    style' from 'blend these characters', and auto-additive oversaturates ordinary
+    multi-LoRA merges. Style preservation is opt-in via the preserve flag only."""
+
+    def setUp(self):
+        self.optimizer = lora_optimizer.LoRAOptimizer()
+        self.arch = lora_optimizer._ARCH_PRESETS["dit"]
+
+    def _pf(self, cos, n_loras=2):
+        return {
+            "conflict_ratio": 0.5,
+            "magnitude_ratio": 1.0,
+            "n_loras": n_loras,
+            "avg_cos_sim": cos,
+            "excess_conflict": 0.0,
+            "avg_subspace_overlap": 0.0,
+        }
+
+    def _decide(self, cos, strategy_set, n_loras=2):
+        return self.optimizer._decide_prefix_mode(
+            self._pf(cos, n_loras), strategy_set, self.arch,
+            smooth_slerp_gate=False, is_full_rank=False, fr_preset={})
+
+    def test_orthogonal_no_slerp_weighted_average(self):
+        mode, _d, _s, orth, opp = self._decide(0.0, "no_slerp")
+        self.assertEqual(mode, "weighted_average")
+        self.assertTrue(orth)
+
+    def test_orthogonal_basic_weighted_average(self):
+        mode, *_ = self._decide(0.0, "basic")
+        self.assertEqual(mode, "weighted_average")
+
+    def test_orthogonal_full_slerp(self):
+        mode, *_ = self._decide(0.0, "full")
+        self.assertEqual(mode, "slerp")
+
+    def test_nonorthogonal_aligned_full_slerp(self):
+        mode, *_ = self._decide(0.35, "full")
+        self.assertEqual(mode, "slerp")
+
+    def test_opposing_weighted_average(self):
+        mode, _d, _s, orth, opp = self._decide(-0.1, "no_slerp")
+        self.assertEqual(mode, "weighted_average")
+        self.assertTrue(opp)
+
+    def test_additive_is_never_auto_selected(self):
+        # Regression for the multi-LoRA oversaturation: no orthogonality/strategy
+        # combination may auto-route to a sum/sum_preserve mode.
+        for cos in (0.0, 0.1, -0.1, 0.35, 0.6):
+            for ss in ("full", "no_slerp", "basic"):
+                mode, *_ = self._decide(cos, ss)
+                self.assertNotIn(mode, ("sum_preserve", "weighted_sum"))
+
+
+@unittest.skipIf(torch is None, "torch is not installed in this environment")
+class PreserveFlagTests(unittest.TestCase):
+    """A per-LoRA preserve flag protects a tagged style LoRA from TIES sign-election
+    deletion and from sparsification trimming in conflict merges."""
+
+    def setUp(self):
+        self.optimizer = lora_optimizer.LoRAOptimizer()
+
+    def test_preserve_overlay_weighted_average(self):
+        # The style-LoRA use case: a flagged style is added at FULL strength on top
+        # of the weighted_average blend of the rest, instead of being averaged down.
+        content = torch.tensor([2.0, 0.0, 0.0, 0.0])   # not preserved
+        style = torch.tensor([0.0, 3.0, 0.0, 0.0])     # preserved (orthogonal)
+        blended = self.optimizer._merge_diffs(
+            [(content.clone(), 1.0), (style.clone(), 1.0)], "weighted_average")
+        kept = self.optimizer._merge_diffs(
+            [(content.clone(), 1.0), (style.clone(), 1.0)], "weighted_average",
+            preserve_flags=[False, True])
+        # plain blend halves both; preserve keeps content blended (single -> full) and
+        # the style at full on top
+        torch.testing.assert_close(blended, torch.tensor([1.0, 1.5, 0.0, 0.0]))
+        torch.testing.assert_close(kept, torch.tensor([2.0, 3.0, 0.0, 0.0]))
+
+    def test_preserve_does_not_affect_unflagged_blend(self):
+        # No flags -> ordinary balanced blend is untouched (the multi-LoRA case).
+        a = torch.tensor([2.0, 0.0])
+        b = torch.tensor([0.0, 4.0])
+        res = self.optimizer._merge_diffs(
+            [(a.clone(), 1.0), (b.clone(), 1.0)], "weighted_average")
+        torch.testing.assert_close(res, torch.tensor([1.0, 2.0]))
+
+    def test_ties_deletes_minority_sign_without_preserve(self):
+        # Content (+10) out-votes a style (-1) in TIES sign election; the style's
+        # minority-sign direction is dropped entirely.
+        content = torch.tensor([10.0, 10.0, 10.0, 10.0])
+        style = torch.tensor([-1.0, -1.0, -1.0, -1.0])
+        base = self.optimizer._merge_diffs(
+            [(content.clone(), 1.0), (style.clone(), 1.0)], "ties", density=1.0)
+        self.assertAlmostEqual(base[0].item(), 10.0, places=5)
+
+    def test_ties_preserve_keeps_minority_sign_style(self):
+        # With preserve on the style, its full contribution is added on top of the
+        # TIES-merged content: 10 + (-1) = 9 (the style survives the conflict).
+        content = torch.tensor([10.0, 10.0, 10.0, 10.0])
+        style = torch.tensor([-1.0, -1.0, -1.0, -1.0])
+        kept = self.optimizer._merge_diffs(
+            [(content.clone(), 1.0), (style.clone(), 1.0)], "ties", density=1.0,
+            preserve_flags=[False, True])
+        self.assertAlmostEqual(kept[0].item(), 9.0, places=5)
+
+    def test_ties_all_preserved_is_full_sum(self):
+        # Every contributor tagged -> nothing to TIES-merge -> plain full sum.
+        a = torch.tensor([3.0, 3.0])
+        b = torch.tensor([-2.0, -2.0])
+        res = self.optimizer._merge_diffs(
+            [(a.clone(), 1.0), (b.clone(), 1.0)], "ties", density=0.5,
+            preserve_flags=[True, True])
+        torch.testing.assert_close(res, torch.tensor([1.0, 1.0]))
+
+    def test_sparsification_all_preserved_equals_disabled(self):
+        # All preserved -> sparsification is skipped -> identical to disabled.
+        d1 = torch.tensor([1.0, 2.0, 3.0, 4.0])
+        d2 = torch.tensor([0.5, 1.5, 2.5, 3.5])
+        disabled = self.optimizer._merge_diffs(
+            [(d1.clone(), 1.0), (d2.clone(), 1.0)], "weighted_sum",
+            sparsification="disabled")
+        gen = torch.Generator(device="cpu")
+        gen.manual_seed(0)
+        all_pres = self.optimizer._merge_diffs(
+            [(d1.clone(), 1.0), (d2.clone(), 1.0)], "weighted_sum",
+            sparsification="dare", sparsification_density=0.5,
+            sparsification_generator=gen, preserve_flags=[True, True])
+        torch.testing.assert_close(disabled, all_pres)
+
+    def test_normalize_stack_carries_preserve_tuple_and_dict(self):
+        opt = lora_optimizer.LoRAOptimizer()
+        opt.loaded_loras = {"loraA": {}, "loraB": {}}
+        tup = opt._normalize_stack([
+            ("loraA", 1.0, 1.0, "all", "all", True),
+            ("loraB", 1.0, 1.0, "all", "all"),  # legacy 5-tuple -> preserve False
+        ])
+        self.assertTrue(tup[0]["preserve"])
+        self.assertFalse(tup[1]["preserve"])
+
+        dct = opt._normalize_stack([
+            {"name": "x", "lora": {}, "strength": 1.0, "preserve": True},
+        ])
+        self.assertTrue(dct[0]["preserve"])
+
+    def test_normalize_stack_mixed_tuple_and_dict(self):
+        """A stack mixing file-ref tuples with in-memory dict entries (e.g. a
+        LoRAStackDynamic feeding LoRAExtractFromModel) keeps both — the old
+        first-element dispatch dropped whichever type wasn't first."""
+        opt = lora_optimizer.LoRAOptimizer()
+        opt.loaded_loras = {"loraA": {"k": 1}}
+        extracted = {"name": "<extracted>", "lora": {"w": 2}, "strength": 1.5}
+
+        # tuple first, dict last
+        out = opt._normalize_stack([("loraA", 1.0, 1.0), extracted])
+        self.assertEqual([e["name"] for e in out], ["loraA", "<extracted>"])
+        self.assertEqual(out[1]["lora"], {"w": 2})
+
+        # dict first, tuple last
+        out2 = opt._normalize_stack([extracted, ("loraA", 1.0, 1.0)])
+        self.assertEqual([e["name"] for e in out2], ["<extracted>", "loraA"])
+
+    def test_compute_cache_key_mixed_tuple_and_dict(self):
+        """_compute_cache_key must not crash on a mixed stack (tuple entry
+        first, extracted dict entry second) — it used to do entry[3] on the
+        dict and raise KeyError: 3."""
+        key = lora_optimizer.LoRAOptimizer._compute_cache_key(
+            [("loraA", 1.0, 1.0), {"name": "<extracted>", "lora": {}, "strength": 1.5}],
+            output_strength=1.0, clip_strength_multiplier=1.0, auto_strength="disabled",
+        )
+        self.assertIsInstance(key, str)
+        self.assertEqual(len(key), 16)
+        # order-independent: same entries reversed hash identically
+        key2 = lora_optimizer.LoRAOptimizer._compute_cache_key(
+            [{"name": "<extracted>", "lora": {}, "strength": 1.5}, ("loraA", 1.0, 1.0)],
+            output_strength=1.0, clip_strength_multiplier=1.0, auto_strength="disabled",
+        )
+        self.assertEqual(key, key2)
+
+    def test_build_stack_passes_through_inmemory_dict(self):
+        """The dynamic stacker must pass dict entries carrying weights through
+        as-is, not flatten them to a (name, ...) tuple that loses the weights."""
+        node = lora_optimizer.LoRAStackDynamic()
+        extracted = {"name": "<extracted>", "lora": {"w": 1}, "strength": 1.0}
+        with mock.patch.object(
+            lora_optimizer.LoRAStackDynamic, "_resolve_lora_name",
+            side_effect=lambda n: n,
+        ):
+            result, = node.build_stack(
+                settings_visibility="simple", input_mode="text", lora_count=1,
+                lora_name_text_1="lora_a", strength_1=1.0,
+                lora_stack=[extracted],
+            )
+        # the in-memory dict survives as a dict (not converted to a tuple)
+        dicts = [e for e in result if isinstance(e, dict)]
+        self.assertEqual(len(dicts), 1)
+        self.assertEqual(dicts[0]["lora"], {"w": 1})
+
+    def test_build_stack_advanced_emits_preserve(self):
+        node = lora_optimizer.LoRAStackDynamic()
+        with mock.patch.object(
+            lora_optimizer.LoRAStackDynamic, "_resolve_lora_name",
+            side_effect=lambda n: n,
+        ):
+            result, = node.build_stack(
+                settings_visibility="advanced", input_mode="text", lora_count=2,
+                lora_name_text_1="lora_a", lora_name_text_2="lora_b",
+                model_strength_1=1.0, clip_strength_1=1.0, preserve_1=True,
+                model_strength_2=1.0, clip_strength_2=1.0, preserve_2=False,
+            )
+        # tuple layout: (name, model_str, clip_str, conflict_mode, key_filter, preserve)
+        self.assertIs(result[0][5], True)
+        self.assertIs(result[1][5], False)
+
+    def test_build_stack_simple_defaults_preserve_false(self):
+        node = lora_optimizer.LoRAStackDynamic()
+        with mock.patch.object(
+            lora_optimizer.LoRAStackDynamic, "_resolve_lora_name",
+            side_effect=lambda n: n,
+        ):
+            result, = node.build_stack(
+                settings_visibility="simple", input_mode="text", lora_count=1,
+                lora_name_text_1="lora_a", strength_1=1.0,
+            )
+        self.assertEqual(len(result[0]), 6)
+        self.assertIs(result[0][5], False)
+
+
+@unittest.skipIf(torch is None, "torch is not installed in this environment")
+class PreserveCacheAwarenessTests(unittest.TestCase):
+    """Toggling the preserve flag must invalidate every AutoTuner cache layer
+    (IS_CHANGED, in-node, persistent memory) so the tuner actually re-runs."""
+
+    sig = staticmethod(lora_optimizer.LoRAOptimizer._per_lora_merge_signature)
+    default_flags = staticmethod(lora_optimizer.LoRAOptimizer._stack_has_default_merge_flags)
+
+    def test_signature_changes_with_preserve(self):
+        off = self.sig([("a", 1.0, 1.0, "all", "all", False)])
+        on = self.sig([("a", 1.0, 1.0, "all", "all", True)])
+        self.assertNotEqual(off, on)
+
+    def test_signature_changes_with_conflict_mode_and_key_filter(self):
+        base = self.sig([("a", 1.0, 1.0, "all", "all", False)])
+        self.assertNotEqual(base, self.sig([("a", 1.0, 1.0, "high_conflict", "all", False)]))
+        self.assertNotEqual(base, self.sig([("a", 1.0, 1.0, "all", "audio_only", False)]))
+
+    def test_signature_order_independent(self):
+        s1 = self.sig([("a", 1.0, 1.0, "all", "all", True),
+                       ("b", 1.0, 1.0, "all", "all", False)])
+        s2 = self.sig([("b", 1.0, 1.0, "all", "all", False),
+                       ("a", 1.0, 1.0, "all", "all", True)])
+        self.assertEqual(s1, s2)
+
+    def test_signature_ignores_strength(self):
+        # strength is handled elsewhere (sign in names hash); the merge-structure
+        # signature must not change with strength so strength sweeps still share.
+        s1 = self.sig([("a", 1.0, 1.0, "all", "all", True)])
+        s2 = self.sig([("a", 2.5, 0.5, "all", "all", True)])
+        self.assertEqual(s1, s2)
+
+    def test_signature_handles_dict_entries(self):
+        off = self.sig([{"name": "a", "conflict_mode": "all", "key_filter": "all", "preserve": False}])
+        on = self.sig([{"name": "a", "conflict_mode": "all", "key_filter": "all", "preserve": True}])
+        self.assertNotEqual(off, on)
+
+    def test_default_merge_flags(self):
+        self.assertTrue(self.default_flags([{"name": "a"}, {"name": "b"}]))
+        self.assertFalse(self.default_flags([{"name": "a", "preserve": True}]))
+        self.assertFalse(self.default_flags([{"name": "a", "key_filter": "audio_only"}]))
+        self.assertFalse(self.default_flags([{"name": "a", "conflict_mode": "high_conflict"}]))
+
+    def test_optimizer_cache_key_changes_with_preserve(self):
+        off = lora_optimizer.LoRAOptimizer._compute_cache_key(
+            [("a", 1.0, 1.0, "all", "all", False)], 1.0, 1.0, "disabled")
+        on = lora_optimizer.LoRAOptimizer._compute_cache_key(
+            [("a", 1.0, 1.0, "all", "all", True)], 1.0, 1.0, "disabled")
+        self.assertNotEqual(off, on)
+
+    def test_autotuner_is_changed_embeds_signature(self):
+        # The signature must be IN the IS_CHANGED output, so even if id(lora_stack)
+        # is reused across executions, toggling preserve still re-triggers the node.
+        model = _make_model()
+        stack_on = [("a", 1.0, 1.0, "all", "all", True)]
+        result = lora_optimizer.LoRAAutoTuner.IS_CHANGED(model, stack_on, 1.0)
+        self.assertIn(self.sig(stack_on), result)
+        stack_off = [("a", 1.0, 1.0, "all", "all", False)]
+        result_off = lora_optimizer.LoRAAutoTuner.IS_CHANGED(model, stack_off, 1.0)
+        self.assertIn(self.sig(stack_off), result_off)
+        self.assertNotEqual(self.sig(stack_on), self.sig(stack_off))
+
+
+@unittest.skipIf(torch is None, "torch is not installed in this environment")
 class LoRASettingsNodeTests(unittest.TestCase):
     """Tests for LoRAMergeSettings, LoRAOptimizerSettings and LoRAAutoTunerSettings nodes."""
 
@@ -851,6 +1145,22 @@ class LoRASettingsNodeTests(unittest.TestCase):
         self.assertFalse(settings["smooth_slerp_gate"])
         self.assertAlmostEqual(settings["vram_budget"], 0.0)
         self.assertEqual(settings["cache_patches"], "enabled")
+
+    def test_merge_settings_floor_mode_resolution(self):
+        """The mode switch resolves to the same downstream value the old float
+        sentinel produced: 'auto' -> -1.0 (ignores slider); 'manual' -> slider
+        clamped to [0,1]."""
+        node = lora_optimizer.LoRAMergeSettings()
+        base = self._build_defaults(lora_optimizer.LoRAMergeSettings.INPUT_TYPES())
+        auto = node.build_settings(
+            **{**base, "auto_strength_floor_mode": "auto", "auto_strength_floor": 0.5})[0]
+        self.assertAlmostEqual(auto["auto_strength_floor"], -1.0)
+        manual = node.build_settings(
+            **{**base, "auto_strength_floor_mode": "manual", "auto_strength_floor": 0.5})[0]
+        self.assertAlmostEqual(manual["auto_strength_floor"], 0.5)
+        clamped = node.build_settings(
+            **{**base, "auto_strength_floor_mode": "manual", "auto_strength_floor": -1.0})[0]
+        self.assertAlmostEqual(clamped["auto_strength_floor"], 0.0)
 
     def test_optimizer_settings_build_returns_advanced_mode(self):
         node = lora_optimizer.LoRAOptimizerSettings()
@@ -1020,18 +1330,31 @@ class LoRASettingsNodeTests(unittest.TestCase):
                              f"Default mismatch for {key}: merge_settings={default}, simple={simple[key]}")
 
     def test_merge_settings_defaults_match_input_types(self):
-        """Verify _DEFAULTS dict stays in sync with INPUT_TYPES defaults."""
+        """_DEFAULTS holds the RESOLVED downstream settings (the fallback used
+        when merge_settings isn't connected), so it mirrors INPUT_TYPES defaults
+        EXCEPT where build_settings resolves a widget: 'auto_strength_floor_mode'
+        is resolved away, and 'auto_strength_floor' defaults to the -1 'auto'
+        sentinel rather than the manual slider's value."""
         inputs = lora_optimizer.LoRAMergeSettings.INPUT_TYPES()
         defaults_dict = lora_optimizer.LoRAMergeSettings._DEFAULTS
+        resolved = {"auto_strength_floor", "auto_strength_floor_mode"}
         for key, spec in inputs["required"].items():
+            if key in resolved:
+                continue
             if isinstance(spec[0], list):
                 input_default = spec[1].get("default", spec[0][0])
             else:
                 input_default = spec[1]["default"]
             self.assertEqual(defaults_dict[key], input_default,
                              f"_DEFAULTS[{key}]={defaults_dict[key]} != INPUT_TYPES default={input_default}")
-        self.assertEqual(set(defaults_dict.keys()), set(inputs["required"].keys()),
-                         "_DEFAULTS keys don't match INPUT_TYPES keys")
+        # The mode switch is resolved into auto_strength_floor, not a downstream key
+        self.assertNotIn("auto_strength_floor_mode", defaults_dict)
+        # Default (auto) resolves to the -1 sentinel downstream
+        self.assertAlmostEqual(defaults_dict["auto_strength_floor"], -1.0)
+        self.assertEqual(
+            set(defaults_dict.keys()),
+            set(inputs["required"].keys()) - {"auto_strength_floor_mode"},
+            "_DEFAULTS keys don't match INPUT_TYPES keys (minus the resolved mode switch)")
 
 
     # --- Merge formula parser tests ---
@@ -3427,6 +3750,28 @@ class TestMergeOnWrite(unittest.TestCase):
                 loaded = lora_optimizer.LoRAAutoTuner._pair_cache_load("a", "b")
                 self.assertEqual(set(loaded), {"p1", "p2"})
 
+    @unittest.skipIf(torch is None, "torch not available")
+    def test_content_hash_inmemory_fallback_for_fileless_lora(self):
+        """A LoRA with no file on disk (e.g. the extractor's output) gets a
+        stable content hash from its in-memory weights instead of None."""
+        with mock.patch.object(lora_optimizer.folder_paths, "get_full_path",
+                               return_value=None):
+            item = {"name": "<extracted>", "lora": {
+                "blk.lora_up.weight": torch.ones(4, 2),
+                "blk.lora_down.weight": torch.ones(2, 4) * 0.5,
+            }}
+            h1 = lora_optimizer.LoRAAutoTuner._lora_content_hash(item)
+            h2 = lora_optimizer.LoRAAutoTuner._lora_content_hash(item)
+            self.assertIsNotNone(h1)
+            self.assertEqual(len(h1), 16)
+            self.assertEqual(h1, h2)  # deterministic
+            # different weights -> different hash
+            item2 = {"name": "<extracted>", "lora": {
+                "blk.lora_up.weight": torch.zeros(4, 2),
+                "blk.lora_down.weight": torch.ones(2, 4) * 0.5,
+            }}
+            self.assertNotEqual(h1, lora_optimizer.LoRAAutoTuner._lora_content_hash(item2))
+
     def test_content_hash_save_merges_unless_gc(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             with mock.patch("lora_optimizer.AUTOTUNER_MEMORY_DIR", tmpdir):
@@ -4147,6 +4492,29 @@ class TestDiffCacheRamLimit(unittest.TestCase):
         with mock.patch("shutil.disk_usage", return_value=ok):
             cache.put(("alias_a", 0), torch.zeros(4, 4))
         self.assertIn(("alias_a", 0), cache)
+
+    @unittest.skipIf(torch is None, "torch is not installed")
+    def test_cache_stores_fp32_bit_identical(self):
+        """A cache hit must equal the stored diff bit-for-bit (fp32, no fp16
+        downcast) so it matches a fresh recompute — results then don't depend
+        on whether a diff was cached or recomputed."""
+        cache = lora_optimizer._DiffCache(mode="ram")
+        diff = torch.randn(8, 8, dtype=torch.float32)
+        cache.put(("alias_a", 0), diff)
+        got = cache.get(("alias_a", 0))
+        self.assertEqual(got.dtype, torch.float32)
+        torch.testing.assert_close(got, diff, rtol=0, atol=0)
+
+    @unittest.skipIf(torch is None, "torch is not installed")
+    def test_auto_mode_declines_past_ram_budget_no_disk(self):
+        """auto mode recomputes (declines to cache) past the RAM budget instead
+        of spilling dense diffs to disk."""
+        fake_vm = types.SimpleNamespace(available=1024)  # ram_limit = 512 bytes
+        with mock.patch("psutil.virtual_memory", return_value=fake_vm):
+            cache = lora_optimizer._DiffCache(mode="auto", ram_pct=0.5)
+        cache.put(("alias_a", 0), torch.zeros(64, 64, dtype=torch.float32))  # 16KB > 512
+        self.assertNotIn(("alias_a", 0), cache)   # declined -> caller recomputes
+        self.assertEqual(len(cache._disk_store), 0)  # NOT spilled to disk
 
 
 @unittest.skipIf(torch is None, "torch is not installed in this environment")

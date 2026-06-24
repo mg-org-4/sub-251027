@@ -4214,6 +4214,83 @@ class TestGlobalModeMergesWithDeclaredMode(unittest.TestCase):
 
 
 @unittest.skipIf(torch is None, "torch is not installed in this environment")
+class TestSingleLoraSkipsCompression(unittest.TestCase):
+    """Single-LoRA groups (layers only one LoRA touches) take the exact
+    low-rank fast path even when sparsification/refinement is on — those are
+    conflict/multi-diff ops that are no-ops on a lone LoRA. This avoids the
+    wasteful dense-materialize + compression SVD and emits native factors
+    (a LoRAAdapter), while genuine multi-LoRA groups still go dense+compress."""
+
+    def _run(self, **kwargs):
+        class FakePatcher:
+            def __init__(self, model):
+                self.model = model
+
+            def clone(self):
+                return FakePatcher(self.model)
+
+            def add_patches(self, patches, strength=1.0, strength_clip=None):
+                return list(patches.keys())
+
+        inner = types.SimpleNamespace(
+            layer=types.SimpleNamespace(weight=torch.zeros(32, 32)),
+            layer2=types.SimpleNamespace(weight=torch.zeros(32, 32)))
+        model = FakePatcher(inner)
+
+        def make_lora(seed, scale, prefixes):
+            g = torch.Generator().manual_seed(seed)
+            d = {}
+            for prefix in prefixes:
+                d[f"{prefix}.lora_up.weight"] = torch.randn(32, 4, generator=g) * scale
+                d[f"{prefix}.lora_down.weight"] = torch.randn(4, 32, generator=g)
+                d[f"{prefix}.alpha"] = torch.tensor(4.0)
+            return d
+
+        stack = [
+            # alias_a is shared (2 LoRAs -> conflict); alias_b is single-LoRA
+            {"name": "A", "lora": make_lora(1, 0.1, ("alias_a", "alias_b")), "strength": 1.0},
+            {"name": "B", "lora": make_lora(2, 0.1, ("alias_a",)), "strength": 0.8},
+        ]
+        opt = lora_optimizer.LoRAOptimizer()
+        opt._get_model_keys = lambda m: {"alias_a": "layer.weight", "alias_b": "layer2.weight"}
+        _, _, _, _, lora_data = opt.optimize_merge(
+            model, stack, 1.0, cache_patches="disabled", **kwargs)
+        patches = {}
+        for k, v in lora_data["model_patches"].items():
+            patches[k[0] if isinstance(k, tuple) else k] = v
+        return patches
+
+    def _is_native_rank4(self, patch):
+        # The fast path emits the LoRA's native rank-4 factors untouched.
+        # The dense+compress path (DARE breaks the low-rank structure, then SVD
+        # re-fits) lands at a higher rank or stays a dense ("diff",) tuple.
+        return (isinstance(patch, lora_optimizer.LoRAAdapter)
+                and patch.weights[1].shape[0] == 4)
+
+    def test_single_lora_skips_compression_under_sparsification(self):
+        # sparsification on + compression on: the single-LoRA group must STILL
+        # take the low-rank fast path (no dense diff, no sparsification, no
+        # compression SVD) — proven by its native rank 4 surviving intact; the
+        # multi-LoRA group must NOT (it genuinely needs deconfliction).
+        patches = self._run(sparsification="dare", sparsification_density=0.9,
+                            patch_compression="smart")
+        self.assertTrue(self._is_native_rank4(patches["layer2.weight"]),
+                        "single-LoRA group should emit native rank-4 factors")
+        self.assertFalse(self._is_native_rank4(patches["layer.weight"]),
+                         "multi-LoRA group should still go dense+compress")
+
+    def test_single_lora_lowrank_path_is_size_safe(self):
+        # The bypassed single-LoRA patch is stored at the LoRA's native rank (4),
+        # never padded up to the rank-64 compression floor.
+        patches = self._run(sparsification="dare", sparsification_density=0.9,
+                            patch_compression="smart")
+        adapter = patches["layer2.weight"]
+        mat_up, mat_down = adapter.weights[0], adapter.weights[1]
+        self.assertEqual(mat_down.shape[0], 4)  # native rank, not 64
+        self.assertEqual(mat_up.shape[1], 4)
+
+
+@unittest.skipIf(torch is None, "torch is not installed in this environment")
 class TestBatchedKarcher(unittest.TestCase):
     """The batched Karcher implementation must match the per-unit reference
     loop it replaced (same math, different reduction order)."""
@@ -4599,6 +4676,134 @@ class AnimaDetectionTests(unittest.TestCase):
         self.assertEqual(self.det(ace), "acestep")
         self.assertEqual(self.det(wan), "wan")
         self.assertEqual(self.det(ltx), "ltx")
+
+
+class Krea2DetectionTests(unittest.TestCase):
+    """Krea 2 (krea/Krea-2, from-scratch single-stream image DiT) detection."""
+
+    det = staticmethod(lambda s: lora_optimizer.LoRAOptimizer._detect_architecture(s))
+
+    def test_comfy_native_form(self):
+        # Mirrors the official Comfy-Org/Krea-2 rank-64 LoRA: GQA attn.wq/wk/wv/wo
+        # + sigmoid attn.gate + SwiGLU mlp.gate/up/down under diffusion_model.blocks.N
+        s = _sd(["diffusion_model.blocks.0.attn.wq.lora_up.weight",
+                 "diffusion_model.blocks.0.attn.wk.lora_up.weight",
+                 "diffusion_model.blocks.0.attn.wv.lora_up.weight",
+                 "diffusion_model.blocks.0.attn.wo.lora_up.weight",
+                 "diffusion_model.blocks.0.attn.gate.lora_up.weight",
+                 "diffusion_model.blocks.0.mlp.gate.lora_up.weight",
+                 "diffusion_model.blocks.0.mlp.up.lora_up.weight",
+                 "diffusion_model.blocks.0.mlp.down.lora_up.weight"])
+        self.assertEqual(self.det(s), "krea2")
+
+    def test_kohya_underscore_form(self):
+        s = _sd(["lora_unet_blocks_0_attn_wq.lora_down.weight",
+                 "lora_unet_blocks_0_mlp_gate.lora_up.weight"])
+        self.assertEqual(self.det(s), "krea2")
+
+    def test_trainer_diffusion_model_form(self):
+        # The "krea_2" trainer: diffusion_model.transformer_blocks.N.attn.to_*
+        # with a sigmoid attn.to_gate. Must NOT be mistaken for ACE-Step (which
+        # also matches transformer_blocks.N.attn.to_q).
+        s = _sd(["diffusion_model.transformer_blocks.0.attn.to_q.lora_A.weight",
+                 "diffusion_model.transformer_blocks.0.attn.to_k.lora_A.weight",
+                 "diffusion_model.transformer_blocks.0.attn.to_v.lora_A.weight",
+                 "diffusion_model.transformer_blocks.0.attn.to_out.0.lora_A.weight",
+                 "diffusion_model.transformer_blocks.0.attn.to_gate.lora_A.weight",
+                 "diffusion_model.transformer_blocks.0.ff.gate.lora_A.weight"])
+        self.assertEqual(self.det(s), "krea2")
+
+    def test_diffusers_transformer_form(self):
+        # diffusers form: transformer.transformer_blocks.N.attn.to_* + to_gate
+        # + text_fusion. Must NOT be mistaken for Qwen-Image (transformer.transformer_blocks).
+        s = _sd(["transformer.transformer_blocks.0.attn.to_q.lora_A.weight",
+                 "transformer.transformer_blocks.0.attn.to_gate.lora_A.weight",
+                 "transformer.transformer_blocks.0.ff.gate.lora_A.weight",
+                 "transformer.text_fusion.refiner_blocks.0.attn.to_gate.lora_A.weight"])
+        self.assertEqual(self.det(s), "krea2")
+
+    def test_gate_plus_mlp_gate_fallback(self):
+        # Backup discriminator when attn.w{q,k,v,o} isn't in a partial LoRA.
+        s = _sd(["diffusion_model.blocks.3.attn.gate.lora_up.weight",
+                 "diffusion_model.blocks.3.mlp.gate.lora_up.weight"])
+        self.assertEqual(self.det(s), "krea2")
+
+    def test_no_collision_with_wan_flux_qwen(self):
+        # Krea is checked before WAN; must not steal these, and they must not steal Krea.
+        wan = _sd(["diffusion_model.blocks.0.self_attn.q.a",
+                   "diffusion_model.blocks.0.cross_attn.k.b",
+                   "diffusion_model.blocks.0.ffn.0.c"])
+        flux = _sd(["diffusion_model.double_blocks.0.img_attn.qkv.lora_up.weight"])
+        qwen = _sd(["transformer.transformer_blocks.0.attn.to_q.a",
+                    "transformer.transformer_blocks.0.img_mlp.net.a"])
+        self.assertEqual(self.det(wan), "wan")
+        self.assertEqual(self.det(flux), "flux")
+        self.assertEqual(self.det(qwen), "qwen_image")
+
+
+class Krea2NormalizationTests(unittest.TestCase):
+    """Both Krea 2 trainer forms normalize to the model-native diffusion_model.* keys.
+    Mappings are shape-verified against krea2_turbo_bf16 (224/224, 264/264)."""
+
+    norm = staticmethod(lambda s: lora_optimizer.LoRAOptimizer._normalize_keys_krea2(s))
+
+    def test_trainer_form_attn_and_ff(self):
+        n = self.norm(_sd([
+            "diffusion_model.transformer_blocks.0.attn.to_q.lora_A.weight",
+            "diffusion_model.transformer_blocks.0.attn.to_out.0.lora_B.weight",
+            "diffusion_model.transformer_blocks.0.attn.to_gate.lora_A.weight",
+            "diffusion_model.transformer_blocks.0.ff.gate.lora_B.weight",
+            "diffusion_model.transformer_blocks.0.ff.down.lora_A.weight",
+        ]))
+        self.assertIn("diffusion_model.blocks.0.attn.wq.lora_A.weight", n)
+        self.assertIn("diffusion_model.blocks.0.attn.wo.lora_B.weight", n)
+        self.assertIn("diffusion_model.blocks.0.attn.gate.lora_A.weight", n)
+        self.assertIn("diffusion_model.blocks.0.mlp.gate.lora_B.weight", n)
+        self.assertIn("diffusion_model.blocks.0.mlp.down.lora_A.weight", n)
+
+    def test_diffusers_form_transformer_prefix_and_txtfusion(self):
+        n = self.norm(_sd([
+            "transformer.transformer_blocks.5.attn.to_k.lora_A.weight",
+            "transformer.text_fusion.layerwise_blocks.2.attn.to_v.lora_B.weight",
+            "transformer.text_fusion.refiner_blocks.0.mlp.gate.lora_A.weight",
+            "transformer.text_fusion.projector.lora_A.weight",
+        ]))
+        self.assertIn("diffusion_model.blocks.5.attn.wk.lora_A.weight", n)
+        self.assertIn("diffusion_model.txtfusion.layerwise_blocks.2.attn.wv.lora_B.weight", n)
+        self.assertIn("diffusion_model.txtfusion.refiner_blocks.0.mlp.gate.lora_A.weight", n)
+        self.assertIn("diffusion_model.txtfusion.projector.lora_A.weight", n)
+
+    def test_named_non_block_projections(self):
+        n = self.norm(_sd([
+            "transformer.img_in.lora_A.weight",
+            "transformer.final_layer.linear.lora_B.weight",
+            "transformer.time_mod_proj.lora_A.weight",
+            "transformer.time_embed.linear_1.lora_A.weight",
+            "transformer.time_embed.linear_2.lora_B.weight",
+            "transformer.txt_in.linear_1.lora_A.weight",
+            "transformer.txt_in.linear_2.lora_B.weight",
+        ]))
+        for expect in [
+            "diffusion_model.first.lora_A.weight",
+            "diffusion_model.last.linear.lora_B.weight",
+            "diffusion_model.tproj.1.lora_A.weight",
+            "diffusion_model.tmlp.0.lora_A.weight",
+            "diffusion_model.tmlp.2.lora_B.weight",
+            "diffusion_model.txtmlp.1.lora_A.weight",
+            "diffusion_model.txtmlp.3.lora_B.weight",
+        ]:
+            self.assertIn(expect, n)
+
+    def test_alpha_and_idempotent(self):
+        # alpha keys are remapped too; already-canonical keys are unchanged.
+        n = self.norm(_sd([
+            "diffusion_model.transformer_blocks.0.attn.to_q.alpha",
+            "diffusion_model.blocks.0.attn.wq.lora_A.weight",
+        ]))
+        self.assertIn("diffusion_model.blocks.0.attn.wq.alpha", n)
+        self.assertIn("diffusion_model.blocks.0.attn.wq.lora_A.weight", n)
+        # idempotent: re-normalizing canonical keys is a no-op
+        self.assertEqual(set(self.norm(n).keys()), set(n.keys()))
 
 
 @unittest.skipIf(torch is None, "torch is not installed")

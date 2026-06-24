@@ -336,7 +336,7 @@ _ARCH_PRESETS = {
         "alignment_threshold": 0.1,
         "suggested_max_strength_cap": 5.0,
         "auto_strength_orthogonal_floor": 0.85,
-        "display_name": "DiT (Flux/WAN/Z-Image/LTX/Ideogram-4/HunyuanVideo)",
+        "display_name": "DiT (Flux/WAN/Z-Image/LTX/Ideogram-4/Krea-2/HunyuanVideo)",
         "full_rank": {
             "rank_threshold": 512,
             "disable_slerp_upgrade": True,
@@ -405,7 +405,7 @@ _VIDEO_ARCH_ORTHOGONAL_FLOOR = {"wan": 1.0, "ltx": 1.0, "acestep": 1.0}
 _ARCH_TO_PRESET = {
     "sdxl": "sd_unet", "sd15": "sd_unet", "unknown": "sd_unet",
     "flux": "dit", "wan": "dit", "zimage": "dit", "ltx": "dit",
-    "ideogram4": "dit", "anima": "dit",
+    "ideogram4": "dit", "anima": "dit", "krea2": "dit",
     "acestep": "acestep_dit",
     "qwen_image": "llm",
 }
@@ -1020,7 +1020,7 @@ class _LoRAMergeBase:
         """
         Detect model architecture from LoRA key patterns.
         Returns: 'zimage', 'flux', 'wan', 'acestep', 'sdxl', 'sd15', 'ltx',
-        'qwen_image', 'ideogram4', 'anima', or 'unknown'.
+        'qwen_image', 'ideogram4', 'anima', 'krea2', or 'unknown'.
         """
         keys = list(lora_sd.keys())
         keys_str = ' '.join(k.lower() for k in keys)
@@ -1045,6 +1045,20 @@ class _LoRAMergeBase:
                 shape = getattr(lora_sd.get(k), 'shape', None)
                 if shape is not None and len(shape) >= 1 and shape[0] == 13824:
                     return 'ideogram4'
+
+        # Krea 2 (krea/Krea-2) — from-scratch single-stream image DiT (NOT the
+        # older FLUX.1-Krea finetune). The unique marker across every trainer
+        # form is a per-attention sigmoid GATE projection — attn.to_gate (the
+        # "krea_2" trainer + diffusers forms) / attn.gate / attn.w{q,k,v,o} (the
+        # Comfy-Org native form). No other supported arch has an attention gate,
+        # so this MUST run before the qwen (transformer.transformer_blocks), flux,
+        # and ACE-Step (transformer_blocks.N.attn.to_q) branches would otherwise
+        # claim its diffusers-style keys. Verified vs 3 real LoRA forms:
+        #   diffusion_model.blocks.N.attn.wq            (Comfy-Org native)
+        #   diffusion_model.transformer_blocks.N.attn.to_gate  (krea_2 trainer)
+        #   transformer.transformer_blocks.N.attn.to_gate + text_fusion (diffusers)
+        if any(re.search(r'attn[._](?:to_gate|gate|w[qkvo])(?=[._])', k) for k in keys):
+            return 'krea2'
 
         # Z-Image Turbo (Lumina2): layers.N with attention patterns
         # Handles: diffusion_model.layers.N, single_transformer_blocks.N (non-FLUX),
@@ -1850,6 +1864,67 @@ class _LoRAMergeBase:
             normalized[new_k] = v
         return normalized
 
+    @staticmethod
+    def _normalize_keys_krea2(lora_sd):
+        """Normalize Krea 2 LoRA keys to the canonical ComfyUI-native
+        diffusion_model.* form that matches the actual Krea 2 model weights.
+
+        Two trainer forms are handled, both verified key-by-key (name AND shape)
+        against the official krea2_turbo model — 224/224 and 264/264 modules map:
+          - the "krea_2" trainer:  diffusion_model.transformer_blocks.N.attn.to_q ...
+          - the diffusers form:     transformer.transformer_blocks.N.attn.to_q ...,
+            transformer.text_fusion.{layerwise,refiner}_blocks.N.*, and the non-block
+            transformer.{img_in,txt_in,final_layer,time_embed,time_mod_proj}.
+        Without this, the diffusers `transformer.*` keys are mis-routed by ComfyUI's
+        FLUX branch (flux_to_diffusers) to non-existent double_blocks QKV tuple-offset
+        targets: the LoRA is silently dropped AND the bogus offset target can corrupt
+        the merge. The Krea 2 model uses single-stream blocks.N.attn.{wq,wk,wv,wo,gate}
+        + mlp.{gate,up,down}, txtfusion.{layerwise,refiner}_blocks, and named
+        projections first/last/tmlp/tproj/txtmlp.
+        """
+        def _norm_module(mod):
+            s = mod
+            s = re.sub(r'^transformer\.', '', s)
+            s = re.sub(r'^diffusion_model\.', '', s)
+            s = re.sub(r'^lora_unet_', '', s)
+            s = s.replace('transformer_blocks.', 'blocks.')
+            s = s.replace('text_fusion.', 'txtfusion.')
+            # attention projections (diffusers -> krea native)
+            s = re.sub(r'\battn\.to_q\b', 'attn.wq', s)
+            s = re.sub(r'\battn\.to_k\b', 'attn.wk', s)
+            s = re.sub(r'\battn\.to_v\b', 'attn.wv', s)
+            s = re.sub(r'\battn\.to_out\.0\b', 'attn.wo', s)
+            s = re.sub(r'\battn\.to_gate\b', 'attn.gate', s)
+            # SwiGLU feed-forward -> mlp
+            s = s.replace('ff.gate', 'mlp.gate').replace('ff.up', 'mlp.up').replace('ff.down', 'mlp.down')
+            # named non-block projections (verified by shape)
+            s = re.sub(r'^img_in$', 'first', s)
+            s = re.sub(r'^final_layer\.linear$', 'last.linear', s)
+            s = re.sub(r'^time_mod_proj$', 'tproj.1', s)
+            s = re.sub(r'^time_embed\.linear_1$', 'tmlp.0', s)
+            s = re.sub(r'^time_embed\.linear_2$', 'tmlp.2', s)
+            s = re.sub(r'^txt_in\.linear_1$', 'txtmlp.1', s)
+            s = re.sub(r'^txt_in\.linear_2$', 'txtmlp.3', s)
+            return 'diffusion_model.' + s
+
+        # Suffix-first match so '.lora_A.weight' wins over '.lora_A'
+        suffixes = ('.lora_A.weight', '.lora_B.weight', '.lora_down.weight',
+                    '.lora_up.weight', '.lora_A', '.lora_B', '.lora_down',
+                    '.lora_up', '.alpha', '.diff_b', '.diff')
+        normalized = {}
+        for k, v in lora_sd.items():
+            matched = None
+            for sfx in suffixes:
+                if k.endswith(sfx):
+                    matched = sfx
+                    break
+            if matched is None:
+                normalized[k] = v  # unrecognized form — leave untouched
+                continue
+            module = k[:-len(matched)]
+            normalized[_norm_module(module) + matched] = v
+        return normalized
+
     @classmethod
     def _normalize_keys(cls, lora_sd, architecture):
         """
@@ -1876,6 +1951,8 @@ class _LoRAMergeBase:
             return cls._normalize_keys_ideogram4(lora_sd)
         elif architecture == 'anima':
             return cls._normalize_keys_anima(lora_sd)
+        elif architecture == 'krea2':
+            return cls._normalize_keys_krea2(lora_sd)
         return lora_sd  # unknown — pass through unchanged
 
     @staticmethod
@@ -6558,6 +6635,7 @@ class LoRAOptimizer(_LoRAMergeBase):
                     'ltx': 'LTX Video',
                     'qwen_image': 'Qwen-Image',
                     'anima': 'Anima (Cosmos-Predict2 DiT)',
+                    'krea2': 'Krea 2',
                 }
                 lines.append(f"Detected architecture: {arch_names.get(detected_arch, detected_arch)}")
             if normalize_keys == "enabled":
@@ -7427,6 +7505,14 @@ class LoRAOptimizer(_LoRAMergeBase):
         _merge_prof_lock = threading.Lock() if _profiling_on else None
         _prof_cuda = (use_gpu and compute_device is not None
                       and getattr(compute_device, "type", None) == "cuda")
+        # A GPU compression SVD (torch.svd_lowrank) can race asynchronously on
+        # some stacks (Blackwell/cu130), corrupting state and aborting a later
+        # kernel — a C++ abort the Python try/except can't catch. When the
+        # compression SVD runs on GPU, serialize each group so the SVD finishes
+        # before the next group launches. Gated tightly (compression ON + GPU
+        # SVD) so fast no-compression merges keep their pipelined speed.
+        _compress_sync = (_prof_cuda and compress_rank > 0
+                          and resolved_svd_device is not None)
 
         def _prof_t():
             """Synced timestamp — without the sync, async CUDA kernels would
@@ -7615,11 +7701,21 @@ class LoRAOptimizer(_LoRAMergeBase):
                 _group_patch_cache["misses"] += 1
 
             linear_stats = None
+            # Single-LoRA groups (layers only one LoRA touches) have no conflict
+            # to sparsify and no second diff to align, so TIES/DARE/refinement
+            # are no-ops on them. Take the exact low-rank fast path for them even
+            # when those global toggles are on — this skips the wasteful
+            # dense-materialize + compression SVD and emits the LoRA's native
+            # factors directly. Size-safe: a single LoRA's compress_rank is
+            # max(rank, 64) >= its native rank, so compression never shrinks it
+            # (only pads rank<64 ones to 64) — bypassing is always equal-or-smaller.
+            _single_lora_group = pf_n_loras == 1  # exactly one contributor
+            _linear_quality_ok = (sparsification == "disabled"
+                                  and merge_refinement == "none")
             if (pf_mode in ("weighted_sum", "weighted_average", "normalize")
-                    and sparsification == "disabled"
-                    and merge_refinement == "none"
                     and not has_virtual_loras
-                    and not stack_has_preserve):
+                    and not stack_has_preserve
+                    and (_single_lora_group or _linear_quality_ok)):
                 _t_lin = _prof_t() if _merge_prof is not None else 0.0
                 linear_patch_info = self._build_exact_linear_patch(
                     target_group, active_loras, raw_n, pf_mode,
@@ -7875,7 +7971,18 @@ class LoRAOptimizer(_LoRAMergeBase):
                         for i in range(n_loras)
                     ]
                     _diff_cache.prefetch(prefetch_keys)
+                # Debug pinpoint (profiler sentinel on): log the group BEFORE
+                # processing, then sync AFTER so any kernel abort surfaces here.
+                # The last "processing" line without a matching "ok" names the
+                # exact layer/group that faulted.
+                if _merge_prof is not None:
+                    _dbg_tk = target_group.get("target_key")
+                    _dbg_tk = _dbg_tk[0] if isinstance(_dbg_tk, tuple) else _dbg_tk
+                    logging.info(f"[merge-debug] processing {idx + 1}/{len(group_items)}: "
+                                 f"{_dbg_tk}  (n_loras={prefix_stats.get(label_prefix, {}).get('n_loras', '?')})")
                 result = _merge_one_group(label_prefix, target_group)
+                if _compress_sync or (_merge_prof is not None and _prof_cuda):
+                    torch.cuda.synchronize(compute_device)
                 if _sl_key is not None:
                     _sl_store(_sl_key, result)
                 _collect_merge_result(result)

@@ -1,0 +1,14 @@
+[project]
+name = "lora-merger-comfyui"
+description = "An extension for merging LoRAs. Offers a wide range of LoRA merge techniques."
+version = "2.3.0"
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/larsupb/LoRA-Merger-ComfyUI"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "larsupb"
+DisplayName = "LoRA-Merger-ComfyUI"
+Icon = ""

@@ -7,20 +7,72 @@ ComfyUI and ForgeWebUI tutorial in my Youtube channel [@Academia SD](https://www
 
 ---
 
-
-
-## ⬇️ Academia SD Automatic Downloader v0.99
+## Academia SD Automatic Downloader for ComfyUI ⬇️ v1.02
 ![Academia SD Automatic downloader](assets/Automatic_Downloader.png)
 
-A smart download manager integrated directly into the ComfyUI canvas.
-*   **Multi-Link Support:** Paste links from Civitai or HuggingFace repositories.
-*   **Automatic HF Detection:** When pasting a HuggingFace repo link, it automatically displays a dropdown list to choose the exact version (e.g., quantized `.gguf` files).
-*   **Cache & Security:** Non-blocking UI. It manages Civitai and HuggingFace tokens to download NSFW or private models, and displays real-time MB/GB weight with progress bars.
-*   **Smart Path Management:** Detects your secondary paths in `extra_model_paths.yaml` (e.g., Automatic1111) to avoid downloading the same model twice.
+A highly integrated download manager designed for ComfyUI. Download checkpoints, LoRAs, VAEs, and other models directly inside your workspace without leaving the canvas.
+
+This tool scans your ComfyUI directories (including secondary paths defined in `extra_model_paths.yaml`) to verify existing models, manages downloads in non-blocking background threads, and handles authorization tokens for private or gated models on Civitai and HuggingFace.
+
+## Key Features
+
+*   **⚡ Non-Blocking Background Downloads:** Downloading large models does not freeze ComfyUI. The application runs downloads in secondary threads.
+*   **🔄 Dual Platform Support:** Paste direct download URLs from **Civitai** or **HuggingFace**.
+*   **📦 Automatic HuggingFace Repository Parsing:** When pasting a HuggingFace repository link, it automatically fetches and displays a dropdown list of available model files (e.g., `.safetensors`, `.gguf`, `.ckpt`).
+*   **💾 Local Duplicate Detection:** Automatically checks if the file already exists in your local folders or shared directories (e.g., Automatic1111/Forge) using ComfyUI’s path resolution system.
+*   **🔒 Gated & Private Model Support:** Securely save your Civitai API Keys and HuggingFace Tokens to download restricted, NSFW, or private files.
+*   **📁 Custom Subfolders:** Define subfolder paths dynamically (e.g., download a LoRA directly into `loras/style/anime/`).
+*   **📑 Presets Management:** Save your favorite model lists, export them as JSON, or import shared lists from other users.
+*   **🧬 Visual Drag & Drop Reordering:** Organize your download queue by dragging and dropping items within the node.
+
+## Status Indicators (LEDs)
+
+Each model row features a real-time status light:
+*   🟢 **Green:** Model is already downloaded and present in your folders.
+*   🟡 **Yellow:** Download in progress (displays a real-time progress percentage).
+*   🔴 **Red:** Model is not found locally. Ready to download.
+*   🟣 **Magenta:** API Token required to access this file.
+*   🟠 **Orange:** Actively communicating with the server / Checking status.
 
 ---
 
-## 💊 Academia SD Multi-LoRA v0.8
+## Academia SD Advanced Seed Generator for ComfyUI 🎲
+![Academia SD Advanced Seed Generator](assets/academia_seed.png)
+
+An ultra-compact, high-performance seed generator node built specifically for ComfyUI. Designed to replace the native, pixel-perfect HTML interface that minimizes canvas clutter while introducing advanced seed history management.
+
+
+# Key Features
+
+*   **📐 Extreme Space Compression:** Measures only `230px` in width with a dynamically adjusting height. It sits snug right below the title bar, aligning your primary input rows directly with the `seed` output connector to eliminate wasted empty space.
+*   **⏪ Pure Non-Destructive Undo:** Safely backtrack through your seed history queue (up to the last 10 seeds) without shifting index arrays in real time. Perfect for recovering that one specific generation you accidentally skipped.
+*   **📋 Interactive History Tray:** Displays a visual panel list containing your last 10 seeds. Hovering and clicking any seed instantly loads it back into active status and locks the mode to "Fixed".
+*   **🎲 Fast "Roll" Action:** Instantly roll a new random seed on-the-fly directly inside the node widget without needing to queue a new generation prompt.
+*   **🔒 Standard & Advanced Generation Modes:**
+    *   `🔒 Fix`: Locks the active seed.
+    *   `🎲 Rand`: Automatically rolls a new seed on every queue execution.
+    *   `➕ Increment`: Increments the active seed value by `+1` on every generation.
+    *   `➖ Decrement`: Decrements the active seed value by `-1` on every generation.
+*   **🧹 Built-in Interface Cleanup:** Robust frontend cleaning algorithms actively remove ComfyUI's native duplicates, hidden input sockets, or extra output connectors. Only one clean, highly-compatible output port (`seed`) remains visible.
+*   **💾 Session Serialization:** All seed history and configuration states are serialized natively. Your history persists even after saving, closing, or reloading your ComfyUI workflow JSON.
+
+# Interface Layout & Button Controls
+
+| Element | Description |
+| :--- | :--- |
+| **Seed Input** | A monospace text field displaying the active seed. Supports manual numerical entry (safe range up to `9007199254740991`). |
+| **🔒 Fix** | Locks the current seed so it remains unchanged during generation. |
+| **🎲 Rand** | Generates a new randomized seed automatically when queuing a prompt. |
+| **➕ / ➖** | Increments or decrements the current seed value automatically when queuing a prompt. |
+| **Roll** | Generates a new random seed instantly and locks the mode to `🔒 Fix`. |
+| **Undo (X)** | Steps backward through your local seed history sequentially. |
+| **Copy** | Copies the active seed value to your clipboard with temporary visual feedback. |
+| **History Panel** | An expandable bottom tray that opens automatically when history items exist. Click any row to reload a past seed. |
+
+
+---
+
+# 💊 Academia SD Multi-LoRA v0.8
 ![Academia SD Multi-LoRA](assets/AcademiaSD_MultiLora.png)
 
 Load multiple LoRAs in a hyper-compact space without cluttering your workflow with dozens of chained nodes.

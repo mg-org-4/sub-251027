@@ -1,9 +1,0 @@
-
-*.pyc
-userfiles/antilist.csv
-userfiles/config.csv
-userfiles/config_anime.csv
-userfiles/*.json
-superprompter/model_files
-superprompter/model_files/*.*
-*.gz

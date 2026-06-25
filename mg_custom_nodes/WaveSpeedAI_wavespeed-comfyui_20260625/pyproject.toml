@@ -1,0 +1,36 @@
+[project]
+name = "wavespeed-comfyui"
+description = "Universal AI generation plugin for ComfyUI - Access 600+ models across 25+ categories (text-to-image, image-to-video, text-to-audio, etc.) through WaveSpeed AI API. One node, all modalities."
+version = "2.0.1"
+license = {file = "LICENSE"}
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["comfyui", "ai", "image-generation", "video-generation", "audio-generation", "wavespeed", "text-to-image", "text-to-video"]
+authors = [
+    {name = "WaveSpeed AI", email = "support@wavespeed.ai"}
+]
+dependencies = [
+    "requests>=2.25.0",
+    "pillow>=8.0.0",
+    "opencv-python>=4.5.0",
+    "scipy>=1.7.0",
+    "torchaudio>=0.10.0",
+    "av>=8.0.0",
+    "pydantic>=1.8.0"
+]
+
+[project.urls]
+Homepage = "https://wavespeed.ai"
+Documentation = "https://wavespeed.ai/docs"
+Repository = "https://github.com/WaveSpeedAI/wavespeed-comfyui"
+Issues = "https://github.com/WaveSpeedAI/wavespeed-comfyui/issues"
+
+# Used by Comfy Registry https://comfyregistry.org
+[tool.comfy]
+PublisherId = "wavespeed-ai"
+DisplayName = "WaveSpeed AI - Universal Generation"
+Icon = ""
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"

@@ -195,6 +195,9 @@ class ZImagePowerNodesExtension(ComfyExtension):
         from .nodes.style_prompt_encoder_X21 import StylePromptEncoderX21
         _register_node( StylePromptEncoderX21, nodes, subcategory )
 
+        from .nodes.vae_decoder_X21 import VAEDecoderX21
+        _register_node( VAEDecoderX21, nodes, subcategory )
+
 
         #--[ utils ]-----------------------------
         subcategory = "utils"

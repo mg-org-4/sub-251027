@@ -266,6 +266,33 @@ describe("openclaw asset refs", () => {
         ]);
     });
 
+    it("keeps 3d dimension metadata from widening asset-hash view routing", () => {
+        const output = normalizeComfyOutputRef(
+            {
+                filename: "scene.glb",
+                subfolder: "previews",
+                type: "output",
+                media_type: "3d",
+                asset_hash: "blake3:mesh123",
+                width: 1200,
+                height: 800,
+                metadata: { width: 1200, height: 800 },
+            },
+            "3d"
+        );
+
+        expect(output).toEqual(expect.objectContaining({
+            filename: "scene.glb",
+            media_type: "3d",
+            asset_hash: "blake3:mesh123",
+            asset_api_required: false,
+            resolution: "view",
+            is_asset_backed: true,
+        }));
+        expect(output.viewParams).toEqual({ filename: "blake3:mesh123" });
+        expect(output.unsupported_reason).toBe("");
+    });
+
     it("bounds inline text output previews", () => {
         const longText = "x".repeat(1100);
         const output = extractHistoryOutputRefs({ outputs: { "1": { text: [longText] } } })[0];

@@ -498,12 +498,67 @@ class CommandRouter:
         if err := self._require_admin_token_configured():
             return err
 
-        # Remediation: Global Interrupt
-        res = await self.client.interrupt_output()
-        if res.get("ok"):
-            return CommandResponse(text="[Stop] Global Interrupt sent to ComfyUI.")
-        else:
+        targets = self._parse_stop_targets(args)
+        if not targets:
+            res = await self.client.interrupt_output()
+            if res.get("ok"):
+                return CommandResponse(text="[Stop] Global Interrupt sent to ComfyUI.")
             return CommandResponse(text=f"[Stop Failed] {res.get('error')}")
+
+        if len(targets) == 1:
+            job_id = targets[0]
+            res = await self.client.cancel_job(job_id)
+            if res.get("ok"):
+                return CommandResponse(
+                    text=f"[Stop] Cancellation requested for job {job_id}."
+                )
+
+            # IMPORTANT: Targeted stops must never degrade to no-payload global
+            # interrupt. Older-host fallback is allowed only with prompt_id set.
+            if self._jobs_cancel_unsupported(res):
+                fallback = await self.client.interrupt_output(prompt_id=job_id)
+                if fallback.get("ok"):
+                    return CommandResponse(
+                        text=(
+                            f"[Stop] Targeted interrupt sent for job {job_id} "
+                            "(jobs cancel unsupported)."
+                        )
+                    )
+                return CommandResponse(text=f"[Stop Failed] {fallback.get('error')}")
+
+            return CommandResponse(text=f"[Stop Failed] {res.get('error')}")
+
+        res = await self.client.cancel_jobs(targets)
+        if res.get("ok"):
+            return CommandResponse(
+                text=f"[Stop] Cancellation requested for {len(targets)} jobs."
+            )
+        return CommandResponse(text=f"[Stop Failed] {res.get('error')}")
+
+    @staticmethod
+    def _parse_stop_targets(args: List[str]) -> List[str]:
+        targets: List[str] = []
+        for arg in args:
+            for part in str(arg).split(","):
+                target = part.strip()
+                if target:
+                    targets.append(target)
+        return targets
+
+    @staticmethod
+    def _jobs_cancel_unsupported(res: Dict[str, Any]) -> bool:
+        status = res.get("status")
+        if status in (404, 405, 501):
+            return True
+        error = str(res.get("error", "")).lower()
+        unsupported_markers = (
+            "404",
+            "not found",
+            "method not allowed",
+            "unsupported",
+            "not implemented",
+        )
+        return any(marker in error for marker in unsupported_markers)
 
     async def _handle_approvals_list(
         self, req: CommandRequest, args: List[str]
@@ -679,7 +734,7 @@ class CommandRouter:
                 "OpenClaw Connector\n"
                 "/status - Check system health and queue\n"
                 "/run <template> [prompt] [k=v] - Run a generation (trusted users auto-exec; others require approval)\n"
-                "/stop - Global Interrupt (Admin)\n"
+                "/stop [job_id ...] - Cancel jobs by id; no args sends Global Interrupt (Admin)\n"
                 "/history <id> - Job details\n"
                 "/jobs - Queue summary\n"
                 "Admin Only:\n"

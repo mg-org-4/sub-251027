@@ -239,6 +239,70 @@ class TestComfyUIHistoryParsing(unittest.TestCase):
         self.assertEqual(outputs[4]["content"], "hello from text output")
         self.assertEqual(outputs[4]["view_url"], "")
 
+    def test_extract_output_refs_accepts_saveimage_refs_with_output_metadata(self):
+        from services.comfyui_history import extract_images, extract_output_refs
+
+        history_item = {
+            "outputs": {
+                "9": {
+                    "images": [
+                        {
+                            "filename": "ComfyUI_00001_.png",
+                            "subfolder": "",
+                            "type": "output",
+                            "width": 1024,
+                            "height": 768,
+                        }
+                    ]
+                }
+            }
+        }
+
+        outputs = extract_output_refs(history_item)
+        self.assertEqual(len(outputs), 1)
+        self.assertEqual(outputs[0]["filename"], "ComfyUI_00001_.png")
+        self.assertEqual(outputs[0]["media_type"], "images")
+        self.assertFalse(outputs[0]["asset_api_required"])
+        self.assertEqual(outputs[0]["resolution"], "view")
+        self.assertIn("filename=ComfyUI_00001_.png", outputs[0]["view_url"])
+        self.assertIn("type=output", outputs[0]["view_url"])
+        self.assertNotIn("width=", outputs[0]["view_url"])
+        self.assertNotIn("height=", outputs[0]["view_url"])
+        self.assertEqual(extract_images(history_item), outputs)
+
+    def test_extract_output_refs_accepts_load3dadvanced_object_refs(self):
+        from services.comfyui_history import extract_output_refs
+
+        history_item = {
+            "outputs": {
+                "7": {
+                    "3d": [
+                        {
+                            "filename": "scene.glb",
+                            "subfolder": "previews",
+                            "type": "output",
+                            "asset_hash": "blake3:mesh123",
+                            "width": 1200,
+                            "height": 800,
+                        }
+                    ]
+                }
+            }
+        }
+
+        outputs = extract_output_refs(history_item)
+        self.assertEqual(len(outputs), 1)
+        self.assertEqual(outputs[0]["filename"], "scene.glb")
+        self.assertEqual(outputs[0]["media_type"], "3d")
+        self.assertEqual(outputs[0]["asset_hash"], "blake3:mesh123")
+        self.assertFalse(outputs[0]["asset_api_required"])
+        self.assertEqual(outputs[0]["resolution"], "view")
+        self.assertIn("filename=blake3%3Amesh123", outputs[0]["view_url"])
+        self.assertNotIn("subfolder=previews", outputs[0]["view_url"])
+        self.assertNotIn("type=output", outputs[0]["view_url"])
+        self.assertNotIn("width=", outputs[0]["view_url"])
+        self.assertNotIn("height=", outputs[0]["view_url"])
+
     def test_extract_images_remains_image_only_for_callbacks(self):
         from services.comfyui_history import extract_images
 

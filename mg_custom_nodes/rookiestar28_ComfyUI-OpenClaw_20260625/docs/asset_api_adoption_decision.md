@@ -1,5 +1,11 @@
 # ComfyUI Asset API Adoption Decision (2026-04-16)
 
+## 2026-06-24 reconfirmation
+
+- Current reference anchor is ComfyUI `f6c162dd` (`v0.26.0`, pyproject `0.26.0`).
+- SaveImage output sockets, 3D preview refs, typed asset dimensions, grouped asset downloads, and `hash` / `asset_hash` aliases do not change the no-go decision.
+- OpenClaw continues to use `/history` + `/view`; asset-service-only refs stay explicit `asset_api_required` states.
+
 ## 2026-06-12 reconfirmation
 
 - Current output parsing is media-aware for ComfyUI result groups `images`, `video`, `audio`, `3d`, and bounded `text`.
@@ -23,7 +29,7 @@
   - classic ComfyUI output refs (`filename`, `subfolder`, `type`)
   - asset-hash-backed refs that still resolve through `/view?filename=blake3:...`
   - media-aware output groups (`images`, `video`, `audio`, `3d`, and bounded `text`)
-- Current ComfyUI `822aca19` / `v0.24.0-60-g822aca19` / pyproject `0.24.0` reference facts:
+- Current ComfyUI `f6c162dd` / `v0.26.0` / pyproject `0.26.0` reference facts:
   - `/api/assets*` routes exist, but operational use is feature-gated behind `--enable-assets`
   - `/features` exposes the `assets` capability flag so hosts can report whether the asset system is enabled
   - frontend preview still resolves `blake3:...` asset hashes through `/view`, so hash-backed outputs do not require a direct `/api/assets` fetch

@@ -7,6 +7,7 @@ import json
 import logging
 import uuid
 from typing import Optional
+from urllib.parse import quote
 
 from .config import ConnectorConfig
 
@@ -68,7 +69,7 @@ class OpenClawClient:
             async with session.request(
                 method, url, headers=self.headers, json=json_data, timeout=timeout
             ) as resp:
-                result = {"ok": resp.status in (200, 201, 202)}
+                result = {"ok": resp.status in (200, 201, 202), "status": resp.status}
 
                 try:
                     data = await resp.json()
@@ -166,9 +167,17 @@ class OpenClawClient:
         }
         return await self._request("POST", "/openclaw/triggers/fire", data)
 
-    async def interrupt_output(self) -> dict:
-        # Remediation: Cancel -> Interrupt (Global)
-        return await self._request("POST", "/api/interrupt", {})
+    async def cancel_job(self, job_id: str) -> dict:
+        encoded_job_id = quote(str(job_id), safe="")
+        return await self._request("POST", f"/api/jobs/{encoded_job_id}/cancel", {})
+
+    async def cancel_jobs(self, job_ids: list[str]) -> dict:
+        return await self._request("POST", "/api/jobs/cancel", {"job_ids": job_ids})
+
+    async def interrupt_output(self, prompt_id: Optional[str] = None) -> dict:
+        # No prompt_id means explicit global interrupt. A prompt_id is targeted.
+        payload = {"prompt_id": str(prompt_id)} if prompt_id else {}
+        return await self._request("POST", "/api/interrupt", payload)
 
     async def get_view(
         self, filename: str, subfolder: str = "", type: str = "output"

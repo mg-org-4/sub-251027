@@ -112,8 +112,82 @@ class TestOpenClawClient(unittest.TestCase):
             asyncio.run(self.client.interrupt_output())
 
             method, url = mock_session.request.call_args[0]
+            kwargs = mock_session.request.call_args[1]
             self.assertEqual(method, "POST")
             self.assertTrue(url.endswith("/api/interrupt"))
+            self.assertEqual(kwargs["json"], {})
+
+    def test_targeted_interrupt_output(self):
+        """Verify targeted interrupt carries prompt_id and does not use global payload."""
+        with patch("connector.openclaw_client._create_session") as create_session:
+            mock_session = MagicMock()
+            mock_session.close = AsyncMock()
+            create_session.return_value = mock_session
+
+            mock_resp = MagicMock()
+            mock_resp.status = 200
+            mock_resp.json = AsyncMock(return_value={})
+
+            mock_ctx = MagicMock()
+            mock_ctx.__aenter__.return_value = mock_resp
+            mock_ctx.__aexit__.return_value = None
+            mock_session.request.return_value = mock_ctx
+
+            asyncio.run(self.client.interrupt_output(prompt_id="p-1"))
+
+            method, url = mock_session.request.call_args[0]
+            kwargs = mock_session.request.call_args[1]
+            self.assertEqual(method, "POST")
+            self.assertTrue(url.endswith("/api/interrupt"))
+            self.assertEqual(kwargs["json"], {"prompt_id": "p-1"})
+
+    def test_cancel_job_uses_jobs_namespace(self):
+        """Verify single job cancel calls /api/jobs/{job_id}/cancel."""
+        with patch("connector.openclaw_client._create_session") as create_session:
+            mock_session = MagicMock()
+            mock_session.close = AsyncMock()
+            create_session.return_value = mock_session
+
+            mock_resp = MagicMock()
+            mock_resp.status = 200
+            mock_resp.json = AsyncMock(return_value={})
+
+            mock_ctx = MagicMock()
+            mock_ctx.__aenter__.return_value = mock_resp
+            mock_ctx.__aexit__.return_value = None
+            mock_session.request.return_value = mock_ctx
+
+            asyncio.run(self.client.cancel_job("job/one"))
+
+            method, url = mock_session.request.call_args[0]
+            kwargs = mock_session.request.call_args[1]
+            self.assertEqual(method, "POST")
+            self.assertTrue(url.endswith("/api/jobs/job%2Fone/cancel"))
+            self.assertEqual(kwargs["json"], {})
+
+    def test_cancel_jobs_uses_batch_jobs_namespace(self):
+        """Verify batch job cancel calls /api/jobs/cancel with job_ids."""
+        with patch("connector.openclaw_client._create_session") as create_session:
+            mock_session = MagicMock()
+            mock_session.close = AsyncMock()
+            create_session.return_value = mock_session
+
+            mock_resp = MagicMock()
+            mock_resp.status = 200
+            mock_resp.json = AsyncMock(return_value={})
+
+            mock_ctx = MagicMock()
+            mock_ctx.__aenter__.return_value = mock_resp
+            mock_ctx.__aexit__.return_value = None
+            mock_session.request.return_value = mock_ctx
+
+            asyncio.run(self.client.cancel_jobs(["p-1", "p-2"]))
+
+            method, url = mock_session.request.call_args[0]
+            kwargs = mock_session.request.call_args[1]
+            self.assertEqual(method, "POST")
+            self.assertTrue(url.endswith("/api/jobs/cancel"))
+            self.assertEqual(kwargs["json"], {"job_ids": ["p-1", "p-2"]})
 
     def test_get_approvals_query(self):
         """Verify get_approvals uses query param and parses nested response."""

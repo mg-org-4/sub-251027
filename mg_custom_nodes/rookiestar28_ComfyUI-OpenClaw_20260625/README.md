@@ -91,6 +91,17 @@ Deployment profiles and hardening references:
 
 <details>
 
+<summary><strong>Targeted connector cancellation and host contract guard coverage refreshed</strong></summary>
+
+- Connector `/stop`, `/cancel`, and `/interrupt` commands now keep no-argument global interrupt explicit while routing supplied job IDs through targeted ComfyUI job cancellation.
+- Single-job cancellation on older hosts can fall back only to targeted interrupt; multi-job cancellation failures no longer degrade into a global interrupt.
+- Compatibility guard coverage now documents SaveImage-style output refs, 3D preview refs, typed asset dimensions, grouped asset behavior, sidebar registration fallback, and the OpenClaw Node.js runtime policy.
+- OpenClaw keeps its own package/test harness on Node.js `>=18.0.0` while documenting that standalone ComfyUI frontend development may require a newer Node engine.
+
+</details>
+
+<details>
+
 <summary><strong>Package hygiene, runtime cache ownership, and tool diagnostics tightened</strong></summary>
 
 - Moved developer-only verification helpers out of the package root and into the dedicated developer tooling area, keeping the shipped custom-node pack boundary clearer.
@@ -105,7 +116,7 @@ Deployment profiles and hardening references:
 
 <summary><strong>ComfyUI host compatibility, media outputs, model folders, and prompt attribution refreshed</strong></summary>
 
-- Refreshed the published compatibility baseline for ComfyUI `822aca19` (`v0.24.0-60-g822aca19`, pyproject `0.24.0`), standalone frontend `1.46.13`, and Desktop `0.9.4` with core `0.22.3` plus embedded frontend `1.43.18`.
+- Refreshed the published compatibility baseline for ComfyUI `f6c162dd` (`v0.26.0`, pyproject `0.26.0`), standalone frontend `1.47.3`, and Desktop `0.9.4` with core `0.22.3` plus embedded frontend `1.43.18`.
 - Reconciled active prompt state after backend or SSE reconnects so completed prompts are not left in the active queue lane after a host recovery.
 - Updated sidebar registration to prefer the current ComfyUI sidebar store API and keep the deprecated frontend facade as a compatibility fallback for older hosts.
 - Aligned Model Manager and preflight diagnostics with current ComfyUI model folder names, including newer managed keys such as `gligen`, `latent_upscale_models`, `hypernetworks`, `photomaker`, `model_patches`, `geometry_estimation`, and `detection`, while retaining legacy aliases such as `clip` and `unet`.
@@ -132,16 +143,6 @@ Deployment profiles and hardening references:
 - Connector event handling now distinguishes duplicate committed actions from retryable pre-delivery failures across supported chat adapters, reducing accidental re-execution while still allowing safe retries.
 - Reply visibility is now governed by a shared connector policy for direct messages, shared chats, threads, internal delivery, and tool-only contexts; suppressed text is logged as a successful no-op instead of a delivery failure.
 - Telegram topics, Slack threads/workspaces, and Feishu account/workspace context are preserved for immediate replies and delayed result or approval follow-up, while approval/action buttons remain visible.
-
-</details>
-
-<details>
-
-<summary><strong>Startup lifecycle diagnostics, connector SecretRef service boundaries, and internal prompt isolation aligned with the current runtime</strong></summary>
-
-- Health diagnostics now distinguish required startup readiness, optional warmup degradation, and fatal startup failures; optional warmups run after route registration and no longer block baseline API availability.
-- Connector/service launch planning now has a secret-blind env-backed SecretRef boundary that preserves supported connector credential references without expanding raw token values, while rejecting raw secrets, legacy marker strings, unsupported envs, and runtime-only auth tokens.
-- Operator-visible and audit payload sanitization now removes explicitly marked internal maintenance/helper prompt content before normal reasoning redaction, while leaving ordinary user text intact.
 
 </details>
 
@@ -407,7 +408,7 @@ New shell/tab wiring should use the shared text-safe DOM helpers in `web/opencla
 
 Canonical DOM/class ownership is now centered on `openclaw-*`; legacy `moltbot-*` class compatibility is still supported through shared runtime aliasing instead of duplicated markup in each tab template.
 
-The sidebar now also resolves and stamps its active host surface (`standalone_frontend` vs desktop-embedded host) and reference metadata at mount time, so Desktop `0.9.4` embedded-frontend lag against standalone frontend `1.46.13` is explicit and testable instead of inferred from runtime accidents.
+The sidebar now also resolves and stamps its active host surface (`standalone_frontend` vs desktop-embedded host) and reference metadata at mount time, so Desktop `0.9.4` embedded-frontend lag against standalone frontend `1.47.3` is explicit and testable instead of inferred from runtime accidents.
 
 Sidebar registration prefers ComfyUI's current sidebar store API and falls back to the deprecated frontend facade when running on older host bundles. Hosts without either sidebar API use the legacy menu fallback instead of failing extension setup.
 
@@ -733,6 +734,7 @@ The connector currently remains an **optional attached subsystem inside this rep
 
 - **Status & Queue**: Check job progress remotely.
 - **Run Jobs**: Submit templates via chat commands.
+- **Targeted cancellation**: `/stop`, `/cancel`, and `/interrupt` without job IDs send an explicit global interrupt; supplying one or more job IDs requests targeted ComfyUI job cancellation.
 - **Approvals**: Approve/Reject paused workflows from your phone.
 - **Secure**: Outbound-only for Telegram/Discord. LINE/WhatsApp/WeChat/KakaoTalk/Slack require inbound HTTPS (webhook), while Slack can also use Socket Mode and Feishu can run in either webhook or long-connection mode with a dedicated callback ingress path.
 - **Telegram topics**: Forum topic commands keep their topic context for immediate replies and delayed result delivery.

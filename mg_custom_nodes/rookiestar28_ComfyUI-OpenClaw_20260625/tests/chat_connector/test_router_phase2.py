@@ -69,6 +69,8 @@ class TestCommandRouterPhase2(unittest.TestCase):
             }
         )
         self.client.interrupt_output = AsyncMock(return_value={"ok": True})
+        self.client.cancel_job = AsyncMock(return_value={"ok": True})
+        self.client.cancel_jobs = AsyncMock(return_value={"ok": True})
 
         # Phase 4: Approve result
         self.client.approve_request = AsyncMock(
@@ -163,12 +165,60 @@ class TestCommandRouterPhase2(unittest.TestCase):
         req = self._req("/stop", sender="999")
         resp = asyncio.run(self.router.handle(req))
         self.assertIn("Global Interrupt sent", resp.text)
-        self.client.interrupt_output.assert_called_once()
+        self.client.interrupt_output.assert_called_once_with()
+        self.client.cancel_job.assert_not_called()
+        self.client.cancel_jobs.assert_not_called()
 
         # Deny non-admin
         req = self._req("/stop", sender="123")
         resp = asyncio.run(self.router.handle(req))
         self.assertIn("Access Denied", resp.text)
+
+    def test_interrupt_single_job_uses_jobs_cancel(self):
+        req = self._req("/stop p-123", sender="999")
+        resp = asyncio.run(self.router.handle(req))
+
+        self.assertIn("Cancellation requested for job p-123", resp.text)
+        self.client.cancel_job.assert_called_once_with("p-123")
+        self.client.cancel_jobs.assert_not_called()
+        self.client.interrupt_output.assert_not_called()
+
+    def test_interrupt_multiple_jobs_uses_batch_cancel(self):
+        req = self._req("/cancel p-1,p-2 p-3", sender="999")
+        resp = asyncio.run(self.router.handle(req))
+
+        self.assertIn("Cancellation requested for 3 jobs", resp.text)
+        self.client.cancel_jobs.assert_called_once_with(["p-1", "p-2", "p-3"])
+        self.client.cancel_job.assert_not_called()
+        self.client.interrupt_output.assert_not_called()
+
+    def test_interrupt_single_job_falls_back_to_targeted_interrupt_only(self):
+        self.client.cancel_job.return_value = {
+            "ok": False,
+            "status": 404,
+            "error": "HTTP 404",
+        }
+
+        req = self._req("/interrupt p-legacy", sender="999")
+        resp = asyncio.run(self.router.handle(req))
+
+        self.assertIn("Targeted interrupt sent for job p-legacy", resp.text)
+        self.client.cancel_job.assert_called_once_with("p-legacy")
+        self.client.interrupt_output.assert_called_once_with(prompt_id="p-legacy")
+
+    def test_interrupt_multiple_jobs_does_not_global_fallback(self):
+        self.client.cancel_jobs.return_value = {
+            "ok": False,
+            "status": 404,
+            "error": "HTTP 404",
+        }
+
+        req = self._req("/stop p-1 p-2", sender="999")
+        resp = asyncio.run(self.router.handle(req))
+
+        self.assertIn("[Stop Failed]", resp.text)
+        self.client.cancel_jobs.assert_called_once_with(["p-1", "p-2"])
+        self.client.interrupt_output.assert_not_called()
 
     def test_complex_quotes(self):
         # Unbalanced

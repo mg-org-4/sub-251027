@@ -7,6 +7,17 @@ Newest entries appear first.
 
 <details>
 
+<summary><strong>Targeted connector cancellation and host contract guard coverage refreshed</strong></summary>
+
+- Connector `/stop`, `/cancel`, and `/interrupt` commands now keep no-argument global interrupt explicit while routing supplied job IDs through targeted ComfyUI job cancellation.
+- Single-job cancellation on older hosts can fall back only to targeted interrupt; multi-job cancellation failures no longer degrade into a global interrupt.
+- Compatibility guard coverage now documents SaveImage-style output refs, 3D preview refs, typed asset dimensions, grouped asset behavior, sidebar registration fallback, and the OpenClaw Node.js runtime policy.
+- OpenClaw keeps its own package/test harness on Node.js `>=18.0.0` while documenting that standalone ComfyUI frontend development may require a newer Node engine.
+
+</details>
+
+<details>
+
 <summary><strong>Package hygiene, runtime cache ownership, and tool diagnostics tightened</strong></summary>
 
 - Moved developer-only verification helpers out of the repository root and into the dedicated developer tooling area, keeping the custom-node package root focused on shipped package entrypoints and metadata.
@@ -21,7 +32,7 @@ Newest entries appear first.
 
 <summary><strong>ComfyUI host compatibility, media outputs, model folders, and prompt attribution refreshed</strong></summary>
 
-- Refreshed the published compatibility baseline for ComfyUI `822aca19` (`v0.24.0-60-g822aca19`, pyproject `0.24.0`), standalone frontend `1.46.13`, and Desktop `0.9.4` with core `0.22.3` plus embedded frontend `1.43.18`.
+- Refreshed the published compatibility baseline for ComfyUI `f6c162dd` (`v0.26.0`, pyproject `0.26.0`), standalone frontend `1.47.3`, and Desktop `0.9.4` with core `0.22.3` plus embedded frontend `1.43.18`.
 - Reconciled active prompt state after backend or SSE reconnects so completed prompts are not left in the active queue lane after a host recovery.
 - Updated sidebar registration to prefer the current ComfyUI sidebar store API and keep the deprecated frontend facade as a compatibility fallback for older hosts.
 - Aligned Model Manager and preflight diagnostics with current ComfyUI model folder names, including newer managed keys such as `gligen`, `latent_upscale_models`, `hypernetworks`, `photomaker`, `model_patches`, `geometry_estimation`, and `detection`, while retaining legacy aliases such as `clip` and `unet`.

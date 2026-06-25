@@ -104,7 +104,7 @@ Set the following environment variables (or put them in a `.env` file if you use
 
 - `OPENCLAW_CONNECTOR_URL`: URL of your ComfyUI (default: `http://127.0.0.1:8188`)
 - `OPENCLAW_CONNECTOR_DEBUG`: Set to `1` for verbose logs.
-- `OPENCLAW_CONNECTOR_ADMIN_USERS`: Comma-separated list of user IDs allowed to run admin commands (for example `/stop`, approvals, schedules). Admin users are also treated as trusted senders for `/run`.
+- `OPENCLAW_CONNECTOR_ADMIN_USERS`: Comma-separated list of user IDs allowed to run admin commands (for example `/stop`, `/cancel`, approvals, schedules). Admin users are also treated as trusted senders for `/run`.
 - `OPENCLAW_CONNECTOR_ADMIN_TOKEN`: Admin token sent to OpenClaw (`X-OpenClaw-Admin-Token`).
 - `OPENCLAW_LOG_TRUNCATE_ON_START`: Optional backend runtime flag. Set `1` to clear `openclaw.log` once at backend startup to avoid stale-history noise in UI log panels.
 - `OPENCLAW_MULTI_TENANT_ENABLED`: Optional backend mode toggle. If `1`, connector diagnostics and installation resolution become tenant-scoped.
@@ -638,7 +638,8 @@ Notes:
 | `/history <id>` | View details of a finished job. |
 | `/help` | Show available commands. |
 | `/run <template> [k=v] [--approval]` | Submit a job. Use `--approval` to request approval gate instead of creating job immediately. |
-| `/stop` | **Global Interrupt**: Stop all running generations. |
+| `/stop [job_id ...]` | Stop jobs. With no job IDs, sends an explicit global interrupt. With one or more IDs, requests targeted job cancellation through ComfyUI's jobs API; older single-job hosts may fall back to targeted interrupt. |
+| `/cancel [job_id ...]`, `/interrupt [job_id ...]` | Aliases for `/stop` with the same targeted or global behavior. |
 
 **Admin Only:**
 *(Requires User ID in `OPENCLAW_CONNECTOR_ADMIN_USERS`)*

@@ -27,6 +27,7 @@ class WildcardProcessor:
         self.wildcard_cache = {}
         self.create_user_wildcard_paths_file()  # Ensure the user paths file exists
         self.wildcard_files = self._find_wildcard_files()
+        self.max_nested_passes = 10
         # Variables for the current processing run
         self.variables = {}
 
@@ -49,6 +50,7 @@ class WildcardProcessor:
                     "placeholder": "A photo of a __sample_colors__ {dog|cat|monkey}."
                 }),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The seed for the random number generator. Using the same seed with the same prompt will produce the same output."}),
+                "multiple_separator": ("STRING", {"default": " ", "multiline": False, "tooltip": "The separator used when selecting multiple items from a single wildcard.\n\nExample:\n- Prompt: {2$$red|green|blue}\n- Separator: \", \"\n- Output example: \"red, green\""}),
                 "recache_wildcards": ("BOOLEAN", {"default": False, "tooltip": "Force a reload of all wildcard files from disk. Can be disabled again after you have ran it once."}),
                 "console_log": ("BOOLEAN", {"default": False, "tooltip": "Enable or disable detailed logging of the wildcard processing steps in the console."}),
                 # "tag_extraction_tags": ("STRING", {
@@ -60,10 +62,15 @@ class WildcardProcessor:
             }
         }
 
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("processed_text",)
+    RETURN_TYPES = ("STRING", "INT", "STRING", "STRING", "STRING", "STRING",)
+    RETURN_NAMES = ("processed_text", "seed", "extracted_tags_string", "extracted_tags_list", "raw_tags_string", "raw_tags_list",)
     OUTPUT_TOOLTIPS = (
         "The final text after all wildcards and tags have been processed.",
+        "The seed value used for this generation.",
+        "A single string containing all extracted and processed tag content, joined by '|'.",
+        "A list of strings, where each item is one piece of extracted and processed tag content.",
+        "A single string containing all raw, unprocessed tags, including their delimiters, concatenated together.",
+        "A list of strings, where each item is one raw, unprocessed tag, including its delimiters."
     )
 
     def wildcard_log(self, message, level=0):
@@ -71,6 +78,22 @@ class WildcardProcessor:
         if self.console_log:
             indent = "  " * level
             print(f"{indent}{message}{Style.RESET_ALL}")
+
+
+    def _protect_resolved_text(self, text):
+        token = f"@@MNM_PROTECTED_{self._protect_counter}@@"
+        self._protect_counter += 1
+        self._protected_segments[token] = text
+        return token
+
+    def _restore_protected_text(self, text):
+        while True:
+            restored = text
+            for token, value in self._protected_segments.items():
+                restored = restored.replace(token, value)
+            if restored == text:
+                return restored
+            text = restored
 
     def create_user_wildcard_paths_file(self):
         """Creates an empty user wildcard paths file if it doesn't exist."""
@@ -217,7 +240,7 @@ class WildcardProcessor:
                 return match.group(0)
             chosen_option = self._process_text(random.choice(options))
             self.wildcard_log(f"{Style.DIM}Evaluated {match.group(0)} -> {Style.NORMAL}{Fore.MAGENTA}{chosen_option}", level=1)
-            return chosen_option
+            return self._protect_resolved_text(chosen_option)
 
         # If it is a glob pattern, perform a file search.
         self.wildcard_log(f"Detected glob pattern: {wildcard_name}", level=1)
@@ -263,7 +286,7 @@ class WildcardProcessor:
 
         chosen_option = self._process_text(random.choice(all_lines))
         self.wildcard_log(f"{Style.DIM}Evaluated glob {match.group(0)} -> {Style.NORMAL}{Fore.MAGENTA}{chosen_option}", level=1)
-        return chosen_option
+        return self._protect_resolved_text(chosen_option)
 
     def evaluate_curly_braces(self, match):
         """
@@ -340,17 +363,18 @@ class WildcardProcessor:
         
         # 5. Join and return using the provided separator.
         result = self.separator.join(selected_options)
+        resolved_result = self._process_text(result)
 
-        self.wildcard_log(f"{Style.DIM}Evaluated {{{match.group(1)}}} -> {Style.NORMAL}{Fore.CYAN}{result}", level=1)
-        return result
+        self.wildcard_log(f"{Style.DIM}Evaluated {{{match.group(1)}}} -> {Style.NORMAL}{Fore.CYAN}{resolved_result}", level=1)
+        return self._protect_resolved_text(resolved_result)
 
     def _process_text(self, text):
         """
         Iteratively processes a string, resolving wildcards from the inside out.
         This function handles both __file__ wildcards and {inline|wildcards}.
         """
-        # Loop until the string no longer changes, ensuring all nested wildcards are processed.
-        while True:
+        # Limit nested passes so inner resolutions cannot spin or bleed indefinitely.
+        for _ in range(self.max_nested_passes):
             original_text = text
             
             # First, substitute any defined variables.
@@ -366,7 +390,7 @@ class WildcardProcessor:
 
             if text == original_text:
                 break
-        return text
+        return self._restore_protected_text(text)
 
     def extract_and_process_tags(self, text, tag_delimiters_str):
         """
@@ -456,7 +480,7 @@ class WildcardProcessor:
         # Extract parameters from kwargs
         wildcard_string = kwargs.get("wildcard_string", "")
         seed = kwargs.get("seed", 0)
-        self.separator = " "
+        self.separator = kwargs.get("multiple_separator", " ")
         self.console_log = kwargs.get("console_log", False)
         recache = kwargs.get("recache_wildcards", False)
         tag_extraction_tags = kwargs.get("tag_extraction_tags", "")
@@ -464,6 +488,8 @@ class WildcardProcessor:
         random.seed(seed)
         self.variables = {} # Reset variables for each run
         self.first_wildcard_processed = False # Reset for each run
+        self._protected_segments = {}
+        self._protect_counter = 0
 
         if recache:
             # Re-scan all wildcard directories and clear the cache.
@@ -497,7 +523,9 @@ class WildcardProcessor:
             # Use a new random seed for variable evaluation to not interfere with main seed
             var_seed = random.randint(0, 0xffffffffffffffff)
             # We pass console log as false to prevent recursive logging clutter.
+            outer_random_state = random.getstate()
             evaluated_value = temp_processor.process_wildcards(**{"wildcard_string": var_value_expr, "seed": var_seed, "console_log": False})[0]
+            random.setstate(outer_random_state)
             
             self.variables[var_name] = evaluated_value
             self.wildcard_log(f"Defined variable ${{{var_name}}} = {evaluated_value}")
@@ -508,6 +536,15 @@ class WildcardProcessor:
         # 3. Process the main text (which has definitions and tags removed)
         processed_text = self._process_text(text_after_extraction)
 
+        # 4. Prepare outputs
+        extracted_tags_string = "|".join(processed_tags)
+        extracted_tags_list = processed_tags
+        
+        # New raw outputs
+        raw_tags_string = "".join(raw_tags) # Concatenated without any separator
+        raw_tags_list = raw_tags
+
+
         if self.console_log:
             if raw_tags:
                 print(f"{Fore.YELLOW}Extracted Tags (Raw):{Style.RESET_ALL} {raw_tags}")
@@ -515,7 +552,7 @@ class WildcardProcessor:
             print(f"{Fore.YELLOW}Processed Text:{Style.RESET_ALL} {repr(processed_text)}")
             print(f"{Fore.GREEN}{'-----' * 8}📝 Wildcard Processor End{'-----' * 8}{Style.RESET_ALL}")
             
-        return (processed_text,)
+        return (processed_text, seed, extracted_tags_string, extracted_tags_list, raw_tags_string, raw_tags_list)
 
 NODE_CLASS_MAPPINGS = {
     "WildcardProcessor": WildcardProcessor,

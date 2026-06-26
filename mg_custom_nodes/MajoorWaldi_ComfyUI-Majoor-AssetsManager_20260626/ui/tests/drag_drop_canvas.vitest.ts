@@ -1,0 +1,516 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const getMock = vi.fn();
+const getWorkflowContentMock = vi.fn();
+const postMock = vi.fn();
+
+vi.mock("../api/client.js", () => ({
+    get: getMock,
+    getWorkflowContent: getWorkflowContentMock,
+    post: postMock,
+}));
+
+vi.mock("../api/endpoints.js", () => ({
+    ENDPOINTS: {
+        METADATA: "/mjr/am/metadata",
+        STAGE_TO_INPUT: "/mjr/am/stage-to-input",
+        WORKFLOW_QUICK: "/mjr/am/workflow-quick",
+    },
+    buildCustomViewURL: () => "/view",
+    buildViewURL: () => "/view",
+}));
+
+describe("canvas drag/drop loader creation", () => {
+    beforeEach(async () => {
+        getMock.mockReset();
+        getWorkflowContentMock.mockReset();
+        postMock.mockReset();
+        postMock.mockImplementation((_url, body) => {
+            const filename = body?.files?.[0]?.filename || "one.png";
+            return Promise.resolve({
+                ok: true,
+                data: {
+                    staged: [
+                        {
+                            name: filename,
+                            subfolder: "assets",
+                            path: `C:/input/assets/${filename}`,
+                        },
+                    ],
+                },
+            });
+        });
+        getMock.mockResolvedValue({ ok: true, workflow: { nodes: [], links: [] } });
+        getWorkflowContentMock.mockResolvedValue({
+            ok: true,
+            data: {
+                workflow: {
+                    nodes: [{ id: 1, type: "CheckpointLoaderSimple" }],
+                    links: [],
+                },
+            },
+        });
+
+        const { setComfyApp } = await import("../app/comfyApiBridge.js");
+        setComfyApp(makeApp());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+    });
+
+    function makeApp() {
+        const graph = {
+            added: [],
+            add: vi.fn(function add(node) {
+                this.added.push(node);
+            }),
+            getNodeOnPos: vi.fn(() => null),
+            setDirtyCanvas: vi.fn(),
+        };
+        const canvasEl = {
+            getBoundingClientRect: () => ({ left: 0, top: 0, right: 800, bottom: 600 }),
+        };
+        return {
+            graph,
+            canvas: {
+                canvas: canvasEl,
+                graph,
+                ds: { scale: 1, offset: [0, 0] },
+                setDirty: vi.fn(),
+            },
+            loadGraphData: vi.fn(),
+        };
+    }
+
+    function makeDropEvent(payload) {
+        const data = new Map([["application/x-mjr-asset", JSON.stringify(payload)]]);
+        return {
+            clientX: 120,
+            clientY: 80,
+            target: {},
+            dataTransfer: {
+                types: ["application/x-mjr-asset"],
+                getData: (type) => data.get(type) || "",
+                setData: (type, value) => data.set(type, value),
+                dropEffect: "",
+            },
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+            stopImmediatePropagation: vi.fn(),
+        };
+    }
+
+    function makeDragStartEvent(card, dataTransfer) {
+        return {
+            target: card,
+            dataTransfer,
+        };
+    }
+
+    it("publishes ComfyUI native asset drag fallbacks on dragstart", async () => {
+        const { createAssetDragStartHandler } = await import("../features/dnd/DragDrop.js");
+        const data = new Map();
+        const dataTransfer = {
+            setData: vi.fn((type, value) => data.set(type, value)),
+            items: { add: vi.fn((value, type) => data.set(type, value)) },
+            setDragImage: vi.fn(),
+        };
+        const card = {
+            _mjrAsset: {
+                id: "asset-1",
+                filename: "clip.mp4",
+                subfolder: "renders",
+                type: "output",
+                kind: "video",
+                tags: ["demo"],
+            },
+            closest: () => card,
+            querySelector: () => null,
+            addEventListener: vi.fn(),
+        };
+        const container = { _mjrGetSelectedAssets: () => [] };
+
+        createAssetDragStartHandler(container)(makeDragStartEvent(card, dataTransfer));
+
+        expect(JSON.parse(data.get("application/x-mjr-asset"))).toMatchObject({
+            filename: "clip.mp4",
+            subfolder: "renders",
+            type: "output",
+            kind: "video",
+        });
+        const comfyInfo = JSON.parse(data.get("application/x-comfy-asset-info"));
+        expect(comfyInfo).toMatchObject({
+            id: "asset-1",
+            filename: "clip.mp4",
+            subfolder: "renders",
+            type: "output",
+            kind: "video",
+            user_metadata: {
+                filename: "clip.mp4",
+                subfolder: "renders",
+                type: "output",
+            },
+        });
+        expect(data.get("text/uri-list")).toBe("/view");
+    });
+
+    it("derives native output subfolder from filepath when the asset subfolder is stale", async () => {
+        const { createAssetDragStartHandler } = await import("../features/dnd/DragDrop.js");
+        const data = new Map();
+        const dataTransfer = {
+            setData: vi.fn((type, value) => data.set(type, value)),
+            items: { add: vi.fn((value, type) => data.set(type, value)) },
+            setDragImage: vi.fn(),
+        };
+        const card = {
+            _mjrAsset: {
+                id: "asset-2",
+                filename: "ComfyUI_00690_.png",
+                subfolder: "parent/output",
+                filepath: "D:/ComfyUI/output/ComfyUI_00690_.png",
+                type: "output",
+                kind: "image",
+            },
+            closest: () => card,
+            querySelector: () => null,
+            addEventListener: vi.fn(),
+        };
+        const container = { _mjrGetSelectedAssets: () => [] };
+
+        createAssetDragStartHandler(container)(makeDragStartEvent(card, dataTransfer));
+
+        expect(JSON.parse(data.get("application/x-mjr-asset"))).toMatchObject({
+            filename: "ComfyUI_00690_.png",
+            subfolder: "",
+            type: "output",
+            kind: "image",
+        });
+        expect(JSON.parse(data.get("application/x-comfy-asset-info"))).toMatchObject({
+            filename: "ComfyUI_00690_.png",
+            subfolder: "",
+            type: "output",
+            user_metadata: {
+                filename: "ComfyUI_00690_.png",
+                subfolder: "",
+                type: "output",
+            },
+        });
+    });
+
+    it("keeps ComfyUI temp assets as temp when deriving native drag fallbacks", async () => {
+        const { createAssetDragStartHandler } = await import("../features/dnd/DragDrop.js");
+        const { sanitizeDraggedPayload } = await import("../features/dnd/utils/payload.js");
+        const data = new Map();
+        const dataTransfer = {
+            setData: vi.fn((type, value) => data.set(type, value)),
+            items: { add: vi.fn((value, type) => data.set(type, value)) },
+            setDragImage: vi.fn(),
+        };
+        const card = {
+            _mjrAsset: {
+                id: "asset-3",
+                filename: "preview.png",
+                subfolder: "stale/output",
+                filepath: "D:/ComfyUI/temp/previews/preview.png",
+                type: "output",
+                kind: "image",
+            },
+            closest: () => card,
+            querySelector: () => null,
+            addEventListener: vi.fn(),
+        };
+        const container = { _mjrGetSelectedAssets: () => [] };
+
+        createAssetDragStartHandler(container)(makeDragStartEvent(card, dataTransfer));
+
+        expect(sanitizeDraggedPayload({ filename: "preview.png", type: "temp" })).toMatchObject({
+            filename: "preview.png",
+            type: "temp",
+        });
+        expect(JSON.parse(data.get("application/x-mjr-asset"))).toMatchObject({
+            filename: "preview.png",
+            subfolder: "previews",
+            type: "temp",
+            kind: "image",
+        });
+        expect(JSON.parse(data.get("application/x-comfy-asset-info"))).toMatchObject({
+            filename: "preview.png",
+            subfolder: "previews",
+            type: "temp",
+            user_metadata: {
+                filename: "preview.png",
+                subfolder: "previews",
+                type: "temp",
+            },
+        });
+    });
+
+    it("L+drop on empty canvas creates a loader node and skips workflow import", async () => {
+        const createdNode = {
+            type: "LoadImage",
+            widgets: [{ name: "image", type: "combo", value: "", options: { values: [] } }],
+        };
+        vi.stubGlobal("LiteGraph", {
+            createNode: vi.fn((type) => (type === "LoadImage" ? createdNode : null)),
+        });
+
+        const { createDragDropRuntimeHandlers } = await import("../features/dnd/DragDrop.js");
+        const { getComfyApp } = await import("../app/comfyApiBridge.js");
+        const handlers = createDragDropRuntimeHandlers();
+
+        handlers.onKeyDown({ key: "l", target: {} });
+        await handlers.onDrop(makeDropEvent({ filename: "one.png", type: "output", kind: "image" }));
+        handlers.onKeyUp({ key: "l" });
+
+        const app = getComfyApp();
+        expect(getMock).not.toHaveBeenCalled();
+        expect(app.loadGraphData).not.toHaveBeenCalled();
+        expect(globalThis.LiteGraph.createNode).toHaveBeenCalledWith("LoadImage");
+        expect(app.graph.add).toHaveBeenCalledWith(createdNode);
+        expect(createdNode.pos).toEqual([120, 80]);
+        expect(createdNode.widgets[0].value).toBe("assets/one.png");
+    });
+
+    it("normal empty-canvas drop creates a loader when no valid workflow exists", async () => {
+        getMock.mockResolvedValue({ ok: true, workflow: null, data: { workflow: null } });
+        const createdNode = {
+            type: "LoadImage",
+            widgets: [{ name: "image", type: "combo", value: "", options: { values: [] } }],
+        };
+        vi.stubGlobal("LiteGraph", {
+            createNode: vi.fn((type) => (type === "LoadImage" ? createdNode : null)),
+        });
+
+        const { createDragDropRuntimeHandlers } = await import("../features/dnd/DragDrop.js");
+        const { getComfyApp } = await import("../app/comfyApiBridge.js");
+        const handlers = createDragDropRuntimeHandlers();
+
+        await handlers.onDrop(makeDropEvent({ filename: "one.png", type: "output", kind: "image" }));
+
+        const app = getComfyApp();
+        expect(getMock).toHaveBeenCalled();
+        expect(app.loadGraphData).not.toHaveBeenCalled();
+        expect(app.graph.add).toHaveBeenCalledWith(createdNode);
+        expect(createdNode.widgets[0].value).toBe("assets/one.png");
+    });
+
+    it("drops video assets into LTX Director as real video segments", async () => {
+        class MockHTMLVideoElement {
+            crossOrigin = "";
+            preload = "";
+            muted = false;
+            playsInline = false;
+            src = "";
+            addEventListener = vi.fn();
+        }
+        vi.stubGlobal("HTMLVideoElement", MockHTMLVideoElement);
+        vi.stubGlobal("document", {
+            createElement: vi.fn((tag) => {
+                if (tag === "video") return new MockHTMLVideoElement();
+                if (tag === "canvas") {
+                    return {
+                        width: 0,
+                        height: 0,
+                        getContext: vi.fn(() => ({ drawImage: vi.fn() })),
+                        toDataURL: vi.fn(() => "data:image/jpeg;base64,thumb"),
+                    };
+                }
+                return {};
+            }),
+            querySelector: vi.fn(() => null),
+        });
+        const timelineEditor = {
+            timeline: { segments: [], audioSegments: [] },
+            getFrameRate: vi.fn(() => 24),
+            updateUIFromSelection: vi.fn(),
+            commitChanges: vi.fn(),
+            render: vi.fn(),
+            growTimelineIfNeeded: vi.fn(),
+            _ensureThumbnails: vi.fn(),
+        };
+        const ltxNode = {
+            type: "LTXDirector",
+            title: "LTX Director",
+            widgets: [],
+            inputs: [],
+            _timelineEditor: timelineEditor,
+        };
+        const { getComfyApp } = await import("../app/comfyApiBridge.js");
+        const app = getComfyApp();
+        app.graph.getNodeOnPos.mockReturnValue(ltxNode);
+
+        const { createDragDropRuntimeHandlers } = await import("../features/dnd/DragDrop.js");
+        const handlers = createDragDropRuntimeHandlers();
+        await handlers.onDrop(makeDropEvent({ filename: "clip.mp4", type: "output", kind: "video" }));
+
+        expect(timelineEditor.timeline.segments).toHaveLength(1);
+        expect(timelineEditor.timeline.segments[0]).toMatchObject({
+            type: "video",
+            imageFile: "assets/clip.mp4",
+            fileName: "clip.mp4",
+            videoDurationFrames: 24,
+            length: 24,
+        });
+        expect(timelineEditor.timeline.segments[0].videoEl).toBeInstanceOf(HTMLVideoElement);
+        expect(timelineEditor.timeline.segments[0].imageB64).toBeUndefined();
+        expect(timelineEditor.updateUIFromSelection).toHaveBeenCalled();
+        expect(timelineEditor.commitChanges).toHaveBeenCalledWith(true);
+        expect(timelineEditor._ensureThumbnails).toHaveBeenCalledWith(timelineEditor.timeline.segments[0]);
+    });
+
+    it("loads a dragged workflow JSON card on empty canvas without staging it", async () => {
+        const { createAssetDragStartHandler, createDragDropRuntimeHandlers } = await import("../features/dnd/DragDrop.js");
+        const { getComfyApp } = await import("../app/comfyApiBridge.js");
+        const data = new Map();
+        const dataTransfer = {
+            setData: vi.fn((type, value) => data.set(type, value)),
+            items: { add: vi.fn((value, type) => data.set(type, value)) },
+            setDragImage: vi.fn(),
+        };
+        const card = {
+            _mjrAsset: {
+                id: "workflow-1",
+                filename: "portrait_workflow.json",
+                filepath: "D:/ComfyUI/user/default/workflows/portrait_workflow.json",
+                type: "workflow",
+                kind: "workflow",
+            },
+            closest: () => card,
+            querySelector: () => null,
+            addEventListener: vi.fn(),
+        };
+
+        createAssetDragStartHandler({ _mjrGetSelectedAssets: () => [] })(makeDragStartEvent(card, dataTransfer));
+        const payload = JSON.parse(data.get("application/x-mjr-asset"));
+        const handlers = createDragDropRuntimeHandlers();
+        await handlers.onDrop(makeDropEvent(payload));
+
+        const app = getComfyApp();
+        expect(payload).toMatchObject({
+            filename: "portrait_workflow.json",
+            kind: "workflow",
+            filepath: "D:/ComfyUI/user/default/workflows/portrait_workflow.json",
+        });
+        expect(getWorkflowContentMock).toHaveBeenCalledWith(
+            "D:/ComfyUI/user/default/workflows/portrait_workflow.json",
+            { timeoutMs: 30_000 },
+        );
+        expect(postMock).not.toHaveBeenCalled();
+        expect(app.loadGraphData).toHaveBeenCalledWith({
+            nodes: [{ id: 1, type: "CheckpointLoaderSimple" }],
+            links: [],
+        });
+    });
+
+    it("creates context-menu loader nodes at the visible canvas center when no pointer event is available", async () => {
+        const createdNode = {
+            type: "LoadImage",
+            widgets: [{ name: "image", type: "combo", value: "", options: { values: [] } }],
+        };
+        vi.stubGlobal("LiteGraph", {
+            createNode: vi.fn((type) => (type === "LoadImage" ? createdNode : null)),
+        });
+
+        const { createCanvasLoaderNodes } = await import("../features/dnd/canvasLoaderNode.js");
+        const { getComfyApp } = await import("../app/comfyApiBridge.js");
+        const app = getComfyApp();
+        app.canvas.ds = { scale: 2, offset: [100, 50] };
+
+        const created = createCanvasLoaderNodes({
+            app,
+            items: [
+                {
+                    payload: { filename: "one.png", type: "output", kind: "image" },
+                    relativePath: "assets/one.png",
+                    droppedExt: "png",
+                },
+            ],
+            event: null,
+        });
+
+        expect(created).toBe(1);
+        expect(createdNode.pos).toEqual([100, 100]);
+    });
+
+    it("L+drop creates loader nodes for the current multi-selection", async () => {
+        const nodes = [];
+        vi.stubGlobal("LiteGraph", {
+            createNode: vi.fn((type) => {
+                const node = {
+                    type,
+                    widgets: [{ name: "image", type: "combo", value: "", options: { values: [] } }],
+                };
+                nodes.push(node);
+                return node;
+            }),
+        });
+        window.__MJR_LAST_SELECTION_GRID__ = {
+            _mjrGetSelectedAssets: () => [
+                { filename: "one.png", type: "output", kind: "image" },
+                { filename: "two.png", type: "output", kind: "image" },
+            ],
+        };
+
+        const { createDragDropRuntimeHandlers } = await import("../features/dnd/DragDrop.js");
+        const { getComfyApp } = await import("../app/comfyApiBridge.js");
+        const handlers = createDragDropRuntimeHandlers();
+
+        handlers.onKeyDown({ key: "l", target: {} });
+        await handlers.onDrop(makeDropEvent({ filename: "one.png", type: "output", kind: "image" }));
+        handlers.onKeyUp({ key: "l" });
+
+        const app = getComfyApp();
+        expect(getMock).not.toHaveBeenCalled();
+        expect(app.graph.add).toHaveBeenCalledTimes(2);
+        expect(nodes.map((node) => node.pos)).toEqual([
+            [120, 80],
+            [210, 80],
+        ]);
+        expect(nodes.map((node) => node.widgets[0].value)).toEqual([
+            "assets/one.png",
+            "assets/two.png",
+        ]);
+    });
+
+    it("sanitizes and filters multi payloads carried by DataTransfer", async () => {
+        const nodes = [];
+        vi.stubGlobal("LiteGraph", {
+            createNode: vi.fn((type) => {
+                const node = {
+                    type,
+                    widgets: [{ name: "image", type: "combo", value: "", options: { values: [] } }],
+                };
+                nodes.push(node);
+                return node;
+            }),
+        });
+
+        const { createDragDropRuntimeHandlers } = await import("../features/dnd/DragDrop.js");
+        const handlers = createDragDropRuntimeHandlers();
+        const event = makeDropEvent({ filename: "one.png", type: "output", kind: "image" });
+        event.dataTransfer.types.push("application/x-mjr-assets");
+        event.dataTransfer.setData(
+            "application/x-mjr-assets",
+            JSON.stringify({
+                items: [
+                    { filename: "one.png", type: "output", kind: "image" },
+                    { filename: "../bad.png", type: "output", kind: "image" },
+                    { filename: "folder", type: "output", kind: "folder" },
+                    { filename: "two.png", type: "output", kind: "image" },
+                ],
+            }),
+        );
+
+        handlers.onKeyDown({ key: "l", target: {} });
+        await handlers.onDrop(event);
+        handlers.onKeyUp({ key: "l" });
+
+        expect(postMock).toHaveBeenCalledTimes(2);
+        expect(nodes.map((node) => node.widgets[0].value)).toEqual([
+            "assets/one.png",
+            "assets/two.png",
+        ]);
+    });
+});

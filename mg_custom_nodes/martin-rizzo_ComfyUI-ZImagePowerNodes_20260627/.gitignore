@@ -23,6 +23,7 @@ Xcodeproj/
 #
 __pycache__/
 venv/
+venv-*/
 
 # Node.js
 #

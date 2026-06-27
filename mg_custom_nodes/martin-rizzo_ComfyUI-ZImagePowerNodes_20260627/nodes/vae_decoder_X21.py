@@ -38,7 +38,7 @@ class VAEDecoderX21(io.ComfyNode):
             description   = (
                 "Experimental node similar to native ComfyUI VAEDecode node but including a color filtering step. "
             ),
-            #search_aliases = ["decode", "decode latent", "latent to image", "render latent"],
+            search_aliases=["decode", "decode latent", "latent to image", "render latent"],
             inputs=[
                 io.Latent.Input      ("samples",
                                       tooltip="The latent image to be decoded. "

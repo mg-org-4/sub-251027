@@ -5,10 +5,11 @@
   "disable_autocast": false,
   "precision": "bf16",
   "vae_precision": "fp32",
+  "vae_decode_precision": "bf16",
   "vae_tiling": false,
   "vae_sp": false,
   "vae_config": {
-    "load_encoder": false,
+    "load_encoder": true,
     "load_decoder": true,
     "tile_sample_min_height": 256,
     "tile_sample_min_width": 256,
@@ -36,5 +37,13 @@
       "lora_config": null
     }
   ],
-  "enable_torch_compile": false
+  "enable_torch_compile": false,
+  "image_encoder_config": {
+    "prefix": "clip",
+    "quant_config": null,
+    "lora_config": null,
+    "num_hidden_layers_override": null,
+    "require_post_norm": null
+  },
+  "image_encoder_precision": "fp32"
 }

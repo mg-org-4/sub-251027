@@ -1,0 +1,48 @@
+[project]
+name = "comfyui-prompt-control"
+description = "Nodes for prompt editing and LoRA scheduling, advanced regional prompting (including attention masking) and advanced prompt encoding, all controlled through your text prompt. Feature keywords: comfyui-prompt-control, schedule, macros, attention couple, loractl, A1111"
+version = "3.0.0-beta.5"
+license = { file = "LICENSE" }
+
+requires-python = ">= 3.10"
+
+[project.urls]
+Repository = "https://github.com/asagi4/comfyui-prompt-control"
+
+[tool.comfy]
+PublisherId = "asagi4"
+DisplayName = "ComfyUI Prompt Control"
+Icon = ""
+
+[tool.pyright]
+extraPaths = ["../../"]
+exclude = ["prompt_control/*test*"]
+
+[tool.ty.src]
+exclude = ["tests/*.py", "prompt_control/*test*.py", "prompt_control/parsy.py"]
+
+[tool.ty.environment]
+extra-paths = ["../.."]
+
+[tool.ty.rules]
+# ComfyUI executes give this...
+invalid-method-override = "ignore"
+
+[tool.ruff]
+exclude = ["prompt_control/parsy.py"]
+line-length = 120
+
+[tool.ruff.lint]
+# Ignore line length and let the formatter handle it
+ignore = ["E501"]
+select = [
+	"E",
+	"F",
+	"UP",
+	"B",
+	"SIM",
+	"I",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

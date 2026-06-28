@@ -953,6 +953,29 @@ class ShapeMismatchReportTests(unittest.TestCase):
         self.assertIn("... and", text)                   # truncated past 3 examples
         self.assertIn("SAME base model", text)           # actionable fix hint
 
+    def test_lokr_shape_mismatch_is_recorded(self):
+        # A LoKr concept whose reconstructed delta doesn't match the model weight
+        # must be recorded too — LoKr/LoHa go through a different branch than plain
+        # LoRA, so the capture has to cover it (regression for snofs-style LoKrs).
+        model = _make_model()  # model.layer.weight is (1, 1)
+        lora = {
+            "layer.lokr_w1": torch.eye(2, dtype=torch.float32),          # (2, 2)
+            "layer.lokr_w2": torch.tensor([[1.0]], dtype=torch.float32),  # (1, 1)
+        }  # kron(w1, w2) -> (2, 2), cannot reshape to the (1, 1) model weight
+        active_loras = [{
+            "name": "concept/snofs_krea_v1.safetensors", "lora": lora, "strength": 1.0,
+            "clip_strength": None, "key_filter": "all", "conflict_mode": "all",
+        }]
+        target_group = {
+            "target_key": "layer.weight", "is_clip": False,
+            "aliases": ["layer"], "label_prefix": "layer",
+        }
+        self.optimizer._prepare_group_diffs(
+            target_group, active_loras, model, None, torch.device("cpu"))
+        per = self.optimizer._shape_mismatches.get("concept/snofs_krea_v1.safetensors")
+        self.assertIsNotNone(per)
+        self.assertEqual(per["layer.weight"], (2, 1))  # LoKr dim 2 vs model dim 1
+
 
 @unittest.skipIf(torch is None, "torch is not installed in this environment")
 class PreserveFlagTests(unittest.TestCase):
@@ -4820,6 +4843,22 @@ class Krea2DetectionTests(unittest.TestCase):
         self.assertEqual(self.det(wan), "wan")
         self.assertEqual(self.det(flux), "flux")
         self.assertEqual(self.det(qwen), "qwen_image")
+
+    def test_ltx2_gate_logits_not_stolen_by_krea2(self):
+        # Regression: LTX-2 (LTXV 2.3) has dual video/audio + cross-modal attention
+        # with '*_attn.to_gate_logits'. The substring '..._attn.to_gate' must NOT
+        # trip krea2's gate detection (krea2's gate is a leaf followed by '.', LTX-2's
+        # is 'to_gate_logits' with '_' after). These LTX LoRAs were mis-detected as
+        # krea2 -> wrong normalization (transformer_blocks->blocks) -> nothing merged.
+        s = _sd([
+            "diffusion_model.transformer_blocks.0.attn1.to_q.lora_A.weight",
+            "diffusion_model.transformer_blocks.0.attn1.to_gate_logits.lora_A.weight",
+            "diffusion_model.transformer_blocks.0.attn2.to_k.lora_A.weight",
+            "diffusion_model.transformer_blocks.0.audio_to_video_attn.to_gate_logits.lora_A.weight",
+            "diffusion_model.transformer_blocks.0.video_to_audio_attn.to_v.lora_A.weight",
+        ])
+        self.assertNotEqual(self.det(s), "krea2")
+        self.assertEqual(self.det(s), "ltx")
 
 
 class Krea2NormalizationTests(unittest.TestCase):

@@ -1069,7 +1069,11 @@ class _LoRAMergeBase:
         #   diffusion_model.blocks.N.attn.wq            (Comfy-Org native)
         #   diffusion_model.transformer_blocks.N.attn.to_gate  (krea_2 trainer)
         #   transformer.transformer_blocks.N.attn.to_gate + text_fusion (diffusers)
-        if any(re.search(r'attn[._](?:to_gate|gate|w[qkvo])(?=[._])', k) for k in keys):
+        # The gate/proj is always a leaf module followed by the LoRA suffix '.'
+        # (.lora_down/.lora_A/.lokr_w1/.alpha). Require the '.' so this does NOT
+        # false-match LTX-2's '*_attn.to_gate_logits' (where '_logits' follows) —
+        # that hijacked LTX-2 LoRAs as krea2 and broke their merge.
+        if any(re.search(r'attn[._](?:to_gate|gate|w[qkvo])(?=\.)', k) for k in keys):
             return 'krea2'
 
         # Z-Image Turbo (Lumina2): layers.N with attention patterns
@@ -2448,9 +2452,18 @@ class _LoRAMergeBase:
                     if alt is not None:
                         diff, alt_rank, alt_dtype = alt
                         try:
-                            diff = diff.reshape(target_shape)
+                            reshaped = diff.reshape(target_shape)
                         except RuntimeError:
-                            diff = None
+                            # LoKr/LoHa reconstructs to a shape that doesn't match
+                            # the target model weight (e.g. a narrow block trained
+                            # on a different model variant) — this layer is dropped.
+                            # Record it for the report instead of dropping silently.
+                            self._note_shape_mismatch(
+                                item, target_key,
+                                int(diff.shape[0]) if diff.dim() > 0 else None,
+                                int(target_shape[0]) if len(target_shape) > 0 else None)
+                            reshaped = None
+                        diff = reshaped
                         if diff is not None:
                             rank_sum += alt_rank
                             raw_contributors.add(i)

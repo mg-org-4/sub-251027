@@ -9,6 +9,7 @@ Covers:
 """
 
 import json
+import re
 import loop as loop_module
 from loop import (
     explore_backward_from_body_out,
@@ -623,6 +624,189 @@ def test_build_expand_graph_resume_node_does_not_collide_with_end_id_1(monkeypat
     assert len(resume_ids) == 1
     assert len(end_ids) == 1
     assert resume_ids[0] != end_ids[0]
+    # Plan B: End uses the fixed Recurse sentinel id; Resume uses its own sentinel.
+    # They must remain distinct even though both are fixed internal ids.
+    assert "__mie_loop_recurse_end__" in end_ids[0]
+    assert "__mie_loop_resume__" in resume_ids[0]
+
+
+def test_expand_recurse_end_id(monkeypatch):
+    """Plan B: the cloned End is keyed by the Recurse sentinel, not the template end_id.
+
+    This is what stops the nested execution id from stacking the template end_id
+    every round (453.0.0.453.0.0.453...). The UI still shows the template id via
+    override_display_id, so saved workflows and the canvas are unaffected.
+    """
+    monkeypatch.setattr(loop_module, "GraphBuilder", FakeGraphBuilder)
+    next_ctx = _make_next_ctx()
+    dynprompt = _make_simple_dynprompt()  # end_id == "30"
+    detect_result = _make_detect_result()
+    result, end_built_node = _build_expand_graph_for_next_round(
+        next_ctx, dynprompt, "10", "20", "30", detect_result
+    )
+    end_items = [
+        (nid, nd) for nid, nd in result.items() if nd["class_type"] == "MieLoopEnd|Mie"
+    ]
+    assert len(end_items) == 1
+    end_nid, end_nd = end_items[0]
+    # Clone key carries the Recurse sentinel, NOT the template end_id "30".
+    assert "__mie_loop_recurse_end__" in end_nid
+    assert not end_nid.endswith(".30")
+    # UI display id is still the original template id.
+    assert end_nd.get("override_display_id") == "30"
+
+
+def test_expand_recurse_bodyout_id(monkeypatch):
+    """Plan B: the cloned BodyOut is keyed by the Recurse sentinel, not the template id."""
+    monkeypatch.setattr(loop_module, "GraphBuilder", FakeGraphBuilder)
+    next_ctx = _make_next_ctx()
+    dynprompt = _make_simple_dynprompt()  # body_out_id == "20"
+    detect_result = _make_detect_result()
+    result, _ = _build_expand_graph_for_next_round(
+        next_ctx, dynprompt, "10", "20", "30", detect_result
+    )
+    bodyout_items = [
+        (nid, nd)
+        for nid, nd in result.items()
+        if nd["class_type"] == "MieLoopBodyOut|Mie"
+    ]
+    assert len(bodyout_items) == 1
+    bo_nid, bo_nd = bodyout_items[0]
+    assert "__mie_loop_recurse_bodyout__" in bo_nid
+    assert not bo_nid.endswith(".20")
+    assert bo_nd.get("override_display_id") == "20"
+
+
+def test_expand_no_template_end_id_as_clone_key(monkeypatch):
+    """Plan B: no End node in the expand graph is keyed by the bare template end_id.
+
+    Under ComfyUI's real prefix mechanism, an End keyed by its template id is what
+    makes the parent path stack `.0.0.{end_id}` every round. Plan B breaks that at
+    the source by remapping the clone id, so the template end_id never appears as an
+    End clone key. (Full `.0.0.` flattening is Plan A; this is the Plan B unit check.)
+    """
+    monkeypatch.setattr(loop_module, "GraphBuilder", FakeGraphBuilder)
+    next_ctx = _make_next_ctx()
+    dynprompt = _make_simple_dynprompt()  # end_id == "30"
+    detect_result = _make_detect_result()
+    result, _ = _build_expand_graph_for_next_round(
+        next_ctx, dynprompt, "10", "20", "30", detect_result
+    )
+    end_keys = [
+        nid for nid, nd in result.items() if nd["class_type"] == "MieLoopEnd|Mie"
+    ]
+    assert end_keys, "expected an End node in the expand graph"
+    for nid in end_keys:
+        # The End clone key must not be the old template-id form (e.g. "fake.30").
+        assert not nid.endswith(".30")
+        assert "__mie_loop_recurse_end__" in nid
+
+
+# ----------------------------------------------------------------------
+# Plan A (Flat Prefix): expand node ids are flat {expand_root}.r{index}.X
+# ----------------------------------------------------------------------
+
+def test_flat_prefix_format(monkeypatch):
+    """Plan A: every expand node id carries a flat prefix {expand_root}.r{index}.
+
+    ComfyUI's engine registers expand-graph node ids as-is (execution.py:
+    add_ephemeral_node(node_id, ...)), so an explicit GraphBuilder prefix is the
+    final id. With a flat prefix, execution depth and round count decouple.
+    """
+    monkeypatch.setattr(loop_module, "GraphBuilder", FakeGraphBuilder)
+    next_ctx = _make_next_ctx(index=1)  # end_id "30" -> expand_root fallback "30"
+    dynprompt = _make_simple_dynprompt()
+    detect_result = _make_detect_result()
+    result, _ = _build_expand_graph_for_next_round(
+        next_ctx, dynprompt, "10", "20", "30", detect_result
+    )
+    assert len(result) > 0
+    for nid in result:
+        assert nid.startswith("30.r1."), f"node id not flat-prefixed: {nid}"
+
+
+def test_flat_prefix_round_increments(monkeypatch):
+    """Plan A: the round segment tracks next_ctx.index (round 3 -> .r3.)."""
+    monkeypatch.setattr(loop_module, "GraphBuilder", FakeGraphBuilder)
+    next_ctx = _make_next_ctx(index=3)
+    dynprompt = _make_simple_dynprompt()
+    detect_result = _make_detect_result()
+    result, _ = _build_expand_graph_for_next_round(
+        next_ctx, dynprompt, "10", "20", "30", detect_result
+    )
+    sample = next(iter(result))
+    assert sample.startswith("30.r3."), f"expected .r3. prefix, got {sample}"
+
+
+def test_flat_prefix_no_nested_template_end(monkeypatch):
+    """Plan A: simulating 49 rounds keeps ids flat and bounded (no .0.0. nesting).
+
+    Simulates 49 independent expand builds (one per round) without invoking the
+    real ComfyUI engine. Proves the produced prefix is flat each round; combined
+    with execution.py consuming expand ids as-is, runtime ids stay flat & short.
+    """
+    monkeypatch.setattr(loop_module, "GraphBuilder", FakeGraphBuilder)
+    dynprompt = _make_simple_dynprompt()
+    detect_result = _make_detect_result()
+    all_ids = []
+    for round_idx in range(1, 50):
+        next_ctx = _make_next_ctx(index=round_idx)
+        result, _ = _build_expand_graph_for_next_round(
+            next_ctx, dynprompt, "10", "20", "30", detect_result
+        )
+        all_ids.extend(result.keys())
+    assert all_ids, "expected expand nodes"
+    for nid in all_ids:
+        assert re.match(r"^30\.r\d+\.", nid), f"id not flat: {nid}"
+        assert ".0.0." not in nid, f"id still nests via .0.0.: {nid}"
+    # §9 acceptance: longest id well under 80 chars even at 49 rounds
+    assert max(len(nid) for nid in all_ids) < 80
+
+
+def test_external_links_preserved_under_flat_prefix(monkeypatch):
+    """Plan A: flat-prefixing cloned nodes must NOT rewrite external links.
+
+    A link to a node outside the loop (KSampler.model <- "470") must stay a
+    template-id link ["470", 0], never a flat-prefixed ephemeral id. (§2.1)
+    """
+    monkeypatch.setattr(loop_module, "GraphBuilder", FakeGraphBuilder)
+    dynprompt = {
+        "10": {"class_type": "MieLoopBodyIn|Mie", "inputs": {"loop_ctx": ["1", 0]}},
+        "15": {"class_type": "KSampler|Mie",
+               "inputs": {"loop_ctx": ["10", 0], "model": ["470", 0]}},
+        "20": {"class_type": "MieLoopBodyOut|Mie",
+               "inputs": {"loop_ctx": ["15", 0], "state_json": "{}"}},
+        "30": {"class_type": "MieLoopEnd|Mie", "inputs": {"loop_ctx": ["20", 0]}},
+    }
+    detect_result = _make_detect_result(
+        business=["15"], backward=["10", "15", "20"], forward=["10", "15", "20"]
+    )
+    next_ctx = _make_next_ctx(index=1)
+    result, _ = _build_expand_graph_for_next_round(
+        next_ctx, dynprompt, "10", "20", "30", detect_result
+    )
+    ksampler = next(d for d in result.values() if d["class_type"] == "KSampler|Mie")
+    assert ksampler["inputs"]["model"] == ["470", 0], (
+        f"external link must stay template id ['470',0], got {ksampler['inputs']['model']}"
+    )
+
+
+def test_flat_prefix_uses_expand_root_from_meta(monkeypatch):
+    """Plan A: when ctx.meta.expand_root is set, the flat prefix uses it (not end_id).
+
+    This pins the prefix for the whole run_id lifetime (incl. resume): expand_root
+    is read from meta rather than re-derived, so it cannot drift between rounds.
+    """
+    monkeypatch.setattr(loop_module, "GraphBuilder", FakeGraphBuilder)
+    next_ctx = _make_next_ctx(index=1)
+    next_ctx["meta"]["expand_root"] = "999"  # explicit root, differs from end_id "30"
+    dynprompt = _make_simple_dynprompt()
+    detect_result = _make_detect_result()
+    result, _ = _build_expand_graph_for_next_round(
+        next_ctx, dynprompt, "10", "20", "30", detect_result
+    )
+    sample = next(iter(result))
+    assert sample.startswith("999.r1."), f"expected expand_root-based prefix, got {sample}"
 
 
 def test_build_expand_graph_cyclic_detection(monkeypatch):

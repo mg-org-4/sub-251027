@@ -78,17 +78,30 @@ End.loop_ctx/done -> Finalize*
 
 行为：
 - 开启后，收集阶段写 `.pt` 到临时目录，内存里只保留 `disk_path` 元信息。
-- `Finalize*` / `Cleanup*` / 运行时清理会自动删除对应磁盘缓存。
+- `Cleanup*` 与运行时清理会自动删除对应磁盘缓存；`Finalize*` **仅合并成功**时删除，失败时保留以便手动救回（见下「Finalize 崩溃后手动合并」）。
 
 适用场景：
 - 长轮次、大分辨率图片或长音频，降低峰值显存/内存。
+
+长跑建议（如 SCAIL 数十段）：
+- **强烈建议** `offload_to_disk=true`：生成阶段把每段结果落盘，避免 collect list 持有全部 tensor。
+- `FinalizeImages` / `FinalizeAudio` 采用**增量合并**（逐段 load → cat → 释放），load 阶段峰值显著低于一次性全量载入；合并失败时磁盘缓存**保留**，便于手动救回（见下「Finalize 崩溃后手动合并」）。
+- 增量合并的降峰值收益主要在 `offload_to_disk=true`（逐段从盘载入）；`offload_to_disk=false` 时 collect list 仍持有全部 tensor，Finalize 峰值与改前相近——长跑请务必开启 offload。
 
 ## Expand 与协议 ID 约束
 MieLoop 使用 expand 图递归执行下一轮。为避免 ID 漂移：
 - 协议模板 ID（`body_out_id`, `end_id`）一旦确定必须保持模板值。
 - 克隆轮次 ID（包含 `.`）不会回写到 `meta`。
 
-这可以避免类似 `240.0.0.240.0.0...` 的递归拼接问题。
+### Expand 运行时 ID（v1.2+ 扁平化）
+日志中看到的执行 ID 是**扁平化**的，属正常现象，无需任何用户操作：
+- **用户保存的 workflow 仍用模板 id**（如 `453`、`369`）。画布编号、连线、JSON 完全不变。
+- 运行时每轮 expand 节点的 id 形如 `453.r5.369` —— `{end_id}.r{轮次}.{模板id}`，深度与轮数解耦。
+- 循环关闭节点（End / BodyOut）在 expand 图内使用固定内部 id（`__mie_loop_recurse_end__` / `__mie_loop_recurse_bodyout__`），避免每轮把模板 id 重复叠进路径。
+- `override_display_id` 保证 UI 上仍显示模板编号（如 `453`），与扁平化前的观感一致。
+- `ctx.meta.expand_root` 在首次 expand 时由 End 写入（等于 `end_id`），整个 run_id 生命周期（含 resume）不变；旧 workflow / 旧 loop_ctx 无此字段会自动回填。
+
+这样彻底消除了早期版本长跑循环里 `453.0.0.453.0.0.453...` 式的嵌套拼接，长循环（如 49 轮）的节点 id 长度保持在 O(1) 量级。
 
 ## 日志与 debug
 常规（`debug=false`）日志只保留关键流程：
@@ -120,6 +133,13 @@ MieLoop 使用 expand 图递归执行下一轮。为避免 ID 漂移：
 ### 日志体积异常增长
 - 先确认 `debug` 是否误开。
 - 确认使用的是最新版本（包含协议 ID 冻结与日志截断修复）。
+
+### Finalize 崩溃后手动合并
+`FinalizeImages` / `FinalizeAudio` 合并失败时（如超大批次触发原生崩溃），**不会删除**磁盘缓存，日志会打印 `LoopFinalizeMergeFailed: ... cache_dir=... disk_files_preserved=true`。
+- 缓存目录：`{ComfyUI temp}/mie_loop_offload/{run_id}/`（或你指定的 `offload_dir`），形如 `image_*.pt` / `audio_*.pt`。
+- 手动救回：按 mtime 排序文件，逐个 `torch.load` + 增量 `torch.cat`（image 沿 `dim=0`，audio 波形沿 `dim=-1`）。
+- 救回后可自行删除该 `{run_id}` 目录释放空间。
+- 注意：若工作流内同一文件被多路 LoadVideo 引用（如 SCAIL 双视频路径不一致），collector 可能混入不属于本循环的段，需结合业务链判断要跳过的前若干文件——这是 workflow 层问题，Finalize 无法自动识别。
 
 ## 推荐最小示例（文本收集）
 ```text

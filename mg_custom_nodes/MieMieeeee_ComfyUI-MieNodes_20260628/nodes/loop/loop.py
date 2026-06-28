@@ -1,4 +1,5 @@
 import copy
+import gc
 import json
 import math
 import os
@@ -42,6 +43,15 @@ RUNTIME_STORE = {
 }
 _MAX_RUNTIME_STORE_AGE = 3600  # seconds = 1 hour
 _runtime_store_timestamps = {}
+
+# Fixed internal ids used when cloning the loop-closing protocol nodes (End/BodyOut)
+# inside the expand graph. Using a stable sentinel (instead of the template node id)
+# prevents the nested execution id from stacking the template id every round
+# (e.g. 453.0.0.453.0.0.453...). Mirrors ComfyUI's official while_loop_close, which
+# keys its close node on the fixed id "Recurse". UI still shows the template id via
+# set_override_display_id(), so saved workflows and the canvas are unaffected.
+RECURSE_END_ID = "__mie_loop_recurse_end__"
+RECURSE_BODY_OUT_ID = "__mie_loop_recurse_bodyout__"
 
 
 def _require_dict(value: Any, name: str):
@@ -974,7 +984,18 @@ def _build_expand_graph_for_next_round(
     forward_set = {str(x) for x in detect_result.get("forward_set", [])}
     protocol_nodes = {str(body_out_id), str(end_id)}
     all_nodes = _get_all_nodes(dynprompt)
-    graph = GraphBuilder()
+    # Plan A (Flat Prefix): build with an explicit prefix so execution depth and
+    # round count decouple. ComfyUI's engine registers expand-graph node ids as-is
+    # (execution.py: add_ephemeral_node(node_id, ...)); the default GraphBuilder()
+    # prefix derives from the executing (nested) End id, which is what stacks
+    # 453.0.0.453... every round. An explicit "{expand_root}.r{round}." prefix is
+    # used as-is, so ids stay flat (e.g. 453.r5.369) regardless of depth.
+    # expand_root is pinned for the whole run_id lifetime by MieLoopEnd.execute;
+    # fall back to end_id for old loop_ctx / fixtures that never set it.
+    expand_root = str(next_ctx.get("meta", {}).get("expand_root") or end_id)
+    round_idx = int(next_ctx.get("index", 0))
+    flat_prefix = f"{expand_root}.r{round_idx}."
+    graph = GraphBuilder(prefix=flat_prefix)
     resume_node_id = "__mie_loop_resume__"
     while resume_node_id in all_nodes:
         resume_node_id += "_"
@@ -1094,7 +1115,17 @@ def _build_expand_graph_for_next_round(
                 new_inputs["state_json"] = body_out_node.out(1)
             if oid in business_set:
                 new_inputs["__mie_loop_round_idx__"] = int(next_ctx.get("index", 0))
-            new_node = graph.node(_get_class_type(old_node), oid, **new_inputs)
+            # Plan B: protocol close-nodes (End/BodyOut) are keyed by a fixed Recurse
+            # sentinel so repeated nesting doesn't stack the template id in the path.
+            # All other nodes (business/intermediate) keep their template id as the
+            # clone id. built_nodes stays keyed by the template oid; the UI still
+            # shows the template id via override_display_id below.
+            clone_id = oid
+            if is_loop_end_node:
+                clone_id = RECURSE_END_ID
+            elif is_body_out_node:
+                clone_id = RECURSE_BODY_OUT_ID
+            new_node = graph.node(_get_class_type(old_node), clone_id, **new_inputs)
             new_node.set_override_display_id(oid)
             built_nodes[oid] = new_node
         finally:
@@ -1149,6 +1180,70 @@ def _build_expand_graph_for_next_round(
     return finalize_result, end_built_node
 
 
+def _merge_tensor_batches_incremental(
+    raw_batches, *, load_disk_item, validate_batch, cat_dim=0, log_progress=None
+):
+    """Load one batch at a time and cat into an accumulator, releasing each batch ref.
+
+    Replaces the one-shot "load all into a list, then torch.cat" pattern that peaks
+    at ~2x the merged size and can native-crash on long runs (49 SCAIL segments).
+    Memory batches pass through unchanged; disk-cache items are loaded via the
+    supplied callback. ``validate_batch(batch, idx, merged)`` runs before each cat.
+    gc.collect() fires only after a disk-item cat (memory path skips it).
+    Returns None for empty input; callers guard that case.
+    """
+    merged = None
+    for idx, item in enumerate(raw_batches):
+        is_disk = _is_disk_cache_item(item)
+        batch = load_disk_item(item) if is_disk else item
+        validate_batch(batch, idx, merged)
+        if merged is None:
+            merged = batch
+        else:
+            merged = torch.cat([merged, batch], dim=cat_dim)
+            del batch
+            if is_disk:
+                gc.collect()
+        if log_progress is not None:
+            log_progress(idx + 1, len(raw_batches))
+    return merged
+
+
+def _finalize_cache_dir(disk_paths):
+    if not disk_paths:
+        return ""
+    try:
+        return str(Path(str(disk_paths[0])).parent)
+    except Exception:
+        return ""
+
+
+def _log_finalize_merge_start(kind, ctx, raw_batches, disk_paths):
+    cache_dir = _finalize_cache_dir(disk_paths)
+    names = [str(Path(str(p)).name) for p in disk_paths]
+    mie_log(
+        f"LoopFinalizeMergeStart: kind={kind}, loop_id={ctx.get('loop_id', '')}, "
+        f"run_id={ctx.get('run_id', '')}, batch_count={len(raw_batches)}, "
+        f"disk_count={len(disk_paths)}, cache_dir={cache_dir}, "
+        f"paths={_truncate_for_log(names)}"
+    )
+
+
+def _log_finalize_batch_progress(kind, ctx, current, total):
+    mie_log(
+        f"LoopFinalizeMergeProgress: kind={kind}, run_id={ctx.get('run_id', '')}, "
+        f"progress={current}/{total}"
+    )
+
+
+def _log_finalize_merge_failed(kind, ctx, disk_paths):
+    mie_log(
+        f"LoopFinalizeMergeFailed: kind={kind}, run_id={ctx.get('run_id', '')}, "
+        f"cache_dir={_finalize_cache_dir(disk_paths)}, "
+        f"disk_files_preserved=true, disk_count={len(disk_paths)}"
+    )
+
+
 def _merge_images_for_ctx(loop_ctx):
     ctx = _validate_loop_ctx(loop_ctx)
     ref = _ensure_collector_slot(ctx, "image").get("ref")
@@ -1160,25 +1255,47 @@ def _merge_images_for_ctx(loop_ctx):
     if not raw_batches:
         return EMPTY_IMAGES
     disk_paths = _collect_disk_paths(raw_batches)
+    _log_finalize_merge_start("image", ctx, raw_batches, disk_paths)
+
+    def load_item(item):
+        loaded = torch.load(str(item["disk_path"]), map_location="cpu")
+        if not isinstance(loaded, torch.Tensor):
+            raise ValueError("disk cached image is not a torch.Tensor")
+        return loaded
+
+    def validate(batch, idx, merged):
+        if merged is None:
+            return
+        if tuple(batch.shape[1:]) != tuple(merged.shape[1:]):
+            raise ValueError(
+                f"MieLoopFinalizeImages: image shape mismatch at index {idx}: "
+                f"{tuple(batch.shape[1:])} != {tuple(merged.shape[1:])}"
+            )
+
+    progress_cb = (
+        (lambda c, t: _log_finalize_batch_progress("image", ctx, c, t))
+        if len(raw_batches) >= 10
+        else None
+    )
+    merged_ok = False
     try:
-        batches = []
-        for item in raw_batches:
-            if _is_disk_cache_item(item):
-                loaded = torch.load(str(item["disk_path"]), map_location="cpu")
-                if not isinstance(loaded, torch.Tensor):
-                    raise ValueError("disk cached image is not a torch.Tensor")
-                batches.append(loaded)
-            else:
-                batches.append(item)
-        base_shape = tuple(batches[0].shape[1:])
-        for idx, item in enumerate(batches):
-            if tuple(item.shape[1:]) != base_shape:
-                raise ValueError(
-                    f"MieLoopFinalizeImages: image shape mismatch at index {idx}: {tuple(item.shape[1:])} != {base_shape}"
-                )
-        return torch.cat(batches, dim=0)
+        merged = _merge_tensor_batches_incremental(
+            raw_batches,
+            load_disk_item=load_item,
+            validate_batch=validate,
+            cat_dim=0,
+            log_progress=progress_cb,
+        )
+        merged_ok = True
+        return merged
+    except Exception:
+        _log_finalize_merge_failed("image", ctx, disk_paths)
+        raise
     finally:
-        _cleanup_disk_cache_paths(disk_paths)
+        # Cleanup only on success: on failure, preserve .pt files so the user can
+        # recover via a manual merge script (see docs/LOOP_USAGE.md).
+        if merged_ok:
+            _cleanup_disk_cache_paths(disk_paths)
 
 
 def _grid_images(images, cols=2, pad=4):
@@ -1621,6 +1738,12 @@ class MieLoopEnd:
                 raise ValueError(
                     f"LoopEnd.detect failed: body_nodes_business empty, debug={detect_result}"
                 )
+            # Plan A: pin expand_root on first expand so the flat prefix is stable
+            # for the whole run_id lifetime (incl. resume). Old loop_ctx / saved
+            # workflows never set it, so lazily initialize from end_id (guaranteed
+            # present — the enclosing expand guard checks it is truthy).
+            if "expand_root" not in ctx.get("meta", {}):
+                ctx["meta"]["expand_root"] = str(ctx.get("meta", {}).get("end_id"))
             expand_graph, end_built_node = _build_expand_graph_for_next_round(
                 next_ctx=ctx,
                 dynprompt=dynprompt,
@@ -2377,7 +2500,7 @@ class MieLoopStateGetImage:
             mie_log(f"LoopStateGetImage: key={key}, ref={ref}, found=False, using=fallback")
             return (fallback_image, False)
         mie_log(f"LoopStateGetImage: key={key}, ref={ref}, found=False, using=empty")
-        return (EMPTY_IMAGE, False)
+        return (EMPTY_IMAGES, False)
 
 
 class MieLoopStateCleanupImage:
@@ -2745,35 +2868,60 @@ class MieLoopFinalizeAudio:
         if not raw_items:
             return (EMPTY_AUDIO,)
         disk_paths = _collect_disk_paths(raw_items)
+        _log_finalize_merge_start("audio", ctx, raw_items, disk_paths)
+        progress_cb = (
+            (lambda c, t: _log_finalize_batch_progress("audio", ctx, c, t))
+            if len(raw_items) >= 10
+            else None
+        )
+        merged_ok = False
         try:
-            items = []
-            for item in raw_items:
-                if _is_disk_cache_item(item):
+            # Incremental merge: load one item, validate sample_rate, cat waveform,
+            # release the ref (gc only for disk items). Avoids holding all waveforms.
+            sample_rate = None
+            merged_waveform = None
+            for idx, item in enumerate(raw_items):
+                is_disk = _is_disk_cache_item(item)
+                if is_disk:
                     loaded = torch.load(str(item["disk_path"]), map_location="cpu")
                     if not isinstance(loaded, dict):
                         raise ValueError("disk cached audio is not an object")
-                    items.append(loaded)
+                    current = loaded
                 else:
-                    items.append(item)
-            sample_rate = int(items[0]["sample_rate"])
-            waveforms = []
-            for idx, item in enumerate(items):
-                current_rate = int(item["sample_rate"])
-                if current_rate != sample_rate:
+                    current = item
+                current_rate = int(current["sample_rate"])
+                if sample_rate is None:
+                    sample_rate = current_rate
+                elif current_rate != sample_rate:
                     raise ValueError(
                         f"audio sample rate mismatch at index {idx}: {current_rate} != {sample_rate}"
                     )
-                waveforms.append(item["waveform"])
+                wf = current["waveform"]
+                if merged_waveform is None:
+                    merged_waveform = wf
+                else:
+                    merged_waveform = torch.cat([merged_waveform, wf], dim=-1)
+                    del wf
+                    if is_disk:
+                        gc.collect()
+                if progress_cb is not None:
+                    progress_cb(idx + 1, len(raw_items))
             merged = {
-                "waveform": torch.cat(waveforms, dim=-1),
-                "sample_rate": sample_rate,
+                "waveform": merged_waveform,
+                "sample_rate": int(sample_rate),
             }
+            merged_ok = True
             mie_log(
-                f"LoopFinalizeAudio: loop_id={ctx['loop_id']}, run_id={ctx['run_id']}, ref={ref}, count={len(items)}"
+                f"LoopFinalizeAudio: loop_id={ctx['loop_id']}, run_id={ctx['run_id']}, ref={ref}, count={len(raw_items)}"
             )
             return (merged,)
+        except Exception:
+            _log_finalize_merge_failed("audio", ctx, disk_paths)
+            raise
         finally:
-            _cleanup_disk_cache_paths(disk_paths)
+            # Cleanup only on success (see _merge_images_for_ctx).
+            if merged_ok:
+                _cleanup_disk_cache_paths(disk_paths)
 
 
 class MieLoopCleanupAudio:

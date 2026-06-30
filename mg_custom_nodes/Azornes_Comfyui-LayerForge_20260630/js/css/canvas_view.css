@@ -1,0 +1,669 @@
+.lf-painter-button {
+    background-color: #444;
+    border: 1px solid #555;
+    border-radius: 5px;
+    color: #fff;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 550;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out, border-color 0.3s ease-in-out, opacity 0.3s ease-in-out;
+    min-width: 80px;
+    text-align: center;
+    margin: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    text-shadow: 0 1px 2px rgb(0,0,0);
+}
+
+.lf-painter-button:hover {
+    background-color: #555;
+    border-color: #666;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+}
+
+.lf-painter-button:active {
+    background-color: #3a3a3a;
+    transform: translateY(0);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.lf-painter-button:disabled,
+.lf-painter-button:disabled:hover {
+    background-color: #3a3a3a;
+    color: #777;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    border-color: #4a4a4a;
+    opacity: 0.6;
+}
+
+.lf-painter-button.lf-primary {
+    background-color: #3a76d6;
+    border-color: #2a6ac4;
+    color: #fff;
+    text-shadow: 0 1px 2px rgb(0,0,0);
+}
+
+.lf-painter-button.lf-primary:hover {
+    background-color: #4a86e4;
+    border-color: #3a76d6;
+}
+
+/* Crop mode button styling */
+.lf-painter-button#lf-crop-mode-btn {
+    background-color: #444;
+    border-color: #555;
+    color: #fff;
+    transition: all 0.2s ease-in-out;
+}
+
+.lf-painter-button#lf-crop-mode-btn.lf-primary {
+    background-color: #0080ff;
+    border-color: #0070e0;
+    color: #fff;
+    box-shadow: 0 0 8px rgba(0, 128, 255, 0.3);
+}
+
+.lf-painter-button#lf-crop-mode-btn.lf-primary:hover {
+    background-color: #1090ff;
+    border-color: #0080ff;
+    box-shadow: 0 0 12px rgba(0, 128, 255, 0.4);
+}
+
+.lf-painter-button#lf-crop-mode-btn:hover {
+    background-color: #555;
+    border-color: #666;
+}
+
+.lf-painter-button.lf-success {
+    border-color: #4ae27a;
+    background-color: #444;
+    color: #fff;
+    box-shadow: 0 0 0 1.5px #4ae27a88;
+}
+.lf-painter-button.lf-success:hover {
+    border-color: #6aff9a;
+    box-shadow: 0 0 0 2.5px #6aff9a88;
+    background-color: #555;
+}
+
+.lf-painter-button.lf-danger {
+    border-color: #e24a4a;
+    background-color: #444;
+    color: #fff;
+    box-shadow: 0 0 0 1.5px #e24a4a88;
+}
+.lf-painter-button.lf-danger:hover {
+    border-color: #ff6a6a;
+    box-shadow: 0 0 0 2.5px #ff6a6a88;
+    background-color: #555;
+}
+
+.lf-painter-button.lf-icon-button {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    padding: 0;
+    font-size: 16px;
+    line-height: 30px; /* Match height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lf-painter-controls {
+    background-color: #2f2f2f;
+    border-bottom: 1px solid #202020;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    padding: 10px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.lf-painter-slider-container {
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   gap: 4px;
+   color: #fff;
+   font-size: 12px;
+   min-width: 100px;
+}
+
+.lf-painter-slider-container input[type="range"] {
+   -webkit-appearance: none;
+   width: 80px;
+   height: 4px;
+   background: #555;
+   border-radius: 2px;
+   outline: none;
+   padding: 0;
+   margin: 0;
+}
+
+.lf-painter-slider-container input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #e0e0e0;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #555;
+  transition: background 0.2s;
+}
+
+.lf-painter-slider-container input[type="range"]::-webkit-slider-thumb:hover {
+  background: #fff;
+}
+
+.lf-painter-slider-container input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #e0e0e0;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #555;
+}
+
+.lf-slider-value {
+    font-size: 11px;
+    color: #bbb;
+    margin-top: 2px;
+    min-height: 14px;
+    text-align: center;
+}
+
+.lf-painter-button-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background-color: transparent;
+    padding: 0;
+    border-radius: 6px;
+}
+
+.lf-painter-clipboard-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.lf-painter-clipboard-group .lf-painter-button {
+    margin: 1px;
+    height: 30px; /* Match switch height */
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- Clipboard Switch Modern --- */
+.lf-clipboard-switch {
+    position: relative;
+    width: 90px;
+    height: 30px;
+    box-sizing: border-box;
+    background: linear-gradient(to right, #5a5a5a 30%, #3a76d6);
+    border-radius: 5px;
+    border: 1px solid #555;
+    cursor: pointer;
+    transition: background 0.3s ease-in-out, border-color 0.3s ease-in-out, opacity 0.3s ease-in-out;
+    user-select: none;
+    padding: 0;
+    font-family: inherit;
+    font-size: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.lf-clipboard-switch:hover {
+    background: linear-gradient(to right, #6a6a6a 30%, #4a86e4);
+    border-color: #666;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+}
+
+/* Mask switch: szaro-czarny gradient tylko dla maski */
+.lf-clipboard-switch.lf-mask-switch {
+    background: linear-gradient(to right, #5a5a5a 30%, #e53935);
+}
+.lf-clipboard-switch.lf-mask-switch:hover {
+    background: linear-gradient(to right, #6a6a6a 30%, #ff5252);
+}
+.lf-clipboard-switch:active {
+    background: linear-gradient(135deg, #3a76d6, #3a3a3a);
+}
+
+.lf-clipboard-switch input[type="checkbox"] {
+    display: none;
+}
+
+.lf-clipboard-switch .lf-switch-track {
+    display: none;
+}
+
+.lf-clipboard-switch .lf-switch-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: #5a5a5a;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 2;
+}
+
+.lf-clipboard-switch:hover .lf-switch-knob {
+    background-color: #6a6a6a;
+}
+
+.lf-clipboard-switch:hover .lf-switch-knob {
+    background-color: #6a6a6a;
+}
+
+.lf-clipboard-switch .lf-switch-labels {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 550;
+    color: #ffffff;
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity 0.3s ease-in-out;
+    text-shadow: 0 1px 2px rgb(0, 0, 0);
+}
+.lf-clipboard-switch .lf-switch-labels .lf-text-clipspace,
+.lf-clipboard-switch .lf-switch-labels .lf-text-system {
+    position: absolute;
+    transition: opacity 0.2s ease-in-out;
+}
+.lf-clipboard-switch .lf-switch-labels .lf-text-clipspace { opacity: 0; }
+.lf-clipboard-switch .lf-switch-labels .lf-text-system { opacity: 1; padding-left: 20px; }
+
+.lf-clipboard-switch .lf-switch-knob .lf-switch-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lf-clipboard-switch .lf-switch-knob .lf-switch-icon img {
+    width: 100%;
+    height: 100%;
+}
+
+/* Checked state */
+.lf-clipboard-switch:has(input:checked) {
+    background: linear-gradient(to right, #3a76d6, #5a5a5a 70%);
+    border-color: #2a6ac4;
+}
+.lf-clipboard-switch:has(input:checked):hover {
+    background: linear-gradient(to right, #4a86e4, #6a6a6a 70%);
+    border-color: #3a76d6;
+}
+
+.lf-clipboard-switch input:checked ~ .lf-switch-knob {
+    left: calc(100% - 26px);
+}
+.lf-clipboard-switch input:checked ~ .lf-switch-knob .lf-switch-icon img {
+    filter: none;
+}
+.lf-clipboard-switch input:checked ~ .lf-switch-labels .lf-text-clipspace {
+    opacity: 1;
+    color: #fff;
+    padding-right: 20px;
+}
+.lf-clipboard-switch input:checked ~ .lf-switch-labels .lf-text-system {
+    opacity: 0;
+}
+
+/* Disabled state for switch */
+.lf-clipboard-switch.lf-disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background: #3a3a3a !important; /* Override gradient */
+    border-color: #4a4a4a !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.lf-clipboard-switch.lf-disabled .lf-switch-knob {
+    background-color: #4a4a4a !important;
+}
+
+.lf-clipboard-switch.lf-disabled .lf-switch-labels {
+    color: #777 !important;
+}
+
+
+
+.lf-painter-separator {
+    width: 1px;
+    height: 24px;
+    background-color: #444;
+    margin: 0 8px;
+}
+
+.lf-painter-container {
+    background: #607080;  /* 带蓝色的灰色背景 */
+    border: 1px solid #4a5a6a;
+    border-radius: 6px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+    transition: border-color 0.3s ease; /* Dodano dla płynnej zmiany ramki */
+}
+
+.lf-painter-container.lf-drag-over {
+    border-color: #00ff00; /* Zielona ramka podczas przeciągania */
+    border-style: dashed;
+}
+
+.lf-painter-dialog {
+    background: #404040;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    padding: 20px;
+    color: #ffffff;
+}
+
+.lf-painter-dialog input {
+    background: #303030;
+    border: 1px solid #505050;
+    border-radius: 4px;
+    color: #ffffff;
+    padding: 4px 8px;
+    margin: 4px;
+    width: 80px;
+}
+
+.lf-painter-dialog button {
+    background: #505050;
+    border: 1px solid #606060;
+    border-radius: 4px;
+    color: #ffffff;
+    padding: 4px 12px;
+    margin: 4px;
+    cursor: pointer;
+}
+
+.lf-painter-dialog button:hover {
+    background: #606060;
+}
+
+.lf-blend-opacity-slider {
+    width: 100%;
+    margin: 5px 0;
+    display: none;
+}
+
+.lf-blend-mode-active .lf-blend-opacity-slider {
+    display: block;
+}
+
+.lf-blend-mode-item {
+    padding: 5px;
+    cursor: pointer;
+    position: relative;
+}
+
+.lf-blend-mode-item.lf-active {
+    background-color: rgba(0,0,0,0.1);
+}
+
+.lf-blend-mode-item.lf-active {
+    background-color: rgba(0,0,0,0.1);
+}
+
+.lf-painter-tooltip {
+    position: fixed;
+    display: none;
+    background: #2B2B2B;
+    color: #f0f0f0;
+    border: 1px solid #444;
+    border-top: 2px solid #4a90e2;
+    border-radius: 6px;
+    padding: 12px 18px;
+    z-index: 9999;
+    font-size: 12px;
+    line-height: 1.5;
+    width: auto;
+    max-width: min(450px, calc(100vw - 30px));
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    pointer-events: none;
+    transform-origin: top left;
+    transition: transform 0.2s ease;
+    will-change: transform;
+}
+
+.lf-painter-tooltip.lf-scale-down {
+    transform: scale(0.9);
+    transform-origin: top;
+}
+
+.lf-painter-tooltip.lf-scale-down-more {
+    transform: scale(0.8);
+    transform-origin: top;
+}
+
+.lf-painter-tooltip table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+}
+
+.lf-painter-tooltip table td {
+    padding: 4px 8px;
+    vertical-align: middle;
+    transition: background-color 0.2s;
+}
+
+.lf-painter-tooltip table td:first-child {
+    width: auto;
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.lf-painter-tooltip table td:last-child {
+    width: auto;
+}
+
+.lf-painter-tooltip table tr:nth-child(odd) td {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+.lf-painter-tooltip table tr:hover td {
+    background-color: rgba(74, 144, 226, 0.15);
+}
+
+@media (max-width: 600px) {
+    .lf-painter-tooltip {
+        font-size: 11px;
+        padding: 8px 12px;
+    }
+    .lf-painter-tooltip table td {
+        padding: 2px 4px;
+    }
+    .lf-painter-tooltip kbd {
+        padding: 1px 4px;
+        font-size: 10px;
+    }
+    .lf-painter-tooltip table td:first-child {
+        width: 40%;
+    }
+    .lf-painter-tooltip table td:last-child {
+        width: 60%;
+    }
+    .lf-painter-tooltip h4 {
+        font-size: 12px;
+        margin-top: 8px;
+        margin-bottom: 4px;
+    }
+}
+
+@media (max-width: 400px) {
+    .lf-painter-tooltip {
+        font-size: 10px;
+        padding: 6px 8px;
+    }
+    .lf-painter-tooltip table td {
+        padding: 1px 3px;
+    }
+    .lf-painter-tooltip kbd {
+        padding: 0px 3px;
+        font-size: 9px;
+    }
+    .lf-painter-tooltip table td:first-child {
+        width: 35%;
+    }
+    .lf-painter-tooltip table td:last-child {
+        width: 65%;
+    }
+    .lf-painter-tooltip h4 {
+        font-size: 11px;
+        margin-top: 6px;
+        margin-bottom: 3px;
+    }
+}
+
+.lf-painter-tooltip::-webkit-scrollbar {
+    width: 8px;
+}
+
+.lf-painter-tooltip::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 4px;
+}
+
+.lf-painter-tooltip::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+}
+
+.lf-painter-tooltip::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+.lf-painter-tooltip h4 {
+    margin-top: 10px;
+    margin-bottom: 6px;
+    color: #4a90e2;
+    border-bottom: 1px solid #4a90e2;
+    padding-bottom: 4px;
+    font-size: 14px;
+    font-weight: 600;
+}
+.lf-painter-tooltip h4:first-child {
+    margin-top: 0;
+}
+
+.lf-painter-tooltip ul {
+    list-style: none;
+    padding-left: 10px;
+    margin: 0;
+}
+
+.lf-painter-tooltip kbd {
+    background-color: #444;
+    border: 1px solid #555;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: monospace;
+    font-size: 11px;
+    color: #e0e0e0;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.15);
+    margin: 0 1px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.lf-painter-container.lf-has-focus {
+    /* Używamy box-shadow, aby stworzyć efekt zewnętrznej ramki,
+       która nie wpłynie na rozmiar ani pozycję elementu. */
+    box-shadow: 0 0 0 2px white;
+    /* Możesz też zmienić kolor istniejącej ramki, ale box-shadow jest bardziej wyrazisty */
+    /* border-color: white; */
+}
+
+.lf-painter-button.lf-matting-button {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.lf-painter-button.lf-matting-button.lf-loading {
+    padding-right: 36px; /* Make space for spinner */
+    cursor: wait;
+}
+
+.lf-painter-button.lf-matting-button .lf-matting-spinner {
+    display: none;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: matting-spin 1s linear infinite;
+}
+
+.lf-painter-button.lf-matting-button.lf-loading .lf-matting-spinner {
+    display: block;
+}
+
+@keyframes matting-spin {
+    to {
+        transform: translateY(-50%) rotate(360deg);
+    }
+}
+.lf-painter-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lf-painter-modal-content {
+    width: 90vw;
+    height: 90vh;
+    background-color: #353535;
+    border: 1px solid #222;
+    border-radius: 8px;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.lf-painter-main-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    flex-grow: 1;
+}
+
+.lf-painter-canvas-container {
+    flex-grow: 1;
+    position: relative;
+}

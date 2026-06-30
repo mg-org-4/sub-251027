@@ -1,6 +1,6 @@
 # Angelo
 
-**A click-to-refine sampler for ComfyUI.** Generate an image, then click or paint on regions you want improved. Each click refines just that area while the rest stays bit-exact. One node replaces the standard `KSampler` + post-processing chain. Works with **FLUX 2 Klein 9B** and **Qwen-Image-Edit** as first-class edit models — plus any other sampler-compatible model (FLUX 1, SDXL, SD 1.5).
+**A click-to-edit sampler for ComfyUI.** Generate an image, then work it like a photo editor — click or paint to **refine** regions, drag rectangles or describe locations to **inpaint** new content, click an edge to **outpaint** the canvas wider, auto-**detect** subjects by naming them and **fix them all with one button**, pick the best of **four variations**, and **restore** anything an edit shouldn't have touched. There's a **one-click photo refine** too: it rebuilds a soft or low-resolution photo sharp, anchored to the original so it stays the same person and scene — plus a pixel-2× and large-canvas-refine pair for **upscaling**. Everything outside what you edit stays bit-exact. One node replaces the standard `KSampler` + ADetailer + MaskEditor + outpaint-pad chain. Works with **FLUX 2 Klein 9B** and **Qwen-Image-Edit** as first-class edit models — plus any other sampler-compatible model (FLUX 1, SDXL, SD 1.5).
 
 <a href="https://buymeacoffee.com/lorasandlenses"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
 
@@ -28,31 +28,45 @@
                                  image · latent · source_image outputs
 ```
 
-That's the entire workflow. No KSampler upstream, no ADetailer downstream, no Image-to-Mask plumbing in between. Generate, click, done. The image always scales to fit the node — resize the node and the preview tracks it.
+That's the entire workflow. No KSampler upstream, no ADetailer downstream, no Image-to-Mask plumbing or outpaint-pad chains in between. Generate, click, done. The image always scales to fit the node — resize the node and the preview tracks it.
 
 ![Angelo wired into a graph](screenshots/workflow-overview.png)
 
 ## Why you'd want it
 
-ComfyUI's standard "fix the bad hand" workflow is: generate, save the image, open MaskEditor, paint a mask, route the mask + image + a new sampler config back into the graph, re-queue. It works but it's friction-heavy.
+ComfyUI's standard "fix the bad hand" workflow is: generate, save the image, open MaskEditor, paint a mask, route the mask + image + a new sampler config back into the graph, re-queue. Want to extend the canvas too? That's another pad node, another mask, another sampler. It works, but it's friction-heavy.
 
-Angelo collapses that into:
+Angelo collapses all of it into one node:
+
+**Refine — fix what's there**
 
 - **Click** a region. It refines with your main prompt, in place, immediately.
-- **Load Image** to edit an existing photo directly in the node — no Empty Latent + `VAEEncode` chain to wire (you still connect the `vae` input as normal; Angelo does the encode itself). Or just **drag-drop an image file** onto the node; **right-click** the preview to copy it or open it in a new tab.
 - **Paint** a freeform stroke with mouse-down + drag. Same thing but custom shape.
-- **Type an Area Prompt** right in the node to refine a region with a different prompt (e.g. main prompt = "person in forest", area prompt = "detailed photorealistic face") — no second CLIP Text Encode node needed.
+- **Type an Area Prompt** right in the node to refine a region with a different prompt (e.g. main prompt = "person in forest", area prompt = "detailed photorealistic face") — no second CLIP Text Encode node needed. **Six Prompt Slots** keep your presets one click away.
 - **Toggle Xtra-Fine** to refine small regions at much higher effective resolution (the ADetailer move, but with full prompt control).
+- **Reference anchoring for photo restoration** — a toggle with a true 0–1 strength dial for how strongly the current image anchors the edit. Load a soft old photo, Reference ON, paint over it, Area Prompt "restore the photo", denoise up to 1.0 — full texture re-render, same person.
+- **✨ Quick Photo Refine** — or skip the recipe entirely: one button, fixed magic settings (whole image through the Xtra-Fine pipeline, identity-anchored instruction, denoise 1.0, fully anchored). A **prompt selector** beside it picks the instruction (Identity + Quality / Restore Photo / Identity + Colours / Use Area Prompt). Load photo, press, done. Each press **re-rolls from the original** — leave Seed on randomize and mash for genuinely different variations; Undo any pass you don't like.
+- **⬆ 2× Pixel** + **▦ Large Image Refine** — the upscale pair. 2× Pixel enlarges in pure pixel space (lanczos, no AI, instant); Large Image Refine then renders real detail into a big canvas by refining it as a chess-pattern of overlapping Xtra-Fine boxes. Enlarge, then refine.
+
+**Add & extend — put new things in, grow the frame**
+
 - **Smart Inpaint** — drag a rectangle and add brand-new content with an edit model (FLUX 2 Klein 9B or Qwen-Image-Edit).
 - **Smart Guided Inpaint** — no drawing at all: pick a location from a dropdown ("top left", "center", …) + describe what to add, and the edit model places it.
+- **Outpaint** — click near an edge of the preview and the canvas extends that way (or arrows / extend-all for a zoom-out). Anti-duplication smarts built in — continue-the-scene instructions, edge-band references, and a **protect brush** to keep subjects near the frame edge out of the seam. Every result is reviewed before it commits: Accept, re-roll it, or walk away free.
+
+**Automate — let Angelo do the clicking**
+
 - **Detect** a region by *describing* it (optional SAM 3) — type "the face", click the highlight, and it masks the silhouette for you. No painting. Nudge the mask in/out, or Shift/Alt-drag to touch it up by hand.
 - **⚡ Fix All** — detect "face" in a group shot, hit one button, and Angelo works through *every* face automatically — each at Xtra-Fine quality with your Area Prompt, each individually undoable. ADetailer's pitch, but visible, stoppable, and prompt-controlled.
 - **Vary ×4** — re-roll with four dice: generate four variations of your last edit at once and click your favourite from a 2×2 chooser. Nothing commits until you pick.
+
+**Stay in control — a real editor's safety net**
+
 - **Re-roll** the last edit with a fresh seed on the same mask + original image, or **toggle Persistent Mask** to keep evolving a region over repeated Queues.
 - **Restore brush** — toggle Restore and paint to heal a region back to the *original* image, instantly (no sampling). The Lightroom "erase part of an edit" gesture: refine a spacesuit, then brush the face inside the helmet back to how it was.
 - **Hold `\`** over the preview for an instant before/after flash of the original base (Lightroom's compare key).
-- **Six Prompt Slots** on the Area Prompt box — preset "mushrooms" / "bones" / "spacesuit" once, then just click a number and paint.
 - **Undo / Redo** to step back and forward through your refines.
+- **Load Image** to edit an existing photo directly in the node — no Empty Latent + `VAEEncode` chain to wire (you still connect the `vae` input as normal; Angelo does the encode itself). Or just **drag-drop an image file** onto the node; **right-click** the preview to copy it or open it in a new tab.
 - **`source_image` output** emits the original pre-edit base, ready to wire straight into a compare node.
 
 All in one node. All without re-queueing the whole workflow manually for each fix.
@@ -63,7 +77,7 @@ Angelo treats **FLUX 2 Klein 9B** and **Qwen-Image-Edit** as its two first-class
 
 Two latent layouts are handled transparently. **Standard 4D models** (FLUX, SDXL, SD) use `[B, C, H, W]` latents. **Temporal / video-derived models** (Qwen Image Edit, Wan) use 5D `[B, C, T, H, W]` latents — their VAEs carry an extra frame axis. Angelo normalises latent shape at a single VAE boundary and feeds each model the dimensionality it expects before sampling (the same step ComfyUI's stock KSampler does), so you don't need a model-specific latent node — wire `model`, `vae`, and `clip` as usual.
 
-For the **Smart** inpaint modes, use an **edit-trained** checkpoint — **FLUX 2 Klein 9B** or **Qwen-Image-Edit** (not plain Qwen-Image, which has the reference code path but isn't trained for it; see [Inpainting Mode](#inpainting-mode-refine--smart-inpaint--smart-guided-inpaint)). **Refine** (incl. Xtra-Fine and Area Prompt) works on any model.
+For the **Smart** inpaint modes, use an **edit-trained** checkpoint — **FLUX 2 Klein 9B** or **Qwen-Image-Edit** (not plain Qwen-Image, which has the reference code path but isn't trained for it; see [Inpainting Mode](#inpainting-mode-refine--smart-inpaint--smart-guided-inpaint--outpaint)). **Refine** (incl. Xtra-Fine and Area Prompt) works on any model. The **Reference** anchor (photo restoration) also needs an edit model to have an effect. **Outpaint** works on any model too, but is *best* on the edit models — they get an edge-band reference and follow the continue-the-scene instruction, which is what keeps extensions in-style and subjects un-duplicated.
 
 ## Install
 
@@ -166,8 +180,10 @@ The toolbar holds everything — there are no native widget rows. Top to bottom,
   [Steps] [CFG] [Sampler ▾] [Sched ▾]            ← shared generation config (always active)
   [Smpl Seed] [Smpl Ctrl ▾] [Smpl Denoise]       ← base-gen seed (greys in Edit Mode)
  ─────────────────────────────────────────
-  [Reset] [⟲⟳] [Re-roll] [Vary ×4] | [Persistent Mask] [Area Prompt] [Paint Mode] [Restore] [Xtra-Fine] | [Inpaint ▾]
+  [Reset] [⟲⟳] [Re-roll] [Vary ×4] | [Persistent Mask] [Area Prompt] [Paint Mode] [Restore] [Xtra-Fine] [Reference·str] | [Inpaint ▾]
   [Click R] [Feather] [Denoise] [Seed] [Ctrl ▾] | [MP] [Max] [Ctx Pad] [Method ▾]  ← edit block (greys in Sampler Mode)
+  [⛶ Outpaint: ← ↑ ↓ → All | Amount Overlap]                                       ← appears in Outpaint mode only
+  [✦ Quick Actions: ✨ Quick Photo Refine  [prompt ▾] | ⬆ 2× Pixel | ▦ Large Image Refine]  ← one-press magic buttons
 ```
 
 The **Mode** switch sits centred up top, with **🖼 Load Image** beside it (both work in either mode). Below them, the generation block (always active, base-gen seed greys in Edit Mode); below the divider, the edit block (greys entirely in Sampler Mode). Toggle buttons show their state by **lighting up** when ON — no ON/OFF text. The Xtra-Fine values (`MP / Max / Ctx Pad / Method`) appear only while Xtra-Fine is ON. Every control has a hover tooltip. Quick reference:
@@ -194,12 +210,16 @@ The Overrides node also carries **`disable_live_preview`** — flip this ON if C
 | **⟲ / ⟳** (Undo / Redo) | Pop the most recent refine off the history stack (up to 10 deep) / re-apply the one Undo removed. A new edit clears the redo history. Button-only (no Ctrl-Z/Y — those clash with ComfyUI's graph undo) |
 | **Re-roll** | Redo the most recent edit with a fresh seed on the **same mask + same starting image**, replacing the last attempt — cycle seeds on one edit without reset → re-mask → rerun. Works for click / paint / rectangle / detected masks |
 | **Vary ×4** | Re-roll's big sibling: generate **four** variations of the most recent edit at once (same mask, same starting image, four seeds), then click your favourite in a 2×2 chooser overlay. The pick replaces the last attempt; ✕ / Esc keeps the current result — nothing commits until you choose |
+| **✨ Quick Photo Refine** (+ prompt ▾) | One-click photo restoration with a **fixed recipe**: the whole image runs through the Xtra-Fine pipeline (1.3MP working target — small images get supersampled, refined, composited back) at denoise 1.0, reference anchor 1.0 — identity stays, texture re-renders. The **prompt selector** beside it picks the instruction (Identity + Quality / Restore Photo / Identity + Colours / Use Area Prompt). Ignores every toolbar box except **Seed**, and each press **re-rolls from the original** (not the last result), so randomize + mash gives real variations. Auto-tiles on canvases over ~1.6MP. Edit models + CLIP; Refine mode only. See "Photo restoration" |
+| **⬆ 2× Pixel** | Pure pixel-space **2× upscale** — lanczos, **no AI**, deterministic and instant. Decodes, enlarges 2×, re-encodes, and commits immediately as the session's new base (dimension change, so **history resets**, like loading a new photo). Nothing is invented. Pair it with Quick Photo Refine or Large Image Refine to render detail in afterwards |
+| **▦ Large Image Refine** | Refine a **large canvas** in one press: it's divided into ~1.3MP boxes that exactly tile it, each refined through Xtra-Fine (ref 0.2, denoise 0.5, 128px context pad, hard edges) under *"restore the image. make it clear and sharp."* — processed in a **chess pattern** so the second half of the boxes refine with already-refined neighbours in their context and match them. The whole pass is **one history entry**; the Seed drives it. The natural partner of 2× Pixel. Edit models + CLIP; Refine mode only |
 | **Persistent Mask** | Hold the last mask, then hit Queue repeatedly to keep refining that region on the **latest** result — each press builds further, so you can gradually morph it (pair with `Ctrl=randomize`). For variations on the *original* image instead, use **Re-roll**. Locked OFF in Smart Guided Inpaint (no mask) |
 | **Area Prompt** | Refine with the Area Prompt text typed in the box above the canvas (encoded with the connected `CLIP`) instead of the main prompt. Requires a `CLIP` input + non-empty text. The box only appears when this is ON. Forced ON in both Smart modes |
 | **Paint Mode** | Hold + drag to paint a freeform stroke as the mask, instead of single-circle clicks (Refine only) |
 | **Restore** | When ON, clicks / strokes / Detect masks **restore** the painted region back to the session's original base — a feathered latent blend, no sampling, instant. Bring back details an edit shouldn't have touched. Refine only |
+| **Reference** (+ strength box) | Anchor refines to the current image. When ON, a strength box appears beside it: a **true 0–1 blend** — every step mixes the reference-anchored prediction with the free one at that ratio (0.6 = 60% anchored; 1 = fully anchored). Lets Denoise run high (0.7–1.0) without losing the subject — the photo-restoration dial. In-between values run a second positive pass per step (slightly slower; 1.0 costs nothing). Leave OFF when the Area Prompt wants to *change* the region (anchoring fights changes). Quick Photo Refine ignores this entirely (it has its own fixed recipe). Refine only; needs an edit model |
 | **Xtra-Fine** | Crop the painted region, upscale via VAE + image upscale, refine at high effective resolution, composite back. ADetailer-style. Forced ON in Smart Inpaint, OFF in Smart Guided Inpaint |
-| **Inpaint ▾** | `Refine` / `Smart Inpaint` / `Smart Guided Inpaint`. See "Inpainting Mode" below |
+| **Inpaint ▾** | `Refine` / `Smart Inpaint` / `Smart Guided Inpaint` / `Outpaint`. See "Inpainting Mode" below |
 
 ### Edit block — refine values
 
@@ -280,7 +300,50 @@ Notes:
 - **Refine mode only.** The Smart modes generate new content, so "restore to base" has no meaning there — the toggle dims.
 - Pair it with **hold `\`** (see Keyboard shortcuts) to flash the original first and see exactly what you'd be bringing back.
 
-## Inpainting Mode (Refine / Smart Inpaint / Smart Guided Inpaint)
+## Photo restoration (✨ Quick Photo Refine + the Reference dial)
+
+Got a soft, noisy, or low-quality photo? The fastest path is one button:
+
+**✨ Quick Photo Refine** (in the edit row, Refine mode only). A true magic button with its own **fixed recipe**: one press runs the **whole image** through the Xtra-Fine pipeline (1.3MP working target — smaller images are supersampled to it, refined, composited back) at **denoise 1.0**, fully anchored to the current image as a reference (**strength 1.0**) — identity stays, texture re-renders. A **prompt selector** sits beside the button:
+
+- **Identity + Quality** (default) — *"Keep the identity from image 1. make the image high quality."* (Qwen-Image-Edit automatically gets its own tuned variant: *"lightly restore this old photo, remove dust and scratches, improve sharpness and contrast, preserve original feel"*).
+- **Restore Photo** — *"Keep the identity from image 1. restore the photo."* — for damaged or old photos.
+- **Identity + Colours** — adds a colour hold for images whose palette must not move.
+- **Use Area Prompt** — your own text from the Area Prompt box drives the pass (falls back to the default if the box is empty).
+
+No other toolbar box affects it — Denoise, Reference, toggles: all ignored. Only the **Seed** applies, and each press **re-rolls from the original image, not the previous result** — so leaving Seed Ctrl on `randomize` and mashing the button gives genuinely different restorations instead of converging on one, with Undo stepping back through them and `\` comparing to the original. Load photo → press → done. (Want different numbers? That's what the manual recipe below is for.)
+
+Want control over the prompt, the strength, or the region (restore just *part* of a photo)? The manual recipe underneath it is the **Reference** dial:
+
+1. **Load Image** (or drag-drop) the photo.
+2. **Reference ON** (right of Xtra-Fine) — a strength box appears beside it; 0.8–1.0 for restoration.
+3. **Paint over the area to restore** — or the whole image with a big Click R.
+4. **Area Prompt**: *"restore the photo"* (slot it for reuse). **Phrase it as an instruction** — edit models are instruction-trained, and in testing the plain instruction beat every descriptive variant ("sharp, high-quality photograph"-style prompts and keep-the-colours constraints all lost to it).
+5. **Denoise 0.7–1.0.** Queue.
+
+Why Reference matters: in plain Refine, the subject's identity lives entirely in the partially-noised latent — so real enhancement (high denoise) destroys the person along with the noise, and you're stuck nibbling at 0.3. With Reference ON, an edit model (FLUX 2 Klein / Qwen-Image-Edit) anchors identity and content from the **reference image** through its edit branch instead — denoise can run high, the texture gets *fully re-rendered* (which is where the quality actually comes from), and the subject stays the subject. The value is a **true blend**: at every sampling step the anchored prediction and the free prediction are mixed at your ratio — 1.0 holds identity hardest, ~0.5–0.7 trades some anchoring for extra texture freedom. (In-between values evaluate both predictions per step, like CFG does for the negative — slightly slower, and worth it.) Tune to taste per photo.
+
+### The upscale pair: ⬆ 2× Pixel + ▦ Large Image Refine
+
+Enlarging and adding detail are split into two honest steps, both on the **Quick Actions bar** alongside Quick Photo Refine.
+
+**⬆ 2× Pixel** does the enlargement *only* — decode, lanczos 2×, re-encode, committed straight away as a new session base (the dimensions changed, so history resets, exactly like loading a fresh photo). Pure pixel scaling: instant, deterministic, nothing invented or re-rendered.
+
+**▦ Large Image Refine** then renders real detail into that bigger canvas. It divides the image into ~1.3MP boxes that exactly tile it and refines each through the Xtra-Fine pipeline (ref 0.2, denoise 0.5, 128px context pad, hard edges) under *"restore the image. make it clear and sharp."* — processed in a **chess pattern**: every other box first, then the gaps, so the second pass refines with already-refined neighbours visible in its context pad and matches them. Compositing is Xtra-Fine's bit-exact latent blend (no pixel feathering anywhere), and the whole sweep is a **single Undo**. Local detail tiles cleanly this way; what does *not* tile is a semantic change to the whole image (see the fine print).
+
+**The surprise win — diffusion super-resolution with zero extra models.** Because Quick Photo Refine re-renders the whole image anchored to *itself*, it doubles as a reconstruction step. **Load a small, low-quality photo at a deliberately large size** — use Load Image's *"Resize to"* to bring a 0.3MP snapshot in at 1.5–3MP, where it arrives soft and blurry — then press Quick Photo Refine. The pass rebuilds it sharp at the new size, anchored to the original: same person, same scene, real texture, no banding even on a huge latent. It's the SUPIR / Magnific idea (degrade, then reconstruct), but riding the edit model's own reference branch instead of a bolt-on upscaler — no ControlNet, no tile model, nothing extra to download.
+
+**Working at 4MP+.** Angelo never *samples* a latent beyond ~1MP: **Quick Photo Refine auto-tiles** on canvases over ~1.6MP, **Large Image Refine** is built for exactly this, and **Xtra-Fine crops** every spot edit — so the node stays fast at any canvas size. Plain whole-canvas refines (a giant brush stroke with Xtra-Fine off) *do* sample the full latent — expect them slow and softer at 4MP; reach for Xtra-Fine or Large Image Refine instead.
+
+The fine print:
+
+- **It anchors.** That's the whole point — and it means Reference ON fights any Area Prompt that wants to *change* the region ("smiling", "eyes open"). Restoration ON, reshaping OFF.
+- With **Xtra-Fine ON**, the reference is the upscaled crop — so the small-region restoration (a face in an old group photo) gets both the resolution boost *and* the identity anchor. This combination is the strongest move in the node for old photos.
+- Verify with **hold `\`** (before/after) and claw back any drifted detail with the **Restore brush** — the three tools were made for each other.
+- **Local restoration tiles; a whole-image *identity change* does not.** Large Image Refine and the >1.6MP tiling path are for rendering detail into known-good content. If you point **Use Area Prompt** at an actual semantic change (swap a face, change the person), Quick Photo Refine runs it as a *single whole-image pass* instead of tiling — a semantic edit has to see the whole canvas at once, or you get a half-changed subject with seams.
+- Non-edit models (SDXL, FLUX 1) ignore the reference — the toggle is harmless but does nothing there. **Quick Photo Refine, however, is NOT harmless on non-edit models**: with the reference ignored, a high-denoise full-canvas pass simply regenerates the image. Undo brings it back, but the button is for edit models.
+
+## Inpainting Mode (Refine / Smart Inpaint / Smart Guided Inpaint / Outpaint)
 
 Three options for how a region is treated. The two Smart modes need an **edit-trained model** (FLUX 2 Klein 9B, **Qwen-Image-Edit**, etc.) and a wired `CLIP`. They work by injecting `reference_latents`, so a **base** text-to-image checkpoint (e.g. plain Qwen-Image, not the *Edit* variant) will produce colour-distorted output — it has the reference code path but its weights were never trained for it. Use the Edit variant for Smart Inpaint / Smart Guided Inpaint; **Refine** works on any model.
 
@@ -291,6 +354,7 @@ Three options for how a region is treated. The two Smart modes need an **edit-tr
 | **Refine** (default) | Painted/clicked region is the starting state — the model partially denoises the existing pixels per the denoise level. Mask is a click circle or a paint stroke. | Face/hand fixes, polish, style adjustments, **editing what's already there** |
 | **Smart Inpaint** | Drag a rectangle (click + hold one corner, release at the opposite). Locks `denoise=1.0`, `Xtra-Fine=ON`, `Area Prompt=ON`. Injects `reference_latents` so an edit model's edit branch activates, then zeros the masked latent so the region regenerates from full noise. | **Adding new content** in a specific drawn region |
 | **Smart Guided Inpaint** | No painting or boxes. Pick a **location** from a dropdown ("Top left", "Center", "Bottom half", …); it's prepended to your Area Prompt at run time (e.g. *"In the top left of the image, a red car"*) and the edit model places it across the whole image. Locks `denoise=1.0`, `Xtra-Fine=OFF`, `Area Prompt=ON`; press **Generate Guided Edit** to run. | **Adding new content** when you don't want to draw — quick, coarse placement |
+| **Outpaint** | Extend the canvas. Arrow buttons or click near a preview edge; every result goes through a **review overlay** (Accept / Try again / Cancel) before anything commits. Accepting installs the new canvas as a **fresh session base — history resets**. See "Outpaint" below. | **Growing the image** — wider scene, taller sky, zoom-out |
 
 ### Why Smart Inpaint exists
 
@@ -340,6 +404,41 @@ Honest expectations: text-based placement is fuzzy by nature. Coarse regions ("t
 …and the run (Location `Left edge`, *"a magical glowing whole in the ground, Keep the lighting the same"*) puts the glow on the left while leaving the rest of the scene intact:
 
 ![Smart Guided Inpaint — glow placed on the left edge](screenshots/smart-guided-left-edge.png)
+
+### Outpaint — extending the canvas
+
+Switch **Inpaint ▾** to **Outpaint** and the canvas becomes a direction picker:
+
+1. **Hover near any edge of the preview** — a glowing band shows the extension direction and amount (e.g. `➡ +256px`). **Click to extend that way.** Or use the arrow buttons (← ↑ ↓ → / ⛶ All) on the Outpaint row if you prefer explicit controls.
+2. Angelo pads the canvas, generates the new region at full denoise, and shows the result in a **review overlay**: **✓ Accept**, **🎲 Try again** (same extension, fresh seed), or **✕ Cancel** / Esc. **Nothing commits until you Accept** — try-again and cancel are free.
+3. On Accept, the extended canvas becomes the session's **new base image** — exactly like loading a new photo. **Undo history resets**, and Reset / the Restore brush / the `\` compare key all anchor to the new canvas from here on. This is a deliberate design fact: outpainting is a structural decision you make early, then refine on top of — and it's why the review step exists.
+
+Controls on the Outpaint row:
+
+- **Amount** — pixels to extend by (snapped to /16 so any VAE lands on clean latent cells). The edge-hover band displays it live.
+- **Overlap** — a feathered band reaching this many pixels *into* the existing image that gets redrawn along with the strip, so the seam blends instead of butting. Default 64.
+
+**The protect brush — keep the seam away from your subject.** A generous Overlap blends beautifully, but if the band reaches into a subject near the frame edge (a car, a face), the model is allowed to redraw part of it — and partially-redrawable subjects at a generation boundary are how you get smeared extensions and accidental twins. So: **drag in the canvas interior to paint a red protect region** (brush size = Click R). Protected pixels are excluded from the overlap band — frozen bit-exact — while the rest of the seam still blends at full width. Run Overlap at 128 for a clean blend *and* paint over the car: best of both. The same gesture Photoshop's Content-Aware Fill uses for sampling exclusion. Protect circles survive Try-again (same extension, fresh seed) and clear via the **✕ Protect** chip, on Accept, or when you leave Outpaint mode.
+
+**Painting right at the frame edge: hold Shift.** The edge zone normally belongs to the extend-click — so to start a protect stroke on something flush against the border (where protection matters most), **hold Shift and the brush wins everywhere**: the glowing band is suppressed and your drag paints, all the way to the edge. Same convention as Detect's Shift touch-up brush. (Without Shift you can still get there by starting the stroke in the interior and dragging outward.)
+
+**How the prompt works in Outpaint (anti-duplication).** Whether your main prompt affects an outpaint depends on exactly one thing — whether the `clip` input is wired:
+
+- **CLIP wired** (the normal setup): your main positive prompt has **zero effect** on the extension. The outpaint encodes its *own* prompt: a direction-aware instruction (*"Extend the image downward, continuing the scene and background naturally. Do not repeat or add new subjects."*) plus your Area Prompt text **only if that toggle is ON**. Area Prompt off = the instruction alone is the entire conditioning, and the scene knowledge comes from the edge-band reference and the seam context instead. So loading a photo and immediately hitting ↓ extends it purely from the photo — whatever happens to be typed in your workflow's prompt boxes is a bystander.
+- **CLIP not wired**: Angelo can't encode anything, so your main prompt flows through unchanged — and conditioning the new strip on *"a red car on a road"* is exactly what paints a second car into it. **Wire the CLIP.**
+- Fine print: the main *negative* still falls through in both cases (unless you've typed an Area negative) — irrelevant at CFG 1 on distilled models like Klein, mildly relevant on CFG > 1 models.
+
+Use the Area Prompt to describe the *continuation* ("empty coastal road, sea, sky"), never the subject.
+
+**Instruction order + live prompt preview.** With Area Prompt on in Outpaint mode, an **Order** selector and a **Final prompt** preview appear under the text box. *Instruction first* (default) puts Angelo's extend-the-scene instruction ahead of your text; *My text first* flips it — worth trying when a model leans too hard on the instruction and under-weights your description (many models weight the start of a prompt more heavily). The preview shows the **exact combined prompt** the next extension will encode, live as you type, flip the order, or pick a direction — no guessing what's actually being sent.
+
+Notes:
+
+- On **FLUX 2 Klein / Qwen-Image-Edit**, the **edge-adjacent band** (~512px) of the existing image is injected as a reference — the texture and lighting to continue, without re-showing the model your subject (whole-image references invite edit models to reproduce the subject into the strip). ⛶ All uses the whole image, since everything borders the new space. Non-edit models ignore the reference and rely on the seam context — standard high-denoise fill.
+- **Corners handle themselves**: every extension spans the full current edge, so extending right *then* down generates the bottom-right corner as part of the down-pass, with both neighbours as context. Extend in any order.
+- The existing image stays **bit-exact** — the original latent is pasted back over the old region after the pad, so there's no VAE round-trip drift outside the seam band (and none at all under a protect region).
+- **⛶ All** extends all four sides at once — the zoom-out move.
+- **The preview will look smaller after an outpaint** — the image got bigger but the node didn't, so the fit-to-node display scales everything down. The pixels are all there; check via right-click → open in new tab.
 
 ## Detect — auto-segment with SAM 3 (optional)
 

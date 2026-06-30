@@ -541,7 +541,11 @@ def _refine_with_fine_upscaling(
     resize_method: str,
     context_pad_pixel: int,
     inpainting_mode: str,
-    seed: int,
+    reference_strength: float = 0.0,  # Refine + Ref value: anchor on the
+                                      # (pre-refine) crop for this fraction
+                                      # of the schedule (_apply_reference) —
+                                      # WITHOUT Smart Inpaint's latent-zeroing
+    seed: int = 0,
     steps: int,
     cfg: float,
     sampler_name: str,
@@ -608,6 +612,10 @@ def _refine_with_fine_upscaling(
         # whole-latent edit with NO crop reference, so the model worked on the
         # whole image instead of the selected rect.
         print(f"[Angelo fine-upscale] scale=1.0 — using latent-space path (no VAE round-trip)")
+        if reference_strength > 0.0:
+            # Refine + Reference on the no-upscale path: anchor on the whole
+            # current image (there's no crop on this path).
+            positive = _apply_reference(positive, current.clone(), reference_strength)
         noise = comfy.sample.prepare_noise(current, seed, None)
         new_latent = _do_sample(
             guider=ov_guider, sampler=ov_sampler, sigmas=ov_sigmas,
@@ -744,6 +752,14 @@ def _refine_with_fine_upscaling(
         if latent_up.ndim == 5:
             sample_mask = (mask_crop_up >= 0.5).to(mask_crop_up.dtype)
         latent_up = (1.0 - sample_mask.unsqueeze(0)) * latent_up
+    elif reference_strength > 0.0:
+        # Refine + Reference value: the upscaled (pre-refine) crop anchors
+        # identity/content through the edit branch for the first
+        # reference_strength fraction of the schedule, so a high denoise
+        # can fully re-render texture without losing the subject — the
+        # photo-restoration recipe. Unlike Smart Inpaint, the latent is NOT
+        # zeroed: the existing content remains the starting state.
+        positive = _apply_reference(positive, latent_up.clone(), reference_strength)
 
     # ----- Refine via noise-injection inpaint on the upscaled latent -----
     noise = comfy.sample.prepare_noise(latent_up, seed, None)
@@ -803,6 +819,410 @@ def _refine_with_fine_upscaling(
     new_latent = encoded_latent * alpha_lat + current * (1.0 - alpha_lat)
     
     return new_latent, new_pixels
+
+
+# Quick Photo Refine: the one-click restoration recipe — a MAGIC BUTTON
+# with its own fixed settings, deliberately independent of every toolbar
+# box. The whole canvas is re-rendered with this prompt, anchored to the
+# current image via reference_latents — identity from the reference,
+# texture from the re-render. Tested values; tuned here in ONE place.
+# The winning prompt is an INSTRUCTION — edit models are instruction-
+# trained, so speaking their vocabulary beat every descriptive/
+# constraint phrasing tried ("high quality photo", keep-the-colours
+# variants — see git history). At ref 1.0 the blend collapses to a
+# single cond, so this recipe also costs nothing extra.
+#
+# Per-model phrasing: Qwen-Image-Edit responds better to a fuller,
+# gentler instruction than Klein does. Selected at run time by latent
+# dimensionality — Qwen/Wan-family latents are 5D [B,C,T,H,W], the
+# same load-bearing check the inpaint hard-mask logic uses.
+_QUICK_REFINE_PROMPT = "Keep the identity from image 1. make the image high quality."
+_QUICK_REFINE_PROMPT_QWEN = ("lightly restore this old photo, remove dust and scratches, "
+                             "improve sharpness and contrast, preserve original feel")
+_QUICK_REFINE_DENOISE = 1.0
+_QUICK_REFINE_REF = 1.0
+# ✨ v2 runs the whole image through the XTRA-FINE pipeline: whole-canvas
+# mask, target 1.3MP (small images get internally supersampled to 1.3MP,
+# refined there, composited back), ctx pad 128 (no-op at full coverage),
+# feather 0.
+_QUICK_REFINE_TARGET_MP = 1.3
+_QUICK_REFINE_CTX_PAD = 128
+
+# ✨ prompt presets (the selector beside the button). All instruction-
+# register with the image-1 identity clause — the phrasing family testing
+# proved out. "Use Area Prompt" hands the text box over instead (falls
+# back to the default preset when the box is empty).
+_QUICK_REFINE_PROMPTS = {
+    "Identity + Quality": _QUICK_REFINE_PROMPT,
+    "Restore Photo": "Keep the identity from image 1. restore the photo.",
+    "Identity + Colours": ("Keep the identity and colours from image 1. "
+                           "make the image high quality."),
+}
+_QUICK_REFINE_PROMPT_MODES = list(_QUICK_REFINE_PROMPTS.keys()) + ["Use Area Prompt"]
+
+# Large Image Refine (the ▦ button): the canvas is divided into ~_LIR_BOX_MP
+# boxes that EXACT-TILE it (no overlap), each refined through the Xtra-Fine
+# pipeline (bit-exact latent compositing — no pixel feathering anywhere) in
+# CHESS-PATTERN order: one colour first, then the other, so second-pass
+# boxes refine with already-refined neighbours visible in their context
+# pad and match them. Hard box masks (feather 0); seam defences are the
+# shared source at this denoise, the ctx pad's cross-border visibility,
+# and the chess ordering.
+_LIR_PROMPT = "restore the image. make it clear and sharp."
+_LIR_REF = 0.2
+_LIR_DENOISE = 0.5
+_LIR_CTX_PAD = 128
+_LIR_BOX_MP = 1.3   # target box area — the tweakable knob
+
+# Tiled restore engine (2× Restore Upscale + big-canvas Quick Refine).
+# Working tile size + overlap in PIXELS: tiles are sampled at ~1MP no
+# matter how large the canvas is, so the latent fed to the model never
+# outgrows the resolution it renders well at. Quick Photo Refine
+# auto-routes through the tiled engine above the MP threshold for the
+# same reason.
+_TILE_PX = 1400
+_TILE_OVERLAP_PX = 128
+
+
+def _tile_min_overlap_px(canvas_long_edge: int) -> int:
+    """Canvas-proportional MINIMUM tile overlap. Bigger canvases mean each
+    tile sees a smaller slice of the scene, so neighbours need more shared
+    context to agree. Linear in the long edge, calibrated on tested
+    points: 3872px -> 172, 7744px -> 256; clamps to the 128px floor below
+    ~1840px."""
+    return max(_TILE_OVERLAP_PX, 88 + round(canvas_long_edge / 46.0))
+_QUICK_REFINE_TILE_THRESHOLD_MP = 1.6
+
+
+
+
+def _apply_reference(positive, ref_latent: torch.Tensor, strength: float):
+    """Attach ref_latent as reference_latents at a TRUE fractional strength
+    via dual-conditioning prediction blending.
+
+    There is no native scalar weight on reference_latents — the reference
+    becomes extra image tokens, take-it-or-leave-it. But ComfyUI's cond
+    `strength` field is a RELATIVE weight: each cond's prediction is
+    multiplied by its strength, accumulated, then normalised by the total.
+    So two full-coverage conds — [with-reference, strength s] + [plain,
+    strength 1-s] — yield exactly  s·pred_ref + (1-s)·pred_plain  at every
+    step: a genuine prediction-space lerp between anchored and free.
+
+      1.0      → one cond, fully anchored (no extra cost)
+      0 < s <1 → the dual-cond blend above. COSTS A SECOND positive-side
+                 model evaluation per step (like CFG's negative does) —
+                 the price of a real interpolation.
+      0.0      → untouched (no reference, no extra cost)
+
+    (A timestep-range variant — strength as DURATION of anchoring — was
+    tried first and rejected by testing; see git history.)
+    """
+    s = max(0.0, min(1.0, float(strength)))
+    if s <= 0.0:
+        return positive
+    with_ref = node_helpers.conditioning_set_values(
+        positive, {"reference_latents": [ref_latent]}, append=False,
+    )
+    if s >= 1.0:
+        return with_ref
+    head = node_helpers.conditioning_set_values(with_ref, {"strength": s})
+    tail = node_helpers.conditioning_set_values(positive, {"strength": 1.0 - s})
+    return head + tail
+
+
+def _tile_positions(total: int, tile: int, overlap: int) -> list[int]:
+    """Start offsets covering [0, total) with `tile`-sized windows,
+    UNIFORMLY distributed so every seam gets the same overlap (>= the
+    requested minimum). The old flush-to-end layout produced wildly
+    inconsistent seams (128px here, 900px there) — uniform spacing means
+    every boundary shares at least the minimum context, evenly."""
+    if total <= tile:
+        return [0]
+    stride = max(1, tile - max(0, overlap))
+    n = max(2, math.ceil((total - overlap) / stride))
+    step = (total - tile) / (n - 1)
+    return [round(i * step) for i in range(n)]
+
+
+def _tiled_restore_pass(
+    *,
+    model,
+    vae,
+    current: torch.Tensor,
+    current_pixels: torch.Tensor | None,
+    scale: float,
+    positive_base,
+    negative,
+    seed: int,
+    steps: int,
+    cfg: float,
+    sampler_name: str,
+    scheduler: str,
+    callback,
+    disable_pbar: bool,
+    ov_guider=None,
+    ov_sampler=None,
+    ov_sigmas=None,
+    tile_ref: float = _QUICK_REFINE_REF,
+    tile_denoise: float = _QUICK_REFINE_DENOISE,
+) -> tuple[torch.Tensor, torch.Tensor, int]:
+    """The tiled restore engine: the Quick Photo Refine recipe run over
+    overlapping ~1MP tiles, so the model never samples a latent bigger
+    than its happy place — regardless of canvas size.
+
+    scale=2.0 → 2× Restore Upscale: decode, lanczos-upscale the PIXELS
+    (latent upscaling smears; pixel space is the Xtra-Fine lesson),
+    re-encode, then restore tile by tile. scale=1.0 → in-place tiled
+    restore (how Quick Photo Refine handles big canvases).
+
+    Each tile is sampled at denoise 1.0 anchored to ITS OWN pre-refine
+    latent via reference_latents. The anchor is what makes tiled
+    full-denoise viable: tiles can't hallucinate new content (the
+    classic tiled-upscaler failure), and adjacent tiles agree because
+    they're anchored to the same underlying image — the reference does
+    the job tile-ControlNets do in other pipelines.
+
+    Tiles composite in pixel space under a separable ramp weight
+    (linear fade over the overlap), normalised by the accumulated
+    weight, so seams blend and un-overlapped edges keep weight 1.
+
+    Returns (final_latent, final_pixels, n_tiles).
+    """
+    pixels = current_pixels if current_pixels is not None else _vae_decode(vae, current)
+    B, H, W, C = pixels.shape
+
+    if scale != 1.0:
+        new_W = max(16, int(round(W * scale / 16.0)) * 16)
+        new_H = max(16, int(round(H * scale / 16.0)) * 16)
+        chw = pixels.movedim(-1, 1)
+        chw = comfy.utils.common_upscale(chw, new_W, new_H, "lanczos", "disabled")
+        big_pixels = chw.movedim(1, -1).contiguous()
+    else:
+        big_pixels = pixels
+    new_H, new_W = big_pixels.shape[1], big_pixels.shape[2]
+
+    big_latent = _vae_encode(vae, big_pixels)
+    nlh, nlw = big_latent.shape[-2], big_latent.shape[-1]
+    ppl_x = max(1, round(new_W / nlw))
+    ppl_y = max(1, round(new_H / nlh))
+
+    tile_lx = max(8, _TILE_PX // ppl_x)
+    tile_ly = max(8, _TILE_PX // ppl_y)
+    min_ov_px = _tile_min_overlap_px(max(new_W, new_H))
+    ov_lx = max(1, min_ov_px // ppl_x)
+    ov_ly = max(1, min_ov_px // ppl_y)
+    xs = _tile_positions(nlw, tile_lx, ov_lx)
+    ys = _tile_positions(nlh, tile_ly, ov_ly)
+    n_tiles = len(xs) * len(ys)
+    print(f"[Angelo tiled-restore] scale={scale} canvas={new_W}x{new_H} "
+          f"grid={len(xs)}x{len(ys)} ({n_tiles} tiles of ~{_TILE_PX}px, "
+          f"min overlap {min_ov_px}px, uniform spacing)")
+
+    out = torch.zeros_like(big_pixels)
+    wsum = torch.zeros((1, new_H, new_W, 1), dtype=big_pixels.dtype, device=big_pixels.device)
+
+    # ONE global noise field, cropped per tile. This is the anti-ghosting
+    # measure: neighbouring tiles see IDENTICAL init noise (and identical
+    # reference content) in their shared overlap, so at denoise 1.0 their
+    # trajectories converge on essentially the same fine detail there —
+    # the blend averages two near-identical renderings instead of two
+    # independently-imagined ones (decorrelated per-tile seeds produced
+    # "double eyelash" ghosting at seams). Deterministic samplers (euler,
+    # the default) get the full benefit; ancestral samplers re-noise per
+    # step in tile-local coordinates, so some residual seam softness is
+    # expected there.
+    global_noise = comfy.sample.prepare_noise(big_latent, seed, None)
+
+    def _ramp(length_px: int, ov_px: int, device):
+        r = torch.ones(length_px, dtype=torch.float32, device=device)
+        n = min(ov_px, length_px)
+        fade = (torch.arange(n, dtype=torch.float32, device=device) + 1.0) / (n + 1.0)
+        fade = fade * fade * (3.0 - 2.0 * fade)   # smoothstep — softer crossover
+        r[:n] = torch.minimum(r[:n], fade)
+        r[-n:] = torch.minimum(r[-n:], fade.flip(0))
+        return r
+
+    idx = 0
+    for y0 in ys:
+        for x0 in xs:
+            tw = min(tile_lx, nlw - x0)
+            th = min(tile_ly, nlh - y0)
+            tile_lat = big_latent[..., y0:y0 + th, x0:x0 + tw].clone().contiguous()
+            tile_pos = _apply_reference(positive_base, tile_lat.clone(), tile_ref)
+            tile_seed = int(seed)
+            noise = global_noise[..., y0:y0 + th, x0:x0 + tw].clone().contiguous()
+            refined = _do_sample(
+                guider=ov_guider, sampler=ov_sampler, sigmas=ov_sigmas,
+                model=model, noise=noise,
+                steps=steps, cfg=cfg, sampler_name=sampler_name, scheduler=scheduler,
+                positive=tile_pos, negative=negative,
+                source_latent=tile_lat,
+                denoise=tile_denoise,
+                noise_mask=None,
+                callback=callback,
+                disable_pbar=disable_pbar,
+                seed=tile_seed,
+            )
+            tile_px = _vae_decode(vae, refined).to(big_pixels.device, big_pixels.dtype)
+
+            py0, px0 = y0 * ppl_y, x0 * ppl_x
+            pth, ptw = tile_px.shape[1], tile_px.shape[2]
+            wy = _ramp(pth, min_ov_px, big_pixels.device)
+            wx = _ramp(ptw, min_ov_px, big_pixels.device)
+            w = (wy.view(1, -1, 1, 1) * wx.view(1, 1, -1, 1)).to(big_pixels.dtype)
+            out[:, py0:py0 + pth, px0:px0 + ptw, :] += tile_px * w
+            wsum[:, py0:py0 + pth, px0:px0 + ptw, :] += w
+            idx += 1
+
+    final_pixels = out / wsum.clamp(min=1e-6)
+    final_latent = _vae_encode(vae, final_pixels)
+    return final_latent, final_pixels, n_tiles
+
+
+# Direction-aware instruction prepended to the outpaint conditioning when a
+# CLIP is wired (same pattern as Smart Guided's location prefixes). Edit
+# models (Klein / Qwen) follow explicit continue-don't-repeat instructions
+# well — this is the main lever against the classic outpainting failure of
+# duplicating the scene's subject into the new strip.
+_OUTPAINT_INSTRUCTIONS = {
+    "left":  "Extend the image to the left, continuing the scene and background naturally. Do not repeat or add new subjects. ",
+    "right": "Extend the image to the right, continuing the scene and background naturally. Do not repeat or add new subjects. ",
+    "up":    "Extend the image upward, continuing the scene and background naturally. Do not repeat or add new subjects. ",
+    "down":  "Extend the image downward, continuing the scene and background naturally. Do not repeat or add new subjects. ",
+    "all":   "Extend the image outward on all sides, continuing the scene and background naturally. Do not repeat or add new subjects. ",
+}
+
+
+def _outpaint_prepare(
+    *,
+    vae,
+    current: torch.Tensor,
+    current_pixels: torch.Tensor | None,
+    direction: str,
+    amount_px: int,
+    overlap_px: int,
+    protect_json: str = "",
+) -> tuple[torch.Tensor, torch.Tensor, int, torch.Tensor]:
+    """Build the init latent + mask for one outpaint pass.
+
+    Pads the decoded canvas in `direction` by `amount_px` (snapped to a
+    /16 multiple so both 8x and 16x VAEs land on integer latent cells),
+    fills the new strip with edge-replicated pixels (a colour-continuity
+    hint that costs nothing — at denoise 1.0 the masked region starts from
+    pure noise on flow models anyway), VAE-encodes the padded canvas, then
+    PASTES the original latent back over the old region so the existing
+    image stays bit-exact in latent terms (no VAE round-trip drift — the
+    same trick as Xtra-Fine's final blend).
+
+    The mask covers the new strip at 1.0 plus a feathered band reaching
+    `overlap_px` into the old image, so the seam is redrawn rather than
+    butted. The pure-new region is re-hardened to 1.0 after the blur.
+
+    Every extension spans the FULL current edge, which is what makes
+    corners a non-problem: extend right then down, and the bottom strip
+    spans the new wider canvas — the corner is generated by whichever
+    direction runs second, with both neighbours as context.
+
+    `protect_json` is the protect-brush payload — a JSON list of
+    [x, y, r] circles in OLD-image pixel coords. Protected pixels are
+    subtracted from the overlap band (clamped so the pure-new strip can
+    never be protected), keeping e.g. a car at the frame edge frozen
+    while the rest of the band still blends generously.
+
+    Also returns the REFERENCE latent for edit models: the edge-adjacent
+    band (~512px deep) for directional extensions — showing the model
+    the texture/lighting to continue WITHOUT re-showing it the scene's
+    subject (whole-image references invite the edit branch to reproduce
+    the subject into the strip — the Smart Inpaint lesson again). "all"
+    keeps the whole image (everything borders the new space).
+
+    Returns (latent_init, mask, snapped_amount_px, reference_latent).
+    """
+    pixels = current_pixels if current_pixels is not None else _vae_decode(vae, current)
+    B, H, W, C = pixels.shape
+    amt = max(16, int(round(amount_px / 16.0)) * 16)
+    pl, pr, pt, pb = {
+        "left":  (amt, 0, 0, 0),
+        "right": (0, amt, 0, 0),
+        "up":    (0, 0, amt, 0),
+        "down":  (0, 0, 0, amt),
+        "all":   (amt, amt, amt, amt),
+    }.get(str(direction), (0, amt, 0, 0))
+
+    chw = pixels.movedim(-1, 1)
+    chw = torch.nn.functional.pad(chw, (pl, pr, pt, pb), mode="replicate")
+    new_pixels = chw.movedim(1, -1).contiguous()
+    new_H, new_W = new_pixels.shape[1], new_pixels.shape[2]
+
+    latent_init = _vae_encode(vae, new_pixels)
+    nlh, nlw = latent_init.shape[-2], latent_init.shape[-1]
+    px_per_lat_x = max(1, round(new_W / nlw))
+    px_per_lat_y = max(1, round(new_H / nlh))
+    lat_l = pl // px_per_lat_x
+    lat_t = pt // px_per_lat_y
+    lh, lw = current.shape[-2], current.shape[-1]
+    latent_init[..., lat_t:lat_t + lh, lat_l:lat_l + lw] = current.to(
+        device=latent_init.device, dtype=latent_init.dtype,
+    )
+
+    ov_lx = max(0, round(int(overlap_px) / px_per_lat_x))
+    ov_ly = max(0, round(int(overlap_px) / px_per_lat_y))
+    mask = torch.ones((1, nlh, nlw), dtype=torch.float32, device=latent_init.device)
+    y0 = lat_t + (ov_ly if pt > 0 else 0)
+    y1 = lat_t + lh - (ov_ly if pb > 0 else 0)
+    x0 = lat_l + (ov_lx if pl > 0 else 0)
+    x1 = lat_l + lw - (ov_lx if pr > 0 else 0)
+    if y1 > y0 and x1 > x0:
+        mask[..., y0:y1, x0:x1] = 0.0
+    # strip_only = 1.0 over ONLY the genuinely-new pixels. It's the floor
+    # the blur and the protect brush are both clamped against: nothing may
+    # reduce the strip below full regeneration.
+    strip_only = torch.ones_like(mask)
+    strip_only[..., lat_t:lat_t + lh, lat_l:lat_l + lw] = 0.0
+    if int(overlap_px) > 0:
+        sigma = max(0.5, (ov_lx + ov_ly) / 4.0)
+        mask = torch.maximum(_gaussian_blur_2d(mask, sigma), strip_only).clamp(0.0, 1.0)
+
+    # Protect brush: subtract painted circles from the overlap band so
+    # e.g. a car at the frame edge stays bit-exact frozen while the rest
+    # of the band still blends. Circles arrive in OLD-image pixel coords;
+    # offset by the pad, scale to latent cells, union, soften 1 cell.
+    circles = []
+    try:
+        for item in json.loads(protect_json or "[]"):
+            if isinstance(item, (list, tuple)) and len(item) >= 3:
+                circles.append((float(item[0]), float(item[1]), float(item[2])))
+    except (ValueError, TypeError):
+        circles = []
+    if circles:
+        pts = torch.tensor(circles, dtype=torch.float32, device=mask.device)
+        cx = (pts[:, 0] + pl) / px_per_lat_x
+        cy = (pts[:, 1] + pt) / px_per_lat_y
+        rl = pts[:, 2] / math.sqrt(px_per_lat_x * px_per_lat_y)
+        ys = torch.arange(nlh, device=mask.device, dtype=torch.float32).view(1, -1, 1)
+        xs = torch.arange(nlw, device=mask.device, dtype=torch.float32).view(1, 1, -1)
+        dist2 = (xs - cx.view(-1, 1, 1)) ** 2 + (ys - cy.view(-1, 1, 1)) ** 2
+        protect = (dist2 <= (rl.view(-1, 1, 1) ** 2)).to(torch.float32).amax(dim=0).unsqueeze(0)
+        protect = _gaussian_blur_2d(protect, 1.0).clamp(0.0, 1.0)
+        mask = torch.maximum(mask * (1.0 - protect), strip_only).clamp(0.0, 1.0)
+
+    # Reference for edit models: the edge-adjacent band (~512px deep) for
+    # a directional extension; the whole image for "all" (see docstring).
+    ref_latent = current
+    if direction in ("left", "right", "up", "down"):
+        d_x = max(8, round(512.0 / px_per_lat_x))
+        d_y = max(8, round(512.0 / px_per_lat_y))
+        if direction == "right":
+            ref_latent = current[..., :, max(0, lw - d_x):]
+        elif direction == "left":
+            ref_latent = current[..., :, :min(lw, d_x)]
+        elif direction == "down":
+            ref_latent = current[..., max(0, lh - d_y):, :]
+        else:  # up
+            ref_latent = current[..., :min(lh, d_y), :]
+    ref_latent = ref_latent.clone().contiguous()
+
+    return latent_init, mask, amt, ref_latent
 
 
 def _circle_mask_latent_direct(
@@ -1090,7 +1510,7 @@ class AngeloRefine:
                                                                             "bicubic middle ground; nearest-"
                                                                             "exact preserves exact sample values; "
                                                                             "area/bislerp niche."}),
-                "inpainting_mode": (["Refine", "Smart Inpaint", "Smart Guided Inpaint"], {"default": "Refine",
+                "inpainting_mode": (["Refine", "Smart Inpaint", "Smart Guided Inpaint", "Outpaint"], {"default": "Refine",
                                                                   "tooltip": "How the painted region is treated.\n\n"
                                                                              "Refine — the painted region is partially "
                                                                              "denoised from the existing content. Best "
@@ -1111,7 +1531,12 @@ class AngeloRefine:
                                                                              "and the edit model places the content there "
                                                                              "across the whole image. Locks denoise=1.0, "
                                                                              "Fine Upscale=OFF, Area Prompt=ON; press "
-                                                                             "'Generate Guided Edit' to run."}),
+                                                                             "'Generate Guided Edit' to run.\n\n"
+                                                                             "Outpaint — extend the canvas. Pick a direction "
+                                                                             "(arrows, or click near an edge of the preview), "
+                                                                             "review the result, Accept to commit. Accepting "
+                                                                             "installs the new canvas as a fresh session base "
+                                                                             "— history resets."}),
 
                 # Hidden — DOM location dropdown (Smart Guided Inpaint)
                 # drives this. Holds a LABEL key from
@@ -1261,6 +1686,93 @@ class AngeloRefine:
                 "vary_seq": ("INT", {"default": 0, "min": 0, "max": 0x7FFFFFFF}),
                 "vary_pick": ("INT", {"default": -1, "min": -1, "max": 15}),
                 "vary_pick_seq": ("INT", {"default": 0, "min": 0, "max": 0x7FFFFFFF}),
+
+                # Outpaint: the JS arrows / edge-click bump outpaint_seq with
+                # a direction + amount + overlap. run() pads the canvas, fills
+                # the new strip at denoise 1.0, and STASHES the result for
+                # review (Angelo_outpaint_preview → the JS Accept overlay) —
+                # history is untouched. Accepting bumps outpaint_accept_seq;
+                # run() then installs the new canvas as a FRESH session base
+                # (Load-Image semantics: history resets — a documented fact of
+                # outpainting, which is why nothing commits without review).
+                # Cancel needs no Python round-trip. Declared LAST.
+                "outpaint_seq": ("INT", {"default": 0, "min": 0, "max": 0x7FFFFFFF}),
+                "outpaint_dir": ("STRING", {"default": "right", "multiline": False}),
+                "outpaint_amount": ("INT", {"default": 256, "min": 16, "max": 2048, "step": 16,
+                                            "tooltip": "Outpaint: how many pixels to extend the "
+                                                       "canvas by (snapped to /16). Set via the "
+                                                       "Amount input on the Outpaint row."}),
+                "outpaint_overlap": ("INT", {"default": 64, "min": 0, "max": 512, "step": 8,
+                                             "tooltip": "Outpaint: feathered band reaching this many "
+                                                        "pixels INTO the existing image, redrawn so "
+                                                        "the seam blends instead of butting. Set via "
+                                                        "the Overlap input on the Outpaint row."}),
+                "outpaint_accept_seq": ("INT", {"default": 0, "min": 0, "max": 0x7FFFFFFF}),
+
+                # Outpaint protect brush: JSON list of [x, y, r] circles
+                # (old-image pixel coords) painted on the canvas in Outpaint
+                # mode. Subtracted from the overlap band so marked content
+                # (a car at the frame edge) stays frozen while the rest of
+                # the band blends. Declared LAST.
+                "outpaint_protect": ("STRING", {"default": "", "multiline": False}),
+
+                # Where the outpaint instruction sits relative to the user's
+                # Area Prompt text: "prepend" = instruction first (default),
+                # "append" = the user's text first, instruction after. Some
+                # models weight the head of the prompt more heavily, so the
+                # order can change reliability — the JS shows a live preview
+                # of the combined prompt so there's no guessing. The exact
+                # composition here MUST stay in lockstep with the JS preview
+                # (syncOutpaintPromptPreview). Declared LAST.
+                "outpaint_instruction_pos": (["prepend", "append"], {"default": "prepend"}),
+
+                # Reference toggle: ON/OFF for the anchored-refine feature;
+                # reference_strength (declared further down) is the 0–1
+                # blend it applies when ON. Manual refines only — Quick
+                # Photo Refine runs its own fixed recipe and ignores both.
+                "refine_reference": ("BOOLEAN", {"default": False,
+                                                 "tooltip": "Anchor refines to the current image "
+                                                            "(edit models). The strength box "
+                                                            "beside the toolbar button sets the "
+                                                            "blend. Toggled via the Reference "
+                                                            "button."}),
+
+                # Quick Photo Refine: the ✨ button bumps this. One-shot
+                # restoration pass — whole canvas, with the button's OWN
+                # fixed settings (_QUICK_REFINE_PROMPT / _DENOISE / _REF).
+                # A magic button: no toolbar box affects it except the
+                # seed. Pushes a normal history entry so Undo covers it.
+                # Declared LAST.
+                "quick_refine_seq": ("INT", {"default": 0, "min": 0, "max": 0x7FFFFFFF}),
+
+                # Reference strength (Refine + Quick Photo Refine): a TRUE
+                # 0–1 blend between the reference-anchored prediction and
+                # the plain one — see _apply_reference. 0 = no reference
+                # (classic refine), 1 = fully anchored. Declared LAST.
+                "reference_strength": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.05,
+                                                 "tooltip": "How strongly the current image anchors "
+                                                            "a refine — a true blend between the "
+                                                            "anchored and free predictions. 0 = "
+                                                            "off, 1 = fully anchored. Set via the "
+                                                            "Ref box on the toolbar."}),
+
+                # ⬆ 2× Pixel: the button bumps this. A PURE pixel-space
+                # lanczos 2× + re-encode — no AI, deterministic — committed
+                # directly as a fresh session base (dimension change =
+                # Load-Image semantics, history resets). The AI step is the
+                # user's next move (e.g. ✨, which auto-tiles when large).
+                "upscale_seq": ("INT", {"default": 0, "min": 0, "max": 0x7FFFFFFF}),
+
+                # ▦ Large Image Refine: the button bumps this. Chess-pattern
+                # Xtra-Fine boxes over the whole canvas (see _LIR_* constants).
+                # One history entry for the whole pass. Declared LAST.
+                "lir_seq": ("INT", {"default": 0, "min": 0, "max": 0x7FFFFFFF}),
+
+                # ✨ prompt selector — which preset (or the Area Prompt box)
+                # drives Quick Photo Refine. Declared LAST.
+                "quick_prompt_mode": (_QUICK_REFINE_PROMPT_MODES,
+                                      {"default": "Identity + Quality"}),
+
             },
             "optional": {
                 # CLIP / text encoder for the Area Prompt. Optional —
@@ -1358,6 +1870,19 @@ class AngeloRefine:
         vary_seq=0,
         vary_pick=-1,
         vary_pick_seq=0,
+        outpaint_seq=0,
+        outpaint_dir="right",
+        outpaint_amount=256,
+        outpaint_overlap=64,
+        outpaint_accept_seq=0,
+        outpaint_protect="",
+        outpaint_instruction_pos="prepend",
+        refine_reference=False,
+        quick_refine_seq=0,
+        reference_strength=0.0,
+        upscale_seq=0,
+        lir_seq=0,
+        quick_prompt_mode="Identity + Quality",
         latent=None,
         clip=None,
         overrides=None,
@@ -1486,6 +2011,12 @@ class AngeloRefine:
             area_prompt = True
             feather_radius = 0
             persistent_mask = False
+        elif inpainting_mode == "Outpaint":
+            # Canvas extension, not a masked edit — there's no held mask to
+            # re-run, so the Persistent Mask queue hook must not fire. The
+            # other edit params aren't read on the outpaint path (denoise is
+            # fixed at 1.0 inside it; the JS dims their controls).
+            persistent_mask = False
 
         # ===== Sampler Mode branch =====
         # Acts like a KSampler: take the incoming latent (typically empty),
@@ -1533,6 +2064,17 @@ class AngeloRefine:
                 "history": [(new_latent, None)],
                 "click_seq": click_seq,
                 "undo_seq": undo_seq,
+                # Anchor every action-seq to its current widget value so a
+                # stale bump can't refire its gate against the new base.
+                "redo_seq": redo_seq,
+                "reroll_seq": reroll_seq,
+                "vary_seq": vary_seq,
+                "vary_pick_seq": vary_pick_seq,
+                "outpaint_seq": outpaint_seq,
+                "outpaint_accept_seq": outpaint_accept_seq,
+                "quick_refine_seq": quick_refine_seq,
+                "upscale_seq": upscale_seq,
+                "lir_seq": lir_seq,
                 "fingerprint": incoming_fp,
                 "sampler_seed_at_run": int(sampler_seed),
                 "loaded_seq": loaded_seq,
@@ -1602,6 +2144,16 @@ class AngeloRefine:
                 "history": [(incoming.clone(), None)],
                 "click_seq": click_seq,
                 "undo_seq": undo_seq,
+                # Anchor every action-seq (see the Sampler Mode dict note).
+                "redo_seq": redo_seq,
+                "reroll_seq": reroll_seq,
+                "vary_seq": vary_seq,
+                "vary_pick_seq": vary_pick_seq,
+                "outpaint_seq": outpaint_seq,
+                "outpaint_accept_seq": outpaint_accept_seq,
+                "quick_refine_seq": quick_refine_seq,
+                "upscale_seq": upscale_seq,
+                "lir_seq": lir_seq,
                 "fingerprint": incoming_fp,
                 "loaded_seq": loaded_seq,
                 # Source image (#3/#9): capture the base once, independent of
@@ -1625,6 +2177,7 @@ class AngeloRefine:
                 if len(redo) > _HISTORY_CAP:
                     state["redo_stack"] = redo[-_HISTORY_CAP:]
             state["undo_seq"] = undo_seq
+            state["quick_last"] = False
             # Undo is a PURE restore — pop the cached latent and decode it.
             # It must NEVER re-sample, or it would produce a different image
             # than the one being restored. Absorb the current click_seq so
@@ -1651,6 +2204,7 @@ class AngeloRefine:
                 if len(state["history"]) > _HISTORY_CAP:
                     state["history"] = state["history"][-_HISTORY_CAP:]
             state["redo_seq"] = redo_seq
+            state["quick_last"] = False
             state["click_seq"] = click_seq
 
         # ===== Vary pick: commit a chosen variation (pure restore) =====
@@ -1662,6 +2216,7 @@ class AngeloRefine:
         new_vary_pick = vary_pick_seq > 0 and vary_pick_seq != state.get("vary_pick_seq", -1)
         if new_vary_pick:
             state["vary_pick_seq"] = vary_pick_seq
+            state["quick_last"] = False
             cands = state.get("vary_candidates")
             if cands and 0 <= int(vary_pick) < len(cands):
                 state["history"][-1] = cands[int(vary_pick)]
@@ -1670,6 +2225,51 @@ class AngeloRefine:
                 state["redo_stack"] = []
             state["vary_candidates"] = None
             state["click_seq"] = click_seq
+
+        # ===== Outpaint accept: commit the reviewed canvas as a NEW session =====
+        # The JS Accept button bumps outpaint_accept_seq after the review
+        # overlay. The stashed canvas becomes a fresh session base with
+        # Load-Image semantics — history resets, the Restore anchor and the
+        # hold-to-compare base move to the new canvas. This wholesale state
+        # replacement is what keeps every same-shape assumption in the rest
+        # of the node true across a dimension change.
+        new_op_accept = (
+            outpaint_accept_seq > 0
+            and outpaint_accept_seq != state.get("outpaint_accept_seq", -1)
+        )
+        if new_op_accept:
+            pend = state.get("outpaint_pending")
+            if pend is not None:
+                op_lat, op_px = pend
+                _STATE[node_id] = {
+                    "history": [(op_lat, op_px)],
+                    "click_seq": click_seq,
+                    "undo_seq": undo_seq,
+                    "redo_seq": redo_seq,
+                    "reroll_seq": reroll_seq,
+                    "vary_seq": vary_seq,
+                    "vary_pick_seq": vary_pick_seq,
+                    "outpaint_seq": outpaint_seq,
+                    "outpaint_accept_seq": outpaint_accept_seq,
+                "quick_refine_seq": quick_refine_seq,
+                "upscale_seq": upscale_seq,
+                "lir_seq": lir_seq,
+                    # Preserve the wired-latent fingerprint + load marker so
+                    # the next run doesn't read the unchanged upstream as a
+                    # fresh latent and blow away the canvas we just committed.
+                    "fingerprint": state.get("fingerprint"),
+                    "loaded_seq": state.get("loaded_seq"),
+                    "sampler_seed_at_run": state.get("sampler_seed_at_run", int(sampler_seed)),
+                    "refine_seed_at_run": (state.get("refine_seed_at_run")
+                                           if state.get("refine_seed_at_run") is not None
+                                           else int(seed)),
+                    "source_latent": op_lat,
+                    "source_pixels": op_px,
+                }
+                state = _STATE[node_id]
+            else:
+                state["outpaint_accept_seq"] = outpaint_accept_seq
+                state["click_seq"] = click_seq
 
         # ===== Re-roll: redo the most recent edit with a fresh seed =====
         # The Re-roll button bumps reroll_seq (and sets a new seed) without
@@ -1681,7 +2281,11 @@ class AngeloRefine:
         # and appends the fresh variation, restoring the stack depth (net
         # effect: replace, not stack). No-op if there's no prior edit yet.
         new_reroll = reroll_seq > 0 and reroll_seq != state.get("reroll_seq", -1)
-        reroll_now = new_reroll and len(state["history"]) > 1
+        reroll_now = (
+            new_reroll
+            and len(state["history"]) > 1
+            and inpainting_mode != "Outpaint"
+        )
         if reroll_now:
             state["history"].pop()
         state["reroll_seq"] = reroll_seq
@@ -1697,6 +2301,7 @@ class AngeloRefine:
         vary_now = (
             new_vary
             and len(state["history"]) > 1
+            and inpainting_mode != "Outpaint"
             and not (bool(restore_mode) and inpainting_mode == "Refine")
         )
         state["vary_seq"] = vary_seq
@@ -1708,11 +2313,343 @@ class AngeloRefine:
             current = hist_last
             current_pixels = None
 
+        # ===== Outpaint (generate): pad + fill, stash for review =====
+        # Driven by outpaint_seq from the JS arrows / edge-click, gated on
+        # Outpaint mode. The result is NOT committed — it's stashed with a
+        # preview ref so the JS can show the Accept / Try again / Cancel
+        # overlay. The node keeps outputting the current canvas underneath.
+        new_outpaint = (
+            inpainting_mode == "Outpaint"
+            and outpaint_seq > 0
+            and outpaint_seq != state.get("outpaint_seq", -1)
+        )
+        state["outpaint_seq"] = outpaint_seq
+        if new_outpaint:
+            latent_init, op_mask, op_amt, op_ref = _outpaint_prepare(
+                vae=vae, current=current, current_pixels=current_pixels,
+                direction=str(outpaint_dir), amount_px=int(outpaint_amount),
+                overlap_px=int(outpaint_overlap),
+                protect_json=str(outpaint_protect),
+            )
+            # Conditioning. With a CLIP wired, the outpaint encodes its OWN
+            # prompt: a direction-aware continue-don't-repeat instruction +
+            # the Area Prompt text (if armed) describing the new space. The
+            # main scene prompt is deliberately NOT used — conditioning the
+            # strip on "a red car on a road" is precisely what paints a
+            # second car into it. Without a CLIP we can't encode, so the
+            # main conditioning flows through (with its known duplication
+            # risk — wiring CLIP is the documented recommendation).
+            if clip is not None:
+                instr = _OUTPAINT_INSTRUCTIONS.get(
+                    str(outpaint_dir), _OUTPAINT_INSTRUCTIONS["right"])
+                # Instruction order: "prepend" (default) puts the instruction
+                # first; "append" puts the user's Area text first. MUST stay
+                # in lockstep with the JS preview (syncOutpaintPromptPreview).
+                user_txt = str(area_text_positive).strip() if area_prompt else ""
+                if user_txt and str(outpaint_instruction_pos) == "append":
+                    op_text = user_txt.rstrip(" .,") + ". " + instr.strip()
+                else:
+                    op_text = instr + user_txt
+                tokens_p = clip.tokenize(op_text)
+                op_positive = clip.encode_from_tokens_scheduled(tokens_p)
+                if area_prompt and str(area_text_negative).strip():
+                    tokens_n = clip.tokenize(str(area_text_negative))
+                    op_negative = clip.encode_from_tokens_scheduled(tokens_n)
+                else:
+                    op_negative = negative
+            else:
+                op_positive = positive
+                op_negative = negative
+            # Edge-band reference for edit models (Klein / Qwen): texture +
+            # lighting to continue, without re-showing the scene's subject
+            # (a whole-image reference invites the edit branch to reproduce
+            # it into the strip). REPLACE (append=False) per the Smart
+            # Inpaint lesson — non-edit models ignore the field entirely.
+            op_positive = node_helpers.conditioning_set_values(
+                op_positive, {"reference_latents": [op_ref]}, append=False,
+            )
+            # 5D temporal latents (Qwen/Wan) sample with a HARD mask — same
+            # reasoning as Smart Inpaint (no clean soft-mask-during-denoise
+            # behaviour on non-zero-mean latent spaces).
+            op_sample_mask = op_mask
+            if latent_init.ndim == 5:
+                op_sample_mask = (op_mask >= 0.5).to(op_mask.dtype)
+            op_seed = int(seed)
+            callback = None if disable_live_preview else latent_preview.prepare_callback(model, steps)
+            disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+            print(f"[Angelo outpaint] dir={outpaint_dir} amount={op_amt}px "
+                  f"overlap={int(outpaint_overlap)}px "
+                  f"new_latent=({latent_init.shape[-2]}x{latent_init.shape[-1]})")
+            noise = comfy.sample.prepare_noise(latent_init, op_seed, None)
+            op_refined = _do_sample(
+                guider=ov_guider, sampler=ov_sampler, sigmas=ov_sigmas,
+                model=model, noise=noise,
+                steps=steps, cfg=cfg, sampler_name=sampler_name, scheduler=scheduler,
+                positive=op_positive, negative=op_negative,
+                source_latent=latent_init,
+                denoise=1.0,
+                noise_mask=op_sample_mask,
+                callback=callback,
+                disable_pbar=disable_pbar,
+                seed=op_seed,
+            )
+            op_img, op_refs = _decode_to_preview(vae, op_refined)
+            state["outpaint_pending"] = (op_refined, op_img)
+            state["outpaint_preview_refs"] = op_refs
+            state["click_seq"] = click_seq
+            state["refine_seed_at_run"] = op_seed
+
+        # ===== Quick Photo Refine: the one-click restoration recipe =====
+        # Whole canvas, the internal restoration prompt, and the Reference
+        # anchor — identity reconstructs from the reference while the
+        # texture re-renders. The toolbar DENOISE applies (1.0 = full
+        # re-render, the strongest restoration; lower = gentler clean-up);
+        # area prompt / toggles are ignored. The seed also applies, so
+        # seed_control = randomize lets you mash the button for variations.
+        new_quick = (
+            inpainting_mode == "Refine"
+            and quick_refine_seq > 0
+            and quick_refine_seq != state.get("quick_refine_seq", -1)
+        )
+        state["quick_refine_seq"] = quick_refine_seq
+        if new_quick:
+            # Re-roll semantics: if the latest entry is itself a ✨ result,
+            # POP it first — this press re-draws from the same source the
+            # last press used, replacing it, instead of compounding on its
+            # output (anchor-chaining converged to a fixed point and made
+            # mashing for variations useless). Manual edits in between
+            # clear the flag, so they're never discarded.
+            if state.get("quick_last") and len(state["history"]) > 1:
+                state["history"].pop()
+                _hl = state["history"][-1]
+                if isinstance(_hl, tuple):
+                    current, current_pixels = _hl
+                else:
+                    current, current_pixels = _hl, None
+            # Prompt selection: preset from the ✨ selector, or the Area
+            # Prompt text. The default preset keeps the model-tuned Qwen
+            # variant on 5D latents; explicit presets are used verbatim.
+            qp_mode = str(quick_prompt_mode)
+            if qp_mode == "Use Area Prompt" and str(area_text_positive).strip():
+                qr_prompt = str(area_text_positive)
+            elif qp_mode == "Use Area Prompt":
+                print("[Angelo quick-refine] Area Prompt empty — using the default preset")
+                qr_prompt = (_QUICK_REFINE_PROMPT_QWEN if current.dim() == 5
+                             else _QUICK_REFINE_PROMPT)
+            elif qp_mode == "Identity + Quality":
+                qr_prompt = (_QUICK_REFINE_PROMPT_QWEN if current.dim() == 5
+                             else _QUICK_REFINE_PROMPT)
+            else:
+                qr_prompt = _QUICK_REFINE_PROMPTS.get(qp_mode, _QUICK_REFINE_PROMPT)
+            print(f"[Angelo quick-refine] prompt mode: {qp_mode}")
+            if clip is not None:
+                tokens_q = clip.tokenize(qr_prompt)
+                qr_base = clip.encode_from_tokens_scheduled(tokens_q)
+            else:
+                # No CLIP → can't encode the restoration prompt; the main
+                # positive flows through. Still works, just less targeted.
+                qr_base = positive
+            qr_seed = int(seed)
+            callback = None if disable_live_preview else latent_preview.prepare_callback(model, steps)
+            disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+            # Big canvases (e.g. after a 2× Restore Upscale) auto-route
+            # through the tiled engine — same recipe per ~1MP tile, each
+            # anchored to its own content, seams feathered — so the model
+            # never samples a latent beyond the size it renders well at.
+            canvas_mp = (image_w * image_h) / 1e6 if (image_w > 0 and image_h > 0) else 0.0
+            # Tiling is for RESTORATION (every tile's job is local). An Area
+            # Prompt is a SEMANTIC edit — changing a person can't be decided
+            # per-tile (each tile would change them differently: the broken
+            # half-swapped result). Area-Prompt mode therefore always runs
+            # the single global pass, like the manual brush does.
+            if (canvas_mp > _QUICK_REFINE_TILE_THRESHOLD_MP
+                    and qp_mode != "Use Area Prompt"):
+                print(f"[Angelo quick-refine] {canvas_mp:.1f}MP canvas — tiled restore pass")
+                qr_refined, qr_pixels, _n = _tiled_restore_pass(
+                    model=model, vae=vae,
+                    current=current, current_pixels=current_pixels,
+                    scale=1.0,
+                    positive_base=qr_base, negative=negative,
+                    seed=qr_seed, steps=steps, cfg=cfg,
+                    sampler_name=sampler_name, scheduler=scheduler,
+                    callback=callback, disable_pbar=disable_pbar,
+                    ov_guider=ov_guider, ov_sampler=ov_sampler, ov_sigmas=ov_sigmas,
+                )
+            else:
+                # ✨ v2: the whole image through the XTRA-FINE pipeline —
+                # whole-canvas mask, full reference anchor, full denoise,
+                # 1.3MP working target (sub-1.3MP canvases get internally
+                # supersampled to 1.3MP, refined there, composited back),
+                # feather 0. Magic button: NO toolbar box affects it (only
+                # the seed, for variation mashing).
+                qr_px_in = current_pixels if current_pixels is not None else _vae_decode(vae, current)
+                Hq, Wq = qr_px_in.shape[1], qr_px_in.shape[2]
+                qr_mask = torch.ones((1, current.shape[-2], current.shape[-1]),
+                                     device=current.device, dtype=torch.float32)
+                print(f"[Angelo quick-refine] whole-image Xtra-Fine pass "
+                      f"({Wq}x{Hq}, target {_QUICK_REFINE_TARGET_MP}MP), "
+                      f"denoise={_QUICK_REFINE_DENOISE}, ref={_QUICK_REFINE_REF}, seed={qr_seed}")
+                qr_refined, qr_pixels = _refine_with_fine_upscaling(
+                    model=model, vae=vae, current=current, current_pixels=qr_px_in,
+                    mask=qr_mask,
+                    scale_x=current.shape[-1] / Wq, scale_y=current.shape[-2] / Hq,
+                    target_mp=_QUICK_REFINE_TARGET_MP,
+                    max_linear=8.0, resize_method="lanczos",
+                    context_pad_pixel=_QUICK_REFINE_CTX_PAD,
+                    inpainting_mode="Refine",
+                    reference_strength=_QUICK_REFINE_REF,
+                    seed=qr_seed, steps=steps, cfg=cfg,
+                    sampler_name=sampler_name, scheduler=scheduler,
+                    positive=qr_base, negative=negative,
+                    denoise=_QUICK_REFINE_DENOISE,
+                    callback=callback, disable_pbar=disable_pbar,
+                    ov_guider=ov_guider, ov_sampler=ov_sampler, ov_sigmas=ov_sigmas,
+                )
+            state["history"].append((qr_refined, qr_pixels))
+            state["quick_last"] = True
+            if len(state["history"]) > _HISTORY_CAP:
+                state["history"] = state["history"][-_HISTORY_CAP:]
+            state["redo_stack"] = []
+            state["vary_candidates"] = None
+            state["outpaint_pending"] = None
+            state["click_seq"] = click_seq
+            state["refine_seed_at_run"] = qr_seed
+            current = qr_refined
+            current_pixels = qr_pixels
+
+        # ===== ⬆ 2× Pixel: pure pixel-space upscale (no AI) =====
+        # Lanczos 2× of the decoded canvas, re-encoded, committed DIRECTLY
+        # as a fresh session base — dimension change = Load-Image semantics
+        # (history resets). Deterministic, so no review step. The AI
+        # enhancement is the user's next, separate move — e.g. ✨ Quick
+        # Photo Refine, which auto-tiles on the now-large canvas.
+        new_upscale = (
+            inpainting_mode == "Refine"
+            and upscale_seq > 0
+            and upscale_seq != state.get("upscale_seq", -1)
+        )
+        state["upscale_seq"] = upscale_seq
+        if new_upscale:
+            up_px_in = current_pixels if current_pixels is not None else _vae_decode(vae, current)
+            in_H, in_W = up_px_in.shape[1], up_px_in.shape[2]
+            out_W = max(16, int(round(in_W * 2.0 / 16.0)) * 16)
+            out_H = max(16, int(round(in_H * 2.0 / 16.0)) * 16)
+            up_chw = up_px_in.movedim(-1, 1)
+            up_chw = comfy.utils.common_upscale(up_chw, out_W, out_H, "lanczos", "disabled")
+            up_pixels = up_chw.movedim(1, -1).contiguous()
+            up_latent = _vae_encode(vae, up_pixels)
+            print(f"[Angelo 2x-pixel] {in_W}x{in_H} -> {out_W}x{out_H} (lanczos, no AI)")
+            _STATE[node_id] = {
+                "history": [(up_latent, up_pixels)],
+                "click_seq": click_seq,
+                "undo_seq": undo_seq,
+                "redo_seq": redo_seq,
+                "reroll_seq": reroll_seq,
+                "vary_seq": vary_seq,
+                "vary_pick_seq": vary_pick_seq,
+                "outpaint_seq": outpaint_seq,
+                "outpaint_accept_seq": outpaint_accept_seq,
+                "quick_refine_seq": quick_refine_seq,
+                "upscale_seq": upscale_seq,
+                "lir_seq": lir_seq,
+                "fingerprint": state.get("fingerprint"),
+                "loaded_seq": state.get("loaded_seq"),
+                "sampler_seed_at_run": state.get("sampler_seed_at_run", int(sampler_seed)),
+                "refine_seed_at_run": (state.get("refine_seed_at_run")
+                                       if state.get("refine_seed_at_run") is not None
+                                       else int(seed)),
+                "source_latent": up_latent,
+                "source_pixels": up_pixels,
+            }
+            state = _STATE[node_id]
+            current, current_pixels = up_latent, up_pixels
+
+        # ===== ▦ Large Image Refine: chess-pattern Xtra-Fine boxes =====
+        # The whole canvas refined box by box through the Xtra-Fine
+        # pipeline — bit-exact latent compositing per box, no pixel
+        # feathering. Chess order so the second colour's boxes see
+        # already-refined neighbours in their context pad. One history
+        # entry for the whole pass (one Undo reverts it all).
+        new_lir = (
+            inpainting_mode == "Refine"
+            and lir_seq > 0
+            and lir_seq != state.get("lir_seq", -1)
+        )
+        state["lir_seq"] = lir_seq
+        if new_lir:
+            if clip is not None:
+                tokens_l = clip.tokenize(_LIR_PROMPT)
+                lir_base = clip.encode_from_tokens_scheduled(tokens_l)
+            else:
+                lir_base = positive
+            lir_seed = int(seed)
+            callback = None if disable_live_preview else latent_preview.prepare_callback(model, steps)
+            disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+            lir_px = current_pixels if current_pixels is not None else _vae_decode(vae, current)
+            H_pix, W_pix = lir_px.shape[1], lir_px.shape[2]
+            nlh, nlw = current.shape[-2], current.shape[-1]
+            sx = nlw / W_pix
+            sy = nlh / H_pix
+            box_edge = math.sqrt(_LIR_BOX_MP * 1e6)
+            nx = max(1, round(W_pix / box_edge))
+            ny = max(1, round(H_pix / box_edge))
+            x_edges = [round(i * nlw / nx) for i in range(nx + 1)]
+            y_edges = [round(j * nlh / ny) for j in range(ny + 1)]
+            boxes = [(i, j, x_edges[i], y_edges[j], x_edges[i + 1], y_edges[j + 1])
+                     for j in range(ny) for i in range(nx)]
+            # Chess order: one colour, then the other.
+            order = ([b for b in boxes if (b[0] + b[1]) % 2 == 0]
+                     + [b for b in boxes if (b[0] + b[1]) % 2 == 1])
+            print(f"[Angelo large-refine] {W_pix}x{H_pix}: {nx}x{ny} boxes "
+                  f"(~{_LIR_BOX_MP}MP target), chess order, ref={_LIR_REF}, "
+                  f"denoise={_LIR_DENOISE}, pad={_LIR_CTX_PAD}px, feather 0")
+            work_lat, work_px = current, lir_px
+            for k, (bi, bj, x0, y0, x1, y1) in enumerate(order):
+                box_mask = torch.zeros((1, nlh, nlw), device=work_lat.device, dtype=torch.float32)
+                box_mask[0, y0:y1, x0:x1] = 1.0   # hard box — feather 0
+                bw_px = (x1 - x0) / sx
+                bh_px = (y1 - y0) / sy
+                crop_mp = max(0.05, ((bw_px + 2 * _LIR_CTX_PAD) * (bh_px + 2 * _LIR_CTX_PAD)) / 1e6)
+                work_lat, fresh_px = _refine_with_fine_upscaling(
+                    model=model, vae=vae, current=work_lat,
+                    current_pixels=work_px, mask=box_mask,
+                    scale_x=sx, scale_y=sy,
+                    target_mp=crop_mp * 1.02,   # force the crop path — never
+                                                # the whole-canvas shortcut
+                    max_linear=8.0, resize_method="lanczos",
+                    context_pad_pixel=_LIR_CTX_PAD,
+                    inpainting_mode="Refine",
+                    reference_strength=_LIR_REF,
+                    seed=(lir_seed + k * 9973) & 0xFFFFFFFFFFFFFFFF,
+                    steps=steps, cfg=cfg, sampler_name=sampler_name, scheduler=scheduler,
+                    positive=lir_base, negative=negative,
+                    denoise=_LIR_DENOISE,
+                    callback=callback, disable_pbar=disable_pbar,
+                    ov_guider=ov_guider, ov_sampler=ov_sampler, ov_sigmas=ov_sigmas,
+                )
+                if fresh_px is None:
+                    work_px = _vae_decode(vae, work_lat)
+                else:
+                    work_px = fresh_px
+            state["history"].append((work_lat, work_px))
+            if len(state["history"]) > _HISTORY_CAP:
+                state["history"] = state["history"][-_HISTORY_CAP:]
+            state["redo_stack"] = []
+            state["vary_candidates"] = None
+            state["outpaint_pending"] = None
+            state["click_seq"] = click_seq
+            state["refine_seed_at_run"] = lir_seed
+            state["quick_last"] = False
+            current, current_pixels = work_lat, work_px
+
         # Has the user clicked since our last execution for this node?
+        # Never treat a queue-hook click_seq bump as an edit in Outpaint
+        # mode — the canvas there is a direction picker, not a mask tool.
         new_click = (
             click_x >= 0
             and click_y >= 0
             and click_seq != state["click_seq"]
+            and inpainting_mode != "Outpaint"
         )
 
         # Source latent for every edit is the current cached latent, so all
@@ -1915,6 +2852,20 @@ class AngeloRefine:
                     refine_positive, {"reference_latents": [reference_latent]}, append=True,
                 )
 
+            # Reference strength (Refine only): anchor identity/content from
+            # the current image for the first reference_strength fraction of
+            # the schedule (timestep-range construction — _apply_reference),
+            # so high-denoise refines keep the subject. Plain path anchors
+            # on the WHOLE current image here; the Xtra-Fine path anchors on
+            # its upscaled crop instead (reference_strength passed below).
+            # Restore never samples, so it's excluded.
+            ref_strength = 0.0
+            if inpainting_mode == "Refine" and not restore_now and bool(refine_reference):
+                ref_strength = max(0.0, min(1.0, float(reference_strength)))
+            if ref_strength > 0.0 and not fine_upscaling:
+                refine_positive = _apply_reference(
+                    refine_positive, refine_source.clone(), ref_strength)
+
             # One pass normally; four for Vary ×4. The conditioning above is
             # shared across passes — only the noise seed differs per pass.
             n_passes = 4 if vary_now else 1
@@ -1957,6 +2908,7 @@ class AngeloRefine:
                         resize_method=str(resize_method),
                         context_pad_pixel=int(fine_context_pad),
                         inpainting_mode=str(inpainting_mode),
+                        reference_strength=ref_strength,
                         seed=pass_seed, steps=steps, cfg=cfg,
                         sampler_name=sampler_name, scheduler=scheduler,
                         positive=refine_positive, negative=refine_negative,
@@ -2014,11 +2966,13 @@ class AngeloRefine:
                 if len(state["history"]) > _HISTORY_CAP:
                     state["history"] = state["history"][-_HISTORY_CAP:]
                 # A genuine new edit (click or re-roll) invalidates the redo
-                # branch and any stale Vary stash.
+                # branch and any stale Vary / Outpaint stash.
                 state["redo_stack"] = []
                 state["vary_candidates"] = None
+                state["outpaint_pending"] = None
                 state["click_seq"] = click_seq
                 state["refine_seed_at_run"] = int(seed)
+                state["quick_last"] = False
                 current = refined
                 current_pixels = refined_pixels
 
@@ -2026,7 +2980,10 @@ class AngeloRefine:
         ui_msg = {
             "Angelo_preview": [],
             "Angelo_mode": ["Edit Mode"],
-            "Angelo_refine_seed_at_run": [int(state.get("refine_seed_at_run", seed))],
+            "Angelo_refine_seed_at_run": [
+                int(state["refine_seed_at_run"])
+                if state.get("refine_seed_at_run") is not None else int(seed)
+            ],
         }
         
         if current_pixels is not None:
@@ -2069,6 +3026,11 @@ class AngeloRefine:
         vary_refs_out = state.pop("vary_preview_refs", None)
         if vary_refs_out:
             ui_msg["Angelo_vary_previews"] = vary_refs_out
+
+        # Outpaint: same pop-once contract for the review overlay.
+        op_refs_out = state.pop("outpaint_preview_refs", None)
+        if op_refs_out:
+            ui_msg["Angelo_outpaint_preview"] = op_refs_out
 
         return {"ui": ui_msg, "result": (image, out_latent, source_image)}
 

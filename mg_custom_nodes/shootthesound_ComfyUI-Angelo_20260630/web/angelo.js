@@ -92,6 +92,14 @@ function installKeyboardShortcuts() {
         const node = _AngeloHoveredNode;
         if (!node) return;
 
+        // Esc closes the Outpaint review first (cancels at zero cost —
+        // nothing was committed).
+        if (event.key === "Escape" && isOutpaintReviewOpen(node)) {
+            hideOutpaintReview(node);
+            event.preventDefault();
+            return;
+        }
+
         // Esc closes the Vary chooser first (keeps the current result),
         // before falling through to detect-mode dismissal.
         if (event.key === "Escape" && isVaryChooserOpen(node)) {
@@ -431,6 +439,12 @@ app.registerExtension({
                 showVaryChooser(this, varyRefs);
             }
 
+            // Outpaint: the extended canvas arrived → open the review.
+            const opRefs = message?.Angelo_outpaint_preview;
+            if (opRefs && opRefs.length) {
+                showOutpaintReview(this, opRefs[0]);
+            }
+
             // Fix All: this run has landed — fire the next candidate. The
             // small delay lets the fresh preview paint (and the green tick
             // register) before the next confirm queues.
@@ -517,11 +531,18 @@ function attachPreviewCanvas(node) {
     refineRowsWrap.style.borderTop = "1px solid #333";
     const row1 = makeToolbarRow();
     const row2 = makeToolbarRow();
+    const outpaintRow = makeToolbarRow(); // Outpaint mode only (populated below)
+    outpaintRow.style.display = "none";
+    const quickRow = makeToolbarRow();    // Quick Actions (one-press magic buttons)
     const detectRow = makeToolbarRow();   // SAM 3 detect (Refine + Smart Inpaint)
     detectRow.style.flexWrap = "nowrap";  // keep it one line; the text box flexes
     refineRowsWrap.appendChild(row1);
     refineRowsWrap.appendChild(row2);
+    refineRowsWrap.appendChild(outpaintRow);
+    refineRowsWrap.appendChild(quickRow);
     refineRowsWrap.appendChild(detectRow);
+    node._AngeloOutpaintRow = outpaintRow;
+    node._AngeloQuickRow = quickRow;
     node._AngeloDetectRow = detectRow;
 
     toggleBarWrap.appendChild(modeRow);
@@ -548,14 +569,14 @@ function attachPreviewCanvas(node) {
     undoBtn.style.borderRadius = "3px 0 0 3px";
     undoBtn.style.padding = "3px 9px";
     undoBtn.style.fontSize = "13px";
-    undoBtn.style.lineHeight = "1";
+    undoBtn.style.lineHeight = "15px";
     const redoBtn = makeActionButton("⟳", () => triggerRedo(node), "redo");
     redoBtn.title = "Redo — re-apply the most recent edit that Undo removed. A new edit clears the redo history.";
     redoBtn.style.borderRadius = "0 3px 3px 0";
     redoBtn.style.borderLeft = "none";
     redoBtn.style.padding = "3px 9px";
     redoBtn.style.fontSize = "13px";
-    redoBtn.style.lineHeight = "1";
+    redoBtn.style.lineHeight = "15px";
     undoRedoWrap.appendChild(undoBtn);
     undoRedoWrap.appendChild(redoBtn);
     row1.appendChild(undoRedoWrap);
@@ -563,6 +584,7 @@ function attachPreviewCanvas(node) {
     const rerollBtn = makeActionButton("Re-roll", () => triggerReroll(node), "reroll");
     rerollBtn.title = "Try the most recent edit again with a fresh seed — SAME mask, SAME starting image. Each press replaces the last attempt with a new variation (it doesn't stack on top). Make an edit first, then Re-roll to cycle seeds without re-painting or resetting. Works for clicks, brush strokes, rectangles and detected masks.";
     row1.appendChild(rerollBtn);
+    node._AngeloRerollBtn = rerollBtn;
 
     const varyBtn = makeActionButton("Vary ×4", () => triggerVary(node), "vary");
     varyBtn.title = "Generate FOUR variations of the most recent edit at once — same mask, same "
@@ -572,6 +594,7 @@ function attachPreviewCanvas(node) {
         + "first. Not available while Restore is ON (restores are deterministic).";
     row1.appendChild(varyBtn);
     node._AngeloVaryBtn = varyBtn;
+
 
     row1.appendChild(makeSeparator());
 
@@ -631,6 +654,56 @@ function attachPreviewCanvas(node) {
     row1.appendChild(fineUpscaleToggle);
     node._AngeloFineUpscaleToggle = fineUpscaleToggle;
 
+    // Reference: a unified toggle + strength pair. The strength box only
+    // exists while the toggle is lit — joined borders make them read as
+    // one control.
+    const refGroup = document.createElement("div");
+    refGroup.style.cssText = "display:inline-flex; align-items:stretch; flex:0 0 auto;";
+    const refineRefToggle = makeToggleButton("Reference", () => {
+        const w = findWidget(node, "refine_reference");
+        if (!w) return;
+        const next = !w.value;
+        setWidget(w, next);
+        if (next) {
+            // Switching ON must mean something — seed a sensible strength
+            // if the box is still at zero.
+            const sw = findWidget(node, "reference_strength");
+            if (sw && !(Number(sw.value) > 0)) setWidget(sw, 0.8);
+        }
+        syncReferenceControls(node);
+    });
+    refineRefToggle.title = "Reference (Refine mode) — anchor the edit to the current image. When ON, "
+        + "the strength box beside it sets a TRUE 0–1 blend: every step mixes the reference-anchored "
+        + "prediction with the free one at that ratio (0.6 = 60% anchored / 40% free). 1 = fully "
+        + "anchored (strongest identity hold).\n\n"
+        + "Photo restoration: ON at 0.6–1.0 with high Denoise — identity stays while the texture "
+        + "fully re-renders. With Xtra-Fine ON the reference is the upscaled crop.\n\n"
+        + "In-between strengths run a second positive pass per step (like CFG's negative) — a bit "
+        + "slower; 1.0 costs nothing extra. Leave OFF when your Area Prompt wants to CHANGE the "
+        + "region (anchoring fights the change). Edit models only (Klein / Qwen).\n\n"
+        + "✨ Quick Photo Refine: uses this strength when ON; defaults to a FULL anchor when OFF.";
+    refGroup.appendChild(refineRefToggle);
+    const refineRefInput = makeNumberInput("", { min: 0, max: 1, step: 0.05, width: 46 }, (val) => {
+        const w = findWidget(node, "reference_strength");
+        if (!w) return;
+        setWidget(w, val);
+    });
+    refineRefInput.title = "Reference strength: the anchored/free blend ratio (0.6 = 60% anchored). "
+        + "Restoration sweet spot is usually 0.6–1.0.";
+    refineRefInput.style.padding = "0";
+    refineRefInput.style.gap = "0";
+    if (refineRefInput._AngeloInput) {
+        refineRefInput._AngeloInput.style.borderRadius = "0 3px 3px 0";
+        refineRefInput._AngeloInput.style.borderLeft = "none";
+        refineRefInput._AngeloInput.style.height = "100%";
+        refineRefInput._AngeloInput.style.boxSizing = "border-box";
+    }
+    refGroup.appendChild(refineRefInput);
+    row1.appendChild(refGroup);
+    node._AngeloRefGroup = refGroup;
+    node._AngeloRefineRefToggle = refineRefToggle;
+    node._AngeloRefineRefInput = refineRefInput;
+
     row1.appendChild(makeSeparator());
 
     // Inpainting Mode dropdown — Refine / Insert V1 / Insert V2.
@@ -641,7 +714,7 @@ function attachPreviewCanvas(node) {
     const inpaintModeWidget = findWidget(node, "inpainting_mode");
     const inpaintModeOptions = (inpaintModeWidget && inpaintModeWidget.options && inpaintModeWidget.options.values)
         ? inpaintModeWidget.options.values
-        : ["Refine", "Smart Inpaint", "Smart Guided Inpaint"];
+        : ["Refine", "Smart Inpaint", "Smart Guided Inpaint", "Outpaint"];
     const inpaintModeSelect = makeDropdown("Inpaint",
         inpaintModeOptions,
         (val) => {
@@ -670,7 +743,8 @@ function attachPreviewCanvas(node) {
     inpaintModeSelect.title = "Inpainting Mode.\n\n"
         + "Refine — paint/click on the canvas to refine an existing region (faces, hands, textures). Partial-denoise from existing content.\n\n"
         + "Smart Inpaint — drag a rectangle on the canvas (click and hold one corner, release at the opposite). Adds NEW content in that region. Locks denoise=1.0 + Xtra-Fine=ON + Area Prompt=ON; injects reference_latents so an edit model's (FLUX 2 Klein 9B etc.) edit branch activates. Feather defaults to 15 (soft blend) but stays adjustable.\n\n"
-        + "Smart Guided Inpaint — no painting or boxes. Pick a LOCATION from the dropdown above the Area Prompt (top left, center, bottom half, …); it's prepended to your prompt at run time (e.g. 'In the top left of the image, a red car') and the edit model places the content there across the whole image. Locks denoise=1.0 + Xtra-Fine=OFF + Area Prompt=ON; Feather and Persistent Mask disabled (no mask). Press 'Generate Guided Edit' to run. Coarse regions land most reliably.";
+        + "Smart Guided Inpaint — no painting or boxes. Pick a LOCATION from the dropdown above the Area Prompt (top left, center, bottom half, …); it's prepended to your prompt at run time (e.g. 'In the top left of the image, a red car') and the edit model places the content there across the whole image. Locks denoise=1.0 + Xtra-Fine=OFF + Area Prompt=ON; Feather and Persistent Mask disabled (no mask). Press 'Generate Guided Edit' to run. Coarse regions land most reliably.\n\n"
+        + "Outpaint — extend the canvas. Use the arrow buttons, or click near an edge of the preview (a glowing band shows where the extension goes). Every result is shown in a review overlay first — Accept commits it as a NEW session base (history resets), Try again re-rolls it, Cancel costs nothing.";
     row1.appendChild(inpaintModeSelect);
     node._AngeloInpaintModeSelect = inpaintModeSelect;
 
@@ -774,6 +848,154 @@ function attachPreviewCanvas(node) {
     methodSelect.title = "Xtra-Fine: pixel-space enlarge method. lanczos = sharpest with mild ringing; bilinear = smooth (great for skin/faces); bicubic = middle; nearest-exact = blocky preserves exact values; bislerp/area = niche. Only used when Xtra-Fine is ON.";
     row2.appendChild(methodSelect);
     node._AngeloMethodSelect = methodSelect;
+
+    // ===== QUICK ACTIONS BAR: one-press magic buttons (Refine mode) =====
+    const qaLabel = document.createElement("span");
+    qaLabel.textContent = "✦ Quick Actions:";
+    qaLabel.style.cssText = "font-size:11px; color:#bbb; padding:0 2px 0 4px; white-space:nowrap;";
+    quickRow.appendChild(qaLabel);
+
+    const quickFixBtn = makeActionButton("✨ Quick Photo Refine", () => triggerQuickPhotoRefine(node), "quickfix");
+    quickFixBtn.title = "One-click photo refine — a true magic button with its own fixed recipe: "
+        + "the WHOLE image runs through the Xtra-Fine pipeline (1.3MP working target — small "
+        + "images get internally supersampled, refined, composited back) with the instruction "
+        + "\"Keep the identity from image 1. make the image high quality.\", reference anchor "
+        + "1.0, denoise 1.0, feather 0. Identity stays, texture re-renders. NO toolbar box "
+        + "affects it — only the Seed applies (leave Ctrl on randomize and mash for variations); "
+        + "Undo steps back through passes. Auto-tiles on canvases over ~1.6MP.\n\n"
+        + "Needs an edit model (FLUX 2 Klein / Qwen-Image-Edit) + a wired CLIP — on non-edit models "
+        + "the reference is ignored, so this REGENERATES the image instead (Undo brings it back). "
+        + "Refine mode only.";
+    quickRow.appendChild(quickFixBtn);
+    node._AngeloQuickFixBtn = quickFixBtn;
+
+    const qpWidget = findWidget(node, "quick_prompt_mode");
+    const qpOptions = (qpWidget && qpWidget.options && qpWidget.options.values)
+        ? qpWidget.options.values
+        : ["Identity + Quality", "Restore Photo", "Identity + Colours", "Use Area Prompt"];
+    const quickPromptSelect = makeDropdown("", qpOptions, (val) => {
+        const w = findWidget(node, "quick_prompt_mode");
+        if (w) setWidget(w, val);
+    });
+    quickPromptSelect.title = "Which instruction ✨ Quick Photo Refine runs with:\n"
+        + "• Identity + Quality (default) — 'Keep the identity from image 1. make the image high quality.' "
+        + "(Qwen-Image-Edit gets its tuned dust-and-scratches variant automatically.)\n"
+        + "• Restore Photo — 'Keep the identity from image 1. restore the photo.' For damaged/old photos.\n"
+        + "• Identity + Colours — adds a colour hold for images where the palette must not move.\n"
+        + "• Use Area Prompt — your own text from the Area Prompt box drives the pass "
+        + "(falls back to the default if the box is empty).";
+    quickRow.appendChild(quickPromptSelect);
+    node._AngeloQuickPromptSelect = quickPromptSelect;
+
+    const upscaleBtn = makeActionButton("⬆ 2× Pixel", () => triggerPixelUpscale(node), "quickfix");
+    upscaleBtn.title = "Pure pixel-space 2× upscale — lanczos, NO AI, deterministic. The image is "
+        + "decoded, enlarged 2×, re-encoded, and committed immediately as the session's new base "
+        + "(dimension change, so history resets — like loading a new photo). Nothing is invented "
+        + "or re-rendered.\n\n"
+        + "For AI enhancement afterwards, that's your next move: press ✨ Quick Photo Refine "
+        + "(auto-tiles on the now-large canvas), or spot-edit with Xtra-Fine.";
+    quickRow.appendChild(upscaleBtn);
+    node._AngeloUpscaleBtn = upscaleBtn;
+
+    const lirBtn = makeActionButton("▦ Large Image Refine", () => triggerLargeImageRefine(node), "quickfix");
+    lirBtn.title = "Refine a LARGE canvas in one press: the image is divided into ~1MP boxes that "
+        + "exactly tile it, and each box runs an Xtra-Fine refine (ref 0.2, denoise 0.5, 128px "
+        + "context pad, hard edges) under the instruction \"restore the image. make it clear and "
+        + "sharp.\" — processed in a CHESS pattern, so the second half of the boxes refine with "
+        + "already-refined neighbours visible in their context and match them. Compositing is "
+        + "Xtra-Fine's bit-exact latent blend — no pixel feathering anywhere.\n\n"
+        + "The whole pass is ONE history entry (one Undo reverts it all); the Seed drives it "
+        + "(randomize + re-press = a fresh full pass). The natural partner of ⬆ 2× Pixel: enlarge "
+        + "first, then refine the detail in. Edit models + CLIP recommended; Refine mode only.";
+    quickRow.appendChild(lirBtn);
+    node._AngeloLirBtn = lirBtn;
+
+    // ===== OUTPAINT ROW: direction + amount (Outpaint mode only) =====
+    // Arrows extend the canvas in that direction; "All" pads every side
+    // (zoom-out). The same action is available by clicking near an edge
+    // of the preview — the row is the explicit/discoverable surface, the
+    // canvas is the fast one. Every result goes through a review overlay
+    // before anything commits.
+    const opModeLabel = document.createElement("span");
+    opModeLabel.textContent = "⛶ Outpaint:";
+    opModeLabel.style.cssText = "font-size:11px; color:#bbb; padding:0 2px 0 4px; white-space:nowrap;";
+    outpaintRow.appendChild(opModeLabel);
+
+    const mkOutpaintBtn = (txt, dir, tip) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = txt;
+        b.title = tip;
+        b.style.cssText = "cursor:pointer; padding:3px 9px; font-size:13px; font-weight:bold; "
+            + "border:1px solid rgba(120,190,235,0.7); border-radius:3px; "
+            + "background:rgba(40,62,82,0.95); color:#d8eeff; line-height:1; "
+            + "user-select:none; flex:0 0 auto;";
+        b.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            triggerOutpaint(node, dir);
+        });
+        b.addEventListener("pointerdown", (e) => e.stopPropagation());
+        return b;
+    };
+    outpaintRow.appendChild(mkOutpaintBtn("←", "left", "Extend the canvas to the LEFT by Amount px"));
+    outpaintRow.appendChild(mkOutpaintBtn("↑", "up", "Extend the canvas UPWARD by Amount px"));
+    outpaintRow.appendChild(mkOutpaintBtn("↓", "down", "Extend the canvas DOWNWARD by Amount px"));
+    outpaintRow.appendChild(mkOutpaintBtn("→", "right", "Extend the canvas to the RIGHT by Amount px"));
+    outpaintRow.appendChild(mkOutpaintBtn("⛶ All", "all", "Extend ALL four sides by Amount px (zoom-out)"));
+
+    outpaintRow.appendChild(makeSeparator());
+
+    const opAmountInput = makeNumberInput("Amount", { min: 16, max: 2048, step: 16, width: 56 }, (val) => {
+        const w = findWidget(node, "outpaint_amount");
+        if (w) setWidget(w, Math.round(val / 16) * 16);
+    });
+    opAmountInput.title = "How many pixels to extend the canvas by (snapped to /16 so any VAE lands on clean latent cells).";
+    outpaintRow.appendChild(opAmountInput);
+    node._AngeloOutpaintAmountInput = opAmountInput;
+
+    const opOverlapInput = makeNumberInput("Overlap", { min: 0, max: 512, step: 8, width: 50 }, (val) => {
+        const w = findWidget(node, "outpaint_overlap");
+        if (w) setWidget(w, Math.round(val));
+    });
+    opOverlapInput.title = "Feathered band reaching this many pixels INTO the existing image — that band is redrawn so the seam blends instead of butting. 64 is a good default.";
+    outpaintRow.appendChild(opOverlapInput);
+    node._AngeloOutpaintOverlapInput = opOverlapInput;
+
+    const opHint = document.createElement("span");
+    opHint.textContent = "edge-click = extend · drag = protect · Shift = protect anywhere";
+    opHint.style.cssText = "font-size:10px; color:#8aa; padding:0 4px; white-space:nowrap;";
+    opHint.title = "Canvas gestures in Outpaint mode:\n"
+        + "• Click near an edge — extend the canvas that way (a glowing band previews it).\n"
+        + "• Drag in the interior — paint a PROTECT region (red). Protected pixels are "
+        + "excluded from the Overlap band, so something near the frame edge (a car, a face) "
+        + "stays exactly as-is while the rest of the seam still blends generously. "
+        + "Brush size = Click R.\n"
+        + "• Hold SHIFT — the protect brush wins everywhere, including the edge zone, so "
+        + "you can start a stroke on something flush against the frame edge without "
+        + "triggering an extension.";
+    outpaintRow.appendChild(opHint);
+
+    const opClearProtectBtn = document.createElement("button");
+    opClearProtectBtn.type = "button";
+    opClearProtectBtn.textContent = "✕ Protect";
+    opClearProtectBtn.title = "Clear the painted protect region.";
+    opClearProtectBtn.style.cssText = "cursor:pointer; padding:2px 8px; font-size:10px; "
+        + "border:1px solid rgba(255,120,120,0.7); border-radius:3px; "
+        + "background:rgba(80,40,40,0.95); color:#fbb; line-height:1.4; "
+        + "user-select:none; flex:0 0 auto; display:none;";
+    opClearProtectBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
+    opClearProtectBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        node._AngeloProtect = [];
+        const wpr = findWidget(node, "outpaint_protect");
+        if (wpr) setWidget(wpr, "");
+        syncOutpaintControls(node);
+        redrawCanvasWithOverlays(node);
+    });
+    outpaintRow.appendChild(opClearProtectBtn);
+    node._AngeloOutpaintClearProtectBtn = opClearProtectBtn;
 
     // ===== DETECT ROW: SAM 3 auto-segment (Refine + Smart Inpaint) =====
     const detLabel = document.createElement("span");
@@ -1271,6 +1493,84 @@ function attachPreviewCanvas(node) {
     node._AngeloVaryOverlay = varyOverlay;
     node._AngeloVaryGrid = varyGrid;
 
+    // Outpaint review — the extended canvas shown full-size with three
+    // choices. NOTHING commits until Accept: Try again re-rolls the same
+    // extension with a fresh seed, Cancel/Esc walks away free. Accepting
+    // installs the new canvas as a fresh session base (history resets —
+    // stated right on the button so it's never a surprise).
+    const opOverlay = document.createElement("div");
+    opOverlay.style.cssText = "position:absolute; inset:0; z-index:10; display:none; "
+        + "flex-direction:column; gap:6px; padding:8px; background:rgba(0,0,0,0.85);";
+    const opHeader = document.createElement("div");
+    opHeader.style.cssText = "display:flex; align-items:center; justify-content:space-between; "
+        + "color:#ddd; font:bold 12px Arial,sans-serif;";
+    const opTitle = document.createElement("span");
+    opTitle.textContent = "Outpaint preview — keep it?";
+    const opEsc = document.createElement("span");
+    opEsc.textContent = "Esc = cancel";
+    opEsc.style.cssText = "font-weight:normal; font-size:10px; color:#8aa;";
+    opHeader.appendChild(opTitle);
+    opHeader.appendChild(opEsc);
+    node._AngeloOutpaintTitle = opTitle;
+    const opImgWrap = document.createElement("div");
+    opImgWrap.style.cssText = "flex:1 1 auto; min-height:0; display:flex; "
+        + "align-items:center; justify-content:center;";
+    const opImg = document.createElement("img");
+    opImg.style.cssText = "max-width:100%; max-height:100%; object-fit:contain; display:block; "
+        + "border:1px solid #444; border-radius:3px;";
+    opImg.draggable = false;
+    opImgWrap.appendChild(opImg);
+    const opBtnRow = document.createElement("div");
+    opBtnRow.style.cssText = "display:flex; justify-content:center; gap:8px;";
+    const mkOpReviewBtn = (txt, css) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = txt;
+        b.style.cssText = "font-size:12px; font-weight:bold; padding:5px 14px; border-radius:4px; "
+            + "cursor:pointer; " + css;
+        for (const ev of ["pointerdown", "mousedown"]) {
+            b.addEventListener(ev, (e) => e.stopPropagation());
+        }
+        return b;
+    };
+    const opAcceptBtn = mkOpReviewBtn("✓ Accept (new base — history resets)",
+        "border:1px solid #4a7; background:rgba(30,120,80,0.95); color:#fff;");
+    opAcceptBtn.title = "Commit the extended canvas as the session's new base image. "
+        + "Like loading a new photo: Undo history resets, and Reset / Restore / the \\ compare "
+        + "key all anchor to this new canvas.";
+    const opRetryBtn = mkOpReviewBtn("🎲 Try again",
+        "border:1px solid rgba(170,130,220,0.9); background:rgba(58,50,72,0.95); color:#ecdcff;");
+    opRetryBtn.title = "Re-roll the same extension with a fresh seed. Nothing has been committed.";
+    const opCancelBtn = mkOpReviewBtn("✕ Cancel",
+        "border:1px solid #555; background:#2a2a2a; color:#ccc;");
+    opCancelBtn.title = "Walk away — the canvas stays exactly as it was. Nothing was committed.";
+    opAcceptBtn.addEventListener("click", (e) => {
+        e.preventDefault(); e.stopPropagation();
+        hideOutpaintReview(node);
+        triggerOutpaintAccept(node);
+    });
+    opRetryBtn.addEventListener("click", (e) => {
+        e.preventDefault(); e.stopPropagation();
+        hideOutpaintReview(node);
+        triggerOutpaintRetry(node);
+    });
+    opCancelBtn.addEventListener("click", (e) => {
+        e.preventDefault(); e.stopPropagation();
+        hideOutpaintReview(node);
+    });
+    opBtnRow.appendChild(opAcceptBtn);
+    opBtnRow.appendChild(opRetryBtn);
+    opBtnRow.appendChild(opCancelBtn);
+    opOverlay.appendChild(opHeader);
+    opOverlay.appendChild(opImgWrap);
+    opOverlay.appendChild(opBtnRow);
+    for (const ev of ["pointerdown", "mousedown", "click", "wheel"]) {
+        opOverlay.addEventListener(ev, (e) => e.stopPropagation());
+    }
+    canvasWrap.appendChild(opOverlay);
+    node._AngeloOutpaintOverlay = opOverlay;
+    node._AngeloOutpaintImg = opImg;
+
     // Per-node view state (zoom/pan). zoom 1 = fit; pan in CSS px.
     node._AngeloZoom = 1;
     node._AngeloPanX = 0;
@@ -1452,6 +1752,30 @@ function attachPreviewCanvas(node) {
         if (!p) return;
         node._AngeloHover = { x: p.cssX, y: p.cssY };
 
+        // Outpaint mode: edges are the direction picker, the interior is
+        // the protect brush — an active drag stamps protect circles.
+        if (isOutpaintMode(node)) {
+            if (node._AngeloOutpaintPainting) {
+                const prot = node._AngeloProtect = node._AngeloProtect || [];
+                const last = prot[prot.length - 1];
+                const r = _brushRadius(node);
+                if (!last || Math.hypot(last[0] - p.pixelX, last[1] - p.pixelY) > r * 0.3) {
+                    prot.push([p.pixelX, p.pixelY, r]);
+                }
+                redrawCanvasWithOverlays(node);
+                return;
+            }
+            // Shift forces the protect brush everywhere — suppresses the
+            // edge zone so strokes can START on something flush against
+            // the frame edge (same convention as Detect's Shift brush).
+            const dir = event.shiftKey ? null : _outpaintEdgeDir(node, p);
+            if (dir !== node._AngeloOutpaintHoverDir) {
+                node._AngeloOutpaintHoverDir = dir;
+            }
+            redrawCanvasWithOverlays(node);
+            return;
+        }
+
         // Detection select mode.
         if (node._AngeloDetections && node._AngeloDetections.length) {
             // Active touch-up stroke → extend the brush along the drag.
@@ -1504,6 +1828,7 @@ function attachPreviewCanvas(node) {
 
     canvas.addEventListener("pointerleave", () => {
         node._AngeloHover = null;
+        node._AngeloOutpaintHoverDir = null;
         if (node._AngeloBrushPreview) node._AngeloBrushPreview = null;
         // IMPORTANT: do NOT cancel an active paint stroke here. With
         // pointer capture set on pointerdown, we keep receiving move/up
@@ -1543,6 +1868,25 @@ function attachPreviewCanvas(node) {
                 node._AngeloBrushPreview = null;
                 redrawCanvasWithOverlays(node);
             }
+            return;
+        }
+        // Outpaint mode: near an edge the click handler owns the extension;
+        // in the interior, a drag paints the PROTECT brush (areas the
+        // overlap band must leave frozen).
+        if (isOutpaintMode(node)) {
+            // Shift = protect brush wins even in the edge zone.
+            if (node._AngeloOutpaintHoverDir && !event.shiftKey) return;  // edge-click = extend
+            node._AngeloOutpaintHoverDir = null;
+            const pp = eventToImagePixel(event);
+            if (!pp) return;
+            try {
+                canvas.setPointerCapture(event.pointerId);
+                node._AngeloPointerId = event.pointerId;
+            } catch (e) { /* noop */ }
+            node._AngeloOutpaintPainting = true;
+            node._AngeloProtect = node._AngeloProtect || [];
+            node._AngeloProtect.push([pp.pixelX, pp.pixelY, _brushRadius(node)]);
+            redrawCanvasWithOverlays(node);
             return;
         }
         // Smart Guided Inpaint has no canvas interaction at all — the
@@ -1638,14 +1982,28 @@ function attachPreviewCanvas(node) {
         redrawCanvasWithOverlays(node);
     }
 
+    function endOutpaintProtect() {
+        if (!node._AngeloOutpaintPainting) return;
+        node._AngeloOutpaintPainting = false;
+        if (node._AngeloPointerId !== undefined) {
+            try { canvas.releasePointerCapture(node._AngeloPointerId); }
+            catch (e) { /* already released */ }
+            node._AngeloPointerId = undefined;
+        }
+        syncOutpaintControls(node);   // refresh the Clear-protect chip count
+        redrawCanvasWithOverlays(node);
+    }
+
     canvas.addEventListener("pointerup", (event) => {
         if (event.button !== 0) return;
-        if (node._AngeloTouchup) endTouchup();
+        if (node._AngeloOutpaintPainting) endOutpaintProtect();
+        else if (node._AngeloTouchup) endTouchup();
         else if (node._AngeloDraggingRect) endRectDrag();
         else endPaintStroke(event);
     });
     canvas.addEventListener("pointercancel", (event) => {
-        if (node._AngeloTouchup) endTouchup();
+        if (node._AngeloOutpaintPainting) endOutpaintProtect();
+        else if (node._AngeloTouchup) endTouchup();
         else if (node._AngeloDraggingRect) endRectDrag();
         else endPaintStroke(event);
     });
@@ -1663,6 +2021,14 @@ function attachPreviewCanvas(node) {
             const p = eventToImagePixel(event);
             const det = p ? _detAtPoint(node, p.pixelX, p.pixelY) : null;
             if (det) confirmDetection(node, det);
+            return;
+        }
+        // Outpaint mode: a click near an edge extends the canvas that way.
+        // Shift-clicks belong to the protect brush, never the extension.
+        if (isOutpaintMode(node)) {
+            if (node._AngeloOutpaintHoverDir && !event.shiftKey) {
+                triggerOutpaint(node, node._AngeloOutpaintHoverDir);
+            }
             return;
         }
         if (isSmartGuidedInpaintMode(node)) return; // no canvas interaction
@@ -1957,6 +2323,8 @@ function attachAreaPromptBox(node, container) {
         // Mirror into the active prompt slot so slots survive switches
         // and workflow saves without a separate "save slot" action.
         _angeloPersistActiveSlot(node);
+        // Keep the Outpaint combined-prompt preview live while typing.
+        syncOutpaintPromptPreview(node);
     });
 
     posNegBtn.addEventListener("click", (event) => {
@@ -2018,9 +2386,50 @@ function attachAreaPromptBox(node, container) {
         triggerGuidedRefine(node);
     });
 
+    // Outpaint prompt review — shown only in Outpaint mode. An order
+    // selector (instruction first vs my text first; some models weight
+    // the head of the prompt more) plus a live read-only preview of the
+    // EXACT combined prompt that will be encoded, so there's no guessing
+    // what the instruction did to your text.
+    const opPromptWrap = document.createElement("div");
+    opPromptWrap.style.cssText = "display:none; flex-direction:column; gap:3px; "
+        + "padding:2px 0 0 0;";
+    const opOrderRow = document.createElement("div");
+    opOrderRow.style.cssText = "display:flex; align-items:center; gap:6px;";
+    const opOrderSelect = makeDropdown("Order", ["Instruction first", "My text first"], (val) => {
+        const w = findWidget(node, "outpaint_instruction_pos");
+        if (w) setWidget(w, val === "My text first" ? "append" : "prepend");
+        syncOutpaintPromptPreview(node);
+    });
+    opOrderSelect.title = "Where Angelo's extend-the-scene instruction sits relative to your text. "
+        + "Instruction first is the default; try 'My text first' if the model is leaning too hard "
+        + "on the instruction and under-weighting your description (some models weight the start "
+        + "of the prompt more heavily). The preview below shows exactly what gets encoded.";
+    opOrderRow.appendChild(opOrderSelect);
+    const opPreviewLabel = document.createElement("span");
+    opPreviewLabel.textContent = "Final prompt:";
+    opPreviewLabel.style.cssText = "font-size:10px; color:#8aa;";
+    opOrderRow.appendChild(opPreviewLabel);
+    const opPromptPreview = document.createElement("div");
+    opPromptPreview.style.cssText = "font-size:10px; font-style:italic; color:#9ab; "
+        + "background:#1a1a1a; border:1px solid #3a3a3a; border-radius:3px; "
+        + "padding:4px 6px; white-space:pre-wrap; word-break:break-word; "
+        + "max-height:64px; overflow-y:auto; user-select:text;";
+    opPromptPreview.title = "The exact prompt the outpaint will encode (direction phrase follows "
+        + "the last-used / next-clicked direction).";
+    for (const ev of ["pointerdown", "mousedown", "wheel"]) {
+        opPromptPreview.addEventListener(ev, (e) => e.stopPropagation());
+    }
+    opPromptWrap.appendChild(opOrderRow);
+    opPromptWrap.appendChild(opPromptPreview);
+    node._AngeloOutpaintPromptWrap = opPromptWrap;
+    node._AngeloOutpaintOrderSelect = opOrderSelect;
+    node._AngeloOutpaintPromptPreview = opPromptPreview;
+
     wrap.appendChild(header);
     wrap.appendChild(locationSelect);
     wrap.appendChild(textarea);
+    wrap.appendChild(opPromptWrap);
     wrap.appendChild(smartBtn);
     wrap.appendChild(runBtn);
     container.appendChild(wrap);
@@ -2363,13 +2772,81 @@ function redrawCanvasWithOverlays(node) {
     // Cursor changes by mode — only remaining visual indicator now
     // that the corner pills are gone.
     if (canvas) {
-        if (isSmartGuidedInpaintMode(node)) {
+        if (isOutpaintMode(node)) {
+            canvas.style.cursor = node._AngeloOutpaintHoverDir ? "pointer" : "default";
+        } else if (isSmartGuidedInpaintMode(node)) {
             canvas.style.cursor = "default";  // no canvas interaction
         } else if (isSmartInpaintMode(node)) {
             canvas.style.cursor = "crosshair";
         } else {
             canvas.style.cursor = isPaintModeOn(node) ? "cell" : "crosshair";
         }
+    }
+
+    // Outpaint mode: a glowing band along the hovered edge previews the
+    // extension direction (with the amount), then nothing else — no hover
+    // ring, no strokes, no detections in this mode.
+    if (isOutpaintMode(node)) {
+        const dir = node._AngeloOutpaintHoverDir;
+        if (dir && node._AngeloImg) {
+            const W = canvas.width, H = canvas.height;
+            const t = Math.max(24, Math.round(Math.min(W, H) * 0.12));
+            let x = 0, y = 0, w = W, h = H, glyph = "➡";
+            if (dir === "left") { w = t; glyph = "⬅"; }
+            else if (dir === "right") { x = W - t; w = t; glyph = "➡"; }
+            else if (dir === "up") { h = t; glyph = "⬆"; }
+            else if (dir === "down") { y = H - t; h = t; glyph = "⬇"; }
+            ctx.save();
+            let grad;
+            if (dir === "left") grad = ctx.createLinearGradient(x, 0, x + w, 0);
+            else if (dir === "right") grad = ctx.createLinearGradient(x + w, 0, x, 0);
+            else if (dir === "up") grad = ctx.createLinearGradient(0, y, 0, y + h);
+            else grad = ctx.createLinearGradient(0, y + h, 0, y);
+            grad.addColorStop(0, "rgba(120, 190, 235, 0.55)");
+            grad.addColorStop(1, "rgba(120, 190, 235, 0.0)");
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, y, w, h);
+            const amtW = findWidget(node, "outpaint_amount");
+            const amt = (amtW && amtW.value) || 256;
+            const fs = Math.max(16, Math.round(Math.min(W, H) * 0.04));
+            ctx.font = `bold ${fs}px Arial, sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.shadowColor = "rgba(0, 0, 0, 0.85)";
+            ctx.shadowBlur = 6;
+            ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+            ctx.fillText(`${glyph} +${amt}px`, x + w / 2, y + h / 2);
+            ctx.restore();
+        }
+        // Protect-brush overlay: painted circles in red (these stay frozen
+        // inside the overlap band), plus a red brush ring at the cursor
+        // while it's in the interior (i.e. when a drag would paint).
+        const prot = node._AngeloProtect;
+        if (prot && prot.length) {
+            ctx.save();
+            ctx.fillStyle = "rgba(255, 90, 90, 0.30)";
+            for (const [px2, py2, pr2] of prot) {
+                ctx.beginPath();
+                ctx.arc(px2, py2, pr2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+        if (!dir && node._AngeloHover && node._AngeloImg) {
+            const rect2 = canvas.getBoundingClientRect();
+            const sx = rect2.width > 0 ? canvas.width / rect2.width : 1;
+            const sy = rect2.height > 0 ? canvas.height / rect2.height : 1;
+            const radiusW = findWidget(node, "click_radius");
+            ctx.save();
+            ctx.strokeStyle = "rgba(255, 90, 90, 0.8)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(node._AngeloHover.x * sx, node._AngeloHover.y * sy,
+                (radiusW && radiusW.value) || 96, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+        return;
     }
 
     const rect = canvas.getBoundingClientRect();
@@ -3221,7 +3698,7 @@ function syncDetectControls(node) {
     if (!row) return;
     const modeW = findWidget(node, "mode");
     const inEdit = modeW && String(modeW.value) === "Edit Mode";
-    const show = inEdit && !isSmartGuidedInpaintMode(node);
+    const show = inEdit && !isSmartGuidedInpaintMode(node) && !isOutpaintMode(node);
     // Must restore "flex" (not "") — an empty string reverts the row to a
     // <div>'s default display:block, which kills flex-wrap:nowrap and the
     // separator's align-self:stretch (dropdown drops to a new line, sep
@@ -3284,6 +3761,18 @@ function showLoadImagePopup(node, file) {
     // Picking the MP field implies the resize choice.
     mpInput.addEventListener("focus", () => { resize.radio.checked = true; });
 
+    // Discoverability: the load dialog is where the restoration workflow
+    // starts, so teach it here.
+    const tip = document.createElement("div");
+    tip.style.cssText = "margin-top:4px; padding:8px 10px; font-size:11.5px; line-height:1.5; "
+        + "color:#ffe9b0; background:rgba(110,85,25,0.25); "
+        + "border:1px solid rgba(240,200,90,0.45); border-radius:5px;";
+    tip.innerHTML = "💡 <b>Low-quality or small photo?</b> Load it at <b>1.5–3 MP</b> with "
+        + "“Resize to”, then press <b>✨ Quick Photo Refine</b> once it's in. The image is "
+        + "rebuilt sharp at the new size, anchored to the original — same person, same scene, "
+        + "real detail.";
+    modal.appendChild(tip);
+
     const footer = document.createElement("div");
     footer.style.cssText = "display:flex; justify-content:flex-end; gap:8px; margin-top:8px;";
     const cancelBtn = document.createElement("button");
@@ -3340,6 +3829,17 @@ function isSmartGuidedInpaintMode(node) {
 function isAnySmartMode(node) {
     return isSmartInpaintMode(node) || isSmartGuidedInpaintMode(node);
 }
+
+// Outpaint instruction texts — MUST match Python's _OUTPAINT_INSTRUCTIONS
+// exactly (Python owns the encode; this mirror only feeds the live
+// combined-prompt preview under the Area Prompt box).
+const _Angelo_OUTPAINT_INSTRUCTIONS = {
+    left:  "Extend the image to the left, continuing the scene and background naturally. Do not repeat or add new subjects. ",
+    right: "Extend the image to the right, continuing the scene and background naturally. Do not repeat or add new subjects. ",
+    up:    "Extend the image upward, continuing the scene and background naturally. Do not repeat or add new subjects. ",
+    down:  "Extend the image downward, continuing the scene and background naturally. Do not repeat or add new subjects. ",
+    all:   "Extend the image outward on all sides, continuing the scene and background naturally. Do not repeat or add new subjects. ",
+};
 
 // Smart Guided Inpaint location labels — MUST match the Python
 // _GUIDED_LOCATION_PREFIXES keys exactly (Python owns the label→prefix
@@ -3536,6 +4036,223 @@ function triggerVaryPick(node, idx) {
     queuePrompt();
 }
 
+// Quick Photo Refine: the restoration recipe as one click. Python owns the
+// whole pass (whole-canvas, denoise 1.0, internal prompt, reference anchor)
+// — the JS only bumps the seq, so no toolbar values get mutated.
+function triggerQuickPhotoRefine(node) {
+    if (isAnySmartMode(node) || isOutpaintMode(node)) return;  // dimmed there anyway
+    if (!node._AngeloImg) {
+        _angeloToast("Generate or load an image first");
+        return;
+    }
+    const ws = findWidget(node, "quick_refine_seq");
+    if (!ws) return;
+    setWidget(ws, ((ws.value || 0) + 1) & 0x7FFFFFFF);
+    _angeloToast("✨ Quick Photo Refine — restoring the photo…");
+    dbg("queue quick photo refine", { quick_refine_seq: ws.value });
+    queuePrompt();
+}
+
+// ⬆ 2× Pixel: pure lanczos upscale, no AI, committed directly as the new
+// session base (deterministic — no review step).
+function triggerPixelUpscale(node) {
+    if (isAnySmartMode(node) || isOutpaintMode(node)) return;  // dimmed there anyway
+    if (!node._AngeloImg) {
+        _angeloToast("Generate or load an image first");
+        return;
+    }
+    const ws = findWidget(node, "upscale_seq");
+    if (!ws) return;
+    setWidget(ws, ((ws.value || 0) + 1) & 0x7FFFFFFF);
+    _angeloToast("⬆ 2× Pixel — lanczos upscale, new base (history resets)");
+    dbg("queue pixel upscale", { upscale_seq: ws.value });
+    queuePrompt();
+}
+
+// ▦ Large Image Refine: chess-pattern Xtra-Fine boxes over the whole
+// canvas. Python owns the loop; the JS only bumps the seq.
+function triggerLargeImageRefine(node) {
+    if (isAnySmartMode(node) || isOutpaintMode(node)) return;  // dimmed there anyway
+    if (!node._AngeloImg) {
+        _angeloToast("Generate or load an image first");
+        return;
+    }
+    const ws = findWidget(node, "lir_seq");
+    if (!ws) return;
+    setWidget(ws, ((ws.value || 0) + 1) & 0x7FFFFFFF);
+    _angeloToast("▦ Large Image Refine — chess-pattern pass over the canvas…");
+    dbg("queue large image refine", { lir_seq: ws.value });
+    queuePrompt();
+}
+
+// ===== Outpaint — directional canvas extension with review-before-commit =====
+
+function isOutpaintMode(node) {
+    const w = findWidget(node, "inpainting_mode");
+    return !!w && w.value === "Outpaint";
+}
+
+// Fire one extension. Direction from the arrows or the edge-click; amount
+// + overlap already live in their widgets via the Outpaint row inputs.
+function triggerOutpaint(node, dir) {
+    const ws = findWidget(node, "outpaint_seq");
+    const wd = findWidget(node, "outpaint_dir");
+    if (!ws || !wd) return;
+    if (!node._AngeloImg) {
+        _angeloToast("Generate or load an image first, then outpaint");
+        return;
+    }
+    setWidget(wd, dir);
+    node._AngeloPendingOp = "outpaint";
+    setWidget(ws, ((ws.value || 0) + 1) & 0x7FFFFFFF);
+    // The direction just changed — refresh the combined-prompt preview.
+    syncOutpaintPromptPreview(node);
+    // Ship the current protect circles (kept client-side so they survive
+    // Try-again retries without re-painting).
+    const wpr = findWidget(node, "outpaint_protect");
+    if (wpr) {
+        const prot = (node._AngeloProtect || []).map(
+            (c) => [Math.round(c[0]), Math.round(c[1]), Math.round(c[2])]);
+        setWidget(wpr, prot.length ? JSON.stringify(prot) : "");
+    }
+    const amtW = findWidget(node, "outpaint_amount");
+    const amt = (amtW && amtW.value) || 256;
+    const dirLabel = { left: "left", right: "right", up: "up", down: "down", all: "all sides" }[dir] || dir;
+    _angeloToast(`Outpainting ${dirLabel} +${amt}px…`);
+    dbg("queue outpaint", { dir, amt, outpaint_seq: ws.value });
+    queuePrompt();
+}
+
+function showOutpaintReview(node, ref) {
+    const ov = node._AngeloOutpaintOverlay;
+    const img = node._AngeloOutpaintImg;
+    if (!ov || !img) return;
+    if (node._AngeloOutpaintTitle) {
+        node._AngeloOutpaintTitle.textContent = "Outpaint preview — keep it?";
+    }
+    img.src = makeViewUrl(ref);
+    ov.style.display = "flex";
+}
+
+function hideOutpaintReview(node) {
+    if (node._AngeloOutpaintOverlay) node._AngeloOutpaintOverlay.style.display = "none";
+}
+
+function isOutpaintReviewOpen(node) {
+    return !!(node._AngeloOutpaintOverlay && node._AngeloOutpaintOverlay.style.display !== "none");
+}
+
+function triggerOutpaintAccept(node) {
+    const ws = findWidget(node, "outpaint_accept_seq");
+    if (!ws) return;
+    setWidget(ws, ((ws.value || 0) + 1) & 0x7FFFFFFF);
+    // The protect circles were drawn on the OLD canvas — stale coords now.
+    node._AngeloProtect = [];
+    const wpr = findWidget(node, "outpaint_protect");
+    if (wpr) setWidget(wpr, "");
+    syncOutpaintControls(node);
+    _angeloToast("Committing the new canvas — this is your new base");
+    dbg("queue outpaint accept", { outpaint_accept_seq: ws.value });
+    queuePrompt();
+}
+
+// Same direction + amount, fresh seed. The stale stash is simply
+// overwritten by the new run.
+function triggerOutpaintRetry(node) {
+    const ws = findWidget(node, "outpaint_seq");
+    if (!ws) return;
+    const wseed = findWidget(node, "seed");
+    if (wseed) {
+        setWidget(wseed, Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+        syncSeedInput(node);
+    }
+    setWidget(ws, ((ws.value || 0) + 1) & 0x7FFFFFFF);
+    _angeloToast("Trying the extension again with a fresh seed…");
+    queuePrompt();
+}
+
+// Which edge (if any) the cursor is near enough to for the edge-click
+// extension. Zones are 18% of each dimension; nearest edge wins so the
+// corners resolve cleanly to one direction.
+function _outpaintEdgeDir(node, p) {
+    const img = node._AngeloImg;
+    if (!img || !img.naturalWidth) return null;
+    const W = img.naturalWidth, H = img.naturalHeight;
+    const zx = W * 0.18, zy = H * 0.18;
+    const cands = [];
+    if (p.pixelX <= zx) cands.push(["left", p.pixelX / zx]);
+    if (W - p.pixelX <= zx) cands.push(["right", (W - p.pixelX) / zx]);
+    if (p.pixelY <= zy) cands.push(["up", p.pixelY / zy]);
+    if (H - p.pixelY <= zy) cands.push(["down", (H - p.pixelY) / zy]);
+    if (!cands.length) return null;
+    cands.sort((a, b) => a[1] - b[1]);
+    return cands[0][0];
+}
+
+// Live preview of the EXACT combined prompt the next outpaint will encode.
+// Composition MUST stay in lockstep with Python's outpaint conditioning
+// (instruction prepend/append around the trimmed Area text).
+function syncOutpaintPromptPreview(node) {
+    const wrapEl = node._AngeloOutpaintPromptWrap;
+    if (!wrapEl) return;
+    const show = isOutpaintMode(node);
+    const next = show ? "flex" : "none";
+    if (wrapEl.style.display !== next) wrapEl.style.display = next;
+    if (!show) return;
+    // Mirror the order selector from the widget.
+    const posW = findWidget(node, "outpaint_instruction_pos");
+    const pos = (posW && posW.value) === "append" ? "append" : "prepend";
+    const sel = node._AngeloOutpaintOrderSelect;
+    if (sel && sel._AngeloSelect) {
+        const want = pos === "append" ? "My text first" : "Instruction first";
+        if (sel._AngeloSelect.value !== want) sel._AngeloSelect.value = want;
+    }
+    const dirW = findWidget(node, "outpaint_dir");
+    const dir = (dirW && dirW.value) || "right";
+    const instr = _Angelo_OUTPAINT_INSTRUCTIONS[dir] || _Angelo_OUTPAINT_INSTRUCTIONS.right;
+    const apW = findWidget(node, "area_prompt");
+    const txtW = findWidget(node, "area_text_positive");
+    const userTxt = (apW && apW.value) ? String(txtW?.value || "").trim() : "";
+    let combined;
+    if (userTxt && pos === "append") {
+        combined = userTxt.replace(/[ .,]+$/, "") + ". " + instr.trim();
+    } else {
+        combined = instr + userTxt;
+    }
+    const pv = node._AngeloOutpaintPromptPreview;
+    if (pv && pv.textContent !== combined) pv.textContent = combined;
+}
+
+// Outpaint row visibility + input mirrors + protect-chip state.
+function syncOutpaintControls(node) {
+    const row = node._AngeloOutpaintRow;
+    if (row) {
+        const next = isOutpaintMode(node) ? "flex" : "none";
+        if (row.style.display !== next) row.style.display = next;
+    }
+    _syncNumberInput(node._AngeloOutpaintAmountInput, findWidget(node, "outpaint_amount")?.value);
+    _syncNumberInput(node._AngeloOutpaintOverlapInput, findWidget(node, "outpaint_overlap")?.value);
+    const chip = node._AngeloOutpaintClearProtectBtn;
+    if (chip) {
+        const n = (node._AngeloProtect || []).length;
+        chip.style.display = n ? "" : "none";
+        chip.textContent = `✕ Protect (${n})`;
+    }
+    if (!isOutpaintMode(node)) {
+        node._AngeloOutpaintHoverDir = null;
+        node._AngeloOutpaintPainting = false;
+        // Leaving the mode drops the protect region — the canvas may be
+        // edited before the user comes back, making the coords stale.
+        if (node._AngeloProtect && node._AngeloProtect.length) {
+            node._AngeloProtect = [];
+            const wpr = findWidget(node, "outpaint_protect");
+            if (wpr) setWidget(wpr, "");
+        }
+        hideOutpaintReview(node);
+    }
+    syncOutpaintPromptPreview(node);
+}
+
 function triggerReset(node) {
     const wr = findWidget(node, "reset");
     const ws = findWidget(node, "click_seq");
@@ -3584,6 +4301,7 @@ function makeActionButton(label, onClick, kind = "neutral") {
         redo:    { fg: "#d2f3e2", bg: "rgba(48, 66, 60, 0.95)",  border: "rgba(110, 200, 160, 0.9)" },
         reroll:  { fg: "#ecdcff", bg: "rgba(58, 50, 72, 0.95)",  border: "rgba(170, 130, 220, 0.9)" },
         vary:    { fg: "#d8eeff", bg: "rgba(40, 62, 82, 0.95)",  border: "rgba(120, 190, 235, 0.9)" },
+        quickfix:{ fg: "#fff3d0", bg: "rgba(110, 85, 25, 0.95)", border: "rgba(240, 200, 90, 0.9)" },
         neutral: { fg: "#ccc",    bg: "#2a2a2a",                  border: "#555" },
     };
     const th = themes[kind] || themes.neutral;
@@ -3593,6 +4311,9 @@ function makeActionButton(label, onClick, kind = "neutral") {
     btn.style.cursor = "pointer";
     btn.style.padding = "3px 10px";
     btn.style.fontSize = "11px";
+    // Pin the line box so emoji glyphs (✨ ⚡) can't inflate a button's
+    // height relative to its text-only neighbours.
+    btn.style.lineHeight = "15px";
     btn.style.fontWeight = "bold";
     btn.style.border = `1px solid ${th.border}`;
     btn.style.borderRadius = "3px";
@@ -3647,6 +4368,9 @@ function makeToggleButton(label, onToggle) {
     btn.style.cursor = "pointer";
     btn.style.padding = "3px 10px";
     btn.style.fontSize = "11px";
+    // Same pinned line box as makeActionButton — every button in the
+    // row computes the same height.
+    btn.style.lineHeight = "15px";
     btn.style.fontWeight = "bold";
     btn.style.border = "1px solid #555";
     btn.style.borderRadius = "3px";
@@ -3681,6 +4405,7 @@ const _TOGGLE_ON_COLORS = {
     purple: { bg: "rgba(95, 50, 130, 0.95)",  border: "rgba(180, 140, 220, 0.9)" },
     teal:   { bg: "rgba(30, 110, 130, 0.95)", border: "rgba(140, 200, 220, 0.9)" },
     amber:  { bg: "rgba(160, 110, 30, 0.95)", border: "rgba(230, 185, 110, 0.9)" },
+    sky:    { bg: "rgba(40, 100, 150, 0.95)", border: "rgba(130, 195, 235, 0.9)" },
 };
 
 function syncPersistentMaskToggle(node) {
@@ -3714,6 +4439,24 @@ function syncRestoreToggle(node) {
         ? false
         : findWidget(node, "restore_mode")?.value;
     _syncToggle(node._AngeloRestoreToggle, effective, _TOGGLE_ON_COLORS.amber);
+}
+
+function syncQuickPromptSelect(node) {
+    _syncDropdownWrap(node._AngeloQuickPromptSelect, findWidget(node, "quick_prompt_mode")?.value);
+}
+
+function syncReferenceControls(node) {
+    // Effective OFF in the Smart modes / Outpaint (their own reference
+    // logic) regardless of the stored widget value.
+    const on = !!(findWidget(node, "refine_reference")?.value)
+        && !isAnySmartMode(node) && !isOutpaintMode(node);
+    _syncToggle(node._AngeloRefineRefToggle, on, _TOGGLE_ON_COLORS.sky);
+    const wrap = node._AngeloRefineRefInput;
+    if (wrap) wrap.style.display = on ? "inline-flex" : "none";
+    if (node._AngeloRefineRefToggle) {
+        node._AngeloRefineRefToggle.style.borderRadius = on ? "3px 0 0 3px" : "3px";
+    }
+    _syncNumberInput(wrap, findWidget(node, "reference_strength")?.value);
 }
 
 function syncFineUpscaleToggle(node) {
@@ -3769,27 +4512,44 @@ function _dimControls(node, ids, dim) {
 function syncSmartInpaintLockedWidgets(node) {
     const guided = isSmartGuidedInpaintMode(node);
     const anySmart = isSmartInpaintMode(node) || guided;
+    const outp = isOutpaintMode(node);
 
     // Common locks for BOTH smart modes — backend forces these or they
     // don't apply: denoise, fine_upscale toggle, paint_mode, click
-    // radius, area_prompt toggle.
+    // radius, area_prompt toggle. Outpaint dims the mask-editing set
+    // too (the canvas is a direction picker there), but Area Prompt
+    // stays LIVE — it describes what fills the new space.
     _dimControls(node, [
         "_AngeloDenoiseInput",
         "_AngeloFineUpscaleToggle",
         "_AngeloPaintModeToggle",
         "_AngeloRestoreToggle",
-        "_AngeloClickRadiusInput",
-        "_AngeloAreaPromptToggle",
+        "_AngeloRefGroup",
         "_AngeloCtxPadInput",
-    ], anySmart);
+    ], anySmart || outp);
+    // Click R stays LIVE in Outpaint — it's the protect-brush size there.
+    _dimControls(node, ["_AngeloClickRadiusInput"], anySmart);
+    _dimControls(node, ["_AngeloAreaPromptToggle"], anySmart);
 
     // Feather: live in Smart Inpaint (a soft edge can help blend the
-    // insert), disabled in Smart Guided (whole-image edit, no mask edge).
-    _dimControls(node, ["_AngeloFeatherInput"], guided);
+    // insert), disabled in Smart Guided (whole-image edit, no mask edge)
+    // and in Outpaint (its seam blend is the Overlap input instead).
+    _dimControls(node, ["_AngeloFeatherInput"], guided || outp);
 
-    // Persistent Mask: meaningless in Smart Guided (no mask). Dimmed +
-    // forced OFF there; left alone in Smart Inpaint (re-rolls the rect).
-    _dimControls(node, ["_AngeloPersistentMaskToggle"], guided);
+    // Persistent Mask: meaningless in Smart Guided (no mask) and in
+    // Outpaint (no held mask to re-run). Dimmed + forced OFF there;
+    // left alone in Smart Inpaint (re-rolls the rect).
+    _dimControls(node, ["_AngeloPersistentMaskToggle"], guided || outp);
+
+    // Re-roll / Vary act on the edit history — confusing mid-outpaint,
+    // and the review overlay's "Try again" covers the re-roll need.
+    _dimControls(node, ["_AngeloRerollBtn", "_AngeloVaryBtn"], outp);
+
+    // Quick Photo Refine is a Refine-mode action.
+    _dimControls(node, ["_AngeloQuickRow"], anySmart || outp);
+
+    // Outpaint row visibility + input mirrors.
+    syncOutpaintControls(node);
 
     // Fine Upscale + Area Prompt toggles' displayed state is forced by
     // the backend (ON for Smart Inpaint; Fine Upscale OFF for Smart
@@ -3800,6 +4560,7 @@ function syncSmartInpaintLockedWidgets(node) {
     syncAreaPromptToggle(node);
     syncPersistentMaskToggle(node);
     syncRestoreToggle(node);
+    syncReferenceControls(node);
     syncAreaPromptVisibility(node);
     // Detect row hides in Smart Guided (no mask), shows in Refine/Smart Inpaint.
     syncDetectControls(node);
@@ -3868,9 +4629,10 @@ function syncModeState(node) {
     // in Smart Inpaint (rectangle drag); cell when paint mode is on
     // for Refine; crosshair otherwise.
     if (node._AngeloCanvas) {
-        if (inSampler || isSmartGuidedInpaintMode(node)) {
+        if (inSampler || isSmartGuidedInpaintMode(node) || isOutpaintMode(node)) {
             // Sampler Mode: clicks do nothing. Smart Guided: no canvas
             // interaction (location dropdown + Generate button drive it).
+            // Outpaint: default until an edge-hover flips it to pointer.
             node._AngeloCanvas.style.cursor = "default";
         } else if (isSmartInpaintMode(node)) {
             node._AngeloCanvas.style.cursor = "crosshair";
@@ -4041,6 +4803,8 @@ function syncAllToolbarControls(node) {
     syncAreaPromptToggle(node);
     syncPaintModeToggle(node);
     syncRestoreToggle(node);
+    syncReferenceControls(node);
+    syncQuickPromptSelect(node);
     syncPromptSlotButtons(node);
     syncFineUpscaleToggle(node);
     syncClickRadiusInput(node);
@@ -4064,6 +4828,7 @@ function syncAllToolbarControls(node) {
     syncSamplerDenoiseInput(node);
     syncGuidedLocationSelect(node);
     syncLoadImageControls(node);
+    syncOutpaintControls(node);
     syncDetectControls(node);
     syncSmartInpaintLockedWidgets(node);
     syncAreaPromptBox(node);
@@ -4195,6 +4960,17 @@ function hideMechanicalWidgets(node) {
         "area_prompt_slots",
         // Vary ×4 — driven by the Vary button + chooser overlay
         "vary_seq", "vary_pick", "vary_pick_seq",
+        // Outpaint — driven by the Outpaint row + edge-click + review overlay
+        "outpaint_seq", "outpaint_dir", "outpaint_amount", "outpaint_overlap",
+        "outpaint_accept_seq", "outpaint_protect", "outpaint_instruction_pos",
+        // Reference — deprecated bool + the live strength value (Ref box)
+        "refine_reference", "reference_strength",
+        // Quick Photo Refine — driven by the ✨ button
+        "quick_refine_seq",
+        // ⬆ 2× Pixel + ▦ Large Image Refine — driven by their buttons
+        "upscale_seq", "lir_seq",
+        // ✨ prompt selector — driven by the dropdown beside the button
+        "quick_prompt_mode",
         // Toolbar-driven (visible via the bar above the canvas)
         "persistent_mask", "area_prompt", "paint_mode", "fine_upscaling",
         "click_radius", "feather_radius", "denoise",

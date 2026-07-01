@@ -1,0 +1,7 @@
+torch
+opencv-python
+numpy
+Pillow>=10.0.0
+freetype-py>=2.5.1
+pycairo>=1.29.0
+scipy>=1.10.0

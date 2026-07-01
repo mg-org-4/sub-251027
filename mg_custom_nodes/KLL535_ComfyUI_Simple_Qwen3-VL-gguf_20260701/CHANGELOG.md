@@ -1,0 +1,79 @@
+# Nightly
+- improvement of video input (part 1)
+- fix UnicodeDecodeError error in subprocess
+- add node `Ideogram 4 JSON Preview` and `Ideogram 4 JSON Swap XY Coordinates`
+- present_penalty/presence_penalty issue
+# V3.9
+- Fix f-string: unmatched caused by nested double quotes
+- Fix disappearance of "\n" line breaks in raw_mode
+# V3.8
+- Added example `qwen_vl_test_translate`
+- Added modes: `save1`, `save2`, `save3`
+- Added example `qwen_vl_test_image_storytaler`
+- Added utils: `Simple Text To Batch`, `Simple Text Insert`, `Simple Text Replace`, `Simple Join Strings`
+- Added simple LLM configurator
+- Improved error output
+# V3.7
+- Added `force_mmproj` settings.
+- Added support for `n_cpu_moe`, `cpu_moe` (requires llama_cpp_python update to 0.3.37)
+- Standard parameter names are now supported
+- Added debug calculate `token/sec`
+- Added options for running encoder (to obtain `embeddings` or `conditioning`)
+- Added video input (while llama.cpp doesn't have native support yet, you can pass a reduced set of frames, see example)
+- Added audio input (see example)
+- Added `split_mode` settings for multi GPU
+# V3.6
+- Add Gemma4 support.
+- Fix raw_mode in text mode.
+# V3.5
+- Adding a new mode "raw_mode": true which allows you to set custom prompt templates. The Joycaption model now works correctly (see new configs below).
+- Three execution modes have been added: subprocess — inference runs in a separate process (safe, isolated); direct_clean — in the main process with model unloading after each run; keep_vram — the model remains in VRAM for repeated use.
+- Added config_override - the ability to add/override any configuration parameters via a text input directly in the node
+- Integrated json_repair to automatically repair invalid JSON in config_override and system_prompts_user.json
+- Expanded documentation on configuration fields and operating modes
+# V3.2
+- add Qwen3.5
+# V3.1
+- adding paths to torch to search for libraries
+# V3.0
+- new qwen3vl_node
+# V2.4
+- add `Simple Style Selector`
+- add `Simple Camera Selector`
+# V2.3
+- add `simplified version`
+# V2.1
+- the method of passing images to the subprocess has been changed
+- input `script` has been added
+# V2.0
+- add non visual models
+# V1.8
+- add mistral3 model
+# V1.7
+- add properties `top_k`
+- add properties `pool_size`
+# V1.6
+- add `Model Preset Loader`
+# V1.5
+- add up to 3 optional image
+# V1.4
+- add Joecaption model
+# V1.3
+- add properties top_p
+- add properties repeat_penalty
+- add advanced options (Master Prompt Loader Advanced)
+- add style preset (Master Prompt Loader Advanced)
+# V1.2
+- add system_prompt preset (Master Prompt Loader)
+# V1.1
+- add properties `unload_all_models`
+# V1.0
+- add properties `system prompt` - it can now be changed
+- add properties `seed`
+- change of order: `user prompt` <-> `image`
+- add properties `image_max_tokens`
+- add properties `n_batch`
+- set `swa_full=True`
+- set `force_reasoning=True`
+- set `verbose=False`
+- fix error with decode (set `ensure_ascii=True`)

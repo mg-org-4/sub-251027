@@ -492,10 +492,22 @@ def _resize_latent(t: torch.Tensor, target_h: int, target_w: int, method: str) -
 # of the node — and PIL's previewer — expect to be absent ([B, C, H, W]).
 # Both helpers are thin pass-throughs today; this is the seam where that
 # 5D normalisation will land without disturbing any caller.
+# Above this output megapixel count, route VAE encode/decode through the
+# TILED path. A single whole-canvas VAE pass at very large sizes (e.g. a
+# 7744x2176 = 16.8MP canvas) can OOM or numerically overflow to NaN — which
+# is silent (no exception), poisons everything downstream, and shows up as a
+# black image. Tiling keeps each VAE pass small. Below the threshold we use
+# the plain (exact, faster) path; ~1.4k tiles and normal canvases stay plain.
+_VAE_TILE_MP = 4.0
+
+
 def _vae_decode(vae, latent: torch.Tensor) -> torch.Tensor:
     """Decode a latent to pixels. Single decode chokepoint — see the
     VAE-boundary note above. Always returns a 4D image batch
     (B, H, W, C) float in [0, 1].
+
+    Large canvases decode TILED (see _VAE_TILE_MP) so a single huge VAE pass
+    can't OOM/overflow to NaN and blacken the output.
 
     Temporal/video VAEs (Qwen Image Edit, Wan) keep a frame axis: their
     latents are 5D ([B, C, T, H, W]) and `vae.decode` accordingly returns
@@ -507,7 +519,11 @@ def _vae_decode(vae, latent: torch.Tensor) -> torch.Tensor:
     rather than crashing. The latent is passed through to `vae.decode`
     untouched — the video VAE wants its native 5D input — we only normalise
     the *pixels* it returns."""
-    image = vae.decode(latent)
+    try:
+        out_mp = (latent.shape[-2] * 8) * (latent.shape[-1] * 8) / 1e6
+    except Exception:
+        out_mp = 0.0
+    image = vae.decode_tiled(latent) if out_mp > _VAE_TILE_MP else vae.decode(latent)
     if image.ndim == 5:
         b, t, h, w, c = image.shape
         image = image.reshape(b * t, h, w, c)
@@ -523,7 +539,16 @@ def _vae_encode(vae, pixels: torch.Tensor) -> torch.Tensor:
     ([B, C, T, H, W]) and the sampler + model require that 5D shape to flow
     through unchanged (comfy.sample.sample is ndim-agnostic and prepare_noise
     matches the latent's shape exactly). Squeezing the frame axis here would
-    break Qwen sampling — do not add a squeeze."""
+    break Qwen sampling — do not add a squeeze.
+
+    Large canvases encode TILED (see _VAE_TILE_MP) so a single huge VAE pass
+    can't OOM/overflow to NaN (which would silently poison the latent)."""
+    try:
+        in_mp = pixels.shape[1] * pixels.shape[2] / 1e6
+    except Exception:
+        in_mp = 0.0
+    if in_mp > _VAE_TILE_MP:
+        return vae.encode_tiled(pixels)
     return vae.encode(pixels)
 
 
@@ -840,6 +865,10 @@ _QUICK_REFINE_PROMPT = "Keep the identity from image 1. make the image high qual
 _QUICK_REFINE_PROMPT_QWEN = ("lightly restore this old photo, remove dust and scratches, "
                              "improve sharpness and contrast, preserve original feel")
 _QUICK_REFINE_DENOISE = 1.0
+# Lite mode (toggle beside the prompt selector): identical recipe, gentler
+# denoise — a lighter restore that re-renders less and stays closer to the
+# input. Everything else (ref, target, prompt, tiling, re-roll) is unchanged.
+_QUICK_REFINE_LITE_DENOISE = 0.8
 _QUICK_REFINE_REF = 1.0
 # ✨ v2 runs the whole image through the XTRA-FINE pipeline: whole-canvas
 # mask, target 1.3MP (small images get internally supersampled to 1.3MP,
@@ -859,20 +888,6 @@ _QUICK_REFINE_PROMPTS = {
                            "make the image high quality."),
 }
 _QUICK_REFINE_PROMPT_MODES = list(_QUICK_REFINE_PROMPTS.keys()) + ["Use Area Prompt"]
-
-# Large Image Refine (the ▦ button): the canvas is divided into ~_LIR_BOX_MP
-# boxes that EXACT-TILE it (no overlap), each refined through the Xtra-Fine
-# pipeline (bit-exact latent compositing — no pixel feathering anywhere) in
-# CHESS-PATTERN order: one colour first, then the other, so second-pass
-# boxes refine with already-refined neighbours visible in their context
-# pad and match them. Hard box masks (feather 0); seam defences are the
-# shared source at this denoise, the ctx pad's cross-border visibility,
-# and the chess ordering.
-_LIR_PROMPT = "restore the image. make it clear and sharp."
-_LIR_REF = 0.2
-_LIR_DENOISE = 0.5
-_LIR_CTX_PAD = 128
-_LIR_BOX_MP = 1.3   # target box area — the tweakable knob
 
 # Tiled restore engine (2× Restore Upscale + big-canvas Quick Refine).
 # Working tile size + overlap in PIXELS: tiles are sampled at ~1MP no
@@ -965,6 +980,7 @@ def _tiled_restore_pass(
     ov_sigmas=None,
     tile_ref: float = _QUICK_REFINE_REF,
     tile_denoise: float = _QUICK_REFINE_DENOISE,
+    dual_grid: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor, int]:
     """The tiled restore engine: the Quick Photo Refine recipe run over
     overlapping ~1MP tiles, so the model never samples a latent bigger
@@ -1042,41 +1058,60 @@ def _tiled_restore_pass(
         r[-n:] = torch.minimum(r[-n:], fade.flip(0))
         return r
 
-    idx = 0
-    for y0 in ys:
-        for x0 in xs:
-            tw = min(tile_lx, nlw - x0)
-            th = min(tile_ly, nlh - y0)
-            tile_lat = big_latent[..., y0:y0 + th, x0:x0 + tw].clone().contiguous()
-            tile_pos = _apply_reference(positive_base, tile_lat.clone(), tile_ref)
-            tile_seed = int(seed)
-            noise = global_noise[..., y0:y0 + th, x0:x0 + tw].clone().contiguous()
-            refined = _do_sample(
-                guider=ov_guider, sampler=ov_sampler, sigmas=ov_sigmas,
-                model=model, noise=noise,
-                steps=steps, cfg=cfg, sampler_name=sampler_name, scheduler=scheduler,
-                positive=tile_pos, negative=negative,
-                source_latent=tile_lat,
-                denoise=tile_denoise,
-                noise_mask=None,
-                callback=callback,
-                disable_pbar=disable_pbar,
-                seed=tile_seed,
-            )
-            tile_px = _vae_decode(vae, refined).to(big_pixels.device, big_pixels.dtype)
+    def _accumulate(xs_grid, ys_grid):
+        for y0 in ys_grid:
+            for x0 in xs_grid:
+                tw = min(tile_lx, nlw - x0)
+                th = min(tile_ly, nlh - y0)
+                tile_lat = big_latent[..., y0:y0 + th, x0:x0 + tw].clone().contiguous()
+                tile_pos = _apply_reference(positive_base, tile_lat.clone(), tile_ref)
+                noise = global_noise[..., y0:y0 + th, x0:x0 + tw].clone().contiguous()
+                refined = _do_sample(
+                    guider=ov_guider, sampler=ov_sampler, sigmas=ov_sigmas,
+                    model=model, noise=noise,
+                    steps=steps, cfg=cfg, sampler_name=sampler_name, scheduler=scheduler,
+                    positive=tile_pos, negative=negative,
+                    source_latent=tile_lat,
+                    denoise=tile_denoise,
+                    noise_mask=None,
+                    callback=callback,
+                    disable_pbar=disable_pbar,
+                    seed=int(seed),
+                )
+                tile_px = _vae_decode(vae, refined).to(big_pixels.device, big_pixels.dtype)
 
-            py0, px0 = y0 * ppl_y, x0 * ppl_x
-            pth, ptw = tile_px.shape[1], tile_px.shape[2]
-            wy = _ramp(pth, min_ov_px, big_pixels.device)
-            wx = _ramp(ptw, min_ov_px, big_pixels.device)
-            w = (wy.view(1, -1, 1, 1) * wx.view(1, 1, -1, 1)).to(big_pixels.dtype)
-            out[:, py0:py0 + pth, px0:px0 + ptw, :] += tile_px * w
-            wsum[:, py0:py0 + pth, px0:px0 + ptw, :] += w
-            idx += 1
+                py0, px0 = y0 * ppl_y, x0 * ppl_x
+                pth, ptw = tile_px.shape[1], tile_px.shape[2]
+                wy = _ramp(pth, min_ov_px, big_pixels.device)
+                wx = _ramp(ptw, min_ov_px, big_pixels.device)
+                w = (wy.view(1, -1, 1, 1) * wx.view(1, 1, -1, 1)).to(big_pixels.dtype)
+                out[:, py0:py0 + pth, px0:px0 + ptw, :] += tile_px * w
+                wsum[:, py0:py0 + pth, px0:px0 + ptw, :] += w
+
+    _accumulate(xs, ys)
+
+    # Seam-erase pass: a SECOND tile grid offset by ~half a tile, so its
+    # tiles are CENTRED on the first grid's seams (a tile start at the
+    # midpoint of two grid-A starts puts the new tile's centre on the seam
+    # between them). Both grids refine the same source and accumulate into
+    # the same weighted-blend buffers, so where grid A is weakest — its seam
+    # lines, where its tiles taper to low ramp weight — the offset tiles sit
+    # at full weight and dominate, and vice versa. Any residual seam from one
+    # grid is overwritten by the other grid's continuous tile interior.
+    # Costs a second set of tiles (~2× sampling). Skipped when a tiny canvas
+    # produced a single tile on either axis (nothing to offset).
+    offset_tiles = 0
+    if dual_grid and len(xs) > 1 and len(ys) > 1:
+        xs_b = [round((xs[i] + xs[i + 1]) / 2) for i in range(len(xs) - 1)]
+        ys_b = [round((ys[i] + ys[i + 1]) / 2) for i in range(len(ys) - 1)]
+        offset_tiles = len(xs_b) * len(ys_b)
+        print(f"[Angelo tiled-restore] seam-erase pass: offset grid "
+              f"{len(xs_b)}x{len(ys_b)} ({offset_tiles} tiles)")
+        _accumulate(xs_b, ys_b)
 
     final_pixels = out / wsum.clamp(min=1e-6)
     final_latent = _vae_encode(vae, final_pixels)
-    return final_latent, final_pixels, n_tiles
+    return final_latent, final_pixels, n_tiles + offset_tiles
 
 
 # Direction-aware instruction prepended to the outpaint conditioning when a
@@ -1296,7 +1331,8 @@ def _encode_loaded_image(vae, ref_json: str, resize_mode: str, target_mp: float)
     input-dir filename). resize_mode is "keep" (native res) or "mp"
     (scaled to ~target_mp megapixels). In both cases dimensions are
     rounded to a multiple of 16 so any supported VAE (8x or 16x) is
-    happy. Returns the latent samples tensor.
+    happy. Returns (latent samples, original pixels) — the pixels so a
+    freshly loaded image previews as ITSELF, not its VAE round-trip.
     """
     import numpy as np
     from PIL import Image, ImageOps
@@ -1343,7 +1379,11 @@ def _encode_loaded_image(vae, ref_json: str, resize_mode: str, target_mp: float)
     arr = np.array(img).astype(np.float32) / 255.0      # (H, W, 3)
     pixels = torch.from_numpy(arr)[None, ...]            # (1, H, W, 3)
     samples = _vae_encode(vae, pixels[:, :, :, :3])
-    return samples
+    # Hand back the ORIGINAL pixels (matched to the latent's device) so the
+    # load previews the real file. The VAE round-trip is near-lossless on
+    # small images — looks like a plain load — but visibly lossy on large
+    # ones, which reads as "it edited my image on load".
+    return samples, pixels[:, :, :, :3].to(samples.device)
 
 
 def _decode_to_preview(vae, latent_samples: torch.Tensor):
@@ -1763,15 +1803,24 @@ class AngeloRefine:
                 # user's next move (e.g. ✨, which auto-tiles when large).
                 "upscale_seq": ("INT", {"default": 0, "min": 0, "max": 0x7FFFFFFF}),
 
-                # ▦ Large Image Refine: the button bumps this. Chess-pattern
-                # Xtra-Fine boxes over the whole canvas (see _LIR_* constants).
-                # One history entry for the whole pass. Declared LAST.
-                "lir_seq": ("INT", {"default": 0, "min": 0, "max": 0x7FFFFFFF}),
-
                 # ✨ prompt selector — which preset (or the Area Prompt box)
                 # drives Quick Photo Refine. Declared LAST.
                 "quick_prompt_mode": (_QUICK_REFINE_PROMPT_MODES,
                                       {"default": "Identity + Quality"}),
+
+                # ⬇ Shrink Image: the button bumps shrink_seq with the chosen
+                # shrink_scale (0–1). A PURE pixel-space AREA-resample
+                # downscale + re-encode — no AI, deterministic — committed
+                # directly as a fresh session base (dimension change =
+                # Load-Image semantics, history resets). Declared LAST.
+                "shrink_seq": ("INT", {"default": 0, "min": 0, "max": 0x7FFFFFFF}),
+                "shrink_scale": ("FLOAT", {"default": 0.5, "min": 0.05, "max": 0.95, "step": 0.05}),
+
+                # ✨ Lite mode — the toggle beside the prompt selector. ON =
+                # the regular Quick Photo Refine recipe at a gentler denoise
+                # (_QUICK_REFINE_LITE_DENOISE); everything else identical.
+                # Declared LAST.
+                "quick_lite": ("BOOLEAN", {"default": False}),
 
             },
             "optional": {
@@ -1881,7 +1930,9 @@ class AngeloRefine:
         quick_refine_seq=0,
         reference_strength=0.0,
         upscale_seq=0,
-        lir_seq=0,
+        shrink_seq=0,
+        shrink_scale=0.5,
+        quick_lite=False,
         quick_prompt_mode="Identity + Quality",
         latent=None,
         clip=None,
@@ -1933,8 +1984,9 @@ class AngeloRefine:
             state is None or state.get("loaded_seq") != loaded_seq
         )
         forced_base = None
+        forced_pixels = None
         if new_loaded:
-            forced_base = _encode_loaded_image(
+            forced_base, forced_pixels = _encode_loaded_image(
                 vae, loaded_ref, str(loaded_resize_mode), float(loaded_target_mp)
             )
 
@@ -2074,7 +2126,7 @@ class AngeloRefine:
                 "outpaint_accept_seq": outpaint_accept_seq,
                 "quick_refine_seq": quick_refine_seq,
                 "upscale_seq": upscale_seq,
-                "lir_seq": lir_seq,
+                "shrink_seq": shrink_seq,
                 "fingerprint": incoming_fp,
                 "sampler_seed_at_run": int(sampler_seed),
                 "loaded_seq": loaded_seq,
@@ -2141,7 +2193,11 @@ class AngeloRefine:
             # base. The user's next genuine click bumps click_seq and fires
             # normally.
             _STATE[node_id] = {
-                "history": [(incoming.clone(), None)],
+                # On a fresh LOAD, pair the base latent with the real loaded
+                # pixels (forced_pixels) so the preview is the file itself,
+                # not its VAE round-trip. Other resets have no pixels → None,
+                # and the preview decodes the latent as before.
+                "history": [(incoming.clone(), forced_pixels)],
                 "click_seq": click_seq,
                 "undo_seq": undo_seq,
                 # Anchor every action-seq (see the Sampler Mode dict note).
@@ -2153,13 +2209,15 @@ class AngeloRefine:
                 "outpaint_accept_seq": outpaint_accept_seq,
                 "quick_refine_seq": quick_refine_seq,
                 "upscale_seq": upscale_seq,
-                "lir_seq": lir_seq,
+                "shrink_seq": shrink_seq,
                 "fingerprint": incoming_fp,
                 "loaded_seq": loaded_seq,
                 # Source image (#3/#9): capture the base once, independent of
-                # history[0] (which mutates under _HISTORY_CAP eviction).
+                # history[0] (which mutates under _HISTORY_CAP eviction). On a
+                # load this is the real loaded image, so hold-to-compare and
+                # the source_image output show the file, not a round-trip.
                 "source_latent": incoming.clone(),
-                "source_pixels": None,
+                "source_pixels": forced_pixels,
             }
             state = _STATE[node_id]
 
@@ -2253,7 +2311,7 @@ class AngeloRefine:
                     "outpaint_accept_seq": outpaint_accept_seq,
                 "quick_refine_seq": quick_refine_seq,
                 "upscale_seq": upscale_seq,
-                "lir_seq": lir_seq,
+                "shrink_seq": shrink_seq,
                     # Preserve the wired-latent fingerprint + load marker so
                     # the next run doesn't read the unchanged upstream as a
                     # fresh latent and blow away the canvas we just committed.
@@ -2450,6 +2508,9 @@ class AngeloRefine:
                 # positive flows through. Still works, just less targeted.
                 qr_base = positive
             qr_seed = int(seed)
+            # Lite mode (toggle) just swaps the denoise — everything else is
+            # the regular Quick Photo Refine recipe.
+            qr_denoise = _QUICK_REFINE_LITE_DENOISE if bool(quick_lite) else _QUICK_REFINE_DENOISE
             callback = None if disable_live_preview else latent_preview.prepare_callback(model, steps)
             disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
             # Big canvases (e.g. after a 2× Restore Upscale) auto-route
@@ -2474,6 +2535,8 @@ class AngeloRefine:
                     sampler_name=sampler_name, scheduler=scheduler,
                     callback=callback, disable_pbar=disable_pbar,
                     ov_guider=ov_guider, ov_sampler=ov_sampler, ov_sigmas=ov_sigmas,
+                    tile_denoise=qr_denoise,
+                    dual_grid=True,   # seam-erase offset grid (option 4)
                 )
             else:
                 # ✨ v2: the whole image through the XTRA-FINE pipeline —
@@ -2488,7 +2551,8 @@ class AngeloRefine:
                                      device=current.device, dtype=torch.float32)
                 print(f"[Angelo quick-refine] whole-image Xtra-Fine pass "
                       f"({Wq}x{Hq}, target {_QUICK_REFINE_TARGET_MP}MP), "
-                      f"denoise={_QUICK_REFINE_DENOISE}, ref={_QUICK_REFINE_REF}, seed={qr_seed}")
+                      f"denoise={qr_denoise}, ref={_QUICK_REFINE_REF}, seed={qr_seed}"
+                      f"{' (Lite)' if bool(quick_lite) else ''}")
                 qr_refined, qr_pixels = _refine_with_fine_upscaling(
                     model=model, vae=vae, current=current, current_pixels=qr_px_in,
                     mask=qr_mask,
@@ -2501,7 +2565,7 @@ class AngeloRefine:
                     seed=qr_seed, steps=steps, cfg=cfg,
                     sampler_name=sampler_name, scheduler=scheduler,
                     positive=qr_base, negative=negative,
-                    denoise=_QUICK_REFINE_DENOISE,
+                    denoise=qr_denoise,
                     callback=callback, disable_pbar=disable_pbar,
                     ov_guider=ov_guider, ov_sampler=ov_sampler, ov_sigmas=ov_sigmas,
                 )
@@ -2551,7 +2615,7 @@ class AngeloRefine:
                 "outpaint_accept_seq": outpaint_accept_seq,
                 "quick_refine_seq": quick_refine_seq,
                 "upscale_seq": upscale_seq,
-                "lir_seq": lir_seq,
+                "shrink_seq": shrink_seq,
                 "fingerprint": state.get("fingerprint"),
                 "loaded_seq": state.get("loaded_seq"),
                 "sampler_seed_at_run": state.get("sampler_seed_at_run", int(sampler_seed)),
@@ -2564,83 +2628,55 @@ class AngeloRefine:
             state = _STATE[node_id]
             current, current_pixels = up_latent, up_pixels
 
-        # ===== ▦ Large Image Refine: chess-pattern Xtra-Fine boxes =====
-        # The whole canvas refined box by box through the Xtra-Fine
-        # pipeline — bit-exact latent compositing per box, no pixel
-        # feathering. Chess order so the second colour's boxes see
-        # already-refined neighbours in their context pad. One history
-        # entry for the whole pass (one Undo reverts it all).
-        new_lir = (
+        # ===== ⬇ Shrink Image: pure pixel-space downscale =====
+        # AREA resampling (box averaging) is the right tool for shrinking —
+        # it averages the pixels being discarded, so it anti-aliases; lanczos
+        # (great for UPscaling) can ring/alias on heavy reduction. No AI;
+        # committed straight as a fresh session base (dimension change =
+        # Load-Image semantics, history resets). shrink_scale is the chosen
+        # factor; out dims snap to a multiple of 16 (latent alignment).
+        new_shrink = (
             inpainting_mode == "Refine"
-            and lir_seq > 0
-            and lir_seq != state.get("lir_seq", -1)
+            and shrink_seq > 0
+            and shrink_seq != state.get("shrink_seq", -1)
         )
-        state["lir_seq"] = lir_seq
-        if new_lir:
-            if clip is not None:
-                tokens_l = clip.tokenize(_LIR_PROMPT)
-                lir_base = clip.encode_from_tokens_scheduled(tokens_l)
-            else:
-                lir_base = positive
-            lir_seed = int(seed)
-            callback = None if disable_live_preview else latent_preview.prepare_callback(model, steps)
-            disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
-            lir_px = current_pixels if current_pixels is not None else _vae_decode(vae, current)
-            H_pix, W_pix = lir_px.shape[1], lir_px.shape[2]
-            nlh, nlw = current.shape[-2], current.shape[-1]
-            sx = nlw / W_pix
-            sy = nlh / H_pix
-            box_edge = math.sqrt(_LIR_BOX_MP * 1e6)
-            nx = max(1, round(W_pix / box_edge))
-            ny = max(1, round(H_pix / box_edge))
-            x_edges = [round(i * nlw / nx) for i in range(nx + 1)]
-            y_edges = [round(j * nlh / ny) for j in range(ny + 1)]
-            boxes = [(i, j, x_edges[i], y_edges[j], x_edges[i + 1], y_edges[j + 1])
-                     for j in range(ny) for i in range(nx)]
-            # Chess order: one colour, then the other.
-            order = ([b for b in boxes if (b[0] + b[1]) % 2 == 0]
-                     + [b for b in boxes if (b[0] + b[1]) % 2 == 1])
-            print(f"[Angelo large-refine] {W_pix}x{H_pix}: {nx}x{ny} boxes "
-                  f"(~{_LIR_BOX_MP}MP target), chess order, ref={_LIR_REF}, "
-                  f"denoise={_LIR_DENOISE}, pad={_LIR_CTX_PAD}px, feather 0")
-            work_lat, work_px = current, lir_px
-            for k, (bi, bj, x0, y0, x1, y1) in enumerate(order):
-                box_mask = torch.zeros((1, nlh, nlw), device=work_lat.device, dtype=torch.float32)
-                box_mask[0, y0:y1, x0:x1] = 1.0   # hard box — feather 0
-                bw_px = (x1 - x0) / sx
-                bh_px = (y1 - y0) / sy
-                crop_mp = max(0.05, ((bw_px + 2 * _LIR_CTX_PAD) * (bh_px + 2 * _LIR_CTX_PAD)) / 1e6)
-                work_lat, fresh_px = _refine_with_fine_upscaling(
-                    model=model, vae=vae, current=work_lat,
-                    current_pixels=work_px, mask=box_mask,
-                    scale_x=sx, scale_y=sy,
-                    target_mp=crop_mp * 1.02,   # force the crop path — never
-                                                # the whole-canvas shortcut
-                    max_linear=8.0, resize_method="lanczos",
-                    context_pad_pixel=_LIR_CTX_PAD,
-                    inpainting_mode="Refine",
-                    reference_strength=_LIR_REF,
-                    seed=(lir_seed + k * 9973) & 0xFFFFFFFFFFFFFFFF,
-                    steps=steps, cfg=cfg, sampler_name=sampler_name, scheduler=scheduler,
-                    positive=lir_base, negative=negative,
-                    denoise=_LIR_DENOISE,
-                    callback=callback, disable_pbar=disable_pbar,
-                    ov_guider=ov_guider, ov_sampler=ov_sampler, ov_sigmas=ov_sigmas,
-                )
-                if fresh_px is None:
-                    work_px = _vae_decode(vae, work_lat)
-                else:
-                    work_px = fresh_px
-            state["history"].append((work_lat, work_px))
-            if len(state["history"]) > _HISTORY_CAP:
-                state["history"] = state["history"][-_HISTORY_CAP:]
-            state["redo_stack"] = []
-            state["vary_candidates"] = None
-            state["outpaint_pending"] = None
-            state["click_seq"] = click_seq
-            state["refine_seed_at_run"] = lir_seed
-            state["quick_last"] = False
-            current, current_pixels = work_lat, work_px
+        state["shrink_seq"] = shrink_seq
+        if new_shrink:
+            sk_px_in = current_pixels if current_pixels is not None else _vae_decode(vae, current)
+            in_H, in_W = sk_px_in.shape[1], sk_px_in.shape[2]
+            sc = max(0.05, min(0.95, float(shrink_scale)))
+            out_W = max(16, int(round(in_W * sc / 16.0)) * 16)
+            out_H = max(16, int(round(in_H * sc / 16.0)) * 16)
+            sk_chw = sk_px_in.movedim(-1, 1)
+            sk_chw = comfy.utils.common_upscale(sk_chw, out_W, out_H, "area", "disabled")
+            sk_pixels = sk_chw.movedim(1, -1).contiguous()
+            sk_latent = _vae_encode(vae, sk_pixels)
+            print(f"[Angelo shrink] {in_W}x{in_H} -> {out_W}x{out_H} "
+                  f"(scale {sc:.2f}, area, no AI)")
+            _STATE[node_id] = {
+                "history": [(sk_latent, sk_pixels)],
+                "click_seq": click_seq,
+                "undo_seq": undo_seq,
+                "redo_seq": redo_seq,
+                "reroll_seq": reroll_seq,
+                "vary_seq": vary_seq,
+                "vary_pick_seq": vary_pick_seq,
+                "outpaint_seq": outpaint_seq,
+                "outpaint_accept_seq": outpaint_accept_seq,
+                "quick_refine_seq": quick_refine_seq,
+                "upscale_seq": upscale_seq,
+                "shrink_seq": shrink_seq,
+                "fingerprint": state.get("fingerprint"),
+                "loaded_seq": state.get("loaded_seq"),
+                "sampler_seed_at_run": state.get("sampler_seed_at_run", int(sampler_seed)),
+                "refine_seed_at_run": (state.get("refine_seed_at_run")
+                                       if state.get("refine_seed_at_run") is not None
+                                       else int(seed)),
+                "source_latent": sk_latent,
+                "source_pixels": sk_pixels,
+            }
+            state = _STATE[node_id]
+            current, current_pixels = sk_latent, sk_pixels
 
         # Has the user clicked since our last execution for this node?
         # Never treat a queue-hook click_seq bump as an edit in Outpaint

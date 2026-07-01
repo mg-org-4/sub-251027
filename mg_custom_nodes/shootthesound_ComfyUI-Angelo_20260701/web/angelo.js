@@ -672,16 +672,18 @@ function attachPreviewCanvas(node) {
         }
         syncReferenceControls(node);
     });
-    refineRefToggle.title = "Reference (Refine mode) — anchor the edit to the current image. When ON, "
-        + "the strength box beside it sets a TRUE 0–1 blend: every step mixes the reference-anchored "
-        + "prediction with the free one at that ratio (0.6 = 60% anchored / 40% free). 1 = fully "
-        + "anchored (strongest identity hold).\n\n"
-        + "Photo restoration: ON at 0.6–1.0 with high Denoise — identity stays while the texture "
-        + "fully re-renders. With Xtra-Fine ON the reference is the upscaled crop.\n\n"
-        + "In-between strengths run a second positive pass per step (like CFG's negative) — a bit "
-        + "slower; 1.0 costs nothing extra. Leave OFF when your Area Prompt wants to CHANGE the "
-        + "region (anchoring fights the change). Edit models only (Klein / Qwen).\n\n"
-        + "✨ Quick Photo Refine: uses this strength when ON; defaults to a FULL anchor when OFF.";
+    refineRefToggle.title = "Reference — anchor a refine to the current image so you can run high "
+        + "Denoise without losing the subject. Refine mode, edit models only (FLUX 2 Klein / Qwen).\n\n"
+        + "WHY: normally high denoise destroys identity along with the noise. With Reference ON the "
+        + "edit model holds the person/scene from the image while the texture fully re-renders — "
+        + "that's where the quality comes from. The restoration sweet spot is the box at 0.6–1.0 "
+        + "with Denoise 0.7–1.0.\n\n"
+        + "STRENGTH BOX (appears when ON): how hard it anchors. 1 = locked to the image; lower = "
+        + "blends in more freedom to change (0.6 = 60% anchored). With Xtra-Fine ON the anchor is "
+        + "the upscaled crop.\n\n"
+        + "Turn it OFF when your Area Prompt is meant to CHANGE the region — anchoring fights the "
+        + "change. (Values strictly between 0 and 1 run a second pass per step, slightly slower; "
+        + "0 and 1 are free.)";
     refGroup.appendChild(refineRefToggle);
     const refineRefInput = makeNumberInput("", { min: 0, max: 1, step: 0.05, width: 46 }, (val) => {
         const w = findWidget(node, "reference_strength");
@@ -887,6 +889,26 @@ function attachPreviewCanvas(node) {
     quickRow.appendChild(quickPromptSelect);
     node._AngeloQuickPromptSelect = quickPromptSelect;
 
+    // Lite toggle — same Quick Photo Refine recipe at a gentler denoise.
+    const liteToggle = makeToggleButton("Lite", () => {
+        const w = findWidget(node, "quick_lite");
+        if (!w) return;
+        setWidget(w, !w.value);
+        _syncToggle(node._AngeloLiteToggle, findWidget(node, "quick_lite")?.value, _TOGGLE_ON_COLORS.teal);
+    });
+    liteToggle.title = "Lite mode for ✨ Quick Photo Refine — the exact same recipe at a GENTLER "
+        + "denoise (0.8 instead of 1.0). It re-renders less and stays closer to the input: a "
+        + "lighter restore / cleanup rather than a full rebuild. Everything else (reference anchor, "
+        + "prompt, target resolution, tiling, re-roll) is identical.";
+    quickRow.appendChild(liteToggle);
+    node._AngeloLiteToggle = liteToggle;
+    _syncToggle(liteToggle, findWidget(node, "quick_lite")?.value, _TOGGLE_ON_COLORS.teal);
+
+    // Separator after the Lite toggle — the prompt dropdown + Lite belong to
+    // Quick Photo Refine, so the pipe groups them and sets them apart from
+    // the upscale buttons that follow.
+    quickRow.appendChild(makeSeparator());
+
     const upscaleBtn = makeActionButton("⬆ 2× Pixel", () => triggerPixelUpscale(node), "quickfix");
     upscaleBtn.title = "Pure pixel-space 2× upscale — lanczos, NO AI, deterministic. The image is "
         + "decoded, enlarged 2×, re-encoded, and committed immediately as the session's new base "
@@ -897,18 +919,14 @@ function attachPreviewCanvas(node) {
     quickRow.appendChild(upscaleBtn);
     node._AngeloUpscaleBtn = upscaleBtn;
 
-    const lirBtn = makeActionButton("▦ Large Image Refine", () => triggerLargeImageRefine(node), "quickfix");
-    lirBtn.title = "Refine a LARGE canvas in one press: the image is divided into ~1MP boxes that "
-        + "exactly tile it, and each box runs an Xtra-Fine refine (ref 0.2, denoise 0.5, 128px "
-        + "context pad, hard edges) under the instruction \"restore the image. make it clear and "
-        + "sharp.\" — processed in a CHESS pattern, so the second half of the boxes refine with "
-        + "already-refined neighbours visible in their context and match them. Compositing is "
-        + "Xtra-Fine's bit-exact latent blend — no pixel feathering anywhere.\n\n"
-        + "The whole pass is ONE history entry (one Undo reverts it all); the Seed drives it "
-        + "(randomize + re-press = a fresh full pass). The natural partner of ⬆ 2× Pixel: enlarge "
-        + "first, then refine the detail in. Edit models + CLIP recommended; Refine mode only.";
-    quickRow.appendChild(lirBtn);
-    node._AngeloLirBtn = lirBtn;
+    const shrinkBtn = makeActionButton("⬇ Shrink", () => showShrinkPopup(node), "quickfix");
+    shrinkBtn.title = "Downscale the image (no AI): pick a scale factor in the popup and Angelo "
+        + "resamples it smaller with AREA averaging — the right method for shrinking (anti-aliased, "
+        + "no ringing). The new dimensions (snapped to a multiple of 16) are shown before you "
+        + "confirm. Committed as a fresh session base — dimension change, so history resets. "
+        + "Refine mode only.";
+    quickRow.appendChild(shrinkBtn);
+    node._AngeloShrinkBtn = shrinkBtn;
 
     // ===== OUTPAINT ROW: direction + amount (Outpaint mode only) =====
     // Arrows extend the canvas in that direction; "All" pads every side
@@ -4069,20 +4087,117 @@ function triggerPixelUpscale(node) {
     queuePrompt();
 }
 
-// ▦ Large Image Refine: chess-pattern Xtra-Fine boxes over the whole
-// canvas. Python owns the loop; the JS only bumps the seq.
-function triggerLargeImageRefine(node) {
-    if (isAnySmartMode(node) || isOutpaintMode(node)) return;  // dimmed there anyway
+// ⬇ Shrink: pick a scale factor in a popup (with a live new-dimensions
+// readout), then a pure area-resample downscale — no AI — committed as the
+// new session base. triggerShrink does the queue; showShrinkPopup is the UI.
+function triggerShrink(node, scale) {
+    if (isAnySmartMode(node) || isOutpaintMode(node)) return;
     if (!node._AngeloImg) {
         _angeloToast("Generate or load an image first");
         return;
     }
-    const ws = findWidget(node, "lir_seq");
-    if (!ws) return;
-    setWidget(ws, ((ws.value || 0) + 1) & 0x7FFFFFFF);
-    _angeloToast("▦ Large Image Refine — chess-pattern pass over the canvas…");
-    dbg("queue large image refine", { lir_seq: ws.value });
+    const scW = findWidget(node, "shrink_scale");
+    const sqW = findWidget(node, "shrink_seq");
+    if (!scW || !sqW) return;
+    setWidget(scW, scale);
+    setWidget(sqW, ((sqW.value || 0) + 1) & 0x7FFFFFFF);
+    _angeloToast("⬇ Shrink — downscaling, new base (history resets)");
+    dbg("queue shrink", { shrink_scale: scale, shrink_seq: sqW.value });
     queuePrompt();
+}
+
+function showShrinkPopup(node) {
+    if (isAnySmartMode(node) || isOutpaintMode(node)) {
+        _angeloToast("Shrink is a Refine-mode action");
+        return;
+    }
+    const img = node._AngeloImg;
+    if (!img || !img.naturalWidth) {
+        _angeloToast("Generate or load an image first");
+        return;
+    }
+    const inW = img.naturalWidth, inH = img.naturalHeight;
+    const snap16 = (v) => Math.max(16, Math.round(v / 16) * 16);
+
+    const backdrop = document.createElement("div");
+    backdrop.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.6); "
+        + "display:flex; align-items:center; justify-content:center; z-index:10000; "
+        + "font-family:Arial,sans-serif;";
+    const modal = document.createElement("div");
+    modal.style.cssText = "background:#2a2a2a; color:#ddd; border:1px solid #555; "
+        + "border-radius:8px; padding:16px; width:340px; max-width:90vw; "
+        + "display:flex; flex-direction:column; gap:10px;";
+
+    const header = document.createElement("div");
+    header.textContent = "Shrink Image";
+    header.style.cssText = "font-size:14px; font-weight:bold; color:#aaa;";
+    modal.appendChild(header);
+
+    const cur = document.createElement("div");
+    cur.textContent = `Current: ${inW} × ${inH}`;
+    cur.style.cssText = "font-size:12px; color:#888;";
+    modal.appendChild(cur);
+
+    const scaleRow = document.createElement("div");
+    scaleRow.style.cssText = "display:flex; align-items:center; gap:8px; font-size:13px;";
+    const pctInput = document.createElement("input");
+    pctInput.type = "number";
+    pctInput.min = "5"; pctInput.max = "95"; pctInput.step = "1"; pctInput.value = "50";
+    pctInput.style.cssText = "width:64px; background:#1a1a1a; color:#eee; border:1px solid #555; "
+        + "border-radius:3px; padding:3px 6px; font-size:13px;";
+    const pctLabel = document.createElement("span");
+    pctLabel.textContent = "% of original";
+    scaleRow.appendChild(pctInput);
+    scaleRow.appendChild(pctLabel);
+    modal.appendChild(scaleRow);
+
+    const presetRow = document.createElement("div");
+    presetRow.style.cssText = "display:flex; gap:6px;";
+    [75, 50, 33, 25].forEach((p) => {
+        const b = document.createElement("button");
+        b.textContent = p + "%";
+        b.style.cssText = "flex:1; background:#3a3a3a; color:#ddd; border:1px solid #555; "
+            + "border-radius:4px; padding:4px 0; cursor:pointer; font-size:12px;";
+        b.addEventListener("click", () => { pctInput.value = String(p); update(); });
+        presetRow.appendChild(b);
+    });
+    modal.appendChild(presetRow);
+
+    const out = document.createElement("div");
+    out.style.cssText = "font-size:13px; color:#ffe9b0; font-weight:bold;";
+    modal.appendChild(out);
+
+    const clampPct = () => Math.max(5, Math.min(95, parseFloat(pctInput.value) || 50));
+    const update = () => {
+        const sc = clampPct() / 100;
+        out.textContent = `New: ${snap16(inW * sc)} × ${snap16(inH * sc)}`;
+    };
+    pctInput.addEventListener("input", update);
+    update();
+
+    const footer = document.createElement("div");
+    footer.style.cssText = "display:flex; justify-content:flex-end; gap:8px; margin-top:6px;";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.cssText = "background:#444; color:#ddd; border:none; padding:6px 14px; border-radius:4px; cursor:pointer;";
+    const okBtn = document.createElement("button");
+    okBtn.textContent = "Shrink";
+    okBtn.style.cssText = "background:rgba(30,120,80,0.95); color:#fff; border:none; padding:6px 14px; border-radius:4px; cursor:pointer;";
+    footer.appendChild(cancelBtn);
+    footer.appendChild(okBtn);
+    modal.appendChild(footer);
+
+    backdrop.appendChild(modal);
+    document.body.appendChild(backdrop);
+
+    const close = () => { if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); };
+    cancelBtn.addEventListener("click", close);
+    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+    okBtn.addEventListener("click", () => {
+        const sc = clampPct() / 100;
+        close();
+        triggerShrink(node, sc);
+    });
 }
 
 // ===== Outpaint — directional canvas extension with review-before-commit =====
@@ -4560,6 +4675,8 @@ function syncSmartInpaintLockedWidgets(node) {
     syncAreaPromptToggle(node);
     syncPersistentMaskToggle(node);
     syncRestoreToggle(node);
+    // Lite toggle just mirrors quick_lite (no mode forcing).
+    _syncToggle(node._AngeloLiteToggle, findWidget(node, "quick_lite")?.value, _TOGGLE_ON_COLORS.teal);
     syncReferenceControls(node);
     syncAreaPromptVisibility(node);
     // Detect row hides in Smart Guided (no mask), shows in Refine/Smart Inpaint.
@@ -4967,10 +5084,12 @@ function hideMechanicalWidgets(node) {
         "refine_reference", "reference_strength",
         // Quick Photo Refine — driven by the ✨ button
         "quick_refine_seq",
-        // ⬆ 2× Pixel + ▦ Large Image Refine — driven by their buttons
-        "upscale_seq", "lir_seq",
-        // ✨ prompt selector — driven by the dropdown beside the button
-        "quick_prompt_mode",
+        // ⬆ 2× Pixel — driven by its button
+        "upscale_seq",
+        // ⬇ Shrink — driven by the button + its popup
+        "shrink_seq", "shrink_scale",
+        // ✨ prompt selector + Lite toggle — driven by the dropdown/toggle
+        "quick_prompt_mode", "quick_lite",
         // Toolbar-driven (visible via the bar above the canvas)
         "persistent_mask", "area_prompt", "paint_mode", "fine_upscaling",
         "click_radius", "feather_radius", "denoise",

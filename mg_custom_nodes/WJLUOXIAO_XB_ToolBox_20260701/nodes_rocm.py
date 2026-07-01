@@ -29,6 +29,39 @@ import comfy.nested_tensor
 import latent_preview
 import nodes
 
+# ── 跨版本兼容：SamplerCustom / SamplerCustomAdvanced / VAEDecodeTiled 在不同 ComfyUI 版本中位置不同 ──
+#   ComfyUI < 0.3x:   nodes.SamplerCustom / nodes.SamplerCustomAdvanced (在 nodes.py)
+#   ComfyUI 0.3x~0.4x: comfy_extras.nodes_custom_sampler.SamplerCustom / ...SamplerCustomAdvanced
+#   ComfyUI >= 0.4x:  传统 API 已移除，改用 ComfyExtension API（无兼容降级路径）
+_SamplerCustom = None
+_SamplerCustomAdvanced = None
+_VAEDecodeTiled = None
+for _mod in (nodes,):
+    for _name in ("SamplerCustom", "SamplerCustomAdvanced", "VAEDecodeTiled"):
+        if hasattr(_mod, _name):
+            if _name == "SamplerCustom":
+                _SamplerCustom = getattr(_mod, _name)
+            elif _name == "SamplerCustomAdvanced":
+                _SamplerCustomAdvanced = getattr(_mod, _name)
+            elif _name == "VAEDecodeTiled":
+                _VAEDecodeTiled = getattr(_mod, _name)
+if _SamplerCustom is None or _SamplerCustomAdvanced is None:
+    try:
+        from comfy_extras import nodes_custom_sampler as _ncs
+        if _SamplerCustom is None and hasattr(_ncs, "SamplerCustom"):
+            _SamplerCustom = _ncs.SamplerCustom
+        if _SamplerCustomAdvanced is None and hasattr(_ncs, "SamplerCustomAdvanced"):
+            _SamplerCustomAdvanced = _ncs.SamplerCustomAdvanced
+    except ImportError:
+        pass
+if _VAEDecodeTiled is None:
+    try:
+        from comfy_extras import nodes_video as _nv
+        if hasattr(_nv, "VAEDecodeTiled"):
+            _VAEDecodeTiled = _nv.VAEDecodeTiled
+    except ImportError:
+        pass
+
 
 class AnyType(str):
     """哑类型——接受任意连线，仅用于串联节点防止误删"""
@@ -478,17 +511,16 @@ class XB_ROCmKSampler:
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
             tune()
-            is_video = _is_video_latent(latent)
-            callback = _make_ksampler_callback(steps, is_video)
             print(f"🚀 开始采样: {steps}步, CFG {cfg}, {sampler} ({scheduler})", flush=True)
             with _sdp_context():
                 out, = nodes.KSampler().sample(
                     model, seed, steps, cfg, sampler, scheduler,
-                    positive, negative, latent, denoise,
-                    callback=callback, disable_pbar=False
+                    positive, negative, latent, denoise
                 )
             print(f"✅ 采样完成", flush=True)
-            # 采样后仅 empty_cache（异步），绝不同步
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级（sync 仅在采样完成后执行，不增加延迟）
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
             return (out,)
@@ -548,17 +580,17 @@ class XB_ROCmKSamplerAdvanced:
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
             tune()
-            is_video = _is_video_latent(latent)
-            callback = _make_ksampler_callback(steps, is_video)
             print(f"🚀 开始高级采样: {steps}步 (区间 {start_at_step}-{end_at_step}), CFG {cfg}, {sampler} ({scheduler})", flush=True)
             with _sdp_context():
                 out, = nodes.KSamplerAdvanced().sample(
                     model, add_noise, noise_seed, steps, cfg, sampler, scheduler,
                     positive, negative, latent, start_at_step, end_at_step,
-                    return_with_leftover_noise, denoise=denoise,
-                    callback=callback, disable_pbar=False
+                    return_with_leftover_noise, denoise=denoise
                 )
             print(f"✅ 高级采样完成", flush=True)
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
             return (out,)
@@ -735,6 +767,9 @@ class XB_ROCmVAEEncode:
                 print(f"  ⚠️ ROCm VAE Encode: tiled not available, fallback to standard")
                 lat = vae.encode(pixels)
             # 🔧 v5.2: 编码后不做任何清理
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             return ({"samples": lat},)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
@@ -783,9 +818,9 @@ class XB_ROCmVAEDecodeTemporal:
     def go(self, samples, vae, tile, overlap, t_tile, t_overlap, cleanup):
         # ── 轨道 A：非 AMD 环境 (NVIDIA CUDA / CPU) → 直接使用官方时空解码 ──
         if not is_rocm():
-            if t_tile <= 0:
+            if t_tile <= 0 or _VAEDecodeTiled is None:
                 return nodes.VAEDecode().decode(samples=samples, vae=vae)
-            return nodes.VAEDecodeTiled().decode(
+            return _VAEDecodeTiled().decode(
                 samples=samples, vae=vae,
                 tile_size=tile if tile > 0 else 256,
                 overlap=overlap if overlap > 0 else 32,
@@ -866,7 +901,9 @@ class XB_ROCmVAEDecodeTemporal:
                 torch.cuda.empty_cache()
             if t_tile <= 0:
                 return nodes.VAEDecode().decode(samples=samples, vae=vae)
-            return nodes.VAEDecodeTiled().decode(
+            if _VAEDecodeTiled is None:
+                return nodes.VAEDecode().decode(samples=samples, vae=vae)
+            return _VAEDecodeTiled().decode(
                 samples=samples, vae=vae,
                 tile_size=tile if tile > 0 else 256,
                 overlap=overlap if overlap > 0 else 32,
@@ -1021,7 +1058,7 @@ class XB_ROCmLTXVAEDecode:
                 "spatial_overlap": ("INT", {"default": 1, "min": 0, "max": 8,
                     "tooltip": "空间块重叠(latent像素)"}),
                 "temporal_tile_length": ("INT", {"default": 16, "min": 0, "max": 256,
-                    "tooltip": "时间分块长度(latent帧)，0=不分时间块"}),
+                    "tooltip": "时间分块长度(latent帧)，0=不分时间块，最小有效值为2"}),
                 "temporal_overlap": ("INT", {"default": 1, "min": 0, "max": 8,
                     "tooltip": "时间块重叠(latent帧)"}),
                 "last_frame_fix": ("BOOLEAN", {"default": False,
@@ -1065,6 +1102,15 @@ class XB_ROCmLTXVAEDecode:
 
             # 🔧 解码前仅 empty_cache，绝不同步
             _predecode_cleanup(cleanup)
+
+            # 🛡️ 空间重叠自动补全：0 → 自动取合理值
+            if spatial_overlap == 0 and spatial_tiles > 1:
+                spatial_overlap = 1
+
+            # 🛡️ 时间分块长度至少为 2，否则后续 chunk 丢帧后为空
+            if temporal_tile_length == 1:
+                temporal_tile_length = 2
+                print("  ⚠️ temporal_tile_length=1 无效，已自动修正为 2")
 
             if temporal_tile_length > 0 and temporal_tile_length < F:
                 # ── 时空分块路径 ──
@@ -1357,7 +1403,11 @@ class XB_ROCmSamplerCustom:
     def go(self, model, add_noise, noise_seed, cfg, positive, negative, sampler, sigmas, latent_image, cleanup="不做任何清理"):
         # ── 轨道 A：非 AMD 环境 → 直接使用官方自定义采样器 ──
         if not is_rocm():
-            return nodes.SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
+            if _SamplerCustom is None:
+                raise RuntimeError(
+                    "XB_ROCmSamplerCustom: 当前 ComfyUI 版本不支持传统 SamplerCustom API。\n"
+                    "请使用 ComfyUI 内置的自定义采样器节点。")
+            return _SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
                                                  sampler, sigmas, latent_image)
 
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
@@ -1403,13 +1453,20 @@ class XB_ROCmSamplerCustom:
                 out_denoised = out
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             return (out, out_denoised)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
             print(f"[XB_ToolBox 错误信息] {e}")
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            return nodes.SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
+            if _SamplerCustom is None:
+                raise RuntimeError(
+                    "XB_ROCmSamplerCustom: 当前 ComfyUI 版本不支持传统 SamplerCustom API。\n"
+                    "请使用 ComfyUI 内置的自定义采样器节点。")
+            return _SamplerCustom().sample(model, add_noise, noise_seed, cfg, positive, negative,
                                                  sampler, sigmas, latent_image)
 
 
@@ -1444,7 +1501,11 @@ class XB_ROCmSamplerCustomAdvanced:
     def go(self, noise, guider, sampler, sigmas, latent_image, cleanup="不做任何清理"):
         # ── 轨道 A：非 AMD 环境 → 直接使用官方自定义高级采样器 ──
         if not is_rocm():
-            return nodes.SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
+            if _SamplerCustomAdvanced is None:
+                raise RuntimeError(
+                    "XB_ROCmSamplerCustomAdvanced: 当前 ComfyUI 版本不支持传统 SamplerCustomAdvanced API。\n"
+                    "请使用 ComfyUI 内置的自定义采样器节点。")
+            return _SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
 
         # ── 轨道 B：AMD ROCm 环境 → 优化 + 熔断降级 ──
         try:
@@ -1484,13 +1545,20 @@ class XB_ROCmSamplerCustomAdvanced:
                 out_denoised = out
             if cleanup != "不做任何清理" and torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            # 🛡️ 同步以捕获异步 HIP 错误 → 触发熔断降级
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             return (out, out_denoised)
         except Exception as e:
             print(f"\n[XB_ToolBox 警告] 优化版节点异常，自动切换到官方原版节点！")
             print(f"[XB_ToolBox 错误信息] {e}")
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            return nodes.SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
+            if _SamplerCustomAdvanced is None:
+                raise RuntimeError(
+                    "XB_ROCmSamplerCustomAdvanced: 当前 ComfyUI 版本不支持传统 SamplerCustomAdvanced API。\n"
+                    "请使用 ComfyUI 内置的自定义采样器节点。")
+            return _SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent_image)
 
 
 __all__ = ['XB_ROCmKSampler', 'XB_ROCmKSamplerAdvanced', 'XB_ROCmSamplerCustom',

@@ -1,5 +1,6 @@
 // Adds batch comment/uncomment functionality to multiline text areas via a configurable keyboard shortcut.
-// Inserts or removes a comment token at the beginning of each selected line, with modifier key combos.
+// Inserts or removes a comment token at the beginning of each selected line, or wraps/unwraps
+// an inline token around a single-line selection, with modifier key combos.
 
 import { app } from "../../../scripts/app.js";
 import { $el } from "../../../scripts/ui.js";
@@ -22,6 +23,7 @@ class CustomConfigSetting extends ConfigSetting {
 let setting_ModifierKeyCombo = new CustomConfigSetting("ModifierKeyCombo", getModifierKeyCombos()[0]);
 let setting_KeyCode = new CustomConfigSetting("KeyCode", 'Slash');
 let setting_Token = new CustomConfigSetting("Token", '#');
+let setting_InlineToken = new CustomConfigSetting("InlineToken", '##');
 
 function getLineStartIndex(textarea, cursorPosition) {
 	const text = textarea.value;
@@ -47,8 +49,79 @@ function getLineEndIndex(textarea, cursorPosition) {
 	return endIndex;
 }
 
+// Find the bounds of an inline comment surrounding the cursor position.
+// Returns { start, end, cursorPosition } or null if not inside an inline comment.
+function findInlineCommentBounds(token, text, cursorPosition) {
+	// Search backward for the opening token
+	const tokenStart = text.lastIndexOf(token, cursorPosition - 1);
+	if (tokenStart === -1) {
+		return null;
+	}
+
+	// Search forward for the closing token
+	const tokenEnd = text.indexOf(token, cursorPosition);
+	if (tokenEnd === -1) {
+		return null;
+	}
+
+	// Ensure no newline between the two tokens (must be same line)
+	const between = text.substring(tokenStart + token.length, tokenEnd);
+	if (between.includes('\n')) {
+		return null;
+	}
+
+	return {
+		start: tokenStart,
+		end: tokenEnd + token.length,
+		cursorPosition: Math.max(cursorPosition - token.length, 0)
+	};
+}
+
+// Wrap or unwrap selected text with an inline token.
+// Only handles single-line selections (no newlines).
+function toggleInlineToken(token, textarea) {
+
+	if (textarea.readOnly) {
+		return;
+	}
+
+	if (textarea.tagName === 'TEXTAREA' || (textarea.tagName === 'INPUT' && textarea.type === 'text')) {
+		const selectionStart = textarea.selectionStart;
+		const selectionEnd = textarea.selectionEnd;
+		const selectedText = textarea.value.substring(selectionStart, selectionEnd);
+
+		if (selectedText.includes('\n')) {
+			return;
+		}
+
+		const scrollPosition = textarea.scrollTop;
+
+		let replacementText;
+		let newSelectionEnd;
+
+		if (selectedText.startsWith(token) && selectedText.endsWith(token) && selectedText.length >= token.length * 2) {
+			// Toggle off: remove token from start and end
+			replacementText = selectedText.substring(token.length, selectedText.length - token.length);
+			newSelectionEnd = selectionEnd - token.length * 2;
+		} else {
+			// Toggle on: add token to start and end
+			replacementText = token + selectedText + token;
+			newSelectionEnd = selectionEnd + token.length * 2;
+		}
+
+		textarea.focus();
+		textarea.selectionStart = selectionStart;
+		textarea.selectionEnd = selectionEnd;
+		document.execCommand("insertText", false, replacementText);
+
+		textarea.selectionStart = utilitiesInstance.clamp(selectionStart, 0, textarea.value.length);
+		textarea.selectionEnd = utilitiesInstance.clamp(newSelectionEnd, textarea.selectionStart, textarea.value.length);
+		textarea.scrollTop = scrollPosition;
+	}
+}
+
 // Insert Text Or Remove Existing Text 
-// At the Beginning Of Each Line In Selected Text In Text Area
+// At The Beginning Of Each Line In Selected Text In Text Area
 function toggleTextAtTheBeginningOfEachSelectedLine(text, textarea) {
 
 	if (textarea.readOnly) {
@@ -94,8 +167,8 @@ function toggleTextAtTheBeginningOfEachSelectedLine(text, textarea) {
 				if (index == 0) {
 					selectionStartOffset += text.length;
 				}
-				selectionEndOffset += text.length;
 			}
+			selectionEndOffset += text.length;
 		}
 
 		// Skip second loop if we don't need to toggle the comment off
@@ -115,7 +188,7 @@ function toggleTextAtTheBeginningOfEachSelectedLine(text, textarea) {
 		}
 		const modifiedText = lines.join('\n');
 
-		utilitiesInstance.pasteToTextArea(modifiedText, textarea, selectionStart, selectionEnd);
+		utilitiesInstance.pasteToTextArea(modifiedText, textarea);
 
 		// Restore original selection + offsets from adding/removing comment text
 		textarea.selectionStart = utilitiesInstance.clamp(originalSelectionStart + selectionStartOffset, 0, textarea.value.length);
@@ -173,10 +246,12 @@ app.registerExtension({
 
 			const tooltip =
 				"A key combo that, when pressed, will insert text at the beginning of the selected " +
-				"lines in a multiline textarea, assuming it is the active element. If no text is " +
-				"selected, the text will be inserted at the beginning of the line where the cursor " +
-				"currently sits. This text will not automatically dummy out any lines, you will need " +
-				"to pass the resulting text into a custom node that removes lines marked as 'commented'.";
+				"lines in a multiline textarea, assuming it is the active element. If the selection " +
+				"is on a single line with no newlines, the inline token will be wrapped around the " +
+				"selection instead. If no text is selected, the text will be inserted at the " +
+				"beginning of the line where the cursor currently sits. This text will not " +
+				"automatically dummy out any lines, you will need to pass the resulting text " +
+				"into a custom node that removes lines marked as 'commented'.";
 			addJNodesSetting(labelWidget, settingWidget, tooltip);
 		}
 
@@ -195,6 +270,21 @@ app.registerExtension({
 			addJNodesSetting(labelWidget, settingWidget, tooltip);
 		}
 
+		{
+			const labelWidget = $el("label", {
+				textContent: "Inline-commenting Token:",
+			});
+			
+			const settingWidget = $el("input", {
+				value: setting_InlineToken.value,
+				onchange: function () { setting_InlineToken.value = settingWidget.value; }
+			});
+			
+			const tooltip = 
+				"The token that will be wrapped around selected text when performing an inline comment on a single-line selection"
+			addJNodesSetting(labelWidget, settingWidget, tooltip);
+		}
+
 		window.addEventListener("keydown", function(event) {
 			const { ctrlKey, metaKey, shiftKey, altKey, code } = event;
 			const bUseShiftInCombo = setting_ModifierKeyCombo.value === getModifierKeyCombos()[0];
@@ -207,7 +297,24 @@ app.registerExtension({
 				const textarea = document.activeElement;
 
 				if (textarea.tagName === 'TEXTAREA') {
-					toggleTextAtTheBeginningOfEachSelectedLine(setting_Token.value, textarea);
+					const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+					if (selectedText.length > 0 && !selectedText.includes('\n')) {
+						toggleInlineToken(setting_InlineToken.value, textarea);
+					} else if (selectedText.length === 0) {
+						// No selection: check if caret is inside an inline comment
+						const bounds = findInlineCommentBounds(setting_InlineToken.value, textarea.value, textarea.selectionStart);
+						if (bounds) {
+							textarea.selectionStart = bounds.start;
+							textarea.selectionEnd = bounds.end;
+							toggleInlineToken(setting_InlineToken.value, textarea);
+							textarea.selectionStart = utilitiesInstance.clamp(bounds.cursorPosition, 0, textarea.value.length);
+							textarea.selectionEnd = textarea.selectionStart;
+						} else {
+							toggleTextAtTheBeginningOfEachSelectedLine(setting_Token.value, textarea);
+						}
+					} else {
+						toggleTextAtTheBeginningOfEachSelectedLine(setting_Token.value, textarea);
+					}
 				}
 			}
 		}, true);

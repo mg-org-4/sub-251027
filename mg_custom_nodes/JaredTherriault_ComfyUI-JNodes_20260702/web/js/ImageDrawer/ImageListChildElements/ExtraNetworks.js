@@ -26,16 +26,16 @@ let cachedEmbeddingsObject = undefined;
  * @param {string} subdirectory - Optional subdirectory filter (e.g. "style")
  * @returns An array of script urls to import
  */
-export async function getLoras(bForceRefresh = false, subdirectory = "") {
+export async function getLoras(bForceRefresh = false, subdirectory = "", signal = undefined) {
 	if (!subdirectory && (bForceRefresh || !cachedLorasObject)) {
-		const resp = await api.fetchApi("/jnodes_model_items?type=loras", { cache: "no-store" });
+		const resp = await api.fetchApi("/jnodes_model_items?type=loras", { cache: "no-store", signal });
 		const asJson = await resp.json();
 		cachedLorasObject = asJson;
 		return asJson;
 	}
 
 	if (subdirectory) {
-		const resp = await api.fetchApi(`/jnodes_model_items?type=loras&subdirectory=${encodeURIComponent(subdirectory)}`, { cache: "no-store" });
+		const resp = await api.fetchApi(`/jnodes_model_items?type=loras&subdirectory=${encodeURIComponent(subdirectory)}`, { cache: "no-store", signal });
 		return await resp.json();
 	}
 
@@ -48,16 +48,16 @@ export async function getLoras(bForceRefresh = false, subdirectory = "") {
  * @param {string} subdirectory - Optional subdirectory filter (e.g. "style")
  * @returns An array of script urls to import
  */
-export async function getEmbeddings(bForceRefresh = false, subdirectory = "") {
+export async function getEmbeddings(bForceRefresh = false, subdirectory = "", signal = undefined) {
 	if (!subdirectory && (bForceRefresh || !cachedEmbeddingsObject)) {
-		const resp = await api.fetchApi("/jnodes_model_items?type=embeddings", { cache: "no-store" });
+		const resp = await api.fetchApi("/jnodes_model_items?type=embeddings", { cache: "no-store", signal });
 		const asJson = await resp.json();
 		cachedEmbeddingsObject = asJson;
 		return asJson;
 	}
 
 	if (subdirectory) {
-		const resp = await api.fetchApi(`/jnodes_model_items?type=embeddings&subdirectory=${encodeURIComponent(subdirectory)}`, { cache: "no-store" });
+		const resp = await api.fetchApi(`/jnodes_model_items?type=embeddings&subdirectory=${encodeURIComponent(subdirectory)}`, { cache: "no-store", signal });
 		return await resp.json();
 	}
 
@@ -465,13 +465,13 @@ export async function createExtraNetworkCard(nameText, familiars, type, imageDra
 			return;
 		}
 
-		function updateBackgroundImageContainer() {
+		async function updateBackgroundImageContainer() {
 
 			backgroundImageContainer.backgroundImage.style.display = "none";
 			backgroundImageContainer.backgroundVideo.style.display = "none";
 
 			let newHref = modelElement.fileInfo.imageHref = getHrefForFamiliarImage(backgroundImageContainer.lastViewedImageIndex);
-			let bIsVideoPreview = utilitiesInstance.isHrefVideo(newHref);
+			let bIsVideoPreview = await utilitiesInstance.isHrefVideo(newHref);
 
 			if (bIsVideoPreview) {
 
@@ -901,7 +901,12 @@ export async function createExtraNetworkCard(nameText, familiars, type, imageDra
 									blob = new Blob([blob], { type: modelElement.fileInfo.file.format });
 								}
 
-								metadataViewerContextObject.setImageOrVideo(blob, true);
+								const fileInfo = {
+									filename: modelElement.fileInfo.filename,
+									type: modelElement.fileInfo.type,
+									subfolder: modelElement.fileInfo.subdirectory || modelElement.fileInfo.subfolder || "",
+								};
+								metadataViewerContextObject.setImageOrVideo(blob, true, fileInfo);
 							}
 						}
 					)
@@ -1073,9 +1078,9 @@ export async function createExtraNetworkCard(nameText, familiars, type, imageDra
 	}
 	backgroundImageContainer.initVideo();
 
-	modelElement.forceLoad = function () {
+	modelElement.forceLoad = async function () {
 
-		if (utilitiesInstance.isHrefVideo(backgroundImageContainer.dataSrc)) {
+		if (await utilitiesInstance.isHrefVideo(backgroundImageContainer.dataSrc)) {
 			backgroundImageContainer.backgroundVideo.forceLoad();
 		} else {
 			backgroundImageContainer.backgroundImage.forceLoad();

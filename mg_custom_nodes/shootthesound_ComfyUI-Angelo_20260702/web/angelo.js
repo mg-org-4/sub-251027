@@ -629,11 +629,45 @@ function attachPreviewCanvas(node) {
     row1.appendChild(paintModeToggle);
     node._AngeloPaintModeToggle = paintModeToggle;
 
+    // Restore / Remove are conflicting brushes — turning one on turns the other
+    // off so the toolbar can't lie about which is active.
+    //
+    // Remove REQUIRES Xtra-Fine, so toggling remove_mode also forces
+    // fine_upscaling on (remembering the prior state) and restores it on the way
+    // out — off, unless Xtra-Fine was already on before Remove was enabled.
+    const _setRemove = (on) => {
+        const w = findWidget(node, "remove_mode");
+        if (!w) return;
+        const fw = findWidget(node, "fine_upscaling");
+        if (on && !w.value) {
+            node._AngeloXtraFineBeforeRemove = fw ? !!fw.value : false;
+            if (fw) setWidget(fw, true);
+        } else if (!on && w.value) {
+            if (fw) setWidget(fw, !!node._AngeloXtraFineBeforeRemove);
+            node._AngeloXtraFineBeforeRemove = undefined;
+        }
+        setWidget(w, on);
+    };
+    const _clearOtherBrushes = (keep) => {
+        if (keep !== "restore_mode") {
+            const rw = findWidget(node, "restore_mode");
+            if (rw && rw.value) setWidget(rw, false);
+        }
+        if (keep !== "remove_mode") _setRemove(false);   // also restores Xtra-Fine
+    };
+    const _syncBrushToggles = () => {
+        syncRestoreToggle(node);
+        syncRemoveToggle(node);
+        syncFineUpscaleToggle(node);
+    };
+
     const restoreToggle = makeToggleButton("Restore", () => {
         const w = findWidget(node, "restore_mode");
         if (!w) return;
-        setWidget(w, !w.value);
-        syncRestoreToggle(node);
+        const next = !w.value;
+        setWidget(w, next);
+        if (next) _clearOtherBrushes("restore_mode");
+        _syncBrushToggles();
     });
     restoreToggle.title = "Restore brush — when ON, clicks and paint strokes RESTORE the painted "
         + "region back to the session's original base image instead of refining it. No sampling at "
@@ -644,7 +678,41 @@ function attachPreviewCanvas(node) {
     row1.appendChild(restoreToggle);
     node._AngeloRestoreToggle = restoreToggle;
 
+    // Remove brush — sits right beside Restore because it's the same gesture
+    // with a different fill: Restore brings the ORIGINAL back, Remove erases
+    // to BACKGROUND. Paint / click / Detect a region, and the edit model fills
+    // the hole with a continuation of the surroundings. Edit models only.
+    const removeToggle = makeToggleButton("🩹 Remove", () => {
+        const w = findWidget(node, "remove_mode");
+        if (!w) return;
+        const next = !w.value;
+        if (next) _clearOtherBrushes("remove_mode");
+        _setRemove(next);   // toggles remove_mode + forces/restores Xtra-Fine
+        _syncBrushToggles();
+    });
+    removeToggle.title = "Remove brush — erase an object and let the edit model rebuild the "
+        + "background behind it. Paint over it (or click, or Detect \"the person\" and it uses that "
+        + "mask). One full-denoise pass regenerates the masked region as background: the object is "
+        + "cut out of the reference the model anchors to (a real hole), so it rebuilds from the "
+        + "surroundings instead of redrawing the object.\n\n"
+        + "The Denoise box is ignored (the pass is always full denoise); your main/Area prompt isn't "
+        + "used either — a fixed background-fill instruction drives it. Feather is forced to 0 and the mask "
+        + "auto-grows ~10% to cover the object's halo.\n\n"
+        + "Remove auto-enables Xtra-Fine (and shows Ctx Pad / MP / Method) and requires it — the "
+        + "removal always runs on a high-res crop, which is what rebuilds fine background detail. "
+        + "Turning Remove off restores Xtra-Fine to how it was before.\n\n"
+        + "Edit models only (FLUX 2 Klein / Qwen-Image-Edit). Refine mode only; mutually exclusive "
+        + "with Restore. Tips: shadows/reflections aren't under the brush — paint those too, or "
+        + "they'll give the removal away. Left any artifacts behind? Turn Remove OFF and clean them "
+        + "with the regular brush — Paint Mode on, in Refine mode, at a gentle Denoise (~0.6) — to "
+        + "smooth them out without regenerating the whole area. Undo / Re-roll / Vary ×4 all work.";
+    row1.appendChild(removeToggle);
+    node._AngeloRemoveToggle = removeToggle;
+
     const fineUpscaleToggle = makeToggleButton("Xtra-Fine", () => {
+        // Remove forces Xtra-Fine on and requires it — ignore clicks while
+        // Remove is active so it can't be switched off underneath it.
+        if (findWidget(node, "remove_mode")?.value) return;
         const w = findWidget(node, "fine_upscaling");
         if (!w) return;
         setWidget(w, !w.value);
@@ -1139,6 +1207,29 @@ function attachPreviewCanvas(node) {
     modeSelect.title = "Sampler Mode = generate a fresh base latent from the inputs (acts like a KSampler). Edit Mode = click/drag the preview to refine or inpaint the cached latent. Switching to Edit Mode auto-locks the sampler seed to the value that produced the base.";
     modeRow.appendChild(modeSelect);
     node._AngeloModeSelect = modeSelect;
+
+    // Fullscreen toggle — pinned top-left of the Mode row (mirrors the
+    // floating detect panel on the right, so it never disturbs the centred
+    // Mode dropdown). Pops the WHOLE editor (toolbar + canvas) into a
+    // viewport-filling overlay for a much bigger canvas; Esc or the button
+    // returns it. Works in both Sampler and Edit mode.
+    const fullscreenBtn = document.createElement("button");
+    fullscreenBtn.type = "button";
+    fullscreenBtn.textContent = "⛶ Fullscreen";
+    fullscreenBtn.style.cssText = "position:absolute; left:6px; top:4px; z-index:6; cursor:pointer; "
+        + "padding:3px 9px; font-size:11px; font-weight:bold; border-radius:3px; "
+        + "border:1px solid #555; background:#2a2a2a; color:#ccc; user-select:none; line-height:15px;";
+    for (const ev of ["pointerdown", "mousedown"]) {
+        fullscreenBtn.addEventListener(ev, (e) => e.stopPropagation());
+    }
+    fullscreenBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleAngeloFullscreen(node);
+    });
+    modeRow.appendChild(fullscreenBtn);
+    node._AngeloFullscreenBtn = fullscreenBtn;
+    syncFullscreenButton(node);
 
     // Floating detect-mode panel — pinned top-right of the Mode row, shown
     // only while candidates are active. Holds the red Cancel button + an
@@ -2118,6 +2209,9 @@ function attachPreviewCanvas(node) {
         const onRemoved = node.onRemoved;
         node.onRemoved = function () {
             try { ro.disconnect(); } catch (e) { /* noop */ }
+            // Deleting the node mid-fullscreen would otherwise leave the
+            // overlay (and its detached container) orphaned in the body.
+            try { if (node._AngeloFSOverlay) exitAngeloFullscreen(node); } catch (e) { /* noop */ }
             if (onRemoved) onRemoved.apply(this, arguments);
         };
     }
@@ -4465,6 +4559,183 @@ function makeToolbarRow() {
     return row;
 }
 
+
+// ============================================================
+// Fullscreen overlay
+// ============================================================
+//
+// Pops the whole editing UI (toolbar + area-prompt box + canvas) into a
+// fixed, viewport-filling overlay. We reparent node._AngeloContainer INTACT
+// rather than cloning anything, so every existing click/paint/zoom/pan
+// handler keeps working — they all map through canvas.getBoundingClientRect()
+// which reflects the new (much larger) size — and the ResizeObserver on
+// canvasWrap auto-refits the image. On exit the container goes back exactly
+// where LiteGraph's DOM widget put it (tracked via a comment placeholder).
+//
+// We also make a best-effort request for TRUE browser fullscreen on the
+// overlay so the browser chrome hides too; if the browser refuses (needs a
+// user gesture / disallowed), the plain overlay already covers the ComfyUI
+// viewport, so the feature still works.
+
+function isAngeloFullscreen(node) {
+    return !!node._AngeloFSOverlay;
+}
+
+function toggleAngeloFullscreen(node) {
+    if (isAngeloFullscreen(node)) exitAngeloFullscreen(node);
+    else enterAngeloFullscreen(node);
+}
+
+function syncFullscreenButton(node) {
+    const btn = node._AngeloFullscreenBtn;
+    if (!btn) return;
+    const on = isAngeloFullscreen(node);
+    btn.textContent = on ? "⛶ Exit" : "⛶ Fullscreen";
+    btn.style.background = on ? "rgba(40, 62, 82, 0.95)" : "#2a2a2a";
+    btn.style.borderColor = on ? "rgba(120, 190, 235, 0.9)" : "#555";
+    btn.style.color = on ? "#d8eeff" : "#ccc";
+    btn.title = on
+        ? "Exit fullscreen and return the editor to the node (Esc)."
+        : "Pop the editor into a fullscreen overlay — a much bigger canvas for precise "
+          + "clicks/paint/zoom. The toolbar and all editing work exactly as normal. "
+          + "Esc or this button returns it to the node. Requests true browser fullscreen "
+          + "too where the browser allows it.";
+}
+
+function enterAngeloFullscreen(node) {
+    const container = node._AngeloContainer;
+    if (!container || node._AngeloFSOverlay) return;
+
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed; inset:0; z-index:99990; background:#0d0d0d; "
+        + "display:flex; flex-direction:column;";
+    // Keep graph-level pointer/wheel handling from firing underneath — clicks
+    // inside the toolbar/canvas still reach their own listeners normally.
+    overlay.addEventListener("pointerdown", (e) => e.stopPropagation());
+    overlay.addEventListener("wheel", (e) => e.stopPropagation(), { passive: false });
+
+    // Remember where the container lives so we can put it back precisely.
+    const placeholder = document.createComment("angelo-fullscreen-slot");
+    node._AngeloFSPrevParent = container.parentNode;
+    node._AngeloFSPlaceholder = placeholder;
+    node._AngeloFSPrevCss = container.style.cssText;
+    if (container.parentNode) container.parentNode.insertBefore(placeholder, container);
+
+    // Fill the overlay. Same flex-column shape as the in-node container, so
+    // the toolbar keeps its height and canvasWrap flex-grows into the rest.
+    container.style.cssText = "width:100%; height:100%; flex:1 1 auto; min-height:0; "
+        + "border:none; border-radius:0; background:#1a1a1a; overflow:hidden; "
+        + "display:flex; flex-direction:column;";
+    overlay.appendChild(container);
+
+    // Floating Exit button — the discoverable escape hatch when true browser
+    // fullscreen isn't granted (Esc also works; see the keydown handler).
+    const exitBtn = document.createElement("button");
+    exitBtn.type = "button";
+    exitBtn.textContent = "✕ Exit Fullscreen (Esc)";
+    exitBtn.title = "Return the editor to the node (Esc).";
+    exitBtn.style.cssText = "position:absolute; right:12px; top:10px; z-index:2; cursor:pointer; "
+        + "padding:5px 12px; font-size:12px; font-weight:bold; border-radius:4px; "
+        + "border:1px solid rgba(255,255,255,0.35); background:rgba(30,30,30,0.92); color:#eee; "
+        + "user-select:none;";
+    for (const ev of ["pointerdown", "mousedown"]) {
+        exitBtn.addEventListener(ev, (e) => e.stopPropagation());
+    }
+    exitBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        exitAngeloFullscreen(node);
+    });
+    overlay.appendChild(exitBtn);
+
+    document.body.appendChild(overlay);
+    node._AngeloFSOverlay = overlay;
+
+    // Esc-to-close — self-contained so it doesn't depend on canvas hover.
+    // Defers to any open sub-overlay (detect / vary / outpaint) so the first
+    // Esc dismisses that and a second Esc leaves fullscreen.
+    const onKey = (e) => {
+        if (e.key !== "Escape") return;
+        if (isOutpaintReviewOpen(node) || isVaryChooserOpen(node)
+            || (node._AngeloDetections && node._AngeloDetections.length)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        exitAngeloFullscreen(node);
+    };
+    node._AngeloFSKeyHandler = onKey;
+    document.addEventListener("keydown", onKey, true);
+
+    // If the user drops OUT of true browser-fullscreen (e.g. the browser eats
+    // Esc to exit fullscreen before our keydown sees it), tear the overlay
+    // down to match, so the two never get out of sync.
+    const onFsChange = () => {
+        if (!document.fullscreenElement && node._AngeloFSOverlay) {
+            exitAngeloFullscreen(node);
+        }
+    };
+    node._AngeloFSFsChangeHandler = onFsChange;
+    document.addEventListener("fullscreenchange", onFsChange);
+
+    // Best-effort true fullscreen (hides browser chrome). Rejection is fine.
+    if (overlay.requestFullscreen) {
+        try { overlay.requestFullscreen().catch(() => {}); }
+        catch (e) { /* older browsers: ignore */ }
+    }
+
+    // Refit the image to the now-huge canvas area. rAF lets the overlay lay
+    // out first so clientWidth/Height are real before we measure.
+    requestAnimationFrame(() => {
+        try { resetView(node); redrawCanvasWithOverlays(node); }
+        catch (e) { dbg("fullscreen refit threw", e); }
+    });
+
+    syncFullscreenButton(node);
+}
+
+function exitAngeloFullscreen(node) {
+    const overlay = node._AngeloFSOverlay;
+    const container = node._AngeloContainer;
+    if (!overlay || !container) return;
+
+    // Detach listeners FIRST so tearing down browser-fullscreen below can't
+    // re-enter this via the fullscreenchange handler.
+    if (node._AngeloFSKeyHandler) {
+        document.removeEventListener("keydown", node._AngeloFSKeyHandler, true);
+        node._AngeloFSKeyHandler = null;
+    }
+    if (node._AngeloFSFsChangeHandler) {
+        document.removeEventListener("fullscreenchange", node._AngeloFSFsChangeHandler);
+        node._AngeloFSFsChangeHandler = null;
+    }
+    if (document.fullscreenElement) {
+        try { document.exitFullscreen(); } catch (e) { /* noop */ }
+    }
+
+    // Put the container back exactly where it came from.
+    container.style.cssText = node._AngeloFSPrevCss || "";
+    const placeholder = node._AngeloFSPlaceholder;
+    const prevParent = node._AngeloFSPrevParent;
+    if (placeholder && placeholder.parentNode) {
+        placeholder.parentNode.insertBefore(container, placeholder);
+        placeholder.parentNode.removeChild(placeholder);
+    } else if (prevParent) {
+        prevParent.appendChild(container);
+    }
+    node._AngeloFSPlaceholder = null;
+    node._AngeloFSPrevParent = null;
+    node._AngeloFSPrevCss = null;
+
+    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    node._AngeloFSOverlay = null;
+
+    requestAnimationFrame(() => {
+        try { resetView(node); redrawCanvasWithOverlays(node); }
+        catch (e) { dbg("fullscreen restore refit threw", e); }
+    });
+
+    syncFullscreenButton(node);
+}
+
 /**
  * Build a click-to-toggle button. Returns the DOM element; the caller
  * is responsible for syncing its visual state to whatever underlying
@@ -4521,6 +4792,8 @@ const _TOGGLE_ON_COLORS = {
     teal:   { bg: "rgba(30, 110, 130, 0.95)", border: "rgba(140, 200, 220, 0.9)" },
     amber:  { bg: "rgba(160, 110, 30, 0.95)", border: "rgba(230, 185, 110, 0.9)" },
     sky:    { bg: "rgba(40, 100, 150, 0.95)", border: "rgba(130, 195, 235, 0.9)" },
+    rose:   { bg: "rgba(150, 45, 70, 0.95)",  border: "rgba(230, 120, 150, 0.9)" },
+    plum:   { bg: "rgba(110, 45, 120, 0.95)", border: "rgba(195, 130, 220, 0.9)" },
 };
 
 function syncPersistentMaskToggle(node) {
@@ -4556,6 +4829,15 @@ function syncRestoreToggle(node) {
     _syncToggle(node._AngeloRestoreToggle, effective, _TOGGLE_ON_COLORS.amber);
 }
 
+function syncRemoveToggle(node) {
+    // Backend honours remove_mode in Refine only (edit models) — the Smart
+    // modes ignore it, so display OFF there rather than a stale widget value.
+    const effective = isAnySmartMode(node)
+        ? false
+        : findWidget(node, "remove_mode")?.value;
+    _syncToggle(node._AngeloRemoveToggle, effective, _TOGGLE_ON_COLORS.rose);
+}
+
 function syncQuickPromptSelect(node) {
     _syncDropdownWrap(node._AngeloQuickPromptSelect, findWidget(node, "quick_prompt_mode")?.value);
 }
@@ -4581,6 +4863,7 @@ function syncFineUpscaleToggle(node) {
     let effective;
     if (isSmartInpaintMode(node)) effective = true;
     else if (isSmartGuidedInpaintMode(node)) effective = false;
+    else if (findWidget(node, "remove_mode")?.value) effective = true;  // Remove forces Xtra-Fine on
     else effective = findWidget(node, "fine_upscaling")?.value;
     _syncToggle(node._AngeloFineUpscaleToggle, effective, _TOGGLE_ON_COLORS.green);
 
@@ -4639,6 +4922,7 @@ function syncSmartInpaintLockedWidgets(node) {
         "_AngeloFineUpscaleToggle",
         "_AngeloPaintModeToggle",
         "_AngeloRestoreToggle",
+        "_AngeloRemoveToggle",
         "_AngeloRefGroup",
         "_AngeloCtxPadInput",
     ], anySmart || outp);
@@ -4675,6 +4959,7 @@ function syncSmartInpaintLockedWidgets(node) {
     syncAreaPromptToggle(node);
     syncPersistentMaskToggle(node);
     syncRestoreToggle(node);
+    syncRemoveToggle(node);
     // Lite toggle just mirrors quick_lite (no mode forcing).
     _syncToggle(node._AngeloLiteToggle, findWidget(node, "quick_lite")?.value, _TOGGLE_ON_COLORS.teal);
     syncReferenceControls(node);
@@ -4920,6 +5205,7 @@ function syncAllToolbarControls(node) {
     syncAreaPromptToggle(node);
     syncPaintModeToggle(node);
     syncRestoreToggle(node);
+    syncRemoveToggle(node);
     syncReferenceControls(node);
     syncQuickPromptSelect(node);
     syncPromptSlotButtons(node);
@@ -5073,6 +5359,8 @@ function hideMechanicalWidgets(node) {
         "redo_seq",
         // Restore brush — driven by the Restore toggle on the toolbar
         "restore_mode",
+        // Remove brush — driven by the Remove toggle on the toolbar
+        "remove_mode",
         // Prompt slots — JSON state for the Area Prompt slot strip
         "area_prompt_slots",
         // Vary ×4 — driven by the Vary button + chooser overlay

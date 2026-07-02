@@ -1,9 +1,8 @@
-﻿import { app } from "../../../scripts/app.js";
-import { api } from "../../../scripts/api.js";
+import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
 
-console.info("[IAMCCS WAN V3] Isolated WAN Shotboard UI mode active.");
-const WAN_NODE_CLASS = "IAMCCS_WanShotboardPlannerPure";
-const CINE_VERSION = "2026-06-08-wan-v3-isolated-v2-palette-meter-scrub-reliable-plus";
+console.info("[IAMCCS V3] Stable node UI mode active. Shotboard audio duration floor build loaded.");
+const CINE_VERSION = "2026-06-23-v3-audio-duration-floor";
 const SHOTBOARD_V3_RIGID_WIDTH = 1920;
 const SHOTBOARD_V3_OPEN_HEIGHT = 900;
 const SHOTBOARD_V3_COLLAPSED_HEIGHT = 660; // increased to accommodate global prompt always visible in collapsed mode
@@ -59,13 +58,6 @@ const CINE_NODE_CHROME = {
         box: "#D89B45",
         border: "#6B6258",
         glow: "rgba(216,155,69,.20)",
-    },
-    wanShotboardV3: {
-        header: "#0F3E55",
-        nodeBg: "#061923",
-        box: "#6FB6D2",
-        border: "#2D7A92",
-        glow: "rgba(111,182,210,.24)",
     },
     shotboardLite: {
         header: "#4A3720",
@@ -166,11 +158,7 @@ function nodeClassName(node) {
 }
 
 function isShotboardV3Class(klass) {
-    return klass === WAN_NODE_CLASS;
-}
-
-function isWanShotboardV3Class(klass) {
-    return klass === WAN_NODE_CLASS;
+    return klass === "IAMCCS_CineShotboardPlannerV3";
 }
 
 function getWidget(node, name) {
@@ -398,7 +386,7 @@ function healCineInfoImageBatchLink(node, state) {
 
 function traceLinkedCinePlanner(node) {
     const startInputs = ["timeline_data", "multi_input", "duration_seconds"];
-    const accepted = new Set([WAN_NODE_CLASS]);
+    const accepted = new Set(["IAMCCS_CineShotboardLite", "IAMCCS_CineShotboardPlannerPro", "IAMCCS_CineShotboardPlannerProV2", "IAMCCS_CineShotboardPlannerV3", "IAMCCS_CineShotboardPlannerProLegacy", "IAMCCS_CineShotboardTimelinePro", "IAMCCS_CineReferenceBoard"]);
     for (const inputName of startInputs) {
         let current = getLinkedOriginNode(node, inputName);
         const visited = new Set();
@@ -408,7 +396,7 @@ function traceLinkedCinePlanner(node) {
             const cls = nodeClassName(current);
             if (accepted.has(cls)) return current;
             if (cls === "IAMCCS_CineInfo" || cls === "IAMCCS_CinePromptModeSwitch" || cls === "IAMCCS_CinePromptRelayImageBridge") {
-                current = getLinkedOriginNode(current, "wan_shotboard");
+                current = getLinkedOriginNode(current, "cine_linx");
                 continue;
             }
             if (cls === "Reroute" || current.type === "Reroute") {
@@ -515,6 +503,34 @@ function button(label, tone = "neutral", palette = null) {
     return btn;
 }
 
+function installRootPressFeedback(root, palette) {
+    if (!root || root._iamccsRootPressFeedback) return;
+    root._iamccsRootPressFeedback = true;
+    const pressTarget = (event) => {
+        const button = event.target?.closest?.("button");
+        if (!button || !root.contains(button)) return;
+        if (button.dataset.iamccsRootPressed !== "true") {
+            button._iamccsRootPressFilter = button.style.filter;
+            button._iamccsRootPressBorder = button.style.borderColor;
+            button._iamccsRootPressShadow = button.style.boxShadow;
+        }
+        button.dataset.iamccsRootPressed = "true";
+        button.style.filter = "brightness(1.22) saturate(1.22)";
+        button.style.borderColor = palette?.accent || "#FFE08A";
+        button.style.boxShadow = "inset 0 0 0 2px rgba(255,255,255,.32),0 0 0 3px rgba(255,224,138,.45),0 0 18px rgba(111,182,210,.34)";
+        window.setTimeout(() => {
+            if (button.dataset.iamccsRootPressed === "true") {
+                button.dataset.iamccsRootPressed = "false";
+                button.style.filter = button._iamccsRootPressFilter || "";
+                button.style.borderColor = button._iamccsRootPressBorder || button.style.borderColor;
+                button.style.boxShadow = button._iamccsRootPressShadow || button.style.boxShadow;
+            }
+        }, 300);
+    };
+    root.addEventListener("pointerdown", pressTarget, { capture: true });
+    root.addEventListener("click", pressTarget, { capture: true });
+}
+
 function protectControlDrag(element) {
     if (!element) return element;
     element.draggable = false;
@@ -531,140 +547,6 @@ function protectControlDrag(element) {
         event.stopPropagation();
     }, { capture: true });
     return element;
-}
-
-function bindReliableTimelineButton(button, action) {
-    if (!button || typeof action !== "function") return button;
-    let armed = false;
-    let lastFire = 0;
-    const fire = (event) => {
-        event?.stopPropagation?.();
-        const now = performance.now();
-        if (now - lastFire < 260) return;
-        lastFire = now;
-        action(event);
-    };
-    button.draggable = false;
-    button.setAttribute?.("draggable", "false");
-    button.addEventListener("pointerdown", (event) => {
-        armed = true;
-        event.stopPropagation();
-        try { button.setPointerCapture?.(event.pointerId); } catch {}
-        button._iamccsReliableFilter = button.style.filter;
-        button._iamccsReliableBoxShadow = button.style.boxShadow;
-        button.style.filter = "brightness(1.24) saturate(1.2)";
-        button.style.boxShadow = `${button._iamccsReliableBoxShadow || "0 4px 14px rgba(0,0,0,.35)"}, 0 0 0 3px rgba(244,239,230,.32)`;
-        button.classList.add("iamccs-pressing");
-    }, { capture: true });
-    button.addEventListener("pointerup", (event) => {
-        event.stopPropagation();
-        try { button.releasePointerCapture?.(event.pointerId); } catch {}
-        button.style.filter = button._iamccsReliableFilter || "";
-        button.style.boxShadow = button._iamccsReliableBoxShadow || "";
-        button.classList.remove("iamccs-pressing");
-        if (!armed) return;
-        armed = false;
-        fire(event);
-    }, { capture: true });
-    button.addEventListener("pointercancel", (event) => {
-        event.stopPropagation();
-        armed = false;
-        button.style.filter = button._iamccsReliableFilter || "";
-        button.style.boxShadow = button._iamccsReliableBoxShadow || "";
-        button.classList.remove("iamccs-pressing");
-    }, { capture: true });
-    button.addEventListener("click", (event) => {
-        event.preventDefault();
-        fire(event);
-    }, { capture: true });
-    button.addEventListener("dblclick", (event) => {
-        event.preventDefault();
-        fire(event);
-    }, { capture: true });
-    return button;
-}
-
-function addPressPreview(button, options = {}) {
-    if (!button || button._iamccsPressPreview) return button;
-    button._iamccsPressPreview = true;
-    const pressedBg = options.pressedBg || "linear-gradient(180deg,#FFE08A 0%,#E08B3E 100%)";
-    const pressedColor = options.pressedColor || "#120D08";
-    const pressedBorder = options.pressedBorder || "#FFE08A";
-    const pressedShadow = options.pressedShadow || "inset 0 3px 8px rgba(7,12,17,.75),0 0 0 2px rgba(255,224,138,.42),0 0 16px rgba(255,162,84,.28)";
-    const press = () => {
-        button.dataset.iamccsPressedPreview = "true";
-        button.style.transform = "";
-        button.style.background = pressedBg;
-        button.style.color = pressedColor;
-        button.style.borderColor = pressedBorder;
-        button.style.boxShadow = pressedShadow;
-        button.style.filter = "brightness(1.18) saturate(1.16)";
-        window.setTimeout(() => {
-            if (button.dataset.iamccsPressedPreview === "true") release();
-        }, Number(options.duration || 280));
-    };
-    const release = () => {
-        button.dataset.iamccsPressedPreview = "false";
-        button.style.transform = "";
-        if (button._iamccsPressBg) button.style.background = button._iamccsPressBg;
-        if (button._iamccsPressColor) button.style.color = button._iamccsPressColor;
-        if (button._iamccsPressBorder) button.style.borderColor = button._iamccsPressBorder;
-        button.style.boxShadow = button._iamccsPressShadow || "";
-        button.style.filter = button._iamccsPressFilter || "";
-    };
-    button.addEventListener("pointerdown", () => {
-        button._iamccsPressBg = button.style.background;
-        button._iamccsPressColor = button.style.color;
-        button._iamccsPressBorder = button.style.borderColor;
-        button._iamccsPressShadow = button.style.boxShadow;
-        button._iamccsPressFilter = button.style.filter;
-        press();
-    }, { capture: true });
-    button.addEventListener("click", () => {
-        button._iamccsPressBg = button._iamccsPressBg || button.style.background;
-        button._iamccsPressColor = button._iamccsPressColor || button.style.color;
-        button._iamccsPressBorder = button._iamccsPressBorder || button.style.borderColor;
-        button._iamccsPressShadow = button._iamccsPressShadow || button.style.boxShadow;
-        button._iamccsPressFilter = button._iamccsPressFilter || button.style.filter;
-        press();
-    }, { capture: true });
-    button.addEventListener("pointerup", release, { capture: true });
-    button.addEventListener("pointercancel", release, { capture: true });
-    button.addEventListener("mouseleave", () => {
-        if (button.dataset.iamccsPressedPreview === "true") release();
-    });
-    return button;
-}
-
-function installRootPressFeedback(root, palette) {
-    if (!root || root._iamccsRootPressFeedback) return;
-    root._iamccsRootPressFeedback = true;
-    const pressTarget = (event) => {
-        const button = event.target?.closest?.("button");
-        if (!button || !root.contains(button)) return;
-        if (button.dataset.iamccsRootPressed !== "true") {
-            button._iamccsRootPressTransform = button.style.transform;
-            button._iamccsRootPressFilter = button.style.filter;
-            button._iamccsRootPressBorder = button.style.borderColor;
-        button._iamccsRootPressShadow = button.style.boxShadow;
-        }
-        button.dataset.iamccsRootPressed = "true";
-        button.style.transform = button._iamccsRootPressTransform || "";
-        button.style.filter = "brightness(1.22) saturate(1.22)";
-        button.style.borderColor = palette?.accent || "#FFE08A";
-        button.style.boxShadow = "inset 0 0 0 2px rgba(255,255,255,.32),0 0 0 3px rgba(255,224,138,.45),0 0 18px rgba(111,182,210,.34)";
-        window.setTimeout(() => {
-            if (button.dataset.iamccsRootPressed === "true") {
-                button.dataset.iamccsRootPressed = "false";
-                button.style.transform = button._iamccsRootPressTransform || "";
-                button.style.filter = button._iamccsRootPressFilter || "";
-                button.style.borderColor = button._iamccsRootPressBorder || button.style.borderColor;
-                button.style.boxShadow = button._iamccsRootPressShadow || button.style.boxShadow;
-            }
-        }, 300);
-    };
-    root.addEventListener("pointerdown", pressTarget, { capture: true });
-    root.addEventListener("click", pressTarget, { capture: true });
 }
 
 function isNumericStepDragTarget(event) {
@@ -1434,7 +1316,7 @@ function boardFromWorkflowJson(data) {
         max_guides: widgets[6],
         default_force: widgets[7],
         promptrelay_epsilon: isLite ? 0.65 : widgets[8],
-        wan_frame_round_mode: isLite ? "up_8n_plus_1" : widgets[9],
+        ltx_round_mode: isLite ? "up_8n_plus_1" : widgets[9],
         image_width: widgets[isLite ? 9 : 11],
         image_height: widgets[isLite ? 10 : 12],
         image_resize_method: isLite ? "crop" : cineResizeMethodValue(widgets[13]),
@@ -2764,7 +2646,7 @@ function openReferenceFrameEditor(node, index, path, onApply) {
         "overflow:hidden",
         `background:${CINE_FILM_LAB.field}`,
         `border:1px solid ${CINE_FILM_LAB.border}`,
-        "border-radius:7px",
+        "border-radius:3px",
         "display:flex",
         "align-items:center",
         "justify-content:center",
@@ -3084,9 +2966,7 @@ function toggleFullscreenEditor(root, node) {
     const klass = nodeClassName(node);
     title.textContent = klass === "IAMCCS_BoardMaker"
         ? "IAMCCS BoardMaker Editor"
-        : isWanShotboardV3Class(klass)
-            ? "IAMCCS Shotboard WAN PURE"
-            : klass === "IAMCCS_WanLegacyPlannerDisabled"
+        : klass === "IAMCCS_CineShotboardPlannerV3"
                 ? "IAMCCS Shotboard V3 Full Frame"
             : "IAMCCS Shotboard Full Frame";
     title.style.cssText = "font-weight:700;letter-spacing:0;color:#ffffff;";
@@ -3396,13 +3276,13 @@ function numberStepperControl(value, step, min, max, onChange, options = {}) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.textContent = label;
-        btn.style.cssText = "height:30px;min-width:32px;padding:0;border:1px solid #8DE7FF;border-radius:5px;background:linear-gradient(180deg,#216077,#0B2E42);color:#EAF8FF;font-size:15px;font-weight:900;line-height:1;cursor:pointer;margin:0 2px;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 0 0 1px rgba(0,0,0,.35);";
+        btn.style.cssText = "height:30px;min-width:32px;padding:0;border:1px solid #405664;border-radius:5px;background:#0b1116;color:#e8eef2;font-size:15px;font-weight:900;line-height:1;cursor:pointer;margin:0 2px;";
         btn.onclick = (event) => {
             event.preventDefault();
             const current = Number(String(input.value).replace(",", ".")) || 0;
             apply(Math.round((current + delta) * 10000) / 10000);
         };
-        return protectControlDrag(addPressPreview(btn));
+        return protectControlDrag(btn);
     };
 
     input.oninput = () => {
@@ -3786,7 +3666,6 @@ function renderShotboardLite(node) {
         "image_resize_method",
         "image_multiple_of",
         "img_compression",
-        "debug_verbose",
     ].forEach((name) => hideWidget(getWidget(node, name)));
 
     let rows = parseJsonWidget(node, defaultLiteRows).map(normalizeLiteRow);
@@ -3847,7 +3726,7 @@ function renderShotboardLite(node) {
     selectSetting("Guide mode", "guide_policy", ["every_checked_row", "safe_core_guides"]);
     numberSetting("Max guides", "max_guides", "1", "1");
     numberSetting("Guide gap", "min_guide_gap_seconds", "0.1", "0");
-    numberSetting("Default motion", "default_force", "0.1", "1");
+    numberSetting("Default force", "default_force", "0.1", "0");
     numberSetting("Ref width", "image_width", "32", "64");
     numberSetting("Ref height", "image_height", "32", "64");
     settingsPanel.appendChild(settingsGrid);
@@ -4222,7 +4101,7 @@ function renderShotboardLite(node) {
             const forceLockCell = document.createElement("div");
             forceLockCell.style.cssText = "display:grid;grid-template-rows:auto auto;gap:6px;min-width:0;";
             const motionLabel = document.createElement("div");
-            motionLabel.textContent = "Motion";
+            motionLabel.textContent = "Guide Strength";
             motionLabel.style.cssText = "text-align:center;color:#D8BC80;font-size:9px;font-weight:800;";
             const motionGroup = document.createElement("div");
             motionGroup.style.cssText = "display:grid;gap:2px;";
@@ -4504,7 +4383,7 @@ function renderShotboardPro(node) {
     hideWidget(getWidget(node, "max_guides"));
     hideWidget(getWidget(node, "default_force"));
     hideWidget(getWidget(node, "promptrelay_epsilon"));
-    hideWidget(getWidget(node, "wan_frame_round_mode"));
+    hideWidget(getWidget(node, "ltx_round_mode"));
     hideWidget(getWidget(node, "tail_safety_frames"));
     hideWidget(getWidget(node, "image_paths"));
     hideWidget(getWidget(node, "image_width"));
@@ -4572,7 +4451,7 @@ function renderShotboardPro(node) {
         "max_guides",
         "default_force",
         "promptrelay_epsilon",
-        "wan_frame_round_mode",
+        "ltx_round_mode",
         "tail_safety_frames",
         "image_width",
         "image_height",
@@ -4653,9 +4532,9 @@ function renderShotboardPro(node) {
     selectSetting("Guide policy", "guide_policy", ["safe_core_guides", "prompt_only", "every_checked_row"], applyGuidePolicyToRows);
     numberSetting("Max guides", "max_guides", "1", "0");
     numberSetting("Guide gap", "min_guide_gap_seconds", "0.1", "0");
-    numberSetting("Default motion", "default_force", "0.1", "1");
+    numberSetting("Default force", "default_force", "0.1", "0");
     numberSetting("Relay softness", "promptrelay_epsilon", "0.0001", "0.0001");
-    selectSetting("WAN frames", "wan_frame_round_mode", ["up_8n_plus_1", "nearest_8n_plus_1", "none"]);
+    selectSetting("LTX frames", "ltx_round_mode", ["up_8n_plus_1", "nearest_8n_plus_1", "none"]);
     numberSetting("Ref width", "image_width", "32", "64");
     numberSetting("Ref height", "image_height", "32", "64");
     selectSetting("Resize", "image_resize_method", ["crop", "pad", "keep proportion", "stretch"]);
@@ -5365,7 +5244,7 @@ function renderShotboardPro(node) {
             max_guides: settings.max_guides,
             default_force: settings.default_force,
             promptrelay_epsilon: settings.promptrelay_epsilon,
-            wan_frame_round_mode: settings.wan_frame_round_mode,
+            ltx_round_mode: settings.ltx_round_mode,
             image_width: settings.image_width,
             image_height: settings.image_height,
             image_paths: imagePaths,
@@ -6011,7 +5890,7 @@ function renderShotboardPro(node) {
             const forceWrap = document.createElement("label");
             forceWrap.style.cssText = "display:grid;gap:4px;color:#b6cac3;font-size:10px;font-weight:800;";
             const motionLabel = document.createElement("span");
-            motionLabel.textContent = "Motion";
+            motionLabel.textContent = "Guide Strength";
             motionLabel.style.textAlign = "center";
             forceWrap.append(motionLabel, motion);
             forceNotesCell.append(forceWrap);
@@ -6457,10 +6336,10 @@ function renderCineMusicVideoPlanner(node) {
     title.textContent = "Cine Videoclip Maker";
     title.style.cssText = `font-weight:700;color:${CINE_FILM_LAB.text};margin-bottom:4px;font-size:13px;`;
     const body = document.createElement("div");
-    body.textContent = "Audio/shot sequencer planner. It creates one music-video shot: image prompt for Z-Image/Flux, PromptRelay local beats, WAN frame counts and music_linx for the future CINE_VIDEOCLIP_1 backend.";
+    body.textContent = "Audio/shot sequencer planner. It creates one music-video shot: image prompt for Z-Image/Flux, PromptRelay local beats, LTX frame counts and music_linx for the future CINE_VIDEOCLIP_1 backend.";
     body.style.cssText = `color:${CINE_FILM_LAB.muted};white-space:normal;margin-bottom:7px;`;
     const flow = document.createElement("div");
-    flow.textContent = "Use: shot_index -> image generator -> WAN I2V. For a full videoclip, iterate shot_index and concatenate rendered clips.";
+    flow.textContent = "Use: shot_index -> image generator -> LTX I2V+A. For a full videoclip, iterate shot_index and concatenate rendered clips.";
     flow.style.cssText = `color:${CINE_FILM_LAB.relay};white-space:normal;`;
     panel.append(title, body, flow);
     const widget = node.addDOMWidget("Videoclip Maker", "iamccs_cine_music_video", panel, { serialize: false });
@@ -6501,8 +6380,7 @@ function renderShotboardV3(node) {
     disposeShotboardV3Widget(node);
     node._iamccsCineShotboardV3Ready = true;
     node._iamccsCineShotboardV3Version = CINE_VERSION;
-    const isWanEdition = isWanShotboardV3Class(nodeClassName(node));
-    const chrome = applyCineChrome(node, isWanEdition ? "wanShotboardV3" : "shotboardV3");
+    const chrome = applyCineChrome(node, "shotboardV3");
     [
         "timeline_data",
         "global_prompt",
@@ -6513,7 +6391,7 @@ function renderShotboardV3(node) {
         "max_guides",
         "default_force",
         "promptrelay_epsilon",
-        "wan_frame_round_mode",
+        "ltx_round_mode",
         "image_paths",
         "image_width",
         "image_height",
@@ -6522,32 +6400,7 @@ function renderShotboardV3(node) {
         "img_compression",
     ].forEach((name) => hideWidget(getWidget(node, name)));
 
-    const purple = isWanEdition ? {
-        bg: "#061923",
-        panel: "linear-gradient(180deg,#0F3140 0%,#071D28 100%)",
-        panel2: "linear-gradient(180deg,#143F52 0%,#0A2634 100%)",
-        border: "#2D7A92",
-        borderSoft: "#1B4D63",
-        text: "#EAF8FF",
-        muted: "#B4D4DF",
-        image: "#6FB6D2",
-        image2: "linear-gradient(180deg,#6FB6D2 0%,#244F67 100%)",
-        textBlock: "linear-gradient(180deg,#111111 0%,#000000 100%)",
-        audio: "linear-gradient(180deg,#D7A84D 0%,#75582A 100%)",
-        danger: "#D56B5C",
-        button: "linear-gradient(180deg,#17445C 0%,#0B2838 100%)",
-        buttonHover: "linear-gradient(180deg,#215B75 0%,#10384D 100%)",
-        buttonPress: "linear-gradient(180deg,#FFE08A 0%,#E08B3E 100%)",
-        play: "#FFE08A",
-        accent: "#8DE7FF",
-        warm: "#F3B34B",
-        valueBg: "#F4EFE7",
-        valueText: "#181512",
-        relay: "#000000",
-        guide: "#92C46E",
-        imageAccent: "#6FB6D2",
-        audioAccent: "#D7A84D",
-    } : {
+    const purple = {
         bg: "#1E2022",
         panel: "#2A2D30",
         panel2: "#34383C",
@@ -6588,11 +6441,6 @@ function renderShotboardV3(node) {
             button.style.background = purple.button;
             button.style.color = purple.text;
             button.style.borderColor = purple.border;
-            addPressPreview(button, {
-                pressedBg: purple.buttonPress || "linear-gradient(180deg,#FFE08A,#E08B3E)",
-                pressedColor: purple.valueText || "#102018",
-                pressedBorder: purple.accent || "#D6E879",
-            });
         });
         return element;
     };
@@ -6627,7 +6475,6 @@ function renderShotboardV3(node) {
     const durationWidget = getWidget(node, "duration_seconds");
     const fpsWidget = getWidget(node, "frame_rate");
     const defaultForceWidget = getWidget(node, "default_force");
-    const debugVerboseWidget = getWidget(node, "debug_verbose");
     const imageWidthWidget = getWidget(node, "image_width");
     const imageHeightWidget = getWidget(node, "image_height");
     const removeStaleV3MultiInput = () => {
@@ -6643,7 +6490,7 @@ function renderShotboardV3(node) {
         "frame_rate",
         "default_force",
         "promptrelay_epsilon",
-        "wan_frame_round_mode",
+        "ltx_round_mode",
         "image_width",
         "image_height",
         "image_resize_method",
@@ -6674,7 +6521,7 @@ function renderShotboardV3(node) {
             return [name, name === "image_resize_method" ? cineResizeMethodValue(value) : value];
         }));
     clearV3BoardTransientState();
-    if (defaultForceWidget) defaultForceWidget.value = clampGuideStrength(defaultForceWidget.value || 1);
+    if (defaultForceWidget) defaultForceWidget.value = Math.max(0, Math.min(1, Number(defaultForceWidget.value || 0)));
     let collapsed = Boolean(node.properties?.iamccs_v3_collapsed);
     let promptTextScale = Math.max(0.85, Math.min(1.55, Number(node.properties?.iamccs_v3_prompt_text_scale || 1)));
     const promptFontSize = (base) => `${Math.max(8, Math.round(Number(base || 10) * promptTextScale * 10) / 10)}px`;
@@ -6691,7 +6538,7 @@ function renderShotboardV3(node) {
     let pendingImageTargetId = null;
     let timelineNotice = null;
     let timelineNoticeUntil = 0;
-    let lastDefaultForce = clampGuideStrength(defaultForceWidget?.value || 1);
+    let lastDefaultForce = Math.max(0, Math.min(1, Number(defaultForceWidget?.value || 0.25)));
     let durationValueControl = null;
 
     const positiveNumberOrNull = (value) => {
@@ -6725,10 +6572,10 @@ function renderShotboardV3(node) {
     const getDuration = () => Math.max(0.1, Number(durationWidget?.value || 20));
     const getFps = () => Math.max(1, Math.round(Number(fpsWidget?.value || 24)));
     const getTotalFrames = () => Math.max(1, Math.round(getDuration() * getFps()));
-    function clampGuideStrength(value, fallback = 1) {
+    const clampGuideStrength = (value, fallback = 0) => {
         const parsed = Number(value);
-        return Math.max(1, Math.min(2, Number.isFinite(parsed) ? parsed : Number(fallback) || 1));
-    }
+        return Math.max(0, Math.min(1, Number.isFinite(parsed) ? parsed : Number(fallback) || 0));
+    };
     const clampTimelineMeterSeconds = (value = timelineMeterSeconds) => {
         const duration = Math.max(0.5, getDuration());
         const rounded = Math.round((Number(value) || duration) * 2) / 2;
@@ -6976,6 +6823,13 @@ function renderShotboardV3(node) {
     };
     const endOfSegments = (items) => (items || []).reduce((max, item) => Math.max(max, Number(item.start || 0) + Number(item.length || 1)), 0);
     const endOfVisualSegments = () => endOfSegments((timeline.segments || []).filter((seg) => String(seg.type || "image") !== "audio"));
+    const segmentHasAudioMedia = (seg) => Boolean(seg && (String(seg.audioFile || "").trim() || String(seg.audioB64 || "").trim()));
+    const endOfAudioSegments = () => endOfSegments((timeline.audioSegments || []).filter((seg) => segmentHasAudioMedia(seg) && !seg.placeholder));
+    const durationFloorFrames = () => Math.max(endOfVisualSegments(), endOfAudioSegments());
+    const durationFloorSeconds = () => {
+        const frames = durationFloorFrames();
+        return frames > 0 ? Number((frames / getFps()).toFixed(3)) : 0;
+    };
     const showTimelineNotice = (message, tone = "warn") => {
         if (!timelineNotice) return;
         if (!message && Date.now() < timelineNoticeUntil) return;
@@ -6986,13 +6840,18 @@ function renderShotboardV3(node) {
         timelineNotice.style.color = tone === "error" ? "#FFE3DD" : "#FFF1BE";
     };
     const setDurationSeconds = (seconds, reason = "manual") => {
-        const next = Math.max(0.1, Number(seconds) || 0.1);
+        const requested = Math.max(0.1, Number(seconds) || 0.1);
+        const floor = durationFloorSeconds();
+        const next = floor > 0 ? Math.max(requested, floor) : requested;
         if (durationWidget) durationWidget.value = next;
         setWidgetValue(node, "duration_seconds", next);
         timeline.duration_seconds = next;
         timelineMeterSeconds = clampTimelineMeterSeconds(timelineMeterSeconds);
         durationValueControl?._iamccsSetValue?.(next);
-        console.log("[IAMCCS V3 DURATION TRUTH]", { nodeId: node?.id, reason, duration_seconds: next, fps: getFps() });
+        if (next > requested + 0.0005) {
+            showTimelineNotice(`Duration locked to ${next.toFixed(3)}s because timeline audio/slots reach that point. Shorten or remove content before reducing duration.`, "warn");
+        }
+        console.log("[IAMCCS V3 DURATION TRUTH]", { nodeId: node?.id, reason, requested_duration_seconds: requested, duration_floor_seconds: floor, duration_seconds: next, fps: getFps() });
     };
     const setFrameRateValue = (fps, reason = "manual") => {
         const next = Math.max(1, Math.round(Number(fps) || 24));
@@ -7011,7 +6870,7 @@ function renderShotboardV3(node) {
     syncTimingWidgetsFromTimelineTruth("initial_timeline_load");
     const enforceDurationMinimum = () => {
         const fps = getFps();
-        const minFrames = endOfVisualSegments();
+        const minFrames = durationFloorFrames();
         if (!minFrames) {
             showTimelineNotice("");
             return false;
@@ -7022,8 +6881,9 @@ function renderShotboardV3(node) {
             return false;
         }
         const minSeconds = Number((minFrames / fps).toFixed(3));
-        showTimelineNotice(`Timeline content reaches ${minSeconds}s, but board duration remains ${getDuration().toFixed(3)}s. Change Duration explicitly or shorten/ripple-delete the extra space.`);
-        return false;
+        setDurationSeconds(minSeconds, "enforce_duration_floor");
+        showTimelineNotice(`Timeline duration restored to ${minSeconds}s because audio/slots reach that point.`, "warn");
+        return true;
     };
     const ensureDurationForFrames = (requiredFrames) => {
         const fps = getFps();
@@ -7068,8 +6928,7 @@ function renderShotboardV3(node) {
         seg.start = Math.max(0, Math.min(Math.round(Number(seg.start || 0)), Math.max(0, total - 1)));
         if (seg.start + seg.length > total) seg.length = Math.max(1, total - seg.start);
         if (String(seg.type || "image") !== "text" && String(seg.type || "image") !== "audio") {
-            const guideStrength = clampGuideStrength(seg.motion ?? seg.guideStrength ?? seg.guide_strength ?? seg.strength ?? seg.force ?? seg.motion_force ?? seg.imageLockStrength ?? seg.image_lock_strength ?? defaultForceWidget?.value ?? 1);
-            seg.motion = guideStrength;
+            const guideStrength = clampGuideStrength(seg.guideStrength ?? seg.guide_strength ?? seg.strength ?? seg.force ?? seg.motion_force ?? seg.imageLockStrength ?? seg.image_lock_strength ?? defaultForceWidget?.value ?? 0.25);
             seg.guideStrength = guideStrength;
             seg.guide_strength = guideStrength;
             seg.force = guideStrength;
@@ -7268,7 +7127,7 @@ function renderShotboardV3(node) {
         const fps = getFps();
         const isText = String(seg.type || "image") === "text";
         const truthPath = isText ? "" : String(seg.imageTruthPath || seg.image_truth_path || seg.imageFile || seg.image_file || seg.path || "").trim();
-        const singleStrength = isText ? 0 : clampGuideStrength(seg.motion ?? seg.guideStrength ?? seg.guide_strength ?? seg.force ?? seg.strength ?? defaultForceWidget?.value ?? 1);
+        const singleStrength = isText ? 0 : Math.max(0, Math.min(1, Number(seg.guideStrength ?? seg.guide_strength ?? seg.force ?? seg.strength ?? defaultForceWidget?.value ?? 0.25)));
         return {
             second: Number((Number(seg.start || 0) / fps).toFixed(3)),
             frame: Math.round(Number(seg.start || 0)),
@@ -7282,7 +7141,6 @@ function renderShotboardV3(node) {
             force: singleStrength,
             strength: singleStrength,
             guide_strength: singleStrength,
-            motion: singleStrength,
             guideStrength: singleStrength,
             motion_force: singleStrength,
             image_lock_strength: singleStrength,
@@ -7577,11 +7435,11 @@ function renderShotboardV3(node) {
             image_multiple_of: Number(getWidget(node, "image_multiple_of")?.value || 32),
             promptrelay_epsilon: Number(getWidget(node, "promptrelay_epsilon")?.value || 0.001),
             img_compression: Number(getWidget(node, "img_compression")?.value || 0),
-            default_force: clampGuideStrength(defaultForceWidget?.value || 1),
+            default_force: Number(defaultForceWidget?.value || 0.25),
             guide_policy: String(getWidget(node, "guide_policy")?.value || "every_checked_row"),
             min_guide_gap_seconds: Number(getWidget(node, "min_guide_gap_seconds")?.value || 0),
             max_guides: Number(getWidget(node, "max_guides")?.value || 50),
-            wan_frame_round_mode: String(getWidget(node, "wan_frame_round_mode")?.value || "up_8n_plus_1"),
+            ltx_round_mode: String(getWidget(node, "ltx_round_mode")?.value || "up_8n_plus_1"),
             audioTrackCount: Math.max(1, Math.round(Number(timeline.audioTrackCount || 1))),
             masterAudioGain: Math.max(0, Math.min(2, Number(timeline.masterAudioGain ?? 1) || 1)),
             masterAudioNormalize: Boolean(timeline.masterAudioNormalize),
@@ -7671,15 +7529,15 @@ function renderShotboardV3(node) {
     topActions.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;";
     const v3ButtonColors = {
         normal: { bg: purple.button, hover: purple.buttonHover, border: purple.border, color: purple.text },
-        teal: { bg: "linear-gradient(180deg,#267E8E,#12475A)", hover: "linear-gradient(180deg,#3197A8,#195B72)", border: "#8DE7FF", color: "#EAFBFF" },
-        amber: { bg: "linear-gradient(180deg,#8D642C,#4F3518)", hover: "linear-gradient(180deg,#A67734,#60421E)", border: "#F3B34B", color: "#FFF4D5" },
-        blue: { bg: "linear-gradient(180deg,#205E82,#123B5D)", hover: "linear-gradient(180deg,#2A75A0,#194D75)", border: "#78B8E8", color: "#EFF9FF" },
-        violet: { bg: "linear-gradient(180deg,#554478,#352C59)", hover: "linear-gradient(180deg,#67528F,#443772)", border: "#B9A2F0", color: "#FAF5FF" },
-        olive: { bg: "linear-gradient(180deg,#5E7534,#394B24)", hover: "linear-gradient(180deg,#708B3D,#4B622D)", border: "#A8D36B", color: "#F7FFE9" },
-        slate: { bg: "linear-gradient(180deg,#405362,#273642)", hover: "linear-gradient(180deg,#50687A,#334655)", border: "#91AFC0", color: "#F2FAFF" },
-        sand: { bg: "linear-gradient(180deg,#7A6B4E,#4F4330)", hover: "linear-gradient(180deg,#8C7D5A,#60523C)", border: "#D4BE83", color: "#FFF8E6" },
-        green: { bg: "linear-gradient(180deg,#3C7B56,#244E3A)", hover: "linear-gradient(180deg,#4A9167,#2F644A)", border: "#92C46E", color: "#F2FFF6" },
-        gold: { bg: "linear-gradient(180deg,#99752E,#5A4219)", hover: "linear-gradient(180deg,#B58C39,#6D5321)", border: "#FFE08A", color: "#FFF7D5" },
+        teal: { bg: "linear-gradient(180deg,#2F686A,#22474A)", hover: "linear-gradient(180deg,#397A7D,#29565A)", border: "#77BFC2", color: "#F2FFFB" },
+        amber: { bg: "linear-gradient(180deg,#6B5630,#493B24)", hover: "linear-gradient(180deg,#7C653A,#56462B)", border: "#D8A64C", color: "#FFF4D7" },
+        blue: { bg: "linear-gradient(180deg,#345C7E,#263E57)", hover: "linear-gradient(180deg,#3E6C93,#2D4B68)", border: "#78A9D2", color: "#F2F8FF" },
+        violet: { bg: "linear-gradient(180deg,#5A4D7C,#3D345B)", hover: "linear-gradient(180deg,#6A5B91,#493E6A)", border: "#A996D8", color: "#FAF6FF" },
+        olive: { bg: "linear-gradient(180deg,#586B35,#3D4A28)", hover: "linear-gradient(180deg,#687D40,#495831)", border: "#A4BF6C", color: "#F7FFE9" },
+        slate: { bg: "linear-gradient(180deg,#58616C,#3D444D)", hover: "linear-gradient(180deg,#68737F,#48515C)", border: "#9DABB8", color: "#F5FAFF" },
+        sand: { bg: "linear-gradient(180deg,#756246,#514532)", hover: "linear-gradient(180deg,#887352,#5F513B)", border: "#C7A875", color: "#FFF7EA" },
+        green: { bg: "linear-gradient(180deg,#3E6B4F,#2B4B39)", hover: "linear-gradient(180deg,#497E5D,#345A44)", border: "#8BC69E", color: "#F2FFF6" },
+        gold: { bg: "linear-gradient(180deg,#80672D,#56451F)", hover: "linear-gradient(180deg,#957835,#654F24)", border: "#E1B94F", color: "#FFF7D5" },
         danger: { bg: "#6B302A", hover: "#8A3A32", border: purple.danger, color: purple.text },
     };
     const makeBtn = (label, tone = "normal") => {
@@ -7698,17 +7556,9 @@ function renderShotboardV3(node) {
             "font-weight:800",
             "cursor:pointer",
         ].join(";");
-        btn.onmouseenter = () => {
-            if (btn.dataset.iamccsPressedPreview !== "true") btn.style.background = colors.hover;
-        };
-        btn.onmouseleave = () => {
-            if (btn.dataset.iamccsPressedPreview !== "true") btn.style.background = colors.bg;
-        };
-        return protectControlDrag(addPressPreview(btn, {
-            pressedBg: purple.buttonPress,
-            pressedColor: purple.valueText,
-            pressedBorder: purple.accent,
-        }));
+        btn.onmouseenter = () => { btn.style.background = colors.hover; };
+        btn.onmouseleave = () => { btn.style.background = colors.bg; };
+        return protectControlDrag(btn);
     };
     const markToggleButton = (btn, active) => {
         btn.setAttribute("aria-pressed", active ? "true" : "false");
@@ -7761,6 +7611,24 @@ function renderShotboardV3(node) {
             return type === "IAMCCS_MultiTimelineBridge" || type.includes("MultiTimelineBridge");
         });
     };
+    const emitMultiTimelineReady = (takeIndex, reason = "switch") => {
+        const take = Math.max(1, Math.round(Number(takeIndex) || 1));
+        const timelineId = multiTimelineId(take);
+        const segments = Array.isArray(timeline.audioSegments) ? timeline.audioSegments : [];
+        try {
+            window.dispatchEvent(new CustomEvent("iamccs:multigeneration-shotboard-take-ready", {
+                detail: {
+                    activeTake: take,
+                    timelineId,
+                    audioLane: `A${take}`,
+                    audioSegments: segments.length,
+                    audioFrames: segments.reduce((max, seg) => Math.max(max, Number(seg?.start || 0) + Number(seg?.length || 0)), 0),
+                    reason,
+                    source: "shotboard",
+                },
+            }));
+        } catch {}
+    };
     const setBridgeTake = (takeIndex) => {
         const bridge = findMultiTimelineBridge();
         if (!bridge) return;
@@ -7771,7 +7639,13 @@ function renderShotboardV3(node) {
         try { widget.callback?.(take); } catch {}
         try {
             window.dispatchEvent(new CustomEvent("iamccs:multigeneration-active-take", {
-                detail: { nodeId: bridge.id, activeTake: take },
+                detail: {
+                    nodeId: bridge.id,
+                    activeTake: take,
+                    timelineId: multiTimelineId(take),
+                    audioLane: `A${take}`,
+                    source: "shotboard",
+                },
             }));
         } catch {}
     };
@@ -7801,6 +7675,7 @@ function renderShotboardV3(node) {
     });
     const multiAudioSegmentsForTake = (multi, takeIndex) => {
         const take = Math.max(1, Math.round(Number(takeIndex) || 1));
+        const sourceTrackForTake = take - 1;
         const timelineId = multiTimelineId(take);
         const normalizeMultiTimelineId = (value, fallbackTake = take) => {
             const raw = String(value || "").trim();
@@ -7812,8 +7687,15 @@ function renderShotboardV3(node) {
             : Array.isArray(multi?.allAudioSegments)
                 ? multi.allAudioSegments
                 : [];
-        if (!all.length) return [];
-        const matches = all.filter((seg) => {
+        const sourceAll = Array.isArray(multi?.audioSegmentsAllSource)
+            ? multi.audioSegmentsAllSource
+            : Array.isArray(multi?.sourceAudioSegmentsAll)
+                ? multi.sourceAudioSegmentsAll
+                : [];
+        const pool = all.length ? all : sourceAll;
+        if (!pool.length) return [];
+        const asTrack = (value) => Math.max(0, Math.round(Number(value || 0)));
+        const matches = pool.filter((seg) => {
             const segTake = Math.max(0, Math.round(Number(seg?.multiTakeIndex || 0)));
             const rawTimelineId = String(seg?.timelineId || "").trim();
             const segTimelineId = rawTimelineId ? normalizeMultiTimelineId(rawTimelineId, segTake || take) : "";
@@ -7821,22 +7703,31 @@ function renderShotboardV3(node) {
             if (!isMulti) return false;
             return segTimelineId === timelineId || segTake === take;
         });
-        return matches.map((seg) => {
+        const sourceMatches = matches.length ? matches : pool.filter((seg) => {
+            const explicitSourceTrack = seg?.sourceTrackOriginal ?? seg?.track;
+            return asTrack(explicitSourceTrack) === sourceTrackForTake;
+        });
+        return sourceMatches.map((seg) => {
             const localStart = Number(seg?.localStart);
             const next = cloneForMultiTimeline(seg, {});
             next.track = 0;
             next.start = Number.isFinite(localStart)
                 ? Math.max(0, Math.round(localStart))
-                : 0;
+                : (Boolean(seg?.multiGenerationClip) || /^T\d+/i.test(String(seg?.timelineId || ""))
+                    ? 0
+                    : Math.max(0, Math.round(Number(seg?.start || 0))));
             next.timelineId = timelineId;
             next.multiTakeIndex = take;
             next.shotboardActiveTakeAudio = true;
-            next.sourceTrackOriginal = Math.max(0, Math.round(Number(seg?.track || seg?.sourceTrackOriginal || 0)));
+            next.sourceTrackOriginal = asTrack(seg?.sourceTrackOriginal ?? seg?.track ?? sourceTrackForTake);
             return next;
         });
     };
     const applyMultiAudioForTake = (multi, takeIndex) => {
-        const sourceAll = Array.isArray(multi?.audioSegmentsAll) || Array.isArray(multi?.allAudioSegments);
+        const sourceAll = Array.isArray(multi?.audioSegmentsAll)
+            || Array.isArray(multi?.allAudioSegments)
+            || Array.isArray(multi?.audioSegmentsAllSource)
+            || Array.isArray(multi?.sourceAudioSegmentsAll);
         if (!sourceAll) return false;
         timeline.audioSegments = multiAudioSegmentsForTake(multi, takeIndex);
         timeline.audioTrackCount = 1;
@@ -7882,7 +7773,29 @@ function renderShotboardV3(node) {
         writeTimeline({ force: true });
         showTimelineNotice(`Loaded ${nextId}. Visual boxes are independent for this generation.`, "info");
         draw();
+        emitMultiTimelineReady(take, "switch");
     };
+    if (!root._iamccsV3BridgeTimelineListener) {
+        root._iamccsV3BridgeTimelineListener = true;
+        window.addEventListener("iamccs:multigeneration-active-take", (event) => {
+            const detail = event?.detail || {};
+            if (detail.source === "shotboard") return;
+            const take = Math.max(1, Math.round(Number(detail.activeTake || String(detail.timelineId || "").replace(/\D/g, "") || 1)));
+            const multi = timeline.multiGeneration && typeof timeline.multiGeneration === "object" ? timeline.multiGeneration : {};
+            const currentTake = Math.max(1, Math.round(Number(multi.activeTake || multiTimelineTakeFromId(multi.activeTimelineId) || 1)));
+            if (take === currentTake) {
+                const updated = applyMultiAudioForTake(multi, take);
+                if (updated) {
+                    timeline.multiGeneration = { ...multi, activeTake: take, activeTimelineId: multiTimelineId(take), updatedAt: new Date().toISOString() };
+                    writeTimeline({ force: true });
+                    draw();
+                    emitMultiTimelineReady(take, "same-take-audio-refresh");
+                }
+                return;
+            }
+            switchMultiTimeline(take);
+        });
+    }
     const makeMultiTimelineControl = () => {
         const multi = timeline.multiGeneration && typeof timeline.multiGeneration === "object" ? timeline.multiGeneration : {};
         const bridge = findMultiTimelineBridge();
@@ -7934,10 +7847,8 @@ function renderShotboardV3(node) {
     const logBtn = makeBtn(timeline.verboseLog === false ? "Log: OFF" : "Log: ON", timeline.verboseLog === false ? "slate" : "blue");
     logBtn.title = "Toggle verbose ComfyUI backend logs for Shotboard V3 values, prompts, motion and image-lock strengths, and audio state.";
     markToggleButton(logBtn, timeline.verboseLog !== false);
-    setWidgetValue(node, "debug_verbose", timeline.verboseLog !== false);
     bindToolbarToggle(logBtn, () => {
         timeline.verboseLog = timeline.verboseLog === false;
-        setWidgetValue(node, "debug_verbose", timeline.verboseLog !== false);
         logBtn.textContent = timeline.verboseLog === false ? "Log: OFF" : "Log: ON";
         markToggleButton(logBtn, timeline.verboseLog !== false);
         writeTimeline({ force: true });
@@ -7960,7 +7871,7 @@ function renderShotboardV3(node) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.textContent = label;
-        btn.style.cssText = `width:24px;height:22px;padding:0;border:1px solid ${purple.accent};border-radius:4px;background:linear-gradient(180deg,#EAF8FF,#6FB6D2);color:#071923;font-size:15px;font-weight:900;line-height:1;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.62),0 0 0 1px rgba(0,0,0,.35);`;
+        btn.style.cssText = `width:24px;height:22px;padding:0;border:1px solid ${purple.borderSoft};border-radius:4px;background:${purple.valueBg};color:${purple.valueText};font-size:15px;font-weight:900;line-height:1;cursor:pointer;`;
         btn.onclick = (event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -7969,11 +7880,7 @@ function renderShotboardV3(node) {
             node.properties.iamccs_v3_prompt_text_scale = promptTextScale;
             draw();
         };
-        return protectControlDrag(addPressPreview(btn, {
-            pressedBg: purple.buttonPress,
-            pressedColor: purple.valueText,
-            pressedBorder: "#FFE08A",
-        }));
+        return protectControlDrag(btn);
     };
     const promptSizeReadout = document.createElement("span");
     promptSizeReadout.style.cssText = `min-width:34px;text-align:center;color:${purple.muted};font-size:9px;font-weight:900;`;
@@ -7986,49 +7893,30 @@ function renderShotboardV3(node) {
         btn.type = "button";
         btn.textContent = label;
         btn.title = label === "-" ? "Compress timeline visually" : "Expand timeline visually";
-        btn.style.cssText = `width:24px;height:22px;border:1px solid ${purple.accent};border-radius:4px;background:linear-gradient(180deg,#EAF8FF,#6FB6D2);color:#071923;font-size:14px;font-weight:900;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.62),0 0 0 1px rgba(0,0,0,.35);`;
+        btn.style.cssText = `width:24px;height:22px;border:1px solid ${purple.border};border-radius:4px;background:${purple.valueBg};color:${purple.valueText};font-size:14px;font-weight:900;cursor:pointer;`;
         btn.onclick = (event) => {
             event.preventDefault();
             event.stopPropagation();
-            timelineMeterSeconds = clampTimelineMeterSeconds(timelineMeterSeconds + delta);
+            const current = Number.isFinite(Number(timelineMeterSeconds)) ? Number(timelineMeterSeconds) : Math.max(0.5, getDuration());
+            timelineMeterSeconds = clampTimelineMeterSeconds(current + delta);
             node.properties = node.properties || {};
             node.properties.iamccs_v3_timeline_meter_seconds = timelineMeterSeconds;
             node.properties.iamccs_v3_timeline_meter_user_set = true;
+            timelineNotice = label === "-" ? "Timeline meter compressed" : "Timeline meter expanded";
+            timelineNoticeUntil = Date.now() + 900;
             draw();
+            requestAnimationFrame(() => {
+                timelineMeterSeconds = clampTimelineMeterSeconds(timelineMeterSeconds);
+                draw();
+                try { node.setDirtyCanvas?.(true, true); } catch {}
+                try { app.graph?.setDirtyCanvas?.(true, true); } catch {}
+            });
         };
-        return protectControlDrag(addPressPreview(btn, {
-            pressedBg: purple.buttonPress,
-            pressedColor: purple.valueText,
-            pressedBorder: "#FFE08A",
-        }));
+        return protectControlDrag(btn);
     };
     const timelineMeterReadout = document.createElement("span");
     timelineMeterReadout.style.cssText = `min-width:50px;text-align:center;color:${purple.muted};font-size:9px;font-weight:900;`;
     timelineMeterWrap.append(timelineMeterButton("-", -0.5), timelineMeterReadout, timelineMeterButton("+", 0.5));
-    const truthMeterWrap = document.createElement("div");
-    truthMeterWrap.title = "WAN timeline truth. Frames and seconds are synced from duration x FPS.";
-    truthMeterWrap.style.cssText = [
-        "display:grid",
-        "grid-template-rows:1fr 1fr",
-        "align-items:center",
-        "justify-items:center",
-        "height:28px",
-        "min-width:112px",
-        "padding:2px 8px",
-        `border:1px solid ${purple.accent}`,
-        "border-radius:5px",
-        "background:linear-gradient(180deg,rgba(12,55,75,.96),rgba(4,18,28,.98))",
-        "box-shadow:inset 0 1px 0 rgba(255,255,255,.20),0 0 0 1px rgba(0,0,0,.55),0 0 16px rgba(111,182,210,.22)",
-        "box-sizing:border-box",
-        "font:9px/1 monospace",
-        "font-weight:950",
-        "letter-spacing:0",
-    ].join(";");
-    const frameMeterReadout = document.createElement("span");
-    frameMeterReadout.style.cssText = `color:${purple.play};white-space:nowrap;text-shadow:0 0 8px rgba(255,224,138,.55),0 1px 2px #000;`;
-    const secondsMeterReadout = document.createElement("span");
-    secondsMeterReadout.style.cssText = `color:#EAF8FF;white-space:nowrap;opacity:1;text-shadow:0 1px 2px #000;`;
-    truthMeterWrap.append(frameMeterReadout, secondsMeterReadout);
     const multiTimelineControl = makeMultiTimelineControl();
     const addImageBtn = makeBtn("Add Image", "blue");
     const addTextBtn = makeBtn("Add Text", "violet");
@@ -8074,7 +7962,7 @@ function renderShotboardV3(node) {
         const span = document.createElement("span");
         span.textContent = label;
         const widget = getWidget(node, name);
-        const max = name === "default_force" ? "2" : null;
+        const max = name === "default_force" ? "1" : null;
         const ctrl = numberStepperControl(widget?.value ?? "", step, min, max, (value) => {
             const nextValue = name === "default_force" ? clampGuideStrength(value) : value;
             if (name === "default_force") applyDefaultForceToLinkedSegments(nextValue);
@@ -8096,7 +7984,7 @@ function renderShotboardV3(node) {
     };
     addSetting("Duration", "duration_seconds", "1", "1");
     addSetting("FPS", "frame_rate", "1", "1");
-    addSetting("Default motion", "default_force", "0.01", "1");
+    addSetting("Default force", "default_force", "0.01", "0");
     addSetting("Width", "image_width", "32", "64");
     addSetting("Height", "image_height", "32", "64");
     const addSelectSetting = (label, name, options) => {
@@ -8182,17 +8070,15 @@ function renderShotboardV3(node) {
         "box-sizing:border-box",
     ].join(";");
     const frameRuler = document.createElement("div");
-    frameRuler.title = "Frame ruler. This is synced to the same duration and FPS used by the WAN backend.";
-    frameRuler.style.cssText = `height:34px;position:relative;border:1px solid ${purple.accent};border-bottom:0;background:linear-gradient(180deg,#0F3E55 0%,#061923 100%);border-radius:6px 6px 0 0;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 0 0 1px rgba(0,0,0,.55);cursor:ew-resize;`;
+    frameRuler.style.cssText = `height:28px;position:relative;border:1px solid ${purple.border};border-bottom:0;background:linear-gradient(180deg,#18323A 0%,#13272F 60%,#101D23 100%);border-radius:6px 6px 0 0;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.10);cursor:ew-resize;user-select:none;`;
     const ruler = document.createElement("div");
-    ruler.title = "Seconds ruler. It shares the same timeline scale as the frame ruler above.";
-    ruler.style.cssText = `height:36px;position:relative;border:1px solid ${purple.border};border-bottom:0;background:linear-gradient(180deg,#12384B 0%,#082231 58%,#051722 100%);border-radius:0;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 0 1px rgba(0,0,0,.50);cursor:ew-resize;`;
+    ruler.style.cssText = `height:36px;position:relative;border:1px solid ${purple.border};border-bottom:0;background:linear-gradient(180deg,#3D3A36 0%,#2D2C2A 58%,#242423 100%);overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.10);cursor:ew-resize;user-select:none;`;
     const timelineBox = document.createElement("div");
     timelineBox.title = "Double click in the image timeline to import a reference at that frame.";
-    timelineBox.style.cssText = `position:relative;height:344px;border:1px solid ${purple.border};background:#061923;overflow:hidden;border-radius:0 0 6px 6px;margin-bottom:6px;box-shadow:inset 0 0 0 1px rgba(111,182,210,.10);`;
+    timelineBox.style.cssText = `position:relative;height:344px;border:1px solid ${purple.border};background:#242220;overflow:hidden;border-radius:0 0 6px 6px;margin-bottom:6px;box-shadow:inset 0 0 0 1px rgba(216,155,69,.08);`;
     const imageTrack = document.createElement("div");
     // imageTrack fills full width; endEdge marker overlays the last 4px so there is no dark gap at the right — By Carmine Cristallo Scalzi AI research (IAMCCS) - patreon.com/IAMCCS - carminecristalloscalzi.com
-    imageTrack.style.cssText = `position:absolute;left:0;right:0;top:0;height:254px;border-bottom:1px solid ${purple.borderSoft};background:linear-gradient(180deg,rgba(111,182,210,.15),rgba(6,25,35,.28));`;
+    imageTrack.style.cssText = `position:absolute;left:0;right:0;top:0;height:254px;border-bottom:1px solid ${purple.borderSoft};background:linear-gradient(180deg,rgba(85,184,178,.14),rgba(36,34,32,.16));`;
     const actionTrack = document.createElement("div");
     actionTrack.style.cssText = "display:none;";
     const audioTracks = document.createElement("div");
@@ -8203,13 +8089,13 @@ function renderShotboardV3(node) {
     // By Carmine Cristallo Scalzi AI research (IAMCCS) - patreon.com/IAMCCS - carminecristalloscalzi.com
     const timelineStartEdge = document.createElement("div");
     timelineStartEdge.title = "Timeline start (frame 0)";
-    timelineStartEdge.style.cssText = "position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#8DE7FF,rgba(141,231,255,.42));pointer-events:none;z-index:25;border-radius:2px 0 0 2px;box-shadow:2px 0 12px rgba(141,231,255,.34),0 0 0 1px rgba(141,231,255,.22);";
+    timelineStartEdge.style.cssText = "position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#40DCCE,rgba(64,220,206,.45));pointer-events:none;z-index:25;border-radius:2px 0 0 2px;box-shadow:2px 0 10px rgba(64,220,206,.5),0 0 0 1px rgba(64,220,206,.22);";
     const timelineEndEdge = document.createElement("div");
     timelineEndEdge.title = "Timeline end";
-    timelineEndEdge.style.cssText = "position:absolute;right:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#F3B34B,rgba(243,179,75,.44));pointer-events:none;z-index:25;border-radius:0 2px 2px 0;box-shadow:-2px 0 12px rgba(243,179,75,.32),0 0 0 1px rgba(243,179,75,.22);";
+    timelineEndEdge.style.cssText = "position:absolute;right:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#E09040,rgba(224,144,64,.45));pointer-events:none;z-index:25;border-radius:0 2px 2px 0;box-shadow:-2px 0 10px rgba(224,144,64,.5),0 0 0 1px rgba(224,144,64,.22);";
     timelineBox.append(timelineStartEdge, timelineEndEdge);
     const playbar = document.createElement("div");
-    playbar.style.cssText = `display:flex;align-items:center;gap:9px;margin-bottom:8px;padding:8px 9px;border:1px solid ${purple.border};background:linear-gradient(180deg,#102D3D 0%,#071C28 100%);border-radius:7px;box-shadow:inset 0 1px 0 rgba(255,255,255,.12), inset 0 -10px 18px rgba(0,0,0,.22);`;
+    playbar.style.cssText = `display:flex;align-items:center;gap:9px;margin-bottom:8px;padding:8px 9px;border:1px solid ${purple.border};background:linear-gradient(180deg,#3B3834 0%,#2B2926 100%);border-radius:7px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10), inset 0 -10px 18px rgba(0,0,0,.18);`;
     const playBtn = makeBtn("Play");
     const loopBtn = makeBtn("Loop");
     const timeReadout = document.createElement("div");
@@ -8244,9 +8130,9 @@ function renderShotboardV3(node) {
             border-radius: 999px;
             background:
                 linear-gradient(90deg, ${purple.play} 0%, ${purple.play} var(--iamccs-play-progress), transparent var(--iamccs-play-progress), transparent 100%),
-                repeating-linear-gradient(90deg, rgba(255,255,255,.22) 0, rgba(255,255,255,.22) 1px, transparent 1px, transparent 24px),
-                linear-gradient(180deg, #061923 0%, #12384B 48%, #04111A 100%);
-            box-shadow: inset 0 2px 5px rgba(0,0,0,.65), 0 0 0 1px rgba(141,231,255,.18);
+                repeating-linear-gradient(90deg, rgba(255,255,255,.16) 0, rgba(255,255,255,.16) 1px, transparent 1px, transparent 24px),
+                linear-gradient(180deg, #1F1D1A 0%, #3B362F 48%, #1E1C19 100%);
+            box-shadow: inset 0 2px 5px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.08);
             cursor: pointer;
         }
         .iamccs-v3-analog-scrub::-webkit-slider-runnable-track {
@@ -8259,10 +8145,10 @@ function renderShotboardV3(node) {
             width: 22px;
             height: 22px;
             margin-top: -1px;
-            border: 2px solid #EAF8FF;
+            border: 2px solid #F4EFE7;
             border-radius: 999px;
-            background: radial-gradient(circle at 35% 30%, #FFF8EC 0%, #FFE08A 42%, #B06B2B 100%);
-            box-shadow: 0 2px 8px rgba(0,0,0,.65),0 0 12px rgba(255,224,138,.42);
+            background: radial-gradient(circle at 35% 30%, #FFF8EC 0%, #D89B45 42%, #8F5427 100%);
+            box-shadow: 0 2px 8px rgba(0,0,0,.55);
         }
         .iamccs-v3-analog-scrub::-moz-range-track {
             height: 20px;
@@ -8272,10 +8158,10 @@ function renderShotboardV3(node) {
         .iamccs-v3-analog-scrub::-moz-range-thumb {
             width: 20px;
             height: 20px;
-            border: 2px solid #EAF8FF;
+            border: 2px solid #F4EFE7;
             border-radius: 999px;
-            background: #FFE08A;
-            box-shadow: 0 2px 8px rgba(0,0,0,.65),0 0 12px rgba(255,224,138,.42);
+            background: #D89B45;
+            box-shadow: 0 2px 8px rgba(0,0,0,.55);
         }
     `;
     let isPlaying = false;
@@ -8296,8 +8182,6 @@ function renderShotboardV3(node) {
     let drawRaf = 0;
     let transitionAppliedStamp = 0;
     playbar.append(scrubStyle, playBtn, loopBtn, timeReadout, audioPlaybarControls, scrub);
-    bindMeterScrub(frameRuler);
-    bindMeterScrub(ruler);
     timelineCanvas.append(frameRuler, ruler, timelineBox);
     timelineViewport.appendChild(timelineCanvas);
     // Timeline height resize handle — drag to expand/shrink timeline rows (slots + local prompts)
@@ -8380,11 +8264,10 @@ function renderShotboardV3(node) {
         const fps = Math.max(1, getFps());
         const visibleWidth = Math.max(1, Number(timelineViewport?.clientWidth || timelineCanvas?.clientWidth || 0) || 1);
         const majorStep = chooseFrameRulerStep(total, visibleWidth);
-        const minorStep = 1;
         const baseLine = document.createElement("div");
         baseLine.style.cssText = `position:absolute;left:0;right:0;bottom:0;height:2px;background:${purple.accent};opacity:.95;pointer-events:none;box-shadow:0 0 7px rgba(141,231,255,.38);`;
         frameRuler.appendChild(baseLine);
-        for (let frame = 0; frame <= total; frame += minorStep) {
+        for (let frame = 0; frame <= total; frame += 1) {
             const major = frame % majorStep === 0 || frame === 0 || frame === total;
             const pos = (frame / total) * 100;
             const tick = document.createElement("div");
@@ -8393,9 +8276,9 @@ function renderShotboardV3(node) {
                 `left:calc(${pos}% - ${major ? 1 : 0.5}px)`,
                 "bottom:0",
                 `width:${major ? 2 : 1}px`,
-                `height:${major ? 30 : 13}px`,
+                `height:${major ? 23 : 9}px`,
                 `background:${major ? purple.play : "#6FB6D2"}`,
-                `opacity:${major ? 1 : 0.70}`,
+                `opacity:${major ? 1 : 0.64}`,
                 major ? "box-shadow:0 0 8px rgba(255,224,138,.45)" : "box-shadow:none",
                 "pointer-events:none",
             ].join(";");
@@ -8405,10 +8288,10 @@ function renderShotboardV3(node) {
             label.style.cssText = [
                 "position:absolute",
                 `left:${pos}%`,
-                "top:4px",
+                "top:3px",
                 frame >= total - 1 ? "transform:translateX(calc(-100% - 6px))" : "transform:translateX(6px)",
                 `color:${frame % fps === 0 ? purple.play : "#EAF8FF"}`,
-                "font-size:11px",
+                "font-size:10px",
                 "font-weight:950",
                 "line-height:1",
                 "text-shadow:0 1px 2px rgba(0,0,0,.72)",
@@ -8523,6 +8406,9 @@ function renderShotboardV3(node) {
             window.addEventListener("pointercancel", finish, { passive: false, capture: true });
         }, { passive: false, capture: true });
     }
+
+    bindMeterScrub(frameRuler);
+    bindMeterScrub(ruler);
 
     function audioPeakValue(raw) {
         if (raw && typeof raw === "object") {
@@ -8854,19 +8740,6 @@ function renderShotboardV3(node) {
     function isActionBridgeRelaySegment(seg) {
         return String(seg?.type || "") === "text" && Boolean(seg?.actionBridgeSourceId);
     }
-    function relayKindOf(seg) {
-        const raw = String(seg?.relay_kind || seg?.relayKind || "").trim().toLowerCase();
-        if (raw) return raw;
-        if (seg?.slotRelay) return "slot";
-        if (seg?.transitionRelay) return "transition";
-        return String(seg?.type || "") === "text" ? "transition" : "";
-    }
-    function isSlotRelaySegment(seg) {
-        return String(seg?.type || "") === "text" && relayKindOf(seg) === "slot";
-    }
-    function isTransitionRelaySegment(seg) {
-        return String(seg?.type || "") === "text" && relayKindOf(seg) !== "slot";
-    }
     function normalizeV3RelayOnlySegment(seg) {
         const next = { ...(seg || {}) };
         if (isActionBridgeRelaySegment(next)) {
@@ -8896,63 +8769,6 @@ function renderShotboardV3(node) {
         .filter((seg) => String(seg.type || "image") !== "audio" && !seg.placeholder)
         .slice()
         .sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
-    function generationWindowForImage(seg) {
-        const start = Math.max(0, Math.round(Number(seg?.start || 0)));
-        const length = Math.max(1, Math.round(Number(seg?.length || 1)));
-        if (!isTimelineImageSegment(seg)) return { start, end: start + length, length };
-        const images = (timeline.segments || [])
-            .filter(isTimelineImageSegment)
-            .slice()
-            .sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
-        const index = images.findIndex((item) => String(item.id || "") === String(seg.id || ""));
-        if (index >= 0 && index + 1 < images.length) {
-            const end = Math.max(start + 1, Math.round(Number(images[index + 1].start || (start + length))));
-            return { start, end, length: Math.max(1, end - start) };
-        }
-        return { start, end: start + length, length };
-    }
-    function generationFrameFor(seg, absoluteFrame) {
-        const win = generationWindowForImage(seg);
-        return Math.max(0, Math.round(Number(absoluteFrame || 0) - win.start));
-    }
-    function generationOwnerForFrame(frame) {
-        const absolute = Math.max(0, Math.round(Number(frame || 0)));
-        const images = (timeline.segments || [])
-            .filter(isTimelineImageSegment)
-            .slice()
-            .sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
-        for (const image of images) {
-            const win = generationWindowForImage(image);
-            if (absolute >= win.start && absolute < win.end) return image;
-        }
-        return null;
-    }
-    function setGenerationWindowLength(seg, nextLength) {
-        if (!isTimelineImageSegment(seg)) return false;
-        const win = generationWindowForImage(seg);
-        const desired = Math.max(1, Math.round(Number(nextLength || win.length)));
-        const delta = desired - win.length;
-        if (!delta) return false;
-        const nextImage = (timeline.segments || [])
-            .filter(isTimelineImageSegment)
-            .slice()
-            .sort((a, b) => Number(a.start || 0) - Number(b.start || 0))
-            .find((item) => Number(item.start || 0) >= win.end && String(item.id || "") !== String(seg.id || ""));
-        if (!nextImage) {
-            seg.length = desired;
-            return true;
-        }
-        const boundary = Math.max(win.start + 1, Math.round(Number(nextImage.start || win.end) + delta));
-        const shift = boundary - Math.round(Number(nextImage.start || win.end));
-        if (!shift) return false;
-        (timeline.segments || []).forEach((item) => {
-            if (String(item.id || "") === String(seg.id || "")) return;
-            if (Number(item.start || 0) >= Number(nextImage.start || 0)) {
-                item.start = Math.max(0, Math.round(Number(item.start || 0) + shift));
-            }
-        });
-        return true;
-    }
     const stepTransitionAvailableSeconds = (seg) => {
         const fps = getFps();
         const sorted = sortedTimelineVisualSegments();
@@ -8990,6 +8806,30 @@ function renderShotboardV3(node) {
             draw();
         });
     };
+
+    function normalizeTimelineDragPreviewItems(items, durationFrames) {
+        const total = Math.max(1, Math.round(Number(durationFrames || getTotalFrames())));
+        let cursor = 0;
+        return cloneSegments(items)
+            .sort((a, b) => Number(a.start || 0) - Number(b.start || 0))
+            .map((item) => {
+                const next = { ...item };
+                next.length = Math.max(1, Math.round(Number(next.length || 1)));
+                next.start = Math.max(0, Math.min(Math.round(Number(next.start || 0)), Math.max(0, total - 1)));
+                if (next.start < cursor) next.start = cursor;
+                if (next.start + next.length > total) next.length = Math.max(1, total - next.start);
+                cursor = next.start + next.length;
+                return next;
+            });
+    }
+
+    function timelineDragMetrics(isAudio = false) {
+        const target = isAudio ? audioTracks : imageTrack;
+        const rect = target?.getBoundingClientRect?.() || timelineBox.getBoundingClientRect();
+        const widthPx = Math.max(1, Number(rect.width || timelineBox.getBoundingClientRect().width || 1));
+        const leftPx = Number(rect.left || timelineBox.getBoundingClientRect().left || 0);
+        return { rect, widthPx, leftPx };
+    }
 
     function applyCenterDragPhysics(initItems, targetId, targetStart, pointerFrame, durationFrames) {
         const items = cloneSegments(initItems);
@@ -9045,11 +8885,11 @@ function renderShotboardV3(node) {
             leftCursor = Number(test[i].start || 0) + Number(test[i].length || 1);
         }
 
-        return test.map((item) => {
+        return normalizeTimelineDragPreviewItems(test.map((item) => {
             const clean = { ...item, start: Math.round(Number(item.start || 0)) };
             delete clean.original_start;
             return clean;
-        });
+        }), durationFrames);
     }
 
     function edgeDragPreview(initItems, targetId, dragDelta, edge, durationFrames) {
@@ -9058,30 +8898,6 @@ function renderShotboardV3(node) {
         if (index < 0) return items;
         const target = items[index];
         const minLength = 1;
-        if (isSlotRelaySegment(target)) {
-            const parent = items.find((item) => String(item.id || "") === String(target.parentSegmentId || "") && isTimelineImageSegment(item));
-            if (!parent) return items;
-            const parentStart = Math.max(0, Math.round(Number(parent.start || 0)));
-            const parentEnd = parentStart + Math.max(1, Math.round(Number(parent.length || 1)));
-            const oldStart = Math.max(parentStart, Math.round(Number(target.start || parentStart)));
-            const oldEnd = Math.min(parentEnd, oldStart + Math.max(minLength, Math.round(Number(target.length || 1))));
-            if (edge === "right") {
-                const nextEnd = Math.max(oldStart + minLength, Math.min(parentEnd, oldEnd + dragDelta));
-                target.start = oldStart;
-                target.length = Math.max(minLength, nextEnd - oldStart);
-            } else if (edge === "left") {
-                const nextStart = Math.max(parentStart, Math.min(oldStart + dragDelta, oldEnd - minLength));
-                target.start = nextStart;
-                target.length = Math.max(minLength, oldEnd - nextStart);
-            }
-            target.type = "text";
-            target.textPlaceholder = true;
-            target.relay_kind = "slot";
-            target.relayKind = "slot";
-            target.slotRelay = true;
-            target.transitionRelay = false;
-            return items;
-        }
         if (edge === "right") {
             const oldEnd = Number(target.start || 0) + Number(target.length || 1);
             const next = items[index + 1];
@@ -9113,29 +8929,7 @@ function renderShotboardV3(node) {
                 target.length = Math.max(minLength, oldLength - (nextStart - oldStart));
             }
         }
-        return items;
-    }
-
-    function slotRelayCenterDragPreview(initItems, targetId, dragDelta) {
-        const items = cloneSegments(initItems).sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
-        const target = items.find((item) => item.id === targetId);
-        if (!target || !isSlotRelaySegment(target)) return items;
-        const parent = items.find((item) => String(item.id || "") === String(target.parentSegmentId || "") && isTimelineImageSegment(item));
-        if (!parent) return items;
-        const parentStart = Math.max(0, Math.round(Number(parent.start || 0)));
-        const parentLength = Math.max(1, Math.round(Number(parent.length || 1)));
-        const parentEnd = parentStart + parentLength;
-        const length = Math.max(1, Math.min(parentLength, Math.round(Number(target.length || 1))));
-        const oldStart = Math.max(parentStart, Math.round(Number(target.start || parentStart)));
-        target.start = Math.max(parentStart, Math.min(oldStart + dragDelta, parentEnd - length));
-        target.length = length;
-        target.type = "text";
-        target.textPlaceholder = true;
-        target.relay_kind = "slot";
-        target.relayKind = "slot";
-        target.slotRelay = true;
-        target.transitionRelay = false;
-        return items;
+        return normalizeTimelineDragPreviewItems(items, durationFrames);
     }
 
     function audioDragPreview(initItems, targetId, dragDelta, edge, durationFrames) {
@@ -9196,16 +8990,13 @@ function renderShotboardV3(node) {
                 finishDrag();
                 return;
             }
-            const rect = timelineBox.getBoundingClientRect();
-            const widthPx = rect.width || 1;
+            const { widthPx, leftPx } = timelineDragMetrics(isAudio);
             const deltaFrames = Math.round(((move.clientX - startX) / widthPx) * getTotalFrames());
             let next;
             if (isAudio) {
                 next = audioDragPreview(dragState.initial, dragState.targetId, deltaFrames, edge, getTotalFrames());
-            } else if (edge === "center" && isSlotRelaySegment((dragState.initial || []).find((item) => item.id === dragState.targetId))) {
-                next = slotRelayCenterDragPreview(dragState.initial, dragState.targetId, deltaFrames);
             } else if (edge === "center") {
-                const pointerFrame = Math.round(((move.clientX - rect.left) / Math.max(1, widthPx)) * getTotalFrames());
+                const pointerFrame = Math.round(((move.clientX - leftPx) / Math.max(1, widthPx)) * getTotalFrames());
                 next = applyCenterDragPhysics(dragState.initial, dragState.targetId, dragState.originalStart + deltaFrames, pointerFrame, getTotalFrames());
             } else {
                 next = edgeDragPreview(dragState.initial, dragState.targetId, deltaFrames, edge, getTotalFrames());
@@ -9229,7 +9020,7 @@ function renderShotboardV3(node) {
             } catch (_) {}
             if (dragState) {
                 if (isAudio && previewAudioSegments) timeline.audioSegments = previewAudioSegments;
-                if (!isAudio && previewSegments) timeline.segments = previewSegments;
+                if (!isAudio && previewSegments) timeline.segments = normalizeTimelineDragPreviewItems(previewSegments, getTotalFrames());
             }
             if (!isAudio) {
                 const moved = (timeline.segments || []).find((item) => item.id === seg.id);
@@ -9312,10 +9103,9 @@ function renderShotboardV3(node) {
             note: "",
             camera: "cut to",
             transition: "hard_cut",
-            motion: clampGuideStrength(defaultForceWidget?.value || 1),
-            guideStrength: clampGuideStrength(defaultForceWidget?.value || 1),
-            imageLockStrength: clampGuideStrength(defaultForceWidget?.value || 1),
-            defaultForceSource: clampGuideStrength(defaultForceWidget?.value || 1),
+            guideStrength: Number(defaultForceWidget?.value || 0.25),
+            imageLockStrength: Number(defaultForceWidget?.value || 0.25),
+            defaultForceSource: Number(defaultForceWidget?.value || 0.25),
             forceCustom: false,
             use_guide: false,
             use_prompt: false,
@@ -9336,54 +9126,48 @@ function renderShotboardV3(node) {
         const startIndex = allPeaks.length ? Math.max(0, Math.min(allPeaks.length - 1, Math.floor((trimStart / durationFrames) * allPeaks.length))) : 0;
         const endIndex = allPeaks.length ? Math.max(startIndex + 1, Math.min(allPeaks.length, Math.ceil((trimEnd / durationFrames) * allPeaks.length))) : 0;
         const peaks = allPeaks.slice(startIndex, endIndex);
-        const shell = document.createElement("div");
-        shell.style.cssText = [
-            "position:absolute",
-            "left:14px",
-            "right:14px",
-            "top:6px",
-            "bottom:6px",
-            "border-radius:7px",
-            "overflow:hidden",
-            "background:linear-gradient(180deg,rgba(9,19,22,.92),rgba(22,15,10,.88))",
-            "border:1px solid rgba(244,213,158,.22)",
-            "box-shadow:inset 0 1px 0 rgba(255,255,255,.08), inset 0 -10px 18px rgba(0,0,0,.20)",
-            "pointer-events:none",
-        ].join(";");
-        const name = document.createElement("div");
-        name.textContent = String(seg.fileName || seg.audioFile || "Audio").split(/[\\/]/).pop();
-        name.style.cssText = "position:absolute;left:8px;top:4px;right:8px;color:#F4E5C4;font:9px/1 monospace;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.85);z-index:2;";
-        shell.appendChild(name);
-        const canvas = document.createElement("canvas");
-        canvas.style.cssText = "position:absolute;left:0;right:0;bottom:0;width:100%;height:100%;z-index:1;";
+        const rect = block.getBoundingClientRect?.() || { width: block.offsetWidth || 120, height: block.offsetHeight || 58 };
         const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-        const cssW = Math.max(64, Math.round(Number(block.offsetWidth || 120)));
-        const cssH = Math.max(46, Math.round(Number(block.offsetHeight || 54)));
-        const w = Math.max(96, Math.min(4096, Math.round(cssW * dpr)));
-        const h = Math.max(50, Math.min(260, Math.round(cssH * dpr)));
+        const timelineCssWidth = Math.max(
+            0,
+            Number(timelineCanvas?.clientWidth || 0) || Number.parseFloat(timelineCanvas?.style?.width || "0") || 0
+        );
+        const clipCssWidth = timelineCssWidth > 0
+            ? (Math.max(1, Number(seg.length || 1)) / Math.max(1, getTotalFrames())) * timelineCssWidth
+            : 0;
+        const styledHeight = Number.parseFloat(block.style?.height || "0") || 0;
+        const cssW = Math.max(72, Math.round(Number(clipCssWidth || rect.width || block.offsetWidth || 120)));
+        const cssH = Math.max(50, Math.round(Number(styledHeight || rect.height || block.offsetHeight || 82)));
+        const w = Math.max(120, Math.min(4096, Math.round(cssW * dpr)));
+        const h = Math.max(58, Math.min(320, Math.round(cssH * dpr)));
+        const canvas = document.createElement("canvas");
+        canvas.className = "iamccs-v3-real-waveform-canvas";
+        canvas.dataset.waveformRenderer = "audio_board_op4";
         canvas.width = w;
         canvas.height = h;
+        canvas.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;image-rendering:auto;pointer-events:none;";
         const ctx = canvas.getContext("2d");
+        if (ctx) ctx.imageSmoothingEnabled = false;
         if (!ctx) {
-            shell.appendChild(canvas);
-            block.appendChild(shell);
+            block.appendChild(canvas);
             return;
         }
         const bg = ctx.createLinearGradient(0, 0, 0, h);
         bg.addColorStop(0, "#376a9b");
-        bg.addColorStop(.52, "#315f8f");
-        bg.addColorStop(1, "#23496f");
+        bg.addColorStop(.48, "#315f8f");
+        bg.addColorStop(1, "#22476c");
         ctx.fillStyle = bg;
         ctx.fillRect(0, 0, w, h);
-        ctx.strokeStyle = "rgba(255,255,255,.12)";
+        ctx.strokeStyle = "rgba(255,255,255,.10)";
         ctx.lineWidth = 1;
-        for (let x = 0; x <= w; x += Math.max(36, Math.round(w / 18))) {
+        const gridStep = Math.max(32, Math.round(w / 18));
+        for (let x = 0; x <= w; x += gridStep) {
             ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, h);
+            ctx.moveTo(x + .5, 0);
+            ctx.lineTo(x + .5, h);
             ctx.stroke();
         }
-        ctx.strokeStyle = "rgba(255,255,255,.28)";
+        ctx.strokeStyle = "rgba(255,255,255,.30)";
         ctx.beginPath();
         ctx.moveTo(0, h * .5);
         ctx.lineTo(w, h * .5);
@@ -9400,89 +9184,89 @@ function renderShotboardV3(node) {
             return { min: -p, max: p, rms: p * .66 };
         };
         if (!peaks.length) {
-            ctx.fillStyle = "rgba(235,248,255,.76)";
+            ctx.fillStyle = "rgba(235,248,255,.80)";
             ctx.font = `900 ${Math.max(10, Math.round(12 * dpr))}px ui-monospace, Consolas, monospace`;
             ctx.textAlign = "center";
-            ctx.fillText(waveformLoading.has(seg.id) ? "decoding real waveform..." : "no waveform peaks", w * .5, h * .53);
-            shell.appendChild(canvas);
-            block.appendChild(shell);
-            return;
-        }
-        const peakValue = (raw) => {
-            const p = normPeak(raw);
-            return Math.max(Math.abs(p.min), Math.abs(p.max), p.rms);
-        };
-        const visualMax = Math.max(.05, ...peaks.map(peakValue));
-        const scale = Math.min(1.65, .94 / visualMax);
-        const columnPeak = (x) => {
-            const from = Math.floor((x / Math.max(1, w)) * peaks.length);
-            const to = Math.max(from + 1, Math.floor(((x + 1) / Math.max(1, w)) * peaks.length));
-            let min = 0;
-            let max = 0;
-            let rms = 0;
-            let n = 0;
-            for (let i = from; i < Math.min(peaks.length, to); i += 1) {
-                const p = normPeak(peaks[i]);
-                min = Math.min(min, p.min);
-                max = Math.max(max, p.max);
-                rms += p.rms;
-                n += 1;
+            ctx.textBaseline = "middle";
+            ctx.fillText(waveformLoading.has(seg.id) ? "DECODING REAL WAVEFORM..." : "REAL WAVEFORM UNAVAILABLE", w * .5, h * .55);
+            block.appendChild(canvas);
+        } else {
+            const peakValue = (raw) => {
+                const p = normPeak(raw);
+                return Math.max(Math.abs(p.min), Math.abs(p.max), p.rms);
+            };
+            const visualMax = Math.max(.05, ...peaks.map(peakValue));
+            const scale = Math.min(1.65, .94 / visualMax);
+            const columnPeak = (x) => {
+                const from = Math.floor((x / Math.max(1, w)) * peaks.length);
+                const to = Math.max(from + 1, Math.floor(((x + 1) / Math.max(1, w)) * peaks.length));
+                let min = 0;
+                let max = 0;
+                let rms = 0;
+                let n = 0;
+                for (let i = from; i < Math.min(peaks.length, to); i += 1) {
+                    const p = normPeak(peaks[i]);
+                    min = Math.min(min, p.min);
+                    max = Math.max(max, p.max);
+                    rms += p.rms;
+                    n += 1;
+                }
+                if (!n) return normPeak(peaks[Math.min(peaks.length - 1, Math.max(0, from))]);
+                return { min, max, rms: rms / n };
+            };
+            const center = h * .5;
+            const amp = h * .46;
+            const top = [];
+            const bottom = [];
+            const rmsTop = [];
+            const rmsBottom = [];
+            for (let x = 0; x < w; x += 1) {
+                const p = columnPeak(x);
+                top.push([x, center - Math.max(1, p.max * scale * amp)]);
+                bottom.unshift([x, center + Math.max(1, Math.abs(p.min) * scale * amp)]);
+                rmsTop.push([x, center - Math.max(.5, p.rms * scale * amp * .62)]);
+                rmsBottom.unshift([x, center + Math.max(.5, p.rms * scale * amp * .62)]);
             }
-            if (!n) {
-                const p = normPeak(peaks[Math.min(peaks.length - 1, Math.max(0, from))]);
-                return p;
-            }
-            return { min, max, rms: rms / n };
-        };
-        const center = h * .5;
-        const amp = h * .46;
-        const top = [];
-        const bottom = [];
-        const rmsTop = [];
-        const rmsBottom = [];
-        for (let x = 0; x < w; x += 1) {
-            const p = columnPeak(x);
-            top.push([x, center - Math.max(1, p.max * scale * amp)]);
-            bottom.unshift([x, center + Math.max(1, Math.abs(p.min) * scale * amp)]);
-            rmsTop.push([x, center - Math.max(.5, p.rms * scale * amp * .62)]);
-            rmsBottom.unshift([x, center + Math.max(.5, p.rms * scale * amp * .62)]);
-        }
-        const body = ctx.createLinearGradient(0, 0, 0, h);
-        body.addColorStop(0, "rgba(236,249,255,.96)");
-        body.addColorStop(.48, "rgba(178,221,245,.82)");
-        body.addColorStop(.52, "rgba(172,215,241,.80)");
-        body.addColorStop(1, "rgba(236,249,255,.94)");
-        ctx.fillStyle = "rgba(255,255,255,.16)";
-        ctx.beginPath();
-        rmsTop.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
-        rmsBottom.forEach(([x, y]) => ctx.lineTo(x, y));
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = body;
-        ctx.beginPath();
-        top.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
-        bottom.forEach(([x, y]) => ctx.lineTo(x, y));
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = "rgba(255,255,255,.84)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        top.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
-        bottom.slice().reverse().forEach(([x, y]) => ctx.lineTo(x, y));
-        ctx.stroke();
-        ctx.strokeStyle = "rgba(255,255,255,.32)";
-        const detailStep = w > 2200 ? 2 : 1;
-        for (let x = 0; x < w; x += detailStep) {
-            const p = columnPeak(x);
-            const y1 = center - Math.max(1, p.max * scale * amp);
-            const y2 = center + Math.max(1, Math.abs(p.min) * scale * amp);
+            ctx.fillStyle = "rgba(255,255,255,.18)";
             ctx.beginPath();
-            ctx.moveTo(x + .5, y1);
-            ctx.lineTo(x + .5, y2);
+            rmsTop.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+            rmsBottom.forEach(([x, y]) => ctx.lineTo(x, y));
+            ctx.closePath();
+            ctx.fill();
+            const body = ctx.createLinearGradient(0, 0, 0, h);
+            body.addColorStop(0, "rgba(238,250,255,.98)");
+            body.addColorStop(.48, "rgba(183,224,247,.84)");
+            body.addColorStop(.52, "rgba(174,216,241,.82)");
+            body.addColorStop(1, "rgba(238,250,255,.96)");
+            ctx.fillStyle = body;
+            ctx.beginPath();
+            top.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+            bottom.forEach(([x, y]) => ctx.lineTo(x, y));
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = "rgba(255,255,255,.88)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            top.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+            bottom.slice().reverse().forEach(([x, y]) => ctx.lineTo(x, y));
             ctx.stroke();
+            ctx.strokeStyle = "rgba(255,255,255,.32)";
+            const detailStep = w > 2200 ? 2 : 1;
+            for (let x = 0; x < w; x += detailStep) {
+                const p = columnPeak(x);
+                const y1 = center - Math.max(1, p.max * scale * amp);
+                const y2 = center + Math.max(1, Math.abs(p.min) * scale * amp);
+                ctx.beginPath();
+                ctx.moveTo(x + .5, y1);
+                ctx.lineTo(x + .5, y2);
+                ctx.stroke();
+            }
+            block.appendChild(canvas);
         }
-        shell.appendChild(canvas);
-        block.appendChild(shell);
+        const name = document.createElement("div");
+        name.textContent = `REAL  ${String(seg.fileName || seg.audioFile || "Audio").split(/[\\/]/).pop()}`;
+        name.style.cssText = "position:absolute;left:7px;top:4px;right:7px;color:#F4E5C4;font:9px/1 monospace;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.90);z-index:2;pointer-events:none;";
+        block.appendChild(name);
     }
 
     function openAppendImagePicker(targetId = null) {
@@ -9494,25 +9278,19 @@ function renderShotboardV3(node) {
         fileInput.click();
     }
 
-    function textRelaySegment(start, length, label = "transition_relay", options = {}) {
-        const relayKind = String(options.relayKind || options.relay_kind || "transition").toLowerCase() === "slot" ? "slot" : "transition";
+    function textRelaySegment(start, length, label = "text_relay_slot") {
         return {
-            id: newId(relayKind === "slot" ? "slotrelay" : "txt"),
+            id: newId("txt"),
             type: "text",
             textPlaceholder: true,
-            relay_kind: relayKind,
-            relayKind,
-            transitionRelay: relayKind === "transition",
-            slotRelay: relayKind === "slot",
-            parentSegmentId: String(options.parentSegmentId || ""),
             start: Math.max(0, Math.round(Number(start || 0))),
             length: Math.max(1, Math.round(Number(length || defaultLen()))),
             ref: 0,
             label,
             prompt: "",
             note: "",
-            camera: relayKind === "slot" ? "in-slot semantic relay" : "continuous cinematic action",
-            transition: relayKind === "slot" ? "prompt_relay_slot" : "prompt_relay_transition",
+            camera: "continuous cinematic action",
+            transition: "prompt_relay_text",
             guideStrength: 0,
             imageLockStrength: 0,
             defaultForceSource: 0,
@@ -9600,182 +9378,19 @@ function renderShotboardV3(node) {
         sources.forEach((source) => syncActionBridgeRelaySegment(source, options));
     }
 
-    function createTailTextPlaceholder(options = {}) {
+    function createTailTextPlaceholder() {
         const total = getTotalFrames();
         const cursor = Math.max(0, Math.min(endOfSegments(activeVisualSegments()), Math.max(0, total - 1)));
         const length = Math.min(defaultLen(), Math.max(1, total - cursor));
-        const seg = textRelaySegment(cursor, length, "transition_relay", { relayKind: "transition", ...options });
+        const seg = textRelaySegment(cursor, length);
         timeline.segments = (timeline.segments || []).concat(seg).sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
         selectedId = seg.id;
         writeTimeline();
         draw();
     }
 
-    function relayoutSlotRelaysForSource(sourceId) {
-        const source = (timeline.segments || []).find((item) => item.id === sourceId);
-        if (!isTimelineImageSegment(source)) return;
-        const sourceStart = Math.max(0, Math.round(Number(source.start || 0)));
-        const sourceLength = Math.max(1, Math.round(Number(source.length || 1)));
-        const relays = (timeline.segments || [])
-            .filter((item) => isSlotRelaySegment(item) && String(item.parentSegmentId || "") === String(sourceId || ""))
-            .sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
-        if (!relays.length) return;
-        const phases = relays.length + 1;
-        relays.forEach((relay, index) => {
-            const start = sourceStart + Math.round((sourceLength * (index + 1)) / phases);
-            const next = index + 1 < relays.length
-                ? sourceStart + Math.round((sourceLength * (index + 2)) / phases)
-                : sourceStart + sourceLength;
-            relay.start = Math.max(sourceStart, Math.min(sourceStart + sourceLength - 1, start));
-            relay.length = Math.max(1, next - relay.start);
-            relay.type = "text";
-            relay.textPlaceholder = true;
-            relay.relay_kind = "slot";
-            relay.relayKind = "slot";
-            relay.slotRelay = true;
-            relay.transitionRelay = false;
-            relay.parentSegmentId = String(sourceId || "");
-            relay.transition = "prompt_relay_slot";
-        });
-    }
-
-    function migrateSlotRelaySegmentsToNested() {
-        const items = timeline.segments || [];
-        const slotRelaySegments = items.filter((item) => isSlotRelaySegment(item));
-        if (!slotRelaySegments.length) return false;
-        const images = items.filter(isTimelineImageSegment);
-        let changed = false;
-        slotRelaySegments.forEach((relay) => {
-            const relayStart = Math.max(0, Math.round(Number(relay.start || 0)));
-            const parent = images.find((image) => String(image.id || "") === String(relay.parentSegmentId || ""))
-                || images.find((image) => {
-                    const start = Math.max(0, Math.round(Number(image.start || 0)));
-                    const end = start + Math.max(1, Math.round(Number(image.length || 1)));
-                    return relayStart >= start && relayStart < end;
-                });
-            if (!parent) return;
-            if (!Array.isArray(parent.slot_relays)) parent.slot_relays = [];
-            const exists = parent.slot_relays.some((item) => String(item.id || "") === String(relay.id || ""));
-            if (!exists) {
-                parent.slot_relays.push({
-                    id: String(relay.id || newId("slotrelay")),
-                    start: relayStart,
-                    length: Math.max(1, Math.round(Number(relay.length || 1))),
-                    prompt: String(relay.prompt || ""),
-                    note: String(relay.note || relay.prompt || ""),
-                    use_prompt: Boolean(relay.use_prompt !== false && String(relay.prompt || "").trim()),
-                    relay_kind: "slot",
-                    relayKind: "slot",
-                    slotRelay: true,
-                    parentSegmentId: String(parent.id || ""),
-                });
-            }
-            changed = true;
-        });
-        if (changed) {
-            timeline.segments = items.filter((item) => !isSlotRelaySegment(item));
-            timeline.segments.forEach((image) => {
-                if (!Array.isArray(image.slot_relays)) return;
-                image.slot_relays.sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
-            });
-        }
-        return changed;
-    }
-
-    function createSlotRelayInSegment(source) {
-        const sourceId = String(source?.id || selectedId || "");
-        const target = (timeline.segments || []).find((item) => String(item.id || "") === sourceId && isTimelineImageSegment(item))
-            || (timeline.segments || []).find((item) => String(item.id || "") === String(selectedId || "") && isTimelineImageSegment(item));
-        if (!isTimelineImageSegment(target)) {
-            showTimelineNotice("Select an image slot first. Slot Relay belongs inside one image slot.");
-            return;
-        }
-        const win = generationWindowForImage(target);
-        const relay = {
-            id: newId("slotrelay"),
-            start: Math.max(win.start, win.end - 1),
-            length: 1,
-            prompt: "",
-            note: "",
-            use_prompt: false,
-            relay_kind: "slot",
-            relayKind: "slot",
-            slotRelay: true,
-            parentSegmentId: String(target.id || ""),
-        };
-        if (!Array.isArray(target.slot_relays)) target.slot_relays = [];
-        target.slot_relays.push(relay);
-        const relays = relayoutNestedSlotRelaysForImage(target);
-        selectedId = target.id;
-        previewSegments = null;
-        console.info("[IAMCCS WAN PURE][SlotRelay] added", {
-            segment_id: target.id,
-            relay_count: relays.length,
-            generation_window: win,
-            relays: relays.map((item, index) => ({
-                index,
-                start: Math.round(Number(item.start || 0)),
-                length: Math.max(1, Math.round(Number(item.length || 1))),
-                prompt: String(item.prompt || ""),
-            })),
-        });
-        showTimelineNotice("Slot Relay added as a prompt division inside the selected image slot.");
-        writeTimeline({ force: true });
-        draw();
-    }
-
-    function relayoutNestedSlotRelaysForImage(target) {
-        if (!isTimelineImageSegment(target)) return [];
-        const win = generationWindowForImage(target);
-        const relays = Array.isArray(target.slot_relays)
-            ? target.slot_relays.filter((relay) => relay && relay.slotRelay !== false)
-            : [];
-        target.slot_relays = relays;
-        if (!relays.length) return relays;
-        relays.sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
-        const phaseCount = relays.length + 1;
-        relays.forEach((relay, index) => {
-            const start = win.start + Math.round((win.length * (index + 1)) / phaseCount);
-            const next = index + 1 < relays.length
-                ? win.start + Math.round((win.length * (index + 2)) / phaseCount)
-                : win.end;
-            relay.start = Math.max(win.start, Math.min(win.end - 1, start));
-            relay.length = Math.max(1, Math.min(win.end, next) - relay.start);
-            relay.parentSegmentId = String(target.id || "");
-            relay.relay_kind = "slot";
-            relay.relayKind = "slot";
-            relay.slotRelay = true;
-            relay.transitionRelay = false;
-            relay.label = relay.label || `slot_relay_${index + 1}`;
-            relay.note = String(relay.note ?? relay.prompt ?? "");
-            relay.prompt = String(relay.prompt ?? "");
-            relay.use_prompt = Boolean(relay.use_prompt !== false && String(relay.prompt || "").trim());
-        });
-        return relays;
-    }
-
-    function deleteNestedSlotRelay(parentSegmentId, relayId) {
-        const parent = (timeline.segments || []).find((item) => String(item.id || "") === String(parentSegmentId || "") && isTimelineImageSegment(item));
-        if (!parent || !Array.isArray(parent.slot_relays)) return false;
-        const before = parent.slot_relays.length;
-        parent.slot_relays = parent.slot_relays.filter((item) => String(item?.id || "") !== String(relayId || ""));
-        const changed = parent.slot_relays.length !== before;
-        if (changed) {
-            relayoutNestedSlotRelaysForImage(parent);
-            selectedId = parent.id;
-            previewSegments = null;
-            console.info("[IAMCCS WAN PURE][SlotRelay] deleted", {
-                segment_id: parent.id,
-                relay_id: relayId,
-                relay_count: parent.slot_relays.length,
-            });
-        }
-        return changed;
-    }
-
     function createPlaceholderAfterSegment(seg, kind = "image") {
         if (!seg) return;
-        const isTextKind = kind === "text" || kind === "transition_relay";
         const sorted = (timeline.segments || []).slice().sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
         const index = sorted.findIndex((item) => item.id === seg.id);
         if (index < 0) return;
@@ -9787,7 +9402,7 @@ function renderShotboardV3(node) {
             draw();
             return;
         }
-        if (isTextKind && String(next?.type || "") === "text" && next?.textPlaceholder && isTransitionRelaySegment(next) && Math.abs(Number(next.start || 0) - start) <= 1) {
+        if (kind === "text" && String(next?.type || "") === "text" && next?.textPlaceholder && Math.abs(Number(next.start || 0) - start) <= 1) {
             selectedId = next.id;
             draw();
             return;
@@ -9805,7 +9420,7 @@ function renderShotboardV3(node) {
                 ensureDurationForFrames(endOfSegments(sorted) + 1);
             }
             const splitStart = Math.round(Number(source.start || 0) + Number(source.length || 1));
-            const placeholder = isTextKind ? textRelaySegment(splitStart, splitLen, "transition_relay", { relayKind: "transition" }) : {
+            const placeholder = kind === "text" ? textRelaySegment(splitStart, splitLen) : {
                 id: newId("slot"),
                 type: "image",
                 placeholder: true,
@@ -9817,10 +9432,9 @@ function renderShotboardV3(node) {
                 note: "",
                 camera: "continuous dolly-in",
                 transition: "continuous_motion",
-                motion: clampGuideStrength(defaultForceWidget?.value || 1),
-                guideStrength: clampGuideStrength(defaultForceWidget?.value || 1),
-                imageLockStrength: clampGuideStrength(defaultForceWidget?.value || 1),
-                defaultForceSource: clampGuideStrength(defaultForceWidget?.value || 1),
+                guideStrength: Number(defaultForceWidget?.value || 0.25),
+                imageLockStrength: Number(defaultForceWidget?.value || 0.25),
+                defaultForceSource: Number(defaultForceWidget?.value || 0.25),
                 forceCustom: false,
                 use_guide: false,
                 use_prompt: false,
@@ -9834,7 +9448,7 @@ function renderShotboardV3(node) {
         }
         const length = defaultLen();
         ensureDurationForFrames(Math.round(start) + length);
-        const placeholder = isTextKind ? textRelaySegment(start, length, "transition_relay", { relayKind: "transition" }) : {
+        const placeholder = kind === "text" ? textRelaySegment(start, length) : {
             id: newId("slot"),
             type: "image",
             placeholder: true,
@@ -9846,10 +9460,9 @@ function renderShotboardV3(node) {
             note: "",
             camera: "continuous dolly-in",
             transition: "continuous_motion",
-            motion: clampGuideStrength(defaultForceWidget?.value || 1),
-            guideStrength: clampGuideStrength(defaultForceWidget?.value || 1),
-            imageLockStrength: clampGuideStrength(defaultForceWidget?.value || 1),
-            defaultForceSource: clampGuideStrength(defaultForceWidget?.value || 1),
+            guideStrength: Number(defaultForceWidget?.value || 0.25),
+            imageLockStrength: Number(defaultForceWidget?.value || 0.25),
+            defaultForceSource: Number(defaultForceWidget?.value || 0.25),
             forceCustom: false,
             use_guide: false,
             use_prompt: false,
@@ -9870,7 +9483,7 @@ function renderShotboardV3(node) {
         menu.className = "iamccs-v3-add-menu";
         const fallbackRect = root.getBoundingClientRect();
         const menuW = 180;
-        const menuH = 156;
+        const menuH = 122;
         const viewportW = Math.max(1, Number(window.innerWidth || document.documentElement?.clientWidth || fallbackRect.right || 1));
         const viewportH = Math.max(1, Number(window.innerHeight || document.documentElement?.clientHeight || fallbackRect.bottom || 1));
         const pointerX = Number.isFinite(Number(event?.clientX)) ? Number(event.clientX) : fallbackRect.left + 24;
@@ -9910,12 +9523,9 @@ function renderShotboardV3(node) {
             };
             menu.appendChild(btn);
         };
-        addChoice("Transition Relay", "Creates a transition relay owned by the previous WAN generation chunk. It shares that chunk's frame budget and semantically guides motion toward the next image.", () => {
-            if (seg) createPlaceholderAfterSegment(seg, "transition_relay");
-            else createTailTextPlaceholder({ relayKind: "transition" });
-        });
-        addChoice("Slot Relay", "Creates an in-slot relay inside the selected image slot. It divides that image slot's frame budget into PromptRelay sub-segments.", () => {
-            createSlotRelayInSegment(seg);
+        addChoice("Text Relay Slot", "Create a resizable prompt-only segment for Prompt Relay", () => {
+            if (seg) createPlaceholderAfterSegment(seg, "text");
+            else createTailTextPlaceholder();
         });
         addChoice("Image Slot", "Create or fill an image guide slot", () => {
             if (seg) splitImageSlotAfterSegment(seg);
@@ -9970,9 +9580,17 @@ function renderShotboardV3(node) {
             "z-index:2",
         ].join(";");
         block.textContent = "+";
-        bindReliableTimelineButton(block, (event) => {
+        block.onpointerdown = (event) => { event.preventDefault(); event.stopPropagation(); };
+        block.onclick = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             openTimelineAddMenu(event, null, null);
-        });
+        };
+        block.ondblclick = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            openTimelineAddMenu(event, null, null);
+        };
         return protectControlDrag(block);
     }
 
@@ -10006,14 +9624,8 @@ function renderShotboardV3(node) {
         const innerRight = 8;
         const topRightSafe = isAudio ? innerRight : 42;
         const selected = selectedId === seg.id;
-        const isSlotRelayBlock = !isAudio && isSlotRelaySegment(seg);
-        const isTransitionRelayBlock = !isAudio && isTransitionRelaySegment(seg);
         const showDragStripes = Boolean(dragState && !isAudio && dragState.targetId === seg.id && dragState.kind !== "center");
-        const color = isAudio
-            ? purple.audio
-            : (isSlotRelayBlock
-                ? "linear-gradient(180deg,rgba(22,45,38,.86),rgba(8,18,16,.88))"
-                : (isTransitionRelayBlock ? "linear-gradient(180deg,rgba(67,53,27,.90),rgba(18,14,8,.90))" : (String(seg.type) === "text" ? purple.textBlock : purple.image2)));
+        const color = isAudio ? purple.audio : (String(seg.type) === "text" ? purple.textBlock : purple.image2);
         block.style.cssText = [
             "position:absolute",
             `left:${left}%`,
@@ -10022,14 +9634,14 @@ function renderShotboardV3(node) {
             `top:${top}px`,
             `height:${height}px`,
             `background:${color}`,
-            (selected ? "border:2px solid #F9C859" : `border:1px solid ${isSlotRelayBlock ? "rgba(137,238,164,.42)" : (isTransitionRelayBlock ? "rgba(255,207,111,.72)" : purple.borderSoft)}`),
+            (selected ? "border:2px solid #F9C859" : `border:1px solid ${purple.borderSoft}`),
             "border-radius:4px",
             "box-sizing:border-box",
             "overflow:visible",
             "cursor:grab",
-            (selected ? "box-shadow:0 0 0 2px rgba(249,200,89,.35),0 6px 16px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,190,120,.08)" : (isSlotRelayBlock ? "box-shadow:0 4px 10px rgba(0,0,0,.30),inset 0 1px 0 rgba(195,255,205,.10)" : "box-shadow:0 6px 16px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,190,120,.08)")),
+            (selected ? "box-shadow:0 0 0 2px rgba(249,200,89,.35),0 6px 16px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,190,120,.08)" : "box-shadow:0 6px 16px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,190,120,.08)"),
             "user-select:none",
-            `z-index:${isAudio ? 14 : 4}`,
+            `z-index:${isAudio ? 14 : (selected || (dragState && dragState.targetId === seg.id) ? 18 : 4)}`,
         ].join(";");
         const content = document.createElement("div");
         content.style.cssText = isAudio
@@ -10041,120 +9653,13 @@ function renderShotboardV3(node) {
             addAfter.textContent = "+";
             addAfter.title = "Add text, image or audio after this slot";
             addAfter.style.cssText = `position:absolute;right:14px;top:${truthRailHeight + 8}px;width:24px;height:24px;border:1px solid ${purple.border};border-radius:999px;background:${purple.valueBg};color:${purple.valueText};font-size:17px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.45);z-index:9;`;
-            bindReliableTimelineButton(addAfter, (event) => {
+            addAfter.onpointerdown = (event) => { event.preventDefault(); event.stopPropagation(); };
+            addAfter.onclick = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 openTimelineAddMenu(event, seg, null);
-            });
+            };
             block.appendChild(addAfter);
-        };
-        const appendNestedSlotRelayLines = () => {
-            if (isAudio || !isTimelineImageSegment(seg) || !Array.isArray(seg.slot_relays) || !seg.slot_relays.length) return;
-            const win = generationWindowForImage(seg);
-            const segStart = win.start;
-            const segLength = Math.max(1, Math.round(Number(win.length || 1)));
-            const segEnd = win.end;
-            seg.slot_relays.forEach((relay) => {
-                const relayStart = Math.max(segStart, Math.min(segEnd - 1, Math.round(Number(relay.start ?? (segStart + Math.floor(segLength / 2))))));
-                const relayLength = Math.max(1, Math.round(Number(relay.length || Math.max(1, segEnd - relayStart))));
-                const relayEnd = Math.max(relayStart + 1, Math.min(segEnd, relayStart + relayLength));
-                const localRelayStart = generationFrameFor(seg, relayStart);
-                relay.start = relayStart;
-                relay.length = relayEnd - relayStart;
-                relay.parentSegmentId = String(seg.id || "");
-                relay.relay_kind = "slot";
-                relay.relayKind = "slot";
-                relay.slotRelay = true;
-
-                const leftPct = ((relayStart - segStart) / segLength) * 100;
-                const widthPct = Math.max(.8, ((relayEnd - relayStart) / segLength) * 100);
-                const contentFixed = innerLeft + innerRight;
-                const contentLeftOffsetPx = innerLeft - (contentFixed * (leftPct / 100));
-                const contentWidthOffsetPx = contentFixed * (widthPct / 100);
-                const contentLeftCss = `calc(${leftPct.toFixed(4)}% + ${contentLeftOffsetPx.toFixed(2)}px)`;
-                const contentWidthCss = `calc(${widthPct.toFixed(4)}% - ${contentWidthOffsetPx.toFixed(2)}px)`;
-                const lineLeftCss = `calc(${leftPct.toFixed(4)}% + ${(contentLeftOffsetPx - 3).toFixed(2)}px)`;
-                const badgeLeftCss = `calc(${leftPct.toFixed(4)}% + ${(contentLeftOffsetPx + 5).toFixed(2)}px)`;
-                const line = document.createElement("div");
-                line.title = `Slot Relay starts at generation frame ${localRelayStart}. Drag to move this prompt division.`;
-                line.style.cssText = [
-                    "position:absolute",
-                    `left:${lineLeftCss}`,
-                    `top:${truthRailHeight}px`,
-                    `height:${promptTop + promptHeight - truthRailHeight}px`,
-                    "width:6px",
-                    "border-radius:999px",
-                    "background:linear-gradient(180deg,#DDF8D8,#6FD57B,#DDF8D8)",
-                    "box-shadow:0 0 0 1px rgba(0,0,0,.62),0 0 8px rgba(137,238,164,.38)",
-                    "cursor:ew-resize",
-                    "z-index:66",
-                ].join(";");
-                line.onpointerdown = (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    selectedId = seg.id;
-                    const rect = timelineBox.getBoundingClientRect();
-                    const widthPx = rect.width || 1;
-                    const startX = event.clientX;
-                    const originalStart = relayStart;
-                    const originalEnd = relayEnd;
-                    const pointerId = event.pointerId;
-                    try { line.setPointerCapture?.(pointerId); } catch (_) {}
-                    const onMove = (move) => {
-                        move.preventDefault();
-                        const deltaFrames = Math.round(((move.clientX - startX) / widthPx) * getTotalFrames());
-                        const nextStart = Math.max(segStart, Math.min(originalStart + deltaFrames, originalEnd - 1));
-                        relay.start = nextStart;
-                        relay.length = Math.max(1, originalEnd - nextStart);
-                        writeTimeline({ force: true });
-                        scheduleDraw();
-                    };
-                    const finish = () => {
-                        window.removeEventListener("pointermove", onMove, true);
-                        window.removeEventListener("pointerup", finish, true);
-                        window.removeEventListener("pointercancel", finish, true);
-                        try { if (line.hasPointerCapture?.(pointerId)) line.releasePointerCapture(pointerId); } catch (_) {}
-                        writeTimeline({ force: true });
-                        draw();
-                    };
-                    window.addEventListener("pointermove", onMove, { passive: false, capture: true });
-                    window.addEventListener("pointerup", finish, { passive: false, capture: true });
-                    window.addEventListener("pointercancel", finish, { passive: false, capture: true });
-                };
-                const frameBadge = document.createElement("div");
-                frameBadge.textContent = `F${localRelayStart}`;
-                frameBadge.title = line.title;
-                frameBadge.style.cssText = [
-                    "position:absolute",
-                    `left:${badgeLeftCss}`,
-                    `top:${truthRailHeight + 4}px`,
-                    "height:15px",
-                    "box-sizing:border-box",
-                    "padding:1px 4px",
-                    "border-radius:4px",
-                    "background:rgba(4,12,10,.82)",
-                    "border:1px solid rgba(137,238,164,.58)",
-                    "color:#DDF8D8",
-                    "font:8px/11px monospace",
-                    "font-weight:900",
-                    "text-shadow:0 1px 2px rgba(0,0,0,.75)",
-                    "z-index:67",
-                    "pointer-events:none",
-                ].join(";");
-                const duration = document.createElement("div");
-                duration.title = "Slot Relay duration inside this image slot";
-                duration.style.cssText = [
-                    "position:absolute",
-                    `left:${contentLeftCss}`,
-                    `width:${contentWidthCss}`,
-                    `top:${transitionLaneTop + 7}px`,
-                    "height:3px",
-                    "border-radius:999px",
-                    "background:rgba(137,238,164,.82)",
-                    "box-shadow:0 1px 3px rgba(0,0,0,.40)",
-                    "z-index:54",
-                    "pointer-events:none",
-                ].join(";");
-                block.append(duration, line, frameBadge);
-            });
         };
         if (!isAudio && String(seg.type || "image") !== "text") {
             const path = segmentReferencePath(seg);
@@ -10200,30 +9705,35 @@ function renderShotboardV3(node) {
                     "opacity:.78",
                     "z-index:8",
                 ].join(";");
-                bindReliableTimelineButton(replaceImage, () => {
+                replaceImage.onpointerdown = (event) => { event.preventDefault(); event.stopPropagation(); };
+                replaceImage.onclick = (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
                     openAppendImagePicker(seg.id);
-                });
+                };
                 block.appendChild(replaceImage);
             } else {
                 const plus = document.createElement("button");
                 plus.type = "button";
                 plus.textContent = "+";
                 plus.title = "Import image into this empty image slot";
-                plus.style.cssText = `position:absolute;left:calc(50% + 12px);top:${truthRailHeight + 44}px;transform:translate(-50%,-50%);width:46px;height:46px;border:2px solid ${purple.border};border-radius:999px;background:${purple.valueBg};color:${purple.valueText};font-size:28px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 5px 18px rgba(0,0,0,.42),0 0 0 3px rgba(244,239,230,.08);z-index:12;touch-action:manipulation;`;
-                bindReliableTimelineButton(plus, () => {
+                plus.style.cssText = `position:absolute;left:calc(50% + 12px);top:${truthRailHeight + 44}px;transform:translate(-50%,-50%);width:38px;height:38px;border:1px solid ${purple.border};border-radius:999px;background:${purple.valueBg};color:${purple.valueText};font-size:24px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35);z-index:3;`;
+                plus.onpointerdown = (event) => { event.preventDefault(); event.stopPropagation(); };
+                plus.onclick = (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
                     openAppendImagePicker(seg.id);
-                });
+                };
                 block.appendChild(plus);
             }
         }
-        appendNestedSlotRelayLines();
         if (!isAudio) appendAddAfterButton();
         if (isAudio) {
             const removeAudio = document.createElement("button");
             removeAudio.type = "button";
             removeAudio.textContent = "X";
             removeAudio.title = "Remove this audio clip";
-            removeAudio.style.cssText = `position:absolute;right:5px;top:5px;width:22px;height:22px;border:1px solid ${purple.danger};border-radius:999px;background:#6B302A;color:#FFF2E4;font-size:10px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 2px 7px rgba(0,0,0,.40);z-index:20;`;
+            removeAudio.style.cssText = `position:absolute;right:6px;top:6px;width:24px;height:24px;border:1px solid ${purple.danger};border-radius:999px;background:#6B302A;color:#FFF2E4;font-size:10px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.55);z-index:140;pointer-events:auto;`;
             removeAudio.onpointerdown = (event) => { event.preventDefault(); event.stopPropagation(); };
             removeAudio.onclick = (event) => {
                 event.preventDefault();
@@ -10233,66 +9743,12 @@ function renderShotboardV3(node) {
                 writeTimeline({ force: true });
                 draw();
             };
-            block.appendChild(removeAudio);
+            removeAudio.dataset.iamccsAudioRemoveButton = "1";
             renderAudioWaveform(block, seg);
+            block.appendChild(removeAudio);
         }
-        content.textContent = isAudio ? String(seg.name || "audio") : (String(seg.type || "image") === "text" ? String(seg.label || (isSlotRelayBlock ? "slot_relay" : "text")) : "");
-        if (isSlotRelayBlock) {
-            content.style.left = "14px";
-            content.style.right = "8px";
-            content.style.top = `${truthRailHeight + 8}px`;
-            content.style.height = "38px";
-            content.style.alignItems = "flex-start";
-            content.style.justifyContent = "flex-start";
-            content.style.textAlign = "left";
-            content.style.color = "#DDF8D8";
-            content.style.fontSize = "9px";
-            content.style.textShadow = "0 1px 2px rgba(0,0,0,.70)";
-            content.style.opacity = ".82";
-        }
+        content.textContent = isAudio ? String(seg.name || "audio") : (String(seg.type || "image") === "text" ? String(seg.label || "text") : "");
         if (isAudio || String(seg.type || "image") === "text") block.appendChild(content);
-        if (isSlotRelayBlock || isTransitionRelayBlock) {
-            const durationLine = document.createElement("div");
-            durationLine.title = isSlotRelayBlock
-                ? "Slot Relay duration: drag the start line or the edge handle to adjust this prompt segment"
-                : "Transition Relay duration";
-            durationLine.style.cssText = [
-                "position:absolute",
-                "left:0",
-                "right:0",
-                `top:${transitionLaneTop + 6}px`,
-                "height:3px",
-                "border-radius:999px",
-                `background:${isSlotRelayBlock ? "rgba(137,238,164,.82)" : "rgba(255,207,111,.78)"}`,
-                "box-shadow:0 1px 3px rgba(0,0,0,.38)",
-                "z-index:24",
-                "pointer-events:none",
-            ].join(";");
-            block.appendChild(durationLine);
-            if (isSlotRelayBlock) {
-                const startLine = document.createElement("div");
-                startLine.title = "Drag Slot Relay start";
-                startLine.style.cssText = [
-                    "position:absolute",
-                    "left:0",
-                    "top:0",
-                    "bottom:0",
-                    "width:7px",
-                    "cursor:ew-resize",
-                    "background:linear-gradient(180deg,#DDF8D8,#6DD47A,#DDF8D8)",
-                    "border-right:1px solid rgba(8,18,16,.72)",
-                    "box-shadow:0 0 0 1px rgba(0,0,0,.35),0 0 8px rgba(137,238,164,.30)",
-                    "z-index:64",
-                    "border-radius:4px 0 0 4px",
-                ].join(";");
-                startLine.onpointerdown = (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    startTimelineDrag(event, seg, false, "left");
-                };
-                block.appendChild(startLine);
-            }
-        }
         if (!isAudio) {
             const transitionLane = document.createElement("div");
             transitionLane.style.cssText = [
@@ -10310,7 +9766,7 @@ function renderShotboardV3(node) {
             ].join(";");
             block.appendChild(transitionLane);
         }
-        if (!isAudio && !isSlotRelayBlock) {
+        if (!isAudio) {
             const rail = document.createElement("div");
             rail.style.cssText = `position:absolute;left:0;top:0;width:24px;height:${frameShellHeight}px;display:grid;grid-template-rows:repeat(3,1fr);background:rgba(0,0,0,.45);z-index:15;`;
             const railBtn = (label, titleText, action) => {
@@ -10336,14 +9792,8 @@ function renderShotboardV3(node) {
                             const appended = appendReferencePath(node, newPath);
                             const nextRef = Math.max(1, Number(appended?.refNumber || refIndex + 1));
                             const truthSeg = (timeline.segments || []).find((item) => String(item?.id || "") === String(seg.id || "")) || seg;
-                            const propagated = applyEditedReferenceToMatches(currentRef, currentPath, nextRef, newPath, {
-                                updateAutoLabel: false,
-                                truthSource: "timeline_frame_editor_shared",
-                            });
-                            if (!propagated) {
-                                applyEditedReferenceTruth(truthSeg, nextRef, newPath, { updateAutoLabel: false });
-                                if (truthSeg !== seg) applyEditedReferenceTruth(seg, nextRef, newPath, { updateAutoLabel: false });
-                            }
+                            applyEditedReferenceTruth(truthSeg, nextRef, newPath, { updateAutoLabel: false });
+                            if (truthSeg !== seg) applyEditedReferenceTruth(seg, nextRef, newPath, { updateAutoLabel: false });
                             if (newPath) refPreviewBusters.set(String(newPath), String(data?.cache_bust || Date.now()));
                             console.info("[IAMCCS V3 REF EDIT] applied edited reference to timeline truth", {
                                 segmentId: seg.id,
@@ -10354,7 +9804,6 @@ function renderShotboardV3(node) {
                                 truthPath: truthSeg?.imageFile || truthSeg?.path || "",
                                 savedTo: data?.absolute_path || data?.path || "",
                                 appended: Boolean(appended?.appended),
-                                propagated,
                             });
                             writeTimeline({ force: true });
                             draw();
@@ -10373,169 +9822,69 @@ function renderShotboardV3(node) {
             block.appendChild(rail);
         }
         if (!isAudio) {
-            const nestedSlotRelays = isTimelineImageSegment(seg) && Array.isArray(seg.slot_relays)
-                ? seg.slot_relays.filter((relay) => relay && relay.slotRelay !== false)
-                    .sort((a, b) => Number(a.start || 0) - Number(b.start || 0))
-                : [];
-            const promptWin = isTimelineImageSegment(seg)
-                ? generationWindowForImage(seg)
-                : {
-                    start: Math.max(0, Math.round(Number(seg.start || 0))),
-                    length: Math.max(1, Math.round(Number(seg.length || 1))),
-                    end: Math.max(0, Math.round(Number(seg.start || 0))) + Math.max(1, Math.round(Number(seg.length || 1))),
-                };
-            const segStart = promptWin.start;
-            const segLength = Math.max(1, Math.round(Number(promptWin.length || 1)));
-            const segEnd = promptWin.end;
-            const promptShell = document.createElement("div");
-            promptShell.style.cssText = [
-                "position:absolute",
-                `left:${innerLeft}px`,
-                `right:${innerRight}px`,
-                `top:${promptTop}px`,
-                `height:${promptHeight}px`,
-                "box-sizing:border-box",
-                "display:block",
-                "overflow:hidden",
-                "border-radius:5px",
-                "z-index:18",
-            ].join(";");
-            const makePromptBox = (value, placeholder, onValue, options = {}) => {
-                const wrap = document.createElement("div");
-                wrap.style.cssText = [
-                    "position:absolute",
-                    `left:${Math.max(0, Math.min(100, Number(options.leftPct || 0)))}%`,
-                    `width:${Math.max(.8, Math.min(100, Number(options.widthPct || 100)))}%`,
-                    "top:0",
-                    "bottom:0",
-                    "min-width:0",
-                    "min-height:0",
-                    "box-sizing:border-box",
-                    "padding-right:4px",
-                ].join(";");
-                if (options.slotRelay) {
-                    const startLine = document.createElement("div");
-                    startLine.title = "Slot Relay prompt division";
-                    startLine.style.cssText = [
-                        "position:absolute",
-                        "left:0",
-                        "top:0",
-                        "bottom:0",
-                        "width:3px",
-                        "background:rgba(17,17,17,.84)",
-                        "box-shadow:1px 0 0 rgba(111,182,124,.72)",
-                        "z-index:3",
-                        "pointer-events:none",
-                    ].join(";");
-                    wrap.appendChild(startLine);
-                }
-                const caption = document.createElement("textarea");
-                caption.value = String(value || "");
-                caption.placeholder = placeholder;
-                caption.spellcheck = false;
-                caption.dataset.iamccsV3SegmentId = String(seg.id);
-                caption.dataset.iamccsV3Key = options.slotRelay ? "slot_relay_prompt" : "prompt";
-                caption.style.cssText = [
-                    "width:100%",
-                    "height:100%",
-                    "min-height:0",
-                    "box-sizing:border-box",
-                    `padding:${options.slotRelay ? "6px 8px 6px 10px" : "6px 8px"}`,
-                    `background:${purple.valueBg}`,
-                    `border:1px solid ${options.slotRelay ? "rgba(111,182,124,.72)" : purple.border}`,
-                    "border-radius:5px",
-                    `color:${purple.valueText}`,
-                    `font:${promptFontSize(nestedSlotRelays.length ? 9 : 10)}/1.22 monospace`,
-                    "font-weight:700",
-                    "outline:none",
-                    "resize:none",
-                    "overflow-y:auto",
-                    "overflow-x:hidden",
-                    "box-shadow:inset 0 1px 0 rgba(255,255,255,.66)",
-                ].join(";");
-                caption.onpointerdown = (event) => event.stopPropagation();
-                caption.onclick = (event) => event.stopPropagation();
-                caption.ondblclick = (event) => event.stopPropagation();
-                const apply = (source) => {
-                    markPromptFieldEdited(source);
-                    onValue(source.value, source);
-                    writeTimeline({ force: true });
-                };
-                caption.oninput = () => apply(caption);
-                caption.onchange = flushTimelineWrite;
-                caption.onblur = flushTimelineWrite;
-                caption.onkeyup = () => {
-                    markPromptFieldEdited(caption);
-                    writeTimeline({ force: true });
-                    logPromptPersistence(seg, options.slotRelay ? "slot_relay_prompt_keyup" : "timeline_caption_keyup");
-                };
-                caption.onpaste = () => setTimeout(() => apply(caption), 0);
-                caption.oncompositionend = () => apply(caption);
-                protectControlDrag(caption);
-                wrap.appendChild(caption);
-                return wrap;
-            };
-            const boundaries = nestedSlotRelays.map((relay) => Math.max(segStart, Math.min(segEnd - 1, Math.round(Number(relay.start || segStart)))));
-            const segmentRanges = [];
-            let cursorFrame = segStart;
-            if (nestedSlotRelays.length) {
-                const first = Math.max(segStart + 1, boundaries[0]);
-                segmentRanges.push({ kind: "base", start: segStart, end: first });
-                nestedSlotRelays.forEach((relay, relayIndex) => {
-                    const start = Math.max(segStart, Math.min(segEnd - 1, boundaries[relayIndex]));
-                    const end = relayIndex + 1 < boundaries.length
-                        ? Math.max(start + 1, Math.min(segEnd, boundaries[relayIndex + 1]))
-                        : segEnd;
-                    segmentRanges.push({ kind: "relay", relay, relayIndex, start, end });
-                });
-            } else {
-                segmentRanges.push({ kind: "base", start: segStart, end: segEnd });
-            }
-            segmentRanges.forEach((range) => {
-                range.leftPct = ((range.start - segStart) / segLength) * 100;
-                range.widthPct = ((Math.max(1, range.end - range.start)) / segLength) * 100;
-            });
-            const baseRange = segmentRanges.find((range) => range.kind === "base") || { leftPct: 0, widthPct: 100 };
-            promptShell.appendChild(makePromptBox(String(seg.prompt || ""), nestedSlotRelays.length ? "Base local prompt..." : "Action in this segment...", (value, source) => {
-                seg.prompt = value;
-                seg.use_prompt = Boolean(String(value || "").trim());
-                if (String(value || "").trim()) {
+            const caption = document.createElement("textarea");
+            caption.value = String(seg.prompt || "");
+            caption.placeholder = "Action in this segment...";
+            caption.spellcheck = false;
+            caption.dataset.iamccsV3SegmentId = String(seg.id);
+            caption.dataset.iamccsV3Key = "prompt";
+            caption.style.cssText = `position:absolute;left:${innerLeft}px;right:${innerRight}px;top:${promptTop}px;height:${promptHeight}px;box-sizing:border-box;padding:7px 9px;background:${purple.valueBg};border:1px solid ${purple.border};border-radius:5px;color:${purple.valueText};font:${promptFontSize(10)}/1.28 monospace;font-weight:700;outline:none;resize:none;overflow-y:auto;overflow-x:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.66);`;
+            caption.onpointerdown = (event) => event.stopPropagation();
+            caption.onclick = (event) => event.stopPropagation();
+            caption.ondblclick = (event) => event.stopPropagation();
+            caption.oninput = () => {
+                markPromptFieldEdited(caption);
+                seg.prompt = caption.value;
+                seg.use_prompt = Boolean(String(caption.value || "").trim());
+                if (String(caption.value || "").trim()) {
                     seg.relay_manual_off = false;
                     seg.promptrelay_manual_off = false;
                 }
                 if (isActionBridgeRelaySegment(seg)) syncActionBridgeSourceFromRelay(seg);
-                syncSegmentTextPeers(seg.id, "prompt", value, source);
+                syncSegmentTextPeers(seg.id, "prompt", caption.value, caption);
                 syncSegmentRelayPeers(seg.id, Boolean(seg.use_prompt), null);
+                writeTimeline({ force: true });
                 logPromptPersistence(seg, "timeline_caption_input");
-            }, { leftPct: baseRange.leftPct, widthPct: baseRange.widthPct }));
-            segmentRanges.filter((range) => range.kind === "relay").forEach((range) => {
-                const relay = range.relay;
-                const relayIndex = range.relayIndex;
-                relay.start = range.start;
-                relay.length = Math.max(1, range.end - range.start);
-                promptShell.appendChild(makePromptBox(String(relay.prompt || ""), `Slot Relay ${relayIndex + 1} prompt...`, (value) => {
-                    relay.prompt = value;
-                    relay.note = value;
-                    relay.use_prompt = Boolean(String(value || "").trim());
-                    relay.relay_kind = "slot";
-                    relay.relayKind = "slot";
-                    relay.slotRelay = true;
-                    relay.parentSegmentId = String(seg.id || "");
-                    logPromptPersistence(seg, "slot_relay_prompt_input");
-                }, { slotRelay: true, leftPct: range.leftPct, widthPct: range.widthPct }));
-            });
-            block.appendChild(promptShell);
+            };
+            caption.onchange = flushTimelineWrite;
+            caption.onblur = flushTimelineWrite;
+            caption.onkeyup = () => {
+                markPromptFieldEdited(caption);
+                writeTimeline({ force: true });
+                logPromptPersistence(seg, "timeline_caption_keyup");
+            };
+            caption.onpaste = () => setTimeout(() => {
+                markPromptFieldEdited(caption);
+                seg.prompt = caption.value;
+                seg.use_prompt = Boolean(String(caption.value || "").trim());
+                if (String(caption.value || "").trim()) {
+                    seg.relay_manual_off = false;
+                    seg.promptrelay_manual_off = false;
+                }
+                syncSegmentTextPeers(seg.id, "prompt", caption.value, caption);
+                syncSegmentRelayPeers(seg.id, Boolean(seg.use_prompt), null);
+                writeTimeline({ force: true });
+                logPromptPersistence(seg, "timeline_caption_paste");
+            }, 0);
+            caption.oncompositionend = () => {
+                markPromptFieldEdited(caption);
+                seg.prompt = caption.value;
+                seg.use_prompt = Boolean(String(caption.value || "").trim());
+                if (String(caption.value || "").trim()) {
+                    seg.relay_manual_off = false;
+                    seg.promptrelay_manual_off = false;
+                }
+                syncSegmentTextPeers(seg.id, "prompt", caption.value, caption);
+                syncSegmentRelayPeers(seg.id, Boolean(seg.use_prompt), null);
+                writeTimeline({ force: true });
+                logPromptPersistence(seg, "timeline_caption_compositionend");
+            };
+            protectControlDrag(caption);
+            block.appendChild(caption);
         }
         const label = document.createElement("div");
         label.style.cssText = `position:absolute;left:${innerLeft}px;top:${truthRailHeight + 4}px;right:${topRightSafe}px;color:#fff;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #000;`;
-        if (isTransitionRelaySegment(seg)) {
-            const owner = generationOwnerForFrame(seg.start);
-            const startLocal = owner ? generationFrameFor(owner, seg.start) : Math.max(0, Math.round(Number(seg.start || 0)));
-            const endLocal = owner ? generationFrameFor(owner, Number(seg.start || 0) + Number(seg.length || 0)) : Math.max(0, Math.round(Number(seg.start || 0) + Number(seg.length || 0)));
-            label.textContent = `Gen F${startLocal} - F${endLocal}`;
-        } else {
-            label.textContent = `${frameLabel(seg.start)} - ${frameLabel(Number(seg.start || 0) + Number(seg.length || 0))}`;
-        }
+        label.textContent = `${frameLabel(seg.start)} - ${frameLabel(Number(seg.start || 0) + Number(seg.length || 0))}`;
         block.appendChild(label);
         if (!isAudio && isTimelineImageSegment(seg) && String(seg.type || "image") !== "text") {
             const truthPath = String(seg.imageTruthPath || seg.image_truth_path || seg.imageFile || seg.image_file || seg.path || "").trim();
@@ -10648,20 +9997,19 @@ function renderShotboardV3(node) {
         handle.title = edge === "left"
             ? "Solid edge handle: drag to resize the start of this slot"
             : "Solid edge handle: drag to resize this slot boundary";
-        const slot = tone === "slot";
         const warm = tone === "left";
         handle.style.cssText = [
             "position:absolute",
             `left:calc(${pct}% - 9px)`,
             "top:8px",
+            "bottom:8px",
             "width:9px",
-            "height:222px",
             "box-sizing:border-box",
             "cursor:ew-resize",
             "z-index:58",
             "border-radius:4px",
-            `background:${slot ? "linear-gradient(180deg,#A8F2A5,#2E7B48)" : (warm ? "linear-gradient(180deg,#6ABDB9,#2C5E63)" : "linear-gradient(180deg,#F0CE78,#A66E32)")}`,
-            `border:1px solid ${slot ? "rgba(209,255,211,.94)" : (warm ? "rgba(158,237,232,.88)" : "rgba(255,229,159,.92)")}`,
+            `background:${warm ? "linear-gradient(180deg,#6ABDB9,#2C5E63)" : "linear-gradient(180deg,#F0CE78,#A66E32)"}`,
+            `border:1px solid ${warm ? "rgba(158,237,232,.88)" : "rgba(255,229,159,.92)"}`,
             "box-shadow:0 0 0 1px rgba(0,0,0,.72),0 6px 14px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.36)",
             "opacity:.94",
         ].join(";");
@@ -10700,11 +10048,11 @@ function renderShotboardV3(node) {
             const start = Math.round(Number(seg.start || 0));
             const end = Math.round(Number(seg.start || 0) + Number(seg.length || 1));
             const prev = sorted[index - 1];
+            const next = sorted[index + 1];
             const prevEnd = prev ? Math.round(Number(prev.start || 0) + Number(prev.length || 1)) : -1;
-            // Skip left handle at the very start of the timeline — By IAMCCS
-            if (start > 0 && (!prev || Math.abs(prevEnd - start) > 1)) appendVisualEdgeHandle(seg, "left", isSlotRelaySegment(seg) ? "slot" : "left");
-            // Skip right handle at the very end of the timeline — By IAMCCS
-            if (end < total) appendVisualEdgeHandle(seg, "right", isSlotRelaySegment(seg) ? "slot" : "right");
+            const nextStart = next ? Math.round(Number(next.start || 0)) : total + 1;
+            if (!prev || Math.abs(prevEnd - start) > 1) appendVisualEdgeHandle(seg, "left", "left");
+            appendVisualEdgeHandle(seg, "right", "right");
         });
     }
 
@@ -10874,50 +10222,6 @@ function renderShotboardV3(node) {
         const sorted = (timeline.segments || []).slice().sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
         const index = sorted.findIndex((item) => item.id === target?.id);
         if (index < 0) return;
-        const source = sorted[index];
-        if (isTimelineImageSegment(source)) {
-            const placeholder = {
-                ...source,
-                type: "image",
-                placeholder: true,
-                ref: 0,
-                imageTruthRef: 0,
-                image_truth_ref: 0,
-                imageTruthPinned: false,
-                image_truth_pinned: false,
-                imageTruthSource: "delete_to_placeholder",
-                image_truth_source: "delete_to_placeholder",
-                imageTruthPath: "",
-                image_truth_path: "",
-                imageTruthName: "",
-                image_truth_name: "",
-                imageFile: "",
-                image_file: "",
-                path: "",
-                imageName: "",
-                image_name: "",
-                label: "empty_slot",
-            };
-            delete placeholder.file;
-            delete placeholder.resolved;
-            delete placeholder.basename;
-            delete placeholder.slot_relays;
-            delete placeholder.slotRelays;
-            placeholder.relay_manual_off = true;
-            placeholder.promptrelay_manual_off = true;
-            sorted[index] = placeholder;
-            timeline.segments = sorted;
-            selectedId = placeholder.id;
-            previewSegments = null;
-            console.info("[IAMCCS WAN PURE][Timeline] image deleted to placeholder", {
-                segment_id: placeholder.id,
-                start: Math.max(0, Math.round(Number(placeholder.start || 0))),
-                length: Math.max(1, Math.round(Number(placeholder.length || 1))),
-            });
-            writeTimeline({ force: true });
-            draw();
-            return;
-        }
         const prev = index > 0 ? sorted[index - 1] : null;
         sorted.splice(index, 1);
         if (prev && String(prev.type || "image") !== "audio") {
@@ -10942,8 +10246,7 @@ function renderShotboardV3(node) {
             target.linkGuideLock = nextLinked;
             target.link_guide_lock = nextLinked;
             if (nextLinked) {
-                const nextStrength = clampGuideStrength(target.motion ?? target.guideStrength ?? target.guide_strength ?? target.force ?? target.strength ?? defaultForceWidget?.value ?? 1);
-                target.motion = nextStrength;
+                const nextStrength = Math.max(0, Math.min(1, Number(target.guideStrength ?? target.guide_strength ?? target.force ?? target.strength ?? defaultForceWidget?.value ?? 0.25)));
                 target.guideStrength = nextStrength;
                 target.guide_strength = nextStrength;
                 target.force = nextStrength;
@@ -10972,12 +10275,9 @@ function renderShotboardV3(node) {
             if (type === "number") {
                 const isStrengthKey = key === "guideStrength" || key === "imageLockStrength";
                 const step = isStrengthKey ? "0.01" : "1";
-                const min = isStrengthKey ? "1" : "0";
-                const max = isStrengthKey ? "2" : null;
-                const displayNumberValue = key === "length" && isTimelineImageSegment(seg)
-                    ? generationWindowForImage(seg).length
-                    : (seg[key] ?? "");
-                const ctrl = numberStepperControl(displayNumberValue, step, min, max, (value) => {
+                const min = "0";
+                const max = isStrengthKey ? "1" : null;
+                const ctrl = numberStepperControl(seg[key] ?? "", step, min, max, (value) => {
                     const target = currentSegment();
                     let shouldRedraw = true;
                     if (key === "start") {
@@ -10986,16 +10286,11 @@ function renderShotboardV3(node) {
                     }
                     else if (key === "length") {
                         const nextLength = Math.max(1, Math.round(Number(value || 1)));
-                        if (isTimelineImageSegment(target)) {
-                            setGenerationWindowLength(target, nextLength);
-                        } else {
-                            timeline.segments = edgeDragPreview(timeline.segments, target.id, nextLength - Number(target.length || 1), "right", getTotalFrames());
-                        }
+                        timeline.segments = edgeDragPreview(timeline.segments, target.id, nextLength - Number(target.length || 1), "right", getTotalFrames());
                     }
                     else if (key === "ref") setSegmentReference(target, value);
                     else if (key === "guideStrength") {
-                        const nextStrength = clampGuideStrength(value);
-                        target.motion = nextStrength;
+                        const nextStrength = Math.max(0, Math.min(1, Number(value || 0)));
                         target.guideStrength = nextStrength;
                         target.guide_strength = nextStrength;
                         target.force = nextStrength;
@@ -11010,8 +10305,7 @@ function renderShotboardV3(node) {
                         shouldRedraw = false;
                     }
                     else if (key === "imageLockStrength") {
-                        const nextLock = clampGuideStrength(value);
-                        target.motion = nextLock;
+                        const nextLock = Math.max(0, Math.min(1, Number(value || 0)));
                         target.guideStrength = nextLock;
                         target.guide_strength = nextLock;
                         target.force = nextLock;
@@ -11071,8 +10365,7 @@ function renderShotboardV3(node) {
                     shouldRedraw = true;
                 }
                 else if (key === "guideStrength") {
-                    const nextStrength = clampGuideStrength(input.value);
-                    target.motion = nextStrength;
+                    const nextStrength = Math.max(0, Math.min(1, Number(input.value || 0)));
                     target.guideStrength = nextStrength;
                     target.guide_strength = nextStrength;
                     target.force = nextStrength;
@@ -11087,8 +10380,7 @@ function renderShotboardV3(node) {
                     shouldRedraw = true;
                 }
                 else if (key === "imageLockStrength") {
-                    const nextLock = clampGuideStrength(input.value);
-                    target.motion = nextLock;
+                    const nextLock = Math.max(0, Math.min(1, Number(input.value || 0)));
                     target.guideStrength = nextLock;
                     target.guide_strength = nextLock;
                     target.force = nextLock;
@@ -11386,9 +10678,9 @@ function renderShotboardV3(node) {
                 "gap:3px",
                 "min-width:0",
                 "padding:5px 8px",
-                `border:1px solid ${purple.borderSoft}`,
+                "border:1px solid rgba(120,112,98,.44)",
                 "border-radius:6px",
-                "background:linear-gradient(180deg, rgba(39,68,57,.70), rgba(23,42,34,.56))",
+                "background:linear-gradient(180deg, rgba(52,50,47,.78), rgba(28,28,27,.52))",
                 "box-shadow:inset 0 1px 0 rgba(255,255,255,.10), 0 4px 12px rgba(0,0,0,.14)",
                 "box-sizing:border-box",
                 "overflow:hidden",
@@ -11396,7 +10688,7 @@ function renderShotboardV3(node) {
             ].join(";");
             const title = document.createElement("div");
             title.textContent = "Segment";
-            title.style.cssText = `max-width:100%;padding:2px 7px;border-radius:999px;border:1px solid rgba(111,182,210,.32);background:rgba(111,182,210,.14);color:${purple.muted};font-size:7px;font-weight:900;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1;`;
+            title.style.cssText = `max-width:100%;padding:2px 7px;border-radius:999px;border:1px solid rgba(143,208,204,.22);background:rgba(143,208,204,.07);color:${purple.muted};font-size:7px;font-weight:900;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1;`;
             const range = document.createElement("div");
             range.textContent = `${(startFrame / fps).toFixed(2)}s -> ${(endFrame / fps).toFixed(2)}s`;
             range.style.cssText = `color:${purple.text};font-size:10px;font-weight:900;white-space:nowrap;line-height:1;`;
@@ -11406,182 +10698,11 @@ function renderShotboardV3(node) {
             summary.append(title, range, meta);
             return summary;
         };
-        const relayMonitorSegments = (seg) => {
-            const win = generationWindowForImage(seg);
-            const clampFrame = (value) => Math.max(win.start, Math.min(win.end - 1, Math.round(Number(value || win.start))));
-            const active = [];
-            const basePrompt = String(seg.prompt || "").trim();
-            const baseOn = basePrompt && seg.relay_manual_off !== true && seg.promptrelay_manual_off !== true && seg.use_prompt !== false && String(seg.use_prompt).toLowerCase() !== "false";
-            if (baseOn) {
-                active.push({
-                    kind: "BASE",
-                    id: String(seg.id || "base"),
-                    label: "Local prompt",
-                    start: win.start,
-                    prompt: basePrompt,
-                });
-            }
-            if (isTimelineImageSegment(seg) && Array.isArray(seg.slot_relays)) {
-                seg.slot_relays
-                    .filter((relay) => relay && relay.slotRelay !== false)
-                    .forEach((relay, relayIndex) => {
-                        const prompt = String(relay.prompt || "").trim();
-                        const relayOn = prompt && relay.use_prompt !== false && relay.relay_manual_off !== true && relay.promptrelay_manual_off !== true;
-                        if (!relayOn) return;
-                        active.push({
-                            kind: "SLOT",
-                            id: String(relay.id || `slot_${relayIndex + 1}`),
-                            label: `Slot Relay ${relayIndex + 1}`,
-                            start: clampFrame(relay.start),
-                            prompt,
-                        });
-                    });
-            }
-            active.sort((a, b) => a.start - b.start || (a.kind === "BASE" ? -1 : 1));
-            return active.map((item, index) => {
-                const nextStart = index + 1 < active.length ? active[index + 1].start : win.end;
-                const start = Math.max(win.start, Math.min(win.end - 1, item.start));
-                const end = Math.max(start + 1, Math.min(win.end, nextStart));
-                return {
-                    ...item,
-                    localStart: Math.max(0, start - win.start),
-                    length: Math.max(1, end - start),
-                    end: Math.max(1, end - win.start),
-                };
-            });
-        };
-        const makeRelayGenerationMonitor = (seg) => {
-            const fps = getFps();
-            const win = generationWindowForImage(seg);
-            const relays = relayMonitorSegments(seg);
-            const totalFrames = Math.max(1, Math.round(Number(win.length || seg.length || 1)));
-            const activeFrames = relays.reduce((sum, relay) => sum + Math.max(1, Math.round(Number(relay.length || 1))), 0);
-            const monitor = document.createElement("div");
-            monitor.title = "PromptRelay monitor: local prompt is Relay 01; Slot Relays split the same WAN generation frame budget.";
-            monitor.style.cssText = [
-                "position:relative",
-                "display:grid",
-                "grid-template-columns:138px minmax(0,1fr)",
-                "gap:7px 10px",
-                "align-items:stretch",
-                "width:100%",
-                "min-height:58px",
-                "padding:7px 9px",
-                "box-sizing:border-box",
-                "border:1px solid rgba(118,229,154,.58)",
-                "border-radius:6px",
-                "background:linear-gradient(180deg,rgba(3,16,11,.96),rgba(1,8,7,.98))",
-                "box-shadow:inset 0 0 0 1px rgba(185,255,199,.08), inset 0 0 18px rgba(63,220,123,.10), 0 5px 14px rgba(0,0,0,.22)",
-                "overflow:hidden",
-                "font:9px/1.18 monospace",
-                "font-weight:900",
-                "color:#BDF8B4",
-            ].join(";");
-            const scan = document.createElement("div");
-            scan.style.cssText = [
-                "position:absolute",
-                "inset:0",
-                "pointer-events:none",
-                "background:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0,rgba(255,255,255,.035) 1px,transparent 1px,transparent 4px)",
-                "mix-blend-mode:screen",
-                "opacity:.42",
-            ].join(";");
-            const summary = document.createElement("div");
-            summary.style.cssText = [
-                "position:relative",
-                "z-index:1",
-                "display:grid",
-                "grid-template-columns:1fr 1fr",
-                "gap:4px",
-                "align-content:center",
-                "min-width:0",
-            ].join(";");
-            const summaryLine = (label, value, color = "#BDF8B4") => {
-                const box = document.createElement("div");
-                box.style.cssText = [
-                    "display:flex",
-                    "flex-direction:column",
-                    "gap:2px",
-                    "min-width:0",
-                    "padding:3px 5px",
-                    "border:1px solid rgba(112,236,149,.22)",
-                    "border-radius:3px",
-                    "background:rgba(0,0,0,.34)",
-                ].join(";");
-                const l = document.createElement("span");
-                l.textContent = label;
-                l.style.cssText = "color:#66BA74;font-size:7px;text-transform:uppercase;letter-spacing:0;";
-                const v = document.createElement("span");
-                v.textContent = value;
-                v.style.cssText = `color:${color};font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
-                box.append(l, v);
-                return box;
-            };
-            summary.append(
-                summaryLine("Relays", String(relays.length), relays.length ? "#D8FFD0" : "#F1C77A"),
-                summaryLine("Frames", String(totalFrames)),
-                summaryLine("Seconds", `${(totalFrames / fps).toFixed(2)}s`),
-                summaryLine("Covered", `${Math.min(activeFrames, totalFrames)}f`)
-            );
-            const lanes = document.createElement("div");
-            lanes.style.cssText = [
-                "position:relative",
-                "z-index:1",
-                "display:flex",
-                "flex-direction:column",
-                "gap:4px",
-                "min-width:0",
-                "max-height:74px",
-                "overflow:auto",
-                "padding-right:2px",
-            ].join(";");
-            if (!relays.length) {
-                const empty = document.createElement("div");
-                empty.textContent = "NO LOCAL PROMPT RELAY ACTIVE";
-                empty.style.cssText = "height:100%;display:flex;align-items:center;color:#F1C77A;font-size:10px;";
-                lanes.appendChild(empty);
-            } else {
-                relays.forEach((relay, index) => {
-                    const row = document.createElement("div");
-                    const pct = Math.max(1, Math.min(100, Math.round((relay.length / totalFrames) * 100)));
-                    row.title = `${relay.label}: generation frames F${relay.localStart} -> F${relay.end} (${relay.length}f)`;
-                    row.style.cssText = [
-                        "display:grid",
-                        "grid-template-columns:76px minmax(70px,.55fr) minmax(0,1fr)",
-                        "gap:6px",
-                        "align-items:center",
-                        "min-height:18px",
-                        "min-width:0",
-                    ].join(";");
-                    const tag = document.createElement("span");
-                    tag.textContent = `${String(index + 1).padStart(2, "0")} ${relay.kind}`;
-                    tag.style.cssText = `display:flex;align-items:center;justify-content:center;height:16px;border-radius:3px;border:1px solid ${relay.kind === "BASE" ? "rgba(124,214,255,.42)" : "rgba(155,255,177,.48)"};background:${relay.kind === "BASE" ? "rgba(56,144,178,.20)" : "rgba(64,186,99,.20)"};color:${relay.kind === "BASE" ? "#9DEBFF" : "#C7FFC7"};font-size:8px;`;
-                    const frames = document.createElement("span");
-                    frames.textContent = `F${relay.localStart}-${relay.end} / ${relay.length}f`;
-                    frames.style.cssText = "color:#E7FFD9;font-size:9px;white-space:nowrap;";
-                    const barWrap = document.createElement("span");
-                    barWrap.style.cssText = "display:block;height:10px;border-radius:999px;border:1px solid rgba(117,255,154,.25);background:rgba(0,0,0,.38);overflow:hidden;min-width:0;";
-                    const bar = document.createElement("i");
-                    bar.style.cssText = `display:block;width:${pct}%;height:100%;background:linear-gradient(90deg,#73FF8A,#CFFFAF);box-shadow:0 0 10px rgba(115,255,138,.35);`;
-                    barWrap.appendChild(bar);
-                    row.append(tag, frames, barWrap);
-                    lanes.appendChild(row);
-                });
-            }
-            monitor.append(scan, summary, lanes);
-            return monitor;
-        };
         const resizeRelayBridgeSeconds = (seg, seconds) => {
             const fps = getFps();
             const nextLength = Math.max(1, Math.round(Math.max(0.05, Number(seconds || 0)) * fps));
             const oldStart = Math.round(Number(seg.start || 0));
             const oldLength = Math.max(1, Math.round(Number(seg.length || 1)));
-            if (isSlotRelaySegment(seg)) {
-                const parent = (timeline.segments || []).find((item) => item.id === seg.parentSegmentId);
-                const parentEnd = parent ? Math.round(Number(parent.start || 0) + Number(parent.length || 1)) : oldStart + nextLength;
-                seg.length = Math.max(1, Math.min(nextLength, Math.max(1, parentEnd - oldStart)));
-                return;
-            }
             const oldEnd = oldStart + oldLength;
             const delta = nextLength - oldLength;
             seg.length = nextLength;
@@ -11601,17 +10722,11 @@ function renderShotboardV3(node) {
         };
         const makeRelayBridgeCard = (seg, index) => {
             const fps = getFps();
-            const isSlotRelay = isSlotRelaySegment(seg);
             const startFrame = Math.max(0, Math.round(Number(seg.start || 0)));
             const lenFrame = Math.max(1, Math.round(Number(seg.length || 1)));
             const endFrame = startFrame + lenFrame;
-            const titleText = isSlotRelay ? "Slot Relay" : "Transition Relay";
-            const relayHint = isSlotRelay
-                ? "Slot Relay belongs inside one image slot and divides that slot's PromptRelay frame budget."
-                : "Transition Relay belongs to the previous WAN generation chunk and shares that chunk's frame budget.";
             const card = document.createElement("div");
             card.dataset.iamccsV3BoxSegmentId = String(seg.id || "");
-            card.title = relayHint;
             card.style.cssText = [
                 "display:grid",
                 "grid-template-columns:38px minmax(190px,240px) minmax(0,1fr) minmax(150px,190px) 32px",
@@ -11619,53 +10734,44 @@ function renderShotboardV3(node) {
                 "align-items:stretch",
                 "margin:0 0 8px 46px",
                 "padding:8px 10px",
-                (selectedId === seg.id ? `border:2px solid ${purple.accent}` : "border:1px solid rgba(111,182,210,.42)"),
+                (selectedId === seg.id ? "border:2px solid #F9C859" : "border:1px solid rgba(143,208,204,.42)"),
                 "border-radius:6px",
-                (isSlotRelay ? "background:linear-gradient(180deg,rgba(31,43,35,.96),rgba(0,0,0,.92))" : "background:linear-gradient(180deg,rgba(8,28,40,.96),rgba(0,0,0,.92))"),
-                (selectedId === seg.id ? "box-shadow:0 0 0 2px rgba(141,231,255,.20),inset 0 1px 0 rgba(255,255,255,.08),0 4px 10px rgba(0,0,0,.18)" : "box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 4px 10px rgba(0,0,0,.18)"),
+                "background:linear-gradient(180deg,rgba(18,37,38,.88),rgba(37,35,31,.86))",
+                (selectedId === seg.id ? "box-shadow:0 0 0 2px rgba(249,200,89,.3),inset 0 1px 0 rgba(255,255,255,.08),0 4px 10px rgba(0,0,0,.14)" : "box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 4px 10px rgba(0,0,0,.14)"),
                 "box-sizing:border-box",
             ].join(";");
             const badge = document.createElement("button");
             badge.type = "button";
-            badge.textContent = isSlotRelay ? "S" : "T";
-            badge.title = isSlotRelay ? "Select this slot relay" : "Select this transition relay";
-            badge.style.cssText = `align-self:center;justify-self:center;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid ${isSlotRelay ? "rgba(144,219,160,.68)" : "rgba(111,182,210,.58)"};border-radius:999px;background:#000;color:${isSlotRelay ? "#B7F0B8" : purple.accent};font-size:10px;font-weight:900;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.10);`;
+            badge.textContent = "R";
+            badge.title = "Select this relay bridge";
+            badge.style.cssText = `align-self:center;justify-self:center;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid rgba(143,208,204,.64);border-radius:999px;background:rgba(7,18,20,.82);color:#CFF2EE;font-size:10px;font-weight:900;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.10);`;
             badge.onclick = () => { selectedId = seg.id; draw(); };
-            addPressPreview(badge, {
-                pressedBg: purple.buttonPress,
-                pressedColor: purple.valueText,
-                pressedBorder: purple.accent,
-            });
             const meta = document.createElement("div");
             meta.style.cssText = "display:flex;flex-direction:column;gap:5px;justify-content:center;min-width:0;";
             const title = document.createElement("div");
-            title.textContent = titleText;
-            title.title = relayHint;
-            title.style.cssText = `display:flex;align-items:center;justify-content:center;height:18px;border-radius:999px;border:1px solid ${isSlotRelay ? "rgba(144,219,160,.48)" : "rgba(111,182,210,.44)"};background:${isSlotRelay ? "linear-gradient(180deg,rgba(144,219,160,.20),rgba(0,0,0,.32))" : "linear-gradient(180deg,rgba(111,182,210,.20),rgba(0,0,0,.32))"};color:${isSlotRelay ? "#B7F0B8" : purple.accent};font-size:8px;font-weight:900;text-transform:uppercase;`;
+            title.textContent = "Relay Bridge";
+            title.style.cssText = "display:flex;align-items:center;justify-content:center;height:18px;border-radius:999px;border:1px solid rgba(143,208,204,.48);background:rgba(41,132,142,.20);color:#CFF2EE;font-size:8px;font-weight:900;text-transform:uppercase;";
             const range = document.createElement("div");
             range.textContent = `${(startFrame / fps).toFixed(2)}s -> ${(endFrame / fps).toFixed(2)}s`;
             range.style.cssText = `color:${purple.text};font:10px/1 monospace;font-weight:900;text-align:center;white-space:nowrap;`;
             const name = document.createElement("input");
             name.type = "text";
-            name.value = String(seg.label || (isSlotRelay ? "slot_relay" : "transition_relay"));
-            name.title = isSlotRelay ? "Slot relay label" : "Transition relay label";
-            name.style.cssText = inputBase() + `height:22px;background:${purple.valueBg};border-color:rgba(95,169,130,.44);color:${purple.valueText};font:${promptFontSize(9)}/1 monospace;font-weight:800;text-align:center;`;
+            name.value = String(seg.label || "relay_bridge");
+            name.title = "Relay bridge label";
+            name.style.cssText = inputBase() + `height:22px;background:${purple.valueBg};border-color:rgba(143,208,204,.42);color:${purple.valueText};font:${promptFontSize(9)}/1 monospace;font-weight:800;text-align:center;`;
             name.onpointerdown = (event) => event.stopPropagation();
             name.oninput = () => {
-                seg.label = name.value || (isSlotRelay ? "slot_relay" : "transition_relay");
+                seg.label = name.value || "relay_bridge";
                 writeTimeline();
             };
             protectControlDrag(name);
             meta.append(title, range, name);
             const prompt = document.createElement("textarea");
             prompt.value = String(seg.prompt || "");
-            prompt.placeholder = isSlotRelay
-                ? "PromptRelay text for this phase inside the image slot..."
-                : "PromptRelay text for the transition toward the next image...";
-            prompt.title = relayHint;
+            prompt.placeholder = "PromptRelay text between the previous frame and the next frame...";
             prompt.dataset.iamccsV3SegmentId = String(seg.id);
             prompt.dataset.iamccsV3Key = "prompt";
-            prompt.style.cssText = `width:100%;height:68px;min-height:68px;box-sizing:border-box;padding:7px 9px;background:${purple.valueBg};border:1px solid rgba(95,169,130,.42);border-radius:5px;color:${purple.valueText};font:${promptFontSize(10)}/1.26 monospace;font-weight:700;outline:none;resize:none;overflow-y:auto;box-shadow:inset 0 1px 0 rgba(255,255,255,.56);`;
+            prompt.style.cssText = `width:100%;height:68px;min-height:68px;box-sizing:border-box;padding:7px 9px;background:${purple.valueBg};border:1px solid rgba(143,208,204,.44);border-radius:5px;color:${purple.valueText};font:${promptFontSize(10)}/1.26 monospace;font-weight:700;outline:none;resize:none;overflow-y:auto;box-shadow:inset 0 1px 0 rgba(255,255,255,.56);`;
             prompt.onpointerdown = (event) => event.stopPropagation();
             prompt.oninput = () => {
                 markPromptFieldEdited(prompt);
@@ -11687,7 +10793,7 @@ function renderShotboardV3(node) {
             const timing = document.createElement("div");
             timing.style.cssText = "display:grid;grid-template-rows:auto auto;gap:7px;align-content:center;min-width:0;";
             const secondsTitle = document.createElement("div");
-            secondsTitle.textContent = isSlotRelay ? "Slot relay seconds" : "Relay seconds";
+            secondsTitle.textContent = "Relay seconds";
             secondsTitle.style.cssText = `color:${purple.muted};font-size:8px;font-weight:900;text-align:center;text-transform:uppercase;`;
             const seconds = numberStepperControl(lenFrame / fps, "0.1", "0.1", null, (value) => {
                 resizeRelayBridgeSeconds(seg, value);
@@ -11705,30 +10811,24 @@ function renderShotboardV3(node) {
             const status = document.createElement("div");
             const active = Boolean(seg.use_prompt !== false && String(seg.prompt || "").trim());
             status.textContent = active ? "PromptRelay ON" : "PromptRelay off";
-            status.style.cssText = `display:flex;align-items:center;justify-content:center;height:22px;border-radius:5px;border:1px solid ${active ? "rgba(141,231,255,.58)" : purple.borderSoft};background:${active ? "linear-gradient(180deg,rgba(111,182,210,.22),rgba(0,0,0,.34))" : "rgba(0,0,0,.22)"};color:${active ? purple.accent : purple.muted};font:8px/1 monospace;font-weight:900;text-transform:uppercase;`;
+            status.style.cssText = `display:flex;align-items:center;justify-content:center;height:22px;border-radius:5px;border:1px solid ${active ? "rgba(143,208,204,.58)" : purple.borderSoft};background:${active ? "rgba(41,132,142,.18)" : "rgba(0,0,0,.14)"};color:${active ? "#CFF2EE" : purple.muted};font:8px/1 monospace;font-weight:900;text-transform:uppercase;`;
             timing.append(secondsTitle, seconds, status);
             const actions = document.createElement("div");
             actions.style.cssText = "display:grid;gap:5px;align-content:start;";
             const remove = document.createElement("button");
             remove.type = "button";
             remove.textContent = "X";
-            remove.title = isSlotRelay ? "Delete this slot relay" : "Delete this transition relay";
+            remove.title = "Delete this relay bridge";
             remove.style.cssText = `height:24px;border:1px solid ${purple.danger};border-radius:4px;background:#6B302A;color:#FFF2E4;font-size:10px;font-weight:900;cursor:pointer;`;
             remove.onpointerdown = (event) => { event.preventDefault(); event.stopPropagation(); };
             remove.onclick = (event) => {
                 event.preventDefault();
-                const parentSegmentId = isSlotRelaySegment(seg) ? String(seg.parentSegmentId || "") : "";
                 timeline.segments = (timeline.segments || []).filter((item) => item.id !== seg.id);
-                if (parentSegmentId) relayoutSlotRelaysForSource(parentSegmentId);
                 selectedId = timeline.segments.find((item) => String(item.type || "image") !== "text")?.id || null;
                 writeTimeline({ force: true });
                 draw();
             };
-            actions.append(protectControlDrag(addPressPreview(remove, {
-                pressedBg: "linear-gradient(180deg,#E9A39F,#8A3A32)",
-                pressedColor: "#FFF8F0",
-                pressedBorder: "#FFC2BA",
-            })));
+            actions.append(protectControlDrag(remove));
             card.append(badge, meta, prompt, timing, actions);
             return card;
         };
@@ -11773,7 +10873,6 @@ function renderShotboardV3(node) {
             const card = document.createElement("div");
             card.dataset.iamccsV3BoxSegmentId = String(seg.id || "");
             card.style.cssText = [
-                "position:relative",
                 "display:grid",
                 "grid-template-columns:32px minmax(0,1.45fr) minmax(320px,.95fr) minmax(104px,124px) 38px",
                 "gap:10px",
@@ -11781,10 +10880,10 @@ function renderShotboardV3(node) {
                 "margin-bottom:6px",
                 "padding:8px 9px",
                 "min-height:96px",
-                (selectedId === seg.id ? `border:2px solid ${purple.accent}` : `border:1px solid ${purple.borderSoft}`),
+                (selectedId === seg.id ? "border:2px solid #F9C859" : `border:1px solid ${purple.borderSoft}`),
                 "border-radius:6px",
-                `background:${selectedId === seg.id ? "linear-gradient(180deg,#12384B,#061923)" : "linear-gradient(180deg,rgba(13,48,64,.98),rgba(6,25,35,.98))"}`,
-                (selectedId === seg.id ? "box-shadow:0 0 0 2px rgba(141,231,255,.22),inset 0 1px 0 rgba(255,255,255,.06),0 4px 10px rgba(0,0,0,.16)" : "box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 4px 10px rgba(0,0,0,.16)"),
+                `background:${selectedId === seg.id ? "linear-gradient(180deg,#3E3B35,#34312D)" : "linear-gradient(180deg,rgba(51,54,55,.98),rgba(42,43,42,.98))"}`,
+                (selectedId === seg.id ? "box-shadow:0 0 0 2px rgba(249,200,89,.3),inset 0 1px 0 rgba(255,255,255,.06),0 4px 10px rgba(0,0,0,.10)" : "box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 4px 10px rgba(0,0,0,.10)"),
                 "box-sizing:border-box",
                 "width:100%",
                 "min-width:0",
@@ -11795,11 +10894,6 @@ function renderShotboardV3(node) {
             badge.title = "Select this box";
             badge.style.cssText = `align-self:center;justify-self:center;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid ${purple.border};border-radius:999px;background:${purple.button};color:${purple.text};font-size:10px;font-weight:900;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.10);`;
             badge.onclick = () => { selectedId = seg.id; draw(); };
-            addPressPreview(badge, {
-                pressedBg: purple.buttonPress,
-                pressedColor: purple.valueText,
-                pressedBorder: purple.accent,
-            });
             const relayWrap = document.createElement("label");
             relayWrap.style.cssText = `display:grid;grid-template-columns:34px minmax(0,1fr);grid-template-rows:auto auto;column-gap:6px;row-gap:4px;align-items:center;color:${purple.muted};font-size:9px;font-weight:800;`;
             const relayLabel = document.createElement("span");
@@ -11829,7 +10923,7 @@ function renderShotboardV3(node) {
             const relayStatus = document.createElement("span");
             relayStatus.textContent = localRelayActive ? "LOCAL" : "OFF";
             relayStatus.title = "PromptRelay status for this box";
-            relayStatus.style.cssText = `display:flex;align-items:center;justify-content:center;min-width:44px;padding:2px 5px;border-radius:999px;border:1px solid ${localRelayActive ? "rgba(141,231,255,.62)" : purple.borderSoft};background:${localRelayActive ? "rgba(0,0,0,.72)" : "rgba(0,0,0,.18)"};color:${localRelayActive ? purple.accent : purple.muted};font-size:7px;font-weight:900;line-height:1;white-space:nowrap;`;
+            relayStatus.style.cssText = `display:flex;align-items:center;justify-content:center;min-width:44px;padding:2px 5px;border-radius:999px;border:1px solid ${localRelayActive ? "rgba(143,208,204,.62)" : purple.borderSoft};background:${localRelayActive ? "rgba(41,132,142,.24)" : "rgba(0,0,0,.12)"};color:${localRelayActive ? "#CFF2EE" : purple.muted};font-size:7px;font-weight:900;line-height:1;white-space:nowrap;`;
             relayStatus.style.gridColumn = "2";
             relayStatus.style.gridRow = "1";
             relayStatus.style.alignSelf = "end";
@@ -11837,7 +10931,7 @@ function renderShotboardV3(node) {
             const looksDialogue = /["â€œâ€]|\bsays?\b|\bspeak\b|\bdialog/i.test(String(seg.prompt || ""));
             dialogueHint.textContent = seg.dialogue_pin ? "PIN" : looksDialogue ? "DIALOG" : "PROMPT";
             dialogueHint.title = seg.dialogue_pin ? "Dialogue pin is active for this box" : looksDialogue ? "This prompt appears to contain dialogue timing or spoken text" : "No obvious dialogue marker detected";
-            dialogueHint.style.cssText = `display:flex;align-items:center;justify-content:center;min-width:44px;padding:2px 5px;border-radius:999px;border:1px solid ${looksDialogue || seg.dialogue_pin ? "rgba(233,196,106,.58)" : purple.borderSoft};background:${looksDialogue || seg.dialogue_pin ? "rgba(233,196,106,.16)" : "rgba(0,0,0,.10)"};color:${looksDialogue || seg.dialogue_pin ? purple.accent : purple.muted};font-size:7px;font-weight:900;line-height:1;white-space:nowrap;`;
+            dialogueHint.style.cssText = `display:flex;align-items:center;justify-content:center;min-width:44px;padding:2px 5px;border-radius:999px;border:1px solid ${looksDialogue || seg.dialogue_pin ? "rgba(223,164,81,.62)" : purple.borderSoft};background:${looksDialogue || seg.dialogue_pin ? "rgba(96,64,34,.28)" : "rgba(0,0,0,.10)"};color:${looksDialogue || seg.dialogue_pin ? "#F4D49E" : purple.muted};font-size:7px;font-weight:900;line-height:1;white-space:nowrap;`;
             dialogueHint.style.gridColumn = "2";
             dialogueHint.style.gridRow = "2";
             dialogueHint.style.alignSelf = "start";
@@ -11853,11 +10947,7 @@ function renderShotboardV3(node) {
                 b.onpointerdown = (event) => { event.preventDefault(); event.stopPropagation(); };
                 b.onmousedown = (event) => { event.preventDefault(); event.stopPropagation(); };
                 b.onclick = (event) => { event.preventDefault(); action(); };
-                return protectControlDrag(addPressPreview(b, {
-                    pressedBg: purple.buttonPress,
-                    pressedColor: purple.valueText,
-                    pressedBorder: purple.accent,
-                }));
+                return protectControlDrag(b);
             };
             actions.append(
                 mini("D", "Duplicate", () => {
@@ -11866,8 +10956,8 @@ function renderShotboardV3(node) {
                 mini("X", "Delete", () => {
                     rippleDeleteVisualSegment(seg);
                 }),
-                mini("+", "Add Slot Relay inside this image slot", () => {
-                    createSlotRelayInSegment(seg);
+                mini("+", "Add empty image slot after this box", () => {
+                    createPlaceholderAfterSegment(seg);
                 })
             );
             actions.style.alignSelf = "center";
@@ -11877,32 +10967,6 @@ function renderShotboardV3(node) {
                 button.style.width = "34px";
                 button.style.height = "26px";
             });
-            const groupSpine = document.createElement("div");
-            groupSpine.style.cssText = [
-                "position:absolute",
-                "left:-28px",
-                "top:9px",
-                "bottom:-11px",
-                "width:16px",
-                "pointer-events:none",
-                "border-left:4px solid rgba(112,236,149,.72)",
-                "border-top:2px solid rgba(112,236,149,.48)",
-                "border-bottom:2px solid rgba(112,236,149,.32)",
-                "box-shadow:-2px 0 10px rgba(112,236,149,.34), inset 1px 0 0 rgba(255,255,255,.12)",
-                "border-radius:7px 0 0 7px",
-                "opacity:.92",
-            ].join(";");
-            const groupSpineKnee = document.createElement("div");
-            groupSpineKnee.style.cssText = [
-                "position:absolute",
-                "left:-28px",
-                "top:50%",
-                "width:26px",
-                "height:2px",
-                "pointer-events:none",
-                "background:linear-gradient(90deg,rgba(112,236,149,.74),rgba(112,236,149,.16))",
-                "box-shadow:0 0 8px rgba(112,236,149,.30)",
-            ].join(";");
 
             const leftPane = document.createElement("div");
             leftPane.style.cssText = "display:flex;align-items:center;min-width:0;align-self:center;width:100%;";
@@ -11912,208 +10976,35 @@ function renderShotboardV3(node) {
                 makeField(seg, "Frame", "start", "number"),
                 makeField(seg, "Len", "length", "number"),
                 makeField(seg, "Ref", "ref", "number"),
-                makeField(seg, "Motion", "guideStrength", "number"),
+                makeField(seg, "Guide Strength", "guideStrength", "number"),
                 makeSegmentSummary(seg, index, timeline.segments.length)
             );
             leftPane.append(numericRow);
 
             const rightPane = document.createElement("div");
             rightPane.style.cssText = "display:flex;align-items:center;min-width:0;align-self:center;padding-bottom:0;width:100%;";
-            const relayMonitor = makeRelayGenerationMonitor(seg);
+            const promptField = makeField(seg, "Action in segment", "prompt", "textarea");
+            const promptHeader = document.createElement("div");
+            promptHeader.style.cssText = "display:grid;grid-template-columns:minmax(0,1fr);gap:0;align-items:center;min-width:0;width:100%;";
+            promptField.style.height = "auto";
+            promptField.style.maxWidth = "none";
+            promptField.style.width = "100%";
+            promptField.querySelector("textarea").style.minHeight = "58px";
+            promptField.querySelector("textarea").style.height = "58px";
+            promptField.querySelector("textarea").style.maxWidth = "none";
+            promptField.querySelector("textarea").style.width = "100%";
+            promptField.querySelector("textarea").style.fontSize = promptFontSize(11);
             relayWrap.style.alignSelf = "center";
             relayWrap.style.minHeight = "58px";
             relayWrap.style.padding = "5px 6px";
-            relayWrap.style.border = `1px solid ${localRelayActive ? "rgba(141,231,255,.58)" : purple.borderSoft}`;
+            relayWrap.style.border = `1px solid ${localRelayActive ? "rgba(143,208,204,.58)" : purple.borderSoft}`;
             relayWrap.style.borderRadius = "6px";
-            relayWrap.style.background = localRelayActive ? "linear-gradient(180deg,rgba(0,0,0,.72),rgba(12,55,75,.42))" : "linear-gradient(180deg,rgba(234,248,255,.045),rgba(0,0,0,.14))";
-            rightPane.append(relayMonitor);
+            relayWrap.style.background = localRelayActive ? "linear-gradient(180deg,rgba(41,132,142,.18),rgba(0,0,0,.12))" : "linear-gradient(180deg,rgba(255,238,205,.05),rgba(0,0,0,.10))";
+            promptHeader.append(promptField);
+            rightPane.append(promptHeader);
 
-            card.append(groupSpine, groupSpineKnee, badge, leftPane, rightPane, relayWrap, actions);
+            card.append(badge, leftPane, rightPane, relayWrap, actions);
             boxList.appendChild(card);
-            if (isTimelineImageSegment(seg)) {
-                const win = generationWindowForImage(seg);
-                const slotRelayList = Array.isArray(seg.slot_relays)
-                    ? seg.slot_relays
-                    .filter((relay) => relay && relay.slotRelay !== false)
-                    .sort((a, b) => Number(a.start || 0) - Number(b.start || 0))
-                    : [];
-                const baseActive = Boolean(String(seg.prompt || "").trim() && seg.use_prompt !== false && String(seg.use_prompt).toLowerCase() !== "false" && seg.relay_manual_off !== true && seg.promptrelay_manual_off !== true);
-                const baseLen = slotRelayList.length
-                    ? Math.max(1, Math.max(win.start + 1, Math.round(Number(slotRelayList[0].start || win.start + 1))) - win.start)
-                    : Math.max(1, win.length);
-                const relayRows = [];
-                if (baseActive) {
-                    relayRows.push({
-                        kind: "base",
-                        label: "Base Relay",
-                        relay: null,
-                        relayIndex: 0,
-                        localStart: 0,
-                        length: baseLen,
-                    });
-                }
-                slotRelayList.forEach((relay, relayIndex) => {
-                    const startAbs = Math.max(win.start, Math.min(win.end - 1, Math.round(Number(relay.start || win.start))));
-                    const nextStart = relayIndex + 1 < slotRelayList.length
-                        ? Math.max(startAbs + 1, Math.min(win.end, Math.round(Number(slotRelayList[relayIndex + 1].start || win.end))))
-                        : win.end;
-                    relayRows.push({
-                        kind: "slot",
-                        label: `Slot Relay ${relayIndex + 1}`,
-                        relay,
-                        relayIndex: relayRows.length,
-                        localStart: Math.max(0, startAbs - win.start),
-                        length: Math.max(1, nextStart - startAbs),
-                    });
-                });
-                relayRows.forEach((relayRow, relayRowIndex) => {
-                        const relay = relayRow.relay;
-                        const isBaseRelay = relayRow.kind === "base";
-                        const localStart = relayRow.localStart;
-                        const relayCard = document.createElement("div");
-                        relayCard.dataset.iamccsV3BoxSegmentId = String(`${seg.id || "image"}::${isBaseRelay ? "base" : relay.id || relayRowIndex}`);
-                        relayCard.style.cssText = [
-                            "position:relative",
-                            "display:grid",
-                            "grid-template-columns:32px 92px 92px minmax(320px,1fr) 34px",
-                            "gap:8px",
-                            "align-items:center",
-                            "margin:-2px 0 7px 46px",
-                            "padding:7px 9px",
-                            "min-height:58px",
-                            (isBaseRelay ? "border:1px solid rgba(124,214,255,.48)" : "border:1px solid rgba(137,238,164,.48)"),
-                            "border-radius:6px",
-                            (isBaseRelay ? "background:linear-gradient(180deg,rgba(12,38,48,.94),rgba(4,18,24,.94))" : "background:linear-gradient(180deg,rgba(18,47,36,.94),rgba(6,24,19,.94))"),
-                            "box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 3px 8px rgba(0,0,0,.16)",
-                            "box-sizing:border-box",
-                        ].join(";");
-                        const relaySpineKnee = document.createElement("div");
-                        const relaySpineVertical = document.createElement("div");
-                        relaySpineVertical.style.cssText = [
-                            "position:absolute",
-                            "left:-28px",
-                            "top:-10px",
-                            "bottom:-9px",
-                            "width:16px",
-                            "pointer-events:none",
-                            `border-left:4px solid ${isBaseRelay ? "rgba(142,232,255,.66)" : "rgba(112,236,149,.70)"}`,
-                            "box-shadow:-2px 0 9px rgba(112,236,149,.24)",
-                        ].join(";");
-                        relaySpineKnee.style.cssText = [
-                            "position:absolute",
-                            "left:-28px",
-                            "top:50%",
-                            "width:26px",
-                            "height:2px",
-                            "pointer-events:none",
-                            `background:linear-gradient(90deg,${isBaseRelay ? "rgba(142,232,255,.72)" : "rgba(112,236,149,.74)"},rgba(112,236,149,.10))`,
-                            "box-shadow:0 0 8px rgba(112,236,149,.28)",
-                        ].join(";");
-                        const badgeRelay = document.createElement("div");
-                        badgeRelay.textContent = isBaseRelay ? "B" : "S";
-                        badgeRelay.title = isBaseRelay ? "Base local prompt relay for this generation" : "Slot Relay prompt segment inside this image slot";
-                        badgeRelay.style.cssText = `display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:999px;border:1px solid ${isBaseRelay ? "rgba(142,232,255,.78)" : "rgba(190,255,201,.78)"};background:${isBaseRelay ? "#DDF7FF" : "#DDF8D8"};color:#10130F;font:10px/1 monospace;font-weight:900;`;
-                        const startBox = document.createElement("label");
-                        startBox.style.cssText = `display:flex;flex-direction:column;gap:4px;color:${purple.muted};font-size:9px;font-weight:900;text-align:center;`;
-                        const startLabel = document.createElement("span");
-                        startLabel.textContent = "Gen frame";
-                        const startInput = document.createElement("input");
-                        startInput.type = "number";
-                        startInput.value = String(localStart);
-                        startInput.min = "0";
-                        startInput.max = String(Math.max(0, win.length - 1));
-                        startInput.style.cssText = inputBase() + `height:26px;background:${purple.valueBg};color:${purple.valueText};text-align:center;font-weight:900;`;
-                        startInput.disabled = isBaseRelay;
-                        if (isBaseRelay) startInput.title = "Base Relay always starts at generation frame 0.";
-                        startInput.oninput = () => {
-                            if (isBaseRelay) return;
-                            const nextLocal = Math.max(0, Math.min(win.length - 1, Math.round(Number(startInput.value || 0))));
-                            const absStart = win.start + nextLocal;
-                            const oldEnd = Math.min(win.end, Math.round(Number(relay.start || absStart) + Number(relay.length || 1)));
-                            relay.start = absStart;
-                            relay.length = Math.max(1, oldEnd - absStart);
-                            relay.parentSegmentId = String(seg.id || "");
-                            relay.relay_kind = "slot";
-                            relay.relayKind = "slot";
-                            relay.slotRelay = true;
-                            writeTimeline({ force: true });
-                            draw();
-                        };
-                        protectControlDrag(startInput);
-                        startBox.append(startLabel, startInput);
-                        const lenBox = document.createElement("label");
-                        lenBox.style.cssText = startBox.style.cssText;
-                        const lenLabel = document.createElement("span");
-                        lenLabel.textContent = "Len";
-                        const lenInput = document.createElement("input");
-                        lenInput.type = "number";
-                        lenInput.value = String(Math.max(1, Math.round(Number(relayRow.length || relay?.length || 1))));
-                        lenInput.min = "1";
-                        lenInput.max = String(isBaseRelay ? Math.max(1, win.length) : Math.max(1, win.end - Math.round(Number(relay.start || win.start))));
-                        lenInput.style.cssText = inputBase() + `height:26px;background:${purple.valueBg};color:${purple.valueText};text-align:center;font-weight:900;`;
-                        lenInput.disabled = isBaseRelay;
-                        if (isBaseRelay) lenInput.title = "Base Relay length is derived from the next relay start, or the full generation when it is the only relay.";
-                        lenInput.oninput = () => {
-                            if (isBaseRelay) return;
-                            const startAbs = Math.max(win.start, Math.min(win.end - 1, Math.round(Number(relay.start || win.start))));
-                            relay.length = Math.max(1, Math.min(win.end - startAbs, Math.round(Number(lenInput.value || 1))));
-                            relay.parentSegmentId = String(seg.id || "");
-                            relay.relay_kind = "slot";
-                            relay.relayKind = "slot";
-                            relay.slotRelay = true;
-                            writeTimeline({ force: true });
-                            draw();
-                        };
-                        protectControlDrag(lenInput);
-                        lenBox.append(lenLabel, lenInput);
-                        const promptWrap = document.createElement("label");
-                        promptWrap.style.cssText = `display:flex;flex-direction:column;gap:4px;color:${purple.muted};font-size:9px;font-weight:900;text-align:left;min-width:0;`;
-                        const promptLabel = document.createElement("span");
-                        promptLabel.textContent = `${String(relayRowIndex + 1).padStart(2, "0")} ${isBaseRelay ? "Base Relay" : `Slot Relay ${slotRelayList.indexOf(relay) + 1}`} prompt`;
-                        const promptInput = document.createElement("textarea");
-                        promptInput.value = String(isBaseRelay ? seg.prompt || "" : relay.prompt || "");
-                        promptInput.placeholder = isBaseRelay ? "Base local PromptRelay segment..." : "Prompt for this Slot Relay segment...";
-                        promptInput.style.cssText = inputBase() + `height:38px;min-height:38px;background:${purple.valueBg};color:${purple.valueText};font:${promptFontSize(10)}/1.22 monospace;font-weight:700;text-align:left;resize:vertical;`;
-                        promptInput.oninput = () => {
-                            if (isBaseRelay) {
-                                seg.prompt = promptInput.value;
-                                seg.note = promptInput.value;
-                                seg.use_prompt = Boolean(String(promptInput.value || "").trim());
-                                seg.relay_manual_off = !Boolean(String(promptInput.value || "").trim());
-                                seg.promptrelay_manual_off = !Boolean(String(promptInput.value || "").trim());
-                            } else {
-                                relay.prompt = promptInput.value;
-                                relay.note = promptInput.value;
-                                relay.use_prompt = Boolean(String(promptInput.value || "").trim());
-                                relay.parentSegmentId = String(seg.id || "");
-                                relay.relay_kind = "slot";
-                                relay.relayKind = "slot";
-                                relay.slotRelay = true;
-                            }
-                            writeTimeline({ force: true });
-                        };
-                        protectControlDrag(promptInput);
-                        promptWrap.append(promptLabel, promptInput);
-                        const removeRelay = document.createElement("button");
-                        removeRelay.type = "button";
-                        removeRelay.textContent = isBaseRelay ? "•" : "X";
-                        removeRelay.title = isBaseRelay ? "Base Relay cannot be deleted; clear the prompt or turn Relay off on the main card." : "Delete this Slot Relay";
-                        removeRelay.style.cssText = `width:30px;height:26px;border:1px solid ${isBaseRelay ? "rgba(124,214,255,.42)" : purple.danger};border-radius:4px;background:${isBaseRelay ? "rgba(0,0,0,.28)" : "#6B302A"};color:${isBaseRelay ? "#9DEBFF" : "#FFF2E4"};font-size:10px;font-weight:900;cursor:${isBaseRelay ? "default" : "pointer"};`;
-                        removeRelay.onclick = (event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            if (isBaseRelay) return;
-                            const parentId = String(seg.id || "");
-                            const relayId = String(relay?.id || "");
-                            if (deleteNestedSlotRelay(parentId, relayId)) {
-                                writeTimeline({ force: true });
-                                draw();
-                            }
-                        };
-                        relayCard.append(relaySpineVertical, relaySpineKnee, badgeRelay, startBox, lenBox, promptWrap, removeRelay);
-                        boxList.appendChild(relayCard);
-                    });
-            }
         });
 
         const audioAnchorSegmentId = (audio) => {
@@ -12351,7 +11242,6 @@ function renderShotboardV3(node) {
     }
 
     function draw() {
-        if (!dragState && migrateSlotRelaySegmentsToNested()) writeTimeline({ force: true });
         if (!dragState) writeTimeline();
         drawFrameRuler();
         drawRuler();
@@ -12359,8 +11249,6 @@ function renderShotboardV3(node) {
         drawAudioPlaybarControls();
         timelineMeterSeconds = clampTimelineMeterSeconds(timelineMeterSeconds);
         promptSizeReadout.textContent = `${Math.round(promptTextScale * 100)}%`;
-        frameMeterReadout.textContent = `${getTotalFrames()}f @ ${getFps()}fps`;
-        secondsMeterReadout.textContent = `${getDuration().toFixed(3)}s`;
         const timelineZoomSteps = Math.round((timelineMeterSeconds - Math.max(0.5, getDuration())) * 2);
         timelineMeterReadout.textContent = `${Math.round(Math.max(0.2, Math.min(8, Math.pow(1.18, timelineZoomSteps))) * 100)}%`;
         promptArea.style.fontSize = promptFontSize(12);
@@ -12425,11 +11313,14 @@ function renderShotboardV3(node) {
             if (plusIcon) plusIcon.style.cssText = "display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#1B1713;color:#F4EFE7;font-size:18px;font-weight:900;";
             const plusText = plus.querySelector("b");
             if (plusText) plusText.style.cssText = "display:block;justify-self:start;text-transform:uppercase;font-size:10px;letter-spacing:0;color:#181512;";
-            bindReliableTimelineButton(plus, () => {
+            plus.onpointerdown = (event) => { event.preventDefault(); event.stopPropagation(); };
+            plus.onclick = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 pendingAudioTrack = i;
                 pendingAudioInsertFrame = 0;
                 audioInput.click();
-            });
+            };
             if (!trackHasRealAudio(i)) lane.appendChild(plus);
             audioTracks.appendChild(lane);
         }
@@ -12509,9 +11400,6 @@ function renderShotboardV3(node) {
         if (targetId) {
         const target = (timeline.segments || []).find((seg) => seg.id === targetId);
         if (target) {
-            const oldTargetRef = Math.max(0, Math.round(Number(target.ref || 0)));
-            const oldTargetPath = segmentReferencePath(target);
-            const shouldPropagateReplacement = !target.placeholder && (oldTargetRef > 0 || Boolean(oldTargetPath));
             target.type = "image";
             target.placeholder = false;
             target.ref = current.length + 1;
@@ -12532,28 +11420,12 @@ function renderShotboardV3(node) {
             target.imageTruthSource = "upload_replace_slot";
             delete target.image_file;
             delete target.image_truth_path;
-            if (shouldPropagateReplacement) {
-                const propagated = applyEditedReferenceToMatches(oldTargetRef, oldTargetPath, target.ref, target.imageFile, {
-                    truthSource: "upload_replace_slot_shared",
-                    updateAutoLabel: true,
-                });
-                if (propagated > 0) {
-                    console.info("[IAMCCS WAN PURE REF SYNC] propagated uploaded replacement to matching timeline slots", {
-                        oldRef: oldTargetRef,
-                        oldPath: oldTargetPath,
-                        newRef: target.ref,
-                        newPath: target.imageFile,
-                        matches: propagated,
-                    });
-                }
-            }
             refPreviewBusters.set(String(target.imageFile), String(Date.now()));
             target.label = `ref_${current.length + 1}`;
                 target.use_guide = true;
-                target.motion = clampGuideStrength(target.motion ?? target.guideStrength ?? defaultForceWidget?.value ?? 1);
-                target.guideStrength = target.motion;
-                target.imageLockStrength = target.motion;
-                target.defaultForceSource = clampGuideStrength(target.defaultForceSource ?? target.motion);
+                target.guideStrength = Number(target.guideStrength ?? defaultForceWidget?.value ?? 0.25);
+                target.imageLockStrength = Number(target.guideStrength ?? defaultForceWidget?.value ?? 0.25);
+                target.defaultForceSource = Number(target.defaultForceSource ?? defaultForceWidget?.value ?? 0.25);
                 uploaded = uploaded.slice(1);
                 refOffset = 1;
                 cursor = endOfSegments(timeline.segments);
@@ -12584,10 +11456,9 @@ function renderShotboardV3(node) {
                 note: "",
                 camera: "continuous dolly-in",
                 transition: "continuous_motion",
-                motion: clampGuideStrength(defaultForceWidget?.value || 1),
-                guideStrength: clampGuideStrength(defaultForceWidget?.value || 1),
-                imageLockStrength: clampGuideStrength(defaultForceWidget?.value || 1),
-                defaultForceSource: clampGuideStrength(defaultForceWidget?.value || 1),
+                guideStrength: Number(defaultForceWidget?.value || 0.25),
+                imageLockStrength: Number(defaultForceWidget?.value || 0.25),
+                defaultForceSource: Number(defaultForceWidget?.value || 0.25),
                 forceCustom: false,
                 use_guide: true,
             });
@@ -12812,9 +11683,9 @@ function renderShotboardV3(node) {
             const isText = String(row.type || "").toLowerCase() === "text" || Number(row.ref ?? row.image_ref ?? row.reference_index ?? 1) <= 0;
             const rowTruthPath = isText ? "" : String(row.imageTruthPath || row.image_truth_path || row.imageFile || row.image_file || row.path || "").trim();
             const rowTruthName = isText ? "" : (String(row.imageTruthName || row.imageName || row.name || row.filename || "").trim() || rowTruthPath.split(/[\\/]/).pop() || "");
-            const defaultForceValue = clampGuideStrength(defaultForceWidget?.value ?? 1);
-            const rowForceValue = clampGuideStrength(row.motion ?? row.motion_force ?? row.force ?? row.strength ?? defaultForceValue);
-            const rowGuideValue = clampGuideStrength(row.motion ?? row.guide_strength ?? row.guideStrength ?? row.strength ?? row.force ?? row.motion_force ?? row.image_lock_strength ?? row.imageLockStrength ?? rowForceValue);
+            const defaultForceValue = Math.max(0, Math.min(1, Number(defaultForceWidget?.value ?? 0.25)));
+            const rowForceValue = Math.max(0, Math.min(1, Number(row.motion_force ?? row.force ?? row.strength ?? defaultForceValue)));
+            const rowGuideValue = Math.max(0, Math.min(1, Number(row.guide_strength ?? row.guideStrength ?? row.strength ?? row.force ?? row.motion_force ?? row.image_lock_strength ?? row.imageLockStrength ?? rowForceValue)));
             const explicitForceCustom = typeof row.forceCustom === "boolean"
                 ? row.forceCustom
                 : typeof row.force_custom === "boolean"
@@ -12839,7 +11710,6 @@ function renderShotboardV3(node) {
                 note: String(row.note ?? row.camera_note ?? ""),
                 camera: String(row.camera ?? row.camera_move ?? "cinematic motion"),
                 transition: String(row.transition ?? row.transition_intent ?? "continuous_motion"),
-                motion: isText ? 0 : rowGuideValue,
                 guideStrength: isText ? 0 : rowGuideValue,
                 guide_strength: isText ? 0 : rowGuideValue,
                 force: isText ? 0 : rowGuideValue,
@@ -13007,8 +11877,8 @@ function renderShotboardV3(node) {
         if (!importedDefaultForceExplicit) {
             const inferredDefaultForce = inferDefaultForceFromTimeline(loadedTimeline || board);
             if (Number.isFinite(Number(inferredDefaultForce))) {
-                setWidgetValue(node, "default_force", clampGuideStrength(inferredDefaultForce));
-                showTimelineNotice(`Default motion inferred from imported board: ${Number(inferredDefaultForce).toFixed(3)}`, "warn");
+                setWidgetValue(node, "default_force", Math.max(0, Math.min(1, Number(inferredDefaultForce))));
+                showTimelineNotice(`Default force inferred from imported board: ${Number(inferredDefaultForce).toFixed(3)}`, "warn");
                 console.log("[IAMCCS V3 BOARD IMPORT] default_force inferred", {
                     nodeId: node?.id,
                     value: Number(inferredDefaultForce),
@@ -13650,7 +12520,7 @@ function renderCinePromptArchitect(node) {
     title.textContent = "IAMCCS CinePrompt Architect";
     title.style.cssText = "font-size:18px;font-weight:900;letter-spacing:0;";
     const subtitle = document.createElement("div");
-    subtitle.textContent = "Build WAN shotboard prompts, then send timing and text into Shotboard V3 or V2.";
+    subtitle.textContent = "Build LTX 2.3 / PromptRelay-ready prompts, then send timing and text into Shotboard V3 or V2.";
     subtitle.style.cssText = "font-size:11px;font-weight:800;color:#DDE5DE;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
     titleBlock.append(title, subtitle);
     const headActions = document.createElement("div");
@@ -14097,7 +12967,7 @@ function renderBoardMaker(node) {
                 max_guides: Math.max(1, shotRows.length),
                 default_force: Number(defaultForceValue()) || 0.28,
                 promptrelay_epsilon: 0.6,
-                wan_frame_round_mode: "up_8n_plus_1",
+                ltx_round_mode: "up_8n_plus_1",
                 image_width: imageWidth,
                 image_height: imageHeight,
                 image_resize_method: "crop",
@@ -14216,7 +13086,7 @@ function renderBoardMaker(node) {
         labelWrap("FPS", fpsCtrl),
         labelWrap("Project width", widthCtrl),
         labelWrap("Project height", heightCtrl),
-        labelWrap("Default motion", forceCtrl),
+        labelWrap("Default force", forceCtrl),
         labelWrap("Guide policy", guidePolicy)
     );
 
@@ -14404,9 +13274,59 @@ function renderBoardMaker(node) {
     draw();
 }
 
+function installIamccsLowZoomOverlay(node, key, buildLines) {
+    if (node && key) node[key] = true;
+    return;
+    if (!node || node[key]) return;
+    const previous = node.onDrawForeground;
+    node.onDrawForeground = function(ctx) {
+        if (typeof previous === "function") previous.apply(this, arguments);
+        const scale = Math.max(0.12, Number(app?.canvas?.ds?.scale || 1));
+        if (!ctx || scale >= 0.62) return;
+        let lines = [];
+        try { lines = buildLines?.(this) || []; } catch { lines = []; }
+        lines = lines.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 4);
+        if (!lines.length) return;
+        const nodeW = Math.max(320, Number(this.size?.[0] || 360));
+        const nodeH = Math.max(180, Number(this.size?.[1] || 240));
+        const boost = Math.max(1.2, Math.min(3.4, 0.72 / scale));
+        const pad = 12 * boost;
+        const lineH = 18 * boost;
+        const titleFont = Math.round(13 * boost);
+        const bodyFont = Math.round(11 * boost);
+        const w = Math.max(220, Math.min(nodeW - pad * 2, 660 * boost));
+        const h = 34 * boost + lines.length * lineH;
+        const x = pad;
+        const y = Math.min(Math.max(56, 46 * boost), Math.max(40, nodeH - h - pad));
+        ctx.save();
+        ctx.globalAlpha = 0.96;
+        ctx.fillStyle = "rgba(8,18,20,.92)";
+        ctx.strokeStyle = "rgba(143,208,204,.72)";
+        ctx.lineWidth = Math.max(1.5, 1.2 * boost);
+        if (typeof ctx.roundRect === "function") {
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 8 * boost);
+            ctx.fill();
+            ctx.stroke();
+        } else {
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeRect(x, y, w, h);
+        }
+        ctx.fillStyle = "rgba(239,204,139,.95)";
+        ctx.fillRect(x, y, Math.max(4, 3 * boost), h);
+        ctx.fillStyle = "#F4D49E";
+        ctx.font = `900 ${titleFont}px sans-serif`;
+        ctx.fillText(lines[0], x + 12 * boost, y + 21 * boost);
+        ctx.fillStyle = "#BFD7D5";
+        ctx.font = `800 ${bodyFont}px sans-serif`;
+        for (let i = 1; i < lines.length; i += 1) ctx.fillText(lines[i], x + 12 * boost, y + 21 * boost + i * lineH);
+        ctx.restore();
+    };
+    node[key] = true;
+}
+
 function renderForNode(node) {
     const klass = nodeClassName(node);
-    if (klass !== WAN_NODE_CLASS) return;
     try {
         const title = String(node?.title || "");
         if (klass === "IAMCCS_CineShotboardLite") {
@@ -14419,13 +13339,26 @@ function renderForNode(node) {
         if (klass === "IAMCCS_CineShotboardTimelinePro" || klass === "IAMCCS_CineShotboardPlannerPro" || klass === "IAMCCS_CineShotboardPlannerProV2" || klass === "IAMCCS_CineShotboardPlannerProLegacy") {
             lockNodeMinimumSize(node, SHOTBOARD_NODE_MIN_SIZE, { lockResize: true });
         }
-        if (klass === "IAMCCS_WanLegacySequencerDisabled") applyCineChrome(node, "flfEngine");
+        if (klass === "IAMCCS_CineLTXSequencer") applyCineChrome(node, "flfEngine");
         if (klass === "IAMCCS_CinePromptRelayLatentShapeSync") renderPromptRelayShapeSync(node);
-        if (klass === "IAMCCS_WanLegacySequencerDisabled") renderKeyframeEditor(node);
+        if (klass === "IAMCCS_CineLTXSequencer") renderKeyframeEditor(node);
         if (klass === "IAMCCS_CinePromptRelayTimeline") renderPromptRelayEditor(node);
         if (isShotboardV3Class(klass)) {
-            if (isWanShotboardV3Class(klass)) applyCineChrome(node, "wanShotboardV3");
             renderShotboardV3(node);
+            installIamccsLowZoomOverlay(node, "_iamccsShotboardLowZoomOverlay", () => {
+                let data = {};
+                try { data = JSON.parse(String(getWidget(node, "timeline_data")?.value || "{}")); } catch {}
+                const duration = Number(data.duration_seconds ?? getWidget(node, "duration_seconds")?.value ?? 0) || 0;
+                const fps = Number(data.frame_rate ?? getWidget(node, "frame_rate")?.value ?? 24) || 24;
+                const shots = Array.isArray(data.segments) ? data.segments.filter((seg) => String(seg?.type || "image") !== "audio").length : 0;
+                const audio = Array.isArray(data.audioSegments) ? data.audioSegments.length : 0;
+                return [
+                    "Shotboard V3 mini view",
+                    `${duration.toFixed(2)}s / ${Math.round(duration * fps)} frames`,
+                    `${shots} visual slots / ${audio} audio clips`,
+                    "Zoom in or open editor for full controls",
+                ];
+            });
         }
         if (klass === "IAMCCS_CineShotboardLite") renderShotboardLite(node);
         if (klass === "IAMCCS_CineShotboardTimelinePro" || klass === "IAMCCS_CineShotboardPlannerPro" || klass === "IAMCCS_CineShotboardPlannerProV2" || klass === "IAMCCS_CineShotboardPlannerProLegacy") renderShotboardPro(node);
@@ -14441,7 +13374,7 @@ function renderForNode(node) {
 
 function scheduleRender(node, options = {}) {
     const klass = nodeClassName(node);
-    if (klass !== WAN_NODE_CLASS) return;
+    if (klass !== "IAMCCS_CineLTXSequencer" && klass !== "IAMCCS_CinePromptRelayLatentShapeSync" && klass !== "IAMCCS_CinePromptRelayTimeline" && klass !== "IAMCCS_CineShotboardLite" && klass !== "IAMCCS_CineShotboardTimelinePro" && klass !== "IAMCCS_CineShotboardPlannerPro" && klass !== "IAMCCS_CineShotboardPlannerProV2" && !isShotboardV3Class(klass) && klass !== "IAMCCS_CineShotboardPlannerProLegacy" && klass !== "IAMCCS_CineFLFEngineSimple" && klass !== "IAMCCS_CineInfo" && klass !== "IAMCCS_CinePromptArchitect" && klass !== "IAMCCS_BoardMaker" && klass !== "IAMCCS_CineMusicVideoPlanner") return;
     if (Array.isArray(node._iamccsCineRenderTimers)) {
         node._iamccsCineRenderTimers.forEach((timer) => window.clearTimeout(timer));
     }
@@ -14459,7 +13392,7 @@ function flushAllShotboardV3Timelines(reason = "flush") {
     const nodes = Array.isArray(app.graph?._nodes) ? app.graph._nodes : [];
     let flushed = 0;
     for (const node of nodes) {
-        if (nodeClassName(node) !== WAN_NODE_CLASS) continue;
+        if (!isShotboardV3Class(nodeClassName(node))) continue;
         if (typeof node._iamccsCineShotboardV3WriteTimeline !== "function") continue;
         try {
             node._iamccsCineShotboardV3WriteTimeline({ force: true });
@@ -14472,7 +13405,7 @@ function flushAllShotboardV3Timelines(reason = "flush") {
                 firstPrompt = String(data?.segments?.[0]?.prompt || data?.rows?.[0]?.relay_prompt || "");
                 containsCoastline = /\bcoastline\b/i.test(text);
             } catch {}
-            console.log("[IAMCCS WAN V3 QUEUE FLUSH]", {
+            console.log("[IAMCCS V3 QUEUE FLUSH]", {
                 reason,
                 nodeId: node?.id,
                 timelineLength: text.length,
@@ -14480,7 +13413,7 @@ function flushAllShotboardV3Timelines(reason = "flush") {
                 firstPrompt: firstPrompt.replace(/\s+/g, " ").slice(0, 220),
             });
         } catch (err) {
-            console.warn("[IAMCCS WAN V3 QUEUE FLUSH] failed", { reason, nodeId: node?.id, err });
+            console.warn("[IAMCCS V3 QUEUE FLUSH] failed", { reason, nodeId: node?.id, err });
         }
     }
     return flushed;
@@ -14488,7 +13421,7 @@ function flushAllShotboardV3Timelines(reason = "flush") {
 
 function wrapQueueFlush(target, methodName, label) {
     if (!target || typeof target[methodName] !== "function") return;
-    const guard = `_iamccsWanV3QueueFlushWrapped_${methodName}`;
+    const guard = `_iamccsCineV3QueueFlushWrapped_${methodName}`;
     if (target[guard]) return;
     target[guard] = true;
     const original = target[methodName];
@@ -14499,13 +13432,16 @@ function wrapQueueFlush(target, methodName, label) {
 }
 
 app.registerExtension({
-    name: "iamccs.wan.v3.timeline.ui",
-    async setup() {},
+    name: "iamccs.cine.timeline.ui",
+    async setup() {
+        wrapQueueFlush(api, "queuePrompt", "api.queuePrompt");
+        wrapQueueFlush(app, "queuePrompt", "app.queuePrompt");
+    },
     async beforeRegisterNodeDef(nodeType, nodeData) {
         const name = String(nodeData?.name || nodeData?.class_type || "");
-        if (name !== WAN_NODE_CLASS) return;
-        if (nodeType.prototype._iamccsWanV3TimelineWrapped) return;
-        nodeType.prototype._iamccsWanV3TimelineWrapped = true;
+        if (name !== "IAMCCS_CineLTXSequencer" && name !== "IAMCCS_CinePromptRelayLatentShapeSync" && name !== "IAMCCS_CinePromptRelayTimeline" && name !== "IAMCCS_CineShotboardLite" && name !== "IAMCCS_CineShotboardTimelinePro" && name !== "IAMCCS_CineShotboardPlannerPro" && name !== "IAMCCS_CineShotboardPlannerProV2" && !isShotboardV3Class(name) && name !== "IAMCCS_CineShotboardPlannerProLegacy" && name !== "IAMCCS_CineFLFEngineSimple" && name !== "IAMCCS_CineInfo" && name !== "IAMCCS_CinePromptArchitect" && name !== "IAMCCS_BoardMaker" && name !== "IAMCCS_CineMusicVideoPlanner") return;
+        if (nodeType.prototype._iamccsCineTimelineWrapped) return;
+        nodeType.prototype._iamccsCineTimelineWrapped = true;
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function (...args) {
             const result = onNodeCreated?.apply(this, args);
@@ -14529,7 +13465,7 @@ document.addEventListener("iamccs:planner_rows_updated", (ev) => {
     const plannerNode = app.graph?.getNodeById(nodeId);
     if (!plannerNode) return;
     const klass = String(plannerNode?.comfyClass || plannerNode?.type || "");
-    if (klass !== WAN_NODE_CLASS) return;
+    if (klass !== "IAMCCS_CineShotboardLite" && klass !== "IAMCCS_CineShotboardPlannerPro" && klass !== "IAMCCS_CineShotboardPlannerProV2" && !isShotboardV3Class(klass) && klass !== "IAMCCS_CineShotboardPlannerProLegacy" && klass !== "IAMCCS_CineShotboardTimelinePro") return;
     // Clear render guard so renderShotboardPro rebuilds the table
     plannerNode._iamccsCineShotboardReady = false;
     plannerNode._iamccsCineShotboardVersion = "";

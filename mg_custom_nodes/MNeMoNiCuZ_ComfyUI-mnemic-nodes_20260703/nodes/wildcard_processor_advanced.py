@@ -42,14 +42,16 @@ class WildcardProcessor:
                         "The text prompt to process. Supports multiple features:\n\n"
                         "File Wildcards:\nUse __filename__ to insert a random line from filename.txt in one of the supported wildcard directories. Lines starting with # are treated as comments and are ignored.\n\n"
                         "Inline Choices:\nUse {a|b|c} to randomly choose between a, b, or c.\nExample Input: A photo of a {red|green|blue} car.\nExample Output: A photo of a green car.\n\n"
-                        "Weighted Choices:\nUse {5::black|green|red} to make black 5 times more likely to be chosen than green or red.\n\n"
+                        "Weighted Choices:\nUse {5::black|green|red} to make black 5 times more likely to be chosen than green or red. Weights are normalized to 100% based on the sum of all weights in the block (e.g. {5::red|4::green|7::blue|black} sums to 17, giving red ~29%, green ~24%, blue ~41%, black ~6%).\n\n"
                         "Select Multiple Wildcards:\nUse {2$$a|b|c|d} to output a specific number of items from the result.\nExample Input: My favorite colors are {3$$red|green|blue|yellow|purple}.\nExample Output: My favorite colors are blue, yellow, purple.\n\n"
                         "Ranged Select Multiple:\nUse {1-3$$red|green|blue|yellow|purple} to select a random number of 1-3 items within a range.\n\n"
+                        "Custom Separator:\nUse {1-3$$, $$red|green|blue|yellow|purple} to join the selected items with a custom separator (here, \", \") instead of the default.\n\n"
                         "Variables:\nDefine a variable to reuse a value. Can be defined directly, or using a wildcard\nExample Input: ${animal=!__animals__} The ${animal} is friends with the other ${animal}.\nExample Output: The cat is friends with the other cat."
                     ),
                     "placeholder": "A photo of a __sample_colors__ {dog|cat|monkey}."
                 }),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The seed for the random number generator. Using the same seed with the same prompt will produce the same output."}),
+                "multiple_separator": ("STRING", {"default": " ", "multiline": False, "tooltip": "The separator used when selecting multiple items from a single wildcard.\n\nExample:\n- Prompt: {2$$red|green|blue}\n- Separator: \", \"\n- Output example: \"red, green\""}),
                 "recache_wildcards": ("BOOLEAN", {"default": False, "tooltip": "Force a reload of all wildcard files from disk. Can be disabled again after you have ran it once."}),
                 "console_log": ("BOOLEAN", {"default": False, "tooltip": "Enable or disable detailed logging of the wildcard processing steps in the console."}),
                 # "tag_extraction_tags": ("STRING", {
@@ -61,10 +63,15 @@ class WildcardProcessor:
             }
         }
 
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("processed_text",)
+    RETURN_TYPES = ("STRING", "INT", "STRING", "STRING", "STRING", "STRING",)
+    RETURN_NAMES = ("processed_text", "seed", "extracted_tags_string", "extracted_tags_list", "raw_tags_string", "raw_tags_list",)
     OUTPUT_TOOLTIPS = (
         "The final text after all wildcards and tags have been processed.",
+        "The seed value used for this generation.",
+        "A single string containing all extracted and processed tag content, joined by '|'.",
+        "A list of strings, where each item is one piece of extracted and processed tag content.",
+        "A single string containing all raw, unprocessed tags, including their delimiters, concatenated together.",
+        "A list of strings, where each item is one raw, unprocessed tag, including its delimiters."
     )
 
     def wildcard_log(self, message, level=0):
@@ -310,7 +317,14 @@ class WildcardProcessor:
 
         if is_range:
             count = random.randint(min_count, max_count)
-        
+
+        # 2b. Parse optional custom separator (e.g., {1-3$$, $$a|b|c})
+        separator = self.separator
+        if count_match:
+            separator_match = re.match(r'(.*?)\$\$(.*)', expression, re.DOTALL)
+            if separator_match:
+                separator, expression = separator_match.group(1), separator_match.group(2)
+
         # 3. Split into options and parse weights (e.g., {2::a|b})
         options_str = expression.split('|')
         choices = []
@@ -356,7 +370,7 @@ class WildcardProcessor:
                 remaining_count -= num_to_pick
         
         # 5. Join and return using the provided separator.
-        result = self.separator.join(selected_options)
+        result = separator.join(selected_options)
         resolved_result = self._process_text(result)
 
         self.wildcard_log(f"{Style.DIM}Evaluated {{{match.group(1)}}} -> {Style.NORMAL}{Fore.CYAN}{resolved_result}", level=1)
@@ -474,7 +488,7 @@ class WildcardProcessor:
         # Extract parameters from kwargs
         wildcard_string = kwargs.get("wildcard_string", "")
         seed = kwargs.get("seed", 0)
-        self.separator = " "
+        self.separator = kwargs.get("multiple_separator", " ")
         self.console_log = kwargs.get("console_log", False)
         recache = kwargs.get("recache_wildcards", False)
         tag_extraction_tags = kwargs.get("tag_extraction_tags", "")
@@ -530,6 +544,15 @@ class WildcardProcessor:
         # 3. Process the main text (which has definitions and tags removed)
         processed_text = self._process_text(text_after_extraction)
 
+        # 4. Prepare outputs
+        extracted_tags_string = "|".join(processed_tags)
+        extracted_tags_list = processed_tags
+        
+        # New raw outputs
+        raw_tags_string = "".join(raw_tags) # Concatenated without any separator
+        raw_tags_list = raw_tags
+
+
         if self.console_log:
             if raw_tags:
                 print(f"{Fore.YELLOW}Extracted Tags (Raw):{Style.RESET_ALL} {raw_tags}")
@@ -537,7 +560,7 @@ class WildcardProcessor:
             print(f"{Fore.YELLOW}Processed Text:{Style.RESET_ALL} {repr(processed_text)}")
             print(f"{Fore.GREEN}{'-----' * 8}📝 Wildcard Processor End{'-----' * 8}{Style.RESET_ALL}")
             
-        return (processed_text,)
+        return (processed_text, seed, extracted_tags_string, extracted_tags_list, raw_tags_string, raw_tags_list)
 
 NODE_CLASS_MAPPINGS = {
     "WildcardProcessor": WildcardProcessor,

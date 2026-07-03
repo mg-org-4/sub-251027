@@ -1,0 +1,163 @@
+"""Builds concrete ComfyUI node classes from registry model entries."""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import importlib.util
+import inspect
+import re
+from functools import cache
+from typing import Any
+
+from ..fal_utils import ApiHandler
+from .arguments import build_arguments
+from .outputs import RETURN_SPECS, process_result
+from .schema_to_inputs import build_input_types
+
+NODE_KEY_PREFIX = "FalAPI_"
+
+
+def _detect_async_capable() -> bool:
+    """True when the host ComfyUI awaits coroutine node FUNCTIONs.
+
+    ``comfy_execution/utils.py`` was introduced by the exact commit that added
+    async node support (Comfy-Org/ComfyUI commit 2b653e8c18, PR #8830,
+    2025-07-10) and has not been touched since, so its presence is a precise
+    import-time proxy for ``_async_map_node_over_list`` existing in the
+    executor. Must never raise outside ComfyUI: a missing ``comfy_execution``
+    package (tests, older ComfyUI) simply selects the sync path.
+    """
+    try:
+        return importlib.util.find_spec("comfy_execution.utils") is not None
+    except Exception:
+        return False
+
+
+_ASYNC_CAPABLE = _detect_async_capable()
+
+
+def node_key(model: dict[str, Any]) -> str:
+    return NODE_KEY_PREFIX + model["endpoint_id"].replace("/", "-")
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", text.lower())
+
+
+def build_display_name(model: dict[str, Any]) -> str:
+    endpoint_id = model["endpoint_id"]
+    title = model.get("title") or endpoint_id
+    parts = endpoint_id.split("/")
+    remainder = "/".join(parts[1:]) if len(parts) > 1 else endpoint_id
+    if not remainder or _slug(remainder) == _slug(title):
+        return f"{title} (fal)"
+    return f"{title} · {remainder} (fal)"
+
+
+def _value_fingerprint(value: Any) -> str:
+    # torch tensors: repr() summarizes large tensors (edge elements only), so two
+    # different images could hash identically — fingerprint the raw bytes instead
+    detach = getattr(value, "detach", None)
+    if callable(detach):
+        try:
+            tensor = value.detach().cpu().contiguous()
+            digest = hashlib.sha256(tensor.numpy().tobytes()).hexdigest()
+            return f"tensor:{tuple(tensor.shape)}:{tensor.dtype}:{digest}"
+        except Exception:  # non-numpy-compatible tensor; fall through to repr
+            pass
+    if isinstance(value, dict):  # e.g. AUDIO dicts carrying a waveform tensor
+        return repr(sorted((k, _value_fingerprint(v)) for k, v in value.items()))
+    return repr(value)
+
+
+def stable_hash(kwargs: dict[str, Any]) -> str:
+    payload = repr(sorted((key, _value_fingerprint(value)) for key, value in kwargs.items()))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+
+@cache
+def _accepts_skip_cache(func: Any) -> bool:
+    """Whether ``submit_and_get_result`` supports the skip_cache keyword.
+
+    Cached per callable so the check runs once, and re-evaluated automatically
+    when tests stub out ApiHandler. On uninspectable callables fall back to
+    False: calling without skip_cache works with both old and new signatures.
+    """
+    try:
+        return "skip_cache" in inspect.signature(func).parameters
+    except (TypeError, ValueError):
+        return False
+
+
+def _call_api(endpoint_id: str, arguments: dict[str, Any], skip_cache: bool) -> Any:
+    submit = ApiHandler.submit_and_get_result
+    if _accepts_skip_cache(submit):
+        return submit(endpoint_id, arguments, skip_cache=skip_cache)
+    return submit(endpoint_id, arguments)
+
+
+async def _call_api_async(
+    endpoint_id: str, arguments: dict[str, Any], skip_cache: bool
+) -> Any:
+    submit = ApiHandler.submit_and_get_result_async
+    if _accepts_skip_cache(submit):
+        return await submit(endpoint_id, arguments, skip_cache=skip_cache)
+    return await submit(endpoint_id, arguments)
+
+
+def _class_name(model: dict[str, Any]) -> str:
+    return re.sub(r"[^0-9A-Za-z_]", "_", node_key(model))
+
+
+def _description(model: dict[str, Any]) -> str:
+    description = model.get("description") or ""
+    pricing = model.get("pricing") or ""
+    if pricing:
+        return f"{description}\n\nPricing: {pricing}".strip()
+    return description
+
+
+def build_node_class(model: dict[str, Any]) -> type:
+    """Create a ComfyUI node class for a single registry model entry."""
+    endpoint_id = model["endpoint_id"]
+    kind = model.get("output_kind", "json")
+    return_types, return_names = RETURN_SPECS.get(kind, RETURN_SPECS["json"])
+    category = model.get("category") or "other"
+
+    def input_types(cls: type) -> dict[str, Any]:
+        return build_input_types(model)
+
+    def is_changed(cls: type, **kwargs: Any) -> Any:
+        if kwargs.get("force_rerun"):
+            return float("nan")
+        return stable_hash(kwargs)
+
+    def run(self: Any, **kwargs: Any) -> tuple:
+        arguments = build_arguments(model, kwargs)
+        result = _call_api(endpoint_id, arguments, bool(kwargs.get("force_rerun")))
+        return process_result(model, result)
+
+    async def run_async(self: Any, **kwargs: Any) -> tuple:
+        # build_arguments uploads media and process_result downloads results —
+        # blocking HTTP — so both run in worker threads; only the fal call
+        # itself awaits on the loop, letting other graph branches proceed.
+        arguments = await asyncio.to_thread(build_arguments, model, kwargs)
+        result = await _call_api_async(
+            endpoint_id, arguments, bool(kwargs.get("force_rerun"))
+        )
+        return await asyncio.to_thread(process_result, model, result)
+
+    attrs = {
+        "INPUT_TYPES": classmethod(input_types),
+        "IS_CHANGED": classmethod(is_changed),
+        "RETURN_TYPES": return_types,
+        "RETURN_NAMES": return_names,
+        "FUNCTION": "run",
+        "CATEGORY": f"FAL/Models/{category}",
+        "DESCRIPTION": _description(model),
+        "run": run_async if _ASYNC_CAPABLE else run,
+        "_FAL_ENDPOINT_ID": endpoint_id,
+    }
+    return type(_class_name(model), (object,), attrs)

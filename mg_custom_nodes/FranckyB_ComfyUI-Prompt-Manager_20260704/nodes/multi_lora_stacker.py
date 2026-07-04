@@ -14,7 +14,10 @@ except Exception:
 
 def _try_get_lm_get_lora_info():
     """Return LM's get_lora_info function if it is already loaded in sys.modules."""
-    for mod in sys.modules.values():
+    # Iterate over a snapshot because sys.modules can change during runtime.
+    for mod in list(sys.modules.values()):
+        if mod is None:
+            continue
         fn = getattr(mod, "get_lora_info", None)
         if callable(fn):
             module_name = getattr(fn, "__module__", "") or ""
@@ -111,7 +114,7 @@ def _build_lora_stack(loras_json):
 
 
 class MultiLoraStackerLM:
-    """Multi-slot LoRA stacker with four independent stacks (A / B / C / D)."""
+    """Multi-slot LoRA stacker with per-slot and combined stack outputs."""
 
     NAME = "Multi Lora Stacker (LoraManager)"
     CATEGORY = "Prompt Manager"
@@ -128,12 +131,13 @@ class MultiLoraStackerLM:
             },
         }
 
-    RETURN_TYPES = ("MULTI_LORA_STACK",)
-    RETURN_NAMES = ("multi_lora_stack",)
+    RETURN_TYPES = ("MULTI_LORA_STACK", "LORA_STACK")
+    RETURN_NAMES = ("multi_lora_stack", "lora_stack")
     FUNCTION = "stack_multi"
     DESCRIPTION = (
         "Multi-slot LoRA stacker with a visual 4-panel UI (A / B / C / D). "
-        "Outputs one MULTI_LORA_STACK payload containing all four stacks."
+        "Outputs one MULTI_LORA_STACK payload plus one combined LORA_STACK "
+        "containing A+B+C+D in order."
     )
 
     def stack_multi(
@@ -154,7 +158,8 @@ class MultiLoraStackerLM:
             "c": stack_c,
             "d": stack_d,
         }
-        return (multi_lora_stack,)
+        combined_lora_stack = [*stack_a, *stack_b, *stack_c, *stack_d]
+        return (multi_lora_stack, combined_lora_stack)
 
 
 def _coerce_lora_stack(raw_stack):
@@ -273,3 +278,35 @@ class MultiLoraCombine:
             "d": out_d,
         }
         return (merged,)
+
+
+class MultiLoraSplitter:
+    """Split one MULTI_LORA_STACK payload into A/B/C/D LORA_STACK outputs."""
+
+    NAME = "Multi LoRA Splitter"
+    CATEGORY = "Prompt Manager"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "multi_lora_stack": ("MULTI_LORA_STACK", {
+                    "tooltip": "Input MULTI_LORA_STACK payload to split into A/B/C/D stacks.",
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("LORA_STACK", "LORA_STACK", "LORA_STACK", "LORA_STACK")
+    RETURN_NAMES = ("lora_stack_a", "lora_stack_b", "lora_stack_c", "lora_stack_d")
+    FUNCTION = "split_multi"
+    DESCRIPTION = "Split a MULTI_LORA_STACK payload into LORA_STACK outputs A/B/C/D."
+
+    def split_multi(self, multi_lora_stack, **kwargs):
+        if not isinstance(multi_lora_stack, dict):
+            return ([], [], [], [])
+
+        out_a = _coerce_lora_stack(multi_lora_stack.get("a"))
+        out_b = _coerce_lora_stack(multi_lora_stack.get("b"))
+        out_c = _coerce_lora_stack(multi_lora_stack.get("c"))
+        out_d = _coerce_lora_stack(multi_lora_stack.get("d"))
+        return (out_a, out_b, out_c, out_d)

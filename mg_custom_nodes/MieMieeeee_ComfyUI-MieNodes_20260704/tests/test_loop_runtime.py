@@ -1,5 +1,8 @@
 """Tests for RUNTIME_STORE management and image operations in loop.py."""
 
+import glob
+import os
+
 import torch
 import pytest
 from loop import (
@@ -227,8 +230,9 @@ class TestPruneRuntimeStore:
 class TestMergeImagesForCtx:
     def test_merge_images_no_ref(self, sample_loop_ctx):
         # Default sample_loop_ctx has ref=None
-        result = _merge_images_for_ctx(sample_loop_ctx)
+        result, merged_path = _merge_images_for_ctx(sample_loop_ctx)
         assert result.shape[0] == 0
+        assert merged_path == ""
 
     def test_merge_images_single_batch(self, sample_loop_ctx):
         ref = "merge_ref_1"
@@ -236,9 +240,31 @@ class TestMergeImagesForCtx:
         batch = torch.rand(3, 64, 64, 3)
         RUNTIME_STORE["collectors"]["image"][ref] = [batch]
         RUNTIME_STORE["meta"][sample_loop_ctx["run_id"]] = {"image_refs": [ref]}
-        result = _merge_images_for_ctx(sample_loop_ctx)
-        assert result.shape == (3, 64, 64, 3)
-        assert torch.equal(result, batch)
+        merged_path = ""
+        try:
+            result, merged_path = _merge_images_for_ctx(sample_loop_ctx)
+            assert isinstance(result, torch.Tensor)
+            assert result.shape == (3, 64, 64, 3)
+            assert torch.equal(result, batch)
+            # merged_path is auto-derived under <offload_dir>/merged.pt.
+            assert merged_path, "merged_path should be populated on success"
+            assert merged_path.endswith("merged.pt")
+        finally:
+            if merged_path:
+                try:
+                    os.remove(merged_path)
+                except OSError:
+                    pass
+                run_dir = os.path.dirname(merged_path)
+                for leftover in glob.glob(os.path.join(run_dir, "image_*.pt")):
+                    try:
+                        os.remove(leftover)
+                    except OSError:
+                        pass
+                try:
+                    os.rmdir(run_dir)
+                except OSError:
+                    pass
 
     def test_merge_images_multiple_batches(self, sample_loop_ctx):
         ref = "merge_ref_multi"
@@ -248,11 +274,31 @@ class TestMergeImagesForCtx:
         b3 = torch.rand(1, 32, 32, 3)
         RUNTIME_STORE["collectors"]["image"][ref] = [b1, b2, b3]
         RUNTIME_STORE["meta"][sample_loop_ctx["run_id"]] = {"image_refs": [ref]}
-        result = _merge_images_for_ctx(sample_loop_ctx)
-        assert result.shape == (6, 32, 32, 3)
-        assert torch.equal(result[:2], b1)
-        assert torch.equal(result[2:5], b2)
-        assert torch.equal(result[5:], b3)
+        merged_path = ""
+        try:
+            result, merged_path = _merge_images_for_ctx(sample_loop_ctx)
+            assert isinstance(result, torch.Tensor)
+            assert result.shape == (6, 32, 32, 3)
+            assert torch.equal(result[:2], b1)
+            assert torch.equal(result[2:5], b2)
+            assert torch.equal(result[5:], b3)
+            assert merged_path and merged_path.endswith("merged.pt")
+        finally:
+            if merged_path:
+                try:
+                    os.remove(merged_path)
+                except OSError:
+                    pass
+                run_dir = os.path.dirname(merged_path)
+                for leftover in glob.glob(os.path.join(run_dir, "image_*.pt")):
+                    try:
+                        os.remove(leftover)
+                    except OSError:
+                        pass
+                try:
+                    os.rmdir(run_dir)
+                except OSError:
+                    pass
 
     def test_merge_images_shape_mismatch(self, sample_loop_ctx):
         ref = "merge_mismatch"
@@ -269,8 +315,9 @@ class TestMergeImagesForCtx:
         sample_loop_ctx["collectors"]["image"]["ref"] = ref
         RUNTIME_STORE["collectors"]["image"][ref] = []
         RUNTIME_STORE["meta"][sample_loop_ctx["run_id"]] = {"image_refs": [ref]}
-        result = _merge_images_for_ctx(sample_loop_ctx)
+        result, merged_path = _merge_images_for_ctx(sample_loop_ctx)
         assert result.shape[0] == 0
+        assert merged_path == ""
 
     def test_merge_images_cleans_up_ref(self, sample_loop_ctx):
         ref = "merge_cleanup"

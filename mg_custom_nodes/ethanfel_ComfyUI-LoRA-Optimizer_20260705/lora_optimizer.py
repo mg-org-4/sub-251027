@@ -2284,6 +2284,21 @@ class _LoRAMergeBase:
             target_shape[offset[0]] = offset[2]
         return torch.Size(target_shape)
 
+    def _resolve_base_norm(self, target_key, is_clip, model, clip):
+        """Frobenius norm of the base model weight at target_key — the reference
+        for magnitude taming's delta/base ratio. Returns None if unreadable. The
+        optional slice offset is ignored (full-weight norm is a close enough
+        reference for the rare sliced-weight case)."""
+        try:
+            actual_key = target_key[0] if isinstance(target_key, tuple) else target_key
+            if is_clip:
+                w = comfy.utils.get_attr(clip.cond_stage_model, actual_key)
+            else:
+                w = comfy.utils.get_attr(model.model, actual_key)
+            return float(w.float().norm().item())
+        except (AttributeError, RuntimeError, IndexError, TypeError):
+            return None
+
     @staticmethod
     def _resolve_branch_strength(item, is_clip):
         """Base per-LoRA strength for the target branch before auto-scaling.
@@ -2353,6 +2368,15 @@ class _LoRAMergeBase:
         raw_contributors = set()
         storage_dtype = None
         skip_count = 0
+        # Per-LoRA cleaning (opt-in; no-op at defaults). STAR spectral truncate+
+        # rescale then base-norm-anchored magnitude taming, applied to each raw
+        # per-LoRA diff before it feeds analysis (auto-strength) and merge — so
+        # order is clean -> auto-strength -> merge. Preserved LoRAs are exempt.
+        _star_eta = getattr(self, '_star_eta', 100.0)
+        _tame = getattr(self, '_tame_layers', 0.0)
+        _clean_on = _star_eta < 100.0 or _tame > 0.0
+        _base_norm = None
+        _base_norm_tried = False
 
         for i, item in enumerate(active_loras):
             diff_accum = None
@@ -2479,6 +2503,19 @@ class _LoRAMergeBase:
                     diff_accum = diff if diff_accum is None else diff_accum + diff
 
             if diff_accum is not None:
+                if _clean_on and not active_loras[i].get("preserve", False):
+                    if _star_eta < 100.0:
+                        diff_accum = self._star_truncate_rescale(diff_accum, _star_eta)
+                    if _tame > 0.0:
+                        if not _base_norm_tried:
+                            _base_norm = self._resolve_base_norm(target_key, is_clip, model, clip)
+                            _base_norm_tried = True
+                        if _base_norm:
+                            sc = self._tame_scale(
+                                diff_accum.float().norm().item(), _base_norm,
+                                getattr(self, '_tame_threshold', 0.3), _tame)
+                            if sc != 1.0:
+                                diff_accum = diff_accum * sc
                 aggregated[i] = diff_accum
                 ranks[i] = rank_sum
             elif i in raw_contributors:
@@ -2818,6 +2855,65 @@ class _LoRAMergeBase:
         lines.append("     Fix: merge LoRAs trained on the SAME base model, or accept that")
         lines.append("     these layers come only from the other LoRA(s)/base model.")
         return lines
+
+    # --- Per-LoRA cleaning (opt-in Pass-1 preprocessing) ---
+    # Feature inspired by CoreyCorza's comfyui-lora-loader
+    # (https://github.com/CoreyCorza/comfyui-lora-loader): per-LoRA noise-tail
+    # removal + layer taming. Reworked here to research-validated methods — STAR
+    # spectral truncate+rescale (arXiv:2502.10339) and base-norm-anchored
+    # magnitude taming / Norm-Anchor Scaling (arXiv:2602.02543).
+    @staticmethod
+    def _star_truncate_rescale(diff, eta):
+        """STAR spectral truncate + nuclear-norm rescale (arXiv:2502.10339, NAACL 2025).
+
+        SVD the per-layer delta, keep the top singular components whose cumulative
+        singular-value sum first reaches eta% of the NUCLEAR norm (Σσ, not Σσ²),
+        then rescale the kept singular values by (Σσ / Σ_kept σ) so the nuclear
+        norm is restored. Truncation lowers the inter-task conflict bound for
+        merging; the rescale keeps the delta's overall magnitude (the ablation
+        that makes STAR work). eta >= 100 is a no-op. Data-free, per matrix.
+        """
+        if eta is None or eta >= 100.0:
+            return diff
+        if diff.ndim < 2:
+            return diff
+        orig_shape = diff.shape
+        mat = diff.reshape(diff.shape[0], -1).float() if diff.ndim > 2 else diff.float()
+        svd = _full_svd_robust(mat)
+        if svd is None:
+            return diff
+        U, S, Vh = svd
+        total = S.sum()
+        if total.item() <= 0:
+            return diff
+        # smallest r whose cumulative singular-value sum reaches eta% of the total
+        r = int((torch.cumsum(S, 0) < (eta / 100.0) * total).sum().item()) + 1
+        r = max(1, min(r, S.shape[0]))
+        kept = S[:r]
+        kept_sum = kept.sum()
+        if kept_sum.item() <= 0:
+            return diff
+        s_new = kept * (total / kept_sum)   # restore nuclear norm
+        out = (U[:, :r] * s_new) @ Vh[:r, :]
+        return out.reshape(orig_shape).to(diff.dtype)
+
+    @staticmethod
+    def _tame_scale(delta_norm, base_norm, threshold, strength, eps=1e-8):
+        """Base-norm-anchored magnitude taming (Norm-Anchor Scaling, arXiv:2602.02543).
+
+        A layer whose delta Frobenius norm is a large fraction of its BASE weight's
+        norm is "hot" — it overwrites the base and pushes activations off-manifold.
+        r = ||ΔW|| / max(||W_base||, eps); if r <= threshold the layer is within
+        budget (scale 1.0), else scale by (threshold/r)^strength. strength=0 is a
+        no-op; strength=1 scales the delta down to exactly threshold x base norm.
+        Denominator floored to avoid the divide-by-small-norm singularity.
+        """
+        if strength <= 0.0 or threshold <= 0.0:
+            return 1.0
+        r = float(delta_norm) / max(float(base_norm), eps)
+        if r <= threshold:
+            return 1.0
+        return (threshold / r) ** float(strength)
 
     @staticmethod
     def _stable_data_hash(value):
@@ -5367,7 +5463,7 @@ class LoRAOptimizer(_LoRAMergeBase):
                    for item in active_loras)
 
     @staticmethod
-    def _compute_cache_key(lora_stack, output_strength, clip_strength_multiplier, auto_strength, optimization_mode="per_prefix", patch_compression="smart", svd_device="gpu", normalize_keys="disabled", sparsification="disabled", sparsification_density=0.7, dare_dampening=0.0, merge_strategy_override="", merge_refinement="none", strategy_set="full", architecture_preset="auto", auto_strength_floor=-1.0, decision_smoothing=0.25, smooth_slerp_gate=False):
+    def _compute_cache_key(lora_stack, output_strength, clip_strength_multiplier, auto_strength, optimization_mode="per_prefix", patch_compression="smart", svd_device="gpu", normalize_keys="disabled", sparsification="disabled", sparsification_density=0.7, dare_dampening=0.0, merge_strategy_override="", merge_refinement="none", strategy_set="full", architecture_preset="auto", auto_strength_floor=-1.0, decision_smoothing=0.25, smooth_slerp_gate=False, star_eta=100.0, tame_layers=0.0, tame_threshold=0.3):
         """
         Build a deterministic SHA-256 hash (16 hex chars) from the stack
         configuration. Used by IS_CHANGED to let ComfyUI skip re-execution
@@ -5397,6 +5493,10 @@ class LoRAOptimizer(_LoRAMergeBase):
             entries.sort()
             h.update(json.dumps(entries).encode())
         h.update(f"|os={output_strength}|csm={clip_strength_multiplier}|as={auto_strength}|om={optimization_mode}|cp={patch_compression}|sd={svd_device}|nk={normalize_keys}|sp={sparsification}|spd={sparsification_density}|dd={dare_dampening}|mso={merge_strategy_override}|mq={merge_refinement}|bp={strategy_set}|ap={architecture_preset}|asf={auto_strength_floor}|ds={decision_smoothing}|ssg={smooth_slerp_gate}".encode())
+        # Fold per-LoRA cleaning ONLY when active, so default-off keys stay
+        # byte-identical to pre-feature keys (existing caches remain valid).
+        if star_eta < 100.0 or tame_layers > 0.0:
+            h.update(f"|clean={star_eta},{tame_layers},{tame_threshold}".encode())
         return h.hexdigest()[:16]
 
     @classmethod
@@ -7114,7 +7214,7 @@ class LoRAOptimizer(_LoRAMergeBase):
             smooth_slerp_gate=smooth_slerp_gate,
         )
 
-    def optimize_merge(self, model, lora_stack, output_strength, clip=None, clip_strength_multiplier=1.0, auto_strength="disabled", auto_strength_floor=-1.0, free_vram_between_passes="disabled", vram_budget=0.0, optimization_mode="per_prefix", cache_patches="enabled", patch_compression="smart", svd_device="gpu", normalize_keys="disabled", sparsification="disabled", sparsification_density=0.7, dare_dampening=0.0, merge_strategy_override="", merge_refinement="none", strategy_set="full", architecture_preset="auto", decision_smoothing=0.25, smooth_slerp_gate=False, _analysis_cache=None, _diff_cache=None, _skip_report=False, _skip_qkv_refusion=False, _sl_patch_cache=None, _score_collector=None, _skip_model_apply=False, _group_patch_cache=None):
+    def optimize_merge(self, model, lora_stack, output_strength, clip=None, clip_strength_multiplier=1.0, auto_strength="disabled", auto_strength_floor=-1.0, free_vram_between_passes="disabled", vram_budget=0.0, optimization_mode="per_prefix", cache_patches="enabled", patch_compression="smart", svd_device="gpu", normalize_keys="disabled", sparsification="disabled", sparsification_density=0.7, dare_dampening=0.0, merge_strategy_override="", merge_refinement="none", strategy_set="full", architecture_preset="auto", decision_smoothing=0.25, smooth_slerp_gate=False, star_eta=100.0, tame_layers=0.0, tame_threshold=0.3, _analysis_cache=None, _diff_cache=None, _skip_report=False, _skip_qkv_refusion=False, _sl_patch_cache=None, _score_collector=None, _skip_model_apply=False, _group_patch_cache=None):
         """
         Main entry point. Two-pass streaming architecture:
         Pass 1: Resolve aliases to target groups, compute diffs, sample metrics, discard diffs
@@ -7128,6 +7228,13 @@ class LoRAOptimizer(_LoRAMergeBase):
         # sub-merges / tuner candidates don't clear the parent's collection.
         if not _skip_report:
             self._shape_mismatches = {}
+
+        # Per-LoRA cleaning knobs, read by _prepare_group_diffs. Set on every
+        # (including recursive sub-merge) entry so the value propagates. Defaults
+        # (eta=100, tame=0) are no-ops.
+        self._star_eta = star_eta
+        self._tame_layers = tame_layers
+        self._tame_threshold = tame_threshold
 
         # Free stale cached models when the input model/clip changes — prevents
         # the old patched clones from staying in RAM after switching models.
@@ -7249,7 +7356,8 @@ class LoRAOptimizer(_LoRAMergeBase):
                                             merge_strategy_override, merge_refinement,
                                             strategy_set, architecture_preset,
                                             auto_strength_floor,
-                                            decision_smoothing)
+                                            decision_smoothing, smooth_slerp_gate,
+                                            star_eta, tame_layers, tame_threshold)
         cache_key = f"{cache_key}|mid={id(model)}"
         if cache_patches == "enabled" and cache_key in self._merge_cache:
             model_patches, clip_patches, report, clip_strength_out, lora_data = self._merge_cache[cache_key]
@@ -8566,6 +8674,9 @@ class LoRAMergeSettings:
         "smooth_slerp_gate": False,
         "vram_budget": 0.0,
         "cache_patches": "enabled",
+        "star_eta": 100.0,
+        "tame_layers": 0.0,
+        "tame_threshold": 0.3,
     }
 
     @classmethod
@@ -8604,6 +8715,18 @@ class LoRAMergeSettings:
                     "default": "auto",
                     "tooltip": "How the auto-strength floor is chosen. 'auto' (recommended): architecture-aware default — higher (less shrink) for motion-heavy video models, lower for image models. 'manual': use the auto_strength_floor slider above. This only bounds the shrink — to turn auto-strength OFF entirely set auto_strength = disabled on the Optimizer Settings node (AutoTuner mode has no such toggle: it sweeps auto-strength on AND off automatically). For on-but-never-shrink, use manual with floor 1.0."
                 }),
+                "star_eta": ("FLOAT", {
+                    "default": 100.0, "min": 10.0, "max": 100.0, "step": 5.0,
+                    "tooltip": "Per-LoRA spectral cleaning (STAR). 100 = OFF. Lower values SVD each LoRA layer, keep the top singular components reaching this %% of the nuclear norm, and rescale to preserve magnitude — reduces interference when merging MANY or CONFLICTING LoRAs. Leave at 100 for 2-3 orthogonal LoRAs (it would just discard fine detail). Try 60-80 when merging many conflicting LoRAs."
+                }),
+                "tame_layers": ("FLOAT", {
+                    "default": 0.0, "min": 0.0, "max": 1.0, "step": 0.05,
+                    "tooltip": "Per-LoRA magnitude taming strength. 0 = OFF. Caps 'hot' layers whose delta is a large fraction of the base weight (they push activations off-manifold and cause oversaturation/frying). 0.5 = gentle, 1.0 = fully cap hot layers to tame_threshold x the base-weight norm. Turn on if a merge comes out fried; preserved (style) LoRAs are exempt."
+                }),
+                "tame_threshold": ("FLOAT", {
+                    "default": 0.3, "min": 0.05, "max": 2.0, "step": 0.05,
+                    "tooltip": "A layer is 'hot' when its delta Frobenius norm exceeds this fraction of the base weight's norm. Only used when tame_layers > 0. Lower = tame more layers (more aggressive); 0.3 is a sensible starting point. Dial by eye on the output."
+                }),
             },
         }
 
@@ -8619,7 +8742,8 @@ class LoRAMergeSettings:
     def build_settings(self, normalize_keys, architecture_preset,
                        auto_strength_floor, decision_smoothing,
                        smooth_slerp_gate, vram_budget, cache_patches,
-                       auto_strength_floor_mode="auto"):
+                       auto_strength_floor_mode="auto",
+                       star_eta=100.0, tame_layers=0.0, tame_threshold=0.3):
         # The slider is the MANUAL floor [0,1]; "auto" emits the -1 sentinel the
         # merge math reads as "architecture-aware default". Downstream behavior
         # and cache keys are unchanged — this only splits the old -1 sentinel out
@@ -8634,6 +8758,9 @@ class LoRAMergeSettings:
             "smooth_slerp_gate": smooth_slerp_gate,
             "vram_budget": vram_budget,
             "cache_patches": cache_patches,
+            "star_eta": star_eta,
+            "tame_layers": tame_layers,
+            "tame_threshold": tame_threshold,
         },)
 
 
@@ -8734,6 +8861,9 @@ class LoRAOptimizerSettings:
             "decision_smoothing": ms["decision_smoothing"],
             "smooth_slerp_gate": ms["smooth_slerp_gate"],
             "vram_budget": ms["vram_budget"],
+            "star_eta": ms.get("star_eta", 100.0),
+            "tame_layers": ms.get("tame_layers", 0.0),
+            "tame_threshold": ms.get("tame_threshold", 0.3),
             "merge_strategy_override": merge_strategy_override,
         },)
 
@@ -8849,6 +8979,9 @@ class LoRAAutoTunerSettings:
             "decision_smoothing": ms["decision_smoothing"],
             "vram_budget": ms["vram_budget"],
             "cache_patches": ms["cache_patches"],
+            "star_eta": ms.get("star_eta", 100.0),
+            "tame_layers": ms.get("tame_layers", 0.0),
+            "tame_threshold": ms.get("tame_threshold", 0.3),
             "diff_cache_mode": diff_cache_mode,
             "diff_cache_ram_pct": diff_cache_ram_pct,
             "community_cache": community_cache,
@@ -8956,6 +9089,9 @@ class LoRAOptimizerSimple(LoRAOptimizer):
                     architecture_preset=settings["architecture_preset"],
                     decision_smoothing=settings["decision_smoothing"],
                     smooth_slerp_gate=settings["smooth_slerp_gate"],
+                    star_eta=settings.get("star_eta", 100.0),
+                    tame_layers=settings.get("tame_layers", 0.0),
+                    tame_threshold=settings.get("tame_threshold", 0.3),
                     cache_patches=settings["cache_patches"],
                     patch_compression=settings["patch_compression"],
                     svd_device=settings["svd_device"],
@@ -8978,6 +9114,9 @@ class LoRAOptimizerSimple(LoRAOptimizer):
                     scoring_formula=settings.get("scoring_formula", "v2"),
                     output_mode=settings["output_mode"],
                     smooth_slerp_gate=settings["smooth_slerp_gate"],
+                    star_eta=settings.get("star_eta", 100.0),
+                    tame_layers=settings.get("tame_layers", 0.0),
+                    tame_threshold=settings.get("tame_threshold", 0.3),
                     normalize_keys=settings["normalize_keys"],
                     architecture_preset=settings["architecture_preset"],
                     auto_strength_floor=settings["auto_strength_floor"],
@@ -10242,6 +10381,7 @@ class LoRAAutoTuner(LoRAOptimizer):
                   diff_cache_mode="disabled", diff_cache_ram_pct=0.5, vram_budget=0.0,
                   scoring_speed="full", scoring_formula="v2", output_mode="merge",
                   decision_smoothing=0.25, smooth_slerp_gate=False,
+                  star_eta=100.0, tame_layers=0.0, tame_threshold=0.3,
                   memory_mode="disabled", selection=1, record_dataset="disabled",
                   _is_sub_merge=False, _suppress_pbar=False):
         import hashlib, json
@@ -10339,6 +10479,7 @@ class LoRAAutoTuner(LoRAOptimizer):
                         output_mode=output_mode,
                         decision_smoothing=decision_smoothing,
                         smooth_slerp_gate=smooth_slerp_gate,
+                        star_eta=star_eta, tame_layers=tame_layers, tame_threshold=tame_threshold,
                         memory_mode=memory_mode,
                         selection=selection,
                         record_dataset=record_dataset,
@@ -10383,6 +10524,7 @@ class LoRAAutoTuner(LoRAOptimizer):
                 auto_strength_floor=auto_strength_floor,
                 decision_smoothing=decision_smoothing,
                 smooth_slerp_gate=smooth_slerp_gate,
+                star_eta=star_eta, tame_layers=tame_layers, tame_threshold=tame_threshold,
                 _skip_qkv_refusion=_is_sub_merge,
             )
             return (merged_model, merged_clip,
@@ -10492,6 +10634,7 @@ class LoRAAutoTuner(LoRAOptimizer):
                     architecture_preset=cached_tuner.get("architecture_preset", architecture_preset),
                     decision_smoothing=cached_tuner.get("decision_smoothing", decision_smoothing),
                     smooth_slerp_gate=cached_tuner.get("smooth_slerp_gate", smooth_slerp_gate),
+                    star_eta=star_eta, tame_layers=tame_layers, tame_threshold=tame_threshold,
                     cache_patches=cache_patches,
                     vram_budget=vram_budget,
                 )

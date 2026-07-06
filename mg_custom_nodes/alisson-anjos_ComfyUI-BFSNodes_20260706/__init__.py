@@ -10,8 +10,19 @@ from .amv_guide_node import NODE_CLASS_MAPPINGS as AMV_NODE_CLASS_MAPPINGS
 from .amv_guide_node import NODE_DISPLAY_NAME_MAPPINGS as AMV_NODE_DISPLAY_NAME_MAPPINGS
 from .ltx_identity_overlap import NODE_CLASS_MAPPINGS as IDT_NODE_CLASS_MAPPINGS
 from .ltx_identity_overlap import NODE_DISPLAY_NAME_MAPPINGS as IDT_NODE_DISPLAY_NAME_MAPPINGS
+try:
+    from .ltx_identity_gemma_vision import NODE_CLASS_MAPPINGS as GV_NODE_CLASS_MAPPINGS
+    from .ltx_identity_gemma_vision import NODE_DISPLAY_NAME_MAPPINGS as GV_NODE_DISPLAY_NAME_MAPPINGS
+except Exception as _e:  # noqa
+    print(f"[BFSNodes] LTX Identity Gemma-Vision node not loaded: {_e!r}")
+    GV_NODE_CLASS_MAPPINGS, GV_NODE_DISPLAY_NAME_MAPPINGS = {}, {}
+# CAN / AdaLN node disabled: empirically the AdaLN modulation degrades the video (the identity
+# gain came from the projector + LoRA, not the CAN). Kept the file but not registered.
+CAN_NODE_CLASS_MAPPINGS, CAN_NODE_DISPLAY_NAME_MAPPINGS = {}, {}
 
 NODE_CLASS_MAPPINGS = {
+    **GV_NODE_CLASS_MAPPINGS,
+    **CAN_NODE_CLASS_MAPPINGS,
     **BFS_NODE_CLASS_MAPPINGS,
     **LTXV_EA_NODE_CLASS_MAPPINGS,
     **HEADSWAP_NODE_CLASS_MAPPINGS,
@@ -21,6 +32,8 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    **GV_NODE_DISPLAY_NAME_MAPPINGS,
+    **CAN_NODE_DISPLAY_NAME_MAPPINGS,
     **BFS_NODE_DISPLAY_NAME_MAPPINGS,
     **LTXV_EA_NODE_DISPLAY_NAME_MAPPINGS,
     **HEADSWAP_NODE_DISPLAY_NAME_MAPPINGS,

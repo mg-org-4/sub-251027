@@ -350,6 +350,7 @@ class LTXIdentityOverlapConditioning:
         m = model.clone()
         ltxv = _find_ltxv(m)
 
+
         # encode ref image -> single-frame latent at the target resolution (overlap grid)
         _, w_sf, h_sf = vae.downscale_index_formula
         _, _, _, lat_h, lat_w = latent["samples"].shape

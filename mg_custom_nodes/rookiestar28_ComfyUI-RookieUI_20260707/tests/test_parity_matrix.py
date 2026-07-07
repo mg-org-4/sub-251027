@@ -30,6 +30,8 @@ class ParityMatrixTests(unittest.TestCase):
                 "flux",
                 "flux_krea_dev",
                 "flux2_dev",
+                "ideogram4",
+                "krea2_turbo",
                 "klein_4b_distilled",
                 "klein_4b",
                 "klein_9b_distilled",

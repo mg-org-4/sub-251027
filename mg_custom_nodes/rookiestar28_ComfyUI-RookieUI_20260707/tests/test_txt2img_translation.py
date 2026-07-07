@@ -34,6 +34,43 @@ class Txt2ImgTranslationTests(unittest.TestCase):
             default_text_encoder="qwen_3_4b.safetensors",
         )
 
+    def _ideogram4_inventory(self) -> ModelInventorySnapshot:
+        return ModelInventorySnapshot(
+            source="host",
+            checkpoints=["SDXL\\realvisxl.safetensors"],
+            diffusion_models=[
+                "ideogram\\ideogram4_unconditional_fp8_scaled.safetensors",
+                "ideogram\\ideogram4_fp8_scaled.safetensors",
+            ],
+            vae=["flux2-vae.safetensors", "qwen_image_vae.safetensors"],
+            text_encoders=["qwen3vl_8b_fp8_scaled.safetensors", "qwen_3_4b.safetensors"],
+            default_checkpoint="SDXL\\realvisxl.safetensors",
+            default_vae="qwen_image_vae.safetensors",
+            default_text_encoder="qwen_3_4b.safetensors",
+            controlnet=[],
+        )
+
+    def _krea2_turbo_inventory(self, *, include_lora: bool = False) -> ModelInventorySnapshot:
+        return ModelInventorySnapshot(
+            source="host",
+            checkpoints=["SDXL\\realvisxl.safetensors"],
+            diffusion_models=[
+                "flux\\flux1-krea-dev_fp8_scaled.safetensors",
+                "krea\\krea2_turbo_fp8_scaled.safetensors",
+            ],
+            vae=["flux2-vae.safetensors", "qwen_image_vae.safetensors"],
+            text_encoders=[
+                "qwen3vl_8b_fp8_scaled.safetensors",
+                "qwen3vl_4b_fp8_scaled.safetensors",
+                "qwen_3_4b.safetensors",
+            ],
+            loras=["Krea\\krea2_darkbrush.safetensors"] if include_lora else [],
+            default_checkpoint="SDXL\\realvisxl.safetensors",
+            default_vae="flux2-vae.safetensors",
+            default_text_encoder="qwen_3_4b.safetensors",
+            controlnet=[],
+        )
+
     def test_normalize_txt2img_request_applies_sd15_defaults(self) -> None:
         request = normalize_txt2img_request({"prompt": "city skyline"})
 
@@ -730,6 +767,9 @@ class Txt2ImgTranslationTests(unittest.TestCase):
                 "flux\\flux1-dev.safetensors",
                 "flux\\flux1-krea-dev_fp8_scaled.safetensors",
                 "flux\\flux2_dev_fp8mixed.safetensors",
+                "ideogram\\ideogram4_unconditional_fp8_scaled.safetensors",
+                "ideogram\\ideogram4_fp8_scaled.safetensors",
+                "krea\\krea2_turbo_fp8_scaled.safetensors",
                 "qwen\\qwen_image_2512_fp8_e4m3fn.safetensors",
                 "klein\\flux-2-klein-4b.safetensors",
                 "klein\\flux-2-klein-base-4b.safetensors",
@@ -760,6 +800,8 @@ class Txt2ImgTranslationTests(unittest.TestCase):
                 "llama_3.1_8b_instruct_fp8_scaled.safetensors",
                 "ministral-3-3b.safetensors",
                 "mistral_3_small_flux2_bf16.safetensors",
+                "qwen3vl_4b_fp8_scaled.safetensors",
+                "qwen3vl_8b_fp8_scaled.safetensors",
                 "qwen_2.5_vl_7b_fp8_scaled.safetensors",
                 "qwen_3_06b_base.safetensors",
                 "qwen_3_4b.safetensors",
@@ -769,6 +811,7 @@ class Txt2ImgTranslationTests(unittest.TestCase):
             ],
             loras=[
                 "Flux\\Flux_2-Turbo-LoRA_comfyui.safetensors",
+                "Krea\\krea2_darkbrush.safetensors",
                 "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
             ],
             default_checkpoint="SDXL\\realvisxl.safetensors",
@@ -791,6 +834,16 @@ class Txt2ImgTranslationTests(unittest.TestCase):
             "qwen_image": (
                 "qwen\\qwen_image_2512_fp8_e4m3fn.safetensors",
                 "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+                "qwen_image_vae.safetensors",
+            ),
+            "ideogram4": (
+                "ideogram\\ideogram4_fp8_scaled.safetensors",
+                "qwen3vl_8b_fp8_scaled.safetensors",
+                "flux2-vae.safetensors",
+            ),
+            "krea2_turbo": (
+                "krea\\krea2_turbo_fp8_scaled.safetensors",
+                "qwen3vl_4b_fp8_scaled.safetensors",
                 "qwen_image_vae.safetensors",
             ),
             "klein_4b_distilled": ("klein\\flux-2-klein-4b.safetensors", "qwen_3_4b.safetensors", "flux2-vae.safetensors"),
@@ -856,6 +909,17 @@ class Txt2ImgTranslationTests(unittest.TestCase):
                     if profile_id == "flux2_dev":
                         self.assertEqual(normalized.template_lora_name, "Flux\\Flux_2-Turbo-LoRA_comfyui.safetensors")
                         self.assertEqual(normalized.flux_guidance, 4.0)
+                    if profile_id == "ideogram4":
+                        self.assertEqual(normalized.steps, 20)
+                        self.assertEqual(normalized.cfg_scale, 7.0)
+                        self.assertEqual(normalized.sampler_name, "euler")
+                        self.assertEqual(normalized.scheduler_name, "simple")
+                    if profile_id == "krea2_turbo":
+                        self.assertEqual(normalized.steps, 8)
+                        self.assertEqual(normalized.cfg_scale, 1.0)
+                        self.assertEqual(normalized.sampler_name, "euler")
+                        self.assertEqual(normalized.scheduler_name, "simple")
+                        self.assertEqual(normalized.template_lora_name, "Krea\\krea2_darkbrush.safetensors")
                     if profile_id in {"ernie_image", "ernie_image_turbo"}:
                         self.assertEqual(normalized.aux_text_encoder_name, "ernie-image-prompt-enhancer.safetensors")
                     if profile_id == "ernie_image":
@@ -1305,6 +1369,167 @@ class Txt2ImgTranslationTests(unittest.TestCase):
         self.assertEqual(scheduler_node["inputs"]["steps"], 20)
         self.assertEqual(latent_node["inputs"]["width"], 1024)
         self.assertEqual(latent_node["inputs"]["height"], 1024)
+
+    def test_translate_txt2img_request_builds_ideogram4_dual_model_graph(self) -> None:
+        with mock.patch(
+            "rookieui.services.txt2img.discover_model_inventory",
+            return_value=self._ideogram4_inventory(),
+        ):
+            normalized = normalize_txt2img_request(
+                {
+                    "prompt": "precise product poster",
+                    "negative_prompt": "ignored by official local graph",
+                    "profile": "ideogram4",
+                    "checkpoint_name": "",
+                    "vae_name": "",
+                    "text_encoder_name": "",
+                    "seed": 123456,
+                }
+            )
+
+        result = translate_txt2img_request(normalized).to_payload()
+        workflow = result["workflow"]
+        class_types = {node["class_type"] for node in workflow.values()}
+        unet_nodes = [node for node in workflow.values() if node["class_type"] == "UNETLoader"]
+        clip_node = next(node for node in workflow.values() if node["class_type"] == "CLIPLoader")
+        zero_node_id, zero_node = next(
+            (node_id, node) for node_id, node in workflow.items() if node["class_type"] == "ConditioningZeroOut"
+        )
+        cfg_override_id, cfg_override = next(
+            (node_id, node) for node_id, node in workflow.items() if node["class_type"] == "CFGOverride"
+        )
+        guider_id, guider_node = next(
+            (node_id, node) for node_id, node in workflow.items() if node["class_type"] == "DualModelGuider"
+        )
+        scheduler_node = next(node for node in workflow.values() if node["class_type"] == "Ideogram4Scheduler")
+        latent_node = next(node for node in workflow.values() if node["class_type"] == "EmptyFlux2LatentImage")
+        sampler_node = next(node for node in workflow.values() if node["class_type"] == "SamplerCustomAdvanced")
+
+        self.assertEqual(result["workflow_kind"], "txt2img-ideogram4")
+        self.assertEqual(normalized.checkpoint_name, "ideogram\\ideogram4_fp8_scaled.safetensors")
+        self.assertEqual(normalized.text_encoder_name, "qwen3vl_8b_fp8_scaled.safetensors")
+        self.assertEqual(normalized.vae_name, "flux2-vae.safetensors")
+        self.assertEqual(len(unet_nodes), 2)
+        self.assertEqual(
+            {node["inputs"]["unet_name"] for node in unet_nodes},
+            {
+                "ideogram\\ideogram4_fp8_scaled.safetensors",
+                "ideogram4_unconditional_fp8_scaled.safetensors",
+            },
+        )
+        unconditional_unet_id = next(
+            node_id
+            for node_id, node in workflow.items()
+            if node["class_type"] == "UNETLoader"
+            and node["inputs"]["unet_name"] == "ideogram4_unconditional_fp8_scaled.safetensors"
+        )
+        self.assertEqual(clip_node["inputs"]["type"], "ideogram4")
+        self.assertIn("RandomNoise", class_types)
+        self.assertIn("KSamplerSelect", class_types)
+        self.assertIn("SamplerCustomAdvanced", class_types)
+        self.assertNotIn("KSampler", class_types)
+        self.assertEqual(cfg_override["inputs"]["cfg"], 3.0)
+        self.assertEqual(cfg_override["inputs"]["start_percent"], 0.7)
+        self.assertEqual(cfg_override["inputs"]["end_percent"], 1.0)
+        self.assertEqual(guider_node["inputs"]["model"], [cfg_override_id, 0])
+        self.assertEqual(guider_node["inputs"]["model_negative"], [unconditional_unet_id, 0])
+        self.assertEqual(guider_node["inputs"]["negative"], [zero_node_id, 0])
+        self.assertEqual(guider_node["inputs"]["cfg"], 7.0)
+        self.assertEqual(scheduler_node["inputs"]["steps"], 20)
+        self.assertEqual(scheduler_node["inputs"]["width"], 1024)
+        self.assertEqual(scheduler_node["inputs"]["height"], 1024)
+        self.assertEqual(scheduler_node["inputs"]["mu"], 0.0)
+        self.assertEqual(scheduler_node["inputs"]["std"], 1.75)
+        self.assertEqual(latent_node["inputs"]["width"], 1024)
+        self.assertEqual(latent_node["inputs"]["height"], 1024)
+        self.assertEqual(sampler_node["inputs"]["guider"], [guider_id, 0])
+        self.assertEqual(zero_node["inputs"]["conditioning"], guider_node["inputs"]["positive"])
+
+    def test_translate_txt2img_request_builds_krea2_turbo_ksampler_graph_without_synthetic_lora(self) -> None:
+        with mock.patch(
+            "rookieui.services.txt2img.discover_model_inventory",
+            return_value=self._krea2_turbo_inventory(),
+        ):
+            normalized = normalize_txt2img_request(
+                {
+                    "prompt": "painted fashion editorial",
+                    "negative_prompt": "ignored by zeroed local graph",
+                    "profile": "krea2_turbo",
+                    "checkpoint_name": "",
+                    "vae_name": "",
+                    "text_encoder_name": "",
+                    "seed": 654321,
+                }
+            )
+
+        result = translate_txt2img_request(normalized).to_payload()
+        workflow = result["workflow"]
+        class_types = {node["class_type"] for node in workflow.values()}
+        unet_node = next(node for node in workflow.values() if node["class_type"] == "UNETLoader")
+        clip_node = next(node for node in workflow.values() if node["class_type"] == "CLIPLoader")
+        vae_node = next(node for node in workflow.values() if node["class_type"] == "VAELoader")
+        zero_node_id, zero_node = next(
+            (node_id, node) for node_id, node in workflow.items() if node["class_type"] == "ConditioningZeroOut"
+        )
+        latent_node = next(node for node in workflow.values() if node["class_type"] == "EmptyLatentImage")
+        sampler_node = next(node for node in workflow.values() if node["class_type"] == "KSampler")
+
+        self.assertEqual(result["workflow_kind"], "txt2img-krea2_turbo")
+        self.assertEqual(normalized.checkpoint_name, "krea\\krea2_turbo_fp8_scaled.safetensors")
+        self.assertEqual(normalized.text_encoder_name, "qwen3vl_4b_fp8_scaled.safetensors")
+        self.assertEqual(normalized.vae_name, "qwen_image_vae.safetensors")
+        self.assertEqual(normalized.template_lora_name, "")
+        self.assertEqual(unet_node["inputs"]["unet_name"], "krea\\krea2_turbo_fp8_scaled.safetensors")
+        self.assertEqual(clip_node["inputs"]["type"], "krea2")
+        self.assertEqual(clip_node["inputs"]["clip_name"], "qwen3vl_4b_fp8_scaled.safetensors")
+        self.assertEqual(vae_node["inputs"]["vae_name"], "qwen_image_vae.safetensors")
+        self.assertIn("CLIPTextEncode", class_types)
+        self.assertIn("ConditioningZeroOut", class_types)
+        self.assertIn("EmptyLatentImage", class_types)
+        self.assertIn("KSampler", class_types)
+        self.assertNotIn("LoraLoaderModelOnly", class_types)
+        self.assertNotIn("SamplerCustomAdvanced", class_types)
+        self.assertNotIn("Ideogram4Scheduler", class_types)
+        self.assertNotIn("DualModelGuider", class_types)
+        self.assertNotIn("CFGOverride", class_types)
+        self.assertEqual(latent_node["inputs"]["width"], 1024)
+        self.assertEqual(latent_node["inputs"]["height"], 1024)
+        self.assertEqual(sampler_node["inputs"]["seed"], normalized.execution_seed)
+        self.assertEqual(sampler_node["inputs"]["steps"], 8)
+        self.assertEqual(sampler_node["inputs"]["cfg"], 1.0)
+        self.assertEqual(sampler_node["inputs"]["sampler_name"], "euler")
+        self.assertEqual(sampler_node["inputs"]["scheduler"], "simple")
+        self.assertEqual(sampler_node["inputs"]["denoise"], 1.0)
+        self.assertEqual(sampler_node["inputs"]["negative"], [zero_node_id, 0])
+        self.assertEqual(zero_node["inputs"]["conditioning"], sampler_node["inputs"]["positive"])
+
+    def test_translate_txt2img_request_applies_krea2_template_lora_when_resolved(self) -> None:
+        with mock.patch(
+            "rookieui.services.txt2img.discover_model_inventory",
+            return_value=self._krea2_turbo_inventory(include_lora=True),
+        ):
+            normalized = normalize_txt2img_request(
+                {
+                    "prompt": "painted fashion editorial",
+                    "profile": "krea 2",
+                    "checkpoint_name": "",
+                    "vae_name": "",
+                    "text_encoder_name": "",
+                }
+            )
+
+        result = translate_txt2img_request(normalized).to_payload()
+        workflow = result["workflow"]
+        lora_id, lora_node = next(
+            (node_id, node) for node_id, node in workflow.items() if node["class_type"] == "LoraLoaderModelOnly"
+        )
+        sampler_node = next(node for node in workflow.values() if node["class_type"] == "KSampler")
+
+        self.assertEqual(normalized.profile, "krea2_turbo")
+        self.assertEqual(normalized.template_lora_name, "Krea\\krea2_darkbrush.safetensors")
+        self.assertEqual(lora_node["inputs"]["lora_name"], "Krea\\krea2_darkbrush.safetensors")
+        self.assertEqual(lora_node["inputs"]["model"], ["1", 0])
+        self.assertEqual(sampler_node["inputs"]["model"], [lora_id, 0])
 
     def test_translate_txt2img_request_appends_inline_lora_after_template_owned_lora_for_flux(self) -> None:
         with mock.patch(

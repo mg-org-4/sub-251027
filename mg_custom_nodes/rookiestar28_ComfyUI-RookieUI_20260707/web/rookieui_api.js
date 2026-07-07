@@ -9,7 +9,7 @@ export {
 } from "./api/rookieui_generation_api.js";
 
 const PROMPT_WORKBENCH_CONTRACT_VERSION = "r145f141f142-20260418";
-const MODEL_FAMILY_REGISTRY_CONTRACT_VERSION = "f168-20260423";
+const MODEL_FAMILY_REGISTRY_CONTRACT_VERSION = "model-family-20260707";
 export const DEFAULT_MODEL_FAMILY_ENTRIES = Object.freeze([
   {
     id: "sd15",
@@ -251,6 +251,62 @@ export const DEFAULT_MODEL_FAMILY_ENTRIES = Object.freeze([
       "Matches the official Flux.1 Dev FP8 template defaults.",
       "Text Encoder selector stays hidden because the official template owns the dual-encoder bundle.",
       "Template LoRA stays explicit and defaults to the official turbo LoRA, but may be overridden with truthful drift messaging.",
+    ],
+  },
+  {
+    id: "ideogram4",
+    title: "Ideogram v4",
+    translation_base_family: "sdxl",
+    public_base_family: "ideogram4",
+    prompt_encoder: "clip_text_encode_sdxl",
+    default_width: 1024,
+    default_height: 1024,
+    default_steps: 20,
+    default_cfg_scale: 7.0,
+    default_sampler: "euler",
+    default_scheduler: "simple",
+    default_clip_skip: 1,
+    supports_clip_skip: false,
+    primary_model_category: "diffusion_models",
+    text_encoder_visible: false,
+    support_tier: "family-adapted",
+    compatibility_summary:
+      "Official ComfyUI Ideogram v4 local text-to-image template preset on the current non-SD translation seam.",
+    experimental: true,
+    aliases: ["ideogram", "ideogram v4", "ideogram4"],
+    notes: [
+      "Matches the official local Ideogram v4 text-to-image template defaults.",
+      "Text Encoder selector stays hidden because the official template owns the fixed qwen3vl_8b pairing.",
+      "The required unconditional Ideogram model is a hidden official graph asset, not a separate RookieUI selector.",
+      "API-provider Ideogram remains unsupported.",
+    ],
+  },
+  {
+    id: "krea2_turbo",
+    title: "Krea-2 Turbo",
+    translation_base_family: "sdxl",
+    public_base_family: "krea2",
+    prompt_encoder: "clip_text_encode_sdxl",
+    default_width: 1024,
+    default_height: 1024,
+    default_steps: 8,
+    default_cfg_scale: 1.0,
+    default_sampler: "euler",
+    default_scheduler: "simple",
+    default_clip_skip: 1,
+    supports_clip_skip: false,
+    primary_model_category: "diffusion_models",
+    text_encoder_visible: false,
+    support_tier: "family-adapted",
+    compatibility_summary:
+      "Official ComfyUI Krea-2 Turbo local text-to-image template preset on the current non-SD translation seam.",
+    experimental: true,
+    aliases: ["krea2", "krea 2", "krea-2", "krea2 turbo", "krea-2 turbo"],
+    notes: [
+      "Matches the official local Krea-2 Turbo text-to-image template defaults.",
+      "Text Encoder selector stays hidden because the official template owns the fixed qwen3vl_4b pairing.",
+      "Template LoRA remains optional and is only applied when resolved from host inventory or user selection.",
+      "API-provider and style-reference Krea workflows remain unsupported.",
     ],
   },
   {
@@ -792,6 +848,11 @@ const DEFAULT_TEMPLATE_PARAMETER_OVERRIDES = Object.freeze({
     template_lora_visible: true,
     template_lora_override_allowed: true,
     official_template_lora_label: "Flux_2-Turbo-LoRA_comfyui.safetensors",
+  },
+  krea2_turbo: {
+    template_lora_visible: true,
+    template_lora_override_allowed: true,
+    official_template_lora_label: "krea2_darkbrush.safetensors",
   },
   longcat_image: { flux_guidance_visible: true, default_flux_guidance: 4.0 },
   qwen_image: {

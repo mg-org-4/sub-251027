@@ -3,7 +3,10 @@ from __future__ import annotations
 import unittest
 
 from rookieui.contracts.family_template_manifest import (
+    OFFICIAL_TEMPLATE_CORE_BLUEPRINT_DEFERRED_SURFACE_MARKERS,
     OFFICIAL_TEMPLATE_DEFERRED_SURFACE_MARKERS,
+    OFFICIAL_TEMPLATE_GALLERY_JSON_DEFERRED_SURFACE_MARKERS,
+    OFFICIAL_TEMPLATE_GALLERY_JSON_REMOVED_MARKERS,
     OFFICIAL_TEMPLATE_SOURCE_VERSION,
 )
 from rookieui.contracts.model_family_registry import (
@@ -26,6 +29,8 @@ class ModelFamilyRegistryTests(unittest.TestCase):
         self.assertEqual(payload["entries"][0]["id"], "sd15")
         self.assertIn("chroma", [entry["id"] for entry in payload["entries"]])
         self.assertIn("flux", [entry["id"] for entry in payload["entries"]])
+        self.assertIn("ideogram4", [entry["id"] for entry in payload["entries"]])
+        self.assertIn("krea2_turbo", [entry["id"] for entry in payload["entries"]])
         self.assertIn("ernie_image", [entry["id"] for entry in payload["entries"]])
         self.assertIn("qwen_image_edit_multi_lora", [entry["id"] for entry in payload["entries"]])
         self.assertIn("firered_image_edit", [entry["id"] for entry in payload["entries"]])
@@ -37,9 +42,9 @@ class ModelFamilyRegistryTests(unittest.TestCase):
         self.assertIn("z_image_turbo", [entry["id"] for entry in payload["entries"]])
 
     def test_official_template_manifest_uses_current_workflow_template_basis(self) -> None:
-        self.assertEqual(OFFICIAL_TEMPLATE_SOURCE_VERSION, "0.10.3")
+        self.assertEqual(OFFICIAL_TEMPLATE_SOURCE_VERSION, "0.11.2")
         entries = list_model_family_registry_entries()
-        stale_source_markers = ("0.9.91", "0.9.98")
+        stale_source_markers = ("0.9.91", "0.9.98", "0.10.3")
         stale_entries = [
             entry.id
             for entry in entries
@@ -53,13 +58,18 @@ class ModelFamilyRegistryTests(unittest.TestCase):
         source_paths = {entry.id: entry.official_template_path for entry in entries}
         self.assertEqual(source_paths["anima"], "reference/ComfyUI/blueprints/Text to Image (Anima).json")
         self.assertEqual(source_paths["flux"], "reference/ComfyUI/blueprints/Text to Image (Flux.1 Dev).json")
+        self.assertEqual(source_paths["ideogram4"], "reference/ComfyUI/blueprints/Text to Image (Ideogram v4).json")
+        self.assertEqual(
+            source_paths["krea2_turbo"],
+            "comfyui-workflow-templates-json==0.1.2:image_krea2_turbo_t2i.json",
+        )
         self.assertEqual(
             source_paths["flux2_image_edit"],
             "reference/ComfyUI/blueprints/Image Edit (Flux.2 Dev).json",
         )
 
-    def test_host_0_10_3_product_surface_delta_is_tracked_as_deferred_or_follow_up(self) -> None:
-        observed_host_0_10_3_markers = (
+    def test_host_0_11_2_blueprint_product_surface_delta_is_tracked_as_deferred_or_follow_up(self) -> None:
+        observed_host_blueprint_markers = (
             "Character Replacement (SCAIL-2 Base)",
             "Character Replacement (SCAIL-2 Extend)",
             "Image Depth Estimation (Depth Anything 3)",
@@ -68,12 +78,61 @@ class ModelFamilyRegistryTests(unittest.TestCase):
             "Video Edit (Bernini-R)",
             "Image to Gaussian Splat (TripoSplat)",
             "Text to Image (Anima Base 1.0)",
-            "Text to Image (Ideogram v4)",
         )
 
-        for observed_marker in observed_host_0_10_3_markers:
+        for observed_marker in observed_host_blueprint_markers:
             with self.subTest(observed_marker=observed_marker):
-                self.assertIn(observed_marker, OFFICIAL_TEMPLATE_DEFERRED_SURFACE_MARKERS)
+                self.assertIn(observed_marker, OFFICIAL_TEMPLATE_CORE_BLUEPRINT_DEFERRED_SURFACE_MARKERS)
+        self.assertNotIn("Text to Image (Ideogram v4)", OFFICIAL_TEMPLATE_CORE_BLUEPRINT_DEFERRED_SURFACE_MARKERS)
+
+    def test_host_0_11_2_gallery_json_delta_is_tracked_separately(self) -> None:
+        expected_deferred_gallery_markers = (
+            "api_ideogram_v4_t2i",
+            "api_krea2_t2i",
+            "api_krea2_style_reference",
+            "api_google_gemini_omni_flash_i2v",
+            "api_google_gemini_omni_flash_t2v",
+            "api_google_gemini_omni_flash_video_edit",
+            "api_happyhorse1_1_i2v",
+            "api_happyhorse1_1_r2v",
+            "api_happyhorse1_1_t2v",
+            "api_nano_banana_2_lite_image_edit",
+            "api_nano_banana_2_lite_t2i",
+            "api_seedance2_0_mini_r2v",
+            "api_seedance2_0_mini_t2v",
+            "api_seedance2_0_r2v_4k",
+        )
+        expected_removed_gallery_markers = (
+            "api_ideogram_v3_t2i",
+            "api_openai_sora_video",
+            "api_stability_ai_audio_inpaint",
+            "api_stability_ai_audio_to_audio",
+            "api_stability_ai_i2i",
+            "api_stability_ai_sd3.5_i2i",
+            "api_stability_ai_sd3.5_t2i",
+            "api_stability_ai_stable_image_ultra_t2i",
+            "api_stability_ai_text_to_audio",
+            "api_stability_upscale_fast",
+        )
+
+        self.assertGreater(len(OFFICIAL_TEMPLATE_CORE_BLUEPRINT_DEFERRED_SURFACE_MARKERS), 0)
+        self.assertGreater(len(OFFICIAL_TEMPLATE_GALLERY_JSON_DEFERRED_SURFACE_MARKERS), 0)
+        self.assertGreater(len(OFFICIAL_TEMPLATE_GALLERY_JSON_REMOVED_MARKERS), 0)
+        self.assertFalse(
+            set(OFFICIAL_TEMPLATE_CORE_BLUEPRINT_DEFERRED_SURFACE_MARKERS)
+            & set(OFFICIAL_TEMPLATE_GALLERY_JSON_DEFERRED_SURFACE_MARKERS)
+        )
+
+        for marker in expected_deferred_gallery_markers:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, OFFICIAL_TEMPLATE_GALLERY_JSON_DEFERRED_SURFACE_MARKERS)
+                self.assertIn(marker, OFFICIAL_TEMPLATE_DEFERRED_SURFACE_MARKERS)
+        for marker in expected_removed_gallery_markers:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, OFFICIAL_TEMPLATE_GALLERY_JSON_REMOVED_MARKERS)
+                self.assertIn(marker, OFFICIAL_TEMPLATE_DEFERRED_SURFACE_MARKERS)
+        self.assertNotIn("image_ideogram4_t2i", OFFICIAL_TEMPLATE_GALLERY_JSON_DEFERRED_SURFACE_MARKERS)
+        self.assertNotIn("image_krea2_turbo_t2i", OFFICIAL_TEMPLATE_GALLERY_JSON_DEFERRED_SURFACE_MARKERS)
 
     def test_deferred_product_surface_candidates_are_not_exposed_as_current_profiles(self) -> None:
         manifest_text = "\n".join(
@@ -99,6 +158,8 @@ class ModelFamilyRegistryTests(unittest.TestCase):
         z_turbo_entry = get_model_family_registry_entry("zit")
         chroma_entry = get_model_family_registry_entry("chroma")
         ernie_entry = get_model_family_registry_entry("ernie_image")
+        ideogram_entry = get_model_family_registry_entry("ideogram v4")
+        krea_entry = get_model_family_registry_entry("krea 2")
         longcat_entry = get_model_family_registry_entry("longcat_image")
 
         self.assertEqual(flux_entry.translation_base_family, "sdxl")
@@ -112,6 +173,17 @@ class ModelFamilyRegistryTests(unittest.TestCase):
         self.assertEqual(chroma_entry.default_shift, 1.0)
         self.assertTrue(ernie_entry.prompt_enhancement_visible)
         self.assertTrue(ernie_entry.default_prompt_enhancement_enabled)
+        self.assertEqual(ideogram_entry.id, "ideogram4")
+        self.assertEqual(ideogram_entry.public_base_family, "ideogram4")
+        self.assertEqual(ideogram_entry.default_cfg_scale, 7.0)
+        self.assertFalse(ideogram_entry.text_encoder_visible)
+        self.assertEqual(ideogram_entry.official_template_path, "reference/ComfyUI/blueprints/Text to Image (Ideogram v4).json")
+        self.assertEqual(krea_entry.id, "krea2_turbo")
+        self.assertEqual(krea_entry.public_base_family, "krea2")
+        self.assertEqual(krea_entry.default_steps, 8)
+        self.assertEqual(krea_entry.default_cfg_scale, 1.0)
+        self.assertTrue(krea_entry.template_lora_visible)
+        self.assertTrue(krea_entry.template_lora_override_allowed)
         self.assertTrue(longcat_entry.flux_guidance_visible)
         self.assertEqual(longcat_entry.default_flux_guidance, 4.0)
         self.assertEqual(z_turbo_entry.id, "z_image_turbo")
@@ -189,6 +261,8 @@ class ModelFamilyRegistryTests(unittest.TestCase):
         self.assertEqual(category_map["pony"], "checkpoints")
         self.assertEqual(category_map["klein"], "diffusion_models")
         self.assertEqual(category_map["hidream"], "diffusion_models")
+        self.assertEqual(category_map["ideogram4"], "diffusion_models")
+        self.assertEqual(category_map["krea2"], "diffusion_models")
         self.assertEqual(category_map["lumina"], "diffusion_models")
         self.assertEqual(category_map["ernie_image"], "diffusion_models")
 
@@ -218,6 +292,8 @@ class ModelFamilyRegistryTests(unittest.TestCase):
         )
         kontext_edit_preset = next(preset for preset in payload["presets"] if preset["id"] == "flux_kontext_dev_edit")
         flux2_edit_preset = next(preset for preset in payload["presets"] if preset["id"] == "flux2_image_edit")
+        ideogram_preset = next(preset for preset in payload["presets"] if preset["id"] == "ideogram4")
+        krea_preset = next(preset for preset in payload["presets"] if preset["id"] == "krea2_turbo")
         klein_kv_edit_preset = next(preset for preset in payload["presets"] if preset["id"] == "klein_9b_kv_image_edit")
         longcat_edit_preset = next(preset for preset in payload["presets"] if preset["id"] == "longcat_image_edit")
         z_turbo_preset = next(preset for preset in payload["presets"] if preset["id"] == "z_image_turbo")
@@ -244,6 +320,14 @@ class ModelFamilyRegistryTests(unittest.TestCase):
         self.assertEqual(kontext_edit_preset["max_direct_references"], 3)
         self.assertEqual(flux2_edit_preset["reference_input_mode"], "single")
         self.assertEqual(flux2_edit_preset["edit_megapixels"], 1.0)
+        self.assertEqual(ideogram_preset["profile"], "ideogram4")
+        self.assertEqual(ideogram_preset["base_family"], "ideogram4")
+        self.assertEqual(ideogram_preset["steps"], 20)
+        self.assertEqual(ideogram_preset["cfg_scale"], 7.0)
+        self.assertEqual(krea_preset["profile"], "krea2_turbo")
+        self.assertEqual(krea_preset["base_family"], "krea2")
+        self.assertEqual(krea_preset["steps"], 8)
+        self.assertEqual(krea_preset["cfg_scale"], 1.0)
         self.assertEqual(klein_kv_edit_preset["reference_input_mode"], "multi")
         self.assertEqual(klein_kv_edit_preset["max_direct_references"], 3)
         self.assertEqual(longcat_edit_preset["flux_guidance"], 4.5)

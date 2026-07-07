@@ -1,6 +1,0 @@
-python-dotenv
-brotli
-zstd
-librosa
-imageio
-websockets

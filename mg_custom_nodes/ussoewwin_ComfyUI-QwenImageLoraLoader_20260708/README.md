@@ -13,7 +13,7 @@ A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nun
 
 **Currently under development and testing. Debug logs are being output extensively. This does not affect functionality.**
 
-> Latest release: [v2.5.0 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.5.0)
+> Latest release: [v2.5.1 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.5.1)
 > 
 
 ## Source
@@ -27,7 +27,7 @@ This LoRA loader was extracted and modified from GavChap's fork:
 
 ## 🎉 MAJOR UPDATE: v2.2.0 - Nunchaku Z Image Turbo LoRA Support Added!
 
-For detailed technical explanation, see [v2.2.0 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.0)
+For detailed technical explanation, see [v2.2.0 Release Notes](RELEASE_NOTES/v2.2.0.md)
 
 ## 🎉 MAJOR UPDATE: v1.60 - Simplified Installation (No Integration Required!)
 
@@ -87,6 +87,10 @@ By default, detailed debug logs are **muted**. If you want detailed debug output
 
 - **NunchakuQI&ZITDiffsynthControlnet**: DiffSynth ControlNet support node for Nunchaku Qwen Image & Z-ImageTurbo
 
+- **Krea2ControlNetLoraLoader**: Krea2 depth controlnet-lora loader
+
+<img src="images/krea2_controlnet_lora.png" alt="Krea2ControlNetLoraLoader Usage" width="420">
+
 ### Basic Usage
 
 **For Nunchaku Qwen Image models:**
@@ -104,13 +108,12 @@ By default, detailed debug logs are **muted**. If you want detailed debug output
 
 ### Diffsynth ControlNet Usage
 
-<img src="png/diffsynth.png" alt="Diffsynth ControlNet Usage" width="400">
-
 1. Load your diffsynth ControlNet model patch using `Model Patch Loader` from [ComfyUI-NunchakuFluxLoraStacker](https://github.com/ussoewwin/ComfyUI-NunchakuFluxLoraStacker)
 2. The `Model Patch Loader` (`ModelPatchLoaderCustom`) supports CPU offload, allowing you to load ControlNet patches to CPU memory to save VRAM
 3. Connect the `MODEL_PATCH` output to the `model_patch` input of `NunchakuQI&ZITDiffsynthControlnet` node
 4. Connect your Nunchaku Qwen Image model, VAE, and control image
 5. Set the ControlNet strength and connect to your workflow
+6. Krea2 depth support and usage: add `Krea2ControlNetLoraLoader`, select your Krea2 depth controlnet-lora file (for example: `krea2-depth-control-lora.safetensors`), then connect its `MODEL_PATCH` output to `NunchakuQI&ZITDiffsynthControlnet` `model_patch`
 
 ## Features
 
@@ -239,6 +242,7 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 ## Changelog
 
 For the latest updates and detailed release notes (from v2.4.0 onwards), please see [changelog.md](RELEASE_NOTES/changelog.md).
+
 ### Previous Releases (v2.3.0 to v2.3.9)
 
 For detailed release notes from v2.3.0 to v2.3.9, please see [RELEASE_NOTES_V2.3.0_TO_V2.3.9.md](RELEASE_NOTES/RELEASE_NOTES_V2.3.0_TO_V2.3.9.md).

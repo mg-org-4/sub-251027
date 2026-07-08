@@ -1,6 +1,6 @@
 # Angelo
 
-**A click-to-edit sampler for ComfyUI.** Generate an image, then work it like a photo editor — click or paint to **refine** regions, drag rectangles or describe locations to **inpaint** new content, click an edge to **outpaint** the canvas wider, paint over something to **remove** it and rebuild the background, auto-**detect** subjects by naming them and **fix them all with one button**, pick the best of **four variations**, and **restore** anything an edit shouldn't have touched. There's a **one-click photo refine** too: it rebuilds a soft or low-resolution photo sharp, anchored to the original so it stays the same person and scene — and doubles as **upscaling** (enlarge in pixel space, then refine the detail back in). Everything outside what you edit stays bit-exact. One node replaces the standard `KSampler` + ADetailer + MaskEditor + outpaint-pad chain. Works with **FLUX 2 Klein 9B** and **Qwen-Image-Edit** as first-class edit models — plus any other sampler-compatible model (FLUX 1, SDXL, SD 1.5).
+**A click-to-edit sampler for ComfyUI.** Generate an image, then work it like a photo editor — click or paint to **refine** regions, drag rectangles or describe locations to **inpaint** new content, click an edge to **outpaint** the canvas wider, paint over something to **remove** it and rebuild the background, auto-**detect** subjects by naming them and **fix them all with one button**, pick the best of **four variations**, and **restore** anything an edit shouldn't have touched. Pop the whole editor **fullscreen** for detail work. There's a **one-click photo refine** too: it rebuilds a soft or low-resolution photo sharp, anchored to the original so it stays the same person and scene — and doubles as **upscaling** (enlarge in pixel space, then refine the detail back in). Everything outside what you edit stays bit-exact. One node replaces the standard `KSampler` + ADetailer + MaskEditor + outpaint-pad chain. Works with **FLUX 2 Klein 9B** and **Qwen-Image-Edit** as first-class edit models — plus any other sampler-compatible model (FLUX 1, SDXL, SD 1.5). And with **two-model workflows** you can now **generate with FLUX Krea 2** (or SDXL, or anything) **and edit with Klein** — the hot new generator for the look, the edit model for the control, one canvas ([ready-made workflow included](#two-model-workflows--generate-with-anything-edit-with-klein)).
 
 <a href="https://buymeacoffee.com/lorasandlenses"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
 
@@ -71,11 +71,17 @@ Angelo collapses all of it into one node:
 - **Load Image** to edit an existing photo directly in the node — no Empty Latent + `VAEEncode` chain to wire (you still connect the `vae` input as normal; Angelo does the encode itself). Or just **drag-drop an image file** onto the node; **right-click** the preview to copy it or open it in a new tab.
 - **`source_image` output** emits the original pre-edit base, ready to wire straight into a compare node.
 
+**Two models, one canvas**
+
+- **Gen bundle** — generate the base with whatever model nails the *look* (FLUX Krea, SDXL, anything), then do all the click-to-edit with Klein or Qwen-Image-Edit. One extra node carries the second model; Angelo hands the pixels across automatically. See [Two-model workflows](#two-model-workflows--generate-with-anything-edit-with-klein).
+
 All in one node. All without re-queueing the whole workflow manually for each fix.
 
 ## Model compatibility
 
 Angelo treats **FLUX 2 Klein 9B** and **Qwen-Image-Edit** as its two first-class edit models — both get the full feature set, including the Smart inpaint modes. It also works with any other sampler-compatible model: FLUX 1, SDXL, SD 1.5, and standard checkpoints (for **Refine**, Xtra-Fine, and Area Prompt — the Smart modes need an edit-trained model).
+
+And you don't have to choose: the **gen bundle** on the Overrides node lets a non-edit model handle the base *generation* (they're often the better-looking generators) while an edit model handles everything after — see [Two-model workflows](#two-model-workflows--generate-with-anything-edit-with-klein).
 
 Two latent layouts are handled transparently. **Standard 4D models** (FLUX, SDXL, SD) use `[B, C, H, W]` latents. **Temporal / video-derived models** (Qwen Image Edit, Wan) use 5D `[B, C, T, H, W]` latents — their VAEs carry an extra frame axis. Angelo normalises latent shape at a single VAE boundary and feeds each model the dimensionality it expects before sampling (the same step ComfyUI's stock KSampler does), so you don't need a model-specific latent node — wire `model`, `vae`, and `clip` as usual.
 
@@ -121,6 +127,12 @@ That's the loop. Click → refine → click → refine. Undo if needed. Reset to
 To wire it from scratch, do it exactly the same way as Klein — `model` / `vae` / `clip` / `positive` / `negative` — but point the loaders at a **Qwen-Image-Edit** checkpoint, its VAE, and its text encoder. There's no Qwen-specific latent node to add; Angelo normalises the latent shape internally.
 
 Qwen-Image-Edit isn't distilled like Klein, so adjust the toolbar generation settings to suit it — typically more steps and CFG > 1 (or a low-step Lightning / Lightx2v LoRA if you run one, which lets you drop back toward 4–8 steps at CFG ≈ 1). Everything else is identical: Sampler Mode to generate, then Edit Mode for Refine / Xtra-Fine / Area Prompt / Smart Inpaint / Smart Guided Inpaint.
+
+### Two-model workflows — generate with anything, edit with Klein
+
+Edit models are brilliant editors but not always the prettiest *generators*. The **gen bundle** fixes that: wire a second, generation-focused model into the **Angelo — Overrides** node (`gen_model` / `gen_positive` / `gen_vae`, plus its own `gen_steps` / `gen_cfg` / `gen_sampler_name` / `gen_scheduler` settings) and Sampler Mode generates the base with **that** model — then hands the pixels to your main edit model for the whole editing session. Best of both, one canvas.
+
+**Just want it running?** Drag [`example_workflows/Krea_plus_Klein-workflow.json`](example_workflows/Krea_plus_Klein-workflow.json) onto the canvas (also listed under **Workflow → Browse Templates → ComfyUI-Angelo**) — **FLUX Krea 2** (with its turbo LoRA, 8 steps at CFG 1) generates a 1504×1504 base, **FLUX 2 Klein 9B** does all the editing. Note the gen-side VAE choice: **Krea 2 works best with the Wan 2.1 VAE**, which is what the example wires into `gen_vae`. It includes an optional LLM prompt-expansion side-chain; if ComfyUI flags any missing nodes, install them via Manager or just delete that side-chain and type your prompt directly. See [the gen bundle](#mode--generation-block) under Toolbar for the full wiring rules.
 
 ## The two modes
 
@@ -202,6 +214,15 @@ The **Mode** switch sits centred up top, with **🖼 Load Image** beside it (bot
 **Driving Steps / CFG / Sampler / Scheduler from elsewhere in the workflow.** If you'd rather have a single source of truth for those four values across your workflow than set them again on Angelo's toolbar, drop an **Angelo — Overrides** node (same `sampling/Angelo` category), set the fields you want to drive (leave others at `-1` / `(toolbar)` to fall through), and wire its `overrides` output into Angelo's `overrides` input slot. Per-field opt-in: override only `steps`, only `cfg`, any combination. Anything left at its sentinel uses the toolbar value as normal.
 
 The Overrides node also carries **`disable_live_preview`** — flip this ON if ComfyUI's global latent preview (Settings → Preview method = Latent2RGB / TAESD) is rendering into the Angelo node mid-sample and squashing the editor area. It suppresses the preview callback for this Angelo only, so KSampler etc. elsewhere in your workflow keep their previews.
+
+**Generate with one model, edit with another (the gen bundle).** The Overrides node's `gen_model` / `gen_positive` / `gen_negative` / `gen_vae` inputs carry a **second, generation-only model stack**. When wired, **Sampler Mode** generates the base with the gen model using the node's `gen_steps` / `gen_cfg` / `gen_sampler_name` / `gen_scheduler` settings, decodes it with `gen_vae`, and re-encodes the pixels with your main edit VAE — so every edit after that runs on the edit model exactly as if the image had come in via Load Image. Edit Mode never touches the gen bundle; leave it unwired and nothing changes. The wiring rules:
+
+- **`gen_positive` must be encoded with the gen model's own CLIP** — conditioning isn't portable across model families, so you'll have two text-encode chains: one into Angelo's `positive` (edit model), one into the pipe (gen model). `gen_negative` is optional — unwired, Angelo uses a zeroed copy of `gen_positive` (same as ConditioningZeroOut).
+- **Size Angelo's wired `latent` for the gen model** (a plain Empty Latent Image for SD-class models). It sets the output resolution via the *gen* VAE's ratio — the console prints the resolution each run so a mis-sized latent is easy to spot. A latent from the wrong model family raises a clear error rather than sampling garbage.
+- **Seed and Smpl Denoise stay on Angelo's toolbar** — the seed randomize/fixed control works as normal, and Smpl Denoise below 1.0 gives you img2img *with the gen model*, even off a loaded image.
+- gen_model + gen_positive + gen_vae are all-or-nothing; partial wiring raises a clear error in Sampler Mode instead of silently using the wrong model.
+
+A ready-made example lives at [`example_workflows/Krea_plus_Klein-workflow.json`](example_workflows/Krea_plus_Klein-workflow.json) — FLUX Krea 2 generating, FLUX 2 Klein 9B editing.
 
 **Full custom sampler control (power-sigma, Flux 2 scheduler, NAG-Extended, custom guiders).** The Overrides node exposes three more optional slots — **`guider`** / **`sampler`** / **`sigmas`** — for replacing the whole sampler stack rather than just renaming pieces of it. Wire any `GUIDER` node (`CFGGuider`, `BasicGuider`, NAG variants, etc.), any `SAMPLER` (`KSamplerSelect` and friends), and any `SIGMAS` source (`BasicScheduler`, `KarrasScheduler`, `PolyexponentialScheduler`, power-sigma nodes, the Flux 2 scheduler) into those three slots. When all three are wired Angelo runs through `guider.sample(...)` instead of `comfy.sample.sample(...)` — the toolbar's `steps`/`cfg`/`sampler_name`/`scheduler` become moot, but the **Denoise** slider still applies (sigmas are tail-sliced per call, same as ComfyUI's `SplitSigmasDenoise`). Partial wiring (e.g. only `sampler`) silently falls back to the default. The implementation borrows three helpers from [@KursatAs](https://github.com/KursatAs)'s `customSampler` branch — full credit there, including the device-safe wrapper that fixes a CPU/GPU collision in ComfyUI-NAG-Extended's inpaint path.
 

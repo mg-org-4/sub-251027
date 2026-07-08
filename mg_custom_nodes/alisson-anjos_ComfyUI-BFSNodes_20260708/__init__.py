@@ -11,6 +11,12 @@ from .amv_guide_node import NODE_DISPLAY_NAME_MAPPINGS as AMV_NODE_DISPLAY_NAME_
 from .ltx_identity_overlap import NODE_CLASS_MAPPINGS as IDT_NODE_CLASS_MAPPINGS
 from .ltx_identity_overlap import NODE_DISPLAY_NAME_MAPPINGS as IDT_NODE_DISPLAY_NAME_MAPPINGS
 try:
+    from .ltx_identity_multiangle import NODE_CLASS_MAPPINGS as MA_NODE_CLASS_MAPPINGS
+    from .ltx_identity_multiangle import NODE_DISPLAY_NAME_MAPPINGS as MA_NODE_DISPLAY_NAME_MAPPINGS
+except Exception as _e:  # noqa
+    print(f"[BFSNodes] LTX Identity Multiple Angles node not loaded: {_e!r}")
+    MA_NODE_CLASS_MAPPINGS, MA_NODE_DISPLAY_NAME_MAPPINGS = {}, {}
+try:
     from .ltx_identity_gemma_vision import NODE_CLASS_MAPPINGS as GV_NODE_CLASS_MAPPINGS
     from .ltx_identity_gemma_vision import NODE_DISPLAY_NAME_MAPPINGS as GV_NODE_DISPLAY_NAME_MAPPINGS
 except Exception as _e:  # noqa
@@ -29,6 +35,7 @@ NODE_CLASS_MAPPINGS = {
     **A2R_NODE_CLASS_MAPPINGS,
     **AMV_NODE_CLASS_MAPPINGS,
     **IDT_NODE_CLASS_MAPPINGS,
+    **MA_NODE_CLASS_MAPPINGS,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -40,4 +47,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     **A2R_NODE_DISPLAY_NAME_MAPPINGS,
     **AMV_NODE_DISPLAY_NAME_MAPPINGS,
     **IDT_NODE_DISPLAY_NAME_MAPPINGS,
+    **MA_NODE_DISPLAY_NAME_MAPPINGS,
 }

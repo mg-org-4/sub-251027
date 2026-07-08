@@ -226,15 +226,40 @@ def _install_patches(ltxv):
     def prepare_timestep(self, timestep, batch_size, hidden_dtype, **kw):
         # Give the ref tokens clean (0) timestep by editing the timestep INPUT before the
         # model's per-frame compression/adaln (mirrors the audio-ref path in av_model).
-        ref_len = kw.get("_id_ref_len", getattr(self, "_id_ref_len", 0))
+        # Use ONLY the instance attribute, not kw["_id_ref_len"] — when multi-angle patches
+        # are also installed, their process_input sets kw["_id_ref_len"] which we must NOT
+        # consume here (that would double-extend the timestep and cause shape mismatches).
+        ref_len = getattr(self, "_id_ref_len", 0)
         if ref_len:
             target_len = getattr(self, "_id_target_len", None)
             if timestep.dim() <= 1 and target_len is not None:
                 timestep = timestep.view(-1, 1).expand(batch_size, target_len).contiguous()
-            if timestep.dim() >= 2:
-                ref_ts = torch.zeros(batch_size, ref_len, *timestep.shape[2:], device=timestep.device, dtype=timestep.dtype)
-                timestep = torch.cat([timestep, ref_ts], dim=1)
-            _dbg("prepare_timestep: ref_len", ref_len, "| timestep ->", _shape(timestep), "| target_len", getattr(self, "_id_target_len", None))
+            if timestep.dim() >= 2 and target_len is not None:
+                cur = timestep.shape[1]
+                # With audio connected, LTXAV can produce a combined video+audio per-token
+                # timestep (e.g. 24576 = video 6144 + audio 18432). Trim to video-only first.
+                if cur > target_len + ref_len:
+                    _dbg("prepare_timestep: oversized", cur, "-> trimming to video-only", target_len)
+                    timestep = timestep[:, :target_len]
+                    cur = target_len
+                if cur == target_len:
+                    ref_ts = torch.zeros(batch_size, ref_len, *timestep.shape[2:], device=timestep.device, dtype=timestep.dtype)
+                    timestep = torch.cat([timestep, ref_ts], dim=1)
+                    _dbg("prepare_timestep: ref_len", ref_len, "| timestep ->", _shape(timestep), "| target_len", target_len)
+                else:
+                    _dbg("prepare_timestep: skip (cur", cur, "!= target", target_len, ")")
+                # Guide nodes (IC-LoRA Guide / Director Guide, etc.) inject a grid_mask that
+                # FILTERS x tokens in _process_input (x = x[:, grid_mask]) and later indexes the
+                # timestep (timestep[:, grid_mask]). Our ref tokens are appended AFTER that
+                # filter, so extend the mask with True for them — keeps modulation and vx in
+                # lockstep (False would drop our clean timesteps and desync again).
+                gm = kw.get("grid_mask")
+                if gm is not None and hasattr(gm, "shape"):
+                    gap = timestep.shape[1] - gm.shape[-1]
+                    if 0 < gap <= ref_len:
+                        pad = torch.ones(*gm.shape[:-1], gap, dtype=gm.dtype, device=gm.device)
+                        kw = dict(kw); kw["grid_mask"] = torch.cat([gm, pad], dim=-1)
+                        _dbg("prepare_timestep: grid_mask extended by", gap)
         return orig_prepare_ts(timestep, batch_size, hidden_dtype, **kw)
 
     def prepare_pe(self, pixel_coords, frame_rate, x_dtype):
@@ -260,7 +285,7 @@ def _install_patches(ltxv):
             raise
 
     def process_output(self, x, embedded_timestep, keyframe_idxs, **kw):
-        ref_len = kw.get("_id_ref_len", getattr(self, "_id_ref_len", 0))
+        ref_len = getattr(self, "_id_ref_len", 0)
         if ref_len:
             try:
                 from comfy.ldm.lightricks.av_model import CompressedTimestep

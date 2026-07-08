@@ -88,6 +88,7 @@ Restart ComfyUI. Nodes appear under the `loaders` category.
 | **LoRA Stack** / **(Dynamic)** | Build your list of LoRAs — pick files, set strengths |
 | **LoRA Optimizer** | Analyze + merge your stack automatically. Just connect and go |
 | **LoRA Optimizer (Inline Chain)** | Drop-in filter after regular Load LoRA nodes — merges their patches in place, no restacking |
+| **LoRA Inline Chain Options** | Optional side node for the Inline Chain optimizer — set per-LoRA enable/strength/conflict/preserve options |
 | **Settings Nodes** | Optional fine-tuning: sparsification, compression, smoothing, etc. |
 | **LoRA AutoTuner** | Sweep 2000+ parameter combos, rank the best configs |
 | **LoRA Merge Estimator** | Predict the best config via k-NN over the community cache — skip the sweep |
@@ -846,18 +847,23 @@ Drop-in filter for workflows built on **regular Load LoRA nodes** — no restack
 
 ```
 Load Checkpoint ──► Load LoRA #1 ──► Load LoRA #2 ──► ... ──► LoRA Optimizer (Inline Chain) ──► KSampler
-                                                               (reads, strips, merges, re-applies)
+                                                                      ▲   (reads, strips, merges, re-applies)
+                                          LoRA Inline Chain Options ──┘ chain_options (optional)
 ```
 
 **When to use it:** you already have a workflow full of Load LoRA nodes and want the optimizer's conflict-resolved merge without rebuilding it around a **LoRA Stack**. For new workflows, the Stack → Optimizer path is still preferred — loading from files gives the optimizer real names, metadata, and architecture auto-detection.
 
-**Slot order = chain order.** Slot #1 is the first Load LoRA in the chain (closest to the checkpoint). The report opens with per-LoRA chain fingerprints so you can verify the attribution:
+**Per-LoRA options live on the side node.** Connect a **LoRA Inline Chain Options** node to the inline node's `chain_options` input to set per-LoRA enable/strength/conflict/preserve options. **Leave `chain_options` unconnected to merge every captured LoRA with default options** — the inline node works standalone.
+
+**Slot order = chain order.** Slot #1 (on the options node) is the first Load LoRA in the chain (closest to the checkpoint). The report opens with per-LoRA chain fingerprints so you can verify the attribution:
 
 ```
 [Inline Optimizer] Detected loader chain (slot -> LoRA mapping):
-  #1: 210 keys, rank 16, loader strength 0.80
-  #2: 176 keys, rank 32, loader strength 0.50, +48 clip keys @ 0.50
+  #1: my_style.safetensors — 210 keys, rank 16, loader strength 0.80
+  #2: my_char.safetensors — 176 keys, rank 32, loader strength 0.50, +48 clip keys @ 0.50
 ```
+
+When the chain is fed by **stock Load LoRA / Load LoRA (Model Only)** nodes or the **rgthree Power Lora Loader**, the inline node recovers the **real LoRA filenames** and shows them in the fingerprint (as above). Other loaders that don't tag their output fall back to a generic `chain lora #N` label.
 
 | Per-slot option | Effect |
 |---|---|
@@ -866,10 +872,15 @@ Load Checkpoint ──► Load LoRA #1 ──► Load LoRA #2 ──► ... ─�
 | `model_strength` / `clip_strength` (advanced) | Separate multipliers for the model and text-encoder branches |
 | `conflict_mode` / `key_filter` / `preserve` (advanced) | Same per-LoRA controls as **LoRA Stack (Dynamic)** |
 
-Non-LoRA patches on the incoming model — OFT/BOFT rotations, hooked entries, padded diffs, third-party patch shapes — **pass through untouched** and are counted in the report. A Settings node (advanced mode) is supported via the `settings` input.
+Non-LoRA patches on the incoming model — OFT/BOFT rotations, hooked entries, padded diffs, third-party patch shapes — **pass through untouched** and are counted in the report. A Settings node is supported via the `settings` input in **both** advanced mode and **AutoTuner mode** — the AutoTuner's multi-candidate search, memory, and community cache all run on captured chains.
+
+**What that means for memory and community caching inline:**
+- **Stock and rgthree loaders reconcile with the file-based dataset.** When a chain is fed by stock **Load LoRA** / **Load LoRA (Model Only)** or the **rgthree Power Lora Loader**, the inline node recovers each real filename and keys memory + community on the **file bytes** — the exact same identity a **LoRA Stack** run of that file uses. So a stack you tune inline shares its memory and community-cache entries with the Stack path, and vice-versa. Per-LoRA attribution is exact.
+- **Only genuinely unstamped loaders use the separate captured namespace.** A custom loader that doesn't tag its output leaves no filename, so those LoRAs fall back to a content hash of the *captured weights* (not the file bytes). Such chains share configs with **other inline chains** of the same captured content, but not with file-based recordings — this is the fallback, not the default for common loaders.
+- **Memory persists across sessions either way.** Both the file identity (stamped loaders) and the captured-content identity (unstamped) are stable across ComfyUI restarts, so a chain you tuned once is found again next run — unlike the per-session capture *names*, which change every restart.
+- **The captured-namespace fallback assumes the same ComfyUI version.** Its factors and key names depend on comfy's key-mapping / QKV-fusion, so a captured-content hash is only comparable across machines running the same comfy build. (File-identity reconciliation via stamped names is not affected — it hashes the file bytes.)
 
 **v1 limitations:**
-- **AutoTuner settings are not supported** — an AutoTuner-mode Settings node falls back to optimizer defaults (noted in the report).
 - **Fully-disjoint LoRAs at identical strengths** may be grouped or ordered ambiguously — the chain fingerprints reveal it when it happens.
 - **Model↔CLIP pairing is by chain order** — a `LoraLoaderModelOnly` or a TE-only LoRA file in the chain can shift clip attribution; the report warns when the model/clip group counts differ.
 - **Architecture detection reports `unknown` for inline capture** — set `architecture_preset` via a Settings node to get arch-tuned thresholds.

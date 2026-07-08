@@ -423,6 +423,35 @@ _ARCH_TO_PRESET = {
     "qwen_image": "llm",
 }
 
+# comfy model class (type(model.model).__name__) -> this repo's arch name.
+# Used ONLY for inline-captured chains: architecture cannot always be recovered
+# from model-space keys alone (attention-only Qwen-Image and ACE-Step v1.0 both
+# surface as transformer_blocks.N.attn.to_q). The inline node holds the real
+# MODEL object, and comfy assigns each supported architecture a distinct
+# model_base class, so its class name is authoritative. Verified against
+# comfy/model_base.py (BaseModel subclasses). Only base classes are listed —
+# subclasses (WAN22, WAN21_Vace, Flux2, LongCatImage, ZImagePixelSpace, …)
+# resolve through their MRO in _model_class_arch. Unmapped classes -> None ->
+# key-based fallback. Note: Z-Image loads as comfy's Lumina2 / ZImagePixelSpace
+# (there is no separate Z-Image class); both share NextDiT with real Lumina2
+# and resolve to the same 'dit' preset, so mapping Lumina2 -> zimage is safe.
+# SD 1.5 is intentionally omitted: comfy loads it on BaseModel itself, which is
+# every model's base — mapping it would mis-tag everything.
+_MODEL_CLASS_TO_ARCH = {
+    "QwenImage": "qwen_image",
+    "ACEStep": "acestep",
+    "ACEStep15": "acestep",
+    "LTXV": "ltx",
+    "LTXAV": "ltx",
+    "Flux": "flux",
+    "WAN21": "wan",
+    "Lumina2": "zimage",
+    "Ideogram4": "ideogram4",
+    "Anima": "anima",
+    "Krea2": "krea2",
+    "SDXL": "sdxl",
+}
+
 
 def _resolve_arch_preset(arch_override, detected_arch):
     """Resolve architecture preset from override or detected architecture."""
@@ -1027,6 +1056,28 @@ class _LoRAMergeBase:
         if torch.cuda.is_available():
             return torch.device("cuda")
         return torch.device("cpu")
+
+    @staticmethod
+    def _model_class_arch(model):
+        """Authoritative architecture from the comfy MODEL class, for
+        inline-CAPTURED chains only. type(model.model).__name__ (walking the
+        MRO so subclasses resolve via their base) maps to this repo's arch name
+        via _MODEL_CLASS_TO_ARCH. Disambiguates architectures that model-space
+        keys cannot (attention-only Qwen-Image vs ACE-Step v1.0). Returns None
+        for a missing model, a model without an inner .model, or an unmapped
+        class — the caller then falls back to key-based detection. Never raises.
+        """
+        try:
+            inner = getattr(model, "model", None)
+            if inner is None:
+                return None
+            for cls in type(inner).__mro__:
+                arch = _MODEL_CLASS_TO_ARCH.get(cls.__name__)
+                if arch is not None:
+                    return arch
+        except Exception:
+            return None
+        return None
 
     @staticmethod
     def _detect_architecture(lora_sd):
@@ -2122,6 +2173,27 @@ class _LoRAMergeBase:
         return comfy.lora.model_lora_keys_unet(model.model, {})
 
     @staticmethod
+    def _payload_rank(payload):
+        """LoRA rank of a captured payload, or None for dense/exotic payloads.
+
+        Shared by the inline fingerprint AND _prepare_group_diffs' virtual-item
+        rank accounting — one source of truth so analysis and the fingerprint
+        never disagree. tuple/list dense diffs and LoKr (whose weights[1] is the
+        w2 Kronecker factor, not a rank) return None; a real LoRA/LoHa adapter
+        returns mat_down.shape[0]."""
+        try:
+            if isinstance(payload, (tuple, list)):
+                return None  # dense diff — rank not meaningful
+            if isinstance(payload, LoKrAdapter):
+                # weights[1] is the w2 Kronecker factor, not a rank —
+                # reporting its shape as "rank N" would be a lie.
+                return None
+            down = payload.weights[1]
+            return int(down.shape[0])
+        except Exception:
+            return None
+
+    @staticmethod
     def _is_capturable_entry(entry):
         """True if a ModelPatcher patch entry is a plain additive LoRA-family
         application we can merge: adapter object or ("diff", (tensor,)) payload,
@@ -2505,7 +2577,18 @@ class _LoRAMergeBase:
                     if isinstance(raw, torch.Tensor):
                         diff = raw.float()
                     else:
-                        diff = self._expand_patch_to_diff(raw)
+                        # Move the small low-rank factors to the compute device
+                        # BEFORE the up@down expand, so the matmul runs on-device
+                        # and only the factors cross the bus — not the big dense
+                        # [out x in] result (the previous code expanded on the
+                        # factors' native CPU device, then shipped the dense diff
+                        # over). Mirrors _compute_lora_diff's factor-first move.
+                        # A ("diff", (tensor,)) payload is already dense — moving
+                        # it before/after is equivalent; _move_patch_to_device
+                        # handles that shape too.
+                        expand_src = (self._move_patch_to_device(raw, device)
+                                      if use_gpu and device is not None else raw)
+                        diff = self._expand_patch_to_diff(expand_src)
                     if device is not None and diff.device != device:
                         diff = diff.to(device)
                     try:
@@ -2514,7 +2597,14 @@ class _LoRAMergeBase:
                         diff = None
                     if diff is not None:
                         raw_contributors.add(i)
-                        rank_sum += 1
+                        # Captured chain items carry REAL weight-adapters, not
+                        # opaque dense diffs — read their true rank
+                        # (mat_down.shape[0]) so analysis doesn't report every
+                        # inline LoRA as rank 1 and floor compress_rank to 64.
+                        # Genuine dense sub-merge diffs (bare tensor / ("diff",
+                        # …)) and LoKr return None -> += 1 (rank unknown).
+                        _pr = self._payload_rank(raw)
+                        rank_sum += _pr if isinstance(_pr, int) and _pr > 0 else 1
                         if storage_dtype is None:
                             storage_dtype = raw.dtype if isinstance(raw, torch.Tensor) else diff.dtype
                         diff_accum = diff
@@ -3428,7 +3518,10 @@ class _LoRAMergeBase:
                 mat_up.flatten(start_dim=1).float(),
                 mat_down.flatten(start_dim=1).float(),
             )
-            return diff * (alpha / rank)
+            # alpha=None (PEFT/diffusers/AI-Toolkit LoRAs with no .alpha key)
+            # means no alpha/rank rescale — use up@down as-is, matching comfy
+            # (weight_adapter/lora.py) and the sibling LoKr/LoHa branches above.
+            return diff * (alpha / rank if alpha is not None else 1.0)
         raise ValueError(f"Unknown patch format: {type(patch)}")
 
     @staticmethod
@@ -4457,7 +4550,18 @@ class _LoRAMergeBase:
 
         return None
 
-    def _normalize_stack(self, lora_stack, normalize_keys="disabled"):
+    @staticmethod
+    def _stringify_lora_keys(lora_dict):
+        """Return a string-keyed VIEW of a state dict for architecture
+        detection. Captured (virtual) items may key by TUPLES (str_key,
+        offset) from fused-QKV splits, and _detect_architecture indexes
+        k.lower() / 'substr in k', which crash/misbehave on tuple keys. The
+        values are shared (no copy) and the original dict is never mutated."""
+        return {(k[0] if isinstance(k, tuple) else k): v
+                for k, v in lora_dict.items()}
+
+    def _normalize_stack(self, lora_stack, normalize_keys="disabled",
+                         _arch_hint=None):
         """
         Normalize a LoRA stack into a consistent list of dicts.
 
@@ -4550,6 +4654,8 @@ class _LoRAMergeBase:
         # Always detect architecture (used for preset selection even without key normalization)
         if len(normalized) > 0:
             arch = "unknown"
+            # File-based items carry trainer-format LoRA keys the detector /
+            # normalizer understands — try them first, exactly as before.
             for item in normalized:
                 if item.get("_precomputed_diffs"):
                     continue  # virtual LoRAs have model-space keys, not LoRA keys
@@ -4557,6 +4663,36 @@ class _LoRAMergeBase:
                 if detected != "unknown":
                     arch = detected
                     break
+            # Fallback for all-virtual (inline-captured) or mixed stacks whose
+            # file items didn't resolve: virtual items are keyed by MODEL-SPACE
+            # target keys, which STILL carry structural architecture markers
+            # (diffusion_model.transformer_blocks... for LTX,
+            # diffusion_model.layers.N.attention... for Z-Image, etc.).
+            # _detect_architecture's structural heuristics work on those. Keys
+            # may be TUPLES (str_key, offset) from fused-QKV captures, so detect
+            # on a stringified VIEW (never mutate the real lora dict). This only
+            # fires when file detection failed — a strict improvement over the
+            # old unknown->sd_unet fallthrough for inline chains.
+            if arch == "unknown":
+                has_virtual = any(item.get("_precomputed_diffs")
+                                  for item in normalized)
+                if has_virtual and _arch_hint and _arch_hint != "unknown":
+                    # Model-class detection (from the real MODEL object) is
+                    # authoritative for captured inline chains — it resolves
+                    # architectures that are indistinguishable from model-space
+                    # keys alone (e.g. attention-only Qwen-Image vs ACE-Step
+                    # v1.0, which share transformer_blocks.N.attn.to_q). Guarded
+                    # by has_virtual so FILE-based stacks stay pure key-based.
+                    arch = _arch_hint
+                else:
+                    for item in normalized:
+                        if not item.get("_precomputed_diffs"):
+                            continue
+                        detected = self._detect_architecture(
+                            self._stringify_lora_keys(item["lora"]))
+                        if detected != "unknown":
+                            arch = detected
+                            break
             self._detected_arch = arch if arch != "unknown" else None
 
             # Architecture-aware key normalization (only when enabled)
@@ -5550,7 +5686,15 @@ class LoRAOptimizer(_LoRAMergeBase):
             if isinstance(item, dict):
                 if "_merge_formula" in item:
                     continue
-                entries.append((str(item.get("name", "")),
+                # Captured items key on their content (session-stable), not
+                # their per-session salted name — this signature feeds the
+                # persistent-memory settings hash, so a salted name here would
+                # change the memory file path every session and break cross-
+                # session hits. File items use their name exactly as before.
+                name = (LoRAAutoTuner._persistent_lora_key(item)
+                        if item.get("_precomputed_diffs")
+                        else str(item.get("name", "")))
+                entries.append((name,
                                 item.get("conflict_mode", "all"),
                                 item.get("key_filter", "all"),
                                 bool(item.get("preserve", False))))
@@ -6595,12 +6739,75 @@ class LoRAOptimizer(_LoRAMergeBase):
             "reasoning": reasoning,
         }
 
+    @staticmethod
+    def _virtual_payload_is_linear_ok(payload):
+        """True if a captured payload is a plain 2D LoRAAdapter (no LoCon mid) —
+        the only shape the low-rank concat fast path can emit bit-equivalently
+        (within float tol) of the dense expand. LoKr/LoHa/dense-tensor/
+        ("diff",…)/mid!=None/non-2D payloads return False and keep their group
+        on the dense _prepare_group_diffs path."""
+        if not isinstance(payload, LoRAAdapter):
+            return False
+        # LoKr/LoHa are sibling classes, not LoRAAdapter subclasses; be explicit
+        # in case a future comfy makes them subclass a shared base.
+        if isinstance(payload, (LoKrAdapter, LoHaAdapter)):
+            return False
+        w = getattr(payload, "weights", None)
+        if not isinstance(w, (tuple, list)) or len(w) < 4:
+            return False
+        up, down, mid = w[0], w[1], w[3]
+        if mid is not None:
+            return False
+        if not (isinstance(up, torch.Tensor) and isinstance(down, torch.Tensor)):
+            return False
+        return up.dim() == 2 and down.dim() == 2
+
+    def _virtual_group_is_linear_ok(self, target_group, active_loras, model, clip):
+        """True iff every captured (virtual) contributor to this group is a
+        plain 2D LoRAAdapter targeting a 2D linear weight — the exact case the
+        low-rank concat fast path reproduces (within float tol) of the dense
+        _prepare_group_diffs + _merge_diffs path. Any LoKr/LoHa/dense/mid!=None
+        contributor, an offset-sliced (tuple) target key, or a non-2D target
+        keeps the whole group on the dense path (returns False). A group with no
+        virtual contributor returns True — the file path is left untouched."""
+        target_key = target_group["target_key"]
+        # Offset/sliced targets (e.g. Z-Image QKV refusion) reshape the dense
+        # diff to a slice; the low-rank concat can't reproduce that. Keep dense.
+        if isinstance(target_key, tuple):
+            return False
+        has_virtual = False
+        for item in active_loras:
+            if not item.get("_precomputed_diffs"):
+                continue
+            payload = item["lora"].get(target_key)
+            if payload is None:
+                continue  # this virtual item doesn't touch this group
+            has_virtual = True
+            if not self._virtual_payload_is_linear_ok(payload):
+                return False
+        if not has_virtual:
+            return True
+        # Confirm the resolved target weight is a 2D linear so up@down maps 1:1
+        # (a 4D conv target would reshape in the dense path but not here).
+        try:
+            target_shape = self._resolve_target_shape(
+                target_key, target_group["is_clip"], model, clip)
+        except (AttributeError, RuntimeError, IndexError):
+            return False
+        return len(target_shape) == 2
+
     def _build_exact_linear_patch(self, target_group, active_loras, raw_n_loras,
                                   mode, is_clip_key=False, model_scale=1.0):
         """
         Build an exact low-rank patch for linear merges by concatenating factors
         instead of materializing a dense diff. Falls back to None when the group
         contains unsupported parameterizations (for example LoCon mid matrices).
+
+        Handles both file items (trainer-format lora_up/down keys, read by
+        alias) and captured/virtual items (_precomputed_diffs: a LoRAAdapter
+        payload keyed by the model target key). Virtual items must first pass
+        _virtual_group_is_linear_ok at the call site; the per-payload guard here
+        is a defensive re-check that falls back to dense on anything unexpected.
         """
         if mode not in ("weighted_sum", "weighted_average", "normalize"):
             return None
@@ -6630,19 +6837,45 @@ class LoRAOptimizer(_LoRAMergeBase):
                 base_weight = item["strength"] * model_scale
 
             contributed = False
-            for alias in target_group["aliases"]:
-                lora_info = self._get_lora_key_info(item["lora"], alias)
-                if lora_info is None:
-                    # Check if this alias has LoKr/LoHa keys — can't represent
-                    # as low-rank factors, fall through to dense diff path
-                    if self._has_lokr_keys(item["lora"], alias) or self._has_loha_keys(item["lora"], alias):
+            if item.get("_precomputed_diffs"):
+                # Captured chain item: its lora dict maps the MODEL TARGET KEY ->
+                # adapter payload (not trainer-format {prefix}.lora_up keys), so
+                # read the factors by target key (mirrors _prepare_group_diffs'
+                # virtual branch, including the tuple fallback). Only plain 2D
+                # LoRAAdapters are eligible; anything else falls back to dense.
+                tk = target_group["target_key"]
+                payload = item["lora"].get(tk)
+                if payload is None and isinstance(tk, tuple):
+                    payload = item["lora"].get(tk[0])
+                if payload is not None:
+                    if not self._virtual_payload_is_linear_ok(payload):
                         return None
-                    continue
-                mat_up, mat_down, alpha, mid = lora_info
-                if mid is not None:
-                    return None
-                pieces.append((i, mat_up, mat_down, alpha))
-                contributed = True
+                    mat_up, mat_down = payload.weights[0], payload.weights[1]
+                    alpha = payload.weights[2]
+                    if isinstance(alpha, torch.Tensor):
+                        alpha = alpha.item()
+                    # alpha=None -> scale 1.0. Fold it as alpha==rank so the
+                    # shared piece_scale = weight * (alpha/rank) below reproduces
+                    # _expand_patch_to_diff's (alpha/rank if alpha is not None
+                    # else 1.0) exactly — the dense path's per-LoRA scale.
+                    if alpha is None:
+                        alpha = mat_down.shape[0]
+                    pieces.append((i, mat_up, mat_down, alpha))
+                    contributed = True
+            else:
+                for alias in target_group["aliases"]:
+                    lora_info = self._get_lora_key_info(item["lora"], alias)
+                    if lora_info is None:
+                        # Check if this alias has LoKr/LoHa keys — can't represent
+                        # as low-rank factors, fall through to dense diff path
+                        if self._has_lokr_keys(item["lora"], alias) or self._has_loha_keys(item["lora"], alias):
+                            return None
+                        continue
+                    mat_up, mat_down, alpha, mid = lora_info
+                    if mid is not None:
+                        return None
+                    pieces.append((i, mat_up, mat_down, alpha))
+                    contributed = True
 
             if contributed:
                 lora_weights[i] = base_weight
@@ -7412,7 +7645,13 @@ class LoRAOptimizer(_LoRAMergeBase):
         if merge_formula:
             lora_stack = clean_stack
 
-        normalized_stack = self._normalize_stack(lora_stack, normalize_keys=normalize_keys)
+        # For CAPTURED inline chains, the comfy model class is an authoritative
+        # architecture signal that model-space keys cannot always provide. Pass
+        # it as a hint; _normalize_stack consults it only for virtual items and
+        # only when key-based file detection failed (file stacks unchanged).
+        arch_hint = self._model_class_arch(model)
+        normalized_stack = self._normalize_stack(
+            lora_stack, normalize_keys=normalize_keys, _arch_hint=arch_hint)
         active_loras = [item for item in normalized_stack if item["strength"] != 0]
 
         if len(active_loras) == 0:
@@ -8078,8 +8317,18 @@ class LoRAOptimizer(_LoRAMergeBase):
             _single_lora_group = pf_n_loras == 1  # exactly one contributor
             _linear_quality_ok = (sparsification == "disabled"
                                   and merge_refinement == "none")
+            # Captured (virtual) chains were previously excluded wholesale by
+            # has_virtual_loras, forcing every group through the dense
+            # _prepare_group_diffs materialize (~10x slower on inline AutoTuner
+            # sweeps). Allow the fast path for virtual groups that qualify —
+            # every captured contributor is a plain 2D LoRAAdapter (mid None)
+            # on a 2D linear target — which _build_exact_linear_patch emits
+            # bit-equivalently. Non-qualifying virtual groups keep the dense
+            # path (the check returns False, or the builder bails to None).
             if (pf_mode in ("weighted_sum", "weighted_average", "normalize")
-                    and not has_virtual_loras
+                    and (not has_virtual_loras
+                         or self._virtual_group_is_linear_ok(
+                             target_group, active_loras, model, clip))
                     and not stack_has_preserve
                     and (_single_lora_group or _linear_quality_ok)):
                 _t_lin = _prof_t() if _merge_prof is not None else 0.0
@@ -9332,40 +9581,29 @@ class LoRAOptimizerSimple(LoRAOptimizer):
         return base
 
 
-class LoRAOptimizerInline(LoRAOptimizer):
+class LoRAInlineChainOptions:
     """
-    Inline chain filter: merges the LoRA patches that upstream regular
-    Load LoRA nodes left on the MODEL/CLIP, strips the originals, and
-    re-applies the optimized merge.  Slot options are attributed to LoRAs
-    by their order in the loader chain (first loader = LoRA #1).
+    Side node for LoRA Optimizer (Inline Chain): carries the per-LoRA option
+    widgets and emits them as a LORA_CHAIN_OPTIONS payload. The inline node
+    attributes each slot to a captured loader by chain order (slot #1 = first
+    loader). Connect this node's chain_options output to the inline node's
+    chain_options input; leaving it unconnected merges every captured LoRA
+    with default options.
     """
 
     MAX_LORAS = 10
-
-    _SLOT_DEFAULTS = {
-        "enabled": True,
-        "strength": 1.0,
-        "model_strength": 1.0,
-        "clip_strength": 1.0,
-        "conflict_mode": "all",
-        "key_filter": "all",
-        "preserve": False,
-    }
+    CATEGORY = "LoRA Optimizer"
+    FUNCTION = "build_options"
+    RETURN_TYPES = ("LORA_CHAIN_OPTIONS",)
+    RETURN_NAMES = ("chain_options",)
+    DESCRIPTION = ("Per-LoRA options for the LoRA Optimizer (Inline Chain) node. "
+                   "Set model/clip multipliers, conflict mode, key filter, and "
+                   "preserve per LoRA; slot #1 = first Load LoRA in the chain.")
 
     @classmethod
     def INPUT_TYPES(cls):
-        # Widget inputs live in "required": optional widget-type inputs render
-        # as input SOCKETS (not editable fields) in some frontends. Only
-        # genuine node-to-node wires (CLIP, OPTIMIZER_SETTINGS) go in
-        # "optional". clip_strength_multiplier is a required widget so the JS
-        # control-widget count stays predictable.
         inputs = {
             "required": {
-                "model": ("MODEL", {
-                    "tooltip": "Model coming out of your regular Load LoRA chain. "
-                               "The optimizer reads the LoRA patches on it, merges "
-                               "them, and re-applies the result."
-                }),
                 "settings_visibility": (["simple", "advanced"], {
                     "tooltip": "Simple: one strength multiplier per LoRA. "
                                "Advanced: separate model/clip multipliers, conflict mode, "
@@ -9375,28 +9613,6 @@ class LoRAOptimizerInline(LoRAOptimizer):
                     "default": 3, "min": 1, "max": cls.MAX_LORAS, "step": 1,
                     "tooltip": "How many option slots to show. Slot #1 = first Load LoRA "
                                "in the chain (closest to the checkpoint)."
-                }),
-                "output_strength": ("FLOAT", {
-                    "default": 1.0, "min": -1.0, "max": 10.0, "step": 0.05,
-                    "tooltip": "Master volume for the merged result. 1.0 = full effect, "
-                               "0.5 = half. Set to -1 for auto: the optimizer picks a "
-                               "good strength for you."
-                }),
-                "clip_strength_multiplier": ("FLOAT", {
-                    "default": 1.0, "min": 0.0, "max": 10.0, "step": 0.05,
-                    "tooltip": "How strongly LoRAs affect text understanding. At 1.0, "
-                               "same strength as the model. Lower values reduce LoRA "
-                               "influence on prompts while keeping the visual effect."
-                }),
-            },
-            "optional": {
-                "clip": ("CLIP", {
-                    "tooltip": "CLIP from the same loader chain, so text-encoder "
-                               "patches are merged too."
-                }),
-                "settings": ("OPTIMIZER_SETTINGS", {
-                    "tooltip": "Optimizer Settings node for full control (advanced "
-                               "mode). AutoTuner mode is not supported inline."
                 }),
             },
         }
@@ -9448,6 +9664,206 @@ class LoRAOptimizerInline(LoRAOptimizer):
             })
         return inputs
 
+    def build_options(self, settings_visibility, lora_count, **slot_kwargs):
+        # Reference LoRAOptimizerInline._SLOT_DEFAULTS lazily (this class is
+        # defined BEFORE it, but the method runs at execution time when both
+        # classes exist) so the 7 keys + defaults have a single source and the
+        # two nodes can't drift.
+        defaults = LoRAOptimizerInline._SLOT_DEFAULTS
+        slots = [
+            {k: slot_kwargs.get(f"{k}_{i}", d) for k, d in defaults.items()}
+            for i in range(1, int(lora_count) + 1)
+        ]
+        return ({"visibility": settings_visibility, "slots": slots},)
+
+
+# Attachment key under which stock/rgthree LoRA loaders stamp their real
+# filenames onto the model/clip (see _install_lora_name_stamp). The inline
+# node reads it back to recover real names + file identity.
+LORAOPT_CHAIN_NAMES_ATTACH = "loraopt_chain_names"
+
+
+def _loraopt_attachable(obj):
+    """Return the object that supports the ModelPatcher attachment API for
+    `obj`: the object itself (a ModelPatcher), or its ``.patcher`` (a CLIP
+    wrapper stores attachments on clip.patcher), or None if neither does.
+    Guarded with getattr so arbitrary wrapper objects never crash us."""
+    if obj is None:
+        return None
+    if callable(getattr(obj, "get_attachment", None)) and \
+            callable(getattr(obj, "set_attachments", None)):
+        return obj
+    inner = getattr(obj, "patcher", None)
+    if inner is not None and callable(getattr(inner, "get_attachment", None)) \
+            and callable(getattr(inner, "set_attachments", None)):
+        return inner
+    return None
+
+
+def _loraopt_already_stamped(fn):
+    """True if `fn` — or anything in its ``__wrapped__`` chain — is our stamp
+    wrapper. Walking the chain (not just the immediate function) stops a
+    double-wrap when a third party wraps our wrapper and we later re-import
+    (e.g. ComfyUI-HotReloadHack), which would otherwise double-stamp."""
+    seen = set()
+    while fn is not None and id(fn) not in seen:
+        if getattr(fn, "_loraopt_stamped", False):
+            return True
+        seen.add(id(fn))
+        fn = getattr(fn, "__wrapped__", None)
+    return False
+
+
+def _install_lora_name_stamp(target_cls=None):
+    """Idempotently wrap ``nodes.LoraLoader.load_lora`` so every stock/rgthree
+    LoRA load records its real filename + strengths on the model/clip it
+    returns, as an ordered ``loraopt_chain_names`` attachment list.
+
+    All three target loaders route through this ONE method:
+      * stock ``LoraLoader.load_lora`` — directly;
+      * stock ``LoraLoaderModelOnly.load_lora_model_only`` — via
+        ``self.load_lora(model, None, lora_name, strength_model, 0)``;
+      * rgthree ``RgthreePowerLoraLoader.load_loras`` — via
+        ``LoraLoader().load_lora(...)`` (its ``LoraLoader`` IS ``nodes.LoraLoader``).
+    So wrapping this single method covers all three, at call time, regardless
+    of custom-node load order.
+
+    ``target_cls`` lets tests pass a fake ``LoraLoader``-like class; production
+    resolves ``nodes.LoraLoader`` lazily. Returns True if wrapped (or already
+    wrapped), False if the target could not be resolved.
+
+    Fail-safe: any error inside the stamping path is swallowed and the original
+    ``load_lora`` result is returned unchanged — stamping must NEVER break
+    LoRA loading. The accumulator builds a NEW list every call because
+    ModelPatcher.clone copies the attachment list by reference (a shared list
+    object), so appending in place would corrupt the upstream model's chain.
+    """
+    if target_cls is None:
+        try:
+            import nodes as _comfy_nodes
+        except Exception:
+            return False
+        target_cls = getattr(_comfy_nodes, "LoraLoader", None)
+        if target_cls is None:
+            return False
+
+    orig = getattr(target_cls, "load_lora", None)
+    if orig is None:
+        return False
+    if _loraopt_already_stamped(orig):
+        return True  # already wrapped (possibly behind a third-party wrap)
+
+    @functools.wraps(orig)
+    def load_lora(self, *args, **kwargs):
+        # Call the original FIRST, passing args through verbatim — a future
+        # comfy that adds/reorders a load_lora param must never break loading.
+        result = orig(self, *args, **kwargs)
+        try:
+            if not (isinstance(result, (tuple, list)) and result):
+                return result
+            # Extract defensively (positional index with kwargs fallback):
+            # rgthree/ModelOnly call positionally, ComfyUI calls by keyword.
+            # If we can't extract, skip stamping — never touch loading.
+            try:
+                lora_name = (kwargs["lora_name"] if "lora_name" in kwargs
+                             else args[2])
+                sm = (kwargs["strength_model"] if "strength_model" in kwargs
+                      else args[3])
+                sc = (kwargs["strength_clip"] if "strength_clip" in kwargs
+                      else args[4])
+            except (IndexError, KeyError):
+                return result
+            # Mirror stock LoraLoader's early-return: a 0/0 load returns the
+            # INPUT (model, clip) UNCHANGED (no clone), so stamping would both
+            # mutate a shared upstream model AND add a phantom stamp with no
+            # capturable group (shifting stamp<->group alignment).
+            if not lora_name or (sm == 0 and sc == 0):
+                return result
+            entry = {"name": lora_name,
+                     "strength_model": float(sm),
+                     "strength_clip": float(sc)}
+            clip_out = result[1] if len(result) > 1 else None
+            for obj in (result[0], clip_out):
+                tgt = _loraopt_attachable(obj)
+                if tgt is None:
+                    continue
+                prev = tgt.get_attachment(LORAOPT_CHAIN_NAMES_ATTACH) or []
+                # NEW list — never append in place (see docstring).
+                tgt.set_attachments(LORAOPT_CHAIN_NAMES_ATTACH,
+                                    list(prev) + [entry])
+        except Exception:
+            return result
+        return result
+
+    load_lora._loraopt_stamped = True
+    target_cls.load_lora = load_lora
+    return True
+
+
+class LoRAOptimizerInline(LoRAOptimizer):
+    """
+    Inline chain filter: merges the LoRA patches that upstream regular
+    Load LoRA nodes left on the MODEL/CLIP, strips the originals, and
+    re-applies the optimized merge.  Slot options are attributed to LoRAs
+    by their order in the loader chain (first loader = LoRA #1).
+    """
+
+    _SLOT_DEFAULTS = {
+        "enabled": True,
+        "strength": 1.0,
+        "model_strength": 1.0,
+        "clip_strength": 1.0,
+        "conflict_mode": "all",
+        "key_filter": "all",
+        "preserve": False,
+    }
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        # Widget inputs the user types live in "required": optional widget-type
+        # inputs render as input SOCKETS (not editable fields) in some
+        # frontends. Genuine node-to-node wires (CLIP, OPTIMIZER_SETTINGS,
+        # LORA_CHAIN_OPTIONS) go in "optional". The per-LoRA option widgets now
+        # live on the LoRAInlineChainOptions side node, fed in via chain_options.
+        return {
+            "required": {
+                "model": ("MODEL", {
+                    "tooltip": "Model coming out of your regular Load LoRA chain. "
+                               "The optimizer reads the LoRA patches on it, merges "
+                               "them, and re-applies the result."
+                }),
+                "output_strength": ("FLOAT", {
+                    "default": 1.0, "min": -1.0, "max": 10.0, "step": 0.05,
+                    "tooltip": "Master volume for the merged result. 1.0 = full effect, "
+                               "0.5 = half. Set to -1 for auto: the optimizer picks a "
+                               "good strength for you."
+                }),
+                "clip_strength_multiplier": ("FLOAT", {
+                    "default": 1.0, "min": 0.0, "max": 10.0, "step": 0.05,
+                    "tooltip": "How strongly LoRAs affect text understanding. At 1.0, "
+                               "same strength as the model. Lower values reduce LoRA "
+                               "influence on prompts while keeping the visual effect."
+                }),
+            },
+            "optional": {
+                "clip": ("CLIP", {
+                    "tooltip": "CLIP from the same loader chain, so text-encoder "
+                               "patches are merged too."
+                }),
+                "settings": ("OPTIMIZER_SETTINGS", {
+                    "tooltip": "Optimizer Settings node for full control. Both "
+                               "advanced mode and AutoTuner mode (search / "
+                               "memory / community) are supported inline."
+                }),
+                "chain_options": ("LORA_CHAIN_OPTIONS", {
+                    "tooltip": "Connect a LoRA Inline Chain Options node to set "
+                               "per-LoRA options (attributed by chain order: slot #1 "
+                               "= first loader). Leave unconnected to merge every "
+                               "captured LoRA with default options."
+                }),
+            },
+        }
+
     # RETURN_TYPES / RETURN_NAMES / CATEGORY inherited from LoRAOptimizer:
     # (MODEL, CLIP, STRING, TUNER_DATA, LORA_DATA) — lora_data keeps
     # SaveMergedLoRA chaining working.
@@ -9458,8 +9874,78 @@ class LoRAOptimizerInline(LoRAOptimizer):
                    "result. Slot #1 = first loader in the chain.")
 
     @staticmethod
+    def _read_chain_stamps(obj):
+        """Read the ordered loraopt_chain_names attachment (real LoRA filenames
+        + strengths, stamped by stock/rgthree loaders) off `obj` — a
+        ModelPatcher or a CLIP wrapper (stamps live on clip.patcher). Returns
+        an ordered list of ``{name, strength_model, strength_clip}`` dicts, or
+        [] when the object is unstamped / doesn't support attachments."""
+        tgt = _loraopt_attachable(obj)
+        if tgt is None:
+            return []
+        try:
+            stamps = tgt.get_attachment(LORAOPT_CHAIN_NAMES_ATTACH)
+        except Exception:
+            return []
+        return list(stamps) if isinstance(stamps, (list, tuple)) else []
+
+    @staticmethod
+    def _resolve_stamp_names(groups, stamps, strength_field, tol=1e-4):
+        """Conservatively map stamped filenames to reconstructed chain groups
+        by UNIQUE strength — ORDER-INDEPENDENT. Verified against the stamp's
+        ``strength_field`` (``strength_model`` for the model branch,
+        ``strength_clip`` for the clip branch).
+
+        A group g is named ONLY when the match is unambiguous:
+          (i)  g's strength is unique among all groups (within tol), AND
+          (ii) exactly ONE stamp has strength within tol of g, AND
+          (iii) that stamp's strength is unique among all stamps (within tol).
+        Any collision/ambiguity leaves g unnamed (-> ``chain lora #N`` +
+        captured identity). A WRONG ``_resolved_file_name`` would drive the
+        persistent key and write one file's stats under another file's key,
+        polluting the shared file-based dataset — so we refuse to guess.
+        Positional index is NOT used, so same-strength groups that reconstruct
+        in any order are handled identically. The uniqueness-within-tol test
+        also closes the 0.8/0.80001 near-collision false-positive window.
+
+        Returns a list the length of `groups`, each entry a filename or None.
+        """
+        names = [None] * len(groups)
+        if not stamps:
+            return names
+        # Parse well-formed stamps once (name + branch strength); drop the rest.
+        parsed = []
+        for entry in stamps:
+            try:
+                nm = entry.get("name")
+                s = float(entry.get(strength_field))
+            except (AttributeError, TypeError, ValueError):
+                continue
+            if nm:
+                parsed.append((nm, s))
+        if not parsed:
+            return names
+        group_strengths = [float(g["strength"]) for g in groups]
+        stamp_strengths = [s for (_nm, s) in parsed]
+
+        def _count_within(values, target):
+            return sum(1 for v in values if abs(v - target) <= tol)
+
+        for i, gs in enumerate(group_strengths):
+            if _count_within(group_strengths, gs) != 1:      # (i)
+                continue
+            matches = [(nm, s) for (nm, s) in parsed if abs(s - gs) <= tol]
+            if len(matches) != 1:                            # (ii)
+                continue
+            nm, matched_s = matches[0]
+            if _count_within(stamp_strengths, matched_s) != 1:  # (iii)
+                continue
+            names[i] = nm
+        return names
+
+    @staticmethod
     def _chain_groups_to_stack(model_groups, clip_groups, slots, visibility,
-                               name_salt=""):
+                               name_salt="", model_names=None, clip_names=None):
         """
         Build virtual stack items (the _model_to_virtual_lora schema) from
         ordered chain groups.  Model and clip groups pair by chain order:
@@ -9520,7 +10006,7 @@ class LoRAOptimizerInline(LoRAOptimizer):
                 # would merge at zero anyway); clip_strength stays 0.0 as the
                 # honest record of the user's choice.
                 strength = model_val
-            items.append({
+            item = {
                 "name": f"chain lora #{i + 1}{name_salt}",
                 "lora": lora_dict,
                 "_precomputed_diffs": True,
@@ -9530,7 +10016,19 @@ class LoRAOptimizerInline(LoRAOptimizer):
                 "key_filter": opts.get("key_filter", defaults["key_filter"]),
                 "preserve": bool(opts.get("preserve", defaults["preserve"])),
                 "metadata": {},
-            })
+            }
+            # Real filename recovered from a loader stamp -> file identity
+            # (persistent key + community content hash reconcile with Stack).
+            # Prefer the model-branch name; the paired clip branch is the same
+            # loader/file, so it's a safe fallback for a model-zeroed item.
+            resolved = None
+            if model_names and i < len(model_names):
+                resolved = model_names[i]
+            if not resolved and clip_names and i < len(clip_names):
+                resolved = clip_names[i]
+            if resolved:
+                item["_resolved_file_name"] = resolved
+            items.append(item)
         # Clip-only leftovers: loader calls that only patched the CLIP branch
         for j in range(len(model_groups), len(clip_groups)):
             opts = slots[j] if j < len(slots) else defaults
@@ -9543,7 +10041,7 @@ class LoRAOptimizerInline(LoRAOptimizer):
             clip_val = clip_groups[j]["strength"] * clip_mult
             if clip_val == 0:
                 continue
-            items.append({
+            item = {
                 "name": f"chain lora #{j + 1} (clip-only){name_salt}",
                 "lora": dict(clip_groups[j]["entries"]),
                 "_precomputed_diffs": True,
@@ -9555,12 +10053,15 @@ class LoRAOptimizerInline(LoRAOptimizer):
                 "key_filter": opts.get("key_filter", defaults["key_filter"]),
                 "preserve": bool(opts.get("preserve", defaults["preserve"])),
                 "metadata": {},
-            })
+            }
+            if clip_names and j < len(clip_names) and clip_names[j]:
+                item["_resolved_file_name"] = clip_names[j]
+            items.append(item)
         return items
 
     def execute_inline(self, model, output_strength, clip=None,
-                       clip_strength_multiplier=1.0, settings_visibility="simple",
-                       lora_count=3, settings=None, **slot_kwargs):
+                       clip_strength_multiplier=1.0, settings=None,
+                       chain_options=None):
         model_groups = self._reconstruct_chain_groups(getattr(model, "patches", {}) or {})
         clip_patcher = getattr(clip, "patcher", None) if clip is not None else None
         clip_groups = (self._reconstruct_chain_groups(getattr(clip_patcher, "patches", {}) or {})
@@ -9584,10 +10085,15 @@ class LoRAOptimizerInline(LoRAOptimizer):
                           "Load LoRA nodes. Model passed through unchanged.")
             return (model, clip, report, None, None)
 
-        slots = []
-        for i in range(1, lora_count + 1):
-            slots.append({k: slot_kwargs.get(f"{k}_{i}", d)
-                          for k, d in self._SLOT_DEFAULTS.items()})
+        # Per-LoRA options come from the connected LoRAInlineChainOptions side
+        # node. Unconnected -> merge every captured LoRA with default options
+        # (slots empty; _chain_groups_to_stack applies _SLOT_DEFAULTS per group).
+        if chain_options is not None:
+            visibility = chain_options.get("visibility", "simple")
+            slots = chain_options.get("slots", []) or []
+        else:
+            visibility = "simple"
+            slots = []
 
         # Merge-cache correctness (defense-in-depth): optimize_merge's in-node
         # cache keys on item names + strengths, and virtual names carry no
@@ -9600,9 +10106,23 @@ class LoRAOptimizerInline(LoRAOptimizer):
         salt = str(getattr(model, "patches_uuid", ""))[:8]
         if clip_patcher is not None:
             salt += "/" + str(getattr(clip_patcher, "patches_uuid", ""))[:8]
+
+        # Recover real LoRA filenames stamped by stock/rgthree loaders (see
+        # _install_lora_name_stamp) and align them to the reconstructed groups
+        # by chain order + strength. Named groups display real names and carry
+        # file identity so memory/community reconcile with the Stack path;
+        # unstamped groups (custom loaders / no attachment) keep the generic
+        # ``chain lora #N`` display + captured-content-hash identity.
+        model_names = self._resolve_stamp_names(
+            model_groups, self._read_chain_stamps(model), "strength_model")
+        clip_names = self._resolve_stamp_names(
+            clip_groups, self._read_chain_stamps(clip), "strength_clip")
+
         stack = self._chain_groups_to_stack(model_groups, clip_groups, slots,
-                                            settings_visibility,
-                                            name_salt=f" [{salt}]")
+                                            visibility,
+                                            name_salt=f" [{salt}]",
+                                            model_names=model_names,
+                                            clip_names=clip_names)
 
         stripped_model = model.clone()
         self._strip_captured_entries(stripped_model, model_groups)
@@ -9633,6 +10153,7 @@ class LoRAOptimizerInline(LoRAOptimizer):
                             # enabled cache only pins one stale merged-patch
                             # set in RAM per instance. Pinned off.
                             cache_patches="disabled")
+        autotuner_mode = False
         autotuner_fallback = False
         if settings is not None and settings.get("mode") == "advanced":
             # Shared mapping with LoRAOptimizerSimple (single source of
@@ -9641,19 +10162,105 @@ class LoRAOptimizerInline(LoRAOptimizer):
             merge_kwargs.update(self._advanced_merge_kwargs(settings))
             merge_kwargs["normalize_keys"] = "disabled"
             merge_kwargs["cache_patches"] = "disabled"
+        elif settings is not None and settings.get("mode") == "autotuner":
+            # Captured chains now get the full AutoTuner (search / memory /
+            # community): the stable content hash gives virtual items a
+            # persistent identity, and auto_tune runs candidates through
+            # optimize_merge (which handles _precomputed_diffs) off the passed
+            # stack — it never reloads from files. Delegated below, after the
+            # fingerprint is built.
+            autotuner_mode = True
         elif settings is not None:
-            # AutoTuner's caches key on file identity, which virtual chain
-            # items don't have — v1 falls back to optimizer defaults.
+            # Genuinely unknown settings mode — fall back to optimizer defaults.
             autotuner_fallback = True
 
+        # Only surface the "slots vs LoRAs detected" note when an options node
+        # is actually connected. Unconnected -> fp_lora_count == group count,
+        # so no mismatch fires (merge-all-defaults is not a mismatch).
+        fp_lora_count = (len(slots) if chain_options is not None
+                         else max(len(model_groups), len(clip_groups)))
+        # Detect architecture from the captured MODEL-SPACE keys for DISPLAY
+        # consistency. _normalize_stack's virtual fallback runs the SAME
+        # function on the SAME keys and is the source of truth for the actual
+        # preset — this just mirrors it in the fingerprint so the log names the
+        # real arch (e.g. LTX -> 'ltx' -> dit preset) instead of "unknown".
+        # Union of model + clip entry keys; tuple (fused-QKV) keys stringified.
+        combined_keys = {}
+        for g in model_groups:
+            combined_keys.update(g["entries"])
+        for g in clip_groups:
+            combined_keys.update(g["entries"])
+        detected_arch = self._detect_architecture(
+            self._stringify_lora_keys(combined_keys))
+        arch_display = detected_arch if detected_arch != "unknown" else None
+        # Warn only when detection genuinely fails AND no preset is pinned via a
+        # Settings node (an explicit preset resolves regardless of detection).
+        # Advanced mode pins it into merge_kwargs; autotuner mode reads it
+        # straight off the settings dict (it doesn't touch merge_kwargs).
+        preset_pinned = merge_kwargs.get("architecture_preset", "auto") != "auto"
+        if autotuner_mode:
+            preset_pinned = settings.get("architecture_preset", "auto") != "auto"
         fingerprint = self._chain_fingerprint(
-            model_groups, clip_groups, lora_count, passthrough,
-            # Virtual items skip _normalize_stack's arch detection, so "auto"
-            # can never resolve inline — warn unless a preset is pinned.
-            arch_unknown=merge_kwargs.get("architecture_preset", "auto") == "auto")
+            model_groups, clip_groups, fp_lora_count, passthrough,
+            arch_unknown=(arch_display is None and not preset_pinned),
+            arch_display=arch_display,
+            model_names=model_names, clip_names=clip_names)
         if autotuner_fallback:
-            fingerprint += ("[Inline Optimizer] AutoTuner settings are not "
-                            "supported inline — using optimizer defaults.\n\n")
+            fingerprint += ("[Inline Optimizer] Unknown settings mode — using "
+                            "optimizer defaults.\n\n")
+
+        if autotuner_mode:
+            # Delegate to the AutoTuner exactly like LoRAOptimizerSimple's
+            # autotuner branch, but on the inline-prepared STRIPPED model/clip
+            # and the VIRTUAL stack (never the raw model / original chain), and
+            # force normalize_keys off — captured keys are already model-
+            # canonical, so re-normalizing would corrupt them.
+            if not hasattr(self, '_autotuner_delegate'):
+                self._autotuner_delegate = LoRAAutoTuner()
+            result = self._autotuner_delegate.auto_tune(
+                stripped_model, stack, output_strength,
+                clip=stripped_clip, clip_strength_multiplier=clip_strength_multiplier,
+                top_n=settings["top_n"],
+                scoring_svd=settings["scoring_svd"],
+                scoring_device=settings["scoring_device"],
+                scoring_speed=settings["scoring_speed"],
+                scoring_formula=settings.get("scoring_formula", "v2"),
+                output_mode=settings["output_mode"],
+                smooth_slerp_gate=settings["smooth_slerp_gate"],
+                star_eta=settings.get("star_eta", 100.0),
+                tame_layers=settings.get("tame_layers", 0.0),
+                tame_threshold=settings.get("tame_threshold", 0.3),
+                # Captured keys are already canonical — never re-normalize,
+                # regardless of the settings value.
+                normalize_keys="disabled",
+                architecture_preset=settings["architecture_preset"],
+                auto_strength_floor=settings["auto_strength_floor"],
+                decision_smoothing=settings["decision_smoothing"],
+                vram_budget=settings["vram_budget"],
+                # Pinned off (not forwarded from settings): the delegate's
+                # in-node patch cache keys on id() of the fresh stripped clone,
+                # so it can never usefully hit for inline AND reintroduces the
+                # id()-reuse staleness window the node pins off for its own path.
+                cache_patches="disabled",
+                diff_cache_mode=settings["diff_cache_mode"],
+                diff_cache_ram_pct=settings["diff_cache_ram_pct"],
+                community_cache=settings.get("community_cache", "disabled"),
+                evaluator=settings.get("evaluator"),
+                memory_mode=settings.get("memory_mode", "disabled"),
+                selection=settings.get("selection", 1),
+                record_dataset=settings.get("record_dataset", "disabled"),
+            )
+            # Map the 6-tuple AutoTuner return to the inline node's 5-tuple
+            # (model, clip, report, tuner_data, lora_data), mirroring
+            # execute_simple, then prepend the chain fingerprint.
+            at_model, at_clip, report, analysis_report, at_tuner_data, at_lora_data = result
+            combined_report = report
+            if analysis_report:
+                combined_report = (f"{report}\n\n{'=' * 50}\nANALYSIS REPORT\n"
+                                   f"{'=' * 50}\n{analysis_report}")
+            return self._prepend_report(
+                (at_model, at_clip, combined_report, at_tuner_data, at_lora_data),
+                fingerprint)
 
         # optimize_merge clones the stripped model/clip again and add_patches
         # the merged result — that is the intended re-apply path.
@@ -9661,25 +10268,17 @@ class LoRAOptimizerInline(LoRAOptimizer):
                                      **merge_kwargs)
         return self._prepend_report(result, fingerprint)
 
-    @staticmethod
-    def _payload_rank(payload):
-        """LoRA rank of a captured payload, or None for dense/exotic payloads."""
-        try:
-            if isinstance(payload, (tuple, list)):
-                return None  # dense diff — rank not meaningful
-            if isinstance(payload, LoKrAdapter):
-                # weights[1] is the w2 Kronecker factor, not a rank —
-                # reporting its shape as "rank N" would be a lie.
-                return None
-            down = payload.weights[1]
-            return int(down.shape[0])
-        except Exception:
-            return None
-
     def _chain_fingerprint(self, model_groups, clip_groups, lora_count,
-                           passthrough_count=0, arch_unknown=False):
+                           passthrough_count=0, arch_unknown=False,
+                           arch_display=None, model_names=None, clip_names=None):
         """Human-readable slot → LoRA attribution header, prepended to the
-        engine report so the user can verify chain-order attribution."""
+        engine report so the user can verify chain-order attribution. When a
+        real filename was recovered from a loader stamp (model_names/clip_names),
+        it replaces the generic ``chain lora #N`` label."""
+        def _label(names, idx):
+            if names and idx < len(names) and names[idx]:
+                return f"{names[idx]} — "
+            return ""
         lines = ["[Inline Optimizer] Detected loader chain (slot -> LoRA mapping):"]
         for i, g in enumerate(model_groups):
             ranks = [r for r in (self._payload_rank(p) for p in g["entries"].values())
@@ -9689,10 +10288,12 @@ class LoRAOptimizerInline(LoRAOptimizer):
             if i < len(clip_groups):
                 clip_note = (f", +{len(clip_groups[i]['entries'])} clip keys "
                              f"@ {clip_groups[i]['strength']:.2f}")
-            lines.append(f"  #{i + 1}: {len(g['entries'])} keys, {rank_s}, "
+            lines.append(f"  #{i + 1}: {_label(model_names, i)}{len(g['entries'])} "
+                         f"keys, {rank_s}, "
                          f"loader strength {g['strength']:.2f}{clip_note}")
         for j in range(len(model_groups), len(clip_groups)):
-            lines.append(f"  #{j + 1}: clip-only, {len(clip_groups[j]['entries'])} "
+            lines.append(f"  #{j + 1}: {_label(clip_names, j)}clip-only, "
+                         f"{len(clip_groups[j]['entries'])} "
                          f"clip keys @ {clip_groups[j]['strength']:.2f}")
         if model_groups and clip_groups and len(model_groups) != len(clip_groups):
             lines.append(f"  warning: {len(model_groups)} model-side vs "
@@ -9709,7 +10310,10 @@ class LoRAOptimizerInline(LoRAOptimizer):
         if passthrough_count > 0:
             lines.append(f"  note: {passthrough_count} non-LoRA patch entries "
                          f"passed through untouched (left on the model/clip).")
-        if arch_unknown:
+        if arch_display:
+            lines.append(f"  architecture: {arch_display} (detected from "
+                         f"captured keys)")
+        elif arch_unknown:
             lines.append("  architecture: unknown (inline capture) — set "
                          "architecture_preset via a Settings node for "
                          "arch-tuned thresholds.")
@@ -9733,28 +10337,26 @@ class LoRAOptimizerInline(LoRAOptimizer):
 
     @classmethod
     def IS_CHANGED(cls, model, output_strength, clip=None,
-                   clip_strength_multiplier=1.0, settings_visibility="simple",
-                   lora_count=3, settings=None, **slot_kwargs):
+                   clip_strength_multiplier=1.0, settings=None,
+                   chain_options=None):
         """Execution-cache key for the inline node. The inherited
         LoRAOptimizer.IS_CHANGED expects lora_stack and would raise on this
         node's inputs — ComfyUI then treats the node as always-changed and
-        re-merges on every queue press. Keys on every CONSULTED widget (slots
-        beyond lora_count don't affect the output) plus the model/clip
-        patches_uuid and settings content. Note: under live ComfyUI, linked
-        inputs (model/clip/settings) arrive here as None — upstream changes
-        invalidate through the executor's ancestor cache keys instead; the
-        patches_uuid terms matter for harness/direct callers."""
+        re-merges on every queue press. Keys on the model/clip patches_uuid,
+        output_strength/clip_strength_multiplier, and the chain_options +
+        settings content. Note: chain_options is a linked input (None live) —
+        the options node's widget changes invalidate via the executor's
+        ancestor cache keys; the patches_uuid/chain_options terms matter for
+        harness/direct callers."""
         h = hashlib.sha256()
         h.update(str(getattr(model, "patches_uuid", id(model))).encode())
         clip_patcher = getattr(clip, "patcher", None) if clip is not None else None
         if clip_patcher is not None:
             h.update(f"|clip={getattr(clip_patcher, 'patches_uuid', id(clip))}".encode())
-        h.update(f"|os={output_strength}|csm={clip_strength_multiplier}"
-                 f"|vis={settings_visibility}|n={lora_count}".encode())
-        for i in range(1, int(lora_count) + 1):
-            slot = {k: slot_kwargs.get(f"{k}_{i}", d)
-                    for k, d in cls._SLOT_DEFAULTS.items()}
-            h.update(json.dumps(slot, sort_keys=True, default=str).encode())
+        h.update(f"|os={output_strength}|csm={clip_strength_multiplier}".encode())
+        if chain_options is not None:
+            h.update(json.dumps(chain_options, sort_keys=True,
+                                default=str).encode())
         if settings is not None:
             h.update(json.dumps(settings, sort_keys=True, default=str).encode())
         return h.hexdigest()[:16]
@@ -9932,6 +10534,12 @@ class LoRAAutoTuner(LoRAOptimizer):
         """
         entries = []
         for item in active_loras:
+            if item.get("_precomputed_diffs"):
+                # Captured items: their name+mtime+size would change every
+                # session (salted name, no file), so key on the session-stable
+                # content identity to get cross-session analysis-cache reuse.
+                entries.append((LoRAAutoTuner._persistent_lora_key(item), 0, 0))
+                continue
             name = item["name"]
             path = folder_paths.get_full_path("loras", name)
             if path is not None:
@@ -9954,6 +10562,18 @@ class LoRAAutoTuner(LoRAOptimizer):
                             f"{names_only_hash}.analysis.json")
 
     @staticmethod
+    def _cache_source_loras(active_loras):
+        """Source-LoRA identity list stored in the whole-stack analysis cache.
+        Keys each item on its SESSION-STABLE persistent key (captured:<hash> for
+        inline captures, else the file name) — the same identity
+        _remap_analysis_indices validates against — so the analysis cache HITS
+        cross-session for captured chains, whose raw names carry a per-session
+        salt. File items are unchanged: _persistent_lora_key returns their
+        name, so this is byte-identical to the old [{"name": item["name"]}]."""
+        return [{"name": LoRAAutoTuner._persistent_lora_key(item)}
+                for item in active_loras]
+
+    @staticmethod
     def _remap_analysis_indices(per_prefix, cached_source_loras, active_loras):
         """
         Remap index-keyed analysis-cache entries from the cached stack order
@@ -9968,8 +10588,17 @@ class LoRAAutoTuner(LoRAOptimizer):
         if not per_prefix or not cached_source_loras:
             return None
         try:
-            cached_names = [l["name"] for l in cached_source_loras]
-            current_names = [l["name"] for l in active_loras]
+            # Compare on the SESSION-STABLE persistent key, not the raw name:
+            # captured inline items carry a per-session salted name, so a raw
+            # comparison never matches across sessions and the (content-keyed)
+            # analysis cache misses. File items: _persistent_lora_key returns
+            # their name -> byte-identical to the old raw comparison. Stored
+            # source_loras are already persistent-keyed dicts (no
+            # _precomputed_diffs), so this returns their stored key unchanged.
+            cached_names = [LoRAAutoTuner._persistent_lora_key(l)
+                            for l in cached_source_loras]
+            current_names = [LoRAAutoTuner._persistent_lora_key(l)
+                             for l in active_loras]
         except (TypeError, KeyError):
             return None
         if sorted(cached_names) != sorted(current_names):
@@ -10153,7 +10782,17 @@ class LoRAAutoTuner(LoRAOptimizer):
 
     @staticmethod
     def _lora_identity_hash(lora_item):
-        """16-char hex hash of a single LoRA's file identity (name+mtime+size)."""
+        """16-char hex hash of a single LoRA's file identity (name+mtime+size).
+
+        Captured/virtual items (_precomputed_diffs) have no file and a per-
+        session salted name, so name+mtime+size would change every session and
+        their per-LoRA/pair analysis disk caches could never cross-session hit.
+        They hash their session-stable content key instead — giving inline the
+        same cross-session analysis-cache reuse the file-based Stack path has.
+        File items are untouched (the branch below runs only for captured)."""
+        if lora_item.get("_precomputed_diffs"):
+            key = LoRAAutoTuner._persistent_lora_key(lora_item)
+            return hashlib.sha256(key.encode()).hexdigest()[:16]
         name = lora_item["name"]
         path = folder_paths.get_full_path("loras", name)
         if path is not None:
@@ -10279,21 +10918,52 @@ class LoRAAutoTuner(LoRAOptimizer):
         a stable content hash instead of disabling the community cache.
         """
         try:
-            name = lora_item["name"]
+            # A captured inline item whose real filename was recovered from the
+            # loader stamp (_resolved_file_name) resolves to the FILE and hashes
+            # its bytes — reconciling with the file-based (Stack) community
+            # dataset. File items and unnamed captures use "name" unchanged.
+            name = lora_item.get("_resolved_file_name") or lora_item["name"]
             path = folder_paths.get_full_path("loras", name)
             if path is None:
                 lora_sd = lora_item.get("lora")
                 if isinstance(lora_sd, dict) and lora_sd:
                     h = hashlib.sha256()
-                    for k in sorted(lora_sd.keys()):
-                        v = lora_sd[k]
-                        h.update(k.encode())
-                        if hasattr(v, "detach"):
-                            t = v.detach().to("cpu", torch.float32).contiguous()
+
+                    def _feed(val):
+                        # Value-based, object-identity-INDEPENDENT hashing so a
+                        # captured chain gets a stable content hash across
+                        # sessions/machines. Tensors -> shape + float32 bytes
+                        # (float32 normalization makes bf16/fp16 captures
+                        # portable). Captured adapter objects
+                        # (LoRAAdapter/LoKr/LoHa) -> their .weights factor
+                        # tensors (up/down/alpha/mid) recursively, so the hash
+                        # tracks the actual weights, not the object address.
+                        # ("diff",(tensor,))/tuple/list payloads -> a type
+                        # marker + contained tensors. Only opaque leftovers
+                        # fall back to repr (last resort).
+                        if hasattr(val, "detach"):
+                            t = val.detach().to("cpu", torch.float32).contiguous()
                             h.update(str(tuple(t.shape)).encode())
                             h.update(t.numpy().tobytes())
+                        elif hasattr(val, "weights"):
+                            h.update(b"adapter")
+                            for w in val.weights:
+                                _feed(w)
+                        elif isinstance(val, (tuple, list)):
+                            h.update(b"seq")
+                            for w in val:
+                                _feed(w)
                         else:
-                            h.update(repr(v).encode())
+                            h.update(repr(val).encode())
+
+                    # Stringify keys before sorting/encoding: captured items may
+                    # key by (str, offset) tuples (fused-QKV), which crash a bare
+                    # .encode(). For plain string keys str(k)==k and the sort
+                    # order is unchanged, so plain-tensor dicts stay byte-
+                    # identical to the pre-fix hash.
+                    for k in sorted(lora_sd.keys(), key=lambda x: str(x)):
+                        h.update(str(k).encode())
+                        _feed(lora_sd[k])
                     return h.hexdigest()[:16]
                 return None
             st = os.stat(path)
@@ -10313,6 +10983,45 @@ class LoRAAutoTuner(LoRAOptimizer):
             logging.warning(f"[AutoTuner Community] Could not compute content hash for "
                             f"'{lora_item.get('name', '?')}': {e}")
             return None
+
+    @staticmethod
+    def _memo_content_hash(lora_item):
+        """Memoized _lora_content_hash, cached on the item dict. Content-hashing
+        captured factor tensors is expensive (hundreds of MB across ~1500 keys)
+        and the same active_loras dicts are reused across every candidate +
+        memory + community lookup in a run, so compute it at most once per LoRA.
+        The value is deterministic, so memoizing on the dict is always safe.
+        File items get the same (cheap, disk-cached) hash — result byte-identical,
+        only an in-memory dict key is added (never serialized anywhere)."""
+        if "_content_hash" in lora_item:
+            return lora_item["_content_hash"]
+        ch = LoRAAutoTuner._lora_content_hash(lora_item)
+        lora_item["_content_hash"] = ch
+        return ch
+
+    @staticmethod
+    def _persistent_lora_key(lora_item):
+        """Session-stable identity for the persistent memory + per-LoRA/pair
+        analysis-cache keys.
+
+        File-based items key on their NAME (name+mtime+size is stable across
+        sessions). Captured/virtual items (_precomputed_diffs) have no file and
+        a per-session salted name (``chain lora #N [uuid]``), so they key on
+        their CONTENT hash instead — that is what makes inline memory /
+        community persist across sessions. Independent of the community_cache
+        gate: memory needs this even when community is disabled.
+
+        Inline captures whose real filename was recovered from a stock/rgthree
+        loader stamp (_resolved_file_name) key on that FILE name — exactly like
+        a Stack item — so an inline-named run and a Stack run of the same LoRA
+        share the memory/community key."""
+        resolved = lora_item.get("_resolved_file_name")
+        if resolved:
+            return resolved
+        if not lora_item.get("_precomputed_diffs"):
+            return lora_item["name"]
+        ch = LoRAAutoTuner._memo_content_hash(lora_item)
+        return f"captured:{ch}" if ch is not None else lora_item["name"]
 
     # --- Community cache: network I/O ---
 
@@ -10878,7 +11587,11 @@ class LoRAAutoTuner(LoRAOptimizer):
             "lora_hash": lora_hash,
             "settings_hash": settings_hash,
             "settings": settings,
-            "source_loras": [{"name": l["name"], "strength": l["strength"]}
+            # Persist the session-stable identity as the matched "name" so the
+            # names-only fallback (_memory_find_by_names) cross-session hits for
+            # captured chains. File items store their name exactly as before.
+            "source_loras": [{"name": LoRAAutoTuner._persistent_lora_key(l),
+                              "strength": l["strength"]}
                              for l in source_loras],
             "tuner_data": tuner_data,
         }
@@ -10969,7 +11682,13 @@ class LoRAAutoTuner(LoRAOptimizer):
             lora_stack = clean_stack
 
         # --- Normalize & validate stack ---
-        normalized_stack = self._normalize_stack(lora_stack, normalize_keys=normalize_keys)
+        # Pass the model-class arch hint so captured (inline) chains score
+        # candidates under the correct preset (else key-based detection
+        # mis-tags e.g. attention-only Qwen as ACE-Step). File-based stacks
+        # have no virtual items, so the hint is unreachable — identical.
+        normalized_stack = self._normalize_stack(
+            lora_stack, normalize_keys=normalize_keys,
+            _arch_hint=self._model_class_arch(model))
         active_loras = [item for item in normalized_stack if item["strength"] != 0]
         if not active_loras:
             return (model, clip, "No active LoRAs in stack.", "", None, None)
@@ -11114,12 +11833,16 @@ class LoRAAutoTuner(LoRAOptimizer):
             else:
                 logging.info("[AutoTuner Analysis Cache] MISS")
 
-        # Order-independent hash for persistent memory (sorted pairs)
+        # Order-independent hash for persistent memory (sorted pairs).
+        # Captured items key on their content hash (session-stable) instead of
+        # their per-session salted name — see _persistent_lora_key. File items
+        # key on their name exactly as before.
         if memory_mode != "disabled" and not _is_sub_merge:
             if memory_mode == "auto_ignore_strength":
-                _mem_key = sorted([l["name"] for l in active_loras])
+                _mem_key = sorted([self._persistent_lora_key(l) for l in active_loras])
             else:
-                _mem_key = sorted([(l["name"], l["strength"]) for l in active_loras])
+                _mem_key = sorted([(self._persistent_lora_key(l), l["strength"])
+                                   for l in active_loras])
             memory_lora_hash = hashlib.sha256(
                 json.dumps(_mem_key, separators=(",", ":")).encode()
             ).hexdigest()[:16]
@@ -11224,7 +11947,14 @@ class LoRAAutoTuner(LoRAOptimizer):
                          f"for {len(active_loras)} LoRA(s)...")
             _all_hashed = True
             for _i, _lora in enumerate(active_loras):
-                _ch = self._lora_content_hash(_lora)
+                # Reuse the memoized hash the memory key above already computed
+                # for captured items; otherwise compute via the INSTANCE method
+                # so per-instance overrides and the file-based path are untouched.
+                if "_content_hash" in _lora:
+                    _ch = _lora["_content_hash"]
+                else:
+                    _ch = self._lora_content_hash(_lora)
+                    _lora["_content_hash"] = _ch
                 if _ch is not None:
                     content_hashes[_i] = _ch
                 else:
@@ -11399,9 +12129,10 @@ class LoRAAutoTuner(LoRAOptimizer):
                 if cached_tuner_data is None and memory_mode == "auto_ignore_strength":
                     # Fallback: find any strength-sensitive entry with matching LoRA names,
                     # preferring the one trained at the highest absolute strengths
-                    lora_names_sorted = sorted([l["name"] for l in active_loras])
+                    lora_names_sorted = sorted(
+                        [self._persistent_lora_key(l) for l in active_loras])
                     lora_signs_sorted = sorted(
-                        (l["name"], 1 if l["strength"] >= 0 else -1)
+                        (self._persistent_lora_key(l), 1 if l["strength"] >= 0 else -1)
                         for l in active_loras)
                     cached_tuner_data = self._memory_find_by_names(
                         lora_names_sorted, settings_hash, top_n,
@@ -11532,7 +12263,7 @@ class LoRAAutoTuner(LoRAOptimizer):
             pbar = _NullPbar()
         else:
             pbar = comfy.utils.ProgressBar(len(target_groups) + n_pbar_merges)
-        source_loras_for_cache = [{"name": item["name"]} for item in active_loras]
+        source_loras_for_cache = self._cache_source_loras(active_loras)
         partial_accumulated = dict(cached_analysis or {})
         # Throttle checkpoint writes: each save serializes the whole
         # accumulated dict (O(P) JSON per write → O(P²) over a run); a crash
@@ -15447,6 +16178,7 @@ NODE_CLASS_MAPPINGS = {
     "LoRAStackDynamic": LoRAStackDynamic,
     "LoRAOptimizer": LoRAOptimizer,
     "LoRAOptimizerSimple": LoRAOptimizerSimple,
+    "LoRAInlineChainOptions": LoRAInlineChainOptions,
     "LoRAOptimizerInline": LoRAOptimizerInline,
     "SaveMergedLoRA": SaveMergedLoRA,
     "BuildAutoTunerPythonEvaluator": BuildAutoTunerPythonEvaluator,
@@ -15474,6 +16206,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LoRAStackDynamic": "LoRA Stack (Dynamic)",
     "LoRAOptimizer": "LoRA Optimizer (Legacy)",
     "LoRAOptimizerSimple": "LoRA Optimizer",
+    "LoRAInlineChainOptions": "LoRA Inline Chain Options",
     "LoRAOptimizerInline": "LoRA Optimizer (Inline Chain)",
     "SaveMergedLoRA": "Save Merged LoRA",
     "BuildAutoTunerPythonEvaluator": "Build AutoTuner Python Evaluator",

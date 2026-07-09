@@ -1,0 +1,878 @@
+{
+  "id": "43e057af-fe5c-4a29-9cc1-5afa929aab15",
+  "revision": 0,
+  "last_node_id": 19,
+  "last_link_id": 26,
+  "nodes": [
+    {
+      "id": 6,
+      "type": "Krea2StyleReference",
+      "pos": [
+        204.6552918383838,
+        -215.5306301273476
+      ],
+      "size": [
+        305.19064963923415,
+        122
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 3
+        },
+        {
+          "name": "target_latent",
+          "type": "LATENT",
+          "link": 4
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "reference_latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            7
+          ]
+        },
+        {
+          "name": "reference_preview",
+          "type": "IMAGE",
+          "slot_index": 1,
+          "links": null
+        },
+        {
+          "name": "debug",
+          "type": "STRING",
+          "slot_index": 2,
+          "links": null
+        }
+      ],
+      "title": "Krea2 Style Reference 1",
+      "properties": {
+        "Node name for S&R": "Krea2StyleReference"
+      },
+      "widgets_values": [
+        "crop",
+        "lanczos"
+      ]
+    },
+    {
+      "id": 14,
+      "type": "Krea2StyleReference",
+      "pos": [
+        200.23403261548606,
+        -39.29939889307646
+      ],
+      "size": [
+        306.1873593929638,
+        122
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 17
+        },
+        {
+          "name": "target_latent",
+          "type": "LATENT",
+          "link": 18
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "reference_latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            19
+          ]
+        },
+        {
+          "name": "reference_preview",
+          "type": "IMAGE",
+          "slot_index": 1,
+          "links": null
+        },
+        {
+          "name": "debug",
+          "type": "STRING",
+          "slot_index": 2,
+          "links": null
+        }
+      ],
+      "title": "Krea2 Style Reference 2",
+      "properties": {
+        "Node name for S&R": "Krea2StyleReference"
+      },
+      "widgets_values": [
+        "crop",
+        "lanczos"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        542.9019238367281,
+        -14.368107635959461
+      ],
+      "size": [
+        210,
+        70
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            13
+          ]
+        }
+      ],
+      "title": "Negative (Zero Out)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "ConditioningZeroOut"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 11,
+      "type": "VAEDecode",
+      "pos": [
+        555.1003529312771,
+        152.68302337648913
+      ],
+      "size": [
+        160,
+        80
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 14
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            15
+          ]
+        }
+      ],
+      "title": "VAE Decode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        -488.911354378725,
+        -127.7789897572351
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            2
+          ]
+        }
+      ],
+      "title": "CLIP Loader - Krea2",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3vl_4b_fp8_scaled.safetensors",
+        "krea2",
+        "default"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        -482.33429939300936,
+        34.41336190467014
+      ],
+      "size": [
+        285.7497434687807,
+        58
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            3,
+            12
+          ]
+        }
+      ],
+      "title": "VAE Loader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_vae.safetensors"
+      ]
+    },
+    {
+      "id": 15,
+      "type": "Krea2TwoStyleReferences",
+      "pos": [
+        524.1386024932856,
+        -202.23463235340353
+      ],
+      "size": [
+        225.53830137081673,
+        68
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "reference_latent_1",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "reference_latent_2",
+          "type": "LATENT",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "style_refs",
+          "type": "STYLE_REFS",
+          "slot_index": 0,
+          "links": [
+            23
+          ]
+        },
+        {
+          "name": "debug",
+          "type": "STRING",
+          "slot_index": 1,
+          "links": null
+        }
+      ],
+      "title": "Two Style References",
+      "properties": {
+        "Node name for S&R": "Krea2TwoStyleReferences"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        -487.81538344592195,
+        -254.89374409982142
+      ],
+      "size": [
+        293.42288647195574,
+        82
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            24
+          ]
+        }
+      ],
+      "title": "UNET Loader - Krea2",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "krea2_turbo_fp8.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "KSampler",
+      "pos": [
+        766.2296472968508,
+        -175.38297108561727
+      ],
+      "size": [
+        360,
+        280
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 25
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 10
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 13
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            14
+          ]
+        }
+      ],
+      "title": "KSampler - Stage Test",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        197876864130057,
+        "randomize",
+        8,
+        1,
+        "euler_ancestral",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 12,
+      "type": "PreviewImage",
+      "pos": [
+        1152.8023113283452,
+        -187.75474589864385
+      ],
+      "size": [
+        457.3807079495082,
+        633.6670131690424
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": null
+        }
+      ],
+      "title": "Preview Image",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 19,
+      "type": "Krea2TwoStyleTransfer",
+      "pos": [
+        792.6471037363743,
+        181.86610208044368
+      ],
+      "size": [
+        328.8858413879195,
+        458
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 24
+        },
+        {
+          "name": "style_refs",
+          "type": "STYLE_REFS",
+          "link": 23
+        },
+        {
+          "name": "ref_conditioning",
+          "type": "CONDITIONING",
+          "link": 26
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            25
+          ]
+        },
+        {
+          "name": "debug",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Krea2TwoStyleTransfer"
+      },
+      "widgets_values": [
+        "custom",
+        "1",
+        1,
+        1.08,
+        1.08,
+        0.85,
+        1,
+        1.1,
+        "flowturbo_pc",
+        0.5,
+        2.5,
+        1.04,
+        0,
+        1,
+        0.85,
+        "7-27",
+        0.75
+      ]
+    },
+    {
+      "id": 5,
+      "type": "LoadImage",
+      "pos": [
+        -110.0015835837039,
+        -451.1849078331256
+      ],
+      "size": [
+        247.37552443831368,
+        510.91992444755067
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "slot_index": 1,
+          "links": null
+        }
+      ],
+      "title": "Style Reference Image 1",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "风格参考图2 (1).png",
+        "image"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "LoadImage",
+      "pos": [
+        -127.44926396414319,
+        100.17245653220296
+      ],
+      "size": [
+        292.2979348686985,
+        486.96123357798876
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            16
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "slot_index": 1,
+          "links": null
+        }
+      ],
+      "title": "Style Reference Image 2",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "ComfyUI_temp_tplzf_00009_.png",
+        "image"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "Krea2SizePreset",
+      "pos": [
+        208.84641919383506,
+        142.0866219925025
+      ],
+      "size": [
+        330,
+        130
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            4,
+            5
+          ]
+        }
+      ],
+      "title": "Size - Hybrid Test",
+      "properties": {
+        "Node name for S&R": "Krea2SizePreset"
+      },
+      "widgets_values": [
+        "1K",
+        "1:1",
+        1
+      ]
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        213.23129814463124,
+        322.08662199250244
+      ],
+      "size": [
+        520,
+        180
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            9,
+            10,
+            26
+          ]
+        }
+      ],
+      "title": "Prompt",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "A girl working in a café, close-up shot"
+      ]
+    }
+  ],
+  "links": [
+    [
+      2,
+      2,
+      0,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      3,
+      3,
+      0,
+      6,
+      0,
+      "VAE"
+    ],
+    [
+      4,
+      4,
+      0,
+      6,
+      1,
+      "LATENT"
+    ],
+    [
+      5,
+      4,
+      0,
+      10,
+      3,
+      "LATENT"
+    ],
+    [
+      6,
+      5,
+      0,
+      6,
+      2,
+      "IMAGE"
+    ],
+    [
+      7,
+      6,
+      0,
+      15,
+      0,
+      "LATENT"
+    ],
+    [
+      9,
+      7,
+      0,
+      9,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      10,
+      7,
+      0,
+      10,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      12,
+      3,
+      0,
+      11,
+      1,
+      "VAE"
+    ],
+    [
+      13,
+      9,
+      0,
+      10,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      10,
+      0,
+      11,
+      0,
+      "LATENT"
+    ],
+    [
+      15,
+      11,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ],
+    [
+      16,
+      13,
+      0,
+      14,
+      2,
+      "IMAGE"
+    ],
+    [
+      17,
+      3,
+      0,
+      14,
+      0,
+      "VAE"
+    ],
+    [
+      18,
+      4,
+      0,
+      14,
+      1,
+      "LATENT"
+    ],
+    [
+      19,
+      14,
+      0,
+      15,
+      1,
+      "LATENT"
+    ],
+    [
+      23,
+      15,
+      0,
+      19,
+      1,
+      "STYLE_REFS"
+    ],
+    [
+      24,
+      1,
+      0,
+      19,
+      0,
+      "MODEL"
+    ],
+    [
+      25,
+      19,
+      0,
+      10,
+      0,
+      "MODEL"
+    ],
+    [
+      26,
+      7,
+      0,
+      19,
+      2,
+      "CONDITIONING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "note": "Two-reference style route. Recommended mode exposes style strength and primary reference; four-reference input was intentionally removed because tests showed it becomes ambiguous and unreliable. Default per-reference K strength is 1.08. first_phase_ratio defaults to 0.75 for a more balanced stage-based blend. Low-level experimental controls remain hidden.",
+    "ds": {
+      "scale": 0.5212908143623195,
+      "offset": [
+        801.5819330933922,
+        684.1793467530697
+      ]
+    },
+    "frontendVersion": "1.45.19"
+  },
+  "version": 0.4
+}

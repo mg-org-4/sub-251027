@@ -1,0 +1,722 @@
+import type { Workflow, WorkflowNode, NodeTypes } from '@/api/types';
+import { collectAllWorkflowNodes } from '@/utils/workflowNodes';
+import { extractLoraList, findLoraListIndex, isPowerLoraLoaderNodeType } from '@/utils/loraManager';
+import {
+  extractTriggerWordList,
+  extractTriggerWordListLoose,
+  extractTriggerWordMessage,
+  findTriggerWordListIndex,
+  findTriggerWordMessageIndex,
+  isTriggerWordToggleNodeType
+} from '@/utils/triggerWordToggle';
+
+const DATE_PARTS = {
+  d: (date: Date) => date.getDate(),
+  M: (date: Date) => date.getMonth() + 1,
+  h: (date: Date) => date.getHours(),
+  m: (date: Date) => date.getMinutes(),
+  s: (date: Date) => date.getSeconds(),
+};
+
+const DATE_FORMAT_PATTERN =
+  Object.keys(DATE_PARTS)
+    .map((key) => `${key}${key}?`)
+    .join("|") + "|yyy?y?";
+
+const ILLEGAL_FILENAME_CHARS =
+  // eslint-disable-next-line no-control-regex
+  /[/?<>\\:*|"\x00-\x1F\x7F]/g;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function formatDateToken(text: string, date: Date): string {
+  return text.replace(new RegExp(DATE_FORMAT_PATTERN, "g"), (token: string): string => {
+    if (token === "yy") return `${date.getFullYear()}`.substring(2);
+    if (token === "yyyy") return date.getFullYear().toString();
+    if (token[0] in DATE_PARTS) {
+      const part = DATE_PARTS[token[0] as keyof typeof DATE_PARTS](date);
+      return `${part}`.padStart(token.length, "0");
+    }
+    return token;
+  });
+}
+
+function resolveReplacementWidgetValue(
+  workflow: Workflow,
+  node: WorkflowNode,
+  widgetName: string,
+): unknown {
+  const widgetIndexMap = getWorkflowWidgetIndexMap(workflow, node.id);
+  const mappedIndex = widgetIndexMap?.[widgetName];
+  if (mappedIndex !== undefined) {
+    return getWidgetValue(node, widgetName, mappedIndex);
+  }
+
+  return getWidgetValue(node, widgetName, undefined);
+}
+
+function applyTextReplacements(workflow: Workflow, value: string): string {
+  const allNodes = collectAllWorkflowNodes(workflow);
+
+  return value.replace(/%([^%]+)%/g, (match, text: string) => {
+    const split = text.split(".");
+    if (split.length !== 2) {
+      if (split[0]?.startsWith("date:")) {
+        return formatDateToken(split[0].substring(5), new Date());
+      }
+
+      if (text !== "width" && text !== "height") {
+        console.warn("[workflowInputs] Invalid replacement pattern", text);
+      }
+      return match;
+    }
+
+    let nodes = allNodes.filter(
+      (nodeItem) => nodeItem.properties?.["Node name for S&R"] === split[0]
+    );
+    if (!nodes.length) {
+      nodes = allNodes.filter(
+        (nodeItem) => (nodeItem as { title?: unknown }).title === split[0]
+      );
+    }
+    if (!nodes.length) {
+      console.warn("[workflowInputs] Unable to find node", split[0]);
+      return match;
+    }
+    if (nodes.length > 1) {
+      console.warn("[workflowInputs] Multiple nodes matched", split[0], "using first match");
+    }
+
+    const node = nodes[0];
+    const widgetValue = resolveReplacementWidgetValue(workflow, node, split[1]);
+    if (widgetValue === undefined) {
+      console.warn(
+        "[workflowInputs] Unable to find widget",
+        split[1],
+        "on node",
+        split[0],
+        node
+      );
+      return match;
+    }
+
+    return `${widgetValue ?? ""}`.replace(ILLEGAL_FILENAME_CHARS, "_");
+  });
+}
+
+function finalizeInputValue(
+  workflow: Workflow,
+  inputName: string,
+  value: unknown,
+): unknown {
+  if (inputName === "filename_prefix" && typeof value === "string") {
+    return applyTextReplacements(workflow, value);
+  }
+  return value;
+}
+
+function getPrimitiveInlineValue(node: WorkflowNode): unknown {
+  const type = String(node.type || '');
+  if (!type.startsWith('Primitive') && node.type !== 'PrimitiveNode') {
+    return undefined;
+  }
+
+  if (Array.isArray(node.widgets_values)) {
+    return node.widgets_values[0];
+  }
+
+  if (isRecord(node.widgets_values)) {
+    const value = node.widgets_values.value;
+    return value !== undefined ? value : node.widgets_values[0];
+  }
+
+  return undefined;
+}
+
+export function getWidgetValue(
+  node: WorkflowNode,
+  name: string,
+  index: number | undefined
+): unknown {
+  const values = node.widgets_values;
+  if (Array.isArray(values)) {
+    if (index === undefined || index < 0 || index >= values.length) return undefined;
+    return values[index];
+  }
+  if (isRecord(values)) {
+    if (values[name] !== undefined) return values[name];
+    if (node.type === 'VHS_VideoCombine' && name === 'save_image' && values.save_output !== undefined) {
+      return values.save_output;
+    }
+  }
+  return undefined;
+}
+
+export function getWorkflowWidgetIndexMap(
+  workflow: Workflow,
+  nodeId: number
+): Record<string, number> | null {
+  const entry = workflow.widget_idx_map?.[String(nodeId)];
+  if (entry) {
+    return entry;
+  }
+  const extraMap = workflow.extra?.widget_idx_map as Record<string, Record<string, number>> | undefined;
+  return extraMap?.[String(nodeId)] ?? null;
+}
+
+/**
+ * Decide whether to skip past ComfyUI's auto-added control_after_generate slot
+ * that conventionally follows an INT seed widget.
+ *
+ * Most ComfyUI nodes have this widget; some custom nodes (Efficient KSampler
+ * family) strip it in their own JS. The resulting saved workflows can be in
+ * any of three shapes at the control slot:
+ *   - present, string value (stock ComfyUI: 'fixed' / 'randomize' / etc.)
+ *   - present, null value (Efficient Nodes leaves the slot but blanks it)
+ *   - absent entirely (slot index >= widgets_values.length)
+ *
+ * Returns true (bump past the slot) when the value at controlSlotIndex is a
+ * string, null, or out of bounds. Returns false when the slot holds a real
+ * widget value (number / boolean / non-null object) — that means
+ * control_after_generate wasn't there to begin with and the slot belongs to
+ * the next declared widget.
+ */
+export function skipImplicitSeedControlSlot(
+  node: WorkflowNode,
+  controlSlotIndex: number,
+): boolean {
+  if (!Array.isArray(node.widgets_values)) return false;
+  if (controlSlotIndex >= node.widgets_values.length) return false;
+  const value = node.widgets_values[controlSlotIndex];
+  if (value === null) return true;
+  if (typeof value === 'string') return true;
+  return false;
+}
+
+export function getNodePropertyWidgetIndexMap(
+  node: WorkflowNode
+): Record<string, number> | null {
+  const widgetIds = node.properties?.__lm_widget_ids;
+  if (!Array.isArray(widgetIds)) return null;
+
+  const result: Record<string, number> = {};
+  widgetIds.forEach((value, index) => {
+    if (typeof value !== 'string' || !value) return;
+    if (value.startsWith('__lm_')) return;
+    result[value] = index;
+  });
+
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+export function getNodeWidgetIndexMap(
+  workflow: Workflow,
+  node: WorkflowNode
+): Record<string, number> | null {
+  return getWorkflowWidgetIndexMap(workflow, node.id) ?? getNodePropertyWidgetIndexMap(node);
+}
+
+export function isWidgetInputType(typeOrOptions: string | unknown[]): boolean {
+  if (Array.isArray(typeOrOptions)) {
+    const signature = typeOrOptions.map((entry) => String(entry)).join(',').toUpperCase();
+    if (signature.includes('AUTOCOMPLETE_TEXT_PROMPT') || signature.includes('AUTOCOMPLETE_TEXT_LORAS')) {
+      return true;
+    }
+    return true;
+  }
+  const normalized = String(typeOrOptions).toUpperCase();
+  return normalized === 'INT' ||
+    normalized === 'FLOAT' ||
+    normalized === 'BOOLEAN' ||
+    normalized === 'STRING' ||
+    normalized.includes('AUTOCOMPLETE_TEXT_LORAS') ||
+    normalized.includes('AUTOCOMPLETE_TEXT_PROMPT');
+}
+
+export function normalizeWidgetValue(
+  value: unknown,
+  typeOrOptions: string | unknown[],
+  options?: { comboIndexToValue?: boolean }
+): unknown {
+  if (Array.isArray(typeOrOptions)) {
+    if (options?.comboIndexToValue && typeof value === 'number' && Number.isFinite(value)) {
+      const idx = Math.trunc(value);
+      return typeOrOptions[idx] ?? value;
+    }
+    return value;
+  }
+
+  if (typeOrOptions === 'INT') {
+    if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) {
+      return Math.trunc(Number(value));
+    }
+  }
+
+  if (typeOrOptions === 'FLOAT') {
+    if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) {
+      return Number(value);
+    }
+  }
+
+  if (typeOrOptions === 'BOOLEAN' && typeof value === 'string') {
+    if (value.toLowerCase() === 'true') return true;
+    if (value.toLowerCase() === 'false') return false;
+  }
+
+  return value;
+}
+
+export function normalizeComboValue(
+  value: unknown,
+  options: unknown[]
+): unknown {
+  if (options.length === 0) return value;
+  const resolved = resolveComboOption(value, options);
+  if (resolved !== undefined) {
+    return resolved;
+  }
+  // No exact/basename/extensionless match. How we recover depends on whether the
+  // combo is a file picker or a closed enum:
+  //
+  // - File pickers (loras, checkpoints, images, …) have an inherently incomplete
+  //   option list — uploads and newly-added files never appear in object_info —
+  //   so an unmatched value may still be valid. Keep it as-is and let the server
+  //   decide, rather than swapping in a different (wrong) file.
+  //
+  // - Closed enums (action widgets like "Select to add Wildcard", sampler /
+  //   scheduler names, …) enumerate EVERY valid value, so an unmatched value is
+  //   stale — e.g. a dynamic combo whose placeholder option was captured into
+  //   widgets_values at save time. ComfyUI does not error on an out-of-range
+  //   combo value; it silently EXCLUDES that node (and its whole downstream
+  //   branch) from the run, completing with "success" and no output. To keep the
+  //   prompt executable we fall back to the first option (ComfyUI's default).
+  //
+  // Only substitute when NEITHER the option list nor the stale value looks
+  // file-like. A picker whose options happen to lack a recognizable extension
+  // (e.g. a custom node listing bare names) would otherwise be misread as an
+  // enum and a genuine file selection clobbered; keeping a file-like value as-is
+  // lets the server resolve or clearly reject it instead.
+  if (!optionsAreFileLike(options) && !isFileLikeToken(value)) {
+    return options[0];
+  }
+  return value;
+}
+
+// A token is "file-like" when it carries a path separator or a known
+// model/media/config file extension. Combo lists with such options are
+// inherently incomplete (uploads aren't enumerated), so unmatched values are
+// kept as-is. Everything else is a closed enum that lists all valid values.
+const FILE_LIKE_OPTION =
+  /[\\/]|\.(safetensors|sft|ckpt|pt|pth|bin|gguf|onnx|vae|yaml|yml|json|txt|csv|png|jpe?g|webp|gif|bmp|tiff?|mp4|webm|mov|mkv|wav|mp3|flac|ogg|npy|npz|pkl|engine|trt)$/i;
+
+function isFileLikeToken(token: unknown): boolean {
+  return FILE_LIKE_OPTION.test(String(token));
+}
+
+export function optionsAreFileLike(options: unknown[]): boolean {
+  return options.some(isFileLikeToken);
+}
+
+const SAFETENSORS_SUFFIX = '.safetensors';
+
+function stripSafetensorsSuffix(value: string): string {
+  const lower = value.toLowerCase();
+  if (lower.endsWith(SAFETENSORS_SUFFIX)) {
+    return value.slice(0, value.length - SAFETENSORS_SUFFIX.length);
+  }
+  return value;
+}
+
+function getComboBase(value: string): string {
+  return value.split(/[\\/]/).pop() ?? value;
+}
+
+export function resolveComboOption(
+  value: unknown,
+  options: unknown[]
+): unknown | undefined {
+  if (!Array.isArray(options) || options.length === 0) return undefined;
+  const normalized = normalizeWidgetValue(value, options, { comboIndexToValue: true });
+  const normalizedString = String(normalized);
+  const normalizedBase = getComboBase(normalizedString);
+
+  const directMatch = options.find((opt) => String(opt) === normalizedString);
+  if (directMatch !== undefined) {
+    return directMatch;
+  }
+
+  const baseMatch = options.find((opt) => String(opt) === normalizedBase);
+  if (baseMatch !== undefined) {
+    return baseMatch;
+  }
+
+  const normalizedNoExt = stripSafetensorsSuffix(normalizedBase);
+  const normalizedNoExtLower = normalizedNoExt.toLowerCase();
+  const extensionlessMatch = options.find((opt) => {
+    const optString = String(opt);
+    const optBase = getComboBase(optString);
+    const optNoExt = stripSafetensorsSuffix(optBase);
+    return optNoExt.toLowerCase() === normalizedNoExtLower;
+  });
+
+  return extensionlessMatch;
+}
+
+export function isValueCompatible(value: unknown, typeOrOptions: string | unknown[]): boolean {
+  if (Array.isArray(typeOrOptions)) {
+    const asString = String(value);
+    return typeOrOptions.some((opt) => String(opt) === asString);
+  }
+
+  if (typeOrOptions === 'INT' || typeOrOptions === 'FLOAT') {
+    if (typeof value === 'number' && Number.isFinite(value)) return true;
+    if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) return true;
+    return false;
+  }
+
+  if (typeOrOptions === 'BOOLEAN') {
+    return typeof value === 'boolean' ||
+      (typeof value === 'string' && ['true', 'false'].includes(value.toLowerCase()));
+  }
+
+  if (typeOrOptions === 'STRING') {
+    return typeof value === 'string';
+  }
+
+  return true;
+}
+
+export function resolveSource(
+  workflow: Workflow,
+  linkId: number,
+  visitedLinkIds: Set<number> = new Set(),
+  promptKeyMap?: Map<number, string>
+): { nodeId: number; slotIndex: number } | null {
+  if (visitedLinkIds.has(linkId)) return null;
+  visitedLinkIds.add(linkId);
+
+  const link = workflow.links.find((l) => l[0] === linkId);
+  if (!link) return null;
+
+  const sourceNodeId = link[1];
+  const sourceSlotIndex = link[2];
+  const sourceNode = workflow.nodes.find((n) => n.id === sourceNodeId);
+
+  if (!sourceNode) return null;
+
+  if (sourceNode.type === 'GetNode') {
+    const getterName = getKJSetGetNodeName(sourceNode);
+    if (!getterName) return null;
+
+    const setterNode = findKJSetterNode(workflow, sourceNode, getterName, promptKeyMap);
+    const setterInputLink = setterNode?.inputs?.[0]?.link;
+    if (setterInputLink == null) return null;
+
+    return resolveSource(workflow, setterInputLink, visitedLinkIds, promptKeyMap);
+  }
+
+  if (sourceNode.type === 'SetNode') {
+    const setterInputLink = sourceNode.inputs?.[0]?.link;
+    if (setterInputLink == null) return null;
+
+    return resolveSource(workflow, setterInputLink, visitedLinkIds, promptKeyMap);
+  }
+
+  if (sourceNode.mode === 4 || sourceNode.type === 'Reroute') {
+    const outputDef = sourceNode.outputs[sourceSlotIndex];
+    if (!outputDef) return null;
+
+    const matchingInput = sourceNode.inputs.find((input) => {
+      if (input.link === null) return false;
+      const inType = String(input.type).toUpperCase();
+      const outType = String(outputDef.type).toUpperCase();
+      return inType === outType || inType === '*' || outType === '*';
+    });
+
+    if (matchingInput?.link != null) {
+      return resolveSource(workflow, matchingInput.link, visitedLinkIds, promptKeyMap);
+    }
+    return null;
+  }
+
+  return { nodeId: sourceNodeId, slotIndex: sourceSlotIndex };
+}
+
+function getKJSetGetNodeName(node: WorkflowNode): string | null {
+  const values = node.widgets_values;
+  if (Array.isArray(values)) {
+    const value = values[0];
+    return typeof value === 'string' && value ? value : null;
+  }
+  if (isRecord(values)) {
+    const value = values[0] ?? values.value ?? values.name;
+    return typeof value === 'string' && value ? value : null;
+  }
+  return null;
+}
+
+function getPromptScope(promptKey: string | undefined): string | null {
+  if (!promptKey) return null;
+  const scopeEnd = promptKey.lastIndexOf(':');
+  return scopeEnd === -1 ? '' : promptKey.slice(0, scopeEnd);
+}
+
+function findKJSetterNode(
+  workflow: Workflow,
+  getterNode: WorkflowNode,
+  getterName: string,
+  promptKeyMap?: Map<number, string>
+): WorkflowNode | undefined {
+  const candidates = workflow.nodes.filter(
+    (node) => node.type === 'SetNode' && getKJSetGetNodeName(node) === getterName
+  );
+
+  const getterScope = getPromptScope(promptKeyMap?.get(getterNode.id));
+  if (getterScope === null) return candidates[0];
+
+  return candidates.find(
+    (node) => getPromptScope(promptKeyMap?.get(node.id)) === getterScope
+  );
+}
+
+export function buildWorkflowPromptInputs(
+  workflow: Workflow,
+  nodeTypes: NodeTypes,
+  node: WorkflowNode,
+  classType: string,
+  allowedNodeIds: Set<number>,
+  widgetIndexMap: Record<string, number> | null,
+  seedOverrides?: Record<number, number>,
+  promptKeyMap?: Map<number, string>
+): Record<string, unknown> {
+  const inputs: Record<string, unknown> = {};
+
+  for (const input of node.inputs) {
+    if (input.link != null) {
+      const resolved = resolveSource(workflow, input.link, new Set(), promptKeyMap);
+      if (resolved) {
+        if (allowedNodeIds.has(resolved.nodeId)) {
+          const nodeKey = promptKeyMap?.get(resolved.nodeId) ?? String(resolved.nodeId);
+          inputs[input.name] = [nodeKey, resolved.slotIndex];
+        } else {
+          const sourceNode = workflow.nodes.find((n) => n.id === resolved.nodeId);
+          if (sourceNode) {
+            const value = getPrimitiveInlineValue(sourceNode);
+            if (value !== undefined) {
+              inputs[input.name] = value;
+            } else {
+              console.warn(
+                `[workflowInputs] Missing source node for input '${input.name}' on node ${node.id} (${node.type}).`,
+                {
+                  sourceNodeId: resolved.nodeId,
+                  sourceNodeType: sourceNode.type,
+                  sourceAllowed: false
+                }
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const typeDef = nodeTypes[classType];
+  if (!typeDef?.input) {
+    return inputs;
+  }
+
+  const requiredOrder = typeDef.input_order?.required || Object.keys(typeDef.input.required || {});
+  const optionalOrder = typeDef.input_order?.optional || Object.keys(typeDef.input.optional || {});
+  const orderedInputs = [...requiredOrder, ...optionalOrder];
+  let widgetCursor = 0;
+  const widgetValuesArray = Array.isArray(node.widgets_values) ? node.widgets_values : null;
+
+  for (const name of orderedInputs) {
+    try {
+      const inputDef = typeDef.input.required?.[name] || typeDef.input.optional?.[name];
+      if (!inputDef) continue;
+
+      const [typeOrOptions] = inputDef;
+      const inputEntry = node.inputs.find((i) => i.name === name);
+      const isConnected = inputEntry?.link != null;
+      const isWidgetToggle = Boolean(inputEntry?.widget) && !isConnected;
+      const hasSocket = Boolean(inputEntry);
+      const defaultValue = inputDef[1]?.default;
+      const hasDefault = Object.prototype.hasOwnProperty.call(inputDef[1] ?? {}, 'default');
+      const isWidgetType = isWidgetInputType(typeOrOptions) || isWidgetToggle || !hasSocket;
+      const isWidget = isWidgetType;
+
+      if (isWidget) {
+        let indexToUse = widgetIndexMap?.[name];
+
+        if (indexToUse === undefined) {
+          indexToUse = widgetCursor;
+        }
+
+        // Apply the seed override for either of the two conventional seed input
+        // names — stock KSampler uses 'seed', but several custom nodes (e.g.
+        // KSampler Adv (Efficient), KSampler SDXL (Eff.)) use 'noise_seed' and
+        // declare it as INT with min=0, so sending -1 (the special-mode value
+        // stored in the widget) would be rejected by the server.
+        if ((name === 'seed' || name === 'noise_seed')
+            && seedOverrides?.[node.id] !== undefined
+            && !(name in inputs)) {
+          inputs[name] = seedOverrides[node.id];
+        } else if (indexToUse !== undefined && !isConnected && !(name in inputs)) {
+          const rawValue = getWidgetValue(node, name, indexToUse);
+          if (rawValue !== undefined) {
+            if (Array.isArray(typeOrOptions)) {
+              inputs[name] = finalizeInputValue(
+                workflow,
+                name,
+                normalizeComboValue(rawValue, typeOrOptions)
+              );
+            } else {
+              inputs[name] = finalizeInputValue(
+                workflow,
+                name,
+                normalizeWidgetValue(rawValue, typeOrOptions)
+              );
+            }
+          }
+        } else if (!isConnected && hasDefault && !(name in inputs)) {
+          inputs[name] = defaultValue;
+        }
+
+        if (indexToUse !== undefined) {
+          widgetCursor = Math.max(widgetCursor, indexToUse + 1);
+        }
+
+        if (String(typeOrOptions) === 'INT' && (name === 'seed' || name === 'noise_seed')) {
+          const seedSlot = indexToUse ?? (widgetCursor - 1);
+          if (skipImplicitSeedControlSlot(node, seedSlot + 1)) {
+            if (indexToUse !== undefined) {
+              widgetCursor = Math.max(widgetCursor, indexToUse + 2);
+            } else {
+              widgetCursor = Math.max(widgetCursor, widgetCursor + 1);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error(`Error processing input '${name}' for node ${node.id} (${node.type}):`, e);
+    }
+  }
+
+  // Include any widgets defined in widgetIndexMap that weren't captured by the type definition
+  // This is important for nodes with dynamic widgets (like rgthree's) or when the object_info
+  // is slightly out of sync with the workflow.
+  if (widgetIndexMap) {
+    for (const [name, index] of Object.entries(widgetIndexMap)) {
+      if (!(name in inputs) && widgetValuesArray && index < widgetValuesArray.length) {
+        const value = widgetValuesArray[index];
+        if (value !== undefined && value !== null) {
+          inputs[name] = finalizeInputValue(workflow, name, value);
+        }
+      }
+      if (!(name in inputs) && !widgetValuesArray) {
+        const value = getWidgetValue(node, name, index);
+        if (value !== undefined && value !== null) {
+          inputs[name] = finalizeInputValue(workflow, name, value);
+        }
+      }
+    }
+  }
+
+  // Special handling for Power Lora Loader (rgthree) which has dynamic widgets not in object_info.
+  // We ensure all widgets that look like Lora objects are included in the prompt inputs.
+  if (isPowerLoraLoaderNodeType(classType) || isPowerLoraLoaderNodeType(node.type)) {
+    if (widgetValuesArray) {
+      widgetValuesArray.forEach((val, idx) => {
+        if (typeof val === 'object' && val !== null && 'lora' in val) {
+          // Check if this index was already added under any name
+          const alreadyAdded = Object.values(widgetIndexMap || {}).some(index => index === idx) || 
+                               (widgetIndexMap === null && idx < widgetCursor);
+          
+          if (!alreadyAdded) {
+            const name = `lora_${idx}`;
+            if (!(name in inputs)) {
+              // For rgthree nodes, if strengthTwo is missing but expected, we might want to provide it,
+              // but the node's serializeValue handles it by deleting it if not in separate mode.
+              // Our widget value already contains what it needs.
+              inputs[name] = val;
+            }
+          }
+        }
+      });
+    }
+  }
+
+  if (seedOverrides?.[node.id] !== undefined && !('seed' in inputs) && !('noise_seed' in inputs)) {
+    inputs.seed = seedOverrides[node.id];
+  }
+
+  appendLoraManagerInputs(node, inputs, widgetValuesArray, widgetIndexMap);
+  appendTriggerWordToggleInputs(node, inputs, widgetValuesArray, widgetIndexMap);
+
+  return inputs;
+}
+
+function appendLoraManagerInputs(
+  node: WorkflowNode,
+  inputs: Record<string, unknown>,
+  widgetValuesArray: unknown[] | null,
+  widgetIndexMap: Record<string, number> | null
+) {
+  if ('loras' in inputs) return;
+
+  const mappedIndex = widgetIndexMap?.loras;
+  const listIndex = mappedIndex !== undefined ? mappedIndex : findLoraListIndex(node);
+  if (listIndex === null) return;
+
+  const rawValue = widgetValuesArray?.[listIndex];
+  const loraList = extractLoraList(rawValue);
+  if (loraList) {
+    inputs.loras = loraList;
+  }
+}
+
+function appendTriggerWordToggleInputs(
+  node: WorkflowNode,
+  inputs: Record<string, unknown>,
+  widgetValuesArray: unknown[] | null,
+  widgetIndexMap: Record<string, number> | null
+) {
+  if (!isTriggerWordToggleNodeType(node.type)) return;
+
+  const mappedListIndex = widgetIndexMap?.toggle_trigger_words;
+  const listIndex = mappedListIndex !== undefined
+    ? mappedListIndex
+    : findTriggerWordListIndex(node);
+  if (listIndex === null) return;
+
+  if (!('toggle_trigger_words' in inputs)) {
+    const rawValue = widgetValuesArray?.[listIndex];
+    const triggerList = extractTriggerWordList(rawValue) ?? extractTriggerWordListLoose(rawValue);
+    if (triggerList) {
+      inputs.toggle_trigger_words = triggerList;
+    }
+  }
+
+  const mappedMessageIndex = widgetIndexMap?.originalMessage ?? widgetIndexMap?.orinalMessage;
+  const messageIndex = mappedMessageIndex !== undefined
+    ? mappedMessageIndex
+    : findTriggerWordMessageIndex(node, listIndex);
+  if (messageIndex === null) return;
+
+  const messageValue = widgetValuesArray?.[messageIndex];
+  const message = extractTriggerWordMessage(messageValue);
+  if (message === null) return;
+
+  const messageKey = widgetIndexMap && 'originalMessage' in widgetIndexMap
+    ? 'originalMessage'
+    : (widgetIndexMap && 'orinalMessage' in widgetIndexMap
+      ? 'orinalMessage'
+      : 'orinalMessage');
+
+  if (!(messageKey in inputs)) {
+    inputs[messageKey] = message;
+  }
+}

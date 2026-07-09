@@ -1,0 +1,690 @@
+{
+  "id": "9450a8c7-c490-4ebe-af09-f546f0636c91",
+  "revision": 0,
+  "last_node_id": 12,
+  "last_link_id": 15,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        -450.25054151594924,
+        -84.82404143009826
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            1
+          ]
+        }
+      ],
+      "title": "UNET Loader - Krea2",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "krea2_turbo_fp8.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        -445.5954677458984,
+        71.45184983211941
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            2
+          ]
+        }
+      ],
+      "title": "CLIP Loader - Krea2",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3vl_4b_fp8_scaled.safetensors",
+        "krea2",
+        "default"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        -447.4573729495643,
+        222.14170229201795
+      ],
+      "size": [
+        296.2757420969923,
+        58
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            3,
+            12
+          ]
+        }
+      ],
+      "title": "VAE Loader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_vae.safetensors"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "Krea2StyleReference",
+      "pos": [
+        207.30621483733873,
+        191.1863151349989
+      ],
+      "size": [
+        270.1994154311893,
+        122
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 3
+        },
+        {
+          "name": "target_latent",
+          "type": "LATENT",
+          "link": 4
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "reference_latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            7
+          ]
+        },
+        {
+          "name": "reference_preview",
+          "type": "IMAGE",
+          "slot_index": 1,
+          "links": null
+        },
+        {
+          "name": "debug",
+          "type": "STRING",
+          "slot_index": 2,
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Krea2StyleReference"
+      },
+      "widgets_values": [
+        "crop",
+        "lanczos"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        209.9997016695492,
+        70.9066352490576
+      ],
+      "size": [
+        258.4129660954943,
+        70
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            13
+          ]
+        }
+      ],
+      "title": "Negative (Zero Out)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "ConditioningZeroOut"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 11,
+      "type": "VAEDecode",
+      "pos": [
+        210.63934514035793,
+        -51.63535320838268
+      ],
+      "size": [
+        260.5500906505124,
+        73.48287186105813
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 14
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            15
+          ]
+        }
+      ],
+      "title": "VAE Decode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 10,
+      "type": "KSampler",
+      "pos": [
+        493.49224026457995,
+        -115.6852092138888
+      ],
+      "size": [
+        360,
+        280
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 11
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 10
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 13
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            14
+          ]
+        }
+      ],
+      "title": "KSampler - Controlled Test",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        709359719515269,
+        "randomize",
+        8,
+        1,
+        "euler_ancestral",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 8,
+      "type": "Krea2StyleTransfer",
+      "pos": [
+        498.40207283983386,
+        206.6489698670312
+      ],
+      "size": [
+        357.38040169153305,
+        98
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        },
+        {
+          "name": "reference_latent",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "ref_conditioning",
+          "type": "CONDITIONING",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            11
+          ]
+        },
+        {
+          "name": "rf_reference",
+          "type": "LATENT",
+          "slot_index": 1,
+          "links": null
+        },
+        {
+          "name": "debug",
+          "type": "STRING",
+          "slot_index": 2,
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Krea2StyleTransfer"
+      },
+      "widgets_values": [
+        "recommended",
+        1,
+        0.65,
+        1,
+        1.08,
+        "flowturbo_pc",
+        0.5,
+        2.5,
+        1.04,
+        0,
+        1,
+        1.1,
+        0.85,
+        "7-27"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "LoadImage",
+      "pos": [
+        -111.10781673944032,
+        -143.38259897794578
+      ],
+      "size": [
+        288.8409965353508,
+        458.62575111012643
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "slot_index": 1,
+          "links": null
+        }
+      ],
+      "title": "Style Reference Image",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "0_2.png",
+        "image"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -143.5596442321219,
+        362.4889422513382
+      ],
+      "size": [
+        520,
+        180
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            8,
+            9,
+            10
+          ]
+        }
+      ],
+      "title": "Prompt",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "A beautiful woman is drinking coffee"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "Krea2SizePreset",
+      "pos": [
+        -445.2094686879828,
+        329.58996948932463
+      ],
+      "size": [
+        286.2422817006527,
+        106
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            4,
+            5
+          ]
+        }
+      ],
+      "title": "Size - 0.5K Controlled Test",
+      "properties": {
+        "Node name for S&R": "Krea2SizePreset"
+      },
+      "widgets_values": [
+        "1K",
+        "4:5",
+        1
+      ]
+    },
+    {
+      "id": 12,
+      "type": "PreviewImage",
+      "pos": [
+        883.2404310753524,
+        -108.58476733579177
+      ],
+      "size": [
+        520,
+        520
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": null
+        }
+      ],
+      "title": "Preview Image",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      8,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      2,
+      0,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      3,
+      3,
+      0,
+      6,
+      0,
+      "VAE"
+    ],
+    [
+      4,
+      4,
+      0,
+      6,
+      1,
+      "LATENT"
+    ],
+    [
+      5,
+      4,
+      0,
+      10,
+      3,
+      "LATENT"
+    ],
+    [
+      6,
+      5,
+      0,
+      6,
+      2,
+      "IMAGE"
+    ],
+    [
+      7,
+      6,
+      0,
+      8,
+      1,
+      "LATENT"
+    ],
+    [
+      8,
+      7,
+      0,
+      8,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      9,
+      7,
+      0,
+      9,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      10,
+      7,
+      0,
+      10,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      11,
+      8,
+      0,
+      10,
+      0,
+      "MODEL"
+    ],
+    [
+      12,
+      3,
+      0,
+      11,
+      1,
+      "VAE"
+    ],
+    [
+      13,
+      9,
+      0,
+      10,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      10,
+      0,
+      11,
+      0,
+      "LATENT"
+    ],
+    [
+      15,
+      11,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "note": "Krea2 Style Transfer simplified: recommended mode uses the tuned controlled K/V settings; custom mode exposes the experimental parameters.",
+    "ds": {
+      "scale": 0.675144006101193,
+      "offset": [
+        712.9408678650032,
+        448.49380944033555
+      ]
+    },
+    "frontendVersion": "1.45.19"
+  },
+  "version": 0.4
+}

@@ -353,6 +353,13 @@ class LTXIdentityOverlapConditioning:
             "arcface_mode": (["auto_adjust", "as_is", "disable"], {"default": "auto_adjust",
                              "tooltip": "auto_adjust: retry face detection with zoom-out/upscale, skip tokens if none. "
                                         "as_is: detect on the image only. disable: skip ArcFace, use only the overlap latent."}),
+            "ref_resize_mode": (["match_target", "native_resolution"], {"default": "match_target",
+                             "tooltip": "match_target: resize ref to the OUTPUT video's pixel size (old single-face-crop "
+                                        "recipes — ref resolution never mattered). native_resolution: encode the ref at "
+                                        "ITS OWN size (rounded to the nearest 32px), independent of the video size — "
+                                        "REQUIRED for checkpoints trained on a fixed ref resolution bucket that differs "
+                                        "from the video's own bucket (e.g. the composite face+3views ref, trained at "
+                                        "2048x1024 regardless of output video size)."}),
             "debug_log": ("BOOLEAN", {"default": False,
                           "tooltip": "Print per-step [LTXIdOverlap] shape logs to the console (for debugging)."}),
         }}
@@ -366,7 +373,7 @@ class LTXIdentityOverlapConditioning:
 
     def apply(self, model, positive, negative, vae, latent, reference_face,
               identity_projector="None", source_id=2.0, phase_scale=1.0, id_strength=1.0,
-              arcface_mode="auto_adjust", debug_log=False):
+              arcface_mode="auto_adjust", ref_resize_mode="match_target", debug_log=False):
         import comfy.utils
 
         global _DEBUG_ENABLED
@@ -375,11 +382,20 @@ class LTXIdentityOverlapConditioning:
         m = model.clone()
         ltxv = _find_ltxv(m)
 
-
-        # encode ref image -> single-frame latent at the target resolution (overlap grid)
         _, w_sf, h_sf = vae.downscale_index_formula
-        _, _, _, lat_h, lat_w = latent["samples"].shape
-        ref_px = comfy.utils.common_upscale(reference_face.movedim(-1, 1), lat_w * w_sf, lat_h * h_sf, "bilinear", "center").movedim(1, -1)[:1, :, :, :3]
+        if ref_resize_mode == "native_resolution":
+            # Encode at the ref image's OWN resolution (rounded to nearest 32px), independent
+            # of the output video size — matches training when the ref used a fixed/own bucket.
+            _, src_h, src_w, _ = reference_face.shape
+            tgt_w = max(w_sf, round(src_w / w_sf) * w_sf)
+            tgt_h = max(h_sf, round(src_h / h_sf) * h_sf)
+        else:
+            # Legacy behavior: resize ref to match the target video's pixel size (correct for
+            # recipes where the ref used the SAME resolution bucket as the video, e.g. a small
+            # face crop — resolution never mattered there).
+            _, _, _, lat_h, lat_w = latent["samples"].shape
+            tgt_w, tgt_h = lat_w * w_sf, lat_h * h_sf
+        ref_px = comfy.utils.common_upscale(reference_face.movedim(-1, 1), tgt_w, tgt_h, "bilinear", "center").movedim(1, -1)[:1, :, :, :3]
         ref_lat = vae.encode(ref_px)
 
         _install_patches(ltxv)
@@ -425,7 +441,8 @@ class LTXIdentityOverlapConditioning:
 
         dbg = (
             "=== LTX Identity OVERLAP (exact) ===\n"
-            f"ref latent: {list(ref_lat.shape)} -> overlap tokens (frame-0 grid), source_phase seg={float(source_id)*float(phase_scale)}\n"
+            f"ref latent: {list(ref_lat.shape)} (encoded at {tgt_w}x{tgt_h}px, mode={ref_resize_mode}) "
+            f"-> overlap tokens (frame-0 grid), source_phase seg={float(source_id)*float(phase_scale)}\n"
             f"arcface: {arc_status} (mode={arcface_mode}) | id_strength={id_strength}\n"
             f"patches on {type(ltxv).__name__}: process_input/prepare_timestep/prepare_pe/process_output\n"
             "Set LTX_IDOVERLAP_DEBUG=1 for per-step shape logs. Connect negative + CFG 3-5, no LightX2V."

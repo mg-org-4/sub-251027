@@ -1162,14 +1162,29 @@ def _patch_patchify_and_embed(dm, stats):
             forced_mask_for_joint = cfg.get('forced_cap_mask', None)
             if torch.is_tensor(forced_mask_for_joint):
                 joint_mask = _build_joint_additive_mask_from_cap_mask(
-                    forced_mask_for_joint, int(img.shape[1]),
-                    target_text_range, img.device, dtype=torch.float32,
+                    forced_mask_for_joint,
+                    int(img.shape[1]),
+                    target_text_range,
+                    img.device,
+                    dtype=torch.float32,
                 )
+
                 if torch.is_tensor(joint_mask):
+                    if joint_mask.ndim == 2:
+                        joint_mask = joint_mask[:, None, None, :]
+
                     cfg['forced_joint_x_mask'] = joint_mask
+
                     if mask is None:
-                        mask   = joint_mask
-                        result = (img, mask, img_size, cap_size, freqs_cis, timestep_zero_index)
+                        mask = joint_mask
+                        result = (
+                            img,
+                            mask,
+                            img_size,
+                            cap_size,
+                            freqs_cis,
+                            timestep_zero_index,
+                        )
 
             transformer_options[_TRANSFORMER_CONFIG_KEY] = cfg
         except Exception as exc:

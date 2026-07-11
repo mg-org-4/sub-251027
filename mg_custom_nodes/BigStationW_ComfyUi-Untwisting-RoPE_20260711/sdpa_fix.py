@@ -172,14 +172,57 @@ def _attention_pytorch_compact_mask_no_cudnn(
 
 
 def _attention_backend_override(orig_func: Callable, *args, **kwargs):
-    # SageAttention and every non-pytorch backend are left untouched.
-    if str(getattr(orig_func, "__name__", "")) != "attention_pytorch":
+    name = str(getattr(orig_func, "__name__", ""))
+
+    # Keep SageAttention, but compact padding tokens first.
+    if name == "attention_sage":
+        try:
+            a = list(args)
+
+            q = a[0]
+            k = a[1]
+            v = a[2]
+
+            mask = a[4] if len(a) > 4 else kwargs.get("mask", None)
+
+            valid = _prepare_key_padding_mask_for_compaction(
+                mask,
+                int(q.shape[0]),
+                int(k.shape[-2]),
+                k.device,
+            )
+
+            if valid is not None:
+                k_new, v_new, ok = _compact_kv_by_key_padding_mask(
+                    k, v, valid
+                )
+
+                if ok:
+                    a[1] = k_new
+                    a[2] = v_new
+
+                    if len(a) > 4:
+                        a[4] = None
+                    else:
+                        kwargs = dict(kwargs)
+                        kwargs["mask"] = None
+
+                    return orig_func(*a, **kwargs)
+
+        except Exception:
+            pass
+
         return orig_func(*args, **kwargs)
+
+    # Existing PyTorch fix
+    if name != "attention_pytorch":
+        return orig_func(*args, **kwargs)
+
     try:
-        return _attention_pytorch_compact_mask_no_cudnn(*args, **kwargs)
+        return _attention_pytorch_compact_mask_no_cudnn(
+            *args, **kwargs
+        )
     except Exception:
-        # Correctness fallback for unusual masks. This is intentionally local to
-        # the custom node and should only be hit if mask compaction/SDPA fails.
         return attention_sub_quad(*args, **kwargs)
 
 

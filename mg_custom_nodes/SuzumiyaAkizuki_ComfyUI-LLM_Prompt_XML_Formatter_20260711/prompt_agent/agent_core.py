@@ -24,12 +24,14 @@ from prompt_agent.tools import (
     execute_search_tags,
     execute_get_related_tags,
     execute_get_artist_recommendations,
+    execute_get_artist_profile,
     execute_get_anima_format,
     execute_get_newbie_format,
 )
 from prompt_agent.cache import (
     get_baseline_store, compute_edit, normalize as normalize_prompt,
 )
+from prompt_agent.agent_trace import emit_agent_trace
 from prompt_agent import utils
 
 try:
@@ -52,6 +54,8 @@ _LOW_NOVELTY_RATIO = 0.34
 _PROVIDED_TOPK = 3
 # 增量修订续写时的工具轮次上限：局部修订不需要全量轮次
 _REVISION_MAX_ROUNDS = 3
+# 同一节点连续续写达到此次数后，下一次小改自动完整重跑，避免长期局部修订漂移
+_MAX_CONSECUTIVE_CONTINUATIONS = 5
 
 
 def _sanitize_messages_for_gemini(messages):
@@ -241,6 +245,19 @@ def _message_text_from_content_or_reasoning(message):
     return "", "empty"
 
 
+def _assistant_tool_message(content, tool_calls, source_message=None):
+    """Build assistant history for a tool-call turn, preserving reasoning_content.
+
+    DeepSeek requires reasoning_content from assistant tool-call turns to be
+    returned in subsequent requests when thinking mode produced it.
+    """
+    message = {"role": "assistant", "content": content, "tool_calls": tool_calls}
+    reasoning_content = getattr(source_message, "reasoning_content", None)
+    if reasoning_content and str(reasoning_content).strip():
+        message["reasoning_content"] = reasoning_content
+    return message
+
+
 def _usage_summary(usage):
     if not usage:
         return "usage=n/a"
@@ -265,13 +282,30 @@ class PromptAgent:
         from LLM_Node import get_platform_settings
         self._extra_body = get_platform_settings(self.api_url, self.model_name, False)
 
+    def _trace(self, event, status="info", title="", summary="", details=None):
+        emit_agent_trace(
+            self.unique_id,
+            event,
+            status=status,
+            title=title,
+            summary=summary,
+            details=details,
+        )
+
     def _log_token_usage(self, usage):
         if usage:
             _log(f"Token: {usage.prompt_tokens} input + {usage.completion_tokens} output = {usage.total_tokens} used")
 
-    def _rewrite_query(self, question):
+    def _rewrite_query(self, question, image=None):
         _log_section("查询重写")
         prompt = QUERY_REWRITE_PROMPT.format(question=question)
+        user_content = prompt
+        if image is not None:
+            b64 = utils.tensor_to_base64(image)
+            user_content = [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + b64}},
+            ]
 
         # 尝试两次：第一次带 extra_body，第二次去掉 reasoning 参数
         extra_body_list = [self._extra_body]
@@ -283,7 +317,7 @@ class PromptAgent:
             try:
                 resp = self.llm.chat.completions.create(
                     model=self.model_name,
-                    messages=[{"role": "user", "content": prompt}],
+                    messages=[{"role": "user", "content": user_content}],
                     temperature=0.3,
                     max_tokens=10240,
                     extra_body=extra_body,
@@ -369,6 +403,12 @@ class PromptAgent:
                 min_cooc=int(args.get("min_cooc", 3)),
                 show_nsfw=bool(args.get("show_nsfw", True)),
             )
+        elif name == "get_artist_profile":
+            return execute_get_artist_profile(
+                artist_name=str(args.get("artist_name", "")),
+                top_n=int(args.get("top_n", 20)),
+                show_nsfw=bool(args.get("show_nsfw", True)),
+            )
         elif name == "get_anima_format":
             return execute_get_anima_format()
         elif name == "get_newbie_format":
@@ -400,6 +440,10 @@ class PromptAgent:
                     tags = [t.strip() for t in tags.split(",") if t.strip()]
             _log(f"  > 画师推荐：{', '.join(tags[:5])}", _C.GREEN)
             _log(f"    [get_artist_recommendations] tags={len(tags)}, limit={args.get('limit', 30)}")
+        elif name == "get_artist_profile":
+            artist_name = str(args.get("artist_name", "")).strip()
+            _log(f"  > 画师画像：{artist_name}", _C.GREEN)
+            _log(f"    [get_artist_profile] top_n={args.get('top_n', 20)}")
         elif name == "get_anima_format":
             _log(f"  > 获取 Anima 格式规范", _C.GREEN)
         elif name == "get_newbie_format":
@@ -413,6 +457,15 @@ class PromptAgent:
             return
         try:
             data = json.loads(result_str)
+            if name == "get_artist_profile":
+                if data.get("artist"):
+                    top_tags = data.get("top_tags", [])
+                    _log(f"    画师 {data['artist']}：{len(top_tags)} 个常见标签", _C.GREEN)
+                elif data.get("error"):
+                    _log_warn(f"    工具返回错误: {data['error']}")
+                else:
+                    _log("    未找到唯一画师", _C.WARNING)
+                return
             results = data.get("results", [])
             if results:
                 _log(f"    找到 {len(results)} 个标签", _C.GREEN)
@@ -422,6 +475,77 @@ class PromptAgent:
                 _log("    未找到标签", _C.WARNING)
         except Exception:
             pass
+
+    def _tool_trace_summary(self, name, args):
+        if name == "search_tags":
+            return str(args.get("query", "")).strip()
+        if name == "get_related_tags":
+            tags = args.get("tags", [])
+            if isinstance(tags, str):
+                return tags[:120]
+            return ", ".join(map(str, tags[:4]))
+        if name == "get_artist_recommendations":
+            tags = args.get("tags", [])
+            if isinstance(tags, str):
+                return tags[:120]
+            return f"{len(tags)} tags"
+        if name == "get_artist_profile":
+            return str(args.get("artist_name", "")).strip()
+        if name in ("get_anima_format", "get_newbie_format"):
+            return "读取输出格式规范"
+        return ""
+
+    def _tool_result_summary(self, name, result_str):
+        if name in ("get_anima_format", "get_newbie_format"):
+            return f"{len(result_str)} chars"
+        try:
+            data = json.loads(result_str)
+        except Exception:
+            return f"{len(result_str)} chars"
+        if data.get("error"):
+            return str(data["error"])[:140]
+        if name == "get_artist_profile":
+            artist = data.get("artist")
+            top_tags = data.get("top_tags", [])
+            if artist:
+                return f"{artist}: {len(top_tags)} common tags"
+            candidates = data.get("candidates", [])
+            if isinstance(candidates, list) and candidates:
+                return f"{len(candidates)} artist candidates"
+            return "artist not found"
+        results = data.get("results", [])
+        if isinstance(results, list) and results:
+            return f"{len(results)} tags"
+        prompt = data.get("prompt")
+        if isinstance(prompt, str) and prompt.strip():
+            return f"{len([t for t in prompt.split(',') if t.strip()])} prompt tags"
+        return "完成"
+
+    def _compact_tool_result(self, result_str):
+        try:
+            data = json.loads(result_str)
+        except Exception:
+            return {"text": result_str[:1200]}
+        compact = {}
+        for key in ("prompt", "error", "skipped", "note"):
+            value = data.get(key)
+            if value:
+                compact[key] = str(value)[:1200]
+        for key in ("artist", "input", "matched_by", "post_count"):
+            if key in data:
+                compact[key] = data[key]
+        results = data.get("results")
+        if isinstance(results, list):
+            compact["results"] = results[:8]
+            compact["result_count"] = len(results)
+        top_tags = data.get("top_tags")
+        if isinstance(top_tags, list):
+            compact["top_tags"] = top_tags[:8]
+            compact["top_tag_count"] = len(top_tags)
+        candidates = data.get("candidates")
+        if isinstance(candidates, list):
+            compact["candidates"] = candidates[:8]
+        return compact or {"text": result_str[:1200]}
 
     @staticmethod
     def _extract_tag_list(result_str: str) -> list[str]:
@@ -458,6 +582,11 @@ class PromptAgent:
                 cn = (t.get("cn_name") or "").strip()
                 if tag and cn:
                     mapping[tag] = cn
+            for t in data.get("top_tags", []):
+                tag = (t.get("tag") or "").strip()
+                cn = (t.get("cn_name") or "").strip()
+                if tag and cn:
+                    mapping[tag] = cn
         except Exception:
             pass
         return mapping
@@ -476,7 +605,15 @@ class PromptAgent:
         if fu and fa:
             messages.append({"role": "user", "content": fu})
             messages.append({"role": "assistant", "content": fa})
-        messages.append({"role": "user", "content": "<user_message>\n" + user_text + "\n</user_message>"})
+        user_content = "<user_message>\n" + user_text + "\n</user_message>"
+        if image is not None:
+            b64 = utils.tensor_to_base64(image)
+            messages.append({"role": "user", "content": [
+                {"type": "text", "text": user_content},
+                {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + b64}},
+            ]})
+        else:
+            messages.append({"role": "user", "content": user_content})
         try:
             resp = self.llm.chat.completions.create(
                 model=self.model_name, messages=messages,
@@ -654,7 +791,7 @@ class PromptAgent:
                 pbar.update_absolute(step)
 
         # Step 1: 查询重写 + 确定性抽取已提供标签（不依赖重写 LLM 的 [已有] 识别）
-        user_tags, dimensions = self._rewrite_query(user_text)
+        user_tags, dimensions = self._rewrite_query(user_text, image=image)
         if not dimensions:
             dimensions = [user_text]
             _log("查询重写未返回结果，使用原始输入")
@@ -708,32 +845,111 @@ class PromptAgent:
         return content, forced_tokens
 
     def run(self, user_text, image=None, force_full_run=False):
+        self._trace(
+            "start",
+            status="running",
+            title="Agent started",
+            summary=f"{self.effort} · {self.mode}",
+            details={"effort": self.effort, "mode": self.mode},
+        )
         # ── 基线判定（所有 effort 通用）：复用 / 续写 / 冷跑 ──
         baseline = get_baseline_store().get(self.unique_id)
         if force_full_run:
             _log("Force full Agent run enabled: ignoring incremental baseline for this run.")
+            self._trace(
+                "path",
+                status="warning",
+                title="Force full run",
+                summary="忽略增量基线，本次完整运行",
+            )
             decision, edit = ("cold", None)
         else:
             decision, edit = self._decide_baseline(baseline, user_text, image)
+        previous_continuations = int((baseline or {}).get("continuation_count") or 0)
+        continuation_count = previous_continuations + 1 if decision == "continue" else 0
+        if decision == "continue" and previous_continuations >= _MAX_CONSECUTIVE_CONTINUATIONS:
+            _log(
+                f"连续原位修改已达 {previous_continuations} 次，"
+                "本次自动完整重跑以刷新基线。"
+            )
+            self._trace(
+                "path",
+                status="warning",
+                title="Auto full run",
+                summary=f"连续原位修改 {previous_continuations} 次后自动全量重跑",
+                details={
+                    "path": "cold",
+                    "reason": "continuation_limit",
+                    "continuation_count": previous_continuations,
+                },
+            )
+            decision, edit = ("cold", None)
+            continuation_count = 0
         if decision == "reuse":
+            self._trace(
+                "complete",
+                status="success",
+                title="Reused previous result",
+                summary="零调用复用上次输出",
+                details={"path": "reuse"},
+            )
             return self._parse_output(baseline["output"])
 
         # Low effort：流水线冷跑 / 增量修订续写
         if self.effort == "Low":
             if decision == "continue":
+                self._trace(
+                    "path",
+                    status="running",
+                    title="Low continuation",
+                    summary="增量修订路径",
+                    details={"path": "continue", "edit": edit},
+                )
                 xml_out, text_out, content = self._run_low_continuation(user_text, baseline, edit)
             else:
+                self._trace(
+                    "path",
+                    status="running",
+                    title="Low cold run",
+                    summary="完整流水线路径",
+                    details={"path": "cold"},
+                )
                 xml_out, text_out, content = self._run_low_effort(user_text, image)
-            self._store_baseline(user_text, content, image,
-                                 baseline.get("format_spec") if baseline else None)
+            self._store_baseline(
+                user_text,
+                content,
+                image,
+                baseline.get("format_spec") if baseline else None,
+                continuation_count=continuation_count,
+            )
+            self._trace(
+                "complete",
+                status="success",
+                title="Agent complete",
+                summary="Low effort 输出已解析",
+            )
             return xml_out, text_out
 
         # Agent 模式：续写 / 冷跑
         _log_banner("Agent 模式已启用，开始处理用户输入...")
         _log(f"模式: {self.mode} | Effort: {self.effort} | MCP: HF (主) / MS (备)")
         if decision == "continue":
+            self._trace(
+                "path",
+                status="running",
+                title="Continuation",
+                summary=f"变更块 {edit['blocks']} · 相似度 {edit['ratio']:.2f}",
+                details={"path": "continue", "edit": edit},
+            )
             build = self._build_continuation(baseline, edit, user_text)
         else:
+            self._trace(
+                "path",
+                status="running",
+                title="Cold run",
+                summary="完整 Agent 探索",
+                details={"path": "cold"},
+            )
             build = self._build_cold_run(user_text, image)
         messages, max_rounds, provided_norm = build
 
@@ -742,33 +958,57 @@ class PromptAgent:
         )
 
         _log_section("输出解析")
+        self._trace("parse", status="running", title="Parsing output", summary=self.mode)
         xml_out, text_out = self._parse_output(content)
 
         # 压平存档：本次结果成为下次 diff 的基线（每节点只存上一次）。
         # 格式规范：本轮抓到的优先，否则沿用上一轮基线的（跨续写链保留，不重复调 MCP）。
         fmt_spec = captured_spec or (baseline.get("format_spec") if baseline else None)
-        self._store_baseline(user_text, content, image, fmt_spec)
+        self._store_baseline(
+            user_text,
+            content,
+            image,
+            fmt_spec,
+            continuation_count=continuation_count,
+        )
 
         _log_banner(f"Agent 完成 | 总轮次: {rounds + 1} | 总 Token: {total_tokens}")
+        self._trace(
+            "complete",
+            status="success",
+            title="Agent complete",
+            summary=f"{rounds + 1} 轮 · {total_tokens} tokens",
+            details={"rounds": rounds + 1, "tokens": total_tokens},
+        )
         return xml_out, text_out
 
     def _decide_baseline(self, baseline, user_text, image):
         """基线判定（所有 effort 通用）。返回 (decision, edit)：
         decision ∈ {"reuse", "continue", "cold"}；continue 时附带 edit。
         """
-        if not (baseline and image is None
+        if not (baseline
                 and baseline.get("mode") == self.mode
-                and not baseline.get("has_image")
                 and baseline.get("output")):
             return ("cold", None)
+        if image is None:
+            if baseline.get("has_image"):
+                return ("cold", None)
+        else:
+            current_fingerprint = utils.image_fingerprint(image)
+            if not (baseline.get("has_image")
+                    and baseline.get("image_fingerprint")
+                    and current_fingerprint == baseline.get("image_fingerprint")):
+                return ("cold", None)
         if normalize_prompt(user_text) == baseline.get("norm_input"):
             _log_ok("输入与上次完全一致，直接复用上次结果（零调用）")
+            self._trace("path", status="success", title="Reuse", summary="输入与上次完全一致")
             return ("reuse", None)
         edit = compute_edit(baseline["raw_input"], user_text)
         _log(f"与上次 diff：变更块={edit['blocks']}，相似度={edit['ratio']:.2f}")
         if edit["blocks"] == 0:
             # 仅标点/空白变化，无实义 token 改动 → 标签集合不变，直接复用
             _log_ok("仅标点/空白变化，无实义改动，直接复用上次结果（零调用）")
+            self._trace("path", status="success", title="Reuse", summary="仅标点/空白变化")
             return ("reuse", None)
         if edit["continue"]:
             return ("continue", edit)
@@ -863,7 +1103,7 @@ class PromptAgent:
         rewrite_queries = []
         user_tags = ""
         if self._effort_cfg.get("rewrite", True) and len(user_text) > 10:
-            user_tags, rewrite_queries = self._rewrite_query(user_text)
+            user_tags, rewrite_queries = self._rewrite_query(user_text, image=image)
 
         system_content, fewshot_user, fewshot_assistant = get_agent_system_prompt(
             self.mode, self.config, max_rounds=max_rounds,
@@ -963,7 +1203,7 @@ class PromptAgent:
         # 续写不启用已提供标签机制（模型在做修订，而非首轮检索）
         return messages, max_rounds, set()
 
-    def _store_baseline(self, user_text, content, image, format_spec=None):
+    def _store_baseline(self, user_text, content, image, format_spec=None, continuation_count=0):
         """压平：把本次(提示词→最终输出)存为新基线，供下次 diff 续写。
 
         format_spec 随基线保留（不丢弃格式规范），续写时直接复用，避免重复调 MCP。
@@ -977,7 +1217,9 @@ class PromptAgent:
                 "output": content,
                 "mode": self.mode,
                 "has_image": image is not None,
+                "image_fingerprint": utils.image_fingerprint(image) if image is not None else None,
                 "format_spec": format_spec,
+                "continuation_count": int(continuation_count or 0),
             })
         except Exception:
             pass  # 基线写入失败不影响主流程
@@ -1000,6 +1242,13 @@ class PromptAgent:
             if _COMFY_AVAILABLE:
                 comfy.model_management.throw_exception_if_processing_interrupted()
             _log_round_header(rounds + 1)
+            self._trace(
+                "round",
+                status="running",
+                title="思考中...",
+                summary=f"Round {rounds + 1}/{max_rounds}",
+                details={"round": rounds + 1, "max_rounds": max_rounds, "phase": "thinking"},
+            )
             _tools = get_tools()
             _log(f"LLM 请求: {len(_tools)} tools available, {len(messages)} messages")
 
@@ -1025,8 +1274,9 @@ class PromptAgent:
                 self._log_token_usage(resp.usage)
 
             if finish_reason == "tool_calls" and tool_calls:
-                if content and content.strip():
-                    _log(f"LLM 工具调用附带 content: {content[:200]}{'...' if len(content) > 200 else ''}", _C.WARNING)
+                assistant_note = content.strip() if content else ""
+                if assistant_note:
+                    _log(f"LLM 工具调用附带 content: {assistant_note[:200]}{'...' if len(assistant_note) > 200 else ''}", _C.WARNING)
                 # 预先解析参数并过滤重复调用
                 parsed = []
                 skipped = []
@@ -1058,14 +1308,25 @@ class PromptAgent:
                 if not parsed:
                     # 所有 tool_calls 均为重复：仍需添加 assistant+tool 消息，
                     # 否则上一轮遗留的 tool_calls 无对应 response 会导致 API 400
-                    messages.append({"role": "assistant", "content": content, "tool_calls": tool_calls})
+                    messages.append(_assistant_tool_message(content, tool_calls, msg))
                     for tc in tool_calls:
                         messages.append({"role": "tool", "tool_call_id": tc["id"],
                                          "content": json.dumps({"skipped": "duplicate"}, ensure_ascii=False)})
                     _log_error("所有 tool_calls 均为重复调用，强制退出循环")
                     break
                 # 全量 tool_calls 放入 assistant 消息，确保与后续 tool response 一一对应
-                messages.append({"role": "assistant", "content": content, "tool_calls": tool_calls})
+                messages.append(_assistant_tool_message(content, tool_calls, msg))
+                for tc, name, args in parsed:
+                    tool_details = {"round": rounds + 1, "tool_call_id": tc["id"], "arguments": args}
+                    if assistant_note:
+                        tool_details["message"] = assistant_note
+                    self._trace(
+                        "tool",
+                        status="running",
+                        title=name,
+                        summary=self._tool_trace_summary(name, args),
+                        details=tool_details,
+                    )
                 # 并行执行所有工具调用（HTTP I/O，无 GIL 竞争）
                 try:
                     with ThreadPoolExecutor(max_workers=min(len(parsed), 8)) as pool:
@@ -1098,6 +1359,21 @@ class PromptAgent:
                 for (tc, name, args), result in zip(parsed, results):
                     self._log_tool_call(name, args)
                     self._log_tool_result(name, result)
+                    result_details = {
+                        "round": rounds + 1,
+                        "tool_call_id": tc["id"],
+                        "arguments": args,
+                        "result": self._compact_tool_result(result),
+                    }
+                    if assistant_note:
+                        result_details["message"] = assistant_note
+                    self._trace(
+                        "tool",
+                        status="success",
+                        title=name,
+                        summary=self._tool_result_summary(name, result),
+                        details=result_details,
+                    )
                     tag_cn_map.update(self._collect_cn_from_result(result))
                     if name in ("get_anima_format", "get_newbie_format"):
                         captured_format = result  # 保留格式规范供续写复用
@@ -1147,6 +1423,13 @@ class PromptAgent:
                         f"低信息增量轮次（本轮新增 {round_new} 个标签），"
                         f"停滞计数 {stagnant_rounds}/{_STAGNATION_LIMIT}"
                     )
+                    self._trace(
+                        "notice",
+                        status="warning",
+                        title="Low novelty",
+                        summary=f"本轮新增 {round_new} 个标签",
+                        details={"stagnant_rounds": stagnant_rounds},
+                    )
                 else:
                     stagnant_rounds = 0
 
@@ -1156,6 +1439,12 @@ class PromptAgent:
 
                 if stagnant_rounds >= _STAGNATION_LIMIT:
                     _log_warn("连续低信息增量，提前结束探索，进入收尾输出")
+                    self._trace(
+                        "notice",
+                        status="warning",
+                        title="Early finish",
+                        summary="连续低信息增量，提前收尾",
+                    )
                     stagnated = True
                     break
 

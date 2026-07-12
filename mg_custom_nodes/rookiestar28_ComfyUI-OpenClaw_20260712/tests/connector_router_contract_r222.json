@@ -1,0 +1,172 @@
+{
+  "command_table": [
+    {
+      "aliases": [
+        "/status",
+        "status"
+      ],
+      "class": "PUBLIC",
+      "handler": "_handle_status"
+    },
+    {
+      "aliases": [
+        "/help",
+        "help",
+        "/start"
+      ],
+      "class": "PUBLIC",
+      "handler": "_handle_help"
+    },
+    {
+      "aliases": [
+        "/run",
+        "run"
+      ],
+      "class": "RUN",
+      "handler": "_handle_run"
+    },
+    {
+      "aliases": [
+        "/interrupt",
+        "interrupt",
+        "/cancel",
+        "cancel",
+        "/stop"
+      ],
+      "class": "ADMIN",
+      "handler": "_handle_interrupt"
+    },
+    {
+      "aliases": [
+        "/approvals",
+        "approvals"
+      ],
+      "class": "ADMIN",
+      "handler": "_handle_approvals_list"
+    },
+    {
+      "aliases": [
+        "/approve",
+        "approve"
+      ],
+      "class": "ADMIN",
+      "handler": "_handle_approve"
+    },
+    {
+      "aliases": [
+        "/reject",
+        "reject"
+      ],
+      "class": "ADMIN",
+      "handler": "_handle_reject"
+    },
+    {
+      "aliases": [
+        "/schedules",
+        "schedules"
+      ],
+      "class": "ADMIN",
+      "handler": "_handle_schedules_list"
+    },
+    {
+      "aliases": [
+        "/schedule",
+        "schedule"
+      ],
+      "class": "ADMIN",
+      "handler": "_handle_schedule_subcommand"
+    },
+    {
+      "aliases": [
+        "/history",
+        "history"
+      ],
+      "class": "PUBLIC",
+      "handler": "_handle_history"
+    },
+    {
+      "aliases": [
+        "/trace",
+        "trace"
+      ],
+      "class": "ADMIN",
+      "handler": "_handle_trace"
+    },
+    {
+      "aliases": [
+        "/jobs",
+        "jobs",
+        "queue"
+      ],
+      "class": "ADMIN",
+      "handler": "_handle_jobs"
+    },
+    {
+      "aliases": [
+        "/chat",
+        "chat"
+      ],
+      "class": "PUBLIC",
+      "handler": "_handle_chat"
+    }
+  ],
+  "constructor_signature": "(config: connector.config.ConnectorConfig, client: connector.openclaw_client.OpenClawClient, poller: 'ResultsPoller' = None)",
+  "facade_signatures": {
+    "__init__": "(self, config: connector.config.ConnectorConfig, client: connector.openclaw_client.OpenClawClient, poller: 'ResultsPoller' = None)",
+    "_chat_general": "(self, llm: connector.llm_client.LLMClient, message: str, trust_level: str) -> connector.contract.CommandResponse",
+    "_chat_run": "(self, llm: connector.llm_client.LLMClient, request: str, trust_level: str) -> connector.contract.CommandResponse",
+    "_chat_status": "(self, llm: connector.llm_client.LLMClient) -> connector.contract.CommandResponse",
+    "_chat_template": "(self, llm: connector.llm_client.LLMClient, request: str) -> connector.contract.CommandResponse",
+    "_check_command_authz": "(self, cmd: str, req: connector.contract.CommandRequest, default_class: connector.config.CommandClass) -> Optional[connector.contract.CommandResponse]",
+    "_delivery_context": "(self, req: connector.contract.CommandRequest) -> Dict[str, Any]",
+    "_get_template_meta": "(self, template_id: str) -> Dict[str, Any]",
+    "_handle_approvals_list": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_approve": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_chat": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_help": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_history": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_interrupt": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_jobs": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_reject": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_run": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_schedule_subcommand": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_schedules_list": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_status": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_handle_trace": "(self, req: connector.contract.CommandRequest, args: List[str]) -> connector.contract.CommandResponse",
+    "_is_admin": "(self, user_id: str) -> bool",
+    "_is_trusted": "(self, req: connector.contract.CommandRequest) -> bool",
+    "_jobs_cancel_unsupported": "(res: Dict[str, Any]) -> bool",
+    "_parse_stop_targets": "(args: List[str]) -> List[str]",
+    "_policy_kv": "(contract: Dict[str, Any]) -> str",
+    "_require_admin_token_configured": "(self) -> Optional[connector.contract.CommandResponse]",
+    "_resolve_prompt_key": "(self, template_id: str) -> str",
+    "handle": "(self, req: connector.contract.CommandRequest) -> connector.contract.CommandResponse"
+  },
+  "instance_ownership": [
+    "config",
+    "client",
+    "poller",
+    "state",
+    "_template_meta_cache",
+    "_rate_limiter",
+    "semantic_guard",
+    "command_firewall"
+  ],
+  "response_matrix_owners": [
+    "tests.connector.test_router_hotspot_r181",
+    "tests.connector.test_r214_jobs_command",
+    "tests.connector.test_router_admin",
+    "tests.connector.test_router_command_authz_r80",
+    "tests.connector.test_security",
+    "tests.connector.test_chat",
+    "tests.connector.test_chat_integration",
+    "tests.connector.test_media_delivery",
+    "tests.chat_connector.test_router_phase2",
+    "tests.chat_connector.test_router_phase3"
+  ],
+  "schema_version": 1,
+  "upstream_contract_digests": {
+    "api_config_contract_r221.json": "a0a4aec0ba68692bf8bfac411fb951f95589006ba3d5d6ad463569d24dfc1245",
+    "api_route_contract_r220.json": "947979f978f3541dce6b005c38255177322234a24b47ee0dd22a49e234eeed27"
+  }
+}

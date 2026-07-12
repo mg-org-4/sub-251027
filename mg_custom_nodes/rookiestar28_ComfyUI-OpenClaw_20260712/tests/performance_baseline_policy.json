@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "policy_id": "openclaw-deterministic-scale-v1",
+  "reviewed_on": "2026-07-11",
+  "timing": {
+    "clock": "monotonic_high_resolution",
+    "enforcement": "advisory_only",
+    "samples": 2
+  },
+  "workloads": [
+    {
+      "id": "backend_jobs_history",
+      "seed": 21801,
+      "owner": "services.jobs_read_model",
+      "review_after": "2027-01-11",
+      "input": {
+        "history_records": 10001
+      },
+      "expected": {
+        "exact": {
+          "source_records": 10001,
+          "examined": 10000,
+          "total": 10000,
+          "returned": 50,
+          "truncated": true,
+          "queue_snapshot_calls": 1,
+          "history_snapshot_calls": 1,
+          "upstream_calls": 1,
+          "upstream_records": 10000
+        },
+        "max_payload_bytes": 100000,
+        "digest_sha256": "6fdc64ed424a242c6d9a0cba5761440a1789393e2d1036001fbe3fd60f98bde5"
+      }
+    },
+    {
+      "id": "connector_jobs_dispatch",
+      "seed": 21802,
+      "owner": "connector.jobs_summary",
+      "review_after": "2027-01-11",
+      "input": {
+        "returned_jobs": 200
+      },
+      "expected": {
+        "exact": {
+          "returned_jobs": 200,
+          "client_calls": 1,
+          "fallback_calls": 0,
+          "visible_job_lines": 5
+        },
+        "max_summary_chars": 1000,
+        "digest_sha256": "275086b759bff79c7b0ce54505bf10a60e82ae8966016ef4bafb3727e9684863"
+      }
+    },
+    {
+      "id": "frontend_history_outputs",
+      "seed": 21803,
+      "owner": "web.openclaw_asset_refs",
+      "review_after": "2027-01-11",
+      "input": {
+        "nodes": 256,
+        "refs_per_node": 4
+      },
+      "expected": {
+        "exact": {
+          "input_refs": 1024,
+          "normalized_outputs": 1024,
+          "image_outputs": 1024
+        },
+        "max_serialized_bytes": 500000,
+        "digest_sha256": "cc6ce5107a595bf1a6d509918a339c5e2bc228b014e7281816b2c888037a08ea"
+      }
+    }
+  ]
+}

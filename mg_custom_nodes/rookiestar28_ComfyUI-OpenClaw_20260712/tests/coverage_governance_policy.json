@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "current_stage": "ratchet-55",
+  "stages": [
+    {
+      "id": "baseline-35",
+      "min_fail_under": 35.0,
+      "promotion_requires": [
+        "coverage governance report reviewed for hotspot families",
+        "temporary hotspot exceptions have explicit rationale and review dates"
+      ],
+      "rollback_triggers": [
+        "coverage floor drift below policy baseline",
+        "critical hotspot family loses review coverage visibility"
+      ]
+    },
+    {
+      "id": "ratchet-45",
+      "min_fail_under": 45.0,
+      "promotion_requires": [
+        "two consecutive release cycles with reviewed hotspot summaries",
+        "no unresolved exception review dates in the current cycle"
+      ],
+      "rollback_triggers": [
+        "overall coverage regresses below 45.0 after promotion",
+        "new unowned hotspot debt is introduced without policy update"
+      ]
+    },
+    {
+      "id": "ratchet-55",
+      "min_fail_under": 55.0,
+      "promotion_requires": [
+        "ratchet-45 remains stable through one full release cycle",
+        "critical hotspot families are represented in targeted regression suites"
+      ],
+      "rollback_triggers": [
+        "multiple hotspot families fall back to exception-only governance",
+        "coverage ratchet blocks releases without approved rollback note"
+      ]
+    }
+  ],
+  "required_hotspot_families": [
+    "safe_io",
+    "security_boundary",
+    "connector_config",
+    "config_bootstrap"
+  ],
+  "hotspot_families": [
+    {
+      "id": "safe_io",
+      "paths": [
+        "services/safe_io.py"
+      ],
+      "ratchet55_readiness": {
+        "targeted_regression_suite": "tests/test_safe_io.py; tests/test_callback_url_policy.py; tests/test_s36s37r79_egress_hardening.py; tests/test_r185_hotspot_regression_ownership.py",
+        "ownership_status": "targeted-regression-owned",
+        "readiness_notes": "SSRF deny-by-default, host allowlist, private-IP blocking, DNS pinning, and redirect revalidation are covered by focused safe_io suites before any ratchet-55 proposal."
+      }
+    },
+    {
+      "id": "security_boundary",
+      "paths": [
+        "services/security_gate.py",
+        "services/access_control.py",
+        "services/csrf_protection.py",
+        "services/secrets_encryption.py"
+      ],
+      "ratchet55_readiness": {
+        "targeted_regression_suite": "tests/security/test_startup_gate.py; tests/security/test_r99_sensitive_contract.py; tests/security/test_rbac.py; tests/test_s57_secrets_encryption.py; tests/test_r185_hotspot_regression_ownership.py",
+        "ownership_status": "targeted-regression-owned",
+        "readiness_notes": "Startup gate fail-closed, auth/RBAC, CSRF convenience-mode denial, and secret-envelope tamper/failure behavior have explicit targeted suites before any ratchet-55 proposal."
+      }
+    },
+    {
+      "id": "connector_config",
+      "paths": [
+        "connector/config.py",
+        "connector/router.py"
+      ],
+      "ratchet55_readiness": {
+        "targeted_regression_suite": "tests/test_r177_connector_config_env.py; tests/connector/test_config_r80.py; tests/connector/test_router_hotspot_r181.py; tests/test_r222_connector_router_decomposition.py",
+        "ownership_status": "targeted-regression-owned",
+        "readiness_notes": "Environment precedence, connector policy, router boundaries, and decomposed command ownership remain covered at the promoted floor."
+      }
+    },
+    {
+      "id": "config_bootstrap",
+      "paths": [
+        "config.py",
+        "services/runtime_config.py",
+        "services/effective_config.py"
+      ],
+      "ratchet55_readiness": {
+        "targeted_regression_suite": "tests/test_r176_import_safe_config.py; tests/test_r182_effective_config_hotspot.py; tests/test_runtime_config.py; tests/test_effective_config.py",
+        "ownership_status": "targeted-regression-owned",
+        "readiness_notes": "Import-safe bootstrap, effective configuration, runtime configuration, and precedence behavior have explicit regression ownership."
+      }
+    }
+  ],
+  "exceptions": []
+}

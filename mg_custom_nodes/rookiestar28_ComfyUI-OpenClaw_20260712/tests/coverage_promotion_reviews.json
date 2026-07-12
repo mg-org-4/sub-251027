@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "reviews": [
+    {
+      "cycle_id": "2026-04-20-baseline-cycle-1",
+      "stage_id": "baseline-35",
+      "reviewed_at": "2026-04-20",
+      "overall_percent_covered": 68.14,
+      "reviewed_hotspot_families": [
+        "connector_config",
+        "config_bootstrap"
+      ],
+      "hotspot_percent_covered": {
+        "connector_config": 64.94,
+        "config_bootstrap": 63.2
+      },
+      "artifact_reference": "2026-04-20 Windows backend coverage review cycle 1 via scripts/run_backend_coverage.py (.tmp/coverage/coverage_probe.json)"
+    },
+    {
+      "cycle_id": "2026-04-20-baseline-cycle-2",
+      "stage_id": "baseline-35",
+      "reviewed_at": "2026-04-20",
+      "overall_percent_covered": 68.17,
+      "reviewed_hotspot_families": [
+        "connector_config",
+        "config_bootstrap"
+      ],
+      "hotspot_percent_covered": {
+        "connector_config": 64.94,
+        "config_bootstrap": 63.2
+      },
+      "artifact_reference": "2026-04-20 Windows backend coverage review cycle 2 via scripts/run_backend_coverage.py (.tmp/coverage/r181_r182_cycle2.json)"
+    },
+    {
+      "cycle_id": "v0.9.0-to-v0.9.5-ratchet45",
+      "stage_id": "ratchet-45",
+      "reviewed_at": "2026-07-11",
+      "overall_percent_covered": 69.78,
+      "reviewed_hotspot_families": [
+        "safe_io",
+        "security_boundary",
+        "connector_config",
+        "config_bootstrap"
+      ],
+      "hotspot_percent_covered": {
+        "safe_io": 82.95,
+        "security_boundary": 63.33,
+        "connector_config": 65.03,
+        "config_bootstrap": 68.77
+      },
+      "owned_regression_suites": {
+        "safe_io": [
+          "tests/test_safe_io.py",
+          "tests/test_callback_url_policy.py",
+          "tests/test_s36s37r79_egress_hardening.py",
+          "tests/test_r185_hotspot_regression_ownership.py"
+        ],
+        "security_boundary": [
+          "tests/security/test_startup_gate.py",
+          "tests/security/test_r99_sensitive_contract.py",
+          "tests/security/test_rbac.py",
+          "tests/test_s57_secrets_encryption.py",
+          "tests/test_r185_hotspot_regression_ownership.py"
+        ],
+        "connector_config": [
+          "tests/test_r177_connector_config_env.py",
+          "tests/connector/test_config_r80.py",
+          "tests/connector/test_router_hotspot_r181.py",
+          "tests/test_r222_connector_router_decomposition.py"
+        ],
+        "config_bootstrap": [
+          "tests/test_r176_import_safe_config.py",
+          "tests/test_r182_effective_config_hotspot.py",
+          "tests/test_runtime_config.py",
+          "tests/test_effective_config.py"
+        ]
+      },
+      "release_cycle": {
+        "start_tag": "v0.9.0",
+        "start_commit": "9285f44766df5a24e2296a98d1cb078077d311df",
+        "end_tag": "v0.9.5",
+        "end_commit": "18a53416978dda975ece6db7b1369985ced19fe0"
+      },
+      "reviewed_commit": "18a53416978dda975ece6db7b1369985ced19fe0",
+      "coverage_command": "python scripts/run_backend_coverage.py --start-dir tests --pattern test_*.py --enforce-skip-policy tests/skip_policy.json",
+      "artifact_reference": "v0.9.5 full-suite coverage JSON reconstructed from immutable release commit",
+      "artifact_sha256": "9f66e986b1733a91c483e8c933917653af9de87d9d59ccb3b37459d9fb5cf34d"
+    },
+    {
+      "cycle_id": "v0.9.5-to-v1.0.0-ratchet45",
+      "stage_id": "ratchet-45",
+      "reviewed_at": "2026-07-11",
+      "overall_percent_covered": 70.28,
+      "reviewed_hotspot_families": [
+        "safe_io",
+        "security_boundary",
+        "connector_config",
+        "config_bootstrap"
+      ],
+      "hotspot_percent_covered": {
+        "safe_io": 82.95,
+        "security_boundary": 64.5,
+        "connector_config": 65.54,
+        "config_bootstrap": 68.77
+      },
+      "owned_regression_suites": {
+        "safe_io": [
+          "tests/test_safe_io.py",
+          "tests/test_callback_url_policy.py",
+          "tests/test_s36s37r79_egress_hardening.py",
+          "tests/test_r185_hotspot_regression_ownership.py"
+        ],
+        "security_boundary": [
+          "tests/security/test_startup_gate.py",
+          "tests/security/test_r99_sensitive_contract.py",
+          "tests/security/test_rbac.py",
+          "tests/test_s57_secrets_encryption.py",
+          "tests/test_r185_hotspot_regression_ownership.py"
+        ],
+        "connector_config": [
+          "tests/test_r177_connector_config_env.py",
+          "tests/connector/test_config_r80.py",
+          "tests/connector/test_router_hotspot_r181.py",
+          "tests/test_r222_connector_router_decomposition.py"
+        ],
+        "config_bootstrap": [
+          "tests/test_r176_import_safe_config.py",
+          "tests/test_r182_effective_config_hotspot.py",
+          "tests/test_runtime_config.py",
+          "tests/test_effective_config.py"
+        ]
+      },
+      "release_cycle": {
+        "start_tag": "v0.9.5",
+        "start_commit": "18a53416978dda975ece6db7b1369985ced19fe0",
+        "end_tag": "v1.0.0",
+        "end_commit": "0f23b04a324f1fc150bc10fc97a4a5846f44490e"
+      },
+      "reviewed_commit": "0f23b04a324f1fc150bc10fc97a4a5846f44490e",
+      "coverage_command": "python scripts/run_backend_coverage.py --start-dir tests --pattern test_*.py --enforce-skip-policy tests/skip_policy.json",
+      "artifact_reference": "v1.0.0 full-suite coverage JSON reconstructed from immutable release commit",
+      "artifact_sha256": "5f693f5cead750722f94e7d6dd0a71d1b5b721f07fb6b61c12edee260b445599"
+    }
+  ]
+}

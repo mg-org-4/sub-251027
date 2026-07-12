@@ -1,0 +1,170 @@
+{
+  "feishu": {
+    "class_constants": {
+      "FEISHU_DOMAIN_BASES": {
+        "feishu": "https://open.feishu.cn",
+        "lark": "https://open.larksuite.com"
+      },
+      "FEISHU_TOKEN_TTL_SEC": 3600,
+      "FEISHU_WEBHOOK_MAX_BODY_BYTES": 262144,
+      "NONCE_CACHE_SIZE": 5000,
+      "REPLAY_WINDOW_SEC": 300
+    },
+    "delivery_target_signature": "(channel_id: 'str', reply_to_message_id: 'str' = '', workspace_id: 'str' = '', account_id: 'str' = '') -> None",
+    "instance_ownership": [
+      "_bot_open_id",
+      "_bot_open_ids",
+      "_bound_account_id",
+      "_callback_contract_secrets",
+      "_callback_contracts",
+      "_chat_allowlist",
+      "_installation_manager",
+      "_replay_guard",
+      "_tenant_access_token_expires_at",
+      "_tenant_access_tokens",
+      "_user_allowlist",
+      "app",
+      "config",
+      "router",
+      "runner",
+      "site"
+    ],
+    "method_signatures": {
+      "__init__": "(self, config: 'ConnectorConfig', router: 'CommandRouter', *, installation_manager: 'Optional[FeishuInstallationManager]' = None, bound_account_id: 'str' = '')",
+      "_actor_context_for_callback": "(self, *, actor_id: 'str', actor_open_id: 'str', channel_id: 'str', message_id: 'str', workspace_id: 'str', account_id: 'str', command_text: 'str') -> 'Tuple[CallbackActorContext, CommandRequest]'",
+      "_build_callback_response": "(self, *, ok: 'bool', text: 'str', response_type: 'str' = 'info', card: 'Optional[Dict[str, Any]]' = None, duplicate: 'bool' = False, decision_code: 'str' = '') -> 'Dict[str, Any]'",
+      "_build_card_button_value": "(self, button: 'Dict[str, Any]', *, target: 'FeishuDeliveryTarget', binding: 'FeishuBinding', signing_secret: 'str') -> 'Dict[str, Any]'",
+      "_build_interactive_card": "(self, target: 'FeishuDeliveryTarget', text: 'str', buttons: 'list[dict]', *, binding: 'FeishuBinding', secrets: 'Dict[str, str]') -> 'Dict[str, Any]'",
+      "_build_request": "(self, payload: 'Dict[str, Any]', *, binding: 'FeishuBinding', bot_open_id: 'str') -> 'Optional[CommandRequest]'",
+      "_cache_key_for_binding": "(self, binding: 'FeishuBinding') -> 'str'",
+      "_cached_bot_open_id": "(self, binding: 'FeishuBinding') -> 'str'",
+      "_callback_contract_for_binding": "(self, *, binding: 'FeishuBinding', signing_secret: 'str') -> 'ConnectorCallbackContract'",
+      "_extract_callback_action": "(self, payload: 'Dict[str, Any]') -> 'Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Any], str, str]'",
+      "_fetch_bot_open_id": "(self, *, binding: 'Optional[FeishuBinding]' = None, workspace_id: 'str' = '', account_id: 'str' = '', allow_degrade: 'bool' = False) -> 'str'",
+      "_get_tenant_access_token": "(self, *, binding: 'Optional[FeishuBinding]' = None, workspace_id: 'str' = '', account_id: 'str' = '') -> 'str'",
+      "_is_challenge": "(self, payload: 'Dict[str, Any]') -> 'bool'",
+      "_resolve_delivery_binding": "(self, *, workspace_id: 'str' = '', account_id: 'str' = '') -> 'Tuple[InstallationResolution, Optional[FeishuBinding], Dict[str, str]]'",
+      "_resolve_inbound_binding": "(self, payload: 'Dict[str, Any]') -> 'FeishuBinding'",
+      "_send_interactive_reply": "(self, target: 'FeishuDeliveryTarget', text: 'str', buttons: 'list[dict]') -> 'None'",
+      "_send_reply": "(self, target: 'FeishuDeliveryTarget', text: 'str', *, delivery_context: 'Optional[Dict[str, Any]]' = None) -> 'None'",
+      "_verify_request_token": "(self, payload: 'Dict[str, Any]') -> 'bool'",
+      "handle_callback": "(self, request)",
+      "handle_event": "(self, request)",
+      "prime_bot_identity": "(self) -> 'None'",
+      "process_callback_payload": "(self, payload: 'Dict[str, Any]') -> 'Dict[str, Any]'",
+      "process_event_payload": "(self, payload: 'Dict[str, Any]', *, binding: 'Optional[FeishuBinding]' = None) -> 'None'",
+      "send_image": "(self, channel_id: 'str', image_data: 'bytes', filename: 'str' = 'image.png', caption: 'Optional[str]' = None, delivery_context: 'Optional[Dict[str, Any]]' = None)",
+      "send_message": "(self, channel_id: 'str', text: 'str', delivery_context: 'Optional[Dict[str, Any]]' = None)",
+      "start": "(self)",
+      "stop": "(self)"
+    },
+    "patch_seams": [
+      "_import_aiohttp_web",
+      "_make_response",
+      "_make_json_response",
+      "safe_request_json",
+      "logger"
+    ],
+    "routes": [
+      [
+        "POST",
+        "feishu_webhook_path",
+        "handle_event"
+      ],
+      [
+        "POST",
+        "feishu_callback_path",
+        "handle_callback"
+      ]
+    ]
+  },
+  "response_matrix_owners": [
+    "tests.test_r124_slack_ingress_contract",
+    "tests.test_r125_slack_real_backend_lane",
+    "tests.test_f57_slack_transport_parity",
+    "tests.test_f58_slack_oauth_installations",
+    "tests.test_f59_slack_interactions",
+    "tests.test_f67_feishu_transport_parity",
+    "tests.test_f68_feishu_installations",
+    "tests.test_f69_feishu_callbacks",
+    "tests.test_f74_reply_visibility_policy",
+    "tests.security.test_s80_connector_ingress"
+  ],
+  "router_contract_digest": "1ba1ba79dba58571f120a244923ef957ce367ddde44f74d690611f6306a6dde7",
+  "schema_version": 1,
+  "slack": {
+    "class_constants": {
+      "NONCE_CACHE_SIZE": 5000,
+      "REPLAY_WINDOW_SEC": 300,
+      "SLACK_SIGNING_VERSION": "v0",
+      "SLACK_TIMESTAMP_MAX_DRIFT_SEC": 300
+    },
+    "instance_ownership": [
+      "_bot_user_id",
+      "_bot_user_ids",
+      "_channel_allowlist",
+      "_installation_manager",
+      "_interaction_lifecycle",
+      "_replay_guard",
+      "_user_allowlist",
+      "app",
+      "config",
+      "router",
+      "runner",
+      "site"
+    ],
+    "method_signatures": {
+      "__init__": "(self, config: connector.config.ConnectorConfig, router: connector.router.CommandRouter)",
+      "_build_interaction_request": "(self, payload: Dict[str, Any]) -> Optional[connector.contract.CommandRequest]",
+      "_extract_command_from_view_state": "(self, state: Dict[str, Any]) -> str",
+      "_extract_interaction_command": "(self, payload: Dict[str, Any]) -> str",
+      "_first_action": "(self, payload: Dict[str, Any]) -> Dict[str, Any]",
+      "_get_bot_user_id": "(self, payload: Dict[str, Any], workspace_id: str) -> str",
+      "_handle_lifecycle_event": "(self, workspace_id: str, event_type: str) -> None",
+      "_interaction_replay_key": "(self, payload: Dict[str, Any], request: connector.contract.CommandRequest) -> str",
+      "_resolve_workspace_credentials": "(self, workspace_id: str) -> Tuple[Optional[str], Optional[str], Optional[str]]",
+      "_send_interactive_reply": "(self, *, channel_id: str, text: str, buttons: list[dict], thread_ts: str = '', delivery_context: Optional[Dict[str, Any]] = None) -> None",
+      "_send_reply": "(self, channel_id: str, text: str, thread_ts: str = '', delivery_context: Optional[Dict[str, Any]] = None) -> None",
+      "handle_event": "(self, request)",
+      "handle_interaction": "(self, request)",
+      "handle_oauth_callback": "(self, request)",
+      "handle_oauth_install": "(self, request)",
+      "process_event_payload": "(self, payload: Dict[str, Any]) -> None",
+      "process_interaction_payload": "(self, payload: Dict[str, Any]) -> bool",
+      "send_image": "(self, channel_id: str, image_data: bytes, filename: str = 'image.png', caption: Optional[str] = None, delivery_context: Optional[Dict[str, Any]] = None)",
+      "send_message": "(self, channel_id: str, text: str, delivery_context: Optional[Dict[str, Any]] = None)",
+      "start": "(self)",
+      "stop": "(self)"
+    },
+    "patch_seams": [
+      "_import_aiohttp_web",
+      "_make_response",
+      "_make_json_response",
+      "_make_redirect_response",
+      "verify_slack_signature",
+      "logger"
+    ],
+    "routes": [
+      [
+        "POST",
+        "slack_webhook_path",
+        "handle_event"
+      ],
+      [
+        "POST",
+        "slack_interactions_path",
+        "handle_interaction"
+      ],
+      [
+        "GET",
+        "slack_oauth_install_path",
+        "handle_oauth_install"
+      ],
+      [
+        "GET",
+        "slack_oauth_callback_path",
+        "handle_oauth_callback"
+      ]
+    ]
+  }
+}

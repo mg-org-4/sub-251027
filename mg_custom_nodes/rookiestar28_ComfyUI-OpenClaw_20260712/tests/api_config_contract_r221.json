@@ -1,0 +1,205 @@
+{
+  "allowed_llm_keys": [
+    "allow_private_network",
+    "base_url",
+    "fallback_models",
+    "fallback_providers",
+    "max_failover_candidates",
+    "max_retries",
+    "model",
+    "provider",
+    "timeout_sec"
+  ],
+  "apply_semantics": {
+    "base_url": {
+      "applied_now": [
+        "base_url"
+      ],
+      "notes": [],
+      "restart_required": []
+    },
+    "model": {
+      "applied_now": [
+        "model"
+      ],
+      "notes": [],
+      "restart_required": []
+    },
+    "provider": {
+      "applied_now": [
+        "provider"
+      ],
+      "notes": [],
+      "restart_required": []
+    }
+  },
+  "facade_metadata": {
+    "config_get_handler": {
+      "audit": "config.read",
+      "auth": "obs",
+      "description": "Returns effective config, sources, and provider catalog.",
+      "plane": "admin",
+      "risk": "low",
+      "scopes": [],
+      "summary": "Get configuration"
+    },
+    "config_put_handler": {
+      "audit": "config.update",
+      "auth": "admin",
+      "description": "Updates non-secret LLM config.",
+      "plane": "admin",
+      "risk": "high",
+      "scopes": [],
+      "summary": "Update configuration"
+    },
+    "llm_chat_handler": {
+      "audit": "llm.chat_completion",
+      "auth": "admin",
+      "description": "Run a simple chat completion using server-side LLM config.",
+      "plane": "admin",
+      "risk": "medium",
+      "scopes": [],
+      "summary": "Chat completion"
+    },
+    "llm_models_handler": {
+      "audit": "llm.list_models",
+      "auth": "admin",
+      "description": "Fetch a remote model list (best-effort) for OpenAI-compatible providers.",
+      "plane": "admin",
+      "risk": "low",
+      "scopes": [],
+      "summary": "List remote models"
+    },
+    "llm_test_handler": {
+      "audit": "llm.test_connection",
+      "auth": "admin",
+      "description": "Tests LLM connection using provided or stored credentials.",
+      "plane": "admin",
+      "risk": "medium",
+      "scopes": [],
+      "summary": "Test LLM connection"
+    }
+  },
+  "facade_signatures": {
+    "config_get_handler": "(request: 'web.Request') -> 'web.Response'",
+    "config_put_handler": "(request: 'web.Request') -> 'web.Response'",
+    "llm_chat_handler": "(request: 'web.Request') -> 'web.Response'",
+    "llm_models_handler": "(request: 'web.Request') -> 'web.Response'",
+    "llm_test_handler": "(request: 'web.Request') -> 'web.Response'"
+  },
+  "model_cache": {
+    "exported_cache_type": "OrderedDict",
+    "max_entries": 16,
+    "ttl_sec": 600
+  },
+  "openapi_sha256": "7997883a91ca7b3e3058d3c299512947ca634d92ddd1aa4c06f0d33539325f33",
+  "owned_response_matrices": {
+    "config": [
+      "tests.test_s66_api_config_guardrails",
+      "tests.test_r53_apply_semantics",
+      "tests.security.test_r99_sensitive_contract",
+      "tests.test_r219_exception_boundary_phase2"
+    ],
+    "llm": [
+      "tests.test_s28s29_chat_csrf_redaction",
+      "tests.test_r219_exception_boundary_phase2"
+    ],
+    "models": [
+      "tests.test_api_model_list",
+      "tests.test_r60_model_cache",
+      "tests.test_r123_real_backend_model_list_lane",
+      "tests.test_r155_exception_fidelity",
+      "tests.test_llm_default_allowlist"
+    ]
+  },
+  "patch_seams": [
+    "web",
+    "logger",
+    "require_observability_access",
+    "require_admin_token",
+    "require_same_origin_if_no_token",
+    "check_rate_limit",
+    "build_rate_limit_response",
+    "resolve_token_info",
+    "emit_audit_event",
+    "request_tenant_scope",
+    "get_effective_config",
+    "get_runtime_guardrails",
+    "get_settings_schema",
+    "update_config",
+    "get_apply_semantics",
+    "get_admin_token",
+    "payload_contains_runtime_guardrails",
+    "get_llm_egress_controls",
+    "is_loopback_client",
+    "get_client_ip",
+    "resolve_model_list_target",
+    "validate_model_list_target",
+    "fetch_remote_model_list",
+    "get_stale_cached_models",
+    "_cache_get",
+    "_format_llm_ssrf_error",
+    "_llm_insecure_override_enabled",
+    "LLMClient"
+  ],
+  "provider_catalog": [
+    {
+      "id": "openai",
+      "label": "OpenAI",
+      "requires_key": true
+    },
+    {
+      "id": "anthropic",
+      "label": "Anthropic",
+      "requires_key": true
+    },
+    {
+      "id": "openrouter",
+      "label": "OpenRouter",
+      "requires_key": true
+    },
+    {
+      "id": "gemini",
+      "label": "Gemini (OpenAI-compat)",
+      "requires_key": true
+    },
+    {
+      "id": "groq",
+      "label": "Groq",
+      "requires_key": true
+    },
+    {
+      "id": "deepseek",
+      "label": "DeepSeek",
+      "requires_key": true
+    },
+    {
+      "id": "xai",
+      "label": "xAI",
+      "requires_key": true
+    },
+    {
+      "id": "ollama",
+      "label": "Ollama (Local)",
+      "requires_key": false
+    },
+    {
+      "id": "lmstudio",
+      "label": "LM Studio (Local)",
+      "requires_key": false
+    },
+    {
+      "id": "antigravity_proxy",
+      "label": "Antigravity Claude Proxy (Local)",
+      "requires_key": false
+    },
+    {
+      "id": "custom",
+      "label": "Custom",
+      "requires_key": true
+    }
+  ],
+  "r220_route_contract_sha256": "947979f978f3541dce6b005c38255177322234a24b47ee0dd22a49e234eeed27",
+  "schema_version": 1,
+  "settings_schema_sha256": "e129472bd8b4fb81181c2a3169ed6177757cb54050276646eea70052007bd10b"
+}

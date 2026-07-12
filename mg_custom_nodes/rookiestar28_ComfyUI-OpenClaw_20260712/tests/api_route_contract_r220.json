@@ -1,0 +1,743 @@
+{
+  "direct_alias_rule": "each registered path also attempts path and /api+path",
+  "facade_metadata": {
+    "health_handler": {
+      "audit": "health.check",
+      "auth": "public",
+      "description": "Returns pack status, uptime, dependencies, and stats.",
+      "plane": "user",
+      "risk": "low",
+      "scopes": [],
+      "summary": "Health check"
+    },
+    "jobs_handler": {
+      "audit": "jobs.list",
+      "auth": "admin",
+      "description": "Admin-authorized versioned bounded in-process jobs read model.",
+      "plane": "admin",
+      "risk": "low",
+      "scopes": [],
+      "summary": "List jobs"
+    },
+    "logs_tail_handler": {
+      "audit": "logs.tail",
+      "auth": "admin",
+      "description": "Returns the last N lines of the log file.",
+      "plane": "admin",
+      "risk": "medium",
+      "scopes": [],
+      "summary": "Tail logs"
+    },
+    "trace_handler": {
+      "audit": "trace.get",
+      "auth": "admin",
+      "description": "Returns redacted timeline for a prompt.",
+      "plane": "admin",
+      "risk": "medium",
+      "scopes": [],
+      "summary": "Get trace"
+    }
+  },
+  "facade_signatures": {
+    "_emit_jobs_list_audit": "(*, request, token_info, outcome: 'str', status_code: 'int', reason: 'str', **counts) -> 'None'",
+    "_ensure_observability_deps_ready": "() -> 'tuple[bool, str | None]'",
+    "_resolve_mae_profile": "() -> 'str'",
+    "_run_mae_startup_gate": "(server) -> 'None'",
+    "health_handler": "(request: 'web.Request') -> 'web.Response'",
+    "jobs_handler": "(request: 'web.Request') -> 'web.Response'",
+    "logs_tail_handler": "(request: 'web.Request') -> 'web.Response'",
+    "register_dual_route": "(server, method: 'str', path: 'str', handler) -> 'None'",
+    "register_routes": "(server) -> 'None'",
+    "trace_handler": "(request: 'web.Request') -> 'web.Response'"
+  },
+  "families": {
+    "assist:/moltbot": [
+      {
+        "handler": "planner_profiles_handler",
+        "method": "GET",
+        "path": "/moltbot/assist/planner/profiles"
+      },
+      {
+        "handler": "planner_handler",
+        "method": "POST",
+        "path": "/moltbot/assist/planner"
+      },
+      {
+        "handler": "planner_stream_handler",
+        "method": "POST",
+        "path": "/moltbot/assist/planner/stream"
+      },
+      {
+        "handler": "refiner_handler",
+        "method": "POST",
+        "path": "/moltbot/assist/refiner"
+      },
+      {
+        "handler": "refiner_stream_handler",
+        "method": "POST",
+        "path": "/moltbot/assist/refiner/stream"
+      },
+      {
+        "handler": "compose_handler",
+        "method": "POST",
+        "path": "/moltbot/assist/automation/compose"
+      }
+    ],
+    "assist:/openclaw": [
+      {
+        "handler": "planner_profiles_handler",
+        "method": "GET",
+        "path": "/openclaw/assist/planner/profiles"
+      },
+      {
+        "handler": "planner_handler",
+        "method": "POST",
+        "path": "/openclaw/assist/planner"
+      },
+      {
+        "handler": "planner_stream_handler",
+        "method": "POST",
+        "path": "/openclaw/assist/planner/stream"
+      },
+      {
+        "handler": "refiner_handler",
+        "method": "POST",
+        "path": "/openclaw/assist/refiner"
+      },
+      {
+        "handler": "refiner_stream_handler",
+        "method": "POST",
+        "path": "/openclaw/assist/refiner/stream"
+      },
+      {
+        "handler": "compose_handler",
+        "method": "POST",
+        "path": "/openclaw/assist/automation/compose"
+      }
+    ],
+    "connector_installations:/moltbot": [
+      {
+        "handler": "connector_installations_list_handler",
+        "method": "GET",
+        "path": "/moltbot/connector/installations"
+      },
+      {
+        "handler": "connector_extraction_contract_handler",
+        "method": "GET",
+        "path": "/moltbot/connector/extraction-contract"
+      },
+      {
+        "handler": "connector_installation_resolve_handler",
+        "method": "GET",
+        "path": "/moltbot/connector/installations/resolve"
+      },
+      {
+        "handler": "connector_installation_audit_handler",
+        "method": "GET",
+        "path": "/moltbot/connector/installations/audit"
+      },
+      {
+        "handler": "connector_installation_get_handler",
+        "method": "GET",
+        "path": "/moltbot/connector/installations/{installation_id}"
+      }
+    ],
+    "connector_installations:/openclaw": [
+      {
+        "handler": "connector_installations_list_handler",
+        "method": "GET",
+        "path": "/openclaw/connector/installations"
+      },
+      {
+        "handler": "connector_extraction_contract_handler",
+        "method": "GET",
+        "path": "/openclaw/connector/extraction-contract"
+      },
+      {
+        "handler": "connector_installation_resolve_handler",
+        "method": "GET",
+        "path": "/openclaw/connector/installations/resolve"
+      },
+      {
+        "handler": "connector_installation_audit_handler",
+        "method": "GET",
+        "path": "/openclaw/connector/installations/audit"
+      },
+      {
+        "handler": "connector_installation_get_handler",
+        "method": "GET",
+        "path": "/openclaw/connector/installations/{installation_id}"
+      }
+    ],
+    "core:/moltbot": [
+      {
+        "handler": "remote_admin_page_handler",
+        "method": "GET",
+        "path": "/moltbot/admin"
+      },
+      {
+        "handler": "health_handler",
+        "method": "GET",
+        "path": "/moltbot/health"
+      },
+      {
+        "handler": "logs_tail_handler",
+        "method": "GET",
+        "path": "/moltbot/logs/tail"
+      },
+      {
+        "handler": "jobs_handler",
+        "method": "GET",
+        "path": "/moltbot/jobs"
+      },
+      {
+        "handler": "trace_handler",
+        "method": "GET",
+        "path": "/moltbot/trace/{prompt_id}"
+      },
+      {
+        "handler": "webhook_handler",
+        "method": "POST",
+        "path": "/moltbot/webhook"
+      },
+      {
+        "handler": "webhook_submit_handler",
+        "method": "POST",
+        "path": "/moltbot/webhook/submit"
+      },
+      {
+        "handler": "webhook_validate_handler",
+        "method": "POST",
+        "path": "/moltbot/webhook/validate"
+      },
+      {
+        "handler": "capabilities_handler",
+        "method": "GET",
+        "path": "/moltbot/capabilities"
+      },
+      {
+        "handler": "config_get_handler",
+        "method": "GET",
+        "path": "/moltbot/config"
+      },
+      {
+        "handler": "config_put_handler",
+        "method": "PUT",
+        "path": "/moltbot/config"
+      },
+      {
+        "handler": "llm_test_handler",
+        "method": "POST",
+        "path": "/moltbot/llm/test"
+      },
+      {
+        "handler": "llm_chat_handler",
+        "method": "POST",
+        "path": "/moltbot/llm/chat"
+      },
+      {
+        "handler": "llm_models_handler",
+        "method": "GET",
+        "path": "/moltbot/llm/models"
+      },
+      {
+        "handler": "templates_list_handler",
+        "method": "GET",
+        "path": "/moltbot/templates"
+      },
+      {
+        "handler": "preflight_handler",
+        "method": "POST",
+        "path": "/moltbot/preflight"
+      },
+      {
+        "handler": "inventory_handler",
+        "method": "GET",
+        "path": "/moltbot/preflight/inventory"
+      },
+      {
+        "handler": "pnginfo_handler",
+        "method": "POST",
+        "path": "/moltbot/pnginfo"
+      },
+      {
+        "handler": "list_checkpoints_handler",
+        "method": "GET",
+        "path": "/moltbot/checkpoints"
+      },
+      {
+        "handler": "create_checkpoint_handler",
+        "method": "POST",
+        "path": "/moltbot/checkpoints"
+      },
+      {
+        "handler": "get_checkpoint_handler",
+        "method": "GET",
+        "path": "/moltbot/checkpoints/{id}"
+      },
+      {
+        "handler": "delete_checkpoint_handler",
+        "method": "DELETE",
+        "path": "/moltbot/checkpoints/{id}"
+      },
+      {
+        "handler": "rewrite_recipes_list_handler",
+        "method": "GET",
+        "path": "/moltbot/rewrite/recipes"
+      },
+      {
+        "handler": "rewrite_recipe_create_handler",
+        "method": "POST",
+        "path": "/moltbot/rewrite/recipes"
+      },
+      {
+        "handler": "rewrite_recipe_get_handler",
+        "method": "GET",
+        "path": "/moltbot/rewrite/recipes/{recipe_id}"
+      },
+      {
+        "handler": "rewrite_recipe_update_handler",
+        "method": "PUT",
+        "path": "/moltbot/rewrite/recipes/{recipe_id}"
+      },
+      {
+        "handler": "rewrite_recipe_delete_handler",
+        "method": "DELETE",
+        "path": "/moltbot/rewrite/recipes/{recipe_id}"
+      },
+      {
+        "handler": "rewrite_recipe_dry_run_handler",
+        "method": "POST",
+        "path": "/moltbot/rewrite/recipes/{recipe_id}/dry-run"
+      },
+      {
+        "handler": "rewrite_recipe_apply_handler",
+        "method": "POST",
+        "path": "/moltbot/rewrite/recipes/{recipe_id}/apply"
+      },
+      {
+        "handler": "model_search_handler",
+        "method": "GET",
+        "path": "/moltbot/models/search"
+      },
+      {
+        "handler": "model_download_create_handler",
+        "method": "POST",
+        "path": "/moltbot/models/downloads"
+      },
+      {
+        "handler": "model_download_list_handler",
+        "method": "GET",
+        "path": "/moltbot/models/downloads"
+      },
+      {
+        "handler": "model_download_get_handler",
+        "method": "GET",
+        "path": "/moltbot/models/downloads/{task_id}"
+      },
+      {
+        "handler": "model_download_cancel_handler",
+        "method": "POST",
+        "path": "/moltbot/models/downloads/{task_id}/cancel"
+      },
+      {
+        "handler": "model_import_handler",
+        "method": "POST",
+        "path": "/moltbot/models/import"
+      },
+      {
+        "handler": "model_installations_list_handler",
+        "method": "GET",
+        "path": "/moltbot/models/installations"
+      },
+      {
+        "handler": "secrets_status_handler",
+        "method": "GET",
+        "path": "/moltbot/secrets/status"
+      },
+      {
+        "handler": "secrets_put_handler",
+        "method": "PUT",
+        "path": "/moltbot/secrets"
+      },
+      {
+        "handler": "events_stream_handler",
+        "method": "GET",
+        "path": "/moltbot/events/stream"
+      },
+      {
+        "handler": "events_poll_handler",
+        "method": "GET",
+        "path": "/moltbot/events"
+      },
+      {
+        "handler": "secrets_delete_handler",
+        "method": "DELETE",
+        "path": "/moltbot/secrets/{provider}"
+      },
+      {
+        "handler": "security_doctor_handler",
+        "method": "GET",
+        "path": "/moltbot/security/doctor"
+      },
+      {
+        "handler": "tools_list_handler",
+        "method": "GET",
+        "path": "/moltbot/tools"
+      },
+      {
+        "handler": "tools_run_handler",
+        "method": "POST",
+        "path": "/moltbot/tools/{name}/run"
+      },
+      {
+        "handler": "create_sweep_handler",
+        "method": "POST",
+        "path": "/moltbot/lab/sweep"
+      },
+      {
+        "handler": "create_compare_handler",
+        "method": "POST",
+        "path": "/moltbot/lab/compare"
+      },
+      {
+        "handler": "list_experiments_handler",
+        "method": "GET",
+        "path": "/moltbot/lab/experiments"
+      },
+      {
+        "handler": "get_experiment_handler",
+        "method": "GET",
+        "path": "/moltbot/lab/experiments/{exp_id}"
+      },
+      {
+        "handler": "update_experiment_handler",
+        "method": "POST",
+        "path": "/moltbot/lab/experiments/{exp_id}/runs/{run_id}"
+      },
+      {
+        "handler": "select_apply_winner_handler",
+        "method": "POST",
+        "path": "/moltbot/lab/experiments/{exp_id}/winner"
+      }
+    ],
+    "core:/openclaw": [
+      {
+        "handler": "remote_admin_page_handler",
+        "method": "GET",
+        "path": "/openclaw/admin"
+      },
+      {
+        "handler": "health_handler",
+        "method": "GET",
+        "path": "/openclaw/health"
+      },
+      {
+        "handler": "logs_tail_handler",
+        "method": "GET",
+        "path": "/openclaw/logs/tail"
+      },
+      {
+        "handler": "jobs_handler",
+        "method": "GET",
+        "path": "/openclaw/jobs"
+      },
+      {
+        "handler": "trace_handler",
+        "method": "GET",
+        "path": "/openclaw/trace/{prompt_id}"
+      },
+      {
+        "handler": "webhook_handler",
+        "method": "POST",
+        "path": "/openclaw/webhook"
+      },
+      {
+        "handler": "webhook_submit_handler",
+        "method": "POST",
+        "path": "/openclaw/webhook/submit"
+      },
+      {
+        "handler": "webhook_validate_handler",
+        "method": "POST",
+        "path": "/openclaw/webhook/validate"
+      },
+      {
+        "handler": "capabilities_handler",
+        "method": "GET",
+        "path": "/openclaw/capabilities"
+      },
+      {
+        "handler": "config_get_handler",
+        "method": "GET",
+        "path": "/openclaw/config"
+      },
+      {
+        "handler": "config_put_handler",
+        "method": "PUT",
+        "path": "/openclaw/config"
+      },
+      {
+        "handler": "llm_test_handler",
+        "method": "POST",
+        "path": "/openclaw/llm/test"
+      },
+      {
+        "handler": "llm_chat_handler",
+        "method": "POST",
+        "path": "/openclaw/llm/chat"
+      },
+      {
+        "handler": "llm_models_handler",
+        "method": "GET",
+        "path": "/openclaw/llm/models"
+      },
+      {
+        "handler": "templates_list_handler",
+        "method": "GET",
+        "path": "/openclaw/templates"
+      },
+      {
+        "handler": "preflight_handler",
+        "method": "POST",
+        "path": "/openclaw/preflight"
+      },
+      {
+        "handler": "inventory_handler",
+        "method": "GET",
+        "path": "/openclaw/preflight/inventory"
+      },
+      {
+        "handler": "pnginfo_handler",
+        "method": "POST",
+        "path": "/openclaw/pnginfo"
+      },
+      {
+        "handler": "list_checkpoints_handler",
+        "method": "GET",
+        "path": "/openclaw/checkpoints"
+      },
+      {
+        "handler": "create_checkpoint_handler",
+        "method": "POST",
+        "path": "/openclaw/checkpoints"
+      },
+      {
+        "handler": "get_checkpoint_handler",
+        "method": "GET",
+        "path": "/openclaw/checkpoints/{id}"
+      },
+      {
+        "handler": "delete_checkpoint_handler",
+        "method": "DELETE",
+        "path": "/openclaw/checkpoints/{id}"
+      },
+      {
+        "handler": "rewrite_recipes_list_handler",
+        "method": "GET",
+        "path": "/openclaw/rewrite/recipes"
+      },
+      {
+        "handler": "rewrite_recipe_create_handler",
+        "method": "POST",
+        "path": "/openclaw/rewrite/recipes"
+      },
+      {
+        "handler": "rewrite_recipe_get_handler",
+        "method": "GET",
+        "path": "/openclaw/rewrite/recipes/{recipe_id}"
+      },
+      {
+        "handler": "rewrite_recipe_update_handler",
+        "method": "PUT",
+        "path": "/openclaw/rewrite/recipes/{recipe_id}"
+      },
+      {
+        "handler": "rewrite_recipe_delete_handler",
+        "method": "DELETE",
+        "path": "/openclaw/rewrite/recipes/{recipe_id}"
+      },
+      {
+        "handler": "rewrite_recipe_dry_run_handler",
+        "method": "POST",
+        "path": "/openclaw/rewrite/recipes/{recipe_id}/dry-run"
+      },
+      {
+        "handler": "rewrite_recipe_apply_handler",
+        "method": "POST",
+        "path": "/openclaw/rewrite/recipes/{recipe_id}/apply"
+      },
+      {
+        "handler": "model_search_handler",
+        "method": "GET",
+        "path": "/openclaw/models/search"
+      },
+      {
+        "handler": "model_download_create_handler",
+        "method": "POST",
+        "path": "/openclaw/models/downloads"
+      },
+      {
+        "handler": "model_download_list_handler",
+        "method": "GET",
+        "path": "/openclaw/models/downloads"
+      },
+      {
+        "handler": "model_download_get_handler",
+        "method": "GET",
+        "path": "/openclaw/models/downloads/{task_id}"
+      },
+      {
+        "handler": "model_download_cancel_handler",
+        "method": "POST",
+        "path": "/openclaw/models/downloads/{task_id}/cancel"
+      },
+      {
+        "handler": "model_import_handler",
+        "method": "POST",
+        "path": "/openclaw/models/import"
+      },
+      {
+        "handler": "model_installations_list_handler",
+        "method": "GET",
+        "path": "/openclaw/models/installations"
+      },
+      {
+        "handler": "secrets_status_handler",
+        "method": "GET",
+        "path": "/openclaw/secrets/status"
+      },
+      {
+        "handler": "secrets_put_handler",
+        "method": "PUT",
+        "path": "/openclaw/secrets"
+      },
+      {
+        "handler": "events_stream_handler",
+        "method": "GET",
+        "path": "/openclaw/events/stream"
+      },
+      {
+        "handler": "events_poll_handler",
+        "method": "GET",
+        "path": "/openclaw/events"
+      },
+      {
+        "handler": "secrets_delete_handler",
+        "method": "DELETE",
+        "path": "/openclaw/secrets/{provider}"
+      },
+      {
+        "handler": "security_doctor_handler",
+        "method": "GET",
+        "path": "/openclaw/security/doctor"
+      },
+      {
+        "handler": "tools_list_handler",
+        "method": "GET",
+        "path": "/openclaw/tools"
+      },
+      {
+        "handler": "tools_run_handler",
+        "method": "POST",
+        "path": "/openclaw/tools/{name}/run"
+      },
+      {
+        "handler": "create_sweep_handler",
+        "method": "POST",
+        "path": "/openclaw/lab/sweep"
+      },
+      {
+        "handler": "create_compare_handler",
+        "method": "POST",
+        "path": "/openclaw/lab/compare"
+      },
+      {
+        "handler": "list_experiments_handler",
+        "method": "GET",
+        "path": "/openclaw/lab/experiments"
+      },
+      {
+        "handler": "get_experiment_handler",
+        "method": "GET",
+        "path": "/openclaw/lab/experiments/{exp_id}"
+      },
+      {
+        "handler": "update_experiment_handler",
+        "method": "POST",
+        "path": "/openclaw/lab/experiments/{exp_id}/runs/{run_id}"
+      },
+      {
+        "handler": "select_apply_winner_handler",
+        "method": "POST",
+        "path": "/openclaw/lab/experiments/{exp_id}/winner"
+      }
+    ],
+    "packs:/moltbot": [
+      {
+        "handler": "list_packs_handler",
+        "method": "GET",
+        "path": "/moltbot/packs"
+      },
+      {
+        "handler": "import_pack_handler",
+        "method": "POST",
+        "path": "/moltbot/packs/import"
+      },
+      {
+        "handler": "export_pack_handler",
+        "method": "GET",
+        "path": "/moltbot/packs/export/{name}/{version}"
+      },
+      {
+        "handler": "delete_pack_handler",
+        "method": "DELETE",
+        "path": "/moltbot/packs/{name}/{version}"
+      }
+    ],
+    "packs:/openclaw": [
+      {
+        "handler": "list_packs_handler",
+        "method": "GET",
+        "path": "/openclaw/packs"
+      },
+      {
+        "handler": "import_pack_handler",
+        "method": "POST",
+        "path": "/openclaw/packs/import"
+      },
+      {
+        "handler": "export_pack_handler",
+        "method": "GET",
+        "path": "/openclaw/packs/export/{name}/{version}"
+      },
+      {
+        "handler": "delete_pack_handler",
+        "method": "DELETE",
+        "path": "/openclaw/packs/{name}/{version}"
+      }
+    ]
+  },
+  "feature_conditions": {
+    "assist": "assist is truthy",
+    "bridge": "server.app exists and BRIDGE module is enabled",
+    "connector_installations": "list handler is truthy",
+    "packs": "optional pack imports succeed"
+  },
+  "legacy_rule": "moltbot handlers retain telemetry and deprecation headers",
+  "openapi_sha256": "7997883a91ca7b3e3058d3c299512947ca634d92ddd1aa4c06f0d33539325f33",
+  "registration_order": [
+    "startup_profile_gate",
+    "core:/openclaw",
+    "core:/moltbot",
+    "assist:/openclaw",
+    "assist:/moltbot",
+    "connector_installations:/openclaw",
+    "connector_installations:/moltbot",
+    "bridge",
+    "mae_posture_gate",
+    "packs:/openclaw",
+    "packs:/moltbot"
+  ],
+  "schema_version": 1
+}

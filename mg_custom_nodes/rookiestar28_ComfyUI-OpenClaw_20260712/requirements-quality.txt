@@ -1,0 +1,4 @@
+# Development/test-only static-analysis toolchain.
+# Keep exact pins aligned with tests/static_analysis_policy.json.
+ruff==0.15.20
+mypy==2.2.0

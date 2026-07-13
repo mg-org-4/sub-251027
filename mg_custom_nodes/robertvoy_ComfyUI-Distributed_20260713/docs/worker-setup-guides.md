@@ -79,7 +79,7 @@ The master can either contribute GPU work or stay in **orchestrator-only** mode:
 📺 [Watch Tutorial](https://www.youtube.com/watch?v=wxKKWMQhYTk)
 
 **On Runpod:**
-> If using your own template, make sure you launch ComfyUI with the `--enable-cors-header` argument and you `git clone ComfyUI-Distributed` into custom_nodes. ⚠️ **Required!**
+> If using your own template, launch ComfyUI with `--listen --enable-cors-header` and clone `ComfyUI-Distributed` into `custom_nodes`. ⚠️ **Required!**
 
 1. Register a [Runpod](https://get.runpod.io/0bw29uf3ug0p) account.
 2. On Runpod, go to Storage > New Network Volume and create a volume that will store the models you need. Start with 40 GB, you can always add more later. Learn more [about Network Volumes](https://docs.runpod.io/pods/storage/create-network-volumes).
@@ -92,7 +92,7 @@ The master can either contribute GPU work or stay in **orchestrator-only** mode:
 	- SAGE_ATTENTION: optional optimisation (set to true/false)
 5. Deploy your pod.
 6. Connect to your pod using JupyterLabs. This gives us access to the pod's file system.
-7. Download models into /workspaces/ComfyUI/models/ (these will remain on your network drive even after you terminate the pod). Example commands below:
+7. Download models into `/workspace/ComfyUI/models/` (these will remain on your network drive even after you terminate the pod). Example commands below:
 ```
 # Download from CivitAI
 comfy model download --url https://civitai.com/api/download/models/1759168 --relative-path /workspace/ComfyUI/models/checkpoints --set-civitai-api-token $CIVITAI_API_TOKEN

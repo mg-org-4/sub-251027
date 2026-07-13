@@ -72,7 +72,7 @@ export function renderSettingsSection(extension) {
         createCheckboxSetting(
             "setting-debug",
             "Debug Mode",
-            "Enable verbose logging in the browser console.",
+            "Enable verbose logging in the browser console and ComfyUI server output.",
             extension.config?.settings?.debug || false,
             (event) => extension._updateSetting("debug", event.target.checked)
         )
@@ -100,7 +100,7 @@ export function renderSettingsSection(extension) {
         createNumberSetting(
             "setting-worker-timeout",
             "Worker Timeout",
-            "Seconds without a heartbeat before a worker is considered timed out. Default 60.",
+            "Maximum result-wait and heartbeat inactivity period before recovery begins. Busy workers may receive additional grace. Default: 60 seconds.",
             extension.config?.settings?.worker_timeout_seconds ?? 60,
             10,
             1,

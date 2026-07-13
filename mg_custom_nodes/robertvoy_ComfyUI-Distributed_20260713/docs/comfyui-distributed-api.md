@@ -19,8 +19,8 @@ This document describes the **public HTTP API** added to ComfyUI-Distributed to 
 - `POST /distributed/queue` — queues a workflow using the same distributed orchestration rules as the UI:
   - Detects distributed nodes in the prompt (`DistributedCollector`, `UltimateSDUpscaleDistributed`).
   - Resolves enabled/selected workers.
-  - Pings workers (`GET /prompt`) to include only reachable ones.
-  - Dispatches the workflow to workers (`POST /prompt`).
+  - Probes and dispatches workers through `/distributed/worker_ws` by default.
+  - If `settings.websocket_orchestration=false`, probes with `GET /prompt` and dispatches with `POST /prompt` instead.
   - Queues the master workflow in ComfyUI’s prompt queue.
   - If any `DistributedCollector` has `load_balance=true`, selects one least-busy participant for this run.
 
@@ -61,7 +61,8 @@ Queue a workflow for distributed execution.
 #### Fields
 
 - `prompt` (required unless `workflow.prompt` is present, object)
-  - The ComfyUI prompt/workflow graph, same shape as used by `POST /prompt`.
+  - A complete ComfyUI API-format prompt graph, using the same shape as `POST /prompt`.
+  - This is not the normal visual workflow export from the ComfyUI editor.
 - `workflow` (optional, object)
   - Workflow metadata that ComfyUI normally stores in `extra_pnginfo.workflow`.
   - If you don’t care about UI metadata, you can omit it.
@@ -123,10 +124,14 @@ $cfg.workers | Select-Object id,name,enabled,host,port,type | Format-Table -Auto
 
 ## Worker requirements (important)
 
-For a worker to participate, it must be reachable from the master:
+For a worker to participate, it must be reachable from the master. By default:
+
+- WebSocket probe and dispatch: `<worker-base>/distributed/worker_ws` must accept the connection.
+
+If `settings.websocket_orchestration=false`:
 
 - Health check: `GET <worker-base>/prompt` must return HTTP 200.
-- Dispatch: `POST <worker-base>/prompt` must accept the workflow.
+- Dispatch: `POST <worker-base>/prompt` must accept the prompt.
 
 Also, for collector-based flows:
 
@@ -201,7 +206,7 @@ Proxy endpoint on master that fetches logs from a configured remote/cloud worker
 
 ## Examples
 
-### 1) Minimal `curl`
+### 1) Minimal `curl` request envelope
 
 ```bash
 curl -X POST "http://127.0.0.1:8188/distributed/queue" \
@@ -209,17 +214,22 @@ curl -X POST "http://127.0.0.1:8188/distributed/queue" \
   -d @payload.json
 ```
 
-Where `payload.json` contains at least:
+`payload.json` must contain a complete ComfyUI API-format prompt. The abbreviated envelope below illustrates the request shape but is not directly executable:
 
 ```json
 {
   "prompt": {
-    "1": {"class_type": "KSampler", "inputs": {} }
+    "<node_id>": {
+      "class_type": "<node class>",
+      "inputs": {"<required_input>": "<value or connection>"}
+    }
   },
   "enabled_worker_ids": [],
   "client_id": "external-client"
 }
 ```
+
+Export or construct a valid API-format prompt with all required node inputs and at least one output node before submitting it.
 
 ### 2) Python (`requests`)
 

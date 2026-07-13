@@ -56,22 +56,22 @@ class UltimateSDUpscaleDistributed(
     """
     Distributed version of Ultimate SD Upscale (No Upscale).
     
-    Supports three processing modes:
+    Supports two currently selected processing modes:
     1. Single GPU: No workers available, process everything locally
-    2. Static Mode: Small batches, distributes tiles across workers (flattened)
-    3. Dynamic Mode: Large batches, assigns whole images to workers dynamically
+    2. Distributed tile queue: Workers pull tiles from a shared queue
     
     Features:
-    - Multi-mode batch handling for efficient video/image upscaling
+    - Tile-based batch handling for video/image upscaling
     - Tiled VAE support for memory efficiency
-    - Dynamic load balancing for large batches
+    - Shared work queue so faster workers can process more tiles
     - Backward compatible with single-image workflows
     
     Environment Variables:
     - COMFYUI_MAX_BATCH: Chunk size for tile sending (default 20)
     - COMFYUI_MAX_PAYLOAD_SIZE: Max API payload bytes (default 50MB)
     
-    Threshold: dynamic_threshold input controls mode switch (default 8)
+    The hidden dynamic_threshold input is retained for workflow compatibility but
+    does not affect the current mode-selection policy.
     """
 
     def __init__(self):

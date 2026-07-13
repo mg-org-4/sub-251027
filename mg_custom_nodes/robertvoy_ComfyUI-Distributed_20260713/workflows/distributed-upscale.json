@@ -814,7 +814,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "If all your GPUs are the same/similar, set static_distribution to true\n"
+        "Workers pull tiles from a shared queue, so faster workers can process more tiles automatically.\n"
       ],
       "color": "#432",
       "bgcolor": "#653"

@@ -147,7 +147,7 @@ Accelerate Ultimate SD Upscaler by distributing video tiles across multiple work
 Control your distributed cluster programmatically without opening the browser.
 
 * **Endpoint:** `POST /distributed/queue`
-* **Functionality:** Accepts a standard ComfyUI workflow JSON, automatically distributes it to available workers, and returns the execution ID.
+* **Functionality:** Accepts a ComfyUI API-format prompt, dispatches it to the requested reachable workers, and returns the master `prompt_id`.
 * **Documentation:** [See API Examples & Scripts](https://github.com/robertvoy/ComfyUI-Distributed/blob/main/docs/comfyui-distributed-api.md)
 
 > **⚠️ Security Warning:** Do not expose your ComfyUI port to the public internet. If you need remote access, run ComfyUI behind a secure proxy (like Cloudflare or a VPN).
@@ -175,7 +175,7 @@ Use **Distributed Value** when you want per-worker overrides (for example, diffe
 | **Distributed Value** | Outputs per-worker override values with fallback to default |
 | **Ultimate SD Upscale Distributed** | Distributes upscale tiles across workers |
 | **Image Batch Divider** | Splits image batches for multi-GPU output |
-| **Audio Batch Divider** | Splits audio batches for multi-GPU output |
+| **Audio Segment Divider** | Splits an audio waveform into up to ten sequential time segments |
 | **Distributed Model Name** | Passes model paths to workers, enabling workflows to use models not present on the master in orchestrator-only mode |
 | **Distributed Empty Image** | Produces an empty IMAGE batch used when the master delegates all work |
 

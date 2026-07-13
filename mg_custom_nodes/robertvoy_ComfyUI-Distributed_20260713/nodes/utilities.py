@@ -269,7 +269,7 @@ class ImageBatchDivider:
 
 
 class AudioBatchDivider:
-    """Divides an audio waveform into multiple parts along the time/samples dimension."""
+    """Divides an audio waveform into sequential segments along the time dimension."""
 
     @classmethod
     def INPUT_TYPES(s):
@@ -282,7 +282,7 @@ class AudioBatchDivider:
                     "max": 10,
                     "step": 1,
                     "display": "number",
-                    "tooltip": "Number of parts to divide the audio into"
+                    "tooltip": "Number of sequential time segments to create"
                 }),
             }
         }

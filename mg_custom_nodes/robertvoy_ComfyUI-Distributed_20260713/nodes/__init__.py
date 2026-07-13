@@ -26,6 +26,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "DistributedModelName": "Distributed Model Name",
     "DistributedValue": "Distributed Value",
     "ImageBatchDivider": "Image Batch Divider",
-    "AudioBatchDivider": "Audio Batch Divider",
+    "AudioBatchDivider": "Audio Segment Divider",
     "DistributedEmptyImage": "Distributed Empty Image",
 }

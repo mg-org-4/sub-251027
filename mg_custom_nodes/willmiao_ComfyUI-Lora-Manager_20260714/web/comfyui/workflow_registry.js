@@ -1,7 +1,9 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { getAllGraphNodes, getNodeReference, getNodeFromGraph } from "./utils.js";
+import { getAllGraphNodes, getNodeReference, getNodeFromGraph, chainCallback } from "./utils.js";
 import { ensureLmStyles } from "./lm_styles_loader.js";
+
+const DEBOUNCE_DELAY = 500;
 
 const LORA_NODE_CLASSES = new Set([
     "Lora Loader (LoraManager)",
@@ -79,22 +81,77 @@ app.registerExtension({
 
     setup() {
         ensureLmStyles();
+        this._log("extension initialized, clientId=%s", api.clientId ?? api.initialClientId ?? "(pending)");
 
         api.addEventListener("lora_registry_refresh", () => {
-            this.refreshRegistry();
+            this.refreshRegistry(true);
         });
 
         api.addEventListener("lm_widget_update", (event) => {
             this.applyWidgetUpdate(event?.detail ?? {});
         });
 
-        // React to marker changes from the Node Marker extension
         window.addEventListener("lm_marker_changed", () => {
             this.refreshRegistry();
         });
+
+        this._hookGraphChanges();
     },
 
-    async refreshRegistry() {
+    async afterConfigureGraph(_missingNodeTypes, _app) {
+        this._log("afterConfigureGraph: workflow loaded (%s missing types)", _missingNodeTypes?.length ?? 0);
+        await this.refreshRegistry();
+    },
+
+    _hookGraphChanges() {
+        const graph = app.graph;
+        if (!graph) {
+            this._log("app.graph not available, skipping proactive hooks");
+            return;
+        }
+
+        let hooksInstalled = 0;
+
+        const scheduleRefresh = (source) => {
+            if (this._debounceTimer != null) {
+                clearTimeout(this._debounceTimer);
+            }
+            this._debounceTimer = setTimeout(() => {
+                this._debounceTimer = null;
+                this.refreshRegistry();
+            }, DEBOUNCE_DELAY);
+        };
+
+        try {
+            chainCallback(graph, "onNodeAdded", () => scheduleRefresh("onNodeAdded"));
+            chainCallback(graph, "onNodeRemoved", () => scheduleRefresh("onNodeRemoved"));
+            hooksInstalled += 2;
+        } catch (e) {
+            this._log("failed to chain LiteGraph hooks: %s", e.message);
+        }
+
+        if (typeof api.addEventListener === "function") {
+            try {
+                api.addEventListener("graphChanged", () => scheduleRefresh("graphChanged"));
+                hooksInstalled += 1;
+            } catch (_e) {
+                // graphChanged may not be available on older ComfyUI versions
+            }
+        }
+
+        this._log("%s proactive hooks installed on graph", hooksInstalled);
+    },
+
+    _log(format, ...args) {
+        const ts = new Date().toISOString().slice(11, 23);
+        let msg = format;
+        for (const arg of args) {
+            msg = msg.replace(/%s/g, String(arg));
+        }
+        console.debug(`[LM:Registry ${ts}] ${msg}`);
+    },
+
+    async refreshRegistry(force = false) {
         try {
             const workflowNodes = [];
             const nodeEntries = getAllGraphNodes(app.graph);
@@ -115,7 +172,6 @@ app.registerExtension({
                 const hasTextWidget = TEXT_CAPABLE_CLASSES.has(node.comfyClass);
                 const markerRole = node.properties?.lm_marker_role ?? null;
 
-                // Skip nodes with no relevant capability UNLESS they are marked
                 if (!supportsLora && !hasTargetWidget && !hasTextWidget && !markerRole) {
                     continue;
                 }
@@ -146,6 +202,19 @@ app.registerExtension({
                 });
             }
 
+            const clientId = api.clientId ?? api.initialClientId ?? "";
+
+            // Content-based dedup: skip POST if identical to last sent payload,
+            // unless forced (e.g. responding to a lora_registry_refresh WS message
+            // where the backend explicitly requests a re-registration).
+            const fingerprint = JSON.stringify(
+                workflowNodes.map(n => `${n.graph_id}:${n.node_id}|${n.marker_role ?? ""}|${n.mode ?? 0}`).sort()
+            );
+            if (!force && fingerprint === this._lastFingerprint) {
+                return;
+            }
+            this._lastFingerprint = fingerprint;
+
             const response = await fetch("/api/lm/register-nodes", {
                 method: "POST",
                 headers: {
@@ -153,7 +222,7 @@ app.registerExtension({
                 },
                 body: JSON.stringify({
                     nodes: workflowNodes,
-                    client_id: api.clientId ?? api.initialClientId ?? "",
+                    client_id: clientId,
                 }),
             });
 

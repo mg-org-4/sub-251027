@@ -6,7 +6,6 @@ const DASHBOARD_MIN_HEIGHT = 292;
 const DASHBOARD_MIN_WIDTH = 430;
 const DASHBOARD_MIN_NODE_HEIGHT = 430;
 const DASHBOARD_BOTTOM_PADDING = 14;
-const DASHBOARD_TOP_OFFSET_HINT = 128;
 const STALE_RUNNING_MS = 180000;
 const POLL_INTERVAL_MS = 400;
 const TRAINING_NODES = new Map();
@@ -604,19 +603,6 @@ function getDashboardHeight(node, y = 0) {
     return Math.max(DASHBOARD_MIN_HEIGHT, availableHeight);
 }
 
-function resizeDashboardWidgetIfNeeded(widget, node, y = 0) {
-    const desiredHeight = getDashboardHeight(node, y);
-    if (Math.abs(safeNumber(widget.height, 0) - desiredHeight) < 1) {
-        return desiredHeight;
-    }
-
-    widget.height = desiredHeight;
-    widget.computedHeight = desiredHeight;
-    node.graph?.setDirtyCanvas?.(true, true);
-    node.setDirtyCanvas?.(true, true);
-    return desiredHeight;
-}
-
 function drawDashboard(ctx, node, widgetWidth, y, dashboardHeight, widget) {
     const state = node.__ttsTrainingDashboardState || buildIdleState();
     const status = state.status || "idle";
@@ -801,11 +787,11 @@ function createDashboardWidget(node) {
         chartHovered: false,
         chartRect: null,
         computeSize(width) {
-            return [width || 360, Math.max(DASHBOARD_MIN_HEIGHT, safeNumber(this.height, DASHBOARD_MIN_HEIGHT))];
+            return [width || 360, DASHBOARD_MIN_HEIGHT];
         },
         draw(ctx, currentNode, widgetWidth, y, widgetHeight) {
             this.last_y = y;
-            const height = resizeDashboardWidgetIfNeeded(this, currentNode, y);
+            const height = getDashboardHeight(currentNode, y);
             drawDashboard(ctx, currentNode, widgetWidth, y, Math.max(safeNumber(widgetHeight, 0), height), this);
         },
         mouse(event, pos, currentNode) {
@@ -942,20 +928,6 @@ app.registerExtension({
                 Math.max(this.size?.[0] || 380, DASHBOARD_MIN_WIDTH),
                 Math.max(this.size?.[1] || 420, DASHBOARD_MIN_NODE_HEIGHT),
             ]);
-            const widget = this.widgets?.find((item) => item?.name === "tts_training_dashboard");
-            if (widget) {
-                resizeDashboardWidgetIfNeeded(widget, this, safeNumber(widget.last_y, DASHBOARD_TOP_OFFSET_HINT));
-            }
-            return result;
-        };
-
-        const originalOnResize = nodeType.prototype.onResize;
-        nodeType.prototype.onResize = function(size) {
-            const result = originalOnResize ? originalOnResize.apply(this, arguments) : undefined;
-            const widget = this.widgets?.find((item) => item?.name === "tts_training_dashboard");
-            if (widget) {
-                resizeDashboardWidgetIfNeeded(widget, this, safeNumber(widget.last_y, DASHBOARD_TOP_OFFSET_HINT));
-            }
             return result;
         };
     },

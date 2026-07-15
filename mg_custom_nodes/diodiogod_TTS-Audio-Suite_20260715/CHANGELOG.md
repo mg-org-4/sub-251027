@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.13] - 2026-07-14
+
+### Added
+
+- Warn that HuBERT Large training is experimental and may produce unintelligible audio
+- Recommend ContentVec 768 for reliable RVC voice training
+
+### Fixed
+
+- Fix RVC voice conversion selecting an incompatible feature encoder
+- Automatically match RVC voice models with the correct feature encoder
+## [5.4.12] - 2026-07-14
+
+### Added
+
+- Allow Dots installation where its Python 3.13 source path works
+
+### Fixed
+
+- Fix Fish Audio S2 and Dots installation on Python 3.13
+- Repair Fish S2 installations missing the inference runtime
 ## [5.4.11] - 2026-07-13
 
 ### Fixed

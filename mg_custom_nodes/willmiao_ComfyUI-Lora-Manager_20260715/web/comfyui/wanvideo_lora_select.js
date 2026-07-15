@@ -2,7 +2,6 @@ import { app } from "../../scripts/app.js";
 import {
   getActiveLorasFromNode,
   updateConnectedTriggerWords,
-  updateDownstreamLoaders,
   chainCallback,
   mergeLoras,
   getWidgetByName,
@@ -10,18 +9,23 @@ import {
 } from "./utils.js";
 import { addLorasWidget } from "./loras_widget.js";
 import { applyLoraValuesToText, debounce } from "./lora_syntax_utils.js";
-import { applySelectionHighlight } from "./trigger_word_highlight.js";
+import { updateConnectedLoraInfoNodes } from "./lora_info.js";
 
 app.registerExtension({
-  name: "LoraManager.LoraStacker",
+  name: "LoraManager.WanVideoLoraSelect",
 
   async beforeRegisterNodeDef(nodeType, nodeData, app) {
-    if (nodeType.comfyClass === "Lora Stacker (LoraManager)") {
+    if (nodeType.comfyClass === "WanVideo Lora Select (LoraManager)") {
       chainCallback(nodeType.prototype, "onNodeCreated", async function () {
         // Enable widget serialization
         this.serialize_widgets = true;
 
-        this.addInput("lora_stack", "LORA_STACK", {
+        // Add optional inputs
+        this.addInput("prev_lora", "WANVIDLORA", {
+          shape: 7, // 7 is the shape of the optional input
+        });
+
+        this.addInput("blocks", "SELECTEDBLOCKS", {
           shape: 7, // 7 is the shape of the optional input
         });
 
@@ -29,10 +33,10 @@ app.registerExtension({
         let isUpdating = false;
         let isSyncingInput = false;
 
-        // Get the text input widget (AUTOCOMPLETE_TEXT_LORAS type, created by Vue widgets)
+        // Get the text input widget (AUTOCOMPLETE_TEXT_LORAS type, at index 2 after low_mem_load and merge_loras)
         const inputWidget = getWidgetByName(this, "text");
         if (!inputWidget) {
-          console.warn("LoRA Manager: text widget not found for Lora Stacker");
+          console.warn("LoRA Manager: text widget not found for WanVideo Lora Select");
           return;
         }
         this.inputWidget = inputWidget;
@@ -60,39 +64,29 @@ app.registerExtension({
           }
         });
 
-        const result = addLorasWidget(
-          this,
-          "loras",
-          {
-            onSelectionChange: (selection) =>
-              applySelectionHighlight(this, selection),
+        const result = addLorasWidget(this, "loras", {
+          onSelectionChange: (selection) => {
+            updateConnectedLoraInfoNodes(this, selection);
           },
-          (value) => {
-            // Prevent recursive calls
-            if (isUpdating) return;
-            isUpdating = true;
+        }, (value) => {
+          // Prevent recursive calls
+          if (isUpdating) return;
+          isUpdating = true;
 
-            try {
-              // Update this stacker's direct trigger toggles with its own active loras
-              // Only if the stacker node itself is active (mode 0 for Always, mode 3 for On Trigger)
-              const isNodeActive = this.mode === undefined || this.mode === 0 || this.mode === 3;
-              const activeLoraNames = new Set();
-              if (isNodeActive) {
-                value.forEach((lora) => {
-                  if (lora.active) {
-                    activeLoraNames.add(lora.name);
-                  }
-                });
+          try {
+            // Update this node's direct trigger toggles with its own active loras
+            const activeLoraNames = new Set();
+            value.forEach((lora) => {
+              if (lora.active) {
+                activeLoraNames.add(lora.name);
               }
-              updateConnectedTriggerWords(this, activeLoraNames);
+            });
+            updateConnectedTriggerWords(this, activeLoraNames);
+          } finally {
+            isUpdating = false;
+          }
 
-              // Find all Lora Loader nodes in the chain that might need updates
-              updateDownstreamLoaders(this);
-            } finally {
-              isUpdating = false;
-            }
-
-            scheduleInputSync(value);
+          scheduleInputSync(value);
         });
 
         this.lorasWidget = result.widget;
@@ -108,13 +102,9 @@ app.registerExtension({
             if (this.lorasWidget) {
               this.lorasWidget.value = mergedLoras;
             }
-            // Update this stacker's direct trigger toggles with its own active loras
-            // Only if the stacker node itself is active (mode 0 for Always, mode 3 for On Trigger)
-            const isNodeActive = this.mode === undefined || this.mode === 0 || this.mode === 3;
-            const activeLoraNames = isNodeActive ? getActiveLorasFromNode(this) : new Set();
+            // Update this node's direct trigger toggles with its own active loras
+            const activeLoraNames = getActiveLorasFromNode(this);
             updateConnectedTriggerWords(this, activeLoraNames);
-            // Find all Lora Loader nodes in the chain that might need updates
-            updateDownstreamLoaders(this);
           } finally {
             isUpdating = false;
           }
@@ -124,7 +114,7 @@ app.registerExtension({
   },
 
   async loadedGraphNode(node) {
-    if (node.comfyClass == "Lora Stacker (LoraManager)") {
+    if (node.comfyClass == "WanVideo Lora Select (LoraManager)") {
       // Restore saved value if exists
       let existingLoras = [];
       if (node.widgets_values && node.widgets_values.length > 0) {
@@ -134,7 +124,7 @@ app.registerExtension({
       // Merge the loras data
       const inputWidget = node.inputWidget || getWidgetByName(node, "text");
       if (!inputWidget) {
-        console.warn("LoRA Manager: text widget not found while restoring Lora Stacker");
+        console.warn("LoRA Manager: text widget not found while restoring WanVideo Lora Select");
         return;
       }
       const mergedLoras = mergeLoras(inputWidget.value, existingLoras);

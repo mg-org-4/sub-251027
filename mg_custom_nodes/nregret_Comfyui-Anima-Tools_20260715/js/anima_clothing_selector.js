@@ -2,8 +2,20 @@ import { app } from "../../scripts/app.js";
 import { t } from "./i18n.js";
 import { markImageLoaded, isImageLoaded } from "./anima_image_utils.js";
 import { createPromoLinks } from "./anima_promo_links.js";
-import { addSelectorActionRow, installSelectorExecutionSync } from "./anima_selector_random.js";
-import "./pose_data.js";
+import { addSelectorActionRow, installSelectorExecutionSync, isAnimaPromptPlusNode } from "./anima_selector_random.js";
+import {
+    copyText,
+    createEl,
+    createGallerySelectorStyleSheet,
+    createModalButtons,
+    createModalShell as createSharedModalShell,
+    debounce,
+    escapeHtml,
+    normalizePromptToken,
+    showToast as showSharedToast,
+    splitPromptTokens,
+} from "./anima_selector_ui.js";
+import "./clothing_data.js";
 
 const THEME = {
     accent: "#db2777",
@@ -13,58 +25,45 @@ const THEME = {
 };
 
 const CATEGORY_LIST = [
-    "Gestures & Arms",
-    "Standing & Dynamic",
-    "Sitting Poses",
-    "Lying & Prone",
-    "Adjusting & Dressing",
-    "Props & Holding",
-    "Duo & Interaction",
-    "Daily & Miscellaneous",
+    "Dress & Gown",
+    "Casual & Daily",
+    "Uniform & Suit",
+    "Swimsuit & Lingerie",
+    "Fantasy & Cosplay",
+    "Revealing",
 ];
 
 const TRAITS_TRANSLATION = {};
 
 app.registerExtension({
-    name: "AnimaPoseTagSelector.extension",
+    name: "AnimaClothingTagSelector.extension",
 
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name === "AnimaPoseTagSelector" || nodeData.name === "AnimaPoseTagSelectorPlus" || nodeData.name === "AnimaPromptPlus") {
+        if (nodeData.name === "AnimaClothingTagSelector" || nodeData.name === "AnimaClothingTagSelectorPlus" || isAnimaPromptPlusNode(nodeData.name)) {
             installSelectorExecutionSync(nodeType);
             const origOnCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
                 origOnCreated?.apply(this, arguments);
 
-                const poseTagsWidget = this.widgets.find(w => w.name === "pose_tags");
-                if (!poseTagsWidget) return;
+                const clothingTagsWidget = this.widgets.find(w => w.name === "clothing_tags");
+                if (!clothingTagsWidget) return;
                 addSelectorActionRow(this, {
-                    section: "pose",
-                    label: t("Open Pose Selector"),
+                    section: "clothing",
+                    label: t("Open Clothing Selector"),
                     accent: THEME.accent,
                     accentText: THEME.accentText,
                     onOpen: async () => {
-                        if (!window.poseData) {
-                            alert(t("Anima pose database is loading, please wait a few seconds..."));
+                        if (!window.clothingData) {
+                            alert(t("Anima clothing database is loading, please wait a few seconds..."));
                             return;
                         }
-                        await openPoseSelectorModal(this, poseTagsWidget);
+                        await openClothingSelectorModal(this, clothingTagsWidget);
                     },
                 });
             };
         }
     }
 });
-
-function splitPromptTokens(value) {
-    return String(value || "")
-        .split(",")
-        .map(part => part.replace(/^_raw_:/, "").trim())
-        .filter(Boolean);
-}
-
-function normalizePromptToken(value) {
-    return String(value || "").replace(/^_raw_:/, "").trim().toLowerCase();
-}
 
 function normalizeCategoryValue(category) {
     const text = String(category || "").trim();
@@ -101,51 +100,21 @@ function getTraitZh(trait, data) {
     return trait;
 }
 
-function escapeHtml(value) {
-    return String(value || "").replace(/[&<>"']/g, ch => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-    }[ch]));
-}
+async function openClothingSelectorModal(node, tagsWidget) {
+    const clothingData = Array.isArray(window.clothingData) ? window.clothingData : [];
+    const dataById = new Map(clothingData.map(item => [String(item.id), item]));
+    const currentTokens = new Set(splitPromptTokens(tagsWidget?.value || "").map(normalizePromptToken));
+    const selectedClothing = new Set();
 
-function createEl(tag, className, text) {
-    const el = document.createElement(tag);
-    if (className) el.className = className;
-    if (text !== undefined) el.innerText = text;
-    return el;
-}
-
-function fallbackCopy(text, callback) {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-    callback?.();
-}
-
-function copyText(text, callback) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => callback?.()).catch(() => fallbackCopy(text, callback));
-    } else {
-        fallbackCopy(text, callback);
-    }
-}
-
-async function openPoseSelectorModal(node, tagsWidget) {
-    const poseData = Array.isArray(window.poseData) ? window.poseData : [];
-    const dataById = new Map(poseData.map(item => [String(item.id), item]));
-    // Keep selection one-way: existing node text should not auto-check cards in the modal.
-    const selectedPose = new Set();
+    clothingData.forEach(item => {
+        const tokens = splitPromptTokens(item.tags).map(normalizePromptToken);
+        if (tokens.length > 0 && tokens.every(token => currentTokens.has(token))) {
+            selectedClothing.add(getItemKey(item));
+        }
+    });
 
     let favoritesConfig = {
-        pose: {
+        clothing: {
             groups: [{ id: "default", name: t("My Favorites"), isSystem: true }],
             items: [],
         }
@@ -157,29 +126,33 @@ async function openPoseSelectorModal(node, tagsWidget) {
             favoritesConfig = await response.json();
         }
     } catch (e) {
-        console.error("[Anima Tools] Failed to load pose favorites", e);
+        console.error("[Anima Tools] Failed to load clothing favorites", e);
     }
 
-    if (!favoritesConfig.pose) {
-        favoritesConfig.pose = {
+    if (!favoritesConfig.clothing) {
+        favoritesConfig.clothing = {
             groups: [{ id: "default", name: t("My Favorites"), isSystem: true }],
             items: [],
         };
     }
 
-    let groups = Array.isArray(favoritesConfig.pose.groups) && favoritesConfig.pose.groups.length
-        ? favoritesConfig.pose.groups
+    let groups = Array.isArray(favoritesConfig.clothing.groups) && favoritesConfig.clothing.groups.length
+        ? favoritesConfig.clothing.groups
         : [{ id: "default", name: t("My Favorites"), isSystem: true }];
     if (!groups.some(group => group.id === "default")) {
         groups = [{ id: "default", name: t("My Favorites"), isSystem: true }, ...groups];
     }
 
-    let favoriteItems = Array.isArray(favoritesConfig.pose.items) ? favoritesConfig.pose.items : [];
+    let favoriteItems = Array.isArray(favoritesConfig.clothing.items) ? favoritesConfig.clothing.items : [];
     const favoriteMap = new Map();
     const favoriteSet = new Set();
 
     favoriteItems.forEach(item => {
         if (item.isCustom) {
+            const customTokens = splitPromptTokens(item.customContent).map(normalizePromptToken);
+            if (customTokens.length > 0 && customTokens.every(token => currentTokens.has(token))) {
+                selectedClothing.add(getItemKey(item));
+            }
             return;
         }
         const key = String(item.id || item.name || "");
@@ -189,13 +162,13 @@ async function openPoseSelectorModal(node, tagsWidget) {
         }
     });
 
-    const SORT_STORAGE_KEY = "anima-pose-selector-active-sort";
-    const PAGE_STORAGE_KEY = "anima-pose-selector-active-page";
-    const SCROLL_STORAGE_KEY = "anima-pose-selector-active-scroll";
-    const SIDEBAR_SCROLL_STORAGE_KEY = "anima-pose-selector-sidebar-scroll";
-    const DISPLAY_LANG_STORAGE_KEY = "anima-pose-selector-display-lang";
-    const FILTER_STORAGE_KEY = "anima-pose-selector-filters";
-    const COLLECTIONS_COLLAPSE_STORAGE_KEY = "anima-pose-selector-collections-collapsed";
+    const SORT_STORAGE_KEY = "anima-clothing-selector-active-sort";
+    const PAGE_STORAGE_KEY = "anima-clothing-selector-active-page";
+    const SCROLL_STORAGE_KEY = "anima-clothing-selector-active-scroll";
+    const SIDEBAR_SCROLL_STORAGE_KEY = "anima-clothing-selector-sidebar-scroll";
+    const DISPLAY_LANG_STORAGE_KEY = "anima-clothing-selector-display-lang";
+    const FILTER_STORAGE_KEY = "anima-clothing-selector-filters";
+    const COLLECTIONS_COLLAPSE_STORAGE_KEY = "anima-clothing-selector-collections-collapsed";
 
     let activeSort = localStorage.getItem(SORT_STORAGE_KEY) || "id-asc";
     let displayLang = localStorage.getItem(DISPLAY_LANG_STORAGE_KEY) || "en";
@@ -219,10 +192,10 @@ async function openPoseSelectorModal(node, tagsWidget) {
         if (Array.isArray(saved.traits)) saved.traits.forEach(v => activeFilters.traits.add(v));
         if (saved.collection) activeFilters.collection = saved.collection;
     } catch (e) {
-        console.warn("[Anima Tools] Failed to restore pose filters", e);
+        console.warn("[Anima Tools] Failed to restore clothing filters", e);
     }
 
-    const allTraits = Array.from(poseData.reduce((map, item) => {
+    const allTraits = Array.from(clothingData.reduce((map, item) => {
         (Array.isArray(item.traits) ? item.traits : []).forEach(trait => {
             map.set(trait, (map.get(trait) || 0) + 1);
         });
@@ -238,8 +211,8 @@ async function openPoseSelectorModal(node, tagsWidget) {
         });
 
         favoriteItems = nextItems;
-        favoritesConfig.pose.groups = groups;
-        favoritesConfig.pose.items = favoriteItems;
+        favoritesConfig.clothing.groups = groups;
+        favoritesConfig.clothing.items = favoriteItems;
 
         try {
             const response = await fetch("/anima-tools/favorites", {
@@ -250,7 +223,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
             if (!response.ok) throw new Error(await response.text());
             return true;
         } catch (e) {
-            console.error("[Anima Tools] Failed to save pose favorites", e);
+            console.error("[Anima Tools] Failed to save clothing favorites", e);
             alert(t("Failed to save favorites"));
             return false;
         }
@@ -264,595 +237,11 @@ async function openPoseSelectorModal(node, tagsWidget) {
         }));
     }
 
-    const styleSheet = document.createElement("style");
-    styleSheet.textContent = `
-        @keyframes animaPoseFadeIn {
-            from { opacity: 0; transform: scale(0.97) translateY(8px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        @keyframes animaPoseSpin {
-            to { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-        @keyframes animaPoseShimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
-        .anima-pose-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .anima-pose-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .anima-pose-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
-        .anima-pose-btn {
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
-            background: rgba(255,255,255,0.05);
-            color: #e5e7eb;
-            padding: 9px 14px;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.18s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            user-select: none;
-            white-space: nowrap;
-        }
-        .anima-pose-btn:hover:not(:disabled) {
-            background: rgba(255,255,255,0.11);
-            border-color: rgba(255,255,255,0.16);
-            color: #fff;
-        }
-        .anima-pose-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .anima-pose-btn.primary {
-            background: linear-gradient(135deg, #db2777, #9d174d);
-            border-color: rgba(219,39,119,0.35);
-            color: #fff;
-            box-shadow: 0 8px 20px rgba(219,39,119,0.24);
-        }
-        .anima-pose-btn.primary:hover:not(:disabled) {
-            box-shadow: 0 10px 25px rgba(219,39,119,0.36);
-        }
-        .anima-pose-btn.danger {
-            background: rgba(239,68,68,0.08);
-            border-color: rgba(239,68,68,0.22);
-            color: #fca5a5;
-        }
-        .anima-pose-btn.active {
-            background: rgba(219,39,119,0.18);
-            border-color: rgba(219,39,119,0.42);
-            color: #f9a8d4;
-        }
-        .anima-pose-pagination {
-            padding: 14px 24px;
-            background: linear-gradient(180deg, rgba(18,18,24,0.2), rgba(18,18,24,0.62));
-            border-top: 1px solid rgba(255,255,255,0.06);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
-            flex-wrap: wrap;
-            box-shadow: 0 -12px 32px rgba(0,0,0,0.18);
-        }
-        .anima-pose-pagination-stats {
-            min-height: 36px;
-            padding: 0 14px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.045);
-            border: 1px solid rgba(255,255,255,0.07);
-            color: #d4d4d8;
-            font-size: 12.5px;
-            font-weight: 750;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            white-space: nowrap;
-            max-width: min(460px, 100%);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
-        }
-        .anima-pose-pagination-stats::before {
-            content: "";
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: #db2777;
-            box-shadow: 0 0 14px rgba(219,39,119,0.72);
-            flex: 0 0 auto;
-        }
-        .anima-pose-pagination-controls {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-left: auto;
-        }
-        .anima-pose-page-number {
-            min-height: 36px;
-            padding: 0;
-            border-radius: 0;
-            background: transparent;
-            border: none;
-            color: #d1d5db;
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            box-shadow: none;
-        }
-        .anima-pose-page-btn {
-            min-height: 36px;
-            padding: 0 13px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 999px;
-            color: #d4d4d8;
-            font-size: 12.5px;
-            font-weight: 750;
-            cursor: pointer;
-            transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
-        }
-        .anima-pose-page-btn:hover:not(:disabled) {
-            background: rgba(219,39,119,0.16);
-            color: #fff;
-            border-color: rgba(219,39,119,0.38);
-            transform: translateY(-1px);
-        }
-        .anima-pose-page-btn:disabled {
-            opacity: 0.35;
-            cursor: not-allowed;
-        }
-        .anima-pose-page-input {
-            width: 48px;
-            padding: 6px 4px;
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid rgba(255,255,255,0.16);
-            border-radius: 0;
-            color: #fff;
-            font-size: 13px;
-            font-weight: 800;
-            text-align: center;
-            outline: none;
-            transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-        }
-        .anima-pose-page-input:focus {
-            background: transparent;
-            border-bottom-color: rgba(219,39,119,0.72);
-            box-shadow: none;
-        }
-        .anima-pose-select, .anima-pose-input {
-            background: rgba(10,10,15,0.76);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            color: #f8fafc;
-            outline: none;
-            font-size: 13px;
-            transition: border-color 0.18s ease, box-shadow 0.18s ease;
-        }
-        .anima-pose-select { padding: 10px 13px; cursor: pointer; }
-        .anima-pose-input { padding: 11px 14px; }
-        .anima-pose-select:focus, .anima-pose-input:focus {
-            border-color: rgba(219,39,119,0.55);
-            box-shadow: 0 0 0 3px rgba(219,39,119,0.12);
-        }
-        .anima-pose-sidebar-item {
-            padding: 10px 12px;
-            border-radius: 10px;
-            color: #a1a1aa;
-            cursor: pointer;
-            border: 1px solid transparent;
-            transition: all 0.16s ease;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            font-size: 12.5px;
-            font-weight: 650;
-            user-select: none;
-        }
-        .anima-pose-sidebar-item:hover {
-            background: rgba(255,255,255,0.05);
-            color: #fff;
-        }
-        .anima-pose-sidebar-item.active {
-            background: rgba(219,39,119,0.14);
-            border-color: rgba(219,39,119,0.34);
-            color: #f9a8d4;
-        }
-        .anima-pose-clear-filters-btn {
-            width: calc(100% - 16px);
-            margin: 0 8px 12px;
-            padding: 9px 12px;
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(255,255,255,0.035);
-            color: #a1a1aa;
-            font-size: 12.5px;
-            font-weight: 750;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 7px;
-            transition: all 0.18s ease;
-        }
-        .anima-pose-clear-filters-btn:hover:not(:disabled) {
-            background: rgba(219,39,119,0.13);
-            border-color: rgba(219,39,119,0.32);
-            color: #f9a8d4;
-        }
-        .anima-pose-clear-filters-btn:disabled {
-            opacity: 0.42;
-            cursor: not-allowed;
-        }
-        .anima-pose-section-header {
-            color: #71717a;
-            font-size: 11px;
-            font-weight: 850;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            margin: 14px 8px 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            user-select: none;
-        }
-        .anima-pose-section-header.foldable {
-            cursor: pointer;
-        }
-        .anima-pose-section-header.foldable:hover {
-            color: #f9a8d4;
-        }
-        .anima-pose-section-title {
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .anima-pose-section-spacer {
-            flex: 1;
-        }
-        .anima-pose-section-icon-btn {
-            width: 20px;
-            height: 20px;
-            border-radius: 6px;
-            border: 1px solid rgba(219,39,119,0.18);
-            background: rgba(219,39,119,0.08);
-            color: #f472b6;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.16s ease;
-            padding: 0;
-            flex: 0 0 auto;
-        }
-        .anima-pose-section-icon-btn:hover {
-            background: rgba(219,39,119,0.18);
-            border-color: rgba(219,39,119,0.34);
-            color: #fff;
-        }
-        .anima-pose-section-arrow {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.18s ease;
-            flex: 0 0 auto;
-        }
-        .anima-pose-section-arrow.collapsed {
-            transform: rotate(-90deg);
-        }
-        .anima-pose-check-row {
-            display: flex;
-            gap: 9px;
-            align-items: flex-start;
-            color: #cbd5e1;
-            font-size: 12.5px;
-            font-weight: 600;
-            cursor: pointer;
-            padding: 8px 9px;
-            border-radius: 9px;
-            line-height: 1.28;
-            transition: background 0.15s ease;
-        }
-        .anima-pose-check-row:hover { background: rgba(255,255,255,0.045); }
-        .anima-pose-check-row input { margin-top: 2px; accent-color: #db2777; }
-        .anima-pose-card {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            min-height: 0;
-            min-width: 0;
-            overflow: hidden;
-            box-sizing: border-box;
-            border-radius: 16px;
-            isolation: isolate;
-            background: rgba(255,255,255,0.06);
-            border: 2px solid rgba(255,255,255,0.06);
-            box-shadow: 0 5px 18px rgba(0,0,0,0.25);
-            cursor: pointer;
-            transition: border-color 0.18s ease, box-shadow 0.18s ease;
-        }
-        .anima-pose-card:hover {
-            border-color: rgba(219,39,119,0.82);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.38), 0 0 18px rgba(219,39,119,0.14);
-        }
-        .anima-pose-card.selected {
-            border-color: #db2777;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.36), 0 0 24px rgba(219,39,119,0.24);
-        }
-        .anima-pose-card-clip {
-            position: absolute;
-            inset: 2px;
-            z-index: 0;
-            overflow: hidden;
-            border-radius: 13px;
-            clip-path: inset(0 round 13px);
-            background: #0a0a10;
-        }
-        .anima-pose-card img {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            opacity: 0;
-            transition: opacity 0.28s ease;
-        }
-        .anima-pose-placeholder {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #2a1430, #101018);
-            color: rgba(255,255,255,0.68);
-            font-size: 46px;
-            font-weight: 900;
-            z-index: 1;
-        }
-        .anima-pose-shimmer {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(90deg, rgba(20,20,30,0.9) 25%, rgba(219,39,119,0.12) 50%, rgba(20,20,30,0.9) 75%);
-            background-size: 200% 100%;
-            animation: animaPoseShimmer 1.5s infinite linear;
-            z-index: 2;
-            pointer-events: none;
-        }
-        .anima-pose-spinner {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            width: 26px;
-            height: 26px;
-            border: 2.5px solid rgba(219,39,119,0.16);
-            border-top-color: #db2777;
-            border-radius: 50%;
-            animation: animaPoseSpin 0.85s infinite linear;
-        }
-        .anima-pose-card-mask {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to top, rgba(10,10,16,0.99) 0%, rgba(10,10,16,0.72) 42%, rgba(10,10,16,0.16) 100%);
-            z-index: 3;
-            pointer-events: none;
-        }
-        .anima-pose-card-info {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 4;
-            padding: 13px 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            min-width: 0;
-            transition: opacity 0.2s ease;
-            pointer-events: none;
-        }
-        .anima-pose-card:hover .anima-pose-card-info { opacity: 0; }
-        .anima-pose-card-title {
-            color: #fff;
-            font-size: 13.5px;
-            font-weight: 850;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.72);
-        }
-        .anima-pose-card-sub {
-            color: #cbd5e1;
-            font-size: 10.5px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            opacity: 0.9;
-        }
-        .anima-pose-card-badges {
-            display: flex;
-            gap: 5px;
-            min-width: 0;
-            overflow: hidden;
-        }
-        .anima-pose-badge {
-            color: #f9a8d4;
-            background: rgba(219,39,119,0.16);
-            border: 1px solid rgba(219,39,119,0.24);
-            border-radius: 999px;
-            padding: 2px 7px;
-            font-size: 10px;
-            font-weight: 750;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .anima-pose-tags-overlay {
-            position: absolute;
-            inset: 0;
-            z-index: 5;
-            padding: 42px 12px 14px;
-            box-sizing: border-box;
-            opacity: 0;
-            pointer-events: none;
-            background: rgba(7, 7, 14, 0.76);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            transition: opacity 0.2s ease;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            overflow: hidden;
-        }
-        .anima-pose-card:hover .anima-pose-tags-overlay {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .anima-pose-tags-title {
-            border: 1px solid rgba(219,39,119,0.32);
-            background: rgba(219,39,119,0.16);
-            color: #fce7f3;
-            border-radius: 999px;
-            padding: 6px 9px;
-            font-size: 11px;
-            font-weight: 850;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            width: 100%;
-            min-width: 0;
-        }
-        .anima-pose-tags-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            align-content: flex-start;
-            overflow-y: auto;
-            min-height: 0;
-            padding-right: 2px;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-        }
-        .anima-pose-tags-list::-webkit-scrollbar { display: none; }
-        .anima-pose-tag-pill {
-            border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(255,255,255,0.07);
-            color: #e5e7eb;
-            border-radius: 999px;
-            padding: 4px 7px;
-            font-size: 10.5px;
-            font-weight: 650;
-            line-height: 1.15;
-            cursor: pointer;
-            max-width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .anima-pose-tag-pill:hover {
-            border-color: rgba(219,39,119,0.45);
-            color: #fff;
-            background: rgba(219,39,119,0.22);
-        }
-        .anima-pose-create-card {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            box-sizing: border-box;
-            border-radius: 16px;
-            border: 2px dashed rgba(219,39,119,0.42);
-            background: rgba(22,22,32,0.42);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            user-select: none;
-            transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-        }
-        .anima-pose-create-card:hover {
-            border-color: rgba(219,39,119,0.86);
-            background: rgba(219,39,119,0.07);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.32), 0 0 18px rgba(219,39,119,0.16);
-        }
-        .anima-pose-create-card-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            color: #f472b6;
-            padding: 18px;
-            text-align: center;
-            transition: transform 0.2s ease, color 0.2s ease;
-        }
-        .anima-pose-create-card:hover .anima-pose-create-card-content {
-            color: #fff;
-            transform: scale(1.06);
-        }
-        .anima-pose-icon-btn {
-            position: absolute;
-            right: 9px;
-            z-index: 7;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: rgba(10,10,15,0.48);
-            border: 1px solid rgba(255,255,255,0.12);
-            backdrop-filter: blur(5px);
-            color: #e5e7eb;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
-        }
-        .anima-pose-icon-btn:hover {
-            transform: scale(1.1);
-            background: rgba(10,10,15,0.72);
-            color: #f9a8d4;
-        }
-        .anima-pose-selected-mark {
-            position: absolute;
-            top: 9px;
-            left: 9px;
-            z-index: 7;
-            width: 24px;
-            height: 24px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(10,10,15,0.52);
-            border: 1px solid rgba(255,255,255,0.28);
-            color: #fff;
-            transition: all 0.15s ease;
-        }
-        .anima-pose-card.selected .anima-pose-selected-mark {
-            background: #db2777;
-            border-color: #db2777;
-        }
-        .anima-pose-popover {
-            position: fixed;
-            z-index: 1000000;
-            min-width: 170px;
-            max-height: 280px;
-            overflow-y: auto;
-            background: #1c1c1e;
-            border: 1px solid rgba(255,255,255,0.14);
-            border-radius: 12px;
-            padding: 10px;
-            box-shadow: 0 14px 34px rgba(0,0,0,0.52);
-        }
-    `;
+    const styleSheet = createGallerySelectorStyleSheet("clothing");
     document.head.appendChild(styleSheet);
 
     const overlay = createEl("div");
-    overlay.id = "anima-pose-selector-overlay";
+    overlay.id = "anima-clothing-selector-overlay";
     overlay.style.cssText = `
         position: fixed;
         inset: 0;
@@ -879,11 +268,11 @@ async function openPoseSelectorModal(node, tagsWidget) {
         box-shadow: 0 25px 60px rgba(0,0,0,0.58);
         display: flex;
         flex-direction: column;
-        animation: animaPoseFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        animation: animaClothingFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     `;
 
     overlay.onclick = (event) => {
-        if (event.target === overlay) closeModal();
+        if (event.target === overlay) applySelectionAndClose();
     };
 
     const header = createEl("div");
@@ -899,20 +288,20 @@ async function openPoseSelectorModal(node, tagsWidget) {
 
     const titleWrap = createEl("div");
     titleWrap.style.cssText = "min-width: 240px;";
-    const title = createEl("div", null, t("Anima Pose Tag Selector"));
+    const title = createEl("div", null, t("Anima Clothing Tag Selector"));
     title.style.cssText = "font-size: 20px; font-weight: 850; color: #fff; line-height: 1.2;";
-    const subtitle = createEl("div", null, t("Browse and select pose prompt tags with visual preview cards."));
+    const subtitle = createEl("div", null, t("Browse and select outfit prompt tags with 2:3 visual preview cards."));
     subtitle.style.cssText = "font-size: 12.5px; color: #a1a1aa; margin-top: 5px;";
     titleWrap.appendChild(title);
     titleWrap.appendChild(subtitle);
 
-    const searchInput = createEl("input", "anima-pose-input");
+    const searchInput = createEl("input", "anima-clothing-input");
     searchInput.type = "search";
-    searchInput.placeholder = t("Search pose or tags...");
+    searchInput.placeholder = t("Search clothing or tags...");
     searchInput.value = "";
     searchInput.style.cssText += "flex: 1; min-width: 260px;";
 
-    const closeBtn = createEl("button", "anima-pose-btn", t("Cancel"));
+    const closeBtn = createEl("button", "anima-clothing-btn", t("Cancel"));
     closeBtn.onclick = () => closeModal();
 
     const headerActions = createEl("div");
@@ -939,7 +328,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
     const filterControls = createEl("div");
     filterControls.style.cssText = "display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap;";
 
-    const sortSelect = createEl("select", "anima-pose-select");
+    const sortSelect = createEl("select", "anima-clothing-select");
     sortSelect.innerHTML = `
         <option value="id-desc">${t("Latest")}</option>
         <option value="id-asc">${t("Oldest")}</option>
@@ -956,7 +345,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
         triggerFilter();
     };
 
-    const langSelect = createEl("select", "anima-pose-select");
+    const langSelect = createEl("select", "anima-clothing-select");
     langSelect.innerHTML = `
         <option value="bilingual">${t("Bilingual")}</option>
         <option value="en">${t("English Only")}</option>
@@ -975,18 +364,18 @@ async function openPoseSelectorModal(node, tagsWidget) {
     const actionControls = createEl("div");
     actionControls.style.cssText = "display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end;";
 
-    const copySelectedBtn = createEl("button", "anima-pose-btn");
+    const copySelectedBtn = createEl("button", "anima-clothing-btn");
     copySelectedBtn.innerHTML = `${copyIcon()} ${t("Copy Selected")}`;
     copySelectedBtn.onclick = () => {
         const text = buildSelectedText();
         if (!text) {
-            alert(t("Please select at least one pose first."));
+            alert(t("Please select at least one clothing item first."));
             return;
         }
         copyText(text, () => showToast(t("Copied Successfully")));
     };
 
-    const showSelectedOnlyBtn = createEl("button", "anima-pose-btn", t("Show Selected"));
+    const showSelectedOnlyBtn = createEl("button", "anima-clothing-btn", t("Show Selected"));
     showSelectedOnlyBtn.onclick = () => {
         showSelectedOnly = !showSelectedOnly;
         showSelectedOnlyBtn.classList.toggle("active", showSelectedOnly);
@@ -994,11 +383,11 @@ async function openPoseSelectorModal(node, tagsWidget) {
         triggerFilter();
     };
 
-    const clearSelectedBtn = createEl("button", "anima-pose-btn danger");
+    const clearSelectedBtn = createEl("button", "anima-clothing-btn danger");
     clearSelectedBtn.innerHTML = `${trashIcon()} ${t("Clear Selected")}`;
     clearSelectedBtn.onclick = () => {
-        if (selectedPose.size === 0) return;
-        selectedPose.clear();
+        if (selectedClothing.size === 0) return;
+        selectedClothing.clear();
         updateCountLabel();
         renderCurrentPage();
     };
@@ -1013,7 +402,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
     const main = createEl("div");
     main.style.cssText = "display: flex; flex: 1; min-height: 0; background: rgba(10,10,15,0.18);";
 
-    const sidebar = createEl("aside", "anima-pose-scrollbar");
+    const sidebar = createEl("aside", "anima-clothing-scrollbar");
     sidebar.style.cssText = `
         width: 280px;
         flex: 0 0 280px;
@@ -1028,7 +417,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
     const gridArea = createEl("div");
     gridArea.style.cssText = "flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0;";
 
-    const listContainer = createEl("div", "anima-pose-scrollbar");
+    const listContainer = createEl("div", "anima-clothing-scrollbar");
     listContainer.style.cssText = `
         flex: 1;
         overflow-y: auto;
@@ -1055,18 +444,18 @@ async function openPoseSelectorModal(node, tagsWidget) {
         });
     }, { root: listContainer, rootMargin: "320px" });
 
-    const pagination = createEl("div", "anima-pose-pagination");
+    const pagination = createEl("div", "anima-clothing-pagination");
 
-    const pageStats = createEl("div", "anima-pose-pagination-stats");
+    const pageStats = createEl("div", "anima-clothing-pagination-stats");
 
-    const pageControls = createEl("div", "anima-pose-pagination-controls");
+    const pageControls = createEl("div", "anima-clothing-pagination-controls");
 
-    const firstBtn = createEl("button", "anima-pose-page-btn", t("First"));
-    const prevBtn = createEl("button", "anima-pose-page-btn", t("Prev"));
-    const nextBtn = createEl("button", "anima-pose-page-btn", t("Next"));
-    const lastBtn = createEl("button", "anima-pose-page-btn", t("Last"));
-    const pageNumContainer = createEl("div", "anima-pose-page-number");
-    const pageInput = createEl("input", "anima-pose-page-input");
+    const firstBtn = createEl("button", "anima-clothing-page-btn", t("First"));
+    const prevBtn = createEl("button", "anima-clothing-page-btn", t("Prev"));
+    const nextBtn = createEl("button", "anima-clothing-page-btn", t("Next"));
+    const lastBtn = createEl("button", "anima-clothing-page-btn", t("Last"));
+    const pageNumContainer = createEl("div", "anima-clothing-page-number");
+    const pageInput = createEl("input", "anima-clothing-page-input");
     pageInput.type = "text";
     const totalPagesLabel = createEl("span");
 
@@ -1107,14 +496,14 @@ async function openPoseSelectorModal(node, tagsWidget) {
         gap: 14px;
     `;
 
-    const countLabel = createEl("button", "anima-pose-btn active");
+    const countLabel = createEl("button", "anima-clothing-btn active");
     countLabel.onclick = () => showSelectedOnlyBtn.click();
 
     const footerBtns = createEl("div");
     footerBtns.style.cssText = "display: flex; align-items: center; gap: 10px;";
-    const cancelFooterBtn = createEl("button", "anima-pose-btn", t("Cancel"));
+    const cancelFooterBtn = createEl("button", "anima-clothing-btn", t("Cancel"));
     cancelFooterBtn.onclick = () => closeModal();
-    const applyBtn = createEl("button", "anima-pose-btn primary", t("Confirm & Apply"));
+    const applyBtn = createEl("button", "anima-clothing-btn primary", t("Confirm & Apply"));
     applyBtn.onclick = () => applySelectionAndClose();
 
     footerBtns.appendChild(cancelFooterBtn);
@@ -1133,7 +522,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
 
     function renderSidebar() {
         sidebar.innerHTML = "";
-        const clearFiltersBtn = createEl("button", "anima-pose-clear-filters-btn");
+        const clearFiltersBtn = createEl("button", "anima-clothing-clear-filters-btn");
         clearFiltersBtn.type = "button";
         clearFiltersBtn.innerHTML = `
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round">
@@ -1151,7 +540,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
         const collectionsContent = createEl("div");
         collectionsContent.style.cssText = collectionsCollapsed ? "display: none;" : "display: flex; flex-direction: column;";
         if (!collectionsCollapsed) {
-            const allItem = sidebarItem(t("All Poses"), activeFilters.collection === "all", poseData.length);
+            const allItem = sidebarItem(t("All Clothing"), activeFilters.collection === "all", clothingData.length);
             allItem.onclick = () => switchCollection("all");
             collectionsContent.appendChild(allItem);
 
@@ -1210,7 +599,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
 
         sidebar.appendChild(sectionTitle(t("Categories")));
         CATEGORY_LIST.forEach(category => {
-            const row = createEl("label", "anima-pose-check-row");
+            const row = createEl("label", "anima-clothing-check-row");
             row.innerHTML = `
                 <input type="checkbox" ${activeFilters.categories.has(category) ? "checked" : ""}>
                 <span>${escapeHtml(getCategoryLabel(category, displayLang))}</span>
@@ -1228,9 +617,9 @@ async function openPoseSelectorModal(node, tagsWidget) {
 
         sidebar.appendChild(sectionTitle(t("Traits")));
         allTraits.forEach(trait => {
-            const zh = getTraitZh(trait.name, poseData);
+            const zh = getTraitZh(trait.name, clothingData);
             const label = displayLang === "bilingual" && zh ? `${trait.name} (${zh})` : trait.name;
-            const row = createEl("label", "anima-pose-check-row");
+            const row = createEl("label", "anima-clothing-check-row");
             row.innerHTML = `
                 <input type="checkbox" ${activeFilters.traits.has(trait.name) ? "checked" : ""}>
                 <span style="min-width:0;">${escapeHtml(label)} <span style="color:#71717a;">${trait.count}</span></span>
@@ -1253,14 +642,14 @@ async function openPoseSelectorModal(node, tagsWidget) {
     }
 
     function collectionsSectionHeader() {
-        const header = createEl("div", "anima-pose-section-header foldable");
-        const title = createEl("span", "anima-pose-section-title", t("Collections"));
-        const spacer = createEl("span", "anima-pose-section-spacer");
-        const addBtn = createEl("button", "anima-pose-section-icon-btn");
+        const header = createEl("div", "anima-clothing-section-header foldable");
+        const title = createEl("span", "anima-clothing-section-title", t("Collections"));
+        const spacer = createEl("span", "anima-clothing-section-spacer");
+        const addBtn = createEl("button", "anima-clothing-section-icon-btn");
         addBtn.type = "button";
         addBtn.title = t("Create Group");
         addBtn.innerHTML = "+";
-        const arrow = createEl("span", `anima-pose-section-arrow${collectionsCollapsed ? " collapsed" : ""}`);
+        const arrow = createEl("span", `anima-clothing-section-arrow${collectionsCollapsed ? " collapsed" : ""}`);
         arrow.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 
         addBtn.onclick = (event) => {
@@ -1292,11 +681,11 @@ async function openPoseSelectorModal(node, tagsWidget) {
     }
 
     function sectionTitle(label) {
-        return createEl("div", "anima-pose-section-header", label);
+        return createEl("div", "anima-clothing-section-header", label);
     }
 
     function sidebarItem(label, active, count) {
-        const row = createEl("div", `anima-pose-sidebar-item${active ? " active" : ""}`);
+        const row = createEl("div", `anima-clothing-sidebar-item${active ? " active" : ""}`);
         const nameSpan = createEl("span", null, label);
         nameSpan.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;";
         const countSpan = createEl("span", null, String(count || 0));
@@ -1322,7 +711,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
     }
 
     function updateClearFiltersButtonState() {
-        const clearFiltersBtn = sidebar.querySelector(".anima-pose-clear-filters-btn");
+        const clearFiltersBtn = sidebar.querySelector(".anima-clothing-clear-filters-btn");
         if (clearFiltersBtn) {
             clearFiltersBtn.disabled = !hasActiveSidebarFilters();
         }
@@ -1351,8 +740,8 @@ async function openPoseSelectorModal(node, tagsWidget) {
         let items = [];
         let customItems = [];
         if (showSelectedOnly) {
-            customItems = favoriteItems.filter(item => item.isCustom && selectedPose.has(getItemKey(item)));
-            items = poseData.filter(item => selectedPose.has(getItemKey(item)));
+            customItems = favoriteItems.filter(item => item.isCustom && selectedClothing.has(getItemKey(item)));
+            items = clothingData.filter(item => selectedClothing.has(getItemKey(item)));
         } else {
             const groupIds = new Set();
             if (activeFilters.collection !== "all") {
@@ -1363,7 +752,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
                 });
             }
 
-            items = poseData.filter(item => {
+            items = clothingData.filter(item => {
                 if (activeFilters.collection !== "all" && !groupIds.has(String(item.id))) return false;
 
                 if (queryList.length > 0) {
@@ -1436,7 +825,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
         const total = filteredData.length;
         const start = total === 0 ? 0 : (currentPage - 1) * 48 + 1;
         const end = Math.min(currentPage * 48, total);
-        pageStats.innerText = t("Total {total} poses | Showing {start}-{end}", { total, start, end });
+        pageStats.innerText = t("Total {total} clothing items | Showing {start}-{end}", { total, start, end });
         pageInput.value = String(currentPage);
         totalPagesLabel.innerText = `/ ${totalPages}`;
         firstBtn.disabled = currentPage <= 1;
@@ -1468,7 +857,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
             empty.style.cssText = "grid-column:1/-1; padding:70px 20px; text-align:center; color:#a1a1aa;";
             empty.innerHTML = `
                 <div style="font-size:38px;font-weight:900;color:${THEME.accentText};margin-bottom:12px;">0</div>
-                <div style="font-size:16px;font-weight:800;color:#fff;">${escapeHtml(t("No matching poses found"))}</div>
+                <div style="font-size:16px;font-weight:800;color:#fff;">${escapeHtml(t("No matching clothing items found"))}</div>
                 <div style="font-size:13px;margin-top:8px;">${escapeHtml(t("Try another search or clear filters."))}</div>
             `;
             listContainer.appendChild(empty);
@@ -1493,8 +882,8 @@ async function openPoseSelectorModal(node, tagsWidget) {
     }
 
     function createCustomPlaceholderCard() {
-        const card = createEl("article", "anima-pose-create-card");
-        const content = createEl("div", "anima-pose-create-card-content");
+        const card = createEl("article", "anima-clothing-create-card");
+        const content = createEl("div", "anima-clothing-create-card-content");
         content.innerHTML = `
             <div style="font-size:46px;line-height:1;font-weight:300;">+</div>
             <div style="font-size:13.5px;font-weight:800;">${escapeHtml(t("Create Custom Item"))}</div>
@@ -1525,18 +914,18 @@ async function openPoseSelectorModal(node, tagsWidget) {
 
     function createCard(item) {
         const key = getItemKey(item);
-        const isSelected = selectedPose.has(key);
+        const isSelected = selectedClothing.has(key);
         const isFavorite = !item.isCustom && favoriteSet.has(String(item.id));
         const favInfo = item.isCustom ? item : favoriteMap.get(String(item.id));
         const nickname = favInfo?.nickname || "";
 
-        const card = createEl("article", `anima-pose-card${isSelected ? " selected" : ""}`);
+        const card = createEl("article", `anima-clothing-card${isSelected ? " selected" : ""}`);
         card.dataset.key = key;
 
-        const clip = createEl("div", "anima-pose-card-clip");
+        const clip = createEl("div", "anima-clothing-card-clip");
         card.appendChild(clip);
 
-        const placeholder = createEl("div", "anima-pose-placeholder");
+        const placeholder = createEl("div", "anima-clothing-placeholder");
         placeholder.innerText = item.isCustom ? "T" : (formatDisplayName(item, displayLang).trim().charAt(0).toUpperCase() || "?");
         clip.appendChild(placeholder);
 
@@ -1559,8 +948,8 @@ async function openPoseSelectorModal(node, tagsWidget) {
                 img.style.opacity = "1";
             } else {
                 img.dataset.lazySrc = imgUrl;
-                loader = createEl("div", "anima-pose-shimmer");
-                const spinner = createEl("div", "anima-pose-spinner");
+                loader = createEl("div", "anima-clothing-shimmer");
+                const spinner = createEl("div", "anima-clothing-spinner");
                 loader.appendChild(spinner);
                 clip.appendChild(loader);
             }
@@ -1579,7 +968,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
             imageObserver.observe(img);
         }
 
-        const selectedMark = createEl("div", "anima-pose-selected-mark");
+        const selectedMark = createEl("div", "anima-clothing-selected-mark");
         selectedMark.innerHTML = isSelected ? checkIcon() : "";
         card.appendChild(selectedMark);
 
@@ -1589,7 +978,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
                 event.stopPropagation();
                 if (!confirm(t("Are you sure you want to delete this custom item?"))) return;
                 favoriteItems = favoriteItems.filter(existing => existing.name !== item.name);
-                selectedPose.delete(key);
+                selectedClothing.delete(key);
                 await saveFavorites();
                 renderSidebar();
                 triggerFilter();
@@ -1642,13 +1031,13 @@ async function openPoseSelectorModal(node, tagsWidget) {
         };
         card.appendChild(groupBtn);
 
-        const mask = createEl("div", "anima-pose-card-mask");
+        const mask = createEl("div", "anima-clothing-card-mask");
         clip.appendChild(mask);
 
-        const tagsOverlay = createEl("div", "anima-pose-tags-overlay");
+        const tagsOverlay = createEl("div", "anima-clothing-tags-overlay");
         const promptTags = splitPromptTokens(item.isCustom ? item.customContent : item.tags);
         const promptTagsZh = splitPromptTokens(item.tags_zh);
-        const titleBtn = createEl("button", "anima-pose-tags-title");
+        const titleBtn = createEl("button", "anima-clothing-tags-title");
         titleBtn.innerHTML = `
             <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(t("Prompt Tags"))} · ${promptTags.length}</span>
             <span style="font-size:10px;color:#f9a8d4;flex:0 0 auto;">${escapeHtml(t("Copy"))}</span>
@@ -1660,11 +1049,11 @@ async function openPoseSelectorModal(node, tagsWidget) {
         };
         tagsOverlay.appendChild(titleBtn);
 
-        const tagsList = createEl("div", "anima-pose-tags-list");
+        const tagsList = createEl("div", "anima-clothing-tags-list");
         promptTags.forEach((tag, index) => {
             const zh = promptTagsZh[index] || "";
             const displayTag = displayLang === "bilingual" && zh ? `${tag} (${zh})` : tag;
-            const pill = createEl("span", "anima-pose-tag-pill", displayTag);
+            const pill = createEl("span", "anima-clothing-tag-pill", displayTag);
             pill.title = displayTag;
             pill.onclick = (event) => {
                 event.stopPropagation();
@@ -1675,12 +1064,12 @@ async function openPoseSelectorModal(node, tagsWidget) {
         tagsOverlay.appendChild(tagsList);
         clip.appendChild(tagsOverlay);
 
-        const info = createEl("div", "anima-pose-card-info");
-        const titleEl = createEl("div", "anima-pose-card-title");
+        const info = createEl("div", "anima-clothing-card-info");
+        const titleEl = createEl("div", "anima-clothing-card-title");
         const displayName = formatDisplayName(item, displayLang);
         titleEl.innerText = displayName;
         titleEl.title = item.isCustom ? item.customContent || "" : `${item.name_zh || ""}${item.name_zh ? " / " : ""}${item.name || ""}`;
-        const subEl = createEl("div", "anima-pose-card-sub");
+        const subEl = createEl("div", "anima-clothing-card-sub");
         if (item.isCustom) {
             subEl.innerText = t("Custom");
         } else if (displayLang === "bilingual" && item.name_zh) {
@@ -1691,7 +1080,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
         }
 
         if (nickname && !item.isCustom) {
-            const note = createEl("div", "anima-pose-card-sub", nickname);
+            const note = createEl("div", "anima-clothing-card-sub", nickname);
             note.style.color = THEME.accentText;
             info.appendChild(titleEl);
             info.appendChild(note);
@@ -1703,9 +1092,9 @@ async function openPoseSelectorModal(node, tagsWidget) {
         clip.appendChild(info);
 
         card.onclick = () => {
-            if (selectedPose.has(key)) selectedPose.delete(key);
-            else selectedPose.add(key);
-            updateCardSelection(card, selectedPose.has(key));
+            if (selectedClothing.has(key)) selectedClothing.delete(key);
+            else selectedClothing.add(key);
+            updateCardSelection(card, selectedClothing.has(key));
             updateCountLabel();
         };
 
@@ -1714,18 +1103,18 @@ async function openPoseSelectorModal(node, tagsWidget) {
 
     function updateCardSelection(card, selected) {
         card.classList.toggle("selected", selected);
-        const mark = card.querySelector(".anima-pose-selected-mark");
+        const mark = card.querySelector(".anima-clothing-selected-mark");
         if (mark) mark.innerHTML = selected ? checkIcon() : "";
     }
 
     function badge(text) {
-        const el = createEl("span", "anima-pose-badge", text);
+        const el = createEl("span", "anima-clothing-badge", text);
         el.title = text;
         return el;
     }
 
     function iconButton(top, html, titleText) {
-        const btn = createEl("button", "anima-pose-icon-btn");
+        const btn = createEl("button", "anima-clothing-icon-btn");
         btn.style.top = `${top}px`;
         btn.innerHTML = html;
         btn.title = titleText;
@@ -1751,11 +1140,11 @@ async function openPoseSelectorModal(node, tagsWidget) {
     }
 
     function openGroupSelectPopover(x, y, item) {
-        const existing = document.getElementById("anima-pose-group-popover");
+        const existing = document.getElementById("anima-clothing-group-popover");
         if (existing) existing.remove();
 
-        const popover = createEl("div", "anima-pose-popover");
-        popover.id = "anima-pose-group-popover";
+        const popover = createEl("div", "anima-clothing-popover");
+        popover.id = "anima-clothing-group-popover";
         popover.style.left = `${x}px`;
         popover.style.top = `${y + 8}px`;
         popover.style.transform = "translateX(-50%)";
@@ -1806,7 +1195,7 @@ async function openPoseSelectorModal(node, tagsWidget) {
         const content = dialog.firstChild;
         const titleNode = createEl("div", null, titleText);
         titleNode.style.cssText = "font-size:16px;font-weight:800;color:#fff;";
-        const input = createEl("input", "anima-pose-input");
+        const input = createEl("input", "anima-clothing-input");
         input.type = "text";
         input.value = defaultValue || "";
         input.placeholder = placeholderText;
@@ -1832,10 +1221,10 @@ async function openPoseSelectorModal(node, tagsWidget) {
         const content = dialog.firstChild;
         const titleNode = createEl("div", null, t("Create Custom Item"));
         titleNode.style.cssText = "font-size:16px;font-weight:800;color:#fff;";
-        const titleInput = createEl("input", "anima-pose-input");
+        const titleInput = createEl("input", "anima-clothing-input");
         titleInput.type = "text";
         titleInput.placeholder = t("Item Title (e.g. My Style A)...");
-        const contentInput = createEl("textarea", "anima-pose-input");
+        const contentInput = createEl("textarea", "anima-clothing-input");
         contentInput.placeholder = t("Enter prompt tags (e.g. masterpiece, highly detailed)...");
         contentInput.rows = 4;
         contentInput.style.cssText += "resize:vertical;font-family:monospace;";
@@ -1857,63 +1246,25 @@ async function openPoseSelectorModal(node, tagsWidget) {
     }
 
     function createModalShell(maxWidth = 400) {
-        const dialog = createEl("div");
-        dialog.style.cssText = `
-            position: fixed;
-            inset: 0;
-            z-index: 100000;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(10px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        `;
-        const content = createEl("div");
-        content.style.cssText = `
-            width: 90%;
-            max-width: ${maxWidth}px;
-            background: #1c1c1e;
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 16px;
-            padding: 22px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            box-shadow: 0 18px 45px rgba(0,0,0,0.52);
-            animation: animaPoseFadeIn 0.18s ease forwards;
-        `;
-        dialog.appendChild(content);
-        dialog.onclick = event => {
-            if (event.target === dialog) dialog.remove();
-        };
-        return dialog;
+        return createSharedModalShell({
+            maxWidth,
+            animationName: "animaClothingFadeIn",
+        });
     }
 
     function modalButtons(dialog, onConfirm, confirmText = t("OK")) {
-        const row = createEl("div");
-        row.style.cssText = "display:flex;justify-content:flex-end;gap:10px;margin-top:6px;";
-        const cancel = createEl("button", "anima-pose-btn", t("Cancel"));
-        cancel.onclick = () => dialog.remove();
-        const confirmBtn = createEl("button", "anima-pose-btn primary", confirmText);
-        confirmBtn.onclick = async () => {
-            confirmBtn.disabled = true;
-            cancel.disabled = true;
-            const shouldClose = await onConfirm();
-            if (shouldClose !== false) {
-                dialog.remove();
-            } else {
-                confirmBtn.disabled = false;
-                cancel.disabled = false;
-            }
-        };
-        row.appendChild(cancel);
-        row.appendChild(confirmBtn);
-        return row;
+        return createModalButtons({
+            dialog,
+            onConfirm,
+            cancelText: t("Cancel"),
+            confirmText,
+            buttonClass: "anima-clothing-btn",
+        });
     }
 
     function buildSelectedText() {
         const tags = [];
-        selectedPose.forEach(key => {
+        selectedClothing.forEach(key => {
             if (key.startsWith("custom:")) {
                 const item = favoriteItems.find(fav => fav.isCustom && getItemKey(fav) === key);
                 splitPromptTokens(item?.customContent || "").forEach(tag => tags.push(tag));
@@ -1940,47 +1291,20 @@ async function openPoseSelectorModal(node, tagsWidget) {
     }
 
     function updateCountLabel() {
-        countLabel.innerHTML = `${checkIcon()} <span>${t("Selected: {count} poses", { count: selectedPose.size })}</span>`;
+        countLabel.innerHTML = `${checkIcon()} <span>${t("Selected: {count} clothing items", { count: selectedClothing.size })}</span>`;
     }
 
     function closeModal() {
         imageObserver.disconnect();
-        document.getElementById("anima-pose-group-popover")?.remove();
+        document.getElementById("anima-clothing-group-popover")?.remove();
         overlay.remove();
         styleSheet.remove();
     }
 
     function showToast(message) {
-        const toast = createEl("div", null, message);
-        toast.style.cssText = `
-            position: fixed;
-            right: 30px;
-            bottom: 30px;
-            z-index: 100000;
-            background: rgba(16,16,24,0.94);
-            border: 1px solid rgba(219,39,119,0.45);
-            color: #fff;
-            padding: 10px 18px;
-            border-radius: 12px;
-            box-shadow: 0 12px 28px rgba(0,0,0,0.5);
-            font-size: 13px;
-            font-weight: 700;
-            pointer-events: none;
-        `;
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            toast.style.transition = "opacity 0.25s ease";
-            toast.style.opacity = "0";
-            setTimeout(() => toast.remove(), 260);
-        }, 1300);
-    }
-
-    function debounce(fn, ms) {
-        let timer = null;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(() => fn(...args), ms);
-        };
+        return showSharedToast(message, {
+            borderColor: "rgba(219,39,119,0.45)",
+        });
     }
 
     function miniToolStyle(color = "#e5e7eb") {
@@ -2016,6 +1340,3 @@ async function openPoseSelectorModal(node, tagsWidget) {
     updateCountLabel();
     searchInput.focus();
 }
-
-
-

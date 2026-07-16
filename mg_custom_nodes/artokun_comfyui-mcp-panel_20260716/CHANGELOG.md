@@ -6,6 +6,60 @@ All notable changes to this project are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Fixed
+- CivitAI browser filters actually respond: chips re-render on click (the sheet
+  wired a rerender hook that was never defined, so they looked dead), and the
+  level/base-model toggles no longer mutate the frozen module defaults
+
+### Added
+- CivitAI browser: **"See more from @creator"** in the lightbox and model
+  detail, and **GitHub-style search qualifiers** — "@name terms" sets the
+  creator filter (the displayed @token always owns it; deleting it clears)
+  while the terms stay ranked full-text search (#86)
+- CivitAI browser: **Creator filter** in the filter sheet (parity with the
+  mobile app) — an empty field shows the site's top-creators leaderboard
+  (ranked, with download/like counts; degrades to a friendly note when the
+  endpoint balks), typing runs a debounced username search, and the picked
+  creator becomes a removable pill that narrows every feed: images/videos
+  (`/v1/images?username=`), media search (Meili `user.username` filter,
+  escaped), and model tabs (`/v1/models?username=` — keyword+creator matches
+  the keyword client-side around an API quirk). Favorites shows the filter as
+  visibly ignored (your likes come from every creator); Reset clears it
+- CivitAI browser: **like/unlike toggle** — heart on card hover and in the
+  lightbox (signed out, the heart opens sign-in); likes mirror into a **default
+  likes collection** picked (or created) in the new account sheet
+- CivitAI browser: sub-nav under the tabs with **debounced (500ms) search on
+  every tab** (Meili for media, REST query for models, client-side for
+  favorites) behind a blur+spinner overlay; **Favorites shows ALL your likes**
+  (no browsing-level gate on your own reactions) with All/Images/Videos filter
+  chips; all feeds page 100 at a time with scroll auto-load
+- CivitAI OAuth scope now includes SocialWrite + CollectionsRead (reactions and
+  collections 403'd under the old scope — existing sign-ins re-consent once)
+- CivitAI browser: clicking an image/video opens a full-screen LIGHTBOX — media
+  on the left, details on the right (author, stats, prompt/negative, parameters,
+  share-with-agent / save-workflow actions), with arrow-key/wheel paging and Esc
+- **panel-owned sessions (default)** — the conversation and agent memory now
+  persist while you switch, save, rename, or create workflows; the agent is
+  mechanically told which canvas it operates on (one-shot context, no memory
+  tools). The live agent instance is rebound across tab ids (no respawn), so
+  even in-memory local backends keep their history. Settings → General →
+  "Conversation follows the panel" restores the legacy per-workflow mode
+
+### Changed
+- the agent-feed gate is now **Deafen** (was Mute), with ear / slashed-ear icons —
+  "deafen" says what it does (the agent stops HEARING canvas events; your typed
+  messages still go through), the old speaker icon read as audio mute. The saved
+  setting carries over (same storage key).
+
+## [0.8.2] - 2026-07-14
+
+### Added
+- graph_serialize command — full-fidelity live-canvas capture
+
+### Fixed
+- replace expired invite with the permanent link (#82)
+
+
 ## [0.8.1] - 2026-07-14
 
 ### Fixed

@@ -67,6 +67,7 @@ import DOMPurify from "./vendor/purify.es.js";
 import qrcodegen from "./vendor/qrcode.esm.js";
 import { computeLayout } from "./lib/layout-engine.js";
 import { validateA2UISpec, renderA2UICard, renderA2UIInert, renderA2UIFailCard, A2UI_CSS } from "./cmcp-a2ui.js";
+import { openCivitaiModal } from "./cmcp-civitai-ui.js";
 
 let app = null;
 let api = null;
@@ -96,7 +97,7 @@ const DISCORD_INVITE_URL = "https://discord.gg/cW9arBhzCu";
 // Panel version — surfaced in the "Need help?" diagnostics blob. Bump via
 // `node scripts/set-version.mjs <v>` (updates this AND pyproject together); CI
 // and the publish gate FAIL if the two ever drift, so this can't go stale.
-const PANEL_VERSION = "0.8.1";
+const PANEL_VERSION = "0.8.2";
 
 // The connected orchestrator's console URL/token (captured off the `backends`
 // bridge message — see onBackends). Drives the "API Keys" credentials frame;
@@ -561,10 +562,10 @@ const STORAGE_KEY_BACKEND = "comfyui-mcp.panel.backend";
 // "connected but no agent" lie.
 const DEFAULT_BRIDGE_URL = "ws://127.0.0.1:9180";
 const LEGACY_BRIDGE_URL = "ws://127.0.0.1:9101"; // old shared default — migrate off it
-// Per-backend DEFAULT bridge ports: the panel orchestrator binds a DEDICATED port
-// per backend (claude 9180, codex 9181) so two backends never collide. The Settings
-// "Bridge URL" is PER-BACKEND (a map, like model/effort) and each backend's value
-// seeds the default URL for that backend. A per-backend DEFAULT must NOT count as a
+// Single-port multi-provider: ONE orchestrator bridge (9180) serves ALL backends —
+// provider selection happens per tab over the hello/set_backend handshake, not by
+// port. This per-backend map survives from the old per-port layout for call-site
+// compatibility; every entry is the same URL. A DEFAULT must NOT count as a
 // "manual override" (so /connect's bridge_url still applies) — only a user-typed
 // NON-default URL overrides (see connectAgent.manualOverride).
 // Single-port multi-provider: ONE orchestrator on ONE bridge serves every
@@ -953,8 +954,14 @@ const SETTING_REMOTE_URL = "comfyui-mcp.remoteComfyuiUrl";
 // tester link) — leave "" until a channel opens; its button renders disabled as
 // "coming soon" so the section can ship ahead of the store uploads.
 const SETTING_MOBILE_BETA = "comfyui-mcp.mobileAppBeta";
-const MOBILE_IOS_TESTFLIGHT_URL = ""; // e.g. https://testflight.apple.com/join/XXXXXXXX
-const MOBILE_ANDROID_FIREBASE_URL = ""; // e.g. https://appdistribution.firebase.dev/i/XXXXXXXX
+// Session ownership: when TRUE (default), the conversation belongs to the PANEL
+// — switching/saving/renaming/creating workflows never swaps or resets the chat;
+// the agent just gets told (mechanically, on the next message) which canvas it's
+// now operating on. When FALSE, the legacy per-workflow behavior: each workflow
+// keeps its own thread + agent session and switching tabs switches conversations.
+const SETTING_SESSION_FOLLOWS_PANEL = "comfyui-mcp.sessionFollowsPanel";
+const MOBILE_IOS_TESTFLIGHT_URL = "https://testflight.apple.com/join/ws65s4a2"; // beta-testers external group
+const MOBILE_ANDROID_FIREBASE_URL = "https://appdistribution.firebase.dev/i/27a5cccde72ffb42"; // beta testers group
 const SETTING_EXTERNAL_ORCH = "comfyui-mcp.externalOrchestrator";
 const SETTING_TOKEN_CIVITAI = "comfyui-mcp.setCivitaiToken";
 const SETTING_TOKEN_HF = "comfyui-mcp.setHuggingfaceToken";
@@ -1124,6 +1131,10 @@ function getSetting(id) {
     return undefined;
   }
 }
+/** Session ownership mode — panel-owned (default) vs legacy per-workflow. */
+function sessionFollowsPanel() {
+  return getSetting(SETTING_SESSION_FOLLOWS_PANEL) !== false;
+}
 function setSetting(id, value) {
   try {
     suppressSettingOnChange = true;
@@ -1203,8 +1214,8 @@ function externalOrchestratorMode() {
   // auto-targets the ComfyUI the browser is on; the setting is a back-compat no-op.
   return true;
 }
-// The Bridge URL to dial for `backend`: its per-backend Settings value when set,
-// else that backend’s default port (claude 9180 / codex 9181 / gemini 9182).
+// The Bridge URL to dial: the single (advanced) Bridge URL override when set,
+// else the shared single-port default (9180 — same for every backend).
 function configuredBridgeUrlFor(backend) {
   // Single-port multi-provider: ONE bridge for every provider. Honor only the
   // single (advanced) Bridge URL override, else the default — ignore any stale
@@ -1367,10 +1378,10 @@ function panelSettingsList() {
       if (backend === currentSettingsBackend()) panelHooks.applyEffort?.(v);
     },
   });
-  // A per-backend "Bridge URL" — each backend has its OWN orchestrator port
-  // (claude 9180, codex 9181), so the URL must be per-backend or a switch to Codex
-  // leaves Reconnect dialing Claude's 9180. The value seeds the default URL for that
-  // backend; /connect's returned bridge_url still applies. Drives the live panel
+  // A per-backend "Bridge URL" settings row — retained from the pre-single-port
+  // layout (ONE bridge on 9180 now serves every backend; configuredBridgeUrlFor
+  // ignores stale per-backend values). The value seeds the URL field shown for
+  // that backend; /connect's returned bridge_url still applies. Drives the live panel
   // (a reconnect) only for the ACTIVE backend's group — a non-active group's edit
   // just persists, it never retargets the running bridge.
   const bridgeUrlSetting = (backend, sortOrder) => ({
@@ -1505,6 +1516,19 @@ function panelSettingsList() {
         if (suppressSettingOnChange || !settingsArmed) return;
         panelHooks.applyBackend?.(v);
       },
+    },
+    {
+      id: SETTING_SESSION_FOLLOWS_PANEL,
+      name: "Conversation follows the panel (not the workflow)",
+      category: cat("General", "Conversation follows the panel"),
+      sortOrder: 146,
+      tooltip:
+        "ON (default): your chat and the agent's memory persist while you switch, save, rename, or create " +
+        "workflows — the agent is simply told which canvas it now operates on. " +
+        "OFF: the legacy per-workflow mode — every workflow keeps its own separate conversation and agent " +
+        "session, and switching tabs switches chats.",
+      type: "boolean",
+      defaultValue: true,
     },
     {
       id: SETTING_AUTOCONNECT,
@@ -6107,7 +6131,7 @@ const RECONNECT_MAX_MS = 15000;
 let AGENT_MUTED = (() => { try { return localStorage.getItem("cmcp.muteAgents") === "1"; } catch { return false; } })();
 let AGENT_BLIND = (() => { try { return localStorage.getItem("cmcp.blindAgents") === "1"; } catch { return false; } })();
 
-function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk, onSecret, onSecretSaved, onReload, onTodo, onShowMedia, onUiRender, onUiUpdate, onDownloads, onThinking, onAgentStatus, onSession, onModels, onCommands, onBackends, onAck, onTurn, onTurnAnchor, getResume, getBackend, onHandshakeTimeout, onBridgeClosed, onPairUrl, onPairError }) {
+function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk, onSecret, onSecretSaved, onReload, onTodo, onShowMedia, onOpenCivitai, onUiRender, onUiUpdate, onDownloads, onThinking, onAgentStatus, onSession, onModels, onCommands, onBackends, onAck, onTurn, onTurnAnchor, getResume, getBackend, onHandshakeTimeout, onBridgeClosed, onPairUrl, onPairError }) {
   let sock = null;
   let url = loadBridgeUrl();
   let closed = false;
@@ -6117,6 +6141,12 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
   // used to replay the transcript to a freshly-switched provider so it has the
   // conversation. Cleared the moment it's consumed.
   let pendingContext = null;
+  // Direct call_tool requests, cid-correlated. The CivitAI modal uses these to run
+  // whitelisted backend tools (download_civitai_model, save_workflow) synchronously
+  // without an agent turn — mirrors the mobile bridge_client.callTool. The
+  // orchestrator's call_tool handler + whitelist already exist server-side.
+  const pendingCalls = new Map(); // cid -> { resolve, reject, timer }
+  let cidSeq = 0;
   // De-duped status emitter. The pill only ever needs TRANSITIONS, so collapsing
   // consecutive repeats is a guard against any path double-emitting the same state
   // (and keeps the cold-start steady-"connecting" from re-painting on every retry).
@@ -6304,6 +6334,11 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
             const mediaItems = Array.isArray(msg.items) ? msg.items : [];
             onShowMedia?.(mediaItems);
             result = { ok: true, count: mediaItems.length };
+          } else if (msg.cmd === "open_civitai") {
+            // Agent opens the CivitAI browser pre-seeded with a query + filters so
+            // the user can visually pick a resource.
+            if (!onOpenCivitai) throw new Error("This panel build can't open the CivitAI browser.");
+            result = onOpenCivitai(msg) || { ok: true };
           } else if (msg.cmd === "ui_render") {
             // A2UI card render. Validation errors THROW so the agent gets a
             // retryable tool error instead of a broken card.
@@ -6344,8 +6379,18 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
         // ask_user / request_secret paint their OWN cards and their replies carry
         // user input (a choice, or a SECRET) — never echo them as an activity card
         // (and never record them). Other commands get the normal activity card.
-        if (msg.cmd !== "ask_user" && msg.cmd !== "request_secret" && msg.cmd !== "set_todo" && msg.cmd !== "show_media" && msg.cmd !== "ui_render" && msg.cmd !== "ui_update") {
+        if (msg.cmd !== "ask_user" && msg.cmd !== "request_secret" && msg.cmd !== "set_todo" && msg.cmd !== "show_media" && msg.cmd !== "open_civitai" && msg.cmd !== "ui_render" && msg.cmd !== "ui_update") {
           onCommand?.(msg.cmd, msg, reply);
+        }
+        return;
+      }
+      // Reply to a direct callTool() request (cid-correlated).
+      if (msg && msg.type === "tool_result" && typeof msg.cid === "string") {
+        const pend = pendingCalls.get(msg.cid);
+        if (pend) {
+          pendingCalls.delete(msg.cid);
+          clearTimeout(pend.timer);
+          pend.resolve(msg);
         }
         return;
       }
@@ -6442,6 +6487,12 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
     sock.addEventListener("close", () => {
       sock = null;
       handshakeDone = false;
+      // Fail any in-flight direct tool calls — the reply can never arrive now.
+      for (const [, pend] of pendingCalls) {
+        clearTimeout(pend.timer);
+        pend.reject(new Error("bridge connection lost"));
+      }
+      pendingCalls.clear();
       clearHandshake();
       lastBridgeDownAt = Date.now(); // for the fast-vs-slow reconnect heuristic
       if (!closed) {
@@ -6599,6 +6650,40 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
         return false;
       }
     },
+    /** Run a whitelisted backend tool directly (no agent turn), cid-correlated.
+     *  Resolves { ok, result, error } where result is the MCP content array
+     *  ([{type:"text",text}], flatten by joining .text). Rejects on timeout or
+     *  socket close. Used by the CivitAI modal for download_civitai_model /
+     *  save_workflow. */
+    callTool(tool, args, opts) {
+      if (!sock || sock.readyState !== WebSocket.OPEN) {
+        return Promise.reject(new Error("bridge not connected"));
+      }
+      const cid = `ct-${Date.now()}-${cidSeq++}`;
+      const timeoutMs = (opts && opts.timeout) || 60000;
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          pendingCalls.delete(cid);
+          reject(new Error(`call_tool ${tool} timed out`));
+        }, timeoutMs);
+        pendingCalls.set(cid, { resolve, reject, timer });
+        try {
+          sock.send(
+            JSON.stringify({
+              type: "call_tool",
+              tab_id: workflowTabId(),
+              cid,
+              tool,
+              args: args || {},
+            }),
+          );
+        } catch (e) {
+          pendingCalls.delete(cid);
+          clearTimeout(timer);
+          reject(e);
+        }
+      });
+    },
     setUrl(next, opts) {
       url = next || DEFAULT_BRIDGE_URL;
       // Ephemeral URLs (e.g. a per-session secure wss:// tunnel advertised by a
@@ -6706,8 +6791,8 @@ const PANEL_CSS = `
 .cmcp-toolbtn .pi { font-size: 0.8125rem; }
 .cmcp-toolbtn svg { width: 13px; height: 13px; display: block; }
 /* Engaged gates get a colored tint so their state is readable at a glance. */
-.cmcp-toolbtn.gate-on-mute { color: var(--p-red-400, #f87171); }
-.cmcp-toolbtn.gate-on-mute .pi { animation: cmcp-pulse 1s ease-in-out infinite; }
+.cmcp-toolbtn.gate-on-deafen { color: var(--p-red-400, #f87171); }
+.cmcp-toolbtn.gate-on-deafen svg { animation: cmcp-pulse 1s ease-in-out infinite; }
 .cmcp-toolbtn.gate-on-blind { color: var(--p-amber-400, #fbbf24); }
 .cmcp-toolbtn:disabled, .cmcp-toolbtn[data-soon] {
   opacity: 0.38; cursor: default;
@@ -7973,7 +8058,7 @@ function buildPanel() {
   const helpDiv = document.createElement("div");
   helpDiv.className = "cmcp-help";
   helpDiv.textContent =
-    "Click Connect to start an autonomous agent on your Claude subscription — no API keys. Sign in to Claude once (run `claude`) first. Prefer to run it yourself? Start the orchestrator, then Connect:";
+    "Click Connect to start an autonomous agent on your own AI subscription or a local model — no API keys. Sign in to your provider once first (e.g. run `claude`, `codex login`, or `gemini`). Prefer to run it yourself? Start the orchestrator, then Connect:";
   // `connect` (no URL) starts the orchestrator; the panel hands it THIS ComfyUI's
   // host on connect (browser-host targeting), so it drives whatever you're viewing
   // — local or a remote pod. Offer the command per shell: PowerShell needs a
@@ -8040,7 +8125,7 @@ function buildPanel() {
   emptyIcon.className = "pi pi-comments";
   const emptyTitle = document.createElement("div");
   emptyTitle.className = "cmcp-empty-title";
-  emptyTitle.textContent = "Claude is at your canvas";
+  emptyTitle.textContent = "Your agent is at your canvas";
   const emptyBody = document.createElement("div");
   emptyBody.textContent =
     "Build and edit the live graph, generate images & audio, run the workflow and read its errors, or find models on Civitai — every graph edit undoes with Ctrl+Z.";
@@ -8129,7 +8214,7 @@ function buildPanel() {
     const sub = document.createElement("div");
     sub.className = "cmcp-onboard-sub";
     sub.textContent =
-      "The agent runs on YOUR machine on your own Claude, ChatGPT, or Gemini subscription — no API keys. Set up a provider (Node ≥ 22), start the agent with the command below, then click Connect.";
+      "The agent runs on YOUR machine on your own AI subscription (Claude, ChatGPT, Gemini, …) or a local model (Ollama, LM Studio, llama.cpp) — no API keys. Set up a provider (Node ≥ 22), start the agent with the command below, then click Connect.";
     onboard.append(title, sub);
     for (const id of ["claude", "codex", "gemini", "grok", "kimi", "ollama", "openrouter", "lmstudio", "llamacpp", "custom"]) {
       const meta = PROVIDER_SETUP[id];
@@ -8495,9 +8580,12 @@ function buildPanel() {
 
   const input = document.createElement("textarea");
   input.className = "cmcp-composer-input";
-  // Placeholder reflects the active backend ("Ask Claude…" / "Ask ChatGPT…").
+  // Placeholder + empty-state hero reflect the active backend ("Ask Claude…" /
+  // "Ask ChatGPT…", "Claude is at your canvas" / "Ollama is at your canvas").
   function setAskPlaceholder(id) {
-    input.placeholder = `Ask ${BACKEND_LABELS[id] || "Claude"}… / for commands, @ for context`;
+    const label = BACKEND_LABELS[id];
+    input.placeholder = `Ask ${label || "your agent"}… / for commands, @ for context`;
+    emptyTitle.textContent = `${label || "Your agent"} is at your canvas`;
   }
   setAskPlaceholder(selectedBackend);
   input.rows = 1;
@@ -8548,7 +8636,7 @@ function buildPanel() {
     ring.appendChild(c);
   }
   const ringTitle = document.createElementNS(SVG_NS, "title");
-  ringTitle.textContent = "Context window — fills as Claude reports usage";
+  ringTitle.textContent = "Context window — fills as the agent reports usage";
   ring.appendChild(ringTitle);
   // Compact context-usage readout shown right after the ring.
   const ctxLabel = document.createElement("span");
@@ -9033,9 +9121,12 @@ function buildPanel() {
   fileInput.multiple = true;
   fileInput.hidden = true;
 
-  // ── Mute / Blind agent-feed toggles — live on the header utility strip
+  // ── Deafen / Blind agent-feed toggles — live on the header utility strip
   // (row 2), not the composer; they still tint the composer's context ring so
-  // "why is the ring red" answers itself. PrimeIcons only (already bundled).
+  // "why is the ring red" answers itself. Blind uses PrimeIcons (bundled);
+  // Deafen draws an inline ear SVG (PrimeIcons has no ear glyph) — monochrome
+  // currentColor strokes, no event attrs, same registry-YARA-safe recipe as
+  // the Civitai mark below.
   function toolbarBtn(icon, label) {
     const b = document.createElement("button");
     b.type = "button";
@@ -9047,18 +9138,40 @@ function buildPanel() {
     b.append(i, span);
     return b;
   }
-  const muteBtn = toolbarBtn("pi-volume-up", "Mute");
+  const deafenBtn = toolbarBtn("pi-volume-up", "Deafen");
   const blindBtn = toolbarBtn("pi-eye", "Blind");
+  // Ear icon (Lucide-style strokes): the ear is always drawn; the slash strokes
+  // toggle for the deafened state (ear vs ear-off).
+  let deafenSlash;
+  {
+    deafenBtn.querySelector(".pi").remove();
+    const svgNs = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNs, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("aria-hidden", "true");
+    const outer = document.createElementNS(svgNs, "path");
+    outer.setAttribute("d", "M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 1 1-7 0");
+    const inner = document.createElementNS(svgNs, "path");
+    inner.setAttribute("d", "M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 1 0 4");
+    deafenSlash = document.createElementNS(svgNs, "path");
+    deafenSlash.setAttribute("d", "m2 2 20 20");
+    svg.append(outer, inner, deafenSlash);
+    deafenBtn.prepend(svg);
+  }
   function reflectFeedGates() {
-    const mi = muteBtn.querySelector(".pi");
-    mi.className = `pi ${AGENT_MUTED ? "pi-volume-off" : "pi-volume-up"}`;
-    muteBtn.classList.toggle("gate-on-mute", AGENT_MUTED);
-    muteBtn.querySelector("span").textContent = AGENT_MUTED ? "Muted" : "Mute";
-    muteBtn.title = AGENT_MUTED
-      ? "Agent feed: MUTED — no renders, images, errors, or canvas events reach any agent right now. " +
+    deafenSlash.style.display = AGENT_MUTED ? "" : "none";
+    deafenBtn.classList.toggle("gate-on-deafen", AGENT_MUTED);
+    deafenBtn.querySelector("span").textContent = AGENT_MUTED ? "Deafened" : "Deafen";
+    deafenBtn.title = AGENT_MUTED
+      ? "Agent feed: DEAFENED — no renders, images, errors, or canvas events reach any agent right now. " +
         "Messages you type still go through normally. Click to restore the live feed."
       : "Agent feed: live. The agent automatically hears about canvas activity — finished renders, " +
-        "execution errors, graph changes. Click to MUTE: nothing is fed to any agent until you unmute " +
+        "execution errors, graph changes. Click to DEAFEN: the agent hears nothing until you undeafen " +
         "(your typed messages still work). Use it to work on the canvas without the agent reacting.";
     const bi = blindBtn.querySelector(".pi");
     bi.className = `pi ${AGENT_BLIND ? "pi-eye-slash" : "pi-eye"}`;
@@ -9076,19 +9189,40 @@ function buildPanel() {
       ring.style.animation = AGENT_MUTED ? "cmcp-pulse 1s ease-in-out infinite" : "none";
     } catch {}
   }
-  muteBtn.onclick = () => { AGENT_MUTED = !AGENT_MUTED; try { localStorage.setItem("cmcp.muteAgents", AGENT_MUTED ? "1" : "0"); } catch {} reflectFeedGates(); };
+  // The localStorage key stays "cmcp.muteAgents" so an existing Deafen (né
+  // Mute) setting survives this rename.
+  deafenBtn.onclick = () => { AGENT_MUTED = !AGENT_MUTED; try { localStorage.setItem("cmcp.muteAgents", AGENT_MUTED ? "1" : "0"); } catch {} reflectFeedGates(); };
   blindBtn.onclick = () => { AGENT_BLIND = !AGENT_BLIND; try { localStorage.setItem("cmcp.blindAgents", AGENT_BLIND ? "1" : "0"); } catch {} reflectFeedGates(); };
-  ring.style.cursor = "pointer"; ring.onclick = muteBtn.onclick; // clicking the ring toggles mute
+  ring.style.cursor = "pointer"; ring.onclick = deafenBtn.onclick; // clicking the ring toggles deafen
   reflectFeedGates();
 
-  // Civitai explorer — parked slot on the strip (greyed until it ships).
+  // Civitai explorer — opens the in-panel CivitAI browser modal. Also opened BY
+  // the agent (cmd:open_civitai) pre-seeded with a query + filters.
   // Mark: Civitai's hexagon-C, monochrome via currentColor (no brand gradients,
   // no event attrs — keeps the registry's SVG YARA gate happy).
+  let _civitaiHandle = null;
+  function civitaiCtx() {
+    return {
+      api,
+      root,
+      callTool: (t, a, o) => liveBridgeClient?.callTool(t, a, o),
+      sendUserMessage: (t, c, i) => liveBridgeClient?.sendUserMessage(t, c, i),
+      uploadBlobToInput,
+      bringChatForward: () => { try { openSidebarTab(); } catch {} },
+      isMuted: () => AGENT_MUTED,
+      marked,
+      DOMPurify,
+    };
+  }
+  function openCivitai(opts) {
+    try { _civitaiHandle?.close(); } catch {}
+    _civitaiHandle = openCivitaiModal(civitaiCtx(), opts || {});
+    return _civitaiHandle;
+  }
   const civitaiBtn = toolbarBtn("pi-circle", "Civitai");
   civitaiBtn.querySelector(".pi").remove();
-  civitaiBtn.dataset.soon = "1";
-  civitaiBtn.setAttribute("aria-disabled", "true");
-  civitaiBtn.title = "Civitai explorer — browse and pull models, LoRAs, and workflows without leaving the panel. Coming soon.";
+  civitaiBtn.title = "Civitai explorer — browse and pull models, LoRAs, and workflows without leaving the panel.";
+  civitaiBtn.addEventListener("click", () => openCivitai());
   {
     const svgNs = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNs, "svg");
@@ -9109,14 +9243,10 @@ function buildPanel() {
     svg.append(shell, cMark);
     civitaiBtn.prepend(svg);
   }
-  const soonTag = document.createElement("span");
-  soonTag.textContent = "soon";
-  soonTag.style.cssText = "font-size:0.5625rem;opacity:.7;letter-spacing:.03em;text-transform:uppercase";
-  civitaiBtn.appendChild(soonTag);
 
   const toolbarSpacer = document.createElement("span");
   toolbarSpacer.className = "cmcp-spacer";
-  toolbar.append(muteBtn, blindBtn, toolbarSpacer, civitaiBtn);
+  toolbar.append(deafenBtn, blindBtn, toolbarSpacer, civitaiBtn);
 
   row.append(ring, ctxLabel, modelChip, spacer, attachBtn, micBtn, sendBtn);
   form.append(menuPop, modelPop, attachBar, input, row, fileInput);
@@ -10172,6 +10302,45 @@ function buildPanel() {
     const wfkey = wf ? (wf.key || wf.id || "unsaved") : null;
     if (wfid === currentWorkflowId) return; // case 1: no change
 
+    // PANEL-OWNED SESSION (default): the conversation is the unit of continuity
+    // and the workflow is just the canvas target — switching, saving, renaming,
+    // or creating workflows must never swap or reset the chat (field report:
+    // "context window empties on workflow change", #feature-requests
+    // 1526999582418931845). Mechanics, not memory tools: re-hello re-targets
+    // THIS socket to the new tab id, the bridge stamps migrated_from, and the
+    // orchestrator REBINDS the live agent instance — deliberately NO
+    // resume_session frame (manager.reset would respawn the agent and wipe
+    // in-memory backends like Ollama). The agent learns which canvas it now
+    // drives via a one-shot context on the next message.
+    if (sessionFollowsPanel()) {
+      const initial = currentWorkflowId == null;
+      // tmp→wf adopt bookkeeping (a save gave the unsaved workflow a real id).
+      if (wfid.startsWith("wf:") && wf && (wf.key || wf.id)) _tempWorkflowIds.delete(wf.key || wf.id);
+      if (thread) {
+        thread.workflowKey = wfid; // thread rides along for per-workflow lookups
+        thread.ts = Date.now();
+        persistThreads();
+      }
+      currentWorkflowId = wfid;
+      currentWorkflowKey = wfkey;
+      currentWorkflowRef = wf;
+      if (!initial) {
+        try {
+          client?.rehello?.();
+        } catch {
+          /* reconnect path retries the hello */
+        }
+        const name = wf?.filename || wfkey || wfid;
+        client?.armContext?.(
+          `[panel] The user switched the open workflow on the canvas — it is now "${name}". ` +
+            `Your panel_* graph tools operate on THIS graph now; re-read it (panel_graph_outline) before ` +
+            `assuming or editing anything, since earlier turns may refer to a different workflow.`,
+        );
+        appendSystem(`Canvas → ${name} (same conversation).`);
+      }
+      return;
+    }
+
     const adopting =
       currentWorkflowId &&
       currentWorkflowKey &&
@@ -10606,6 +10775,17 @@ function buildPanel() {
           paintImage(item.dataUrl, caption);
         }
       }
+    },
+    // The agent called panel_open_civitai — open the CivitAI browser pre-seeded
+    // with a query + suggested filters so the user can visually pick a resource.
+    onOpenCivitai(msg) {
+      openCivitai({
+        query: typeof msg.query === "string" ? msg.query : "",
+        tab: msg.tab,
+        filters: msg.filters,
+        browsingLevels: msg.browsingLevels,
+      });
+      return { ok: true };
     },
     // The agent called panel_ui_render / panel_ui_update — A2UI cards in the chat.
     onUiRender(msg) {
@@ -11794,12 +11974,11 @@ function buildPanel() {
     // A non-empty URL that differs from the last auto-applied one is a deliberate
     // manual override → keep it, and don't let /connect's bridge_url clobber it.
     const wanted = urlInput.value.trim();
-    // Only a GENUINELY custom URL counts as a manual override. The SELECTED backend's
-    // DEFAULT bridge URL must NOT — the per-backend Settings "Bridge URL" seeds that
-    // default (claude 9180 / codex 9181), and on a sticky/load connect lastAutoUrl is
-    // still empty, so flagging the default as an override would SKIP the per-backend
-    // bridge_url from /connect (#25, now generalized PER BACKEND). Comparing against
-    // THIS backend's default — not just claude's 9180 — is what lets Codex follow 9181.
+    // Only a GENUINELY custom URL counts as a manual override. The backend's DEFAULT
+    // bridge URL must NOT — the Settings "Bridge URL" seeds that default (the shared
+    // single-port 9180, same for every backend), and on a sticky/load connect
+    // lastAutoUrl is still empty, so flagging the default as an override would SKIP
+    // the bridge_url from /connect (#25).
     // A chip switch is INCLUDED now (no `!opts.fromChip` guard): connectBackend already
     // seeds urlInput + the client url from SETTING_BRIDGE_URL[id] BEFORE this runs, so a
     // user-CUSTOMIZED non-default per-backend URL must survive the switch and not be
@@ -11975,9 +12154,9 @@ function buildPanel() {
     // clearing the guard first means EXACTLY ONE connect runs for the new backend.
     client.stop();
     connecting = false;
-    // FIX 2 — point the bridge (and the Advanced URL field) at the NEW backend's own
-    // bridge URL before reconnecting, so a switch — and any later Reconnect — dials
-    // THIS backend's port (codex 9181), never the previous backend's (claude 9180).
+    // FIX 2 — refresh the bridge URL (and the Advanced URL field) before
+    // reconnecting. Single-port now, so this is normally the same 9180 URL for
+    // every backend — it still matters when a custom Bridge URL override is set.
     // /connect's returned bridge_url still applies on top. The client is stopped, so
     // setUrl only updates its `url` here (its connect() no-ops while closed);
     // connectAgent's client.start() opens it. urlInput has no settings onChange wired,
@@ -13748,7 +13927,7 @@ function registerExtensionWhenReady(tries = 0) {
         title: "Agent",
         // ComfyUI ships PrimeIcons; `pi-comments` is the closest "chat" glyph.
         icon: "pi pi-comments",
-        tooltip: "ComfyUI Agent Panel — your Claude session's window into this graph",
+        tooltip: "ComfyUI Agent Panel — your agent session's window into this graph",
         type: "custom",
         // KEEP-ALIVE: the panel (bridge client, agent session, chat DOM) is built
         // ONCE and survives tab switches. render() re-attaches the same root into

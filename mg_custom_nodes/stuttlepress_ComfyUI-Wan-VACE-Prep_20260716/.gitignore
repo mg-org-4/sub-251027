@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+
+# ComfyUI specific
+*.safetensors
+*.ckpt
+*.pth
+*.pt
+models/
+input/
+output/
+temp/
+
+# Logs
+*.log
+
+# Test files
+test_*.py
+tests/
+
+# Local repo notes (scratch docs, not for publishing)
+repo-notes/
+
+.aider*
+CLAUDE.md
+.claude*
+
+# Pyright config
+pyrightconfig.json
+
+.qwen/

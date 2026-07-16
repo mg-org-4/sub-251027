@@ -1,0 +1,18 @@
+[build-system]
+requires = ["flit_core>=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "nkd-sigmas-curve"
+version = "1.4.3"
+description = "Interactive sigma schedule editor for ComfyUI — NURBS spline curve widget"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/Nekodificador/ComfyUI-NKD-Sigmas-Curve"
+
+[tool.comfy]
+PublisherId = "nekodificador"
+DisplayName = "NKD Sigmas Curve"

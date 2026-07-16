@@ -2,6 +2,8 @@
 
 A small collection of ComfyUI nodes for common video tasks. Primarily designed for Wan VACE, with LTX-2 outpainting support.
 
+**Note:** As of v1.1.0, all code has been migrated to ComfyUI's Nodes 2.0 (V3) API. Nodes are still 100% compatible with the legacy ComfyUI renderer. There should be no noticeable changes in behavior, but please [report any problems](https://github.com/stuttlepress/ComfyUI-Wan-VACE-Prep/issues) you encounter. `v1.0.25` is the last legacy (pre-V3) release.
+
 ## Quick Start
 
 **Install via ComfyUI Manager:** Search for "Wan VACE Prep"
@@ -15,12 +17,19 @@ git clone https://github.com/stuttlepress/ComfyUI-Wan-VACE-Prep
 
 ## Nodes
 
-- [Video Outpaint](#video-outpaint) *(formerly VACE Outpaint*)
+- [Video Outpaint](#video-outpaint) *(formerly VACE Outpaint)*
 - [VACE Join](#vace-join)
 - [VACE Join (Batch)](#vace-join-batch)
 - [VACE Batch Context](#vace-batch-context)
 - [VACE Extend](#vace-extend)
 - [Load Videos From Folder (Simple)](#load-videos-from-folder-simple)
+
+**Experimental:**
+
+- [VACE Inpaint](#vace-inpaint)
+- [Frame Number Overlay](#frame-number-overlay)
+- [Wan First/Middle/Last Frame to Video](#wan-firstmiddlelast-frame-to-video)
+- [VACE First/Middle/Last](#vace-firstmiddlelast)
 
 ### Video Outpaint
 
@@ -55,6 +64,13 @@ Renamed from *VACE Outpaint*.
 
 https://github.com/user-attachments/assets/a233832a-6630-4e7b-8d05-9e048d2e97a4
 
+**This node may be fragile under Nodes 2.0 / V3.** ComfyUI has not documented any method for building a dynamic UI like this canvas widget, so its behavior had to be reverse-engineered from the source and the minified frontend bundle. These are the most likely things to break across ComfyUI releases:
+
+- **Video Outpaint canvas sizing** (`web/vace_outpaint.js`). The DOM-widget sizing contract (`getMinHeight` feeding `DOMWidgetImpl.computeLayoutSize`, framework-driven height, flex-column fill) is not documented. There is also no supported way to set a minimum node *width* for a DOM widget, so the controls are contained with CSS instead of a hard floor.
+- **Video Outpaint scroll-to-zoom** (`web/vace_outpaint.js`). Under Nodes 2.0 the Vue renderer's `TransformPane` installs a capture-phase wheel forwarder that hijacks the wheel to zoom the graph. The editor opts out via the undocumented `data-capture-wheel="true"` contract plus focusing the canvas on hover; if that attribute/focus check changes, plain scroll would zoom the graph instead of the crop preview.
+
+ComfyUI ships essentially no reference for the V3 `io.*` type catalog or these widget/execution contracts; the only authoritative source is the (underscore-private) `comfy_api/latest/_io.py` and the compiled frontend.
+
 ---
 
 ### VACE Join	
@@ -66,6 +82,8 @@ For smoothly joining two video clips together. Builds VACE controls for the tran
 
 | Parameter | Default | Description |
 |-|-|-|
+| video_1 | | First video in the pair (IMAGE type) |
+| video_2 | | Second video in the pair (IMAGE type) |
 | context_frames | 8 | Reference frames from each video edge that VACE uses for interpolation. These frames guide the model and are preserved in the output. Must be a multiple of 4. |
 | replace_frames | 8 | Number of frames at each transition edge to discard and regenerate. These create the actual transition blend zone. Must be a multiple of 4. |
 | new_frames | 0 | Number of completely new frames to generate between the two clips, extending the transition duration. Must be 0 or a multiple of 4. |
@@ -134,7 +152,7 @@ Establishes iteration context for batch video processing workflows. Manages file
 |-|-|-|
 | input_list | | List of video filenames to process (STRING, force input) |
 | input_dir | | Directory containing input videos |
-| project_name | . | Workflow files are created under ComfyUI/output/project_name. Use period (.) for no project name. |
+| project_name | | Workflow files are created under ComfyUI/output/project_name. Leave blank for no project name. |
 | index | 0 | Current iteration index (0-based). Valid range: 0 to (number of videos - 2) normally, or 0 to (number of videos - 1) when `make_loop=true` |
 | debug | false | Log iteration details to the console |
 | make_loop | false | Enable loop mode. Adds one extra iteration that pairs the last video with the first, creating a seamless loop. When true, `is_first` and `is_last` are always false. |
@@ -151,6 +169,8 @@ Establishes iteration context for batch video processing workflows. Manages file
 | is_last | True if this is the last iteration. Always false when `make_loop=true`. |
 | assemble_video | True on the final iteration. Used to gate the assembly step. Equivalent to `is_last` when `make_loop=false`; fires on the loop-closing iteration when `make_loop=true`. |
 
+**This node may be fragile under Nodes 2.0 / V3.** It relies on the `is_input_list` calling convention (every input delivered as a list rather than a single value) to drive the batch iteration logic, and this calling convention's semantics are not spelled out in the V3 docs. ComfyUI ships essentially no reference for these execution contracts; the only authoritative source is the (underscore-private) `comfy_api/latest/_io.py` and the compiled frontend.
+
 ---
 
 ### VACE Extend
@@ -163,6 +183,7 @@ Extends a video from an arbitrary frame position. Context frames preceding the e
 
 | Parameter | Default | Description |
 |-|-|-|
+| video | | Source video frames (IMAGE type) |
 | extend_from_idx | -1 | Frame to extend from (negative counts from end, e.g., -1 = last frame) |
 | context_frames | 8 | Reference frames preceding extend_from_idx for VACE conditioning. Must be a multiple of 4. |
 | new_frames | 25 | Number of new frames to generate (must be 4n+1: 1, 5, 9, 13, 17, 21, 25...) |
@@ -181,7 +202,7 @@ Extends a video from an arbitrary frame position. Context frames preceding the e
 
 ### Load Videos From Folder (Simple)
 
-Loads all videos from a folder, concatenated into a single image batch.
+Loads all videos from a folder, concatenated into a single image batch with their audio tracks combined.
 
 Optionally connect a **[VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite)** *Meta Batch Manager* node to process large collections in RAM-safe chunks. If you are joining a large number of video files and running out of system memory as they concatenate, this is the solution. From the VHS Meta Batch Manager node documentation:
 
@@ -210,13 +231,16 @@ See the VHS Meta Batch Manager node documentation for more information.
 | Output | Description |
 |-|-|
 | images | Concatenated image batch ready for video creation |
+| audio | Combined audio track from all loaded videos. Disabled (empty) if any video lacks audio. |
+
+**This node may be fragile under Nodes 2.0 / V3.** The optional `meta_batch` input uses `io.Custom("VHS_BatchManager")` to accept a VideoHelperSuite Meta Batch Manager connection, and this custom-socket-type pattern is undocumented. ComfyUI ships essentially no reference for the V3 `io.*` type catalog; the only authoritative source is the (underscore-private) `comfy_api/latest/_io.py` and the compiled frontend.
 
 ---
 ## Experimental
 
 Stuff here is new and has not been thoroughly tested. Inputs, outputs, and behavior may change in future releases without notice.
 
-### Wan VACE Inpaint
+### VACE Inpaint
 
 Prepares control video and mask for inpainting. Connect the output to `WanVaceToVideo.control_video` / `control_masks`; use `WanVaceToVideo.reference_image` separately if you need a reference frame.
 
@@ -263,7 +287,7 @@ Burns a frame number label into every frame of an IMAGE batch as a text overlay.
 
 ---
 
-### Wan First/Last/Middle Frame to Video
+### Wan First/Middle/Last Frame to Video
 
 Based on native ComfyUI WanFirstLastFrameToVideo, generates conditioning latents from optional start, end, and middle reference images using a VAE and clip vision model. 
 
@@ -279,12 +303,12 @@ Based on native ComfyUI WanFirstLastFrameToVideo, generates conditioning latents
 | length | 81 | Frame count (4n+1 pattern) |
 | batch_size | 1 | Number of parallel generations |
 | start_image | *(optional)* | Reference image for the beginning frames |
-| end_image | *(optional)* | Reference image for the ending frames |
 | middle_image | *(optional)* | Reference image for middle frames |
 | middle_frame | 0.5 | Position of middle reference as fraction of total length |
+| end_image | *(optional)* | Reference image for the ending frames |
 | clip_vision_start_image | *(optional)* | CLIP vision output for start image guidance |
-| clip_vision_end_image | *(optional)* | CLIP vision output for end image guidance |
 | clip_vision_middle_image | *(optional)* | CLIP vision output for middle image guidance |
+| clip_vision_end_image | *(optional)* | CLIP vision output for end image guidance |
 
 **Outputs:**
 
@@ -327,8 +351,6 @@ Builds a VACE control video and mask from optional first, middle, and last frame
 **4n+1 frame rule.** The Wan model generates 4n+1 frames at a time. If you request a different count, it silently rounds down to the nearest 4n+1. For this reason, parameters are restricted to multiples of 4 or 4n+1, and when necessary the nodes add +1 to the generated frame count.
 
 **Class names vs. display names.** Some internal class names (e.g., `WanVACEPrep`) don't match the current display names (e.g., "VACE Join"). This is intentional: renaming classes would break existing workflows that reference them. Once ComfyUI's node renaming API is stable, a refactoring pass will align them.
-
-**Nodes 2.0 renderer.** These nodes have not been tested under ComfyUI's Nodes 2.0 renderer and may or may not work correctly with it. Until ComfyUI publishes documentation for node developers, no effort will be spent on ensuring Nodes 2.0 compatibility or stability.
 
 ---
 

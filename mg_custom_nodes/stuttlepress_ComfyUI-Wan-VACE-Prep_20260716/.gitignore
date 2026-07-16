@@ -43,8 +43,9 @@ temp/
 test_*.py
 tests/
 
-TODO.md
-ISSUES.md
+# Local repo notes (scratch docs, not for publishing)
+repo-notes/
+
 .aider*
 CLAUDE.md
 .claude*
@@ -52,4 +53,4 @@ CLAUDE.md
 # Pyright config
 pyrightconfig.json
 
-v2-resize-loop-problem.md
+.qwen/

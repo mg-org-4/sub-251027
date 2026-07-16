@@ -6,11 +6,21 @@ Little Helper Nodes For ComfyUI
 
 You can now choose ready-to-use color themes for nodes in ComfyUI settings and apply theme presets via a node right-click menu (also supports multi-select). See: `STARNODES THEME SYSTEM.md`
 
-**Current Version:** 2.1.3
+**Current Version:** 2.1.5
 
 <img width="917" alt="image" src="https://github.com/user-attachments/assets/4bc1378e-d1cf-4063-9196-b056a58444ec" />
 
 A collection of utility nodes designed to simplify and enhance your ComfyUI workflows.
+
+## 🎉 Version 2.1.5 - ⭐ Star Image Compare
+
+## Description
+A new interactive before/after image comparison node. Connect two IMAGE inputs and use a draggable slider to wipe between the two images.
+
+## 🎉 Version 2.1.4 - ⭐ Star Realistic Film Grain
+
+## Description
+A new Image filter / manipulating filter node to add realistic film gran effects to images
 
 ## 🎉 Version 2.1.3 - Star Flux2/Qwen-Image-Edit Inpainter
 
@@ -168,6 +178,7 @@ Gives higher details as native SeedVR workflow.
 ## New in 1.9.0
 
 ### Image Filters & Effects
+- ⭐ **Star Realistic Film Grain** (`StarRealisticFilmGrain`) — Highly realistic analog film grain with authentic film stock profiles (Kodak Tri-X, Ilford HP5, Portra 400, etc.), luminance masking, organic variance, and soft-light blending for natural film aesthetics.
 - ⭐ **Star HighPass Filter** (`StarHighPassFilter`) — High-pass based sharpening filter to enhance fine details and edge contrast.
 - ⭐ **Star Black And White** (`StarBlackAndWhite`) — Flexible black-and-white conversion with tonal control for cinematic monochrome looks.
 - ⭐ **Star Radial Blur** (`StarRadialBlur`) — Radial blur effect for focus/zoom style motion and creative depth effects.
@@ -258,6 +269,7 @@ Gives higher details as native SeedVR workflow.
 
 ### ⭐StarNodes/Image And Latent
 - ⭐ Star Adaptive Detail Enhancer: Adaptively sharpens, denoises, and enhances image details using edge, face, and texture analysis. Great for portraits, art, and upscaling. See [StarDetailEnhancer.md](web/docs/StarDetailEnhancer.md).
+- ⭐ Star Image Compare: Compare two images with an interactive wipe slider. Far left shows Image 2, far right shows Image 1. See [StarImageCompare.md](web/docs/StarImageCompare.md).
 - ⭐ Star Seven Inputs(img): Switch that automatically passes the first provided input image to the output
 - ⭐ Star Seven Inputs(latent): Switch that automatically passes the first provided latent to the output
 - ⭐ Star Face Loader: Specialized node for handling face-related operations. Image loader that works like the "load image" node but saves images in a special faces-folder for later use

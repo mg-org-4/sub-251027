@@ -1,7 +1,7 @@
 {
-  "id": "pid_flux2_klein_9b_complete.json",
+  "id": "pid_sd3_complete.json",
   "revision": 0,
-  "last_node_id": 13,
+  "last_node_id": 12,
   "last_link_id": 13,
   "nodes": [
     {
@@ -22,19 +22,19 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "Flux2-Klein-9B PiD complete workflow\nModels: flux-2-klein-9b + qwen_3_8b.\nRecommended latent is final x0: 4 steps, capture 4.\nOptional compare: capture 2 or 3.\nDefault output: 1024 latent -> 4096 image with 2kto4k/scale 4."
+        "SD3 PiD complete workflow\nUses Load Checkpoint for SD3/SD3.5 model+CLIP.\nRecommended PiD capture: 28 steps, capture 24.\nPiD output: 512 latent -> 2048 image with 2k/scale 4.\nUse 2kto4k and 1024 latent for 4K."
       ]
     },
     {
       "id": 2,
-      "type": "UNETLoader",
+      "type": "CheckpointLoaderSimple",
       "pos": [
         -1120,
         -130
       ],
       "size": [
         340,
-        148
+        98
       ],
       "flags": {},
       "order": 1,
@@ -45,14 +45,26 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            1
+            1,
+            2,
+            4
           ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": []
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": []
         }
       ],
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "UNETLoader",
+        "Node name for S&R": "CheckpointLoaderSimple",
         "enableTabs": false,
         "tabWidth": 65,
         "tabXOffset": 10,
@@ -62,20 +74,19 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "flux-2-klein-9b-fp8.safetensors",
-        "default"
+        "sd3.5_large_fp8_scaled.safetensors"
       ]
     },
     {
       "id": 3,
-      "type": "ModelSamplingFlux",
+      "type": "ModelSamplingSD3",
       "pos": [
         -720,
         -130
       ],
       "size": [
-        340,
-        150
+        220,
+        70
       ],
       "flags": {},
       "order": 3,
@@ -99,60 +110,14 @@
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "ModelSamplingFlux"
+        "Node name for S&R": "ModelSamplingSD3"
       },
       "widgets_values": [
-        1.15,
-        0.5,
-        1024,
-        1024
+        3.0
       ]
     },
     {
       "id": 4,
-      "type": "CLIPLoader",
-      "pos": [
-        -1120,
-        70
-      ],
-      "size": [
-        340,
-        179
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            2,
-            4
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.73",
-        "Node name for S&R": "CLIPLoader",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65
-      },
-      "widgets_values": [
-        "qwen_3_8b_fp8mixed.safetensors",
-        "flux2",
-        "default"
-      ]
-    },
-    {
-      "id": 5,
       "type": "PiDTextPrompt",
       "pos": [
         -690,
@@ -193,7 +158,7 @@
       ]
     },
     {
-      "id": 6,
+      "id": 5,
       "type": "CLIPTextEncode",
       "pos": [
         -120,
@@ -248,7 +213,7 @@
       ]
     },
     {
-      "id": 7,
+      "id": 6,
       "type": "CLIPTextEncode",
       "pos": [
         -120,
@@ -303,7 +268,7 @@
       ]
     },
     {
-      "id": 8,
+      "id": 7,
       "type": "PiDEmptyLatentImage",
       "pos": [
         -690,
@@ -333,14 +298,14 @@
         "Node name for S&R": "PiDEmptyLatentImage"
       },
       "widgets_values": [
-        "2kto4k",
-        "1024x1024 (1:1)",
+        "2k",
+        "512x512 (1:1)",
         1,
-        "flux2-klein-9b"
+        "sd3"
       ]
     },
     {
-      "id": 9,
+      "id": 8,
       "type": "PiDKSamplerCapture",
       "pos": [
         260,
@@ -402,17 +367,17 @@
       "widgets_values": [
         0,
         "randomize",
-        4,
-        1.0,
+        28,
+        4.0,
         "euler",
         "flowmatch_euler_discrete",
         1.0,
-        4,
+        24,
         3.0
       ]
     },
     {
-      "id": 10,
+      "id": 9,
       "type": "PiDPrepare",
       "pos": [
         650,
@@ -452,8 +417,9 @@
         "Node name for S&R": "PiDPrepare"
       },
       "widgets_values": [
-        "flux2-klein-9b",
-        "2kto4k",
+        "v1",
+        "sd3",
+        "2k",
         4,
         0.0,
         true,
@@ -462,7 +428,7 @@
       ]
     },
     {
-      "id": 11,
+      "id": 10,
       "type": "PiDSample",
       "pos": [
         1050,
@@ -505,7 +471,7 @@
       ]
     },
     {
-      "id": 12,
+      "id": 11,
       "type": "PiDFinalize",
       "pos": [
         1510,
@@ -542,7 +508,7 @@
       "widgets_values": []
     },
     {
-      "id": 13,
+      "id": 12,
       "type": "SaveImage",
       "pos": [
         1760,
@@ -576,7 +542,7 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "pid-flux2-klein-9b"
+        "pid-sd3"
       ]
     }
   ],
@@ -591,25 +557,25 @@
     ],
     [
       2,
-      4,
+      2,
       0,
-      6,
+      5,
       0,
       "CLIP"
     ],
     [
       3,
-      5,
+      4,
       0,
-      6,
+      5,
       1,
       "STRING"
     ],
     [
       4,
-      4,
+      2,
       0,
-      7,
+      6,
       0,
       "CLIP"
     ],
@@ -617,71 +583,71 @@
       5,
       3,
       0,
-      9,
+      8,
       0,
       "MODEL"
     ],
     [
       6,
-      6,
+      5,
       0,
-      9,
+      8,
       1,
       "CONDITIONING"
     ],
     [
       7,
-      7,
+      6,
       0,
-      9,
+      8,
       2,
       "CONDITIONING"
     ],
     [
       8,
-      8,
+      7,
       0,
-      9,
+      8,
       3,
       "LATENT"
     ],
     [
       9,
-      9,
+      8,
       1,
-      10,
+      9,
       0,
       "LATENT"
     ],
     [
       10,
-      5,
+      4,
       1,
-      10,
+      9,
       1,
       "STRING"
     ],
     [
       11,
-      10,
+      9,
       0,
-      11,
+      10,
       0,
       "PID_PREP"
     ],
     [
       12,
-      11,
+      10,
       0,
-      12,
+      11,
       0,
       "PID_SAMPLES"
     ],
     [
       13,
-      12,
+      11,
       0,
-      13,
+      12,
       0,
       "IMAGE"
     ]

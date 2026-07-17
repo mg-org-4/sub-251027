@@ -1,8 +1,8 @@
 {
-  "id": "pid_flux_complete.json",
+  "id": "pid_zimage_turbo_complete.json",
   "revision": 0,
   "last_node_id": 13,
-  "last_link_id": 14,
+  "last_link_id": 13,
   "nodes": [
     {
       "id": 1,
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "Flux PiD complete workflow\nModels: flux1-dev + t5xxl + clip_l.\nRecommended PiD capture: 28 steps, capture 24.\nPiD output: 512 latent -> 2048 image with 2k/scale 4.\nUse 2kto4k and 1024 latent for 4K."
+        "Z-Image-Turbo PiD complete workflow\nModels: z_image_turbo + qwen_3_4b.\nRecommended latent is final x0: 9 steps, capture 9, CFG 1.\nOptional compare: capture 7.\nUse 2kto4k and 1024 latent for 4K."
       ]
     },
     {
@@ -62,20 +62,20 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "flux1-dev.safetensors",
+        "z_image_turbo_bf16.safetensors",
         "default"
       ]
     },
     {
       "id": 3,
-      "type": "ModelSamplingFlux",
+      "type": "ModelSamplingAuraFlow",
       "pos": [
         -720,
         -130
       ],
       "size": [
-        340,
-        150
+        260,
+        92
       ],
       "flags": {},
       "order": 3,
@@ -92,25 +92,22 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            6
+            5
           ]
         }
       ],
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "ModelSamplingFlux"
+        "Node name for S&R": "ModelSamplingAuraFlow"
       },
       "widgets_values": [
-        1.15,
-        0.5,
-        512,
-        512
+        3.0
       ]
     },
     {
       "id": 4,
-      "type": "DualCLIPLoader",
+      "type": "CLIPLoader",
       "pos": [
         -1120,
         70
@@ -129,14 +126,14 @@
           "type": "CLIP",
           "links": [
             2,
-            5
+            4
           ]
         }
       ],
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "DualCLIPLoader",
+        "Node name for S&R": "CLIPLoader",
         "enableTabs": false,
         "tabWidth": 65,
         "tabXOffset": 10,
@@ -146,9 +143,9 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "t5xxl_fp16.safetensors",
-        "clip_l.safetensors",
-        "flux"
+        "qwen_3_4b.safetensors",
+        "lumina2",
+        "default"
       ]
     },
     {
@@ -171,15 +168,14 @@
           "name": "text",
           "type": "STRING",
           "links": [
-            3,
-            4
+            3
           ]
         },
         {
           "name": "caption",
           "type": "STRING",
           "links": [
-            11
+            10
           ]
         }
       ],
@@ -195,14 +191,14 @@
     },
     {
       "id": 6,
-      "type": "CLIPTextEncodeFlux",
+      "type": "CLIPTextEncode",
       "pos": [
         -120,
-        -395
+        -360
       ],
       "size": [
-        330,
-        260
+        300,
+        220
       ],
       "flags": {},
       "order": 5,
@@ -214,20 +210,67 @@
           "link": 2
         },
         {
-          "name": "clip_l",
+          "name": "text",
           "type": "STRING",
           "widget": {
-            "name": "clip_l"
+            "name": "text"
           },
           "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "title": "CLIP Text Encode (Positive Prompt)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.73",
+        "Node name for S&R": "CLIPTextEncode",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -120,
+        -70
+      ],
+      "size": [
+        300,
+        220
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 4
         },
         {
-          "name": "t5xxl",
+          "name": "text",
           "type": "STRING",
           "widget": {
-            "name": "t5xxl"
+            "name": "text"
           },
-          "link": 4
+          "link": null
         }
       ],
       "outputs": [
@@ -239,74 +282,21 @@
           ]
         }
       ],
-      "title": "CLIP Text Encode Flux (Positive)",
+      "title": "CLIP Text Encode (Negative Prompt)",
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "CLIPTextEncodeFlux"
+        "Node name for S&R": "CLIPTextEncode",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
       },
       "widgets_values": [
-        "",
-        "",
-        3.5
-      ]
-    },
-    {
-      "id": 7,
-      "type": "CLIPTextEncodeFlux",
-      "pos": [
-        -120,
-        -70
-      ],
-      "size": [
-        330,
-        260
-      ],
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 5
-        },
-        {
-          "name": "clip_l",
-          "type": "STRING",
-          "widget": {
-            "name": "clip_l"
-          },
-          "link": null
-        },
-        {
-          "name": "t5xxl",
-          "type": "STRING",
-          "widget": {
-            "name": "t5xxl"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            8
-          ]
-        }
-      ],
-      "title": "CLIP Text Encode Flux (Negative)",
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.73",
-        "Node name for S&R": "CLIPTextEncodeFlux"
-      },
-      "widgets_values": [
-        "",
-        "",
-        3.5
+        ""
       ]
     },
     {
@@ -330,7 +320,7 @@
           "type": "LATENT",
           "slot_index": 0,
           "links": [
-            9
+            8
           ]
         }
       ],
@@ -343,7 +333,7 @@
         "2k",
         "512x512 (1:1)",
         1,
-        "flux"
+        "zimage-turbo"
       ]
     },
     {
@@ -364,22 +354,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 6
+          "link": 5
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 7
+          "link": 6
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 8
+          "link": 7
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 9
+          "link": 8
         }
       ],
       "outputs": [
@@ -392,7 +382,7 @@
           "name": "pid_latent",
           "type": "LATENT",
           "links": [
-            10
+            9
           ]
         },
         {
@@ -409,12 +399,12 @@
       "widgets_values": [
         0,
         "randomize",
-        28,
+        9,
         1.0,
         "euler",
         "flowmatch_euler_discrete",
         1.0,
-        24,
+        9,
         3.0
       ]
     },
@@ -436,12 +426,12 @@
         {
           "name": "latent",
           "type": "LATENT",
-          "link": 10
+          "link": 9
         },
         {
           "name": "caption",
           "type": "STRING",
-          "link": 11
+          "link": 10
         }
       ],
       "outputs": [
@@ -449,7 +439,7 @@
           "name": "prepared",
           "type": "PID_PREP",
           "links": [
-            12
+            11
           ]
         }
       ],
@@ -459,7 +449,8 @@
         "Node name for S&R": "PiDPrepare"
       },
       "widgets_values": [
-        "flux",
+        "v1",
+        "zimage-turbo",
         "2k",
         4,
         0.0,
@@ -486,7 +477,7 @@
         {
           "name": "prepared",
           "type": "PID_PREP",
-          "link": 12
+          "link": 11
         }
       ],
       "outputs": [
@@ -494,7 +485,7 @@
           "name": "sampled",
           "type": "PID_SAMPLES",
           "links": [
-            13
+            12
           ]
         }
       ],
@@ -529,7 +520,7 @@
         {
           "name": "sampled",
           "type": "PID_SAMPLES",
-          "link": 13
+          "link": 12
         }
       ],
       "outputs": [
@@ -537,7 +528,7 @@
           "name": "image",
           "type": "IMAGE",
           "links": [
-            14
+            13
           ]
         }
       ],
@@ -566,7 +557,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 14
+          "link": 13
         }
       ],
       "outputs": [],
@@ -583,7 +574,7 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "pid-flux"
+        "pid-zimage-turbo"
       ]
     }
   ],
@@ -614,14 +605,6 @@
     ],
     [
       4,
-      5,
-      0,
-      6,
-      2,
-      "STRING"
-    ],
-    [
-      5,
       4,
       0,
       7,
@@ -629,7 +612,7 @@
       "CLIP"
     ],
     [
-      6,
+      5,
       3,
       0,
       9,
@@ -637,7 +620,7 @@
       "MODEL"
     ],
     [
-      7,
+      6,
       6,
       0,
       9,
@@ -645,7 +628,7 @@
       "CONDITIONING"
     ],
     [
-      8,
+      7,
       7,
       0,
       9,
@@ -653,7 +636,7 @@
       "CONDITIONING"
     ],
     [
-      9,
+      8,
       8,
       0,
       9,
@@ -661,7 +644,7 @@
       "LATENT"
     ],
     [
-      10,
+      9,
       9,
       1,
       10,
@@ -669,7 +652,7 @@
       "LATENT"
     ],
     [
-      11,
+      10,
       5,
       1,
       10,
@@ -677,7 +660,7 @@
       "STRING"
     ],
     [
-      12,
+      11,
       10,
       0,
       11,
@@ -685,7 +668,7 @@
       "PID_PREP"
     ],
     [
-      13,
+      12,
       11,
       0,
       12,
@@ -693,7 +676,7 @@
       "PID_SAMPLES"
     ],
     [
-      14,
+      13,
       12,
       0,
       13,

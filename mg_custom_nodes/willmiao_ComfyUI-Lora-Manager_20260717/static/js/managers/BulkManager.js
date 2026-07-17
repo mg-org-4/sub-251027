@@ -397,6 +397,7 @@ export class BulkManager {
         const updated = {
             ...existing,
             fileName: card.dataset.file_name ?? existing.fileName,
+            folder: card.dataset.folder ?? existing.folder,
             usageTips: card.dataset.usage_tips ?? existing.usageTips,
             modelName: card.dataset.name ?? existing.modelName,
         };
@@ -494,7 +495,8 @@ export class BulkManager {
 
             if (metadata) {
                 const usageTips = JSON.parse(metadata.usageTips || '{}');
-                loraSyntaxes.push(buildLoraSyntax(metadata.fileName, usageTips));
+                const loraName = metadata.folder ? `${metadata.folder}/${metadata.fileName}` : metadata.fileName;
+                loraSyntaxes.push(buildLoraSyntax(loraName, usageTips));
             } else {
                 missingLoras.push(filepath);
             }
@@ -537,7 +539,8 @@ export class BulkManager {
 
             if (metadata) {
                 const usageTips = JSON.parse(metadata.usageTips || '{}');
-                loraSyntaxes.push(buildLoraSyntax(metadata.fileName, usageTips));
+                const loraName = metadata.folder ? `${metadata.folder}/${metadata.fileName}` : metadata.fileName;
+                loraSyntaxes.push(buildLoraSyntax(loraName, usageTips));
             } else {
                 missingLoras.push(filepath);
             }
@@ -553,7 +556,8 @@ export class BulkManager {
             return;
         }
 
-        await sendLoraToWorkflow(loraSyntaxes.join(', '), replaceMode, 'lora');
+        const exitBulkMode = () => { if (state.bulkMode) this.toggleBulkMode(); };
+        await sendLoraToWorkflow(loraSyntaxes.join(', '), replaceMode, 'lora', exitBulkMode);
     }
 
     async _sendAllEmbeddingsToWorkflow() {
@@ -575,7 +579,8 @@ export class BulkManager {
         }
 
         const joinedCode = embeddingCodes.join(', ');
-        await sendEmbeddingToWorkflow(joinedCode);
+        const exitBulkMode = () => { if (state.bulkMode) this.toggleBulkMode(); };
+        await sendEmbeddingToWorkflow(joinedCode, exitBulkMode);
     }
 
     showBulkDeleteModal() {
@@ -674,6 +679,7 @@ export class BulkManager {
                     const modelId = this.parseModelId(item?.civitai?.modelId);
                     metadataCache.set(item.file_path, {
                         fileName: item.file_name,
+                        folder: item.folder || '',
                         usageTips: item.usage_tips || '{}',
                         modelName: item.name || item.file_name,
                         ...(modelId !== null ? { modelId } : {})

@@ -1,3 +1,4 @@
+from comfy_api.latest import io
 from typing import Union
 import torch
 from torch import Tensor
@@ -107,44 +108,43 @@ class InputPIA_PaperPresets(InputPIA):
         return mask
 
 
-class ApplyAnimateDiffPIAModel:
+class ApplyAnimateDiffPIAModel(io.ComfyNode):
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "motion_model": ("MOTION_MODEL_ADE",),
-                "image": ("IMAGE",),
-                "vae": ("VAE",),
-                "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001}),
-                "end_percent": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001}),
-            },
-            "optional": {
-                "pia_input": ("PIA_INPUT",),
-                "motion_lora": ("MOTION_LORA",),
-                "scale_multival": ("MULTIVAL",),
-                "effect_multival": ("MULTIVAL",),
-                "ad_keyframes": ("AD_KEYFRAMES",),
-                "prev_m_models": ("M_MODELS",),
-                "per_block": ("PER_BLOCK",),
-            },
-            "hidden": {
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_ApplyAnimateDiffModelWithPIA',
+            display_name='Apply AnimateDiff-PIA Model 🎭🅐🅓②',
+            category='Animate Diff 🎭🅐🅓/② Gen2 nodes ②/PIA',
+            inputs=[
+                io.Custom("MOTION_MODEL_ADE").Input('motion_model'),
+                io.Image.Input('image'),
+                io.Vae.Input('vae'),
+                io.Float.Input('start_percent', default=0.0, max=1.0, min=0.0, step=0.001),
+                io.Float.Input('end_percent', default=1.0, max=1.0, min=0.0, step=0.001),
+                io.Custom("PIA_INPUT").Input('pia_input', optional=True),
+                io.Custom("MOTION_LORA").Input('motion_lora', optional=True),
+                io.Custom("MULTIVAL").Input('scale_multival', optional=True),
+                io.Custom("MULTIVAL").Input('effect_multival', optional=True),
+                io.Custom("AD_KEYFRAMES").Input('ad_keyframes', optional=True),
+                io.Custom("M_MODELS").Input('prev_m_models', optional=True),
+                io.Custom("PER_BLOCK").Input('per_block', optional=True),
+            ],
+            outputs=[
+                io.Custom("M_MODELS").Output('M_MODELS'),
+            ],
+        )
 
-    RETURN_TYPES = ("M_MODELS",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/② Gen2 nodes ②/PIA"
-    FUNCTION = "apply_motion_model"
 
-    def apply_motion_model(self, motion_model: MotionModelPatcher, image: Tensor, vae: VAE,
+    @classmethod
+    def execute(cls, motion_model: MotionModelPatcher, image: Tensor, vae: VAE,
                            start_percent: float=0.0, end_percent: float=1.0, pia_input: InputPIA=None,
                            motion_lora: MotionLoraList=None, ad_keyframes: ADKeyframeGroup=None,
                            scale_multival=None, effect_multival=None, ref_multival=None, per_block=None,
                            prev_m_models: MotionModelGroup=None,):
-        new_m_models = ApplyAnimateDiffModelNode.apply_motion_model(self, motion_model, start_percent=start_percent, end_percent=end_percent,
+        new_m_models = ApplyAnimateDiffModelNode.execute( motion_model, start_percent=start_percent, end_percent=end_percent,
                                                                     motion_lora=motion_lora, ad_keyframes=ad_keyframes,
                                                                     scale_multival=scale_multival, effect_multival=effect_multival, per_block=per_block,
-                                                                    prev_m_models=prev_m_models)
+                                                                    prev_m_models=prev_m_models).args
         # most recent added model will always be first in list;
         curr_model = new_m_models[0].models[0]
         # confirm that model is PIA
@@ -157,121 +157,120 @@ class ApplyAnimateDiffPIAModel:
             pia_input = InputPIA_Multival(1.0)
         attachment.pia_input = pia_input
         #curr_model.pia_multival = ref_multival
-        return new_m_models
+        return io.NodeOutput(*new_m_models)
 
 
-class LoadAnimateDiffAndInjectPIANode:
+class LoadAnimateDiffAndInjectPIANode(io.ComfyNode):
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "model_name": (get_available_motion_models(),),
-                "motion_model": ("MOTION_MODEL_ADE",),
-            },
-            "optional": {
-                "ad_settings": ("AD_SETTINGS",),
-                "deprecation_warning": ("ADEWARN", {"text": "Experimental. Don't expect to work.", "warn_type": "experimental", "color": "#CFC"}),
-            }
-        }
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_InjectPIAIntoAnimateDiffModel',
+            display_name='🧪Inject PIA into AnimateDiff Model 🎭🅐🅓②',
+            category='Animate Diff 🎭🅐🅓/② Gen2 nodes ②/PIA/🧪experimental',
+            inputs=[
+                io.Combo.Input('model_name', options=get_available_motion_models()),
+                io.Custom("MOTION_MODEL_ADE").Input('motion_model'),
+                io.Custom("AD_SETTINGS").Input('ad_settings', optional=True),
+            ],
+            outputs=[
+                io.Custom("MOTION_MODEL_ADE").Output('MOTION_MODEL'),
+            ],
+            is_experimental=True,
+        )
     
-    RETURN_TYPES = ("MOTION_MODEL_ADE",)
-    RETURN_NAMES = ("MOTION_MODEL",)
 
-    CATEGORY = "Animate Diff 🎭🅐🅓/② Gen2 nodes ②/PIA/🧪experimental"
-    FUNCTION = "load_motion_model"
     
-    def load_motion_model(self, model_name: str, motion_model: MotionModelPatcher, ad_settings: AnimateDiffSettings=None):
+    @classmethod
+    def execute(cls, model_name: str, motion_model: MotionModelPatcher, ad_settings: AnimateDiffSettings=None):
         # make sure model actually has PIA conv_in
         if motion_model.model.conv_in is None:
             raise Exception("Passed-in motion model was expected to be PIA (contain conv_in), but did not.")
         # load motion module and motion settings, if included
         loaded_motion_model = load_motion_module_gen2(model_name=model_name, motion_model_settings=ad_settings)
         inject_pia_conv_in_into_model(motion_model=loaded_motion_model, w_pia=motion_model)
-        return (loaded_motion_model,)
+        return io.NodeOutput(loaded_motion_model,)
 
 
-class PIA_ADKeyframeNode:
+class PIA_ADKeyframeNode(io.ComfyNode):
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001}, ),
-            },
-            "optional": {
-                "prev_ad_keyframes": ("AD_KEYFRAMES", ),
-                "scale_multival": ("MULTIVAL",),
-                "effect_multival": ("MULTIVAL",),
-                "pia_input": ("PIA_INPUT",),
-                "inherit_missing": ("BOOLEAN", {"default": True}, ),
-                "guarantee_steps": ("INT", {"default": 1, "min": 0, "max": BIGMAX}),
-            },
-            "hidden": {
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_PIA_AnimateDiffKeyframe',
+            display_name='AnimateDiff-PIA Keyframe 🎭🅐🅓',
+            category='Animate Diff 🎭🅐🅓/② Gen2 nodes ②/PIA',
+            inputs=[
+                io.Float.Input('start_percent', default=0.0, max=1.0, min=0.0, step=0.001),
+                io.Custom("AD_KEYFRAMES").Input('prev_ad_keyframes', optional=True),
+                io.Custom("MULTIVAL").Input('scale_multival', optional=True),
+                io.Custom("MULTIVAL").Input('effect_multival', optional=True),
+                io.Custom("PIA_INPUT").Input('pia_input', optional=True),
+                io.Boolean.Input('inherit_missing', optional=True, default=True),
+                io.Int.Input('guarantee_steps', optional=True, default=1, max=9007199254740991, min=0),
+            ],
+            outputs=[
+                io.Custom("AD_KEYFRAMES").Output('AD_KEYFRAMES'),
+            ],
+        )
     
-    RETURN_TYPES = ("AD_KEYFRAMES", )
-    FUNCTION = "load_keyframe"
 
-    CATEGORY = "Animate Diff 🎭🅐🅓/② Gen2 nodes ②/PIA"
 
-    def load_keyframe(self,
+    @classmethod
+    def execute(cls,
                       start_percent: float, prev_ad_keyframes=None,
                       scale_multival: Union[float, torch.Tensor]=None, effect_multival: Union[float, torch.Tensor]=None,
                       pia_input: InputPIA=None,
                       inherit_missing: bool=True, guarantee_steps: int=1):
-        return ADKeyframeNode.load_keyframe(self,
+        return io.NodeOutput(*ADKeyframeNode.execute(
                     start_percent=start_percent, prev_ad_keyframes=prev_ad_keyframes,
                     scale_multival=scale_multival, effect_multival=effect_multival, pia_input=pia_input,
                     inherit_missing=inherit_missing, guarantee_steps=guarantee_steps
-                )
+                ).args)
 
 
-class InputPIA_MultivalNode:
+class InputPIA_MultivalNode(io.ComfyNode):
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "multival": ("MULTIVAL",),
-            },
-            # "optional": {
-            #     "effect_multival": ("MULTIVAL",),
-            # }
-        }
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_InputPIA_Multival',
+            display_name='PIA Input [Multival] 🎭🅐🅓②',
+            category='Animate Diff 🎭🅐🅓/② Gen2 nodes ②/PIA',
+            inputs=[
+                io.Custom("MULTIVAL").Input('multival'),
+            ],
+            outputs=[
+                io.Custom("PIA_INPUT").Output('PIA_INPUT'),
+            ],
+        )
     
-    RETURN_TYPES = ("PIA_INPUT",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/② Gen2 nodes ②/PIA"
-    FUNCTION = "create_pia_input"
 
-    def create_pia_input(self, multival: Union[float, Tensor], effect_multival: Union[float, Tensor]=None):
-        return (InputPIA_Multival(multival, effect_multival),)
-
-
-class InputPIA_PaperPresetsNode:
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "preset": (PIA_RANGES._LIST_ALL,),
-                "batch_index": ("INT", {"default": 0, "min": BIGMIN, "max": BIGMAX, "step": 1}),
-            },
-            "optional": {
-                "mult_multival": ("MULTIVAL",),
-                "print_values": ("BOOLEAN", {"default": False},),
-                #"effect_multival": ("MULTIVAL",),
-            },
-            "hidden": {
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
+    def execute(cls, multival: Union[float, Tensor], effect_multival: Union[float, Tensor]=None):
+        return io.NodeOutput(InputPIA_Multival(multival, effect_multival),)
 
-    RETURN_TYPES = ("PIA_INPUT",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/② Gen2 nodes ②/PIA"
-    FUNCTION = "create_pia_input"
 
-    def create_pia_input(self, preset: str, batch_index: int, mult_multival: Union[float, Tensor]=None, print_values: bool=False, effect_multival: Union[float, Tensor]=None):
+class InputPIA_PaperPresetsNode(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_InputPIA_PaperPresets',
+            display_name='PIA Input [Paper Presets] 🎭🅐🅓②',
+            category='Animate Diff 🎭🅐🅓/② Gen2 nodes ②/PIA',
+            inputs=[
+                io.Combo.Input('preset', options=['Animation (Small Motion)', 'Animation (Medium Motion)', 'Animation (Large Motion)', 'Loop (Small Motion)', 'Loop (Medium Motion)', 'Loop (Large Motion)', 'Style Transfer (Small Motion)', 'Style Transfer (Medium Motion)', 'Style Transfer (Large Motion)']),
+                io.Int.Input('batch_index', default=0, max=9007199254740991, min=-9007199254740991, step=1),
+                io.Custom("MULTIVAL").Input('mult_multival', optional=True),
+                io.Boolean.Input('print_values', optional=True, default=False),
+            ],
+            outputs=[
+                io.Custom("PIA_INPUT").Output('PIA_INPUT'),
+            ],
+        )
+
+
+    @classmethod
+    def execute(cls, preset: str, batch_index: int, mult_multival: Union[float, Tensor]=None, print_values: bool=False, effect_multival: Union[float, Tensor]=None):
         # verify preset exists - function will throw error if does not
         values = PIA_RANGES.get_preset(preset)
         if print_values:
             logger.info(f"PIA Preset '{preset}': {values}")
-        return (InputPIA_PaperPresets(preset=preset, index=batch_index, mult_multival=mult_multival, effect_multival=effect_multival),)
+        return io.NodeOutput(InputPIA_PaperPresets(preset=preset, index=batch_index, mult_multival=mult_multival, effect_multival=effect_multival),)

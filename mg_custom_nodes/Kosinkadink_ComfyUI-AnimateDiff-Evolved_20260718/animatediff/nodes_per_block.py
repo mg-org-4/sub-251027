@@ -1,7 +1,8 @@
 from typing import Union
 from torch import Tensor
 
-from .documentation import short_desc, register_description, coll, DocHelper
+from comfy_api.latest import io
+
 from .motion_module_ad import BlockType
 from .utils_model import ModelTypeSD
 from .utils_motion import AllPerBlocks, PerBlock, PerBlockId, extend_list_to_batch_size
@@ -27,85 +28,63 @@ class ADBlockHolder:
         return not has_anything
 
 
-class ADBlockComboNode:
+class ADBlockComboNode(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_ADBlockCombo',
+            display_name='AD Block 🎭🅐🅓',
+            category='Animate Diff 🎭🅐🅓/per block',
+            inputs=[io.Custom('MULTIVAL').Input('effect', optional=True), io.Custom('MULTIVAL').Input('scale', optional=True)],
+            outputs=[io.Custom('AD_BLOCK').Output('AD_BLOCK')]
+        )
     NodeID = 'ADE_ADBlockCombo'
     NodeName = 'AD Block 🎭🅐🅓'
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-            },
-            "optional": {
-                "effect": ("MULTIVAL",),
-                "scale": ("MULTIVAL",),
-            },
-            "hidden": {
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
-    
-    RETURN_TYPES = ("AD_BLOCK",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/per block"
-    FUNCTION = "block_control"
-
-    def block_control(self, effect: Union[float, Tensor, None]=None, scale: Union[float, Tensor, None]=None):
+    def execute(cls, effect: Union[float, Tensor, None]=None, scale: Union[float, Tensor, None]=None):
         scales = [scale, scale]
         block = ADBlockHolder(effect=effect, scales=scales)
         if block.is_empty():
             block = None
-        return (block,)
+        return io.NodeOutput(block)
 
 
-class ADBlockIndivNode:
+class ADBlockIndivNode(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_ADBlockIndiv',
+            display_name='AD Block+ 🎭🅐🅓',
+            category='Animate Diff 🎭🅐🅓/per block',
+            inputs=[io.Custom('MULTIVAL').Input('effect', optional=True), io.Custom('MULTIVAL').Input('scale_0', optional=True), io.Custom('MULTIVAL').Input('scale_1', optional=True)],
+            outputs=[io.Custom('AD_BLOCK').Output('AD_BLOCK')]
+        )
     NodeID = 'ADE_ADBlockIndiv'
     NodeName = 'AD Block+ 🎭🅐🅓'
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-            },
-            "optional": {
-                "effect": ("MULTIVAL",),
-                "scale_0": ("MULTIVAL",),
-                "scale_1": ("MULTIVAL",),
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
-    
-    RETURN_TYPES = ("AD_BLOCK",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/per block"
-    FUNCTION = "block_control"
-
-    def block_control(self, effect: Union[float, Tensor, None]=None,
+    def execute(cls, effect: Union[float, Tensor, None]=None,
                       scale_0: Union[float, Tensor, None]=None, scale_1: Union[float, Tensor, None]=None):
         scales = [scale_0, scale_1]
         block = ADBlockHolder(effect=effect, scales=scales)
         if block.is_empty():
             block = None
-        return (block,)
+        return io.NodeOutput(block)
 
 
-class PerBlockHighLevelNode:
+class PerBlockHighLevelNode(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_PerBlockHighLevel',
+            display_name='AD Per Block 🎭🅐🅓',
+            category='Animate Diff 🎭🅐🅓/per block',
+            inputs=[io.Custom('AD_BLOCK').Input('down', optional=True), io.Custom('AD_BLOCK').Input('mid', optional=True), io.Custom('AD_BLOCK').Input('up', optional=True)],
+            outputs=[io.Custom('PER_BLOCK').Output('PER_BLOCK')]
+        )
     NodeID = 'ADE_PerBlockHighLevel'
     NodeName = 'AD Per Block 🎭🅐🅓'
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-            },
-            "optional": {
-                "down": ("AD_BLOCK",),
-                "mid": ("AD_BLOCK",),
-                "up": ("AD_BLOCK",),
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
-    
-    RETURN_TYPES = ("PER_BLOCK",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/per block"
-    FUNCTION = "create_per_block"
-
-    def create_per_block(self,
+    def execute(cls,
                          down: Union[ADBlockHolder, None]=None,
                          mid: Union[ADBlockHolder, None]=None,
                          up: Union[ADBlockHolder, None]=None):
@@ -120,36 +99,23 @@ class PerBlockHighLevelNode:
                 blocks.append(PerBlock(id=id, effect=block.effect, scales=block.scales))
         if len(blocks) == 0:
             blocks = None
-        return (AllPerBlocks(blocks),)
+        return io.NodeOutput(AllPerBlocks(blocks))
 
 
-class PerBlock_SD15_MidLevelNode:
+class PerBlock_SD15_MidLevelNode(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_PerBlock_SD15_MidLevel',
+            display_name='AD Per Block+ (SD1.5) 🎭🅐🅓',
+            category='Animate Diff 🎭🅐🅓/per block',
+            inputs=[io.Custom('AD_BLOCK').Input('down_0', optional=True), io.Custom('AD_BLOCK').Input('down_1', optional=True), io.Custom('AD_BLOCK').Input('down_2', optional=True), io.Custom('AD_BLOCK').Input('down_3', optional=True), io.Custom('AD_BLOCK').Input('mid', optional=True), io.Custom('AD_BLOCK').Input('up_0', optional=True), io.Custom('AD_BLOCK').Input('up_1', optional=True), io.Custom('AD_BLOCK').Input('up_2', optional=True), io.Custom('AD_BLOCK').Input('up_3', optional=True)],
+            outputs=[io.Custom('PER_BLOCK').Output('PER_BLOCK')]
+        )
     NodeID = 'ADE_PerBlock_SD15_MidLevel'
     NodeName = 'AD Per Block+ (SD1.5) 🎭🅐🅓'
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-            },
-            "optional": {
-                "down_0": ("AD_BLOCK",),
-                "down_1": ("AD_BLOCK",),
-                "down_2": ("AD_BLOCK",),
-                "down_3": ("AD_BLOCK",),
-                "mid": ("AD_BLOCK",),
-                "up_0": ("AD_BLOCK",),
-                "up_1": ("AD_BLOCK",),
-                "up_2": ("AD_BLOCK",),
-                "up_3": ("AD_BLOCK",),
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
-    
-    RETURN_TYPES = ("PER_BLOCK",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/per block"
-    FUNCTION = "create_per_block"
-
-    def create_per_block(self,
+    def execute(cls,
                          down_0: Union[ADBlockHolder, None]=None,
                          down_1: Union[ADBlockHolder, None]=None,
                          down_2: Union[ADBlockHolder, None]=None,
@@ -176,48 +142,23 @@ class PerBlock_SD15_MidLevelNode:
                 blocks.append(PerBlock(id=id, effect=block.effect, scales=block.scales))
         if len(blocks) == 0:
             blocks = None
-        return (AllPerBlocks(blocks, ModelTypeSD.SD1_5),)
+        return io.NodeOutput(AllPerBlocks(blocks, ModelTypeSD.SD1_5))
 
 
-class PerBlock_SD15_LowLevelNode:
+class PerBlock_SD15_LowLevelNode(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_PerBlock_SD15_LowLevel',
+            display_name='AD Per Block++ (SD1.5) 🎭🅐🅓',
+            category='Animate Diff 🎭🅐🅓/per block',
+            inputs=[io.Custom('AD_BLOCK').Input('down_0__0', optional=True), io.Custom('AD_BLOCK').Input('down_0__1', optional=True), io.Custom('AD_BLOCK').Input('down_1__0', optional=True), io.Custom('AD_BLOCK').Input('down_1__1', optional=True), io.Custom('AD_BLOCK').Input('down_2__0', optional=True), io.Custom('AD_BLOCK').Input('down_2__1', optional=True), io.Custom('AD_BLOCK').Input('down_3__0', optional=True), io.Custom('AD_BLOCK').Input('down_3__1', optional=True), io.Custom('AD_BLOCK').Input('mid', optional=True), io.Custom('AD_BLOCK').Input('up_0__0', optional=True), io.Custom('AD_BLOCK').Input('up_0__1', optional=True), io.Custom('AD_BLOCK').Input('up_0__2', optional=True), io.Custom('AD_BLOCK').Input('up_1__0', optional=True), io.Custom('AD_BLOCK').Input('up_1__1', optional=True), io.Custom('AD_BLOCK').Input('up_1__2', optional=True), io.Custom('AD_BLOCK').Input('up_2__0', optional=True), io.Custom('AD_BLOCK').Input('up_2__1', optional=True), io.Custom('AD_BLOCK').Input('up_2__2', optional=True), io.Custom('AD_BLOCK').Input('up_3__0', optional=True), io.Custom('AD_BLOCK').Input('up_3__1', optional=True), io.Custom('AD_BLOCK').Input('up_3__2', optional=True)],
+            outputs=[io.Custom('PER_BLOCK').Output('PER_BLOCK')]
+        )
     NodeID = 'ADE_PerBlock_SD15_LowLevel'
     NodeName = 'AD Per Block++ (SD1.5) 🎭🅐🅓'
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-            },
-            "optional": {
-                "down_0__0": ("AD_BLOCK",),
-                "down_0__1": ("AD_BLOCK",),
-                "down_1__0": ("AD_BLOCK",),
-                "down_1__1": ("AD_BLOCK",),
-                "down_2__0": ("AD_BLOCK",),
-                "down_2__1": ("AD_BLOCK",),
-                "down_3__0": ("AD_BLOCK",),
-                "down_3__1": ("AD_BLOCK",),
-                "mid": ("AD_BLOCK",),
-                "up_0__0": ("AD_BLOCK",),
-                "up_0__1": ("AD_BLOCK",),
-                "up_0__2": ("AD_BLOCK",),
-                "up_1__0": ("AD_BLOCK",),
-                "up_1__1": ("AD_BLOCK",),
-                "up_1__2": ("AD_BLOCK",),
-                "up_2__0": ("AD_BLOCK",),
-                "up_2__1": ("AD_BLOCK",),
-                "up_2__2": ("AD_BLOCK",),
-                "up_3__0": ("AD_BLOCK",),
-                "up_3__1": ("AD_BLOCK",),
-                "up_3__2": ("AD_BLOCK",),
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
-    
-    RETURN_TYPES = ("PER_BLOCK",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/per block"
-    FUNCTION = "create_per_block"
-
-    def create_per_block(self,
+    def execute(cls,
                          down_0__0: Union[ADBlockHolder, None]=None,
                          down_0__1: Union[ADBlockHolder, None]=None,
                          down_1__0: Union[ADBlockHolder, None]=None,
@@ -268,44 +209,28 @@ class PerBlock_SD15_LowLevelNode:
                 blocks.append(PerBlock(id=id, effect=block.effect, scales=block.scales))
         if len(blocks) == 0:
             blocks = None
-        return (AllPerBlocks(blocks, ModelTypeSD.SD1_5),)
+        return io.NodeOutput(AllPerBlocks(blocks, ModelTypeSD.SD1_5))
 
 
-class PerBlock_SD15_FromFloatsNode:
+class PerBlock_SD15_FromFloatsNode(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_PerBlock_SD15_FromFloats',
+            display_name='AD Per Block Floats (SD1.5) 🎭🅐🅓',
+            category='Animate Diff 🎭🅐🅓/per block',
+            inputs=[io.Custom('FLOATS').Input('effect_21_floats', optional=True), io.Custom('FLOATS').Input('scale_21_floats', optional=True)],
+            outputs=[io.Custom('PER_BLOCK').Output('PER_BLOCK')],
+            description='Use Floats from Value Schedules to select SD1.5 effect/scale values for blocks.'
+        )
     NodeID = 'ADE_PerBlock_SD15_FromFloats'
     NodeName = 'AD Per Block Floats (SD1.5) 🎭🅐🅓'
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-            },
-            "optional": {
-                "effect_21_floats": ("FLOATS",),
-                "scale_21_floats": ("FLOATS",),
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
-    
-    RETURN_TYPES = ("PER_BLOCK",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/per block"
-    FUNCTION = "create_per_block"
-
-    Desc = [
-        short_desc('Use Floats from Value Schedules to select SD1.5 effect/scale values for blocks.'),
-        'SD1.5 Motion Modules contain 21 blocks:',
-        'idx 0 - start of down blocks (down_0__0)',
-        'idx 7 - end of down blocks   (down_3__1)',
-        'idx 8 - mid block            (mid)',
-        'idx 9 - start of up blocks   (up_0__0)',
-        'idx 20 - end of up blocks    (up_3__2)',
-    ]
-    register_description(NodeID, Desc)
-
-    def create_per_block(self,
+    def execute(cls,
                          effect_21_floats: Union[list[float], None]=None,
                          scale_21_floats: Union[list[float], None]=None):
         if effect_21_floats is None and scale_21_floats is None:
-            return (AllPerBlocks(None, ModelTypeSD.SD1_5),)
+            return io.NodeOutput(AllPerBlocks(None, ModelTypeSD.SD1_5))
         # SD1.5 has 21 blocks
         block_total = 21
         holders = [ADBlockHolder() for _ in range(block_total)]
@@ -317,34 +242,23 @@ class PerBlock_SD15_FromFloatsNode:
             scale_21_floats = extend_list_to_batch_size(scale_21_floats, block_total)
             for scale, holder in zip(scale_21_floats, holders):
                 holder.scales = [scale, scale]
-        return PerBlock_SD15_LowLevelNode.create_per_block(self, *holders)
+        return PerBlock_SD15_LowLevelNode.execute(*holders)
 
 
-class PerBlock_SDXL_MidLevelNode:
+class PerBlock_SDXL_MidLevelNode(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_PerBlock_SDXL_MidLevel',
+            display_name='AD Per Block+ (SDXL) 🎭🅐🅓',
+            category='Animate Diff 🎭🅐🅓/per block',
+            inputs=[io.Custom('AD_BLOCK').Input('down_0', optional=True), io.Custom('AD_BLOCK').Input('down_1', optional=True), io.Custom('AD_BLOCK').Input('down_2', optional=True), io.Custom('AD_BLOCK').Input('mid', optional=True), io.Custom('AD_BLOCK').Input('up_0', optional=True), io.Custom('AD_BLOCK').Input('up_1', optional=True), io.Custom('AD_BLOCK').Input('up_2', optional=True)],
+            outputs=[io.Custom('PER_BLOCK').Output('PER_BLOCK')]
+        )
     NodeID = 'ADE_PerBlock_SDXL_MidLevel'
     NodeName = 'AD Per Block+ (SDXL) 🎭🅐🅓'
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-            },
-            "optional": {
-                "down_0": ("AD_BLOCK",),
-                "down_1": ("AD_BLOCK",),
-                "down_2": ("AD_BLOCK",),
-                "mid": ("AD_BLOCK",),
-                "up_0": ("AD_BLOCK",),
-                "up_1": ("AD_BLOCK",),
-                "up_2": ("AD_BLOCK",),
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
-    
-    RETURN_TYPES = ("PER_BLOCK",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/per block"
-    FUNCTION = "create_per_block"
-
-    def create_per_block(self,
+    def execute(cls,
                          down_0: Union[ADBlockHolder, None]=None,
                          down_1: Union[ADBlockHolder, None]=None,
                          down_2: Union[ADBlockHolder, None]=None,
@@ -367,43 +281,23 @@ class PerBlock_SDXL_MidLevelNode:
                 blocks.append(PerBlock(id=id, effect=block.effect, scales=block.scales))
         if len(blocks) == 0:
             blocks = None
-        return (AllPerBlocks(blocks, ModelTypeSD.SDXL),)
+        return io.NodeOutput(AllPerBlocks(blocks, ModelTypeSD.SDXL))
 
 
-class PerBlock_SDXL_LowLevelNode:
+class PerBlock_SDXL_LowLevelNode(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_PerBlock_SDXL_LowLevel',
+            display_name='AD Per Block++ (SDXL) 🎭🅐🅓',
+            category='Animate Diff 🎭🅐🅓/per block',
+            inputs=[io.Custom('AD_BLOCK').Input('down_0__0', optional=True), io.Custom('AD_BLOCK').Input('down_0__1', optional=True), io.Custom('AD_BLOCK').Input('down_1__0', optional=True), io.Custom('AD_BLOCK').Input('down_1__1', optional=True), io.Custom('AD_BLOCK').Input('down_2__0', optional=True), io.Custom('AD_BLOCK').Input('down_2__1', optional=True), io.Custom('AD_BLOCK').Input('mid', optional=True), io.Custom('AD_BLOCK').Input('up_0__0', optional=True), io.Custom('AD_BLOCK').Input('up_0__1', optional=True), io.Custom('AD_BLOCK').Input('up_0__2', optional=True), io.Custom('AD_BLOCK').Input('up_1__0', optional=True), io.Custom('AD_BLOCK').Input('up_1__1', optional=True), io.Custom('AD_BLOCK').Input('up_1__2', optional=True), io.Custom('AD_BLOCK').Input('up_2__0', optional=True), io.Custom('AD_BLOCK').Input('up_2__1', optional=True), io.Custom('AD_BLOCK').Input('up_2__2', optional=True)],
+            outputs=[io.Custom('PER_BLOCK').Output('PER_BLOCK')]
+        )
     NodeID = 'ADE_PerBlock_SDXL_LowLevel'
     NodeName = 'AD Per Block++ (SDXL) 🎭🅐🅓'
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-            },
-            "optional": {
-                "down_0__0": ("AD_BLOCK",),
-                "down_0__1": ("AD_BLOCK",),
-                "down_1__0": ("AD_BLOCK",),
-                "down_1__1": ("AD_BLOCK",),
-                "down_2__0": ("AD_BLOCK",),
-                "down_2__1": ("AD_BLOCK",),
-                "mid": ("AD_BLOCK",),
-                "up_0__0": ("AD_BLOCK",),
-                "up_0__1": ("AD_BLOCK",),
-                "up_0__2": ("AD_BLOCK",),
-                "up_1__0": ("AD_BLOCK",),
-                "up_1__1": ("AD_BLOCK",),
-                "up_1__2": ("AD_BLOCK",),
-                "up_2__0": ("AD_BLOCK",),
-                "up_2__1": ("AD_BLOCK",),
-                "up_2__2": ("AD_BLOCK",),
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
-    
-    RETURN_TYPES = ("PER_BLOCK",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/per block"
-    FUNCTION = "create_per_block"
-
-    def create_per_block(self,
+    def execute(cls,
                          down_0__0: Union[ADBlockHolder, None]=None,
                          down_0__1: Union[ADBlockHolder, None]=None,
                          down_1__0: Union[ADBlockHolder, None]=None,
@@ -444,44 +338,28 @@ class PerBlock_SDXL_LowLevelNode:
                 blocks.append(PerBlock(id=id, effect=block.effect, scales=block.scales))
         if len(blocks) == 0:
             blocks = None
-        return (AllPerBlocks(blocks, ModelTypeSD.SDXL),)
+        return io.NodeOutput(AllPerBlocks(blocks, ModelTypeSD.SDXL))
 
 
-class PerBlock_SDXL_FromFloatsNode:
+class PerBlock_SDXL_FromFloatsNode(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_PerBlock_SDXL_FromFloats',
+            display_name='AD Per Block Floats (SDXL) 🎭🅐🅓',
+            category='Animate Diff 🎭🅐🅓/per block',
+            inputs=[io.Custom('FLOATS').Input('effect_16_floats', optional=True), io.Custom('FLOATS').Input('scale_16_floats', optional=True)],
+            outputs=[io.Custom('PER_BLOCK').Output('PER_BLOCK')],
+            description='Use Floats from Value Schedules to select SDXL effect/scale values for blocks.'
+        )
     NodeID = 'ADE_PerBlock_SDXL_FromFloats'
     NodeName = 'AD Per Block Floats (SDXL) 🎭🅐🅓'
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-            },
-            "optional": {
-                "effect_16_floats": ("FLOATS",),
-                "scale_16_floats": ("FLOATS",),
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
-    
-    RETURN_TYPES = ("PER_BLOCK",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/per block"
-    FUNCTION = "create_per_block"
-
-    Desc = [
-        short_desc('Use Floats from Value Schedules to select SDXL effect/scale values for blocks.'),
-        'SDXL Motion Modules contain 16 blocks:',
-        'idx 0 - start of down blocks (down_0__0)',
-        'idx 5 - end of down blocks   (down_2__1)',
-        'idx 6 - mid block            (mid)',
-        'idx 7 - start of up blocks   (up_0__0)',
-        'idx 15 - end of up blocks    (up_2__2)',
-    ]
-    register_description(NodeID, Desc)
-
-    def create_per_block(self,
+    def execute(cls,
                          effect_16_floats: Union[list[float], None]=None,
                          scale_16_floats: Union[list[float], None]=None):
         if effect_16_floats is None and scale_16_floats is None:
-            return (AllPerBlocks(None, ModelTypeSD.SDXL),)
+            return io.NodeOutput(AllPerBlocks(None, ModelTypeSD.SDXL))
         # SDXL has 16 blocks
         block_total = 16
         holders = [ADBlockHolder() for _ in range(block_total)]
@@ -493,4 +371,4 @@ class PerBlock_SDXL_FromFloatsNode:
             scale_16_floats = extend_list_to_batch_size(scale_16_floats, block_total)
             for scale, holder in zip(scale_16_floats, holders):
                 holder.scales = [scale, scale]
-        return PerBlock_SDXL_LowLevelNode.create_per_block(self, *holders)
+        return PerBlock_SDXL_LowLevelNode.execute(*holders)

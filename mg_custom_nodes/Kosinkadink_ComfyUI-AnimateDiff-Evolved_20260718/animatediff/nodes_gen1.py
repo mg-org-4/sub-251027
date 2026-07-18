@@ -1,3 +1,4 @@
+from comfy_api.latest import io
 from comfy.model_patcher import ModelPatcher
 
 from .ad_settings import AnimateDiffSettings
@@ -13,33 +14,34 @@ from .sample_settings import SampleSettings
 from .sampling import outer_sample_wrapper, sliding_calc_cond_batch
 
 
-class AnimateDiffLoaderGen1:
+class AnimateDiffLoaderGen1(io.ComfyNode):
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "model": ("MODEL",),
-                "model_name": (get_available_motion_models(),),
-                "beta_schedule": (BetaSchedules.ALIAS_LIST, {"default": BetaSchedules.AUTOSELECT}),
-                #"apply_mm_groupnorm_hack": ("BOOLEAN", {"default": True}),
-            },
-            "optional": {
-                "context_options": ("CONTEXT_OPTIONS",),
-                "motion_lora": ("MOTION_LORA",),
-                "ad_settings": ("AD_SETTINGS",),
-                "ad_keyframes": ("AD_KEYFRAMES",),
-                "sample_settings": ("SAMPLE_SETTINGS",),
-                "scale_multival": ("MULTIVAL",),
-                "effect_multival": ("MULTIVAL",),
-                "per_block": ("PER_BLOCK",),
-            }
-        }
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_AnimateDiffLoaderGen1',
+            display_name='AnimateDiff Loader 🎭🅐🅓①',
+            category='Animate Diff 🎭🅐🅓/① Gen1 nodes ①',
+            inputs=[
+                io.Model.Input('model'),
+                io.Combo.Input('model_name', options=get_available_motion_models()),
+                io.Combo.Input('beta_schedule', options=['autoselect', 'use existing', 'sqrt_linear (AnimateDiff)', 'linear (AnimateDiff-SDXL)', 'linear (HotshotXL/default)', 'avg(sqrt_linear,linear)', 'lcm avg(sqrt_linear,linear)', 'lcm', 'lcm[100_ots]', 'lcm >> sqrt_linear', 'sqrt', 'cosine', 'squaredcos_cap_v2'], default='autoselect'),
+                io.Custom("CONTEXT_OPTIONS").Input('context_options', optional=True),
+                io.Custom("MOTION_LORA").Input('motion_lora', optional=True),
+                io.Custom("AD_SETTINGS").Input('ad_settings', optional=True),
+                io.Custom("AD_KEYFRAMES").Input('ad_keyframes', optional=True),
+                io.Custom("SAMPLE_SETTINGS").Input('sample_settings', optional=True),
+                io.Custom("MULTIVAL").Input('scale_multival', optional=True),
+                io.Custom("MULTIVAL").Input('effect_multival', optional=True),
+                io.Custom("PER_BLOCK").Input('per_block', optional=True),
+            ],
+            outputs=[
+                io.Model.Output('MODEL'),
+            ],
+        )
 
-    RETURN_TYPES = ("MODEL",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/① Gen1 nodes ①"
-    FUNCTION = "load_mm_and_inject_params"
 
-    def load_mm_and_inject_params(self,
+    @classmethod
+    def execute(cls,
         model: ModelPatcher,
         model_name: str, beta_schedule: str,# apply_mm_groupnorm_hack: bool,
         context_options: ContextOptionsGroup=None, motion_lora: MotionLoraList=None, ad_settings: AnimateDiffSettings=None,
@@ -107,4 +109,4 @@ class AnimateDiffLoaderGen1:
                 model.add_object_patch("model_sampling", new_model_sampling)
 
         del motion_model
-        return (model,)
+        return io.NodeOutput(model,)

@@ -1,3 +1,4 @@
+from comfy_api.latest import io
 from typing import Union
 import torch
 
@@ -17,26 +18,28 @@ from .sample_settings import SampleSettings
 from .sampling import outer_sample_wrapper, sliding_calc_cond_batch
 
 
-class UseEvolvedSamplingNode:
+class UseEvolvedSamplingNode(io.ComfyNode):
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "model": ("MODEL",),
-                "beta_schedule": (BetaSchedules.ALIAS_LIST, {"default": BetaSchedules.AUTOSELECT}),
-            },
-            "optional": {
-                "m_models": ("M_MODELS",),
-                "context_options": ("CONTEXT_OPTIONS",),
-                "sample_settings": ("SAMPLE_SETTINGS",),
-            }
-        }
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_UseEvolvedSampling',
+            display_name='Use Evolved Sampling 🎭🅐🅓②',
+            category='Animate Diff 🎭🅐🅓/② Gen2 nodes ②',
+            inputs=[
+                io.Model.Input('model'),
+                io.Combo.Input('beta_schedule', options=['autoselect', 'use existing', 'sqrt_linear (AnimateDiff)', 'linear (AnimateDiff-SDXL)', 'linear (HotshotXL/default)', 'avg(sqrt_linear,linear)', 'lcm avg(sqrt_linear,linear)', 'lcm', 'lcm[100_ots]', 'lcm >> sqrt_linear', 'sqrt', 'cosine', 'squaredcos_cap_v2'], default='autoselect'),
+                io.Custom("M_MODELS").Input('m_models', optional=True),
+                io.Custom("CONTEXT_OPTIONS").Input('context_options', optional=True),
+                io.Custom("SAMPLE_SETTINGS").Input('sample_settings', optional=True),
+            ],
+            outputs=[
+                io.Model.Output('MODEL'),
+            ],
+        )
     
-    RETURN_TYPES = ("MODEL",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/② Gen2 nodes ②"
-    FUNCTION = "use_evolved_sampling"
 
-    def use_evolved_sampling(self, model: ModelPatcher, beta_schedule: str, m_models: MotionModelGroup=None, context_options: ContextOptionsGroup=None,
+    @classmethod
+    def execute(cls, model: ModelPatcher, beta_schedule: str, m_models: MotionModelGroup=None, context_options: ContextOptionsGroup=None,
                              sample_settings: SampleSettings=None):
         model = model.clone()
         helper = ModelPatcherHelper(model)
@@ -81,36 +84,35 @@ class UseEvolvedSamplingNode:
                 model.add_object_patch("model_sampling", new_model_sampling)
         
         del m_models
-        return (model,)
+        return io.NodeOutput(model,)
 
 
-class ApplyAnimateDiffModelNode:
+class ApplyAnimateDiffModelNode(io.ComfyNode):
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "motion_model": ("MOTION_MODEL_ADE",),
-                "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001}),
-                "end_percent": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001}),
-            },
-            "optional": {
-                "motion_lora": ("MOTION_LORA",),
-                "scale_multival": ("MULTIVAL",),
-                "effect_multival": ("MULTIVAL",),
-                "ad_keyframes": ("AD_KEYFRAMES",),
-                "prev_m_models": ("M_MODELS",),
-                "per_block": ("PER_BLOCK",),
-            },
-            "hidden": {
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_ApplyAnimateDiffModel',
+            display_name='Apply AnimateDiff Model (Adv.) 🎭🅐🅓②',
+            category='Animate Diff 🎭🅐🅓/② Gen2 nodes ②',
+            inputs=[
+                io.Custom("MOTION_MODEL_ADE").Input('motion_model'),
+                io.Float.Input('start_percent', default=0.0, max=1.0, min=0.0, step=0.001),
+                io.Float.Input('end_percent', default=1.0, max=1.0, min=0.0, step=0.001),
+                io.Custom("MOTION_LORA").Input('motion_lora', optional=True),
+                io.Custom("MULTIVAL").Input('scale_multival', optional=True),
+                io.Custom("MULTIVAL").Input('effect_multival', optional=True),
+                io.Custom("AD_KEYFRAMES").Input('ad_keyframes', optional=True),
+                io.Custom("M_MODELS").Input('prev_m_models', optional=True),
+                io.Custom("PER_BLOCK").Input('per_block', optional=True),
+            ],
+            outputs=[
+                io.Custom("M_MODELS").Output('M_MODELS'),
+            ],
+        )
     
-    RETURN_TYPES = ("M_MODELS",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/② Gen2 nodes ②"
-    FUNCTION = "apply_motion_model"
 
-    def apply_motion_model(self, motion_model: MotionModelPatcher, start_percent: float=0.0, end_percent: float=1.0,
+    @classmethod
+    def execute(cls, motion_model: MotionModelPatcher, start_percent: float=0.0, end_percent: float=1.0,
                            motion_lora: MotionLoraList=None, ad_keyframes: ADKeyframeGroup=None,
                            scale_multival=None, effect_multival=None, per_block: AllPerBlocks=None,
                            prev_m_models: MotionModelGroup=None,):
@@ -139,94 +141,90 @@ class ApplyAnimateDiffModelNode:
         attachment.timestep_percent_range = (start_percent, end_percent)
         # add to beginning, so that after injection, it will be the earliest of prev_m_models to be run
         prev_m_models.add_to_start(mm=motion_model)
-        return (prev_m_models,)
+        return io.NodeOutput(prev_m_models,)
         
 
-class ApplyAnimateDiffModelBasicNode:
+class ApplyAnimateDiffModelBasicNode(io.ComfyNode):
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "motion_model": ("MOTION_MODEL_ADE",),
-            },
-            "optional": {
-                "motion_lora": ("MOTION_LORA",),
-                "scale_multival": ("MULTIVAL",),
-                "effect_multival": ("MULTIVAL",),
-                "ad_keyframes": ("AD_KEYFRAMES",),
-                "per_block": ("PER_BLOCK",),
-            },
-            "hidden": {
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_ApplyAnimateDiffModelSimple',
+            display_name='Apply AnimateDiff Model 🎭🅐🅓②',
+            category='Animate Diff 🎭🅐🅓/② Gen2 nodes ②',
+            inputs=[
+                io.Custom("MOTION_MODEL_ADE").Input('motion_model'),
+                io.Custom("MOTION_LORA").Input('motion_lora', optional=True),
+                io.Custom("MULTIVAL").Input('scale_multival', optional=True),
+                io.Custom("MULTIVAL").Input('effect_multival', optional=True),
+                io.Custom("AD_KEYFRAMES").Input('ad_keyframes', optional=True),
+                io.Custom("PER_BLOCK").Input('per_block', optional=True),
+            ],
+            outputs=[
+                io.Custom("M_MODELS").Output('M_MODELS'),
+            ],
+        )
     
-    RETURN_TYPES = ("M_MODELS",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/② Gen2 nodes ②"
-    FUNCTION = "apply_motion_model"
 
-    def apply_motion_model(self,
+    @classmethod
+    def execute(cls,
                            motion_model: MotionModelPatcher, motion_lora: MotionLoraList=None,
                            scale_multival=None, effect_multival=None, ad_keyframes=None,
                            per_block: AllPerBlocks=None):
         # just a subset of normal ApplyAnimateDiffModelNode inputs
-        return ApplyAnimateDiffModelNode.apply_motion_model(self, motion_model, motion_lora=motion_lora,
+        return io.NodeOutput(*ApplyAnimateDiffModelNode.execute( motion_model, motion_lora=motion_lora,
                                                             scale_multival=scale_multival, effect_multival=effect_multival,
-                                                            ad_keyframes=ad_keyframes, per_block=per_block)
+                                                            ad_keyframes=ad_keyframes, per_block=per_block).args)
 
 
-class LoadAnimateDiffModelNode:
+class LoadAnimateDiffModelNode(io.ComfyNode):
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "model_name": (get_available_motion_models(),),
-            },
-            "optional": {
-                "ad_settings": ("AD_SETTINGS",),
-            },
-            "hidden": {
-                "autosize": ("ADEAUTOSIZE", {"padding": 50}),
-            }
-        }
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_LoadAnimateDiffModel',
+            display_name='Load AnimateDiff Model 🎭🅐🅓②',
+            category='Animate Diff 🎭🅐🅓/② Gen2 nodes ②',
+            inputs=[
+                io.Combo.Input('model_name', options=get_available_motion_models()),
+                io.Custom("AD_SETTINGS").Input('ad_settings', optional=True),
+            ],
+            outputs=[
+                io.Custom("MOTION_MODEL_ADE").Output('MOTION_MODEL'),
+            ],
+        )
 
-    RETURN_TYPES = ("MOTION_MODEL_ADE",)
-    RETURN_NAMES = ("MOTION_MODEL",)
-    CATEGORY = "Animate Diff 🎭🅐🅓/② Gen2 nodes ②"
-    FUNCTION = "load_motion_model"
 
-    def load_motion_model(self, model_name: str, ad_settings: AnimateDiffSettings=None):
+    @classmethod
+    def execute(cls, model_name: str, ad_settings: AnimateDiffSettings=None):
         # load motion module and motion settings, if included
         motion_model = load_motion_module_gen2(model_name=model_name, motion_model_settings=ad_settings)
-        return (motion_model,)
+        return io.NodeOutput(motion_model,)
 
 
-class ADKeyframeNode:
+class ADKeyframeNode(io.ComfyNode):
     @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001}, ),
-            },
-            "optional": {
-                "prev_ad_keyframes": ("AD_KEYFRAMES", ),
-                "scale_multival": ("MULTIVAL",),
-                "effect_multival": ("MULTIVAL",),
-                "per_block_replace": ("PER_BLOCK",),
-                "inherit_missing": ("BOOLEAN", {"default": True}, ),
-                "guarantee_steps": ("INT", {"default": 1, "min": 0, "max": BIGMAX}),
-            },
-            "hidden": {
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
-        }
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id='ADE_AnimateDiffKeyframe',
+            display_name='AnimateDiff Keyframe 🎭🅐🅓',
+            category='Animate Diff 🎭🅐🅓',
+            inputs=[
+                io.Float.Input('start_percent', default=0.0, max=1.0, min=0.0, step=0.001),
+                io.Custom("AD_KEYFRAMES").Input('prev_ad_keyframes', optional=True),
+                io.Custom("MULTIVAL").Input('scale_multival', optional=True),
+                io.Custom("MULTIVAL").Input('effect_multival', optional=True),
+                io.Custom("PER_BLOCK").Input('per_block_replace', optional=True),
+                io.Boolean.Input('inherit_missing', optional=True, default=True),
+                io.Int.Input('guarantee_steps', optional=True, default=1, max=9007199254740991, min=0),
+            ],
+            outputs=[
+                io.Custom("AD_KEYFRAMES").Output('AD_KEYFRAMES'),
+            ],
+        )
     
-    RETURN_TYPES = ("AD_KEYFRAMES", )
-    FUNCTION = "load_keyframe"
 
-    CATEGORY = "Animate Diff 🎭🅐🅓"
 
-    def load_keyframe(self,
+    @classmethod
+    def execute(cls,
                       start_percent: float, prev_ad_keyframes=None,
                       scale_multival: Union[float, torch.Tensor]=None, effect_multival: Union[float, torch.Tensor]=None,
                       per_block_replace: AllPerBlocks=None,
@@ -241,4 +239,4 @@ class ADKeyframeNode:
                               cameractrl_multival=cameractrl_multival, pia_input=pia_input,
                               inherit_missing=inherit_missing, guarantee_steps=guarantee_steps)
         prev_ad_keyframes.add(keyframe)
-        return (prev_ad_keyframes,)
+        return io.NodeOutput(prev_ad_keyframes,)

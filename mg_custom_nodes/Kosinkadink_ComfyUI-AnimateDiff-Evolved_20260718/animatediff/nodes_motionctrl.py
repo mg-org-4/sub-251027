@@ -114,9 +114,6 @@ class ApplyAnimateDiffMotionCtrlModel:
                 "prev_m_models": ("M_MODELS",),
                 "per_block": ("PER_BLOCK",),
             },
-            "hidden": {
-                "autosize": ("ADEAUTOSIZE", {"padding": 0}),
-            }
         }
 
     RETURN_TYPES = ("M_MODELS",)

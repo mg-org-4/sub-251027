@@ -1,0 +1,16 @@
+[project]
+name = "comfyui-anima-style-nodes"
+description = "A quality-of-life node for ComfyUI that lets you browse anime artists, Animadex styles, character tags, visual previews, prompt autocomplete, and configurable Auto Cycle prompt testing."
+version = "1.0.9"
+license = {text = "MIT License"}
+dependencies = ["aiohttp"]
+authors = [{ name = "fulletlab" }]
+
+[project.urls]
+Repository = "https://github.com/fulletlab/comfyui-anima-style-nodes"
+
+[tool.comfy]
+PublisherId = "fulletlab"
+DisplayName = "Anima Style Explorer"
+Icon = "https://raw.githubusercontent.com/fulletlab/comfyui-anima-style-nodes/master/assets/banner.jpg"
+

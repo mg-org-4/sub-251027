@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+Thumbs.db
+*.log
+.env
+node.zip
+js/images/
+data/fullet_integration_token.json
+data/favorites.json

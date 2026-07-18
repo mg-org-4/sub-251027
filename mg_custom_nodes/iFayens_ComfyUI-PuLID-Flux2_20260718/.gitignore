@@ -1,0 +1,7 @@
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Dossiers de test et output
+pulid_flux2/

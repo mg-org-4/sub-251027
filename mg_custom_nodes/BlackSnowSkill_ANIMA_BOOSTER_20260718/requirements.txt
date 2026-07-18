@@ -1,0 +1,11 @@
+# ANIMA_BOOSTER (BSS) Dependencies
+# Note: All advanced optimization libraries are entirely OPTIONAL!
+# The node package uses graceful degradation and will work out-of-the-box
+# using PyTorch native SDPA if SageAttention is not installed.
+
+# To install SageAttention on Windows, we highly recommend using the 
+# "ComfyUI-Sage-EasyInstall" custom node via ComfyUI Manager.
+
+# If you want to install them manually, uncomment the lines below:
+# triton-windows
+# sageattention

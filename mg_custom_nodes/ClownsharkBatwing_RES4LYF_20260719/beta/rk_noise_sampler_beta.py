@@ -131,16 +131,22 @@ class RK_NoiseSampler:
         self.noise_boost_step       = noise_boost_step
         self.noise_boost_substep    = noise_boost_substep
         self.s_in                   = x.new_ones([1], dtype=self.dtype, device=self.device)
-        
-        if noise_seed < 0 and last_rng is None:
-            seed = torch.initial_seed()+1 
-            RESplain("SDE noise seed: ", seed, " (set via torch.initial_seed()+1)", debug=True)
-        if noise_seed < 0 and last_rng is not None:
-            seed = torch.initial_seed() 
-            RESplain("SDE noise seed: ", seed, " (set via torch.initial_seed())", debug=True)
-        else:
+
+        # torch's RNG stream differs per dtype, so noise_dtype — not the math precision — decides
+        # which noise realization a seed produces; the float64 default keeps seeds stable across work_dtype
+        noise_dtype = self.EO("noise_dtype", self.dtype)
+        if x.dtype != noise_dtype:
+            x = x.to(noise_dtype)
+
+        if noise_seed >= 0:
             seed = noise_seed
             RESplain("SDE noise seed: ", seed, debug=True)
+        elif last_rng is not None:
+            seed = 0
+            RESplain("SDE noise seed: restoring from last_rng state", debug=True)
+        else:
+            seed = torch.initial_seed() + 1
+            RESplain("SDE noise seed: ", seed, " (set via torch.initial_seed()+1)", debug=True)
 
             
         #seed2 = seed + MAX_STEPS #for substep noise generation. offset needed to ensure seeds are not reused
@@ -150,13 +156,15 @@ class RK_NoiseSampler:
             self.noise_sampler.alpha  = alpha
             self.noise_sampler.k      = k
             self.noise_sampler.scale  = scale
+        else:
+            self.noise_sampler  = NOISE_GENERATOR_CLASSES_SIMPLE.get(noise_sampler_type )(x=x, seed=seed,               sigma_min=self.sigma_min, sigma_max=self.sigma_max)
+
         if noise_sampler_type2 == "fractal":
             self.noise_sampler2       = NOISE_GENERATOR_CLASSES.get(noise_sampler_type2)(x=x, seed=noise_seed_substep, sigma_min=self.sigma_min, sigma_max=self.sigma_max)
             self.noise_sampler2.alpha = alpha2
             self.noise_sampler2.k     = k2
             self.noise_sampler2.scale = scale2
         else:
-            self.noise_sampler  = NOISE_GENERATOR_CLASSES_SIMPLE.get(noise_sampler_type )(x=x, seed=seed,               sigma_min=self.sigma_min, sigma_max=self.sigma_max)
             self.noise_sampler2 = NOISE_GENERATOR_CLASSES_SIMPLE.get(noise_sampler_type2)(x=x, seed=noise_seed_substep, sigma_min=self.sigma_min, sigma_max=self.sigma_max)
             
         if last_rng is not None:
@@ -346,57 +354,57 @@ class RK_NoiseSampler:
         sigma_base  = sigma_next
         
         sigmax      = self.sigma_max if VP_OVERRIDE is None else 1
-        
+        sigma_n      = sigma      / sigmax
+        sigma_next_n = sigma_next / sigmax
+
         match noise_mode:
             case "hard":
                 eta_ratio = eta
-            case "exp": 
-                h = -(sigma_next/sigma).log()
+            case "exp":
+                h = -(sigma_next_n/sigma_n).log()
                 eta_ratio = (1 - (-2*eta*h).exp())**.5
             case "soft":
-                eta_ratio = 1-(1 - eta) + eta * ((sigma_next) / sigma)
+                eta_ratio = 1-(1 - eta) + eta * (sigma_next_n / sigma_n)
             case "softer":
-                eta_ratio = 1-torch.sqrt(1 - (eta**2 * (sigma**2 - sigma_next**2)) / sigma**2)
+                eta_ratio = 1-torch.sqrt(1 - (eta**2 * (sigma_n**2 - sigma_next_n**2)) / sigma_n**2)
             case "soft-linear":
-                eta_ratio = 1-eta * (sigma_next - sigma)
+                eta_ratio = 1-eta * (sigma_next_n - sigma_n)
             case "sinusoidal":
-                eta_ratio = eta * torch.sin(torch.pi * (sigma_next / sigmax)) ** 2
+                eta_ratio = eta * torch.sin(torch.pi * sigma_next_n) ** 2
             case "eps":
-                eta_ratio = eta * torch.sqrt((sigma_next/sigma) ** 2 * (sigma ** 2 - sigma_next ** 2) ) 
-                
+                eta_ratio = eta * torch.sqrt((sigma_next_n/sigma_n) ** 2 * (sigma_n ** 2 - sigma_next_n ** 2) )
+
             case "lorentzian":
                 eta_ratio  = eta
-                alpha      = 1 / ((sigma_next.to(sigma.dtype))**2 + 1)
-                sigma_base = ((1 - alpha) ** 0.5).to(sigma.dtype)
-                
+                alpha      = 1 / (sigma_next_n.to(sigma.dtype)**2 + 1)
+                sigma_base = (sigmax * (1 - alpha) ** 0.5).to(sigma.dtype)
+
             case "hard_var":
-                sigma_var = (-1 + torch.sqrt(1 + 4 * sigma)) / 2
-                if sigma_next > sigma_var:
+                sigma_var_n = (-1 + torch.sqrt(1 + 4 * sigma_n)) / 2
+                if sigma_next_n > sigma_var_n:
                     eta_ratio  = 0
                     sigma_base = sigma_next
                 else:
                     eta_ratio  = eta
                     sigma_base = torch.sqrt((sigma - sigma_next).abs() + 1e-10)
-            
+
             case "hard_sq":
                 sigma_hat = sigma * (1 + eta)
                 su        = (sigma_hat ** 2 - sigma ** 2) ** .5    #su
-                
+
                 if VARIANCE_PRESERVING:
                     alpha_ratio, sd, su = self.get_sde_coeff(sigma_next, None, su, eta, VARIANCE_PRESERVING)
                 else:
                     sd          = sigma_next
                     sigma       = sigma_hat
                     alpha_ratio = torch.ones_like(sigma)
-                    
+
             case "vpsde":
                 alpha_ratio, sd, su = self.get_vpsde_step_RF(sigma, sigma_next, eta)
-                
+
             case "er4":
-                #def noise_scaler(sigma):
-                #    return sigma * ((sigma ** 0.3).exp() + 10.0)
-                noise_scaler = lambda sigma: sigma * ((sigma ** eta).exp() + 10.0)
-                alpha_ratio = noise_scaler(sigma_next) / noise_scaler(sigma)
+                noise_scaler = lambda s: s * ((s ** eta).exp() + 10.0)
+                alpha_ratio = noise_scaler(sigma_next_n) / noise_scaler(sigma_n)
                 sigma_up    = (sigma_next ** 2 - sigma ** 2 * alpha_ratio ** 2) ** 0.5
                 eta_ratio = sigma_up / sigma_next
 

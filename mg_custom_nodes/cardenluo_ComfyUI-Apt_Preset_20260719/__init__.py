@@ -33,6 +33,7 @@ from .NodeBasic.C_image import *
 from .NodeBasic.C_promp import *
 from .NodeBasic.C_imgEffect import *
 from .NodeBasic.C_imgEffect import Image_effect_Load
+
 from .NodeBasic.C_type import *
 from .NodeExcel.ExcelOP import *
 from .NodeExcel.AIagent import *
@@ -53,6 +54,9 @@ from .NodeChx.edit_imge import*
 
 
 from .NodeBasic.C_test import *
+
+#from .NodeExcel.Gemini3 import *
+
 
 #-load------------------------------------------#
 
@@ -300,9 +304,9 @@ NODE_CLASS_MAPPINGS= {
 "basicIn_Sampler": basicIn_Sampler,
 "basicIn_Seed": basicIn_Seed,
 "basicIn_Boolean": basicIn_Boolean,
+"basicIn_INOUT": basicIn_INOUT,
 
 
-#"IO_LoadImgList": IO_LoadImgList, 前端异常
 "IO_LoadImgBatch": IO_LoadImgBatch,
 "IO_LoadVideoBatch": IO_LoadVideoBatch,
 "IO_LoadAudioBatch": IO_LoadAudioBatch,
@@ -581,6 +585,10 @@ NODE_CLASS_MAPPINGS= {
 "AI_ModelScope_image": AI_ModelScope_image,
 "AI_ModelScopeT2I": AI_ModelScopeT2I,
 "AI_ModelScope_text": AI_ModelScope_text,
+
+"ChineseToEnglish":ChineseToEnglish,
+
+
 
 
 #"AI_Gemini3_Img2T": AI_Gemini3_Img2T,

@@ -274,6 +274,26 @@ class basicIn_Boolean:
         return (boolean_value, inverted_value)
 
 
+
+class basicIn_INOUT:
+    CATEGORY = "Apt_Preset/IO_Port"
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "optional": {
+                "image": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", )
+    RETURN_NAMES = ("image", )
+    FUNCTION = "pass_through"
+
+    def pass_through(self, image=None):
+        return (image,)
+
+
 #endregion-----------------基本输入-----------------
 
 

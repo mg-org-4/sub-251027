@@ -431,6 +431,60 @@ function saveState(s){
   try{ localStorage.setItem(LS_KEY,JSON.stringify(s)); }catch(e){}
 }
 
+// ── Info tooltip helper ───────────────────────────────────────────────────────
+// Small "i" badge with a body-level tooltip. The tooltip lives on <body> so it is
+// never clipped by the node's overflow:hidden. One shared element for all badges,
+// created lazily on first use.
+let _fkSharedTip=null;
+function _fkGetTip(){
+  if(_fkSharedTip) return _fkSharedTip;
+  _fkSharedTip=mk("div",{
+    position:"fixed",
+    background:C.bg1,border:`1px solid ${C.borderH}`,borderRadius:"7px",
+    padding:"10px 12px",fontSize:"12px",color:C.text,lineHeight:"1.6",
+    width:"240px",boxShadow:"0 4px 16px rgba(0,0,0,.7)",
+    display:"none",zIndex:"999999",pointerEvents:"none",
+    whiteSpace:"normal",textAlign:"left",
+  });
+  document.body.appendChild(_fkSharedTip);
+  return _fkSharedTip;
+}
+function mkInfoBtn(text){
+  const btn=mk("button",{
+    width:"13px",height:"13px",minWidth:"13px",minHeight:"13px",maxWidth:"13px",maxHeight:"13px",
+    borderRadius:"50%",
+    background:"transparent",border:`1px solid ${C.borderH}`,boxSizing:"border-box",
+    color:C.muted,fontSize:"8px",fontWeight:"700",
+    cursor:"pointer",outline:"none",padding:"0",
+    display:"inline-flex",alignItems:"center",justifyContent:"center",
+    transition:"border-color .15s,color .15s",lineHeight:"1",flexShrink:"0",flexGrow:"0",
+    alignSelf:"center",overflow:"hidden",
+  });
+  tx(btn,"i");
+  btn.onmouseenter=()=>{btn.style.borderColor=C.text;btn.style.color=C.text;};
+  btn.onmouseleave=()=>{btn.style.borderColor=C.borderH;btn.style.color=C.muted;};
+  btn.addEventListener("mouseenter",()=>{
+    const tip=_fkGetTip();
+    const r=btn.getBoundingClientRect();
+    tx(tip,text);
+    tip.style.display="block";
+    const tipW=240;
+    let left=r.left+r.width/2-tipW/2;
+    if(left<6) left=6;
+    if(left+tipW>window.innerWidth-6) left=window.innerWidth-tipW-6;
+    tip.style.left=left+"px";
+    const place=()=>{
+      // Prefer above; flip below when there isn't room (the panel sits high in the node).
+      const above=r.top-tip.offsetHeight-6;
+      tip.style.top=(above<6?(r.bottom+6):above)+"px";
+    };
+    place();
+    requestAnimationFrame(place); // re-place once the tooltip has a measured height
+  });
+  btn.addEventListener("mouseleave",()=>{ if(_fkSharedTip) _fkSharedTip.style.display="none"; });
+  return btn;
+}
+
 // ── Active refs for event handlers ────────────────────────────────────────────
 let _activeS=null, _activeShowFinal=null, _activeResetBtn=null, _activeShowError=null, _activePromptIdRef=null, _activeShowPreview=null;
 let _activePoseSkeleton=null; // POSE: called with the DWPose skeleton image URL (for before/after)
@@ -854,6 +908,7 @@ app.registerExtension({
           upscaleModel: saved.upscaleModel||"",    // seedvr2 diffusion model
           upscaleVae:   saved.upscaleVae||"",      // seedvr2 ema vae
           upscaleFactor: saved.upscaleFactor||2,   // 2 | 4 | 6 | 8 (UPSCALE pill)
+          upscaleTile:   saved.upscaleTile||512,   // VAE tile size: 512 | 256 | 128 (lower = less VRAM)
           // Optional shrink BEFORE upscaling (0 = off). SeedVR2 adds far more detail when it
           // starts from a small source, so downsizing first often beats upscaling as-is.
           upscalePreLonger: saved.upscalePreLonger||0,
@@ -912,7 +967,7 @@ app.registerExtension({
           poseImage:S.poseImage, poseRef:S.poseRef, poseLora:S.poseLora,
           poseUseSizeSource:S.poseUseSizeSource, poseResizeLonger:S.poseResizeLonger,
           upscaleImage:S.upscaleImage, upscaleModel:S.upscaleModel, upscaleVae:S.upscaleVae,
-          upscaleFactor:S.upscaleFactor, upscalePreLonger:S.upscalePreLonger,
+          upscaleFactor:S.upscaleFactor, upscalePreLonger:S.upscalePreLonger, upscaleTile:S.upscaleTile,
           quickUpscaleFactor:S.quickUpscaleFactor,
           prompt:S.prompt, promptT2i:S.promptT2i, promptEdit:S.promptEdit,
           promptPaint:S.promptPaint, promptFs:S.promptFs, promptI2i:S.promptI2i, promptPose:S.promptPose,
@@ -1496,30 +1551,6 @@ app.registerExtension({
         return wrap;
       };
 
-      // ── Gated model warning ───────────────────────────────────────────────
-      const gatedWarn=mk("div",{
-        display:"flex",gap:"10px",alignItems:"flex-start",
-        background:"rgba(255,165,0,.07)",border:"1px solid rgba(255,165,0,.35)",
-        borderRadius:"8px",padding:"10px 13px",marginBottom:"14px",
-      });
-      const gatedIcon=mk("div",{fontSize:"18px",lineHeight:"1",flexShrink:"0",marginTop:"1px"});
-      tx(gatedIcon,"🔐");
-      const gatedText=mk("div",{display:"flex",flexDirection:"column",gap:"3px"});
-      const gatedTitle=mk("div",{fontSize:"10px",fontWeight:"700",color:"#ffb347",letterSpacing:".03em"});
-      tx(gatedTitle,"9B models require HuggingFace access");
-      const gatedBody=mk("div",{fontSize:"9px",color:"#ccc",lineHeight:"1.6"});
-      tx(gatedBody,"These models are gated under the FLUX Non-Commercial License. You must log in to HuggingFace, visit the model page, and click \"Agree\" to accept the license terms before the download links will work.");
-      gatedBody.style.whiteSpace="pre-line";
-      const gatedLink=document.createElement("a");
-      gatedLink.href="https://huggingface.co/black-forest-labs/FLUX.2-klein-9B";
-      gatedLink.target="_blank"; gatedLink.rel="noopener";
-      Object.assign(gatedLink.style,{fontSize:"9px",color:"#ffb347",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:"3px",marginTop:"3px",width:"fit-content"});
-      gatedLink.innerHTML=`<svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg> Request access on HuggingFace`;
-      gatedLink.addEventListener("mouseenter",()=>gatedLink.style.opacity=".75");
-      gatedLink.addEventListener("mouseleave",()=>gatedLink.style.opacity="1");
-      gatedText.append(gatedTitle,gatedBody,gatedLink);
-      gatedWarn.append(gatedIcon,gatedText);
-
       const modelsSectionTitle=_mkHelpSectionTitle("Where to Get Models");
       modelsSectionTitle.style.borderTop="none"; modelsSectionTitle.style.paddingTop="0";
       const modelsList=mk("div",{display:"flex",flexDirection:"column",gap:"2px",marginBottom:"8px"});
@@ -1550,6 +1581,12 @@ app.registerExtension({
         ]),
         _mkModelRow("BG Removal","models/background_removal/",[
           {name:"birefnet",url:"https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors"},
+        ]),
+        _mkModelRow("Upscale Model","models/diffusion_models/",[
+          {name:"seedvr2 (pick a variant)",url:"https://huggingface.co/Comfy-Org/SeedVR2/tree/main/diffusion_models"},
+        ],"For UPSCALE mode — pick the variant that fits your VRAM"),
+        _mkModelRow("Upscale VAE","models/vae/",[
+          {name:"ema_vae_fp16",url:"https://huggingface.co/Comfy-Org/SeedVR2/resolve/main/vae/ema_vae_fp16.safetensors"},
         ]),
       );
 
@@ -1603,7 +1640,7 @@ app.registerExtension({
 
       bottomRow.append(linksCol,authorCol);
 
-      helpOverlay.append(helpHdr,modelsSectionTitle,gatedWarn,modelsList,bottomRow);
+      helpOverlay.append(helpHdr,modelsSectionTitle,modelsList,bottomRow);
 
       tipsBtn.onclick=()=>openOverlay(helpOverlay);
 
@@ -6891,7 +6928,11 @@ width:"34px",background:C.bg2,border:`1px solid ${C.border}`,borderRadius:"4px",
       // Scale factor + resulting size preview
       const _upCtrls=mk("div",{display:"flex",flexDirection:"column",gap:"6px",flex:"1",minWidth:"0"});
       const _upFactorRow=mk("div",{display:"flex",alignItems:"center",gap:"6px"});
-      const _upFactorLbl=mk("span",{fontSize:"9px",fontWeight:"600",color:C.muted,whiteSpace:"nowrap"});
+      // Fixed label width keeps this row and the VAE tile row below it left-aligned,
+      // so both dropdowns start at the same x regardless of label length.
+      const _UP_LBL_W="52px";
+      const _upFactorLbl=mk("span",{fontSize:"9px",fontWeight:"600",color:C.muted,whiteSpace:"nowrap",
+        width:_UP_LBL_W,flexShrink:"0"});
       tx(_upFactorLbl,"Scale");
       const UPSCALE_FACTORS=["2x","4x","6x","8x"];
       // preferDown: this one sits near the TOP of the panel, so opening upward would run it
@@ -6901,7 +6942,28 @@ width:"34px",background:C.bg2,border:`1px solid ${C.border}`,borderRadius:"4px",
       },true);
       _upFactorDD.el.style.width="70px";
       _upFactorRow.append(_upFactorLbl,_upFactorDD.el);
-      _upCtrls.append(_upFactorRow);
+
+      // VAE tile size — trades speed for VRAM. Smaller tiles decode in smaller chunks,
+      // which is what avoids OOM on low-VRAM cards during the tiled VAE decode.
+      // ComfyUI clamps overlap to tile_size/4 when tile < overlap*4, so 512/256/128 map
+      // to overlaps 128/64/32; we set both explicitly so the prompt is self-describing.
+      const _upTileRow=mk("div",{display:"flex",alignItems:"center",gap:"6px"});
+      const _upTileLbl=mk("span",{fontSize:"9px",fontWeight:"600",color:C.muted,whiteSpace:"nowrap",
+        width:_UP_LBL_W,flexShrink:"0"});
+      tx(_upTileLbl,"VAE tile");
+      const UPSCALE_TILES=["512","256","128"];
+      const _upTileDD=DD(UPSCALE_TILES,String(S.upscaleTile||512),v=>{
+        S.upscaleTile=parseInt(v)||512; persist();
+      },true);
+      _upTileDD.el.style.width="70px";
+      // Info badge — "VAE tile" is jargon, so spell out what it actually does on hover.
+      _upTileRow.append(_upTileLbl,_upTileDD.el,mkInfoBtn(
+        "The image is encoded and decoded in square tiles instead of all at once. "+
+        "Smaller tiles use less VRAM but are a bit slower. Drop to 256 or 128 if the "+
+        "upscale runs out of memory. This also applies to the Upscale button in the other modes."
+      ));
+
+      _upCtrls.append(_upFactorRow,_upTileRow);
       _upSlotRow.append(_upSlotCard,_upCtrls);
 
       // ── Pre-resize (optional) — mirrors the I2I "size badge + scale by longer side" flow.
@@ -6923,6 +6985,13 @@ width:"34px",background:C.bg2,border:`1px solid ${C.border}`,borderRadius:"4px",
       const _upResizeRowLbl=mk("span",{fontSize:"8px",color:C.muted,whiteSpace:"nowrap",flexShrink:"0"});
       tx(_upResizeRowLbl,"Scale by longer side");
       _upResizeRow.append(_upResizeRowLbl,_upPreLongerInp,_upResizePreview);
+
+      // VAE tile size used by BOTH the UPSCALE mode and the quick-upscale button, so the
+      // VRAM setting picked in UPSCALE applies everywhere. Only 512/256/128 are offered.
+      const _upTileSize=()=>{
+        const t=parseInt(S.upscaleTile)||512;
+        return (t===128||t===256||t===512)?t:512;
+      };
 
       // The "→ final size" readout lives next to whichever control drives it: the badge when
       // using the image's own size, or the longer-side input when resizing first.
@@ -9137,6 +9206,10 @@ width:"34px",background:C.bg2,border:`1px solid ${C.border}`,borderRadius:"4px",
         p["FKU:unet"].inputs.unet_name=S.upscaleModel;
         p["FKU:vae"].inputs.vae_name=S.upscaleVae;
         p["FKU:resize"].inputs["resize_type.multiplier"]=f;
+        // Same VAE tile size as UPSCALE mode — one VRAM setting for both paths.
+        const _qt=_upTileSize();
+        p["FKU:enc"].inputs.tile_size=_qt; p["FKU:enc"].inputs.overlap=_qt/4;
+        p["FKU:dec"].inputs.tile_size=_qt; p["FKU:dec"].inputs.overlap=_qt/4;
         p["FKU:sampler"].inputs.seed=Math.floor(Math.random()*999999999999);
         p["FKU:save"].inputs.filename_prefix="one-node-flux-2-klein/FK";
         // Auto-save handling (the generate path's _applyAutoSave lives in another scope and
@@ -9648,6 +9721,12 @@ width:"34px",background:C.bg2,border:`1px solid ${C.border}`,borderRadius:"4px",
           set("FKU:unet","unet_name",S.upscaleModel);
           set("FKU:vae","vae_name",S.upscaleVae);
           set("FKU:resize","resize_type.multiplier",Math.max(1,Math.min(8,+S.upscaleFactor||2)));
+          // VAE tile size (VRAM control) — overlap follows tile/4, matching ComfyUI's own clamp.
+          {
+            const _t=_upTileSize();
+            set("FKU:enc","tile_size",_t); set("FKU:enc","overlap",_t/4);
+            set("FKU:dec","tile_size",_t); set("FKU:dec","overlap",_t/4);
+          }
           set("FKU:sampler","seed",Math.floor(Math.random()*999999999999));
           set("FKU:save","filename_prefix","one-node-flux-2-klein/FK");
           _applyAutoSave("FKU:save");

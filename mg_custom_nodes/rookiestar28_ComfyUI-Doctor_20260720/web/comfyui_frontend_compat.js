@@ -1,0 +1,642 @@
+import { app } from "../../../scripts/app.js";
+
+export const DOCTOR_DEFAULTS = {
+    LANGUAGE: "en",
+    POLL_INTERVAL: 2000,
+    AUTO_OPEN_ON_ERROR: true,
+    ENABLE_NOTIFICATIONS: true,
+    LLM_PROVIDER: "openai",
+    LLM_BASE_URL: "https://api.openai.com/v1",
+    LLM_MODEL: "",
+    PRIVACY_MODE: "basic",
+    ENABLED: true,
+    ERROR_BOUNDARIES: true,
+};
+
+export const SUPPORTED_LANGUAGES = [
+    { value: "en", text: "English" },
+    { value: "zh_TW", text: "繁體中文" },
+    { value: "zh_CN", text: "简体中文" },
+    { value: "ja", text: "日本語" },
+    { value: "de", text: "Deutsch" },
+    { value: "fr", text: "Français" },
+    { value: "it", text: "Italiano" },
+    { value: "es", text: "Español" },
+    { value: "ko", text: "한국어" },
+];
+
+export const DOCTOR_EXTENSION_SETTINGS = [
+    {
+        id: "Doctor.General.Enable",
+        category: ["Doctor", "General", "Enable"],
+        name: "Enable Doctor (requires restart)",
+        type: "boolean",
+        defaultValue: DOCTOR_DEFAULTS.ENABLED,
+        telemetry: { trackChanges: false },
+        onChange: (newVal, oldVal) => {
+            console.log(`[ComfyUI-Doctor] Enable changed: ${oldVal} -> ${newVal}`);
+        },
+    },
+    {
+        id: "Doctor.General.ErrorBoundaries",
+        category: ["Doctor", "General", "ErrorBoundaries"],
+        name: "Enable Error Boundaries (requires restart)",
+        type: "boolean",
+        defaultValue: DOCTOR_DEFAULTS.ERROR_BOUNDARIES,
+        telemetry: { trackChanges: false },
+        onChange: (newVal, oldVal) => {
+            console.log(`[ComfyUI-Doctor] ErrorBoundaries changed: ${oldVal} -> ${newVal}`);
+        },
+    },
+    {
+        id: "Doctor.Info",
+        category: ["Doctor", "General", "Info"],
+        name: "ℹ️ Configure Doctor settings in the sidebar (left panel)",
+        type: "text",
+        defaultValue: "",
+        telemetry: { trackChanges: false },
+        attrs: { readonly: true, disabled: true },
+    },
+    {
+        id: "Doctor.General.Language",
+        category: ["Doctor", "General", "Language"],
+        name: "Doctor: Language",
+        type: "combo",
+        options: SUPPORTED_LANGUAGES,
+        defaultValue: DOCTOR_DEFAULTS.LANGUAGE,
+        telemetry: { trackChanges: false },
+    },
+    {
+        id: "Doctor.Privacy.Mode",
+        category: ["Doctor", "Privacy", "Mode"],
+        name: "Doctor: Privacy Mode",
+        type: "combo",
+        options: [
+            { text: "None (Private)", value: "none" },
+            { text: "Basic (Anonymized)", value: "basic" },
+            { text: "Strict (No Sensitive Data)", value: "strict" },
+        ],
+        defaultValue: DOCTOR_DEFAULTS.PRIVACY_MODE,
+        telemetry: { trackChanges: false },
+    },
+    {
+        id: "Doctor.Behavior.PollInterval",
+        category: ["Doctor", "Behavior", "PollInterval"],
+        name: "Doctor: Error Poll Interval (ms)",
+        type: "number",
+        defaultValue: DOCTOR_DEFAULTS.POLL_INTERVAL,
+        telemetry: { trackChanges: false },
+        attrs: { min: 500, max: 10000, step: 100 },
+    },
+    {
+        id: "Doctor.Behavior.AutoOpenOnError",
+        category: ["Doctor", "Behavior", "AutoOpenOnError"],
+        name: "Doctor: Auto-open sidebar on error",
+        type: "boolean",
+        defaultValue: DOCTOR_DEFAULTS.AUTO_OPEN_ON_ERROR,
+        telemetry: { trackChanges: false },
+    },
+    {
+        id: "Doctor.Behavior.EnableNotifications",
+        category: ["Doctor", "Behavior", "EnableNotifications"],
+        name: "Doctor: Enable Browser Notifications",
+        type: "boolean",
+        defaultValue: DOCTOR_DEFAULTS.ENABLE_NOTIFICATIONS,
+        telemetry: { trackChanges: false },
+    },
+    {
+        id: "Doctor.LLM.Provider",
+        category: ["Doctor", "LLM", "Provider"],
+        name: "Doctor: AI Provider",
+        type: "text",
+        defaultValue: DOCTOR_DEFAULTS.LLM_PROVIDER,
+        telemetry: { trackChanges: false },
+    },
+    {
+        id: "Doctor.LLM.BaseUrl",
+        category: ["Doctor", "LLM", "BaseUrl"],
+        name: "Doctor: LLM Base URL",
+        type: "text",
+        defaultValue: DOCTOR_DEFAULTS.LLM_BASE_URL,
+        telemetry: { trackChanges: false },
+    },
+    {
+        id: "Doctor.LLM.Model",
+        category: ["Doctor", "LLM", "Model"],
+        name: "Doctor: Model Name",
+        type: "text",
+        defaultValue: DOCTOR_DEFAULTS.LLM_MODEL,
+        telemetry: { trackChanges: false },
+    },
+];
+
+const DOCTOR_SETTING_DEFAULT_MAP = new Map(
+    DOCTOR_EXTENSION_SETTINGS.map((setting) => [setting.id, setting.defaultValue])
+);
+
+function getModernSettingsApi(appInstance = app) {
+    return appInstance?.extensionManager?.setting || null;
+}
+
+function getLegacySettingsApi(appInstance = app) {
+    return appInstance?.ui?.settings || null;
+}
+
+export function getDoctorSetting(id, fallback, appInstance = app) {
+    const modernSettings = getModernSettingsApi(appInstance);
+    const legacySettings = getLegacySettingsApi(appInstance);
+    const resolvedFallback = fallback ?? DOCTOR_SETTING_DEFAULT_MAP.get(id);
+
+    if (modernSettings?.get) {
+        try {
+            const value = modernSettings.get(id);
+            return value === undefined ? resolvedFallback : value;
+        } catch (error) {
+            console.warn(`[ComfyUI-Doctor] Modern settings get failed for ${id}; falling back`, error);
+        }
+    }
+
+    if (legacySettings?.getSettingValue) {
+        const value = legacySettings.getSettingValue(id, resolvedFallback);
+        return value === undefined ? resolvedFallback : value;
+    }
+
+    return resolvedFallback;
+}
+
+export function setDoctorSetting(id, value, appInstance = app) {
+    const modernSettings = getModernSettingsApi(appInstance);
+    const legacySettings = getLegacySettingsApi(appInstance);
+
+    if (modernSettings?.set) {
+        try {
+            const result = modernSettings.set(id, value);
+            if (result && typeof result.catch === "function") {
+                result.catch((error) => {
+                    console.warn(`[ComfyUI-Doctor] Modern settings set failed for ${id}`, error);
+                });
+            }
+            return value;
+        } catch (error) {
+            console.warn(`[ComfyUI-Doctor] Modern settings set failed for ${id}; falling back`, error);
+        }
+    }
+
+    if (legacySettings?.setSettingValue) {
+        legacySettings.setSettingValue(id, value);
+    }
+    return value;
+}
+
+export function getDoctorBooleanSetting(id, fallback, appInstance = app) {
+    const resolvedFallback = fallback ?? DOCTOR_SETTING_DEFAULT_MAP.get(id) ?? false;
+    const value = getDoctorSetting(id, resolvedFallback, appInstance);
+    if (value === null || value === undefined) {
+        return resolvedFallback;
+    }
+    return Boolean(value) && value !== "false" && value !== "0";
+}
+
+export function getDoctorRuntimeSettings(appInstance = app) {
+    return {
+        language: getDoctorSetting("Doctor.General.Language", DOCTOR_DEFAULTS.LANGUAGE, appInstance),
+        pollInterval: getDoctorSetting("Doctor.Behavior.PollInterval", DOCTOR_DEFAULTS.POLL_INTERVAL, appInstance),
+        autoOpenOnError: getDoctorBooleanSetting("Doctor.Behavior.AutoOpenOnError", DOCTOR_DEFAULTS.AUTO_OPEN_ON_ERROR, appInstance),
+        enableNotifications: getDoctorBooleanSetting("Doctor.Behavior.EnableNotifications", DOCTOR_DEFAULTS.ENABLE_NOTIFICATIONS, appInstance),
+        provider: getDoctorSetting("Doctor.LLM.Provider", DOCTOR_DEFAULTS.LLM_PROVIDER, appInstance),
+        baseUrl: getDoctorSetting("Doctor.LLM.BaseUrl", DOCTOR_DEFAULTS.LLM_BASE_URL, appInstance),
+        model: getDoctorSetting("Doctor.LLM.Model", DOCTOR_DEFAULTS.LLM_MODEL, appInstance),
+        privacyMode: getDoctorSetting("Doctor.Privacy.Mode", DOCTOR_DEFAULTS.PRIVACY_MODE, appInstance),
+    };
+}
+
+function unwrapMaybeRef(value) {
+    if (value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, "value")) {
+        return value.value;
+    }
+    return value;
+}
+
+export function getComfyValidationNodeErrors(appInstance = app) {
+    const candidateReaders = [
+        () => appInstance?.extensionManager?.lastNodeErrors,
+        () => appInstance?.lastNodeErrors,
+    ];
+
+    for (const readCandidate of candidateReaders) {
+        try {
+            const candidate = readCandidate();
+            const value = unwrapMaybeRef(candidate);
+            if (value && typeof value === "object" && !Array.isArray(value)) {
+                return value;
+            }
+        } catch (_) {
+            // Ignore host getter failures and keep probing compatibility fallbacks.
+        }
+    }
+
+    return null;
+}
+
+const INPUT_LEVEL_VALIDATION_ERROR_TYPES = new Set([
+    "required_input_missing",
+    "bad_linked_input",
+    "return_type_mismatch",
+    "invalid_input_type",
+    "value_smaller_than_min",
+    "value_bigger_than_max",
+    "value_not_in_list",
+    "custom_validation_failed",
+    "exception_during_inner_validation",
+]);
+
+function getNodeFromGraph(graph, nodeId) {
+    if (!graph || nodeId === null || nodeId === undefined || nodeId === "") {
+        return null;
+    }
+
+    const rawId = String(nodeId);
+    const numericId = Number(rawId);
+    return graph.getNodeById?.(Number.isNaN(numericId) ? rawId : numericId)
+        || graph.getNodeById?.(rawId)
+        || graph._nodes?.find?.((candidate) => String(candidate?.id) === rawId)
+        || null;
+}
+
+function getNodeByExecutionId(rootGraph, executionId) {
+    if (!rootGraph || typeof executionId !== "string" || !executionId) {
+        return null;
+    }
+
+    const parts = executionId.split(":");
+    if (parts.some((part) => !part)) return null;
+
+    let graph = rootGraph;
+    for (let index = 0; index < parts.length; index += 1) {
+        const node = getNodeFromGraph(graph, parts[index]);
+        if (!node) return null;
+        if (index === parts.length - 1) return node;
+
+        try {
+            if (!node.subgraph) return null;
+            if (
+                typeof node.isSubgraphNode === "function"
+                && node.isSubgraphNode() !== true
+            ) {
+                return null;
+            }
+            graph = node.subgraph;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    return null;
+}
+
+function isImageNotLoadedValidationError(error) {
+    if (error?.type !== "custom_validation_failed") return false;
+    const text = [error.message, error.details].filter(Boolean).join("\n");
+    return /invalid image file|\[errno 21\].*is a directory/iu.test(text);
+}
+
+function isInputLevelValidationError(error) {
+    return INPUT_LEVEL_VALIDATION_ERROR_TYPES.has(error?.type)
+        && !isImageNotLoadedValidationError(error);
+}
+
+function resolvePublicBoundaryChain(rootGraph, executionId, inputName) {
+    const chain = [];
+    let currentExecutionId = executionId;
+    let currentInputName = inputName;
+    const maxDepth = executionId.split(":").length - 1;
+
+    for (let depth = 0; depth < maxDepth; depth += 1) {
+        try {
+            const node = getNodeByExecutionId(rootGraph, currentExecutionId);
+            const graph = node?.graph;
+            if (!node || !graph || graph === rootGraph || graph.isRootGraph === true) {
+                break;
+            }
+
+            const slot = Array.isArray(node.inputs)
+                ? node.inputs.find((input) => input?.name === currentInputName)
+                : null;
+            if (slot?.link === null || slot?.link === undefined) break;
+
+            const link = graph.getLink?.(slot.link);
+            const resolved = link?.resolve?.(graph);
+            const hostInputName = resolved?.subgraphInput?.name;
+            if (typeof hostInputName !== "string" || !hostInputName) break;
+
+            const separatorIndex = currentExecutionId.lastIndexOf(":");
+            if (separatorIndex <= 0) break;
+            const hostExecutionId = currentExecutionId.slice(0, separatorIndex);
+            if (!getNodeByExecutionId(rootGraph, hostExecutionId)) break;
+
+            chain.push({
+                hostExecutionId,
+                hostInputName,
+            });
+            currentExecutionId = hostExecutionId;
+            currentInputName = hostInputName;
+        } catch (_) {
+            break;
+        }
+    }
+
+    return chain;
+}
+
+function copyValidationError(error) {
+    if (!error || typeof error !== "object") return error;
+    return {
+        ...error,
+        extra_info: error.extra_info && typeof error.extra_info === "object"
+            ? { ...error.extra_info }
+            : error.extra_info,
+    };
+}
+
+function copyNodeErrorEntry(nodeError) {
+    if (!nodeError || typeof nodeError !== "object") return nodeError;
+    return {
+        ...nodeError,
+        errors: Array.isArray(nodeError.errors)
+            ? nodeError.errors.map(copyValidationError)
+            : nodeError.errors,
+    };
+}
+
+function createEmptyNodeErrorEntry(nodeError) {
+    return {
+        ...copyNodeErrorEntry(nodeError),
+        errors: [],
+    };
+}
+
+function createLiftedHostEntry(rootGraph, executionId) {
+    return {
+        class_type: getNodeByExecutionId(rootGraph, executionId)?.title
+            || executionId,
+        dependent_outputs: [],
+        errors: [],
+    };
+}
+
+function getValidationErrorPlacement(rootGraph, executionId, error) {
+    const copiedError = copyValidationError(error);
+    const inputName = error?.extra_info?.input_name;
+    if (typeof inputName !== "string" || !inputName || !isInputLevelValidationError(error)) {
+        return {
+            kind: "own",
+            targetExecutionId: executionId,
+            error: copiedError,
+        };
+    }
+
+    const surface = resolvePublicBoundaryChain(
+        rootGraph,
+        executionId,
+        inputName,
+    ).at(-1);
+    if (!surface) {
+        return {
+            kind: "own",
+            targetExecutionId: executionId,
+            error: copiedError,
+        };
+    }
+
+    return {
+        kind: "lifted",
+        targetExecutionId: surface.hostExecutionId,
+        error: {
+            ...copiedError,
+            extra_info: {
+                ...copiedError.extra_info,
+                input_name: surface.hostInputName,
+                source_execution_id: executionId,
+                source_input_name: inputName,
+            },
+        },
+    };
+}
+
+export function surfaceComfyValidationNodeErrors(nodeErrors, appInstance = app) {
+    if (!nodeErrors || typeof nodeErrors !== "object" || Array.isArray(nodeErrors)) {
+        return nodeErrors;
+    }
+
+    try {
+        const rootGraph = getComfyRootGraph(appInstance);
+        const entries = Object.entries(nodeErrors);
+        if (!rootGraph) {
+            return Object.fromEntries(
+                entries.map(([executionId, nodeError]) => [
+                    executionId,
+                    copyNodeErrorEntry(nodeError),
+                ]),
+            );
+        }
+
+        const output = {};
+        const placementsByTarget = new Map();
+
+        for (const [executionId, nodeError] of entries) {
+            const errors = Array.isArray(nodeError?.errors) ? nodeError.errors : null;
+            if (!errors) {
+                output[executionId] = copyNodeErrorEntry(nodeError);
+                continue;
+            }
+            if (errors.length === 0) {
+                output[executionId] = createEmptyNodeErrorEntry(nodeError);
+                continue;
+            }
+
+            for (const error of errors) {
+                const placement = getValidationErrorPlacement(
+                    rootGraph,
+                    executionId,
+                    error,
+                );
+                const targetPlacements = placementsByTarget.get(
+                    placement.targetExecutionId,
+                ) || [];
+                targetPlacements.push(placement);
+                placementsByTarget.set(
+                    placement.targetExecutionId,
+                    targetPlacements,
+                );
+            }
+        }
+
+        for (const [targetExecutionId, placements] of placementsByTarget) {
+            const baseEntry = nodeErrors[targetExecutionId]
+                ? createEmptyNodeErrorEntry(nodeErrors[targetExecutionId])
+                : createLiftedHostEntry(rootGraph, targetExecutionId);
+            const ownErrors = placements
+                .filter((placement) => placement.kind === "own")
+                .map((placement) => placement.error);
+            const liftedErrors = placements
+                .filter((placement) => placement.kind === "lifted")
+                .map((placement) => placement.error);
+            output[targetExecutionId] = {
+                ...baseEntry,
+                errors: [...ownErrors, ...liftedErrors],
+            };
+        }
+
+        return output;
+    } catch (_) {
+        // IMPORTANT: malformed/early-init host state must preserve raw placement.
+        return nodeErrors;
+    }
+}
+
+export function isDoctorEnabled(appInstance = app) {
+    return getDoctorBooleanSetting("Doctor.General.Enable", DOCTOR_DEFAULTS.ENABLED, appInstance);
+}
+
+
+export function ensureDoctorSettingsRegistered(appInstance = app) {
+    const settings = getLegacySettingsApi(appInstance);
+    if (!settings?.addSetting) return;
+
+    let settingsLookup = null;
+    try {
+        settingsLookup = settings.settingsLookup || settings.settingsParamLookup || settings.settingsById || null;
+    } catch (_) {
+        settingsLookup = null;
+    }
+
+    const missingSettings = DOCTOR_EXTENSION_SETTINGS.filter((setting) => !settingsLookup?.[setting.id]);
+    if (!missingSettings.length) return;
+
+    // CRITICAL: fallback only when declarative extension settings were not registered.
+    missingSettings.forEach((setting) => settings.addSetting(setting));
+}
+
+export function isDoctorErrorBoundariesEnabled(appInstance = app) {
+    return getDoctorBooleanSetting(
+        "Doctor.General.ErrorBoundaries",
+        DOCTOR_DEFAULTS.ERROR_BOUNDARIES,
+        appInstance,
+    );
+}
+
+// IMPORTANT: keep legacy app.graph fallback isolated in this adapter only.
+export function getComfyRootGraph(appInstance = app) {
+    if (!appInstance) return null;
+
+    try {
+        if (appInstance.isGraphReady === true) {
+            return appInstance.rootGraph || null;
+        }
+    } catch (_) {
+        // Fall through to guarded legacy checks below.
+    }
+
+    try {
+        if (appInstance.rootGraph) {
+            return appInstance.rootGraph;
+        }
+    } catch (_) {
+        // Ignore rootGraph getter issues on older/early-init builds.
+    }
+
+    try {
+        return appInstance.graph || null;
+    } catch (_) {
+        return null;
+    }
+}
+
+export function getComfyNodeById(nodeId, appInstance = app) {
+    const graph = getComfyRootGraph(appInstance);
+    if (!graph || nodeId === null || nodeId === undefined || nodeId === "") {
+        return null;
+    }
+
+    const rawId = String(nodeId);
+    const numericId = Number(rawId);
+    return graph.getNodeById?.(Number.isNaN(numericId) ? rawId : numericId)
+        || graph.getNodeById?.(rawId)
+        || graph._nodes?.find?.((candidate) => String(candidate?.id) === rawId)
+        || null;
+}
+
+export function markComfyGraphDirty(appInstance = app, foreground = true, background = true) {
+    const graph = getComfyRootGraph(appInstance);
+    if (typeof graph?.setDirtyCanvas === "function") {
+        graph.setDirtyCanvas(foreground, background);
+        return;
+    }
+
+    if (typeof appInstance?.canvas?.setDirty === "function") {
+        appInstance.canvas.setDirty(foreground, background);
+    }
+}
+
+function tryRegisterSidebarTab(registerFn, unregisterFn, tabConfig, sourceLabel) {
+    if (typeof registerFn !== "function") return null;
+
+    try {
+        // IMPORTANT: unregister first to avoid duplicate tabs after repeated setup or hot reload.
+        if (tabConfig?.id && typeof unregisterFn === "function") {
+            unregisterFn(tabConfig.id);
+        }
+        registerFn(tabConfig);
+        return sourceLabel;
+    } catch (error) {
+        console.warn(`[ComfyUI-Doctor] Sidebar registration failed via ${sourceLabel}; falling back`, error);
+        return null;
+    }
+}
+
+export function registerDoctorSidebarTab(appInstance = app, tabConfig) {
+    const extensionManager = appInstance?.extensionManager;
+    const sidebarTab = extensionManager?.sidebarTab;
+
+    const currentSource = tryRegisterSidebarTab(
+        sidebarTab?.registerSidebarTab?.bind(sidebarTab),
+        sidebarTab?.unregisterSidebarTab?.bind(sidebarTab),
+        tabConfig,
+        "extensionManager.sidebarTab",
+    );
+    if (currentSource) return currentSource;
+
+    const deprecatedSource = tryRegisterSidebarTab(
+        extensionManager?.registerSidebarTab?.bind(extensionManager),
+        extensionManager?.unregisterSidebarTab?.bind(extensionManager),
+        tabConfig,
+        "extensionManager.registerSidebarTab",
+    );
+    if (deprecatedSource) return deprecatedSource;
+
+    const legacySidebarTab = globalThis?.comfyAPI?.sidebarTab;
+    const legacySource = tryRegisterSidebarTab(
+        legacySidebarTab?.addTab?.bind(legacySidebarTab),
+        legacySidebarTab?.removeTab?.bind(legacySidebarTab),
+        tabConfig,
+        "comfyAPI.sidebarTab",
+    );
+    if (legacySource) return legacySource;
+
+    return null;
+}
+
+export function destroyDoctorSidebarMount(doctorUI) {
+    if (typeof doctorUI?.sidebarCleanup === "function") {
+        try {
+            doctorUI.sidebarCleanup();
+        } catch (error) {
+            console.warn("[ComfyUI-Doctor] Sidebar cleanup failed:", error);
+        }
+    }
+    if (doctorUI) {
+        doctorUI.sidebarCleanup = null;
+        doctorUI.sidebarTabContainer = null;
+        doctorUI.tabManager = null;
+    }
+}

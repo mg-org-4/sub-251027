@@ -1,0 +1,164 @@
+# Outbound Safety Check
+
+## What This Checks
+
+The static safety check prevents accidental bypass of the outbound sanitization funnel by detecting:
+
+1. **Direct use of raw `context` fields in POST payloads**
+2. **Missing `sanitize_outbound_payload()` calls**
+3. **Dangerous fallback patterns** like `sanitized_X or X`
+4. **`json.dumps()` on sensitive data**
+
+## Why This Matters
+
+ComfyUI-Doctor sends error context to LLM providers for analysis. To protect user privacy, all outbound payloads MUST go through the sanitization funnel in `outbound.py`.
+Provider-specific LLM request construction is centralized in `services/llm_provider_adapters.py`, but route handlers remain responsible for sanitizing the completed payload immediately before network transmission.
+
+The runtime sanitization boundary always redacts values associated with
+`Authorization` and `X-API-Key`, case-insensitively. This applies to header-like
+text, JSON/dictionary text, nested mappings/lists, request and response header
+objects, recent log-buffer reads, and outbound payloads even when privacy mode
+is `none`. Ordinary prose that merely uses the word "authorization" and
+non-sensitive headers remain intact.
+
+**Sensitive Fields**:
+- `context.traceback` - Raw Python stack trace with user paths
+- `context.workflow_json` - Full workflow with potential paths
+- `context.system_info` - System environment data
+- `context.settings` - App settings
+
+## How to Fix Violations
+
+### ❌ Wrong: Direct Field Access
+
+```python
+payload = {"error": context.traceback}
+await session.post(url, json=payload)
+```
+
+### ✅ Right: Sanitize Before Use
+
+```python
+sanitizer, _ = get_outbound_sanitizer(base_url, privacy_mode)
+error_text = sanitizer.sanitize(context.traceback).sanitized_text
+payload = {"error": error_text}
+payload = sanitize_outbound_payload(payload, sanitizer)
+await session.post(url, json=payload)
+```
+
+### ❌ Wrong: Dangerous Fallback
+
+```python
+data = {
+    "traceback": context.sanitized_traceback or context.traceback  # BAD!
+}
+```
+
+### ✅ Right: Fail Safe
+
+```python
+if not context.sanitized_traceback:
+    logger.warning("Sanitized traceback missing")
+    context.llm_context = None
+    return context
+
+data = {
+    "traceback": context.sanitized_traceback  # Only use sanitized
+}
+```
+
+### ❌ Wrong: POST Without Sanitization
+
+```python
+async def handler():
+    sanitizer, _ = get_outbound_sanitizer(url, mode)
+    payload = {"data": "test"}
+    await session.post(url, json=payload)  # Never sanitized!
+```
+
+### ✅ Right: Always Sanitize
+
+```python
+async def handler():
+    sanitizer, _ = get_outbound_sanitizer(url, mode)
+    payload = {"data": "test"}
+    payload = sanitize_outbound_payload(payload, sanitizer)
+    await session.post(url, json=payload)
+```
+
+## Suppressing False Positives
+
+If you have a legitimate exception (e.g., local debug endpoint), add a suppression comment:
+
+```python
+# nosec: outbound-bypass-allowed - Reason: local debugging only
+payload = {"raw": context.traceback}
+```
+
+**Important**: Use suppressions sparingly. Most cases should use the proper sanitization pattern.
+
+## Running Locally
+
+```bash
+python scripts/check_outbound_safety.py
+```
+
+**Output Example**:
+```
+Outbound Funnel Safety Check
+Scanning: /path/to/ComfyUI-Doctor
+
+Checking 42 Python files...
+
+❌ 1 violation(s) detected:
+
+  File: tests/fixtures/outbound_violations.py:12:8
+  Rule: DANGEROUS_FALLBACK
+  Message: Dangerous fallback: context.sanitized_traceback or context.traceback
+
+   10:     payload = {
+   11:         "traceback": context.sanitized_traceback or context.traceback,
+   12:     }
+
+--------------------------------------------------------------------------------
+
+🚫 1 outbound safety violation(s) found
+```
+
+## CI Integration
+
+This check runs automatically on all Python file changes via `.github/workflows/outbound-safety.yml`.
+
+**Exit Codes**:
+- `0` = All checks passed
+- `1` = Violations detected (fails CI)
+- `2` = Script error
+
+## Whitelisted Files
+
+The following files are excluded from checking:
+- `tests/` - Tests need to verify behavior
+- `outbound.py` - Sanitization module itself
+- `sanitizer.py` - PII sanitization module
+- `pipeline/stages/sanitizer.py` - Stage that reads raw fields
+
+## Detection Rules
+
+| Rule | Description | Example |
+|------|-------------|---------|
+| `RAW_FIELD_IN_PAYLOAD` | Direct assignment of raw context field to payload | `payload["error"] = context.traceback` |
+| `DANGEROUS_FALLBACK` | Fallback to raw field if sanitized missing | `context.sanitized_traceback or context.traceback` |
+| `POST_WITHOUT_SANITIZATION` | POST without prior `sanitize_outbound_payload()` | `await session.post(url, json=payload)` |
+| `JSON_DUMPS_RAW_FIELD` | `json.dumps()` on raw context field | `json.dumps(context.system_info)` |
+
+## Resources
+
+- **Sanitization Funnel**: `outbound.py`
+- **LLM Provider Adapters**: `services/llm_provider_adapters.py`
+- **Privacy Modes**: `sanitizer.py`
+- **Test Fixtures**: `tests/fixtures/outbound_violations.py`
+- **Test Suite**: `tests/test_outbound_safety_gate.py`
+
+## Questions?
+
+If you're unsure whether your code violates the policy, run the check locally before pushing.

@@ -1,0 +1,77 @@
+"""
+Outbound payload safety utilities.
+
+Goal: enforce a single, testable sanitization boundary for any outbound LLM payload.
+Remote providers must never receive raw tracebacks/workflows/env strings by accident.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Dict, Tuple
+
+try:
+    from .sanitizer import (
+        PIISanitizer,
+        SanitizationLevel,
+        redact_sensitive_headers,
+    )
+    from .security import is_local_llm_url
+except ImportError as import_error:
+    from import_compat import ensure_absolute_import_fallback_allowed
+    ensure_absolute_import_fallback_allowed(import_error)
+    from sanitizer import (
+        PIISanitizer,
+        SanitizationLevel,
+        redact_sensitive_headers,
+    )
+    from security import is_local_llm_url
+
+
+def get_outbound_sanitizer(base_url: str, privacy_mode: str) -> Tuple[PIISanitizer, bool]:
+    """
+    Resolve an outbound sanitizer with a hard policy:
+    - `privacy_mode=none` is allowed ONLY for verified local providers.
+    - Otherwise, downgrade to BASIC.
+
+    Returns: (sanitizer, downgraded_from_none)
+    """
+    try:
+        level = SanitizationLevel(privacy_mode)
+    except Exception:
+        level = SanitizationLevel.BASIC
+
+    downgraded = False
+    if level == SanitizationLevel.NONE and not is_local_llm_url(base_url):
+        level = SanitizationLevel.BASIC
+        downgraded = True
+
+    return PIISanitizer(level), downgraded
+
+
+def sanitize_outbound_payload(payload: Any, sanitizer: PIISanitizer) -> Any:
+    """
+    Recursively sanitize all string values in the outbound payload.
+    Leaves non-strings (numbers/bools/etc) intact.
+    """
+    # IMPORTANT: header-name redaction is mandatory even when generic PII
+    # sanitization is disabled for a verified local provider.
+    header_safe_payload = redact_sensitive_headers(payload)
+    if sanitizer.level == SanitizationLevel.NONE:
+        return header_safe_payload
+
+    if isinstance(header_safe_payload, str):
+        return sanitizer.sanitize(header_safe_payload).sanitized_text
+
+    if isinstance(header_safe_payload, dict):
+        sanitized_dict: Dict[str, Any] = {}
+        for key, value in header_safe_payload.items():
+            sanitized_dict[key] = sanitize_outbound_payload(value, sanitizer)
+        return sanitized_dict
+
+    if isinstance(header_safe_payload, list):
+        return [
+            sanitize_outbound_payload(item, sanitizer)
+            for item in header_safe_payload
+        ]
+
+    return header_safe_payload

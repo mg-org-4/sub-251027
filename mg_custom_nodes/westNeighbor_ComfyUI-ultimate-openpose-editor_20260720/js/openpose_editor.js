@@ -57,8 +57,18 @@ class OpenposeEditorDialog extends ComfyDialog {
             const message = event.data;
             if (message.modalId === 0) {
                 const targetNode = ComfyApp.clipspace_return_node;
-                const textAreaElement = targetNode.widgets[14].element;
-                textAreaElement.value = JSON.stringify(event.data.poses);
+                const poseWidget = targetNode.widgets[14];
+                const textAreaElement = poseWidget.element;
+                const poseString = JSON.stringify(event.data.poses);
+                textAreaElement.value = poseString;
+                // Fix: also sync the widget's internal value and notify the frontend.
+                // Setting only the DOM textarea value does not update widget.value on
+                // newer ComfyUI frontends, so the prompt executes with an empty
+                // POSE_JSON and the node outputs a blank (black) image.
+                poseWidget.value = poseString;
+                textAreaElement.dispatchEvent(new Event("input", { bubbles: true }));
+                if (poseWidget.callback) { poseWidget.callback(poseString); }
+                targetNode.setDirtyCanvas(true, true);
 		ComfyApp.onClipspaceEditorClosed();
                 this.close();
             }
@@ -88,15 +98,22 @@ class OpenposeEditorDialog extends ComfyDialog {
         }
 
         const targetNode = ComfyApp.clipspace_return_node;
-        if (targetNode.inputs?.[0].link || targetNode.inputs?.[targetNode.inputs.length-1].widget){
-            const textAreaElement = targetNode.widgets[15].element;
+        // Fix #49/#45: look widgets up by name instead of hardcoded indices.
+        // Depending on the frontend version, POSE_KEYPOINT may be a socket-only
+        // input with no widget, so widgets[15] can be undefined and reading
+        // .element crashes the editor before it opens.
+        const jsonWidget = targetNode.widgets.find(w => w.name === "POSE_JSON");
+        const keypointWidget = targetNode.widgets.find(w => w.name === "POSE_KEYPOINT");
+        const hasKeypointInput = targetNode.inputs?.[0].link || targetNode.inputs?.[targetNode.inputs.length-1].widget;
+        if (hasKeypointInput && keypointWidget?.element){
+            const textAreaElement = keypointWidget.element;
             this.element.style.display = "flex";
             this.setCanvasJSONString(textAreaElement.value.replace(/'/g, '"'));
         } else {
-            const textAreaElement = targetNode.widgets[14].element;
+            const textAreaElement = jsonWidget.element;
             this.element.style.display = "flex";
             if (textAreaElement.value === "") {
-                let resolution_x = targetNode.widgets[3].value;
+                let resolution_x = targetNode.widgets.find(w => w.name === "resolution_x")?.value ?? -1;
                 let resolution_y = Math.floor(768*(resolution_x*1.0/512));
                 if (resolution_x < 64){
                     resolution_x = 512;

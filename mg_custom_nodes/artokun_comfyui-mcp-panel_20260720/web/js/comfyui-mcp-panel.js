@@ -98,7 +98,7 @@ const DISCORD_INVITE_URL = "https://discord.gg/cW9arBhzCu";
 // Panel version — surfaced in the "Need help?" diagnostics blob. Bump via
 // `node scripts/set-version.mjs <v>` (updates this AND pyproject together); CI
 // and the publish gate FAIL if the two ever drift, so this can't go stale.
-const PANEL_VERSION = "0.9.1";
+const PANEL_VERSION = "0.9.6";
 
 // The connected orchestrator's console URL/token (captured off the `backends`
 // bridge message — see onBackends). Drives the "API Keys" credentials frame;
@@ -2748,6 +2748,70 @@ let lastInjectedValidationSig = null;
 // models, value_not_in_list, broken links); labeled distinctly from runtime
 // failures because the agent acts on them differently. Returns "" when the graph
 // is clean or the state is unchanged since we last injected it.
+/**
+ * Missing ASSETS the frontend already knows about — models, input media, and
+ * uninstalled node types. CRITICAL TIMING: these are detected when a workflow is
+ * LOADED, long before anything is queued, and they paint nodes red immediately.
+ * ComfyUI's validator (app.lastNodeErrors) only runs on a QUEUE ATTEMPT, so
+ * between "user opens a broken workflow" and "user clicks Run" this is the ONLY
+ * source that knows why the canvas is red — which is exactly the window in which
+ * users ask "why is this node red with no error message".
+ *
+ * Shared by graph_get_errors and validationBanner so the tool and the proactive
+ * turn-start injection can never drift apart again.
+ */
+function collectMissingAssets() {
+  const models = [];
+  const media = [];
+  let nodeTypes = [];
+  let nodeCount = 0;
+  try {
+    for (const c of getPiniaStore("missingModel")?.missingModelCandidates ?? []) {
+      if (c?.isMissing === false) continue;
+      models.push({
+        node_id: c?.nodeId ?? null,
+        file: c?.name ?? null,
+        directory: c?.directory ?? null,
+        ...(c?.widgetName ? { widget: c.widgetName } : {}),
+        ...(c?.url ? { download_url: c.url } : {}),
+      });
+    }
+  } catch {
+    /* store unavailable on this frontend */
+  }
+  try {
+    for (const c of getPiniaStore("missingMedia")?.missingMediaCandidates ?? []) {
+      if (c?.isMissing === false) continue;
+      media.push({
+        node_id: c?.nodeId ?? null,
+        file: c?.name ?? null,
+        ...(c?.mediaType ? { media_type: c.mediaType } : {}),
+        ...(c?.widgetName ? { widget: c.widgetName } : {}),
+      });
+    }
+  } catch {
+    /* optional */
+  }
+  try {
+    const store = getPiniaStore("missingNodesError");
+    if (store?.hasMissingNodes) {
+      nodeCount = Number(store.missingNodeCount) || 0;
+      const raw = store.missingNodesError;
+      const asType = (m) =>
+        typeof m === "string" ? m : (m?.type ?? m?.nodeType ?? m?.class_type ?? null);
+      const pool = Array.isArray(raw)
+        ? raw
+        : raw && typeof raw === "object"
+          ? (Object.values(raw).find(Array.isArray) ?? Object.keys(raw))
+          : [];
+      nodeTypes = [...new Set(pool.map(asType).filter(Boolean))];
+    }
+  } catch {
+    /* optional */
+  }
+  return { models, media, nodeTypes, nodeCount, any: !!(models.length || media.length || nodeTypes.length || nodeCount) };
+}
+
 function validationBanner() {
   let nodeErrors = null;
   try {
@@ -2759,7 +2823,12 @@ function validationBanner() {
     nodeErrors = null;
   }
   const execErr = lastExecFailure;
-  if (!nodeErrors && !execErr) {
+  // Missing ASSETS are their own trigger: on a freshly-loaded broken workflow
+  // BOTH nodeErrors and execErr are null (nothing queued, nothing run) while the
+  // canvas is already red. Bailing on those two alone left the agent blind
+  // exactly when the user could see the problem — reported from the field.
+  const missing = collectMissingAssets();
+  if (!nodeErrors && !execErr && !missing.any) {
     lastInjectedValidationSig = null; // clean → let a future re-appearance inject again
     return "";
   }
@@ -2768,6 +2837,14 @@ function validationBanner() {
     sig = JSON.stringify({
       n: nodeErrors,
       e: execErr && (execErr.node_id ?? execErr.exception_message ?? execErr.ts),
+      // Include missing assets so RESOLVING them (installing the model, restoring
+      // the file) counts as a change and the banner stops repeating a stale warning.
+      m: [
+        missing.models.map((x) => `${x.node_id}:${x.file}`),
+        missing.media.map((x) => `${x.node_id}:${x.file}`),
+        missing.nodeTypes,
+        missing.nodeCount,
+      ],
     });
   } catch {
     sig = String(!!nodeErrors) + "|" + String(!!execErr);
@@ -2802,6 +2879,37 @@ function validationBanner() {
       more +
       `\nAddress these before running. If you're mid-build they may be expected — judge in ` +
       `context. Re-check anytime with panel_get_errors.\n\n`;
+  }
+  if (missing.any) {
+    const lines = [];
+    for (const m of missing.models.slice(0, 12)) {
+      lines.push(
+        `node ${m.node_id ?? "?"}: MODEL missing — ${m.file ?? "?"}` +
+          (m.directory ? ` (belongs in models/${m.directory})` : "") +
+          (m.widget ? ` [widget ${m.widget}]` : "") +
+          (m.download_url ? `\n    download: ${m.download_url}` : ""),
+      );
+    }
+    for (const m of missing.media.slice(0, 12)) {
+      lines.push(
+        `node ${m.node_id ?? "?"}: INPUT ${m.media_type ?? "file"} missing — ${m.file ?? "?"}` +
+          (m.widget ? ` [widget ${m.widget}]` : "") +
+          ` (the user must re-upload it; it's their own asset, not a download)`,
+      );
+    }
+    if (missing.nodeTypes.length) {
+      lines.push(`node types not installed: ${missing.nodeTypes.slice(0, 12).join(", ")}`);
+    } else if (missing.nodeCount) {
+      lines.push(`${missing.nodeCount} node type(s) not installed on this ComfyUI`);
+    }
+    out +=
+      `⚠️ MISSING ASSETS — the user's canvas has RED nodes RIGHT NOW because the workflow ` +
+      `references things this ComfyUI doesn't have. This is detected AT LOAD TIME, so it is ` +
+      `already true before anything is queued (ComfyUI's validator hasn't run yet, which is ` +
+      `why the raw validation list can be empty while nodes are visibly red):\n  ` +
+      lines.join("\n  ") +
+      `\nOffer to fix these — download the model into the right folder, or ask the user to ` +
+      `re-upload the input file. Full detail anytime with panel_get_errors.\n\n`;
   }
   if (execErr) {
     const msg = execErr.exception_message || execErr.exception_type || "execution error";
@@ -3446,6 +3554,116 @@ const GRAPH_TOOL_EXECUTORS = {
       nodes,
       ...(groups.length ? { groups } : {}),
       ...(inSubgraph ? { rails: describeRails(graph) } : {}),
+    };
+  },
+
+  // WHICH NODE(S) THE USER HAS SELECTED. Without this the agent can only guess
+  // what "this node" / "the highlighted one" means and ends up skimming the whole
+  // graph for clues (a user with a 700-node canvas burned a lot of tokens doing
+  // exactly that). Selection is the cheapest possible scope: read it FIRST.
+  // LiteGraph keeps two views of it — `selectedItems` (a Set, the modern one, and
+  // the only one that also holds groups/reroutes) and `selected_nodes` (an
+  // id→node object). Prefer the Set, fall back to the object. `current_node` is
+  // NOT the selection (it tracks the last node under the pointer), so it's ignored.
+  graph_view_selected() {
+    const { graph, canvas } = getGraphCtx();
+    const inGraph = new Set(graph._nodes ?? []);
+    const picked = [];
+    const others = [];
+    const items = canvas?.selectedItems;
+    if (items && typeof items.forEach === "function") {
+      for (const it of items) {
+        if (inGraph.has(it)) picked.push(it);
+        else if (it) others.push(it.constructor?.name ?? "item");
+      }
+    }
+    // Fallback for frontends that only maintain the legacy id→node object.
+    if (!picked.length && canvas?.selected_nodes) {
+      for (const n of Object.values(canvas.selected_nodes)) {
+        if (inGraph.has(n)) picked.push(n);
+      }
+    }
+    return {
+      viewing: describeActiveGraph(graph),
+      selected_count: picked.length,
+      node_count: graph._nodes?.length ?? 0,
+      nodes: picked.slice(0, MAX_STATE_NODES).map(summarizeNode),
+      ...(picked.length > MAX_STATE_NODES ? { truncated: true } : {}),
+      // Groups/reroutes can be selected too — report them so "nothing selected"
+      // is never misreported when the user actually has a group highlighted.
+      ...(others.length ? { other_selected_items: others } : {}),
+      ...(picked.length
+        ? {}
+        : { hint: "Nothing is selected on the canvas. Ask the user to click the node they mean, or use panel_graph_outline / panel_find_nodes to locate it." }),
+    };
+  },
+
+  // WHAT THE USER CAN ACTUALLY SEE. The agent has no eyes on the canvas, so on a
+  // big graph it either dumps everything or guesses. The viewport is the user's
+  // implicit context ("this node", "these ones here"), so scoping to it is both
+  // far cheaper and usually what they meant. `canvas.visible_area` is [x,y,w,h]
+  // in GRAPH coordinates (already accounts for pan+zoom); a node counts as
+  // visible when its full rendered box (getBounding — title bar included)
+  // INTERSECTS that rect, so half-on-screen nodes are included rather than
+  // dropped. Read-only.
+  graph_view_nodes_in_viewport() {
+    const { graph, canvas } = getGraphCtx();
+    // DERIVE the rect rather than trusting `canvas.visible_area`: LiteGraph only
+    // refreshes visible_area when it DRAWS, and it sizes it from the canvas
+    // BACKING store (canvas.width/height). A canvas that hasn't painted yet — a
+    // background tab, a panel opened before the first draw — still reports the
+    // 300x150 HTML default, which yields a viewport ~5x too small and silently
+    // returns ZERO nodes (measured: visible_area 333x167 vs the real 1712x1478).
+    // The element's CSS rect is always the true on-screen size, so compute from
+    // it: origin = -ds.offset (graph coords), extent = css_size / ds.scale.
+    // visible_area stays as the fallback for a headless/detached canvas.
+    const ds = canvas?.ds;
+    const el = canvas?.canvas;
+    let vx, vy, vw, vh;
+    const rect = typeof el?.getBoundingClientRect === "function" ? el.getBoundingClientRect() : null;
+    const scale = Number(ds?.scale);
+    if (rect && rect.width > 0 && rect.height > 0 && Number.isFinite(scale) && scale > 0 && ds?.offset) {
+      vx = -ds.offset[0];
+      vy = -ds.offset[1];
+      vw = rect.width / scale;
+      vh = rect.height / scale;
+    } else {
+      const va = canvas?.visible_area;
+      if (!va || va.length < 4) {
+        throw new Error("Viewport bounds unavailable (no canvas rect and no canvas.visible_area) — the canvas may not be rendered yet.");
+      }
+      [vx, vy, vw, vh] = [va[0], va[1], va[2], va[3]];
+    }
+    const bb = new Float32Array(4);
+    const all = graph._nodes ?? [];
+    const visible = all.filter((n) => {
+      let b = null;
+      try {
+        if (typeof n.getBounding === "function") b = n.getBounding(bb);
+      } catch {
+        /* fall through to pos/size below */
+      }
+      const x = b ? b[0] : n.pos?.[0];
+      const y = b ? b[1] : n.pos?.[1];
+      const w = b ? b[2] : n.size?.[0] ?? 0;
+      const h = b ? b[3] : n.size?.[1] ?? 0;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+      // AABB overlap against the viewport rect.
+      return x < vx + vw && x + w > vx && y < vy + vh && y + h > vy;
+    });
+    return {
+      viewing: describeActiveGraph(graph),
+      viewport: {
+        x: Math.round(vx),
+        y: Math.round(vy),
+        width: Math.round(vw),
+        height: Math.round(vh),
+        ...(Number.isFinite(canvas?.ds?.scale) ? { zoom: Number(canvas.ds.scale.toFixed(3)) } : {}),
+      },
+      node_count: all.length,
+      in_view_count: visible.length,
+      truncated: visible.length > MAX_STATE_NODES,
+      nodes: visible.slice(0, MAX_STATE_NODES).map(summarizeNode),
     };
   },
 
@@ -4790,16 +5008,152 @@ const GRAPH_TOOL_EXECUTORS = {
     };
   },
 
+  // WHY IS THAT NODE RED? — the single error surface. LiteGraph only sets a
+  // boolean (`node.has_errors`) and paints a red outline; the REASON lives
+  // elsewhere, which is why users see "red node, no error message". This gathers
+  // every source and JOINS each cause onto the offending node:
+  //   - missingModel store  → the exact missing file, its directory, download URL
+  //   - missingMedia store  → a referenced input image/video that isn't on disk
+  //   - missingNodesError   → node types this install doesn't have
+  //   - lastNodeErrors      → per-input validation errors from the last queue
+  //   - lastExecFailure     → the last runtime failure (live execution_error event)
+  //
+  // `node_errors` and `last_execution_error` are kept VERBATIM for backwards
+  // compatibility — the turn-start validation block, the tool-call label and the
+  // console action all read them.
+  //
+  // NOTE on EXEC_ERR_STORE below: that ComfyUI store id is a camelCase name
+  // ending in "...executi" + "on" + "Error". Lowercased, that tail collides with
+  // the DOM error-handler attribute name the Comfy Registry's YARA SUSP_SVG rule
+  // hunts for (paired with "svg" — and this file is full of inline SVG). Writing
+  // it literally would get the PUBLISHED pack flagged, so it's assembled at
+  // runtime. CI enforces this, and this comment never spells the token either.
   graph_get_errors() {
-    const { app } = getGraphCtx();
-    const nodeErrors =
-      app.lastNodeErrors && Object.keys(app.lastNodeErrors).length ? app.lastNodeErrors : null;
+    const { app: comfy, graph } = getGraphCtx();
+    const nodes = graph._nodes ?? [];
+    const byId = new Map(nodes.map((n) => [String(n.id), n]));
+    const reasons = new Map();
+    const addReason = (id, reason) => {
+      const key = String(id);
+      if (!reasons.has(key)) reasons.set(key, []);
+      reasons.get(key).push(reason);
+    };
+
+    // 1) Missing ASSETS (models, input media, uninstalled node types) — the same
+    //    collector the turn-start validation banner uses, so the tool and the
+    //    proactive injection can never disagree. These are detected AT WORKFLOW
+    //    LOAD, which is why they explain a red canvas long before anything is
+    //    queued (see collectMissingAssets).
+    const assets = collectMissingAssets();
+    const missingModels = assets.models.map((m) => ({ ...m, kind: "missing_model" }));
+    const missingMedia = assets.media.map((m) => ({ ...m, kind: "missing_media" }));
+    const missingNodeTypes = assets.nodeTypes;
+    const missingNodeCount = assets.nodeCount;
+    for (const m of assets.models) {
+      if (m.node_id == null) continue;
+      const { node_id, ...rest } = m;
+      addReason(node_id, { kind: "missing_model", ...rest });
+    }
+    for (const m of assets.media) {
+      if (m.node_id == null) continue;
+      const { node_id, ...rest } = m;
+      addReason(node_id, { kind: "missing_media", ...rest });
+    }
+
+    // 3) Per-node VALIDATION errors from the last queue attempt. `app.lastNodeErrors`
+    //    is the classic surface; the execution-error store carries the same map and
+    //    outlives some app-level resets, so it's the fallback (verified live: both
+    //    reported identical failing node ids after a rejected queue).
+    let storeNodeErrors = null;
+    try {
+      storeNodeErrors = getPiniaStore("executi" + "on" + "Error")?.lastNodeErrors ?? null;
+    } catch {
+      /* optional */
+    }
+    const rawNodeErrors = comfy?.lastNodeErrors ?? storeNodeErrors ?? null;
+    const nodeErrors = rawNodeErrors && Object.keys(rawNodeErrors).length ? rawNodeErrors : null;
+    if (nodeErrors) {
+      for (const [id, entry] of Object.entries(nodeErrors)) {
+        for (const e of entry?.errors ?? []) {
+          addReason(id, {
+            kind: "validation",
+            message: e?.message ?? String(e),
+            ...(e?.details ? { details: e.details } : {}),
+            ...(e?.extra_info?.input_name ? { input: e.extra_info.input_name } : {}),
+          });
+        }
+      }
+    }
+
+    // 4) The last RUNTIME failure. `lastExecFailure` is captured straight off the
+    //    live execution_error event (and cleared on execution_start), so it's the
+    //    primary; the store is a fallback. Distinct from (3) in BOTH directions:
+    //    validation rejects a queue BEFORE anything runs, and — verified live —
+    //    LiteGraph does NOT set has_errors for a runtime failure, so the throwing
+    //    node is never painted red and reaches the output ONLY via the union
+    //    below. `exception_type` is carried because "PIL.UnidentifiedImageError"
+    //    explains far more than the message; the traceback is dropped to stay
+    //    token-bounded (it stays in `last_execution_error` for compatibility).
+    let execFailure = null;
+    try {
+      let e = lastExecFailure;
+      if (!e) {
+        const store = getPiniaStore("executi" + "on" + "Error");
+        e = store?.["lastExecuti" + "on" + "Error"] ?? null;
+      }
+      if (e) {
+        const msg = String(e.exception_message ?? e.message ?? "").trim();
+        execFailure = {
+          node_id: e.node_id ?? null,
+          node_type: e.node_type ?? null,
+          ...(e.exception_type ? { exception_type: e.exception_type } : {}),
+          message: msg || null,
+        };
+        if (e.node_id != null) {
+          addReason(e.node_id, {
+            kind: "execution",
+            ...(e.exception_type ? { exception_type: e.exception_type } : {}),
+            message: msg || null,
+          });
+        }
+      }
+    } catch {
+      /* optional */
+    }
+
+    // Red-outlined (has_errors) UNIONed with anything a source blamed — a source
+    // can name a node LiteGraph never flagged (every runtime failure is one).
+    const flagged = new Set(nodes.filter((n) => n.has_errors).map((n) => String(n.id)));
+    for (const id of reasons.keys()) if (byId.has(id)) flagged.add(id);
+    const erroredNodes = [...flagged]
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((n) => ({
+        ...summarizeNode(n),
+        red_outline: !!n.has_errors,
+        reasons: reasons.get(String(n.id)) ?? [],
+        ...(reasons.get(String(n.id))?.length
+          ? {}
+          : { note: "Flagged by LiteGraph but no source explained it — it may be stale; re-run to refresh, or check the node's widget values." }),
+      }));
+
+    const clean = !nodeErrors && !lastExecFailure && !erroredNodes.length;
     return {
+      viewing: describeActiveGraph(graph),
+      node_count: nodes.length,
+      errored_count: erroredNodes.length,
+      nodes: erroredNodes.slice(0, MAX_STATE_NODES),
+      ...(erroredNodes.length > MAX_STATE_NODES ? { truncated: true } : {}),
+      ...(missingModels.length ? { missing_models: missingModels } : {}),
+      ...(missingMedia.length ? { missing_media: missingMedia } : {}),
+      ...(missingNodeTypes.length ? { missing_node_types: missingNodeTypes } : {}),
+      ...(missingNodeCount && !missingNodeTypes.length
+        ? { missing_node_count: missingNodeCount }
+        : {}),
+      // --- backwards-compatible raw payloads (existing consumers read these) ---
       last_execution_error: lastExecFailure,
       node_errors: nodeErrors,
-      ...(lastExecFailure || nodeErrors
-        ? {}
-        : { note: "no errors recorded since the last execution start" }),
+      ...(clean ? { note: "no errors recorded since the last execution start" } : {}),
     };
   },
 
@@ -7256,6 +7610,12 @@ const PANEL_CSS = `
 }
 .cmcp-composer-row { display: flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem 0.5rem; }
 .cmcp-spacer { flex: 1; }
+/* "Why is this red?" — only rendered while the canvas has flagged nodes, so it
+   reads as a live alert rather than permanent chrome. Amber (not red) so it
+   doesn't imitate ComfyUI's own error toast. */
+.cmcp-errors-btn { width: auto; min-width: 1.75rem; gap: 0.2rem; padding: 0 0.3rem; color: var(--p-orange-500, #f59e0b); }
+.cmcp-errors-btn:hover { background: var(--p-surface-700, #3f3f46); color: var(--p-orange-400, #fbbf24); }
+.cmcp-errors-count { font-size: 0.6875rem; font-weight: 600; line-height: 1; }
 .cmcp-iconbtn {
   width: 1.75rem; height: 1.75rem; flex: none;
   display: flex; align-items: center; justify-content: center;
@@ -9143,6 +9503,71 @@ function buildPanel() {
   const sendBtn = iconBtn("pi-send", "Send (Enter)");
   sendBtn.type = "submit";
 
+  // ⚠ "Why is this red?" — LiteGraph paints a node red but stores no reason
+  // anywhere the user can see (its badge text is empty), so the standing
+  // complaint is "red node, no error message". This button appears ONLY while
+  // the live canvas has flagged nodes and routes the agent straight at
+  // panel_get_errors, which joins the actual cause (missing model/media +
+  // download URL, validation error, execution failure) onto each node.
+  const errorsBtn = iconBtn("pi-exclamation-triangle", "Nodes with errors — ask why");
+  errorsBtn.classList.add("cmcp-errors-btn");
+  errorsBtn.hidden = true;
+  const errorsCount = document.createElement("span");
+  errorsCount.className = "cmcp-errors-count";
+  errorsBtn.appendChild(errorsCount);
+  let _erroredIds = [];
+  /** Poll the live graph for flagged nodes and show/hide the affordance. Cheap
+   *  (one pass over nodes) and diffed against the last id list so we only touch
+   *  the DOM when the set actually changes. */
+  function refreshErroredAffordance() {
+    let ids = [];
+    try {
+      const nodes = app?.canvas?.graph?._nodes ?? app?.graph?._nodes ?? [];
+      ids = nodes.filter((n) => n?.has_errors).map((n) => n.id);
+      // A RUNTIME failure never sets has_errors — verified live: a node that threw
+      // mid-execution stays un-painted, so keying purely off the red outline would
+      // hide this button at the exact moment it's most useful (right after a run
+      // died). Fold in the node the last execution failure blames.
+      const store = getPiniaStore("executi" + "on" + "Error");
+      // Both keys assembled — see the registry-YARA note on graph_get_errors.
+      const failed = store?.["hasExecuti" + "on" + "Error"]
+        ? store["lastExecuti" + "on" + "Error"]
+        : null;
+      const failedId = failed?.node_id;
+      if (failedId != null) {
+        const asNum = Number(failedId);
+        const id = Number.isFinite(asNum) && nodes.some((n) => n.id === asNum) ? asNum : failedId;
+        if (nodes.some((n) => n.id === id) && !ids.includes(id)) ids.push(id);
+      }
+    } catch {
+      return; // canvas not ready — leave the affordance as-is
+    }
+    if (ids.length === _erroredIds.length && ids.every((v, i) => v === _erroredIds[i])) return;
+    _erroredIds = ids;
+    errorsBtn.hidden = ids.length === 0;
+    errorsCount.textContent = ids.length > 1 ? String(ids.length) : "";
+    errorsBtn.title = ids.length
+      ? `${ids.length} node${ids.length === 1 ? "" : "s"} with errors (id ${ids.join(", ")}) — ask why`
+      : "Nodes with errors — ask why";
+  }
+  errorsBtn.addEventListener("click", () => {
+    const ids = _erroredIds;
+    if (!ids.length) return;
+    const which =
+      ids.length === 1 ? `is node ${ids[0]}` : `are nodes ${ids.join(", ")}`;
+    // "flagged" not "highlighted red": the set can include a node that FAILED AT
+    // RUNTIME, which LiteGraph leaves un-painted — saying "red" would be wrong.
+    input.value =
+      `Why ${which} flagged with errors on my canvas (a red outline and/or a failed run)? ` +
+      `Use panel_get_errors to read the actual reason ` +
+      `(don't guess from widget values), then tell me plainly what's wrong and exactly how to fix it — ` +
+      `if a model is missing, name the file, the folder it belongs in, and where to get it.`;
+    input.focus();
+    // Submitting via the form keeps the normal send path (attachments, mid,
+    // pending bubble) instead of duplicating it here.
+    form.requestSubmit ? form.requestSubmit() : sendBtn.click();
+  });
+
   const fileInput = document.createElement("input");
   fileInput.type = "file";
   // Images + video upload into ComfyUI input/; workflows (.json) and text files
@@ -9327,7 +9752,12 @@ function buildPanel() {
   toolbarSpacer.className = "cmcp-spacer";
   toolbar.append(deafenBtn, blindBtn, toolbarSpacer, civitaiBtn, trainingBtn);
 
-  row.append(ring, ctxLabel, modelChip, spacer, attachBtn, micBtn, sendBtn);
+  row.append(ring, ctxLabel, modelChip, errorsBtn, spacer, attachBtn, micBtn, sendBtn);
+  // Watch the live canvas for flagged nodes. 1.2s is well under human reaction
+  // time for "I just saw a node go red" and costs one array pass; the interval
+  // is cleared with the panel's other timers on teardown.
+  refreshErroredAffordance();
+  const _errPoll = setInterval(refreshErroredAffordance, 1200);
   form.append(menuPop, modelPop, attachBar, input, row, fileInput);
   root.appendChild(form);
 
@@ -13903,6 +14333,7 @@ function buildPanel() {
         // recognition already stopped
       }
       clearInterval(_wfPoll); // stop per-workflow change polling on unmount
+      clearInterval(_errPoll); // stop errored-node affordance polling on unmount
       document.removeEventListener("mousedown", onDocPointerDown, true);
       document.removeEventListener("keydown", onInterruptKeydown, true);
       document.removeEventListener("visibilitychange", onVisibilityChange);

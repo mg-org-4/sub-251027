@@ -72,11 +72,6 @@ OpenPose Studio é uma extensão avançada para ComfyUI que permite criar, edita
 
 ---
 
-✨ **Funcionalidades planejadas e roadmap**
-
-> [!IMPORTANT]
-> Muitas funcionalidades planejadas dependem de financiamento para tokens de IA. Para o roadmap completo e trabalhos futuros, consulte [TODO.md](../TODO.md)..
-
 Se você tiver uma ideia para uma nova funcionalidade, adoraria ouvi-la — podemos ser capazes de implementá-la rapidamente. Envie feedback, ideias ou sugestões pela página de Issues do repositório: https://github.com/andreszs/comfyui-openpose-studio/issues
 
 
@@ -346,8 +341,8 @@ As configurações de Render são salvas localmente no local storage deste naveg
 
 ## Limitações conhecidas
 
-> [!WARNING]
-> Nodes 2.0 não está suportado atualmente. Por favor desative Nodes 2.0 por enquanto.
+> [!NOTE]
+> Nodes 2.0 é suportado. Se o canvas de preview ou o botão do editor estiver ausente, verifique o cache do navegador, o carregamento do frontend e os logs de instalação.
 
 ### Limitações atuais e alternativas
 
@@ -362,10 +357,9 @@ As configurações de Render são salvas localmente no local storage deste naveg
   - Alternativa: Pré-escalar as poses para a resolução alvo antes de importar
 
 3. **Compatibilidade com Nodes 2.0**
-  - Problema: O node não se comporta corretamente quando ComfyUI "Nodes 2.0" está habilitado.
-  - Status: Correção planejada, mas é um refactoring grande e demorado.
-  - Nota: Este projeto é desenvolvido usando agentes de IA pagos. Assim que houver financiamento para comprar tokens de IA adicionais, tenho a intenção de priorizar o suporte ao Nodes 2.0.
-  - Alternativa: Desativar Nodes 2.0 por enquanto.
+  - Status: Suportado nas versões atuais.
+  - Nota: Se a UI do editor não aparecer, as causas mais prováveis são cache antigo do navegador, falha ao carregar módulos do frontend ou instalação incompleta.
+  - Diagnóstico: Reinicie o ComfyUI completamente, force a atualização do navegador e verifique o console do navegador junto com o log de inicialização do ComfyUI.
 
 ### Recuperação de erros
 

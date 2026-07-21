@@ -72,11 +72,6 @@ OpenPose Studio 是一款進階的 ComfyUI 擴充套件，提供簡潔流暢的�
 
 ---
 
-✨ **規劃功能與路線圖**
-
-> [!IMPORTANT]
-> 許多規劃中的功能仰賴 AI Token 資金支持。完整路線圖與後續工作請參閱 [TODO.md](../TODO.md)。
-
 如果你有新功能的想法，我很樂意聽取，我們可能可以很快實作。請透過儲存庫 Issues 頁面提交回饋、想法或建議：https://github.com/andreszs/comfyui-openpose-studio/issues
 
 
@@ -346,8 +341,8 @@ Render 設定會本機儲存在此瀏覽器的 local storage 中，而不是儲�
 
 ## 已知限制
 
-> [!WARNING]
-> Nodes 2.0 目前尚未支援。請先停用 Nodes 2.0。
+> [!NOTE]
+> Nodes 2.0 已支援。如果缺少預覽 canvas 或編輯器按鈕，請檢查瀏覽器快取、frontend 載入以及安裝記錄。
 
 ### 目前限制與替代方案
 
@@ -362,10 +357,9 @@ Render 設定會本機儲存在此瀏覽器的 local storage 中，而不是儲�
   - 替代方案：匯入前先將姿勢縮放至目標解析度
 
 3. **Nodes 2.0 相容性**
-  - 問題：啟用 ComfyUI 的 "Nodes 2.0" 時，此節點行為不正確。
-  - 狀態：規劃修復，但這是大型且耗時的重構。
-  - 備註：此專案使用付費 AI agents 開發。一旦有資金可購買額外 AI Token，我打算優先處理 Nodes 2.0 支援。
-  - 替代方案：目前先停用 Nodes 2.0。
+  - 狀態：目前版本已支援。
+  - 備註：如果編輯器 UI 沒有出現，最可能的原因是瀏覽器快取過舊、frontend 模組載入失敗或安裝不完整。
+  - 診斷：完整重新啟動 ComfyUI，強制重新整理瀏覽器，並檢查瀏覽器主控台與 ComfyUI 啟動記錄。
 
 ### 錯誤復原
 

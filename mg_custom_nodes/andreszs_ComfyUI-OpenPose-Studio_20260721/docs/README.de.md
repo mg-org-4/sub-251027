@@ -72,11 +72,6 @@ OpenPose Studio ist eine fortschrittliche ComfyUI-Erweiterung zum Erstellen, Bea
 
 ---
 
-✨ **Geplante Funktionen und Roadmap**
-
-> [!IMPORTANT]
-> Viele geplante Funktionen hängen von der Finanzierung für KI-Token ab. Den vollständigen Fahrplan und bevorstehende Arbeiten finden Sie unter [TODO.md](../TODO.md)..
-
 Wenn Sie eine Idee für eine neue Funktion haben, würde ich sie gerne hören — vielleicht können wir sie schnell umsetzen. Bitte senden Sie Feedback, Ideen oder Vorschläge über die Issues-Seite des Repositorys: https://github.com/andreszs/comfyui-openpose-studio/issues
 
 
@@ -346,8 +341,8 @@ Render-Einstellungen werden lokal im local storage dieses Browsers gespeichert, 
 
 ## Bekannte Einschränkungen
 
-> [!WARNING]
-> Nodes 2.0 wird derzeit nicht unterstützt. Bitte Nodes 2.0 vorerst deaktivieren.
+> [!NOTE]
+> Nodes 2.0 wird unterstützt. Wenn die Vorschau-Canvas oder die Editor-Schaltfläche fehlt, prüfe Browser-Cache, Frontend-Ladevorgang und Installationslogs.
 
 ### Aktuelle Einschränkungen und Workarounds
 
@@ -362,10 +357,9 @@ Render-Einstellungen werden lokal im local storage dieses Browsers gespeichert, 
   - Workaround: Poses vor dem Import auf Zielauflösung vorkalibieren
 
 3. **Nodes 2.0-Kompatibilität**
-  - Problem: Der Node verhält sich nicht korrekt, wenn ComfyUI „Nodes 2.0" aktiviert ist.
-  - Status: Fix geplant, aber es ist ein großes und zeitaufwändiges Refactoring.
-  - Hinweis: Dieses Projekt wird mit bezahlten KI-Agenten entwickelt. Sobald Mittel für zusätzliche KI-Token verfügbar sind, beabsichtige ich, die Nodes 2.0-Unterstützung zu priorisieren.
-  - Workaround: Nodes 2.0 vorerst deaktivieren.
+  - Status: In aktuellen Versionen unterstützt.
+  - Hinweis: Wenn die Editor-UI nicht erscheint, sind die wahrscheinlichsten Ursachen ein veralteter Browser-Cache, fehlgeschlagenes Laden von Frontend-Modulen oder eine unvollständige Installation.
+  - Fehlerdiagnose: ComfyUI vollständig neu starten, den Browser hart aktualisieren und Browser-Konsole sowie ComfyUI-Startlog prüfen.
 
 ### Fehlerwiederherstellung
 

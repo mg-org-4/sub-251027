@@ -73,11 +73,6 @@ OpenPose Studio is an advanced ComfyUI extension for creating, editing, previewi
 
 ---
 
-✨ **Planned Features & Roadmap**
-
-> [!IMPORTANT]
-> Many planned features depend on funding for AI tokens. For the full roadmap and upcoming work, please check [TODO.md](../TODO.md)..
-
 If you have an idea for a new feature, I would love to hear it — we may be able to implement it quickly. Please submit feedback, ideas, or suggestions via the repository Issues page: https://github.com/andreszs/comfyui-openpose-studio/issues
 
 
@@ -356,8 +351,8 @@ Render settings are saved locally in this browser's local storage, not in the wo
 
 ## Known Limitations
 
-> [!WARNING]
-> Nodes 2.0 is currently not supported. Please disable Nodes 2.0 for now.
+> [!NOTE]
+> Nodes 2.0 is supported. If the preview canvas or editor button is missing, check browser cache, frontend loading, and installation logs.
 
 ### Current Limitations & Workarounds
 
@@ -372,10 +367,9 @@ Render settings are saved locally in this browser's local storage, not in the wo
   - Workaround: Pre-scale poses to target resolution before importing
 
 3. **Nodes 2.0 Compatibility**
-  - Issue: The node does not behave correctly when ComfyUI "Nodes 2.0" is enabled.
-  - Status: Planned fix, but it is a large and time-consuming refactor.
-  - Note: This project is developed using paid AI agents. Once funding is available to purchase additional AI tokens, I intend to prioritize Nodes 2.0 support.
-  - Workaround: Disable Nodes 2.0 for now.
+  - Status: Supported in current versions.
+  - Note: If the editor UI does not appear, the most likely causes are stale browser cache, failed frontend module loading, or an incomplete installation.
+  - Troubleshooting: Fully restart ComfyUI, hard-refresh the browser, and check the browser console plus ComfyUI startup log.
 
 ### Error Recovery
 

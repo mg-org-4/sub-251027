@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.8.3] - 2026-07-20
+
+### Added
+- Added custom pose libraries through ComfyUI's `extra_model_paths.yaml`, including recursive discovery across multiple configured roots.
+- Added regression coverage for nested libraries, duplicate root names, legacy API compatibility, source selection, and traversal protection.
+
+### Changed
+- Grouped Gallery poses by their full logical library path while keeping absolute server paths private.
+- Updated Gallery statistics to report the actual number of poses, JSON files, and libraries.
+- Preserved compatibility with older frontend and backend versions during pose discovery.
+
+### Security
+- Hardened pose file resolution with configured-root containment checks, including protection against traversal and symlink escapes.
+
+---
+
+## [1.8.2] - 2026-07-20
+
+### Changed
+- Refreshed the animated Comfy Registry banner with the standardized node screenshot and simplified node-to-editor sequence.
+- Versioned the banner filename as `banner_182.gif` to prevent stale CDN and browser caches from serving an older preview.
+
+---
+
+## [1.8.1] - 2026-07-20
+
+### Added
+- Added an animated Comfy Registry banner highlighting the OpenPose Studio node, visual editor, and multi-pose area workflow.
+
+### Changed
+- Replaced the generic Registry description with a concise summary of visual pose editing, presets, and ControlNet-ready outputs.
+- Updated all localized READMEs with current ComfyUI Nodes 2.0 compatibility and troubleshooting guidance.
+- Corrected the package metadata to reference the English README in `docs/`.
+
+### Removed
+- Removed the obsolete `TODO.md` file and its roadmap references from every localized README.
+
+---
+
 ## [1.7.0] - 2026-05-07
 
 ### Fixed

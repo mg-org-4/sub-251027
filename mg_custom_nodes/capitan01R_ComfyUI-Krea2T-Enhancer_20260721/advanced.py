@@ -24,33 +24,28 @@ def _install_txtmlp_scale(txtmlp_module, scale: float):
     return txtmlp_module, original_forward
 
 
-def krea2t_enhancer_advanced_wrapper(
-    executor,
-    x,
-    timesteps,
-    context,
-    attention_mask=None,
-    transformer_options=None,
-    **kwargs,
-):
-    transformer_options = transformer_options or {}
+def krea2t_enhancer_advanced_wrapper(executor, *args, **kwargs):
+    transformer_options = kwargs.get("transformer_options")
+    if transformer_options is None:
+        transformer_options = next((arg for arg in args if isinstance(arg, dict)), {})
+
     cfg = transformer_options.get(CONFIG_KEY, {})
     if not cfg or not cfg.get("enabled", True):
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(*args, **kwargs)
 
     if cfg.get("_active", False):
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(*args, **kwargs)
 
     dm = executor.class_obj
     if not _is_krea2_dm(dm):
         if cfg.get("debug", False):
             print("[Krea2TEnhancerAdvanced] skipped: diffusion model does not match Krea2 text-fusion layout")
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(*args, **kwargs)
 
     strength = _bounded_float(cfg.get("strength", 1.0), 1.0, 0.0, 2.0)
     text_scale = _bounded_float(cfg.get("text_scale", 1.0), 1.0, 0.25, 4.0)
     if strength == 0.0 and text_scale == 1.0:
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(*args, **kwargs)
 
     txtfusion = dm.txtfusion
     if hasattr(txtfusion, ORIGINAL_TXTFUSION_ATTR):
@@ -99,7 +94,7 @@ def krea2t_enhancer_advanced_wrapper(
         if strength != 0.0:
             txtfusion.forward = enhanced_forward
 
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(*args, **kwargs)
     finally:
         txtfusion.forward = original_txtfusion_forward
         if txtmlp_module is not None and original_txtmlp_forward is not None:

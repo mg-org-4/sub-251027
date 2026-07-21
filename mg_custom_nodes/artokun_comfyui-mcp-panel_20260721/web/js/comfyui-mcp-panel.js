@@ -98,7 +98,7 @@ const DISCORD_INVITE_URL = "https://discord.gg/cW9arBhzCu";
 // Panel version — surfaced in the "Need help?" diagnostics blob. Bump via
 // `node scripts/set-version.mjs <v>` (updates this AND pyproject together); CI
 // and the publish gate FAIL if the two ever drift, so this can't go stale.
-const PANEL_VERSION = "0.9.6";
+const PANEL_VERSION = "0.9.8";
 
 // The connected orchestrator's console URL/token (captured off the `backends`
 // bridge message — see onBackends). Drives the "API Keys" credentials frame;
@@ -755,6 +755,30 @@ function agentTabIsActive() {
 let tabBadgeState = "idle";
 let tabBadgeTimer = null;
 
+// The comfyui-mcp logo mark as the tab glyph — a currentColor mask, so it
+// follows the toolbar's active/hover tinting exactly like a PrimeIcon.
+// Geometry is the same two-node mark as assets/icon.png / the docs logo.
+// Injected STANDALONE (not via the panel stylesheet): registerSidebarTab()
+// paints the toolbar icon before the panel's first render, and without this
+// rule the tab glyph would be invisible until the user opened the panel.
+const TAB_LOGO_MASK =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='84 104 232 192'%3E%3Cg fill='none' stroke='%23000' stroke-width='40' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='140' cy='160' r='36'/%3E%3Ccircle cx='260' cy='240' r='36'/%3E%3Cpath d='M176 160h40a30 30 0 0 1 30 30v14'/%3E%3C/g%3E%3C/svg%3E\") center / contain no-repeat";
+
+function ensureTabIconStyle() {
+  if (document.getElementById("cmcp-tab-icon-style")) return;
+  const tag = document.createElement("style");
+  tag.id = "cmcp-tab-icon-style";
+  tag.textContent = [
+    ".cmcp-tab-logo {",
+    "  display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em;",
+    "  background-color: currentColor;",
+    `  -webkit-mask: ${TAB_LOGO_MASK};`,
+    `  mask: ${TAB_LOGO_MASK};`,
+    "}",
+  ].join("\n");
+  document.head.appendChild(tag);
+}
+
 /** Find our tab's icon element in the sidebar toolbar (never inside the panel
  *  itself — the empty-state also uses pi-comments). Marked with a data attr so
  *  the lookup still works after the "working" state swaps the glyph classes. */
@@ -772,7 +796,8 @@ function findAgentTabIcon() {
   }
   const bars = document.querySelectorAll(".side-tool-bar-container, .side-tool-bar-end, nav.side-tool-bar");
   for (const bar of bars) {
-    const icon = bar.querySelector("[data-cmcp-agent-icon]") || bar.querySelector(".pi-comments");
+    const icon =
+      bar.querySelector("[data-cmcp-agent-icon]") || bar.querySelector(".cmcp-tab-logo, .pi-comments");
     if (icon && !icon.closest(".cmcp-root")) {
       icon.setAttribute("data-cmcp-agent-icon", "1");
       return icon;
@@ -786,11 +811,13 @@ function applyTabBadge() {
   const icon = findAgentTabIcon();
   if (!icon) return;
   if (tabBadgeState === "working") {
-    icon.classList.remove("pi-comments");
+    // The logo mask must come OFF while spinning — a masked element paints
+    // currentColor over the whole box and would hide the spinner glyph.
+    icon.classList.remove("cmcp-tab-logo", "pi-comments");
     icon.classList.add("pi-spinner", "pi-spin", "cmcp-tab-spinner");
   } else {
-    icon.classList.remove("pi-spinner", "pi-spin", "cmcp-tab-spinner");
-    icon.classList.add("pi-comments");
+    icon.classList.remove("pi-spinner", "pi-spin", "cmcp-tab-spinner", "pi-comments");
+    icon.classList.add("cmcp-tab-logo");
   }
   const btn = icon.closest("button") || icon.parentElement;
   if (!btn) return;
@@ -1362,7 +1389,7 @@ function panelSettingsList() {
     },
   });
   // A per-backend "Default reasoning effort" — a STATIC combo of THAT backend's
-  // fixed scale (Claude: low–max; Codex: none–xhigh; Gemini: no effort control).
+  // fixed scale (Claude: low–max; Codex: none–ultra; Gemini: no effort control).
   // No dynamic remap needed since the groups are separate. Drives the live panel
   // only for the active group.
   const effortSetting = (backend, sortOrder) => ({
@@ -1373,7 +1400,7 @@ function panelSettingsList() {
     tooltip:
       ((BACKEND_EFFORTS[backend] || ALL_EFFORTS).length
         ? `Default reasoning effort for the ${BACKEND_TEXT[backend]} agent, from its scale ` +
-          `(${backend === "codex" ? "none–xhigh" : "low–max"}). 'Model default' leaves it unset.`
+          `(${backend === "codex" ? "none–ultra" : "low–max"}). 'Model default' leaves it unset.`
         : `${BACKEND_TEXT[backend]} exposes no reasoning-effort control; leave this at 'Model default'.`),
     type: "combo",
     options: effortComboOptions(backend),
@@ -1818,6 +1845,7 @@ const EFFORT_META = {
   high: { label: "High", small: "thorough" },
   xhigh: { label: "Extra high", small: "deep" },
   max: { label: "Max", small: "exhaustive" },
+  ultra: { label: "Ultra", small: "4 parallel agents" },
 };
 const ALL_EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 
@@ -1827,14 +1855,16 @@ const ALL_EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 // nearest valid level for the target (the orchestrator backends do the same
 // mapping server-side; this keeps the picker honest about what's selectable).
 //   • Claude: low | medium | high | xhigh | max
-//   • Codex:  none | minimal | low | medium | high | xhigh
+//   • Codex:  none | minimal | low | medium | high | xhigh | max | ultra (GPT-5.6)
 //   • Gemini: (none) — the gemini CLI (run via `gemini --acp`) exposes no
 //     user-facing reasoning-effort levels, so the effort selector is hidden for
 //     it (empty scale → effortsForModel returns [], intersecting any model-
 //     reported levels down to none). The orchestrator maps effort server-side.
 const BACKEND_EFFORTS = {
   claude: ["low", "medium", "high", "xhigh", "max"],
-  codex: ["none", "minimal", "low", "medium", "high", "xhigh"],
+  // GPT-5.6 adds max + ultra (per-model ceilings come from the model list —
+  // Luna tops out at max; the intersection in effortsForModel handles that).
+  codex: ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
   gemini: [],
   // Grok rides the ACP CLI like gemini — no user-facing reasoning-effort scale.
   grok: [],
@@ -1851,7 +1881,7 @@ const BACKEND_EFFORTS = {
   custom: [],
 };
 // Ordered low→high across BOTH scales, for nearest-level mapping on a switch.
-const EFFORT_ORDER = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
+const EFFORT_ORDER = ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"];
 /** Snap `effort` to the nearest level present in `list` by EFFORT_ORDER rank.
  *  Shared levels pass through 1:1; an off-list source snaps to the closest by
  *  ordered rank (ties prefer the lower level). Returns `effort` unchanged when
@@ -5944,6 +5974,14 @@ const GRAPH_TOOL_EXECUTORS = {
   // whole graph (nodes + groups) into the canvas, draws synchronously, captures,
   // then restores the user's view. Output is capped to ~1600px wide.
   graph_screenshot({ padding } = {}) {
+    // Blind mode withholds ALL pixels from the agent — screenshots included
+    // (issue #90; the comfyui tool server gates its own image tools, this
+    // covers the panel-side capture path).
+    if (AGENT_BLIND) {
+      throw new Error(
+        "Blind mode is ON: screenshots are withheld from the agent. Ask the user to describe the canvas, or to turn Blind off.",
+      );
+    }
     const { graph, canvas } = getGraphCtx();
     const cv = canvas?.canvas;
     const ds = canvas?.ds;
@@ -6824,6 +6862,9 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
       // Structured acks (ready / working / options / …). The "ready" ack is sent
       // after the orchestrator has processed hello (resume armed), so it's the
       // reliable signal to send a post-restart resume nudge.
+      if (msg && msg.type === "ack" && msg.kind === "set_content_mode") {
+        try { window.dispatchEvent(new CustomEvent("cmcp:set-content-mode-ack")); } catch {}
+      }
       if (msg && msg.type === "ack") {
         // A "degraded" ack is the orchestrator's OWN handshake: it's alive and
         // attending, but its agent backend can't enumerate models yet (typically
@@ -6894,6 +6935,9 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
           tab_id: workflowTabId(),
           title: getWorkflowTitle(),
           backend,
+          // Blind content mode (issue #90): the orchestrator spawns this tab's
+          // comfyui tool server with pixel-withholding env when true.
+          blind: AGENT_BLIND,
           ...(comfyuiUrl ? { comfyui_url: comfyuiUrl } : {}),
           ...(resume ? { resume } : {}),
         }),
@@ -7629,6 +7673,9 @@ const PANEL_CSS = `
 .cmcp-iconbtn.active { color: var(--p-red-400, #f87171); }
 .cmcp-iconbtn .pi { font-size: 0.875rem; }
 /* ---- sidebar tab badge (these live OUTSIDE .cmcp-root, on the toolbar) ---- */
+/* (.cmcp-tab-logo — the logo-mark tab glyph — is NOT here: it must exist the
+   moment registerSidebarTab() paints the toolbar, before the panel ever
+   renders, so it's injected standalone by ensureTabIconStyle().) */
 /* Agent working → the tab glyph is a spinner, tinted so it reads as "alive". */
 .cmcp-tab-spinner { color: var(--p-green-400, #4ade80) !important; }
 /* Turn finished while the tab wasn't being viewed → red "unread" dot. */
@@ -9648,7 +9695,34 @@ function buildPanel() {
   // The localStorage key stays "cmcp.muteAgents" so an existing Deafen (né
   // Mute) setting survives this rename.
   deafenBtn.onclick = () => { AGENT_MUTED = !AGENT_MUTED; try { localStorage.setItem("cmcp.muteAgents", AGENT_MUTED ? "1" : "0"); } catch {} reflectFeedGates(); };
-  blindBtn.onclick = () => { AGENT_BLIND = !AGENT_BLIND; try { localStorage.setItem("cmcp.blindAgents", AGENT_BLIND ? "1" : "0"); } catch {} reflectFeedGates(); };
+  let _blindAckPending = null;
+  window.addEventListener("cmcp:set-content-mode-ack", () => {
+    if (_blindAckPending) { clearTimeout(_blindAckPending); _blindAckPending = null; }
+  });
+  blindBtn.onclick = () => {
+    AGENT_BLIND = !AGENT_BLIND;
+    try { localStorage.setItem("cmcp.blindAgents", AGENT_BLIND ? "1" : "0"); } catch {}
+    reflectFeedGates();
+    // Issue #90: Blind must also gate the comfyui MCP's image tools
+    // (get_image/view_image return pixels straight from /view). Tell the
+    // orchestrator so it respawns this tab's tool server with the blind env —
+    // without this the toggle only covered the panel's own image channel.
+    // An OLD orchestrator has no handler and never acks — warn so the user
+    // knows only the legacy panel-feed gating applies (codex-review F4). A
+    // lost frame (socket drop) self-heals on the next hello, which re-seeds
+    // blind and respawns on change.
+    if (_blindAckPending) { clearTimeout(_blindAckPending); _blindAckPending = null; }
+    let sent = false;
+    try { sent = client?.sendFrame?.({ type: "set_content_mode", tab_id: workflowTabId(), blind: AGENT_BLIND }) !== false; } catch {}
+    if (sent) {
+      _blindAckPending = setTimeout(() => {
+        _blindAckPending = null;
+        appendSystem(
+          "⚠️ The orchestrator didn't acknowledge the Blind change — it may predate v0.42.0, where Blind only gates the panel's own image feed (the agent's image tools are NOT gated). Update comfyui-mcp for full enforcement.",
+        );
+      }, 6000);
+    }
+  };
   ring.style.cursor = "pointer"; ring.onclick = deafenBtn.onclick; // clicking the ring toggles deafen
   reflectFeedGates();
 
@@ -14435,8 +14509,10 @@ function registerExtensionWhenReady(tries = 0) {
       const tabSpec = {
         id: tabId,
         title: "Agent",
-        // ComfyUI ships PrimeIcons; `pi-comments` is the closest "chat" glyph.
-        icon: "pi pi-comments",
+        // Our own logo mark (CSS mask, currentColor) — same mark as the
+        // registry icon and mobile app, so every surface shows one identity.
+        // `pi` keeps PrimeIcon box sizing; the mask class paints the glyph.
+        icon: "pi cmcp-tab-logo",
         tooltip: "ComfyUI Agent Panel — your agent session's window into this graph",
         type: "custom",
         // KEEP-ALIVE: the panel (bridge client, agent session, chat DOM) is built
@@ -14467,6 +14543,9 @@ function registerExtensionWhenReady(tries = 0) {
       // '@comfyorg/extension-api'.
       const mgr = app.extensionManager;
       if (mgr && typeof mgr.registerSidebarTab === "function") {
+        // The logo-mask rule must exist BEFORE the toolbar paints our icon —
+        // the panel stylesheet only loads on first render (codex-review F1).
+        ensureTabIconStyle();
         mgr.registerSidebarTab(tabSpec);
         installSidebarTabGuard(tabId, () => document.querySelector(".cmcp-root"));
       } else {

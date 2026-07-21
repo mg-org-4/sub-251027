@@ -6,6 +6,30 @@ All notable changes to this project are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [0.9.8] - 2026-07-20
+
+### Fixed
+- **Blind is now a real guarantee** (#90): the toggle rides the hello and a
+  live set_content_mode frame so the orchestrator withholds pixels from ALL
+  of the agent's image tools (requires comfyui-mcp >= 0.42.0), and
+  graph_screenshot refuses under Blind — previously only the panel's own
+  image feed was gated
+
+### Fixed
+- send content mode to the orchestrator + gate screenshots (fixes #90) (#97)
+
+
+## [0.9.7] - 2026-07-20
+
+### Changed
+- Codex/ChatGPT reasoning-effort scale extends to `max` and `ultra` for the
+  GPT-5.6 family (per-model ceilings still intersect with the model list —
+  Luna tops out at `max`); pairs with comfyui-mcp >= 0.41.0
+
+### Added
+- max + ultra on the Codex scale for GPT-5.6 (#94)
+
+
 ## [0.9.6] - 2026-07-19
 
 ### Fixed

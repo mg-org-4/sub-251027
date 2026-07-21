@@ -1,11 +1,11 @@
 """
-XB CosyVoice3 Zero-Shot Voice Cloning Node
-Clone any voice from a reference audio sample
+XB CosyVoice3 Instruct2 Node
+Zero-shot voice cloning with instruct text to control speaking style and tone
 """
 
 import torch
 import random
-from typing import Tuple, Dict, Any, Optional
+from typing import Tuple, Dict, Any
 import sys
 import os
 
@@ -35,14 +35,12 @@ def contains_chinese(text):
 _whisper_model = None
 
 def _ensure_ffmpeg():
-    """确保 ffmpeg 可用。返回 ffmpeg 绝对路径，供 Whisper 使用。"""
+    """确保 ffmpeg 可用。返回 ffmpeg 绝对路径。"""
     import shutil, subprocess
     candidates = []
-    # 1. 从 PATH 中找
     found = shutil.which("ffmpeg")
     if found:
         candidates.append(found)
-    # 2. imageio-ffmpeg 内置便携版
     try:
         import imageio_ffmpeg
         exe = imageio_ffmpeg.get_ffmpeg_exe()
@@ -50,17 +48,15 @@ def _ensure_ffmpeg():
             candidates.append(exe)
     except Exception:
         pass
-    # 3. 验证并返回第一个可用的
     for exe in candidates:
         try:
             subprocess.run([exe, "-version"], capture_output=True, timeout=5, check=True)
-            print(f"[XB CosyVoice3 ZeroShot] ffmpeg ready: {exe}")
+            print(f"[XB CosyVoice3 Instruct2] ffmpeg ready: {exe}")
             return exe
         except Exception:
             continue
     return None
 
-# 全局缓存 ffmpeg 路径
 _ffmpeg_path = None
 
 def _get_ffmpeg():
@@ -69,18 +65,11 @@ def _get_ffmpeg():
         _ffmpeg_path = _ensure_ffmpeg()
     return _ffmpeg_path
 
-# Monkey-patch whisper 让它用我们的 ffmpeg
-_original_transcribe = None
-
 def _patch_whisper():
-    """让 whisper 使用我们找到的 ffmpeg 绝对路径。"""
-    global _original_transcribe
     ffmpeg = _get_ffmpeg()
     if not ffmpeg:
-        return  # 没有 ffmpeg，走降级逻辑
-    import whisper.audio
+        return
     import subprocess
-    # 替换 whisper 的 subprocess 调用
     _original_popen = subprocess.Popen
     class _FfmpegPopen(subprocess.Popen):
         def __init__(self, args, **kwargs):
@@ -90,7 +79,7 @@ def _patch_whisper():
                 args = ffmpeg + args[5:]
             super().__init__(args, **kwargs)
     subprocess.Popen = _FfmpegPopen
-    print(f"[XB CosyVoice3 ZeroShot] Whisper patched to use: {ffmpeg}")
+    print(f"[XB CosyVoice3 Instruct2] Whisper patched to use: {ffmpeg}")
 
 def get_whisper_model():
     """Get cached Whisper model for transcription"""
@@ -99,11 +88,11 @@ def get_whisper_model():
         try:
             _patch_whisper()
             import whisper
-            print("[XB CosyVoice3 ZeroShot] Loading Whisper model for auto-transcription...")
+            print("[XB CosyVoice3 Instruct2] Loading Whisper model for auto-transcription...")
             _whisper_model = whisper.load_model("base")
-            print("[XB CosyVoice3 ZeroShot] Whisper model loaded successfully")
+            print("[XB CosyVoice3 Instruct2] Whisper model loaded successfully")
         except Exception as e:
-            print(f"[XB CosyVoice3 ZeroShot] Failed to load Whisper: {e}")
+            print(f"[XB CosyVoice3 Instruct2] Failed to load Whisper: {e}")
             return None
     return _whisper_model
 
@@ -125,10 +114,10 @@ def transcribe_audio(audio_path: str) -> str:
         result = model.transcribe(audio_path, language=None)  # Auto-detect language
         transcript = result["text"].strip()
         detected_lang = result.get("language", "unknown")
-        print(f"[XB CosyVoice3 ZeroShot] Whisper detected language: {detected_lang}")
+        print(f"[XB CosyVoice3 Instruct2] Whisper detected language: {detected_lang}")
         return transcript
     except Exception as e:
-        print(f"[XB CosyVoice3 ZeroShot] Whisper transcription failed: {e}")
+        print(f"[XB CosyVoice3 Instruct2] Whisper transcription failed: {e}")
         return ""
 
 def is_cosyvoice3_model(model_info: Dict[str, Any]) -> bool:
@@ -137,14 +126,16 @@ def is_cosyvoice3_model(model_info: Dict[str, Any]) -> bool:
     return "cosyvoice3" in version or "fun-cosyvoice3" in version
 
 
-class XB_CosyVoice3_ZeroShot:
+class XB_CosyVoice3_Instruct2:
     """
-    Zero-shot voice cloning from reference audio
+    Instruct-based TTS with zero-shot voice cloning.
+    Clone a reference voice and control speaking style/tone using instruct text.
+    Uses CosyVoice3's inference_instruct2 to apply emotional and stylistic instructions.
     """
 
     RETURN_TYPES = ("AUDIO",)
     RETURN_NAMES = ("audio",)
-    FUNCTION = "clone_voice"
+    FUNCTION = "generate_with_instruct"
     CATEGORY = "🔊XB CosyVoice3/Synthesis"
 
     @classmethod
@@ -158,6 +149,14 @@ class XB_CosyVoice3_ZeroShot:
                     "default": "Hello, this is my cloned voice speaking.",
                     "multiline": True,
                     "description": "Text to synthesize in cloned voice"
+                }),
+                "instruct_text": ("STRING", {
+                    "default": "Speak in a warm and friendly tone.",
+                    "multiline": True,
+                    "description": "Instructions to control speaking style, emotion, and tone. "
+                                   "Examples: 'Speak slowly and gently', "
+                                   "'Use an excited and energetic tone', "
+                                   "'Sound calm and professional'."
                 }),
                 "reference_audio": ("AUDIO", {
                     "description": "Reference voice to clone (max 30 seconds, recommended 3-10s)"
@@ -184,47 +183,54 @@ class XB_CosyVoice3_ZeroShot:
             }
         }
 
-    def clone_voice(
+    def generate_with_instruct(
         self,
         model: Dict[str, Any],
         text: str,
+        instruct_text: str,
         reference_audio: Dict[str, Any],
         speed: float = 1.0,
         seed: int = -1,
         text_frontend: bool = True
     ) -> Tuple[Dict[str, Any]]:
         """
-        Clone voice from reference audio
+        Generate speech with instruct-based style control and voice cloning.
 
         Args:
             model: CosyVoice model info dict
             text: Text to synthesize
+            instruct_text: Instructions for speaking style and tone
             reference_audio: Reference audio for voice cloning
             speed: Speech speed
             seed: Random seed
+            text_frontend: Enable text normalization
 
         Returns:
             Tuple containing audio dict
         """
         print(f"\n{'='*60}")
-        print(f"[XB CosyVoice3 ZeroShot] Cloning voice...")
-        print(f"[XB CosyVoice3 ZeroShot] Text: {text[:50]}{'...' if len(text) > 50 else ''}")
-        print(f"[XB CosyVoice3 ZeroShot] Speed: {speed}x")
+        print(f"[XB CosyVoice3 Instruct2] Generating instructed speech...")
+        print(f"[XB CosyVoice3 Instruct2] Text: {text[:50]}{'...' if len(text) > 50 else ''}")
+        print(f"[XB CosyVoice3 Instruct2] Instruct: {instruct_text[:80]}{'...' if len(instruct_text) > 80 else ''}")
+        print(f"[XB CosyVoice3 Instruct2] Speed: {speed}x")
         print(f"{'='*60}\n")
+
+        # Validate inputs
+        if not instruct_text or not instruct_text.strip():
+            raise ValueError(
+                "instruct_text cannot be empty. Please provide style instructions, "
+                "e.g. 'Speak in a warm, friendly tone' or '用温柔的语气说话'."
+            )
 
         # Check audio duration BEFORE try block so error propagates to ComfyUI
         ref_waveform = reference_audio['waveform']
         ref_sample_rate = reference_audio['sample_rate']
         ref_duration = ref_waveform.shape[-1] / ref_sample_rate
 
+        if ref_duration < 0.5:
+            raise ValueError(f"参考音频太短（{ref_duration:.1f} 秒），请提供至少 0.5 秒的音频，建议 3~10 秒效果最佳。")
         if ref_duration > 30:
-            error_msg = (
-                f"Reference audio is too long ({ref_duration:.1f} seconds). "
-                f"CosyVoice only supports reference audio up to 30 seconds for voice cloning. "
-                f"Please use the XB Audio Crop node to trim your audio to 30 seconds or less. "
-                f"Recommended: 3-10 seconds for best quality."
-            )
-            raise ValueError(error_msg)
+            raise ValueError(f"参考音频太长（{ref_duration:.1f} 秒），请裁剪到 30 秒以内，建议 3~10 秒。")
 
         temp_file = None
 
@@ -238,99 +244,90 @@ class XB_CosyVoice3_ZeroShot:
 
             # Get model instance
             cosyvoice_model = model["model"]
-            sample_rate = cosyvoice_model.sample_rate  # Use actual model sample rate (24000 for v2/v3)
+            sample_rate = cosyvoice_model.sample_rate
 
-            # Prepare reference audio
-            print(f"[XB CosyVoice3 ZeroShot] Preparing reference audio...")
-            print(f"[XB CosyVoice3 ZeroShot] Model sample rate: {sample_rate} Hz")
-            print(f"[XB CosyVoice3 ZeroShot] Reference audio duration: {ref_duration:.1f}s (max 30s)")
-
-            # Save audio directly WITHOUT preprocessing - CosyVoice's load_wav() handles mono/resampling
-            temp_file = save_raw_audio_to_tempfile(reference_audio)
-            print(f"[XB CosyVoice3 ZeroShot] Saved reference audio to temp file")
-
-            # Detect model version for proper formatting (use cached flag or detect from version string)
+            # Detect model version
             is_v3 = model.get("is_cosyvoice3", False) or is_cosyvoice3_model(model)
 
-            # Initialize progress bar - 4 steps: transcribe, prepare, inference, finalize
+            print(f"[XB CosyVoice3 Instruct2] Model sample rate: {sample_rate} Hz")
+            print(f"[XB CosyVoice3 Instruct2] Is CosyVoice3: {is_v3}")
+            print(f"[XB CosyVoice3 Instruct2] Reference audio duration: {ref_duration:.1f}s")
+
+            # Check that inference_instruct2 is available (CosyVoice2 / CosyVoice3 only)
+            if not hasattr(cosyvoice_model, 'inference_instruct2'):
+                raise RuntimeError(
+                    "inference_instruct2 is not available on this model. "
+                    "The Instruct node requires a CosyVoice2 or CosyVoice3 model. "
+                    "Please load a compatible model in the Model Loader."
+                )
+
+            # Initialize progress bar: transcribe, prepare, inference, finalize
             pbar = comfy.utils.ProgressBar(4)
 
-            # Step 1: Auto-transcribe using Whisper
-            print(f"[XB CosyVoice3 ZeroShot] Auto-transcribing reference audio with Whisper...")
+            # Step 1: Save reference audio to temp file
+            print(f"[XB CosyVoice3 Instruct2] Saving reference audio...")
             pbar.update_absolute(0, 4)
+            temp_file = save_raw_audio_to_tempfile(reference_audio)
 
-            transcript = transcribe_audio(temp_file)
-            use_cross_lingual_fallback = False
-
-            if transcript:
-                print(f"[XB CosyVoice3 ZeroShot] Transcribed: '{transcript[:100]}{'...' if len(transcript) > 100 else ''}'")
-            else:
-                print(f"[XB CosyVoice3 ZeroShot] WARNING: Transcription failed or empty audio.")
-                print(f"[XB CosyVoice3 ZeroShot] Falling back to cross-lingual mode (voice cloning without transcript)...")
-                use_cross_lingual_fallback = True
-
+            # Step 2: Build instruct text
+            # For CosyVoice3, the instruct_text is passed directly; the model handles formatting.
+            # We optionally prepend a system prompt consistent with the v3 format used in zero_shot.
             pbar.update_absolute(1, 4)
 
-            # Step 2: Format prompt text based on model version
-            pbar.update_absolute(1, 4)
-
+            # Format instruct_text based on model version.
+            # CosyVoice3 requires:  "You are a helpful assistant.\n<instruct><|endofprompt|>"
+            # CosyVoice2 requires:  "<instruct><|endofprompt|>"  (no system prompt prefix)
+            # We handle all formatting automatically so users only need to type their instruction.
+            SYSTEM_PROMPT = "You are a helpful assistant."
+            ENDOFPROMPT = "<|endofprompt|>"
+            raw_instruct = instruct_text.strip()
+            # Strip any pre-existing wrapper that the user may have typed manually
+            if raw_instruct.startswith(SYSTEM_PROMPT):
+                raw_instruct = raw_instruct[len(SYSTEM_PROMPT):].lstrip("\n")
+            if raw_instruct.endswith(ENDOFPROMPT):
+                raw_instruct = raw_instruct[:-len(ENDOFPROMPT)].rstrip()
             if is_v3:
-                # CosyVoice3 format: system_prompt<|endofprompt|>transcript
-                if transcript and not use_cross_lingual_fallback:
-                    formatted_prompt_text = f"You are a helpful assistant.<|endofprompt|>{transcript}"
-                else:
-                    formatted_prompt_text = None  # Signal to use cross-lingual
+                # CosyVoice3: prepend system prompt and append <|endofprompt|>
+                formatted_instruct = SYSTEM_PROMPT + "\n" + raw_instruct + ENDOFPROMPT
+                print(f"[XB CosyVoice3 Instruct2] Using CosyVoice3 instruct mode")
+                print(f"[XB CosyVoice3 Instruct2] Formatted instruct: {formatted_instruct[:100]}")
             else:
-                # CosyVoice v1/v2 format: just the reference text, no system prompt
-                formatted_prompt_text = transcript if transcript else None
+                # CosyVoice2: only append <|endofprompt|>, no system prompt
+                formatted_instruct = f"{raw_instruct}{ENDOFPROMPT}"
+                print(f"[XB CosyVoice3 Instruct2] Using CosyVoice2 instruct mode")
+                print(f"[XB CosyVoice3 Instruct2] Formatted instruct: {formatted_instruct[:100]}")
 
             pbar.update_absolute(2, 4)
 
-            # Step 3: Generate speech
-            pbar.update_absolute(2, 4)
+            # Step 3: Run inference_instruct2
+            # inference_instruct2(tts_text, instruct_text, prompt_wav, zero_shot_spk_id, stream, speed, text_frontend)
+            print(f"[XB CosyVoice3 Instruct2] Running instruct inference...")
 
-            if use_cross_lingual_fallback or formatted_prompt_text is None:
-                # Use cross-lingual as fallback (extracts voice without needing transcript)
-                print(f"[XB CosyVoice3 ZeroShot] Using cross-lingual mode (no transcript required)...")
+            output = cosyvoice_model.inference_instruct2(
+                tts_text=text,
+                instruct_text=formatted_instruct,
+                prompt_wav=temp_file,
+                zero_shot_spk_id='',
+                stream=False,
+                speed=speed,
+                text_frontend=text_frontend
+            )
 
-                # For CosyVoice3 cross-lingual, add system prompt to tts_text
-                if is_v3:
-                    formatted_tts_text = f"You are a helpful assistant.<|endofprompt|>{text}"
-                else:
-                    formatted_tts_text = text
-
-                output = cosyvoice_model.inference_cross_lingual(
-                    tts_text=formatted_tts_text,
-                    prompt_wav=temp_file,
-                    stream=False,
-                    speed=speed,
-                    text_frontend=text_frontend
-                )
-            else:
-                # Use standard zero-shot with transcript
-                print(f"[XB CosyVoice3 ZeroShot] Running zero-shot inference...")
-
-                output = cosyvoice_model.inference_zero_shot(
-                    tts_text=text,
-                    prompt_text=formatted_prompt_text,
-                    prompt_wav=temp_file,
-                    stream=False,
-                    speed=speed,
-                    text_frontend=text_frontend
-                )
-
-            # Collect all output chunks (for longer text that gets split)
+            # Collect all output chunks
             all_speech = []
             chunk_count = 0
             for chunk in output:
                 chunk_count += 1
                 all_speech.append(chunk['tts_speech'])
-                print(f"[XB CosyVoice3 ZeroShot] Processed chunk {chunk_count}")
+                print(f"[XB CosyVoice3 Instruct2] Processed chunk {chunk_count}")
+
+            if not all_speech:
+                raise RuntimeError("No audio was generated. Check model and inputs.")
 
             # Concatenate all chunks
             if len(all_speech) > 1:
                 waveform = torch.cat(all_speech, dim=-1)
-                print(f"[XB CosyVoice3 ZeroShot] Combined {len(all_speech)} chunks")
+                print(f"[XB CosyVoice3 Instruct2] Combined {len(all_speech)} chunks")
             else:
                 waveform = all_speech[0]
 
@@ -340,37 +337,24 @@ class XB_CosyVoice3_ZeroShot:
             if waveform.device != torch.device('cpu'):
                 waveform = waveform.cpu()
 
-            # Step 4: Finalize
-            pbar.update_absolute(3, 4)
-
-            # Convert to ComfyUI AUDIO format
+            # Step 4: Convert to ComfyUI AUDIO format
             audio = tensor_to_comfyui_audio(waveform, sample_rate)
-
             duration = waveform.shape[-1] / sample_rate
 
             pbar.update_absolute(4, 4)
 
             print(f"\n{'='*60}")
-            print(f"[XB CosyVoice3 ZeroShot] Voice cloned successfully!")
-            print(f"[XB CosyVoice3 ZeroShot] Duration: {duration:.2f} seconds")
-            print(f"[XB CosyVoice3 ZeroShot] Sample rate: {sample_rate} Hz")
+            print(f"[XB CosyVoice3 Instruct2] Speech generated successfully!")
+            print(f"[XB CosyVoice3 Instruct2] Duration: {duration:.2f} seconds")
+            print(f"[XB CosyVoice3 Instruct2] Sample rate: {sample_rate} Hz")
             print(f"{'='*60}\n")
 
             return (audio,)
 
         except Exception as e:
-            error_msg = f"Error cloning voice: {str(e)}"
-            print(f"\n{'='*60}")
-            print(f"[XB CosyVoice3 ZeroShot] ERROR: {error_msg}")
-            import traceback
-            traceback.print_exc()
-            print(f"{'='*60}\n")
-
-            # Return empty audio on error
-            empty_audio = {
-                "waveform": torch.zeros(1, 1, 22050),
-                "sample_rate": 22050
-            }
+            error_msg = f"指令合成失败: {str(e)}"
+            print(f"[XB CosyVoice3 Instruct2] [!] {error_msg}")
+            empty_audio = {"waveform": torch.zeros(1, 1, 22050), "sample_rate": 22050}
             return (empty_audio,)
 
         finally:

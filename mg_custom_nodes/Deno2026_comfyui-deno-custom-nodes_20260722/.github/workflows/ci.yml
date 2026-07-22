@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check frontend syntax
+        run: node --check web/js/deno_extra_nodes.js
+
+      - name: Run LTX Sequencer frontend harness
+        run: node tests/js/ltx_sequencer_input_slots_harness.mjs
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run test suite
+        working-directory: tests
+        env:
+          PYTHONPATH: ..
+        run: python -m pytest . --import-mode=importlib -q

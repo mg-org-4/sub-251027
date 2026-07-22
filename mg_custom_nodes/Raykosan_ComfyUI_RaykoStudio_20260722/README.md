@@ -1,40 +1,49 @@
 # 🦊 ComfyUI_RaykoStudio  
 Set of custom nodes for ComfyUI providing additional image processing capabilities  
 ---  
-Nodes do not require the installation of additional Python packages.  
-🖥️ Performance has been tested for:  
+
+<details>
+  <summary>🖥️ Performance has been tested for</summary>
 
 - ComfyUI 0.15 and above  
 - Python 3.10 and above  
-- Torch 2.8 and above
-- Cuda 12.4 and above 
+- Torch 2.8 and above  
+- Cuda 12.4 and above  
 
----
+</details>
+<details>
+  <summary>📃 Requirements</summary>
 
-### 📃 Requirements  
+- torch  
+- opencv-python  
+- numpy  
+- Pillow>=10.0.0  
+- freetype-py>=2.5.1  
+- pycairo>=1.29.0  
+- scipy>=1.10.0  
 
-- torch
-- opencv-python
-- numpy
-- Pillow>=10.0.0
-- freetype-py>=2.5.1
-- pycairo>=1.29.0
-- scipy>=1.10.0
-
----
-### 🛠 Installation  
+</details>
+<details>
+  <summary>🛠 Installation</summary>	
+  
 Set of nodes can be installed in several ways:  
 - Clone repository to `ComfyUI/custom_nodes/` folder:  
 ```
 git clone https://github.com/Raykosan/ComfyUI_RaykoStudio.git  
 ```
 - Copy ComfyUI_RaykoStudio folder to: ComfyUI/custom_nodes/  
-- You can install this node using the ComfyUI_Manager
-- To update ComfyUI_RaykoStudio, use the update.bat file
+- You can install this node using the ComfyUI_Manager  
+- To update ComfyUI_RaykoStudio, use the update.bat file  
+
+</details>
 
 ---
 ---
 
+# NODES
+<details>
+  <summary>🦊 RS Collage Node</summary>	
+	
 # 🦊 RS Collage Node  
 **Interactive node for overlaying images with real-time positioning, scaling, rotation, and edge feathering directly on the canvas.**  
 
@@ -109,8 +118,9 @@ You can create a chain of these nodes by connecting the Image output to the Back
 - Edge handle scaling allows changing aspect ratio  
 - If overlay has black corners after rotation, the node automatically removes them  
 
----
----
+</details>
+<details>
+  <summary>🦊 RS RS Bypass Manager</summary>
 
 # 🦊 RS RS Bypass Manager  
 **A powerful node for managing the states of Bypass nodes and groups in complex ComfyUI circuits. If your workflow has turned into a "spaghetti monster" and you need to quickly disable entire modules (for example, switch between txt2img, inpaint and upscale), this node will save you dozens of clicks and nerves.**  
@@ -149,9 +159,10 @@ To remove the bypass, click on the name of the desired item in the list on the n
 If a node is added to a circuit that already has bypass nodes, it will automatically display them in the interface.  
 Also, when using bypass using comfi's own methods (the context menu is bypass, bypass in the NodeMap side menu, or bypass buttons above the node), all changes will instantly appear in the node.  
 
----
----
-
+</details>
+<details>
+  <summary>🦊 RS rgb2rgba</summary>
+	
 # 🦊 RS rgb2rgba  
 **A lightweight ComfyUI custom node that loads images while preserving the alpha channel (RGBA). Ideal for workflows that require transparency handling in PNG, WebP, and TIFF formats.**  
 
@@ -174,9 +185,10 @@ Connect the `rgba` output to any node that accepts ComfyUI image tensors (e.g., 
 - The node expects images to be located in ComfyUI's standard `input` folder.  
 - Designed to match ComfyUI's native `IMAGE` tensor format, ensuring drop-in compatibility with most custom nodes.  
 
----
----
-
+</details>
+<details>
+  <summary>🦊 RS Any Switch</summary>
+	
 # 🦊 RS Any Switch  
 **A dynamic switch node for ComfyUI that allows you to switch between multiple inputs of ANY data type with an intuitive toggle interface.**  
 
@@ -247,8 +259,9 @@ Upscale Method 3 ──→ input_3
                   Final Output
 ``` 
 
----
----
+</details>
+<details>
+  <summary>🦊 RS Outpaint</summary>
 
 # 🦊 RS Outpaint  
 **Interactive outpainting mask node with visual crop controls, preset management, and batch workflow support** 
@@ -303,19 +316,7 @@ If you are not satisfied with something, you can click ❌ CANCEL to interrupt t
 📁 Preset Storage  
 Presets are stored as JSON files in the presets folder within the node's directory:  
 ComfyUI/custom_nodes/ComfyUI_RaykoStudio/presets/  
-The folder is created automatically the first time you save the preset.  
-
-<details>
-  <summary>✅ Update v0.16.3</summary>
-
- The logic of the RS Outpaint node interface has been changed.
-1. The default borders of the mask frame are strictly along the borders of the incoming image
-2. All node buttons are inactive until the process queue reaches the node and is paused. The buttons become inactive immediately after the generation continues or is canceled.
-3. All snapping presets (aspect ratio) now work without crop and without resizing the output resolution. The frame is closely adjacent to two opposite sides or to one of the sides of the image (why one? since the mask works on a 16px grid, small margins of the mask are possible, which are visually visible. This is done so that the output always results in an image with side sizes that are multiples of 16. These errors will still be masked.)
-4. By default, the Lock/Unlock aspect ratio button is unlocked (🔓) and you can immediately start working with the mask frame without saving the aspect ratio.
-5. When you press any snap preset button, the Lock/Unlock button is automatically locked (🔒) and all further actions with the mask frame will be performed while maintaining the selected aspect ratio until you unlock the button again.
-
-</details>  
+The folder is created automatically the first time you save the preset.   
 
 💡Tip: For precise positioning, use the arrow keys on your keyboard (hold Shift to move faster)  
 
@@ -330,8 +331,9 @@ mask_image - Makes an image from a mask
 width - Final output width (after optional resize)  
 height - Final output height (after optional resize)  
 
----
----
+</details>
+<details>
+  <summary>🦊 RS Ref 2 Latent</summary>
 
 # 🦊 RS Ref 2 Latent 
 **A lightweight node that encodes a reference image into latent space and injects it into positive/negative conditioning for reference-based generation workflows.**  
@@ -368,8 +370,9 @@ height - Final output height (after optional resize)
 4. **Conditioning Injection**: Adds the encoded latent to both positive and negative conditioning under the key `reference_latents`  
 5. **Output**: Returns modified conditioning and the latent representation  
 
----
----
+</details> 
+<details>
+  <summary>🦊 RS Image Compare </summary>
 
 # 🦊 RS Image Compare  
 **A node that provides an interactive image comparison interface with zoom and pan controls**  
@@ -414,8 +417,9 @@ Before/after image comparisons
 Quality assessment between different models or configurations  
 Detailed inspection of image differences at various zoom levels  
 
----
----
+</details>
+<details>
+  <summary>🦊 RS Load Image</summary>
 
 # 🦊 RS Load Image  
 **A node for load image and creating a spline mask**  
@@ -431,8 +435,9 @@ The node is ready for use immediately after it is added. Images are added using 
 ### ↔️ Inputs and Outputs:  
 The IMAGE output returns the original image unchanged. The MASK output returns a black and white mask where the white area corresponds to the drawn polygon.  
 
----
----
+</details> 
+<details>
+  <summary>🦊 RS Intermediate Spline Mask</summary>
 
 # 🦊 RS Intermediate Spline Mask  
 **An interactive node for creating intermediate spline masks** 
@@ -471,8 +476,9 @@ Batch mode is automatically deactivated in the following cases:
 ### ↔️ Inputs and Outputs:  
 The IMAGE input accepts an image from any previous node. The IMAGE output returns the original image unchanged. The MASK output returns a black and white mask where the white area corresponds to the drawn polygon.  
 
----
----
+</details>
+<details>
+  <summary>🦊 RS Image Selector</summary>
 
 # 🦊 RS Image Selector  
 **Node for Interactive Batch Image Selection** 
@@ -499,8 +505,9 @@ Click "✔️ ACCEPT" to pass selected images to next nodes. Only selected image
 ### ⚠️ Reminder
 **The generation process will pause indefinitely until you click "✔️ ACCEPT", "❌ CANCEL" or close the workflow or the ComfyUI page.**  
 
----
----
+</details>
+<details>
+  <summary>🦊 RS MultiLatent</summary>
 
 # 🦊 RS MultiLatent  
 **Universal latent generation node - automatically adapts to any VAE architecture.** 
@@ -541,8 +548,9 @@ Click "✔️ ACCEPT" to pass selected images to next nodes. Only selected image
 
 **batch_size**: Number of latent images to generate (1-64)  
 
----
----
+</details>
+<details>
+  <summary>🦊 RS Image to Latent & 🦊 RS Image to Latent (simplified)</summary>
 
 # 🦊 RS Image to Latent & 🦊 RS Image to Latent (simplified)  
 **A powerful and user-friendly ComfyUI node that converts images to latents with intelligent size optimization.**  
@@ -609,8 +617,9 @@ If it is already multiple, it encodes directly without a recycle
 Supports batch_size to create a batch of identical latents  
 Returns 3 outputs: latent, width_px, height_px  
 
----
----
+</details> 
+<details>
+  <summary>🦊 RS Crop Image and 🦊 RS Insert Crop </summary>
 
 # 🦊 RS Crop Image and 🦊 RS Insert Crop  
 **An interactive node that allows you to visually crop an image directly within the node interface. Unlike standard Crop nodes, here you see the image and draw the crop rectangle with your mouse — making the process precise and intuitive.  
@@ -686,13 +695,14 @@ Scale up the node, draw a precise rectangle around a face, send it to a face-swa
 ### ⚠️ Reminder  
 **The generation process will be suspended indefinitely until you click "✔️ ACCEPT", "❌ CANCEL" or close the workflow or the ComfyUI page.**  
 
----
----
+</details>
+<details>
+  <summary>🦊 RS Styles Loader</summary>
 
 # 🦊 RS Styles Loader  
 **A node designed for managing, combining, and saving styles from CSV files. The node generates ready-made Positive and Negative promptes based on selected styles, providing an advanced and intuitive interface.**  
 
-<img width="497" height="625" alt="Screenshot_2" src="https://github.com/user-attachments/assets/fe6b80d6-efe4-45da-a02b-cdc21156c27c" />
+<img width="572" height="720" alt="Screenshot_1" src="https://github.com/user-attachments/assets/2ca33792-d826-482a-b7c0-636ea63005ac" />
 
 ### 🔥 Features  
 - **Download CSV files** - Upload your files with styles directly through the interface  
@@ -717,8 +727,8 @@ Scale up the node, draw a precise rectangle around a face, send it to a face-swa
 SELECT CSV FILE - Select the desired CSV file from the list of files that you have already uploaded earlier.  
 📂 UPLOAD NEW CSV FILE - Download a new CSV file from anywhere on your PC. It will automatically appear in the styles folder and in the future you will be able to select it with the "SELECT CSV FILE" button.  
 ➕ ADD STYLE - Choosing the styles you need  
-🔴 Clear - Instantly clears the list of active styles  
-🔄️ Reset - Resets the node size to the default size (by the number of styles) if you manually stretched it  
+🔴 Clear All - Instantly clears the list of active styles  
+🔄️ Reset Size - Resets the node size to the default size (by the number of styles) if you manually stretched it  
 💾 Save - Saves all active styles to a preset (along with the name of the selected CSV file)  
 📂 Load - Loads the saved preset (along with the CSV preset file)  
 🟢 - Bypass on/off. You can choose an infinite number of styles and change them to create the combination you need.  
@@ -735,8 +745,9 @@ The styles, favorites and presets folders is created automatically at the first 
 When deleting a node from workflow, the uploaded CSV files are not deleted.  
 To update the list of files after adding CSV manually, restart ComfyUI.  
 
----
----
+</details>
+<details>
+  <summary>🦊 RS Last Frame</summary>
 
 # 🦊 RS Last Frame  
 **A lightweight ComfyUI node that extracts the last frame from any video input.** 
@@ -765,13 +776,14 @@ Accepts:
 Output: IMAGE (torch.Tensor)  
 Single frame tensor with shape [1, H, W, C] — ready for VAE encoding, preview, or any image processing node.  
 
----
----
+</details> 
+<details>
+  <summary>🦊 RS Models Loader</summary>
 
 # 🦊 RS Models Loader  
-**A powerful universal model loading node that combines UNET, CLIP (with additional dual-clip support), VAE and LoRa downloads in a single interface and the function of saving model configurations to preset presets.**  
+**A powerful universal model loading node that combines UNET, CLIP (with additional dual-clip support), VAE and LoRa downloads in a single interface and the function of saving model and LoRA configurations to preset presets.**  
 
-<img width="574" height="656" alt="Desktop 2026-07-09 19-46-48" src="https://github.com/user-attachments/assets/a33fc68f-9c29-4161-b132-63a912b31623" />
+<img width="561" height="610" alt="Screenshot_1" src="https://github.com/user-attachments/assets/cdaf73bc-1c92-4b39-ab03-aaf6069964ea" />
 
 ### 🔥 Features  
 - **Unified Loading** - Load UNET, CLIP, VAE, and multiple LoRAs in one node  
@@ -781,6 +793,7 @@ Single frame tensor with shape [1, H, W, C] — ready for VAE encoding, preview,
 - **Folder Structure** - Browse LoRAs with folder tree navigation  
 - **Search Functionality** - Quickly find LoRAs by name  
 - **Presets of model sets** - Save model sets to presets for quick switching between models   
+- **Presets of LoRA sets** - Save LoRA sets to presets for quick switching between models   
 
 ### 📃 Notes  
 - When dual CLIP mode is disabled, clip_name2 is visible but disabled (grayed out)  
@@ -788,8 +801,9 @@ Single frame tensor with shape [1, H, W, C] — ready for VAE encoding, preview,
 - LoRA strengths can be set independently for model and CLIP  
 - All settings are saved with your workflow and persist across ComfyUI sessions  
 
----
----
+</details> 
+<details>
+  <summary>🦊 RS Prompts</summary>
 
 # 🦊 RS Prompts  
 **Node that provides enhanced prompt management with visual controls, pause-for-edit mode, and external input toggling**  
@@ -877,8 +891,9 @@ The folder is created automatically the first time you save the prompt.
 Text not saving	- Check write permissions for prompts folder  
 Pause mode not working - Ensure toggle is ON before starting generation  
 
----
----
+</details> 
+<details>
+  <summary>🦊 RS Text Overlay Pro</summary>
 
 # 🦊 RS Text Overlay Pro  
 **Interactive ComfyUI node for overlaying text on images with real-time positioning, scaling, rotation, and rich text effects**  
@@ -998,8 +1013,9 @@ Toggle **ENABLE SHADOW** to activate.
 | Toggle section | Click section header |
 | Enable effect | Click toggle in header |
 
----
----
+</details> 
+<details>
+  <summary>🦊 RS Color Picker</summary>
 
 # 🦊 RS Color Picker  
 **Professional color picker node with advanced features including eyedropper and color history**  
@@ -1028,9 +1044,10 @@ Toggle **ENABLE SHADOW** to activate.
 `HEX_STR` - HEX string (e.g., "#FF0000")  
 `RGB` - Normalized RGB values (e.g., "1.000, 0.000, 0.000")  
 
----
----
-
+</details> 
+<details>
+  <summary>🦊 RS Saturation</summary>
+	
 # 🦊 RS Saturation  
 **Professional image saturation control with artifact and highlight protection.**  
 
@@ -1062,8 +1079,9 @@ Values <1.0: Linear interpolation
 Values >1.0: Adaptive S-curve  
 Auto highlight recovery  
 
----
----
+</details> 
+<details>
+  <summary>🦊 RS Save Image</summary>
 
 # 🦊 RS Save Image  
 **Node for adding explanatory text to an image**  
@@ -1077,8 +1095,9 @@ Themes:
 light - white background, black text.  
 dark - black background, white text.  
 
----
----
+</details> 
+<details>
+  <summary>🦊 RS Save Image Pair</summary>
 
 # 🦊 RS Save Image Pair  
 **The node is used to save the original and final images in a single image, while maintaining the workflow within the image**  
@@ -1097,8 +1116,9 @@ Themes:
 light - white background, black text.  
 dark - black background, white text.  
 
----
----
+</details> 
+<details>
+  <summary>🦊 RS Image-Text</summary>
 
 # 🦊 RS Image-Text  
 **Node embeds any hidden text into the image that can be used later**  
@@ -1115,8 +1135,9 @@ Read - reads the text you wrote earlier in the uploaded image, sends the text an
 
 Link to the video: https://youtu.be/1s26hUcVXX4  
 
----
----
+</details> 
+<details>
+  <summary>🦊 RS Loop Switch</summary>
 
 # 🦊 RS Loop Switch  
 **A combined node for generating a sequence of values with automatic switching**  
@@ -1131,8 +1152,9 @@ The node generates a list of INT values, automatically switching between 10 pres
 - RS Loop Switch (output) → KSampler (steps)  
 - RS Loop Switch (output) → any INT input  
 
----
----
+</details>
+<details>
+  <summary>🦊 ComfyUI Settings Manager</summary>
 
 # 🦊 ComfyUI Settings Manager  
 **A  user-friendly extension that allows you to easily backup, restore, and manage your interface settings. Never lose your custom UI layout, preferences, or configurations again!**  
@@ -1190,6 +1212,8 @@ All backups are stored outside the ComfyUI directory to keep your installation c
 ###  ⚙️ Technical Notes  
 - **Server Restart** - The extension uses `os.execv` to restart the Python server. If you are using a third-party launcher (like Stability Matrix or Pinokio), the server might close but not automatically reopen. In this case, simply restart your launcher manually.  
 - **Polling** - After a restart, the extension pings the server every 5 seconds (up to 10 times) to detect when it's fully loaded before triggering the page reload.  
+
+</details>
 
 ---
 ---

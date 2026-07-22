@@ -622,7 +622,7 @@ def _patch_krea2_attention(dm: Any) -> Tuple[int, int]:
         orig_block = module._krea2_style_transfer_orig_block_forward
 
         def make_block_forward(orig):
-            def patched_block_forward(self, x, vec, freqs, mask=None, transformer_options={}):
+            def patched_block_forward(self, x, vec, freqs, mask=None, timestep_zero_index=None, transformer_options={}):
                 if isinstance(transformer_options, dict) and "krea2_imglen" not in transformer_options:
                     cfg = transformer_options.get(_CONFIG_KEY)
                     txtlen = getattr(dm, "_krea2_style_transfer_last_txtlen", None)
@@ -632,7 +632,13 @@ def _patch_krea2_attention(dm: Any) -> Tuple[int, int]:
                             transformer_options = transformer_options.copy()
                             transformer_options["krea2_imglen"] = imglen
                             dm._krea2_style_transfer_last_imglen = imglen
-                return orig(x, vec, freqs, mask=mask, transformer_options=transformer_options)
+                kwargs = {
+                    "mask": mask,
+                    "transformer_options": transformer_options,
+                }
+                if timestep_zero_index is not None:
+                    kwargs["timestep_zero_index"] = timestep_zero_index
+                return orig(x, vec, freqs, **kwargs)
 
             return patched_block_forward
 

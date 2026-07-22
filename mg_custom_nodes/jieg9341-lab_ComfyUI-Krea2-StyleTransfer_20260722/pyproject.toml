@@ -1,7 +1,7 @@
 [project]
 name = "ComfyUI-Krea2-StyleTransfer"
 description = "Training-free Krea2 style reference nodes for ComfyUI, with LoRA-like single-image transfer, experimental two-reference blending, low content leakage, and preserved image quality."
-version = "1.0.2"
+version = "1.0.3"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = []

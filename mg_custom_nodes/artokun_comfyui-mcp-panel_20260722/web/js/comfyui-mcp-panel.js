@@ -66,8 +66,15 @@ import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.js";
 import qrcodegen from "./vendor/qrcode.esm.js";
 import { computeLayout } from "./lib/layout-engine.js";
+import {
+  isThreadInScope,
+  normalizedWorkflowPath,
+  shouldForkEmbeddedWorkflowUuid,
+  workflowAliasForPath,
+} from "./lib/workflow-chat-identity.js";
 import { validateA2UISpec, renderA2UICard, renderA2UIInert, renderA2UIFailCard, A2UI_CSS } from "./cmcp-a2ui.js";
 import { openCivitaiModal } from "./cmcp-civitai-ui.js";
+import { openRunpodModal } from "./cmcp-runpod-ui.js";
 import { openTrainingModal } from "./cmcp-training-ui.js";
 
 let app = null;
@@ -98,7 +105,7 @@ const DISCORD_INVITE_URL = "https://discord.gg/cW9arBhzCu";
 // Panel version — surfaced in the "Need help?" diagnostics blob. Bump via
 // `node scripts/set-version.mjs <v>` (updates this AND pyproject together); CI
 // and the publish gate FAIL if the two ever drift, so this can't go stale.
-const PANEL_VERSION = "0.9.8";
+const PANEL_VERSION = "0.9.9";
 
 // The connected orchestrator's console URL/token (captured off the `backends`
 // bridge message — see onBackends). Drives the "API Keys" credentials frame;
@@ -182,7 +189,8 @@ function cmcpOpenCredentialsFrame(client) {
         <button data-save style="padding:6px 12px;border-radius:4px;cursor:pointer">Save</button>
         <button data-clear title="Remove this key from the orchestrator's store"
                 style="padding:6px 10px;border-radius:4px;cursor:pointer;${s.set ? "" : "display:none"}">Clear</button>
-      </div>`;
+      </div>
+      ${s.help ? `<div data-help style="font-size:11px;opacity:.55;margin-top:4px;line-height:1.45">${esc2(s.help)}</div>` : ""}`;
     const input = r.querySelector("[data-input]");
     const badge = r.querySelector("[data-badge]");
     const btn = r.querySelector("[data-save]");
@@ -578,6 +586,7 @@ const DEFAULT_BRIDGE_URL_BY_BACKEND = {
   claude: DEFAULT_BRIDGE_URL,
   codex: DEFAULT_BRIDGE_URL,
   gemini: DEFAULT_BRIDGE_URL,
+  antigravity: DEFAULT_BRIDGE_URL,
   grok: DEFAULT_BRIDGE_URL,
   kimi: DEFAULT_BRIDGE_URL,
   moonshot: DEFAULT_BRIDGE_URL,
@@ -638,6 +647,20 @@ function getTabId() {
 // see the workflow-change handler). Falls back to the legacy per-browser-session id
 // when no workflow service is present (headless / odd frontend).
 const _tempWorkflowIds = new Map(); // wf.key -> "tmp:<uuid>"
+const _workflowObjectUuids = new WeakMap();
+const _workflowUuidOwners = new Map();
+const WORKFLOW_UUID_ALIASES_KEY = "comfyui-mcp.panel.workflowUuidAliases";
+const WORKFLOW_META_NAMESPACE = "comfyui_mcp";
+const WORKFLOW_UUID_FIELD = "workflow_uuid";
+const WORKFLOW_PATH_FIELD = "workflow_path";
+let _workflowUuidAliases = (() => {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(WORKFLOW_UUID_ALIASES_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+})();
 // MODULE-scoped so they survive buildPanel re-mounts (the panel re-mounts on every
 // ComfyUI workflow switch). If these lived in the panel closure, each re-mount would
 // re-seed them to the now-current workflow and defeat change detection.
@@ -658,11 +681,145 @@ function activeWorkflowRef() {
     return null;
   }
 }
+
+function savedWorkflowPath(wf = activeWorkflowRef()) {
+  return wf?.isPersisted === true && wf?.isTemporary !== true && typeof wf.path === "string" && wf.path
+    ? wf.path
+    : null;
+}
+
+function activeWorkflowExtra(wf = activeWorkflowRef(), { create = false } = {}) {
+  try {
+    const root = app?.graph;
+    if (root && typeof root === "object") {
+      if (root.extra && typeof root.extra === "object") return root.extra;
+      if (create) {
+        root.extra = {};
+        return root.extra;
+      }
+    }
+  } catch {
+    // Fall through to workflow-owned metadata variants used by older builds.
+  }
+  const candidate = wf?.extra || wf?.workflow?.extra || wf?.data?.extra;
+  return candidate && typeof candidate === "object" ? candidate : null;
+}
+
+function embeddedWorkflowUuid(wf = activeWorkflowRef()) {
+  const ns = activeWorkflowExtra(wf)?.[WORKFLOW_META_NAMESPACE];
+  const id = ns?.[WORKFLOW_UUID_FIELD];
+  return typeof id === "string" && id ? id : null;
+}
+
+function embeddedWorkflowPath(wf = activeWorkflowRef()) {
+  const ns = activeWorkflowExtra(wf)?.[WORKFLOW_META_NAMESPACE];
+  const path = ns?.[WORKFLOW_PATH_FIELD];
+  return typeof path === "string" && path ? path : null;
+}
+
+function persistWorkflowAliases() {
+  try {
+    window.localStorage.setItem(WORKFLOW_UUID_ALIASES_KEY, JSON.stringify(_workflowUuidAliases));
+  } catch {
+    // The embedded UUID remains authoritative when localStorage is unavailable.
+  }
+}
+
+function workflowUuidOwner(id) {
+  const stored = _workflowUuidOwners.get(id);
+  const owner = stored && typeof stored.deref === "function" ? stored.deref() ?? null : stored ?? null;
+  if (!owner) _workflowUuidOwners.delete(id);
+  return owner;
+}
+
+function rememberWorkflowUuidOwner(id, owner) {
+  _workflowUuidOwners.set(id, typeof WeakRef === "function" ? new WeakRef(owner) : owner);
+  // WeakRef is unavailable only on older embedded browsers. Keep that fallback
+  // bounded rather than retaining every workflow object for the life of the page.
+  if (typeof WeakRef !== "function" && _workflowUuidOwners.size > 64) {
+    for (const key of _workflowUuidOwners.keys()) {
+      if (key !== id) _workflowUuidOwners.delete(key);
+      if (_workflowUuidOwners.size <= 64) break;
+    }
+  }
+}
+
+/** Stable transcript identity, deliberately separate from workflowTabId(): the
+ *  latter is bridge routing, while this UUID follows a workflow across rename.
+ *  Copies carrying the same embedded UUID get a fresh identity when opened as a
+ *  different workflow object/path. */
+function workflowStableUuid(wf = activeWorkflowRef(), { embed = false } = {}) {
+  const identityObject = wf || app?.graph;
+  if (!identityObject || typeof identityObject !== "object") return getTabId();
+  const path = savedWorkflowPath(wf);
+  const objectUuid = _workflowObjectUuids.get(identityObject);
+  const embedded = embeddedWorkflowUuid(wf);
+  const embeddedPath = embeddedWorkflowPath(wf);
+  const pathAlias = workflowAliasForPath(_workflowUuidAliases, path);
+  let id = objectUuid || embedded || pathAlias || crypto.randomUUID();
+
+  const embeddedOwner = embedded ? workflowUuidOwner(embedded) : null;
+  if (!objectUuid && embeddedOwner && embeddedOwner !== identityObject) id = crypto.randomUUID();
+  if (
+    wf !== currentWorkflowRef &&
+    shouldForkEmbeddedWorkflowUuid({
+      objectUuid,
+      embeddedUuid: embedded,
+      embeddedPath,
+      currentPath: path,
+      aliases: _workflowUuidAliases,
+    })
+  ) {
+    // A previously-opened but not-yet-saved copy still carries the source UUID
+    // in its JSON. Its path alias is the durable fork identity until the next
+    // user-initiated save embeds it, so reuse that alias across browser restarts.
+    id = pathAlias && pathAlias !== embedded ? pathAlias : crypto.randomUUID();
+  }
+
+  _workflowObjectUuids.set(identityObject, id);
+  rememberWorkflowUuidOwner(id, identityObject);
+  if (objectUuid && path) {
+    // Rename/Save-As mutates the same live workflow object. Drop stale aliases
+    // so a cold start does not later misclassify the renamed file as a clone.
+    for (const [knownPath, knownUuid] of Object.entries(_workflowUuidAliases)) {
+      if (knownUuid === id && normalizedWorkflowPath(knownPath) !== normalizedWorkflowPath(path)) {
+        delete _workflowUuidAliases[knownPath];
+      }
+    }
+  }
+  if (path && _workflowUuidAliases[path] !== id) {
+    _workflowUuidAliases[path] = id;
+    persistWorkflowAliases();
+  }
+  if (embed) {
+    try {
+      const extra = activeWorkflowExtra(wf, { create: true });
+      const previous = extra?.[WORKFLOW_META_NAMESPACE];
+      const pathChanged = path && normalizedWorkflowPath(previous?.[WORKFLOW_PATH_FIELD]) !== normalizedWorkflowPath(path);
+      if (extra && (previous?.[WORKFLOW_UUID_FIELD] !== id || pathChanged)) {
+        // Transcript metadata silently rides the next save the user initiates.
+        // It must never create a dirty asterisk or an undo/graph-change entry.
+        extra[WORKFLOW_META_NAMESPACE] = {
+          ...(previous && typeof previous === "object" ? previous : {}),
+          [WORKFLOW_UUID_FIELD]: id,
+          ...(path ? { [WORKFLOW_PATH_FIELD]: path } : {}),
+        };
+      }
+    } catch {
+      // The path alias still makes the identity durable in this browser.
+    }
+  }
+  return id;
+}
+
+function workflowStorageKey({ embed = false } = {}) {
+  return `workflow:${workflowStableUuid(activeWorkflowRef(), { embed })}`;
+}
+
 function workflowTabId() {
   const wf = activeWorkflowRef();
   if (!wf) return getTabId();
-  const saved =
-    wf.isPersisted === true && wf.isTemporary !== true && typeof wf.path === "string" && wf.path;
+  const saved = savedWorkflowPath(wf);
   if (saved) return "wf:" + wf.path;
   const k = wf.key || wf.id || "unsaved";
   let id = _tempWorkflowIds.get(k);
@@ -816,8 +973,10 @@ function applyTabBadge() {
     icon.classList.remove("cmcp-tab-logo", "pi-comments");
     icon.classList.add("pi-spinner", "pi-spin", "cmcp-tab-spinner");
   } else {
-    icon.classList.remove("pi-spinner", "pi-spin", "cmcp-tab-spinner", "pi-comments");
-    icon.classList.add("cmcp-tab-logo");
+    // Back to the chat bubble. `cmcp-tab-logo` is still stripped here so an icon
+    // left masked by an older build recovers on the next repaint.
+    icon.classList.remove("pi-spinner", "pi-spin", "cmcp-tab-spinner", "cmcp-tab-logo");
+    icon.classList.add("pi-comments");
   }
   const btn = icon.closest("button") || icon.parentElement;
   if (!btn) return;
@@ -925,6 +1084,7 @@ const SETTING_MODEL = {
   claude: "comfyui-mcp.defaultModel.claude",
   codex: "comfyui-mcp.defaultModel.codex",
   gemini: "comfyui-mcp.defaultModel.gemini",
+  antigravity: "comfyui-mcp.defaultModel.antigravity",
   grok: "comfyui-mcp.defaultModel.grok",
   kimi: "comfyui-mcp.defaultModel.kimi",
   moonshot: "comfyui-mcp.defaultModel.moonshot",
@@ -938,6 +1098,7 @@ const SETTING_EFFORT = {
   claude: "comfyui-mcp.defaultEffort.claude",
   codex: "comfyui-mcp.defaultEffort.codex",
   gemini: "comfyui-mcp.defaultEffort.gemini",
+  antigravity: "comfyui-mcp.defaultEffort.antigravity",
   grok: "comfyui-mcp.defaultEffort.grok",
   kimi: "comfyui-mcp.defaultEffort.kimi",
   moonshot: "comfyui-mcp.defaultEffort.moonshot",
@@ -959,6 +1120,7 @@ const SETTING_BRIDGE_URL = {
   claude: "comfyui-mcp.bridgeUrl.claude",
   codex: "comfyui-mcp.bridgeUrl.codex",
   gemini: "comfyui-mcp.bridgeUrl.gemini",
+  antigravity: "comfyui-mcp.bridgeUrl.antigravity",
   grok: "comfyui-mcp.bridgeUrl.grok",
   kimi: "comfyui-mcp.bridgeUrl.kimi",
   moonshot: "comfyui-mcp.bridgeUrl.moonshot",
@@ -1022,10 +1184,10 @@ const SETTINGS_SEEDED_KEY = "comfyui-mcp.panel.settingsSeeded";
 // per-backend groups (runs independently of SETTINGS_SEEDED_KEY).
 const SETTINGS_GROUPS_MIGRATED_KEY = "comfyui-mcp.panel.settingsGroupsMigrated";
 // Section (sub-category) labels for the grouped Settings dialog, per backend.
-const BACKEND_SECTION = { claude: "Claude", codex: "ChatGPT (Codex)", gemini: "Gemini", grok: "Grok", kimi: "Kimi", moonshot: "Kimi K3", ollama: "Ollama (local)", openrouter: "OpenRouter", lmstudio: "LM Studio (local)", llamacpp: "llama.cpp (local)", custom: "Custom endpoint" };
+const BACKEND_SECTION = { claude: "Claude", codex: "ChatGPT (Codex)", gemini: "Gemini", antigravity: "Antigravity (Google)", grok: "Grok", kimi: "Kimi", moonshot: "Kimi K3", ollama: "Ollama (local)", openrouter: "OpenRouter", lmstudio: "LM Studio (local)", llamacpp: "llama.cpp (local)", custom: "Custom endpoint" };
 // Backend display names at module scope (the Settings dialog's render-fns live
 // outside buildPanel's closure, so they need their own copy).
-const BACKEND_TEXT = { claude: "Claude", codex: "ChatGPT", gemini: "Gemini", grok: "Grok", kimi: "Kimi", moonshot: "Kimi K3", ollama: "Ollama", openrouter: "OpenRouter", lmstudio: "LM Studio", llamacpp: "llama.cpp", custom: "Custom endpoint" };
+const BACKEND_TEXT = { claude: "Claude", codex: "ChatGPT", gemini: "Gemini", antigravity: "Antigravity", grok: "Grok", kimi: "Kimi", moonshot: "Kimi K3", ollama: "Ollama", openrouter: "OpenRouter", lmstudio: "LM Studio", llamacpp: "llama.cpp", custom: "Custom endpoint" };
 // The allowlisted secure-store keys (mirrors the orchestrator's #59 allowlist).
 const SECRET_SET_AT_PREFIX = "comfyui-mcp.panel.secretSetAt.";
 
@@ -1071,7 +1233,7 @@ const settingsBackendState = {
 // render-fns when the dialog opens, so a freshly-arrived catalog can repaint the
 // matching backend's dropdown in place (a render-fn setting has no static options
 // to re-key). Keyed by backend; null when that group isn't mounted.
-const settingsModelSelectEls = { claude: null, codex: null, gemini: null, grok: null, kimi: null, moonshot: null, ollama: null, openrouter: null, lmstudio: null, llamacpp: null, custom: null };
+const settingsModelSelectEls = { claude: null, codex: null, gemini: null, antigravity: null, grok: null, kimi: null, moonshot: null, ollama: null, openrouter: null, lmstudio: null, llamacpp: null, custom: null };
 // Disabled placeholder <option> value — mapped to "" (Auto) if ever selected so
 // it can never persist as a bogus model id.
 const SETTINGS_PLACEHOLDER = "__cmcp_placeholder__";
@@ -1083,7 +1245,7 @@ function currentSettingsBackend() {
   const b = getSetting(SETTING_BACKEND);
   // Every selectable backend counts — this list lagging a provider addition
   // silently stops that provider's Settings edits from driving the live panel.
-  return ["codex", "gemini", "grok", "kimi", "moonshot", "ollama", "openrouter", "lmstudio", "llamacpp", "custom"].includes(b) ? b : "claude";
+  return ["codex", "gemini", "antigravity", "grok", "kimi", "moonshot", "ollama", "openrouter", "lmstudio", "llamacpp", "custom"].includes(b) ? b : "claude";
 }
 /** Fetched model rows for `backend` (the same presentable catalog the composer
  *  picker uses), or null when none is cached (backend never connected this session). */
@@ -1535,6 +1697,7 @@ function panelSettingsList() {
         { value: "claude", text: "Claude" },
         { value: "codex", text: "ChatGPT" },
         { value: "gemini", text: "Gemini" },
+        { value: "antigravity", text: "Antigravity (Google subscription)" },
         { value: "grok", text: "Grok" },
         { value: "kimi", text: "Kimi" },
         { value: "moonshot", text: "Kimi K3" },
@@ -1729,6 +1892,9 @@ function panelSettingsList() {
     // ---- Gemini (Default model, Default reasoning effort) ----
     modelSetting("gemini", 90),
     effortSetting("gemini", 85),
+    // ---- Antigravity (Google) (Default model; no effort scale, like Gemini) ----
+    modelSetting("antigravity", 84),
+    effortSetting("antigravity", 82),
     // ---- Grok (Default model, Default reasoning effort) ----
     modelSetting("grok", 80),
     effortSetting("grok", 75),
@@ -1866,6 +2032,9 @@ const BACKEND_EFFORTS = {
   // Luna tops out at max; the intersection in effortsForModel handles that).
   codex: ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
   gemini: [],
+  // Antigravity drives Google's agy CLI like gemini — no user-facing
+  // reasoning-effort scale; the orchestrator maps effort server-side.
+  antigravity: [],
   // Grok rides the ACP CLI like gemini — no user-facing reasoning-effort scale.
   grok: [],
   kimi: [],
@@ -6471,6 +6640,78 @@ function animateToBoundsPadded(bounds, padPct, duration) {
   canvas.setDirty(true, true);
 }
 
+/** Docked-modal geometry for the agent-driven CivitAI/Training modals. Measures
+ *  the Agent pane and the ComfyUI canvas, then anchors into the canvas area
+ *  OPPOSITE the pane (the pane can be docked LEFT or RIGHT). Three states:
+ *   - detached → the Agent root left the DOM (sidebar-tab switch); the caller
+ *     hides the orphaned body-mounted modal.
+ *   - centered → no usable anchor (missing/zero-size/too-small).
+ *   - docked   → { left, right, top, bottom } insets for position:fixed.
+ *  Mirrors the pane/canvas detection in animateToBoundsPadded (:6613-6624). */
+function panelDockGeometry() {
+  try {
+    const root = activePanelRoot;
+    if (!root || !root.isConnected) return { status: "detached" };
+    const pane = root.closest(".side-bar-panel") || root.closest("[class*='sidebar']") || root;
+    const pr = pane.getBoundingClientRect();
+    if (!pr || pr.width < 1 || pr.height < 1) return { status: "centered" };
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let cr = null;
+    try { cr = getGraphCtx().canvas?.canvas?.getBoundingClientRect?.() || null; } catch { cr = null; }
+    const canvasRect = (cr && cr.width > 1)
+      ? cr : { left: 0, right: vw, top: 0, bottom: vh, width: vw };
+    const paneOnLeft = (pr.left + pr.right) / 2 < (canvasRect.left + canvasRect.right) / 2;
+    let left, right;
+    if (paneOnLeft) {
+      left = Math.max(pr.right, canvasRect.left);
+      right = Math.max(0, vw - canvasRect.right);
+    } else {
+      left = Math.max(0, canvasRect.left);
+      right = Math.max(0, vw - Math.min(pr.left, canvasRect.right));
+    }
+    const top = Math.max(0, Math.min(pr.top, canvasRect.top));
+    const bottom = Math.max(0, vh - Math.max(pr.bottom, canvasRect.bottom));
+    if (vw - left - right < 320 || vh - top - bottom < 200) return { status: "centered" };
+    return { status: "docked", left, right, top, bottom };
+  } catch {
+    return { status: "centered" };
+  }
+}
+
+/** Watch everything that can move the dock anchor and invoke `cb`: window
+ *  resize, PrimeVue splitter drags (ResizeObserver on pane + canvas — these do
+ *  NOT fire window-resize), and sidebar-tab switches (the Agent root detaches
+ *  without a resize; observe the rail's class changes). Returns a disposer that
+ *  the modal's single close() path calls. */
+function panelWatchDock(cb) {
+  const disposers = [];
+  const fire = () => { try { cb(); } catch { /* modal owns error handling */ } };
+  window.addEventListener("resize", fire);
+  disposers.push(() => window.removeEventListener("resize", fire));
+  try {
+    const root = activePanelRoot;
+    const pane = root?.closest?.(".side-bar-panel") || root?.closest?.("[class*='sidebar']") || root;
+    let cEl = null;
+    try { cEl = getGraphCtx().canvas?.canvas || null; } catch { cEl = null; }
+    if (typeof ResizeObserver === "function") {
+      const ro = new ResizeObserver(fire);
+      try { if (pane) ro.observe(pane); } catch { /* detached */ }
+      try { if (cEl) ro.observe(cEl); } catch { /* not ready */ }
+      disposers.push(() => { try { ro.disconnect(); } catch { /* already gone */ } });
+    }
+    // Sidebar-tab switch detaches the Agent root with no resize event — watch the
+    // rail's selected-button class so the dock re-evaluates (→ hide on detach,
+    // re-dock on return).
+    const toolbar = document.querySelector(".side-tool-bar-container");
+    if (toolbar && typeof MutationObserver === "function") {
+      const mo = new MutationObserver(fire);
+      mo.observe(toolbar, { subtree: true, attributes: true, attributeFilter: ["class"] });
+      disposers.push(() => { try { mo.disconnect(); } catch { /* already gone */ } });
+    }
+  } catch { /* best-effort; window-resize still wired */ }
+  return () => { for (const d of disposers) { try { d(); } catch { /* ignore */ } } };
+}
+
 /** Smoothly dart to the node(s) with the given ids (skips ones not found). */
 function focusNodesById(ids) {
   let graph;
@@ -6537,7 +6778,7 @@ const RECONNECT_MAX_MS = 15000;
 let AGENT_MUTED = (() => { try { return localStorage.getItem("cmcp.muteAgents") === "1"; } catch { return false; } })();
 let AGENT_BLIND = (() => { try { return localStorage.getItem("cmcp.blindAgents") === "1"; } catch { return false; } })();
 
-function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk, onSecret, onSecretSaved, onReload, onTodo, onShowMedia, onOpenCivitai, onUiRender, onUiUpdate, onDownloads, onThinking, onAgentStatus, onSession, onModels, onCommands, onBackends, onAck, onTurn, onTurnAnchor, getResume, getBackend, onHandshakeTimeout, onBridgeClosed, onPairUrl, onPairError }) {
+function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk, onSecret, onSecretSaved, onReload, onTodo, onShowMedia, onOpenCivitai, onCivitaiCmd, onTrainingCmd, onUiRender, onUiUpdate, onDownloads, onThinking, onAgentStatus, onSession, onModels, onCommands, onBackends, onAck, onTurn, onTurnAnchor, getResume, getBackend, onHandshakeTimeout, onBridgeClosed, onPairUrl, onPairError, onRunpodStatus, onComfyuiTarget }) {
   let sock = null;
   let url = loadBridgeUrl();
   let closed = false;
@@ -6588,13 +6829,13 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
   // `codex app-server` cold-starts much slower than Claude's Agent SDK, so it gets
   // ~3x the window. This is the escalation THRESHOLD only — the respawn/reclaim
   // BOUNDS (MAX_AUTO_RESPAWNS / MAX_AUTO_RECLAIMS) are untouched.
-  const RESPAWN_AFTER_BY_BACKEND = { codex: 6, gemini: 6, grok: 6, kimi: 6, moonshot: 6, ollama: 6, claude: 2 };
+  const RESPAWN_AFTER_BY_BACKEND = { codex: 6, gemini: 6, antigravity: 6, grok: 6, kimi: 6, moonshot: 6, ollama: 6, claude: 2 };
   function respawnAfterAttempts() {
     return RESPAWN_AFTER_BY_BACKEND[backendNow()] ?? 2;
   }
   // Failed (re)connect attempts ridden out as a steady "connecting" before a
   // terminal "disconnected". Backend-aware, ~3x for Codex's slower cold start.
-  const CONNECT_PATIENCE_BY_BACKEND = { codex: 12, gemini: 12, grok: 12, kimi: 12, moonshot: 12, ollama: 12, claude: 4 };
+  const CONNECT_PATIENCE_BY_BACKEND = { codex: 12, gemini: 12, antigravity: 12, grok: 12, kimi: 12, moonshot: 12, ollama: 12, claude: 4 };
   function connectPatienceAttempts() {
     return CONNECT_PATIENCE_BY_BACKEND[backendNow()] ?? 4;
   }
@@ -6609,7 +6850,7 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
   // so it gets a wider window before we treat the open socket as wedged (FIX 2).
   // Ollama gets the long handshake too: a cold model load into VRAM can take
   // tens of seconds before the first token.
-  const HANDSHAKE_MS_BY_BACKEND = { codex: 45000, gemini: 45000, grok: 45000, kimi: 45000, moonshot: 45000, ollama: 45000, claude: 20000 };
+  const HANDSHAKE_MS_BY_BACKEND = { codex: 45000, gemini: 45000, antigravity: 45000, grok: 45000, kimi: 45000, moonshot: 45000, ollama: 45000, claude: 20000 };
   function handshakeMs() {
     return HANDSHAKE_MS_BY_BACKEND[backendNow()] ?? 20000;
   }
@@ -6745,6 +6986,23 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
             // the user can visually pick a resource.
             if (!onOpenCivitai) throw new Error("This panel build can't open the CivitAI browser.");
             result = onOpenCivitai(msg) || { ok: true };
+          } else if (
+            msg.cmd === "civitai_results" || msg.cmd === "civitai_highlight" ||
+            msg.cmd === "civitai_clear_highlight" || msg.cmd === "civitai_switch_tab" ||
+            msg.cmd === "civitai_search" || msg.cmd === "civitai_open_lightbox"
+          ) {
+            // Agent DRIVES the already-open CivitAI browser. onCivitaiCmd throws
+            // an honest "civitai browser not open" when the modal isn't live, which
+            // becomes a retryable tool error.
+            if (!onCivitaiCmd) throw new Error("This panel build can't drive the CivitAI browser.");
+            result = await onCivitaiCmd(msg);
+          } else if (
+            msg.cmd === "open_training" || msg.cmd === "training_get_state" ||
+            msg.cmd === "training_set_field" || msg.cmd === "training_goto_step" ||
+            msg.cmd === "training_set_target" || msg.cmd === "training_highlight"
+          ) {
+            if (!onTrainingCmd) throw new Error("This panel build can't drive the training wizard.");
+            result = await onTrainingCmd(msg);
           } else if (msg.cmd === "ui_render") {
             // A2UI card render. Validation errors THROW so the agent gets a
             // retryable tool error instead of a broken card.
@@ -6784,8 +7042,18 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
         }
         // ask_user / request_secret paint their OWN cards and their replies carry
         // user input (a choice, or a SECRET) — never echo them as an activity card
-        // (and never record them). Other commands get the normal activity card.
-        if (msg.cmd !== "ask_user" && msg.cmd !== "request_secret" && msg.cmd !== "set_todo" && msg.cmd !== "show_media" && msg.cmd !== "open_civitai" && msg.cmd !== "ui_render" && msg.cmd !== "ui_update") {
+        // (and never record them). The CivitAI/training DRIVE cmds animate the
+        // modal itself, so they'd only clutter the chat as activity cards. Other
+        // commands get the normal activity card.
+        const SILENT_CMDS = new Set([
+          "ask_user", "request_secret", "set_todo", "show_media", "open_civitai",
+          "ui_render", "ui_update",
+          "civitai_results", "civitai_highlight", "civitai_clear_highlight",
+          "civitai_switch_tab", "civitai_search", "civitai_open_lightbox",
+          "open_training", "training_get_state", "training_set_field",
+          "training_goto_step", "training_set_target", "training_highlight",
+        ]);
+        if (!SILENT_CMDS.has(msg.cmd)) {
           onCommand?.(msg.cmd, msg, reply);
         }
         return;
@@ -6885,6 +7153,16 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
       // from the download tool's temp progress file and/or the Manager queue).
       if (msg && msg.type === "download_progress" && Array.isArray(msg.downloads)) {
         onDownloads?.(msg.downloads);
+      }
+      // Live RunPod pod status (services/runpod-watch.ts) → control panel + host
+      // indicator. Change-only frames; a cleared frame (watching:false) means no
+      // pod is being watched.
+      if (msg && msg.type === "runpod_status") {
+        onRunpodStatus?.(msg);
+      }
+      // Honest host indicator: where renders currently run (local ⇄ pod).
+      if (msg && msg.type === "comfyui_target") {
+        onComfyuiTarget?.(msg);
       }
       // Live extended-thinking token count → "thinking… (N)" indicator.
       if (msg && msg.type === "thinking" && typeof msg.tokens === "number") {
@@ -7171,8 +7449,10 @@ const PANEL_CSS = `
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--p-content-border-color, #3f3f46);
 }
-.cmcp-logo { width: 20px; height: 20px; flex: none; border-radius: 4px; object-fit: contain; display: block; }
-.cmcp-title { font-size: 0.9375rem; font-weight: 600; }
+/* The wordmark is ~4.9:1, so pin the HEIGHT and let width follow — the old
+   square 20x20 rule would squash it. max-width keeps it from crowding the
+   header actions on a narrow sidebar. */
+.cmcp-logo { height: 20px; width: auto; max-width: 148px; flex: none; object-fit: contain; display: block; }
 .cmcp-status { display: flex; align-items: center; gap: 0.375rem; margin-left: auto;
   font-size: 0.6875rem; color: var(--p-text-muted-color, #a1a1aa); }
 .cmcp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--p-red-400, #f87171); flex: none; }
@@ -7202,6 +7482,17 @@ const PANEL_CSS = `
 .cmcp-toolbtn:hover { background: var(--p-surface-700, #3f3f46); color: var(--p-text-color, #fff); }
 .cmcp-toolbtn .pi { font-size: 0.8125rem; }
 .cmcp-toolbtn svg { width: 13px; height: 13px; display: block; }
+/* Icon-only variant (Deafen/Blind): the label span stays in the DOM — state
+   copy still flows into it for screen readers / the find-icon logic — but is
+   visually hidden; tooltips + the ear-slash / eye-slash glyphs and the tint
+   below carry the state for sighted users. */
+.cmcp-toolbtn.cmcp-toolbtn-iconic { padding: 0.25rem 0.375rem; }
+.cmcp-toolbtn.cmcp-toolbtn-iconic span {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+.cmcp-toolbtn.cmcp-toolbtn-iconic .pi { font-size: 0.9375rem; }
+.cmcp-toolbtn.cmcp-toolbtn-iconic svg { width: 15px; height: 15px; }
 /* Engaged gates get a colored tint so their state is readable at a glance. */
 .cmcp-toolbtn.gate-on-deafen { color: var(--p-red-400, #f87171); }
 .cmcp-toolbtn.gate-on-deafen svg { animation: cmcp-pulse 1s ease-in-out infinite; }
@@ -7657,9 +7948,6 @@ const PANEL_CSS = `
 /* "Why is this red?" — only rendered while the canvas has flagged nodes, so it
    reads as a live alert rather than permanent chrome. Amber (not red) so it
    doesn't imitate ComfyUI's own error toast. */
-.cmcp-errors-btn { width: auto; min-width: 1.75rem; gap: 0.2rem; padding: 0 0.3rem; color: var(--p-orange-500, #f59e0b); }
-.cmcp-errors-btn:hover { background: var(--p-surface-700, #3f3f46); color: var(--p-orange-400, #fbbf24); }
-.cmcp-errors-count { font-size: 0.6875rem; font-weight: 600; line-height: 1; }
 .cmcp-iconbtn {
   width: 1.75rem; height: 1.75rem; flex: none;
   display: flex; align-items: center; justify-content: center;
@@ -7772,6 +8060,8 @@ const PANEL_CSS = `
 /* History rows: open button + trash, revealed on hover. */
 .cmcp-hist-row { display: flex; align-items: stretch; gap: 0.125rem; }
 .cmcp-hist-row .cmcp-hist-open { flex: 1 1 auto; min-width: 0; }
+.cmcp-hist-row.foreign-workflow { opacity: 0.48; }
+.cmcp-hist-row.foreign-workflow .cmcp-hist-open { cursor: not-allowed; }
 .cmcp-hist-del {
   flex: none; width: 1.75rem; border: none; background: transparent; cursor: pointer;
   color: var(--p-text-muted-color, #a1a1aa); border-radius: var(--p-border-radius-sm, 4px);
@@ -8083,6 +8373,10 @@ function renderRichText(el, text) {
 // clean 1005 closes). Tracking the live client at module scope and tearing down
 // any prior one before creating a new one makes the storm structurally impossible.
 let liveBridgeClient = null;
+// RunPod host indicator/control bridge: the toolbar closure publishes handlers
+// here so the (separately-scoped) createBridgeClient callbacks can forward
+// `runpod_status` / `comfyui_target` frames to the host pill + open modal.
+let panelRunpod = null;
 // (MDC's fork also proxied all client callbacks through a module-level
 // `panelSink` so the client could outlive panel re-mounts. Upstream's sidebar
 // KEEP-ALIVE already keeps buildPanel a page singleton whose root is detached/
@@ -8176,9 +8470,11 @@ function buildPanel() {
   // it works regardless of where the extension is mounted.
   const logo = document.createElement("img");
   logo.className = "cmcp-logo";
-  logo.alt = "";
-  logo.setAttribute("aria-hidden", "true");
-  const LOGO_SERVED_PATH = "/extensions/comfyui-mcp-panel/img/comfyui-mcp-logo.png";
+  // The wordmark carries the product name, so it IS the header's label — the
+  // separate "Agent" text that used to sit beside it was redundant and is gone.
+  // Keep it announced for screen readers rather than aria-hidden.
+  logo.alt = "comfyui-mcp";
+  const LOGO_SERVED_PATH = "/extensions/comfyui-mcp-panel/img/comfyui-mcp-wordmark.svg";
   // A 404 on the module-resolved URL must also recover — not just a URL()
   // construction failure. Fall back to the served path once (a flag prevents an
   // error loop if the served path itself 404s) (P2 c).
@@ -8188,14 +8484,11 @@ function buildPanel() {
     logo.src = LOGO_SERVED_PATH;
   });
   try {
-    logo.src = new URL("../img/comfyui-mcp-logo.png", import.meta.url).href;
+    logo.src = new URL("../img/comfyui-mcp-wordmark.svg", import.meta.url).href;
   } catch {
     logo.dataset.fellBack = "1";
     logo.src = LOGO_SERVED_PATH;
   }
-  const title = document.createElement("span");
-  title.className = "cmcp-title";
-  title.textContent = "Agent";
   const status = document.createElement("button");
   status.type = "button";
   status.className = "cmcp-status cmcp-status-btn";
@@ -8243,7 +8536,7 @@ function buildPanel() {
   const histPop = document.createElement("div");
   histPop.className = "cmcp-popover cmcp-popover--down";
   histPop.hidden = true;
-  header.append(logo, title, actions, status, histPop);
+  header.append(logo, actions, status, histPop);
   root.appendChild(header);
 
   // ── Utility strip (row 2): agent-feed gates now live here instead of
@@ -8272,7 +8565,7 @@ function buildPanel() {
   // ChatGPT). Clicking one asks the pack to ensure that backend's orchestrator is
   // running and returns the bridge URL to connect to — the user never types a
   // port. Populated from GET /comfyui_mcp_panel/backends when settings open.
-  const BACKEND_LABELS = { claude: "Claude", codex: "ChatGPT", gemini: "Gemini", grok: "Grok", kimi: "Kimi", moonshot: "Kimi K3", ollama: "Ollama", openrouter: "OpenRouter", lmstudio: "LM Studio", llamacpp: "llama.cpp", custom: "Custom endpoint", copilot: "GitHub Copilot" };
+  const BACKEND_LABELS = { claude: "Claude", codex: "ChatGPT", gemini: "Gemini", antigravity: "Antigravity", grok: "Grok", kimi: "Kimi", moonshot: "Kimi K3", ollama: "Ollama", openrouter: "OpenRouter", lmstudio: "LM Studio", llamacpp: "llama.cpp", custom: "Custom endpoint", copilot: "GitHub Copilot" };
   // Appends a visible "(experimental)" marker to a backend's display label when
   // the readiness data flags it (b.experimental, e.g. Copilot — device-code,
   // GitHub ToS risk). Keeps picking it a deliberate, informed act everywhere a
@@ -8316,7 +8609,7 @@ function buildPanel() {
   // (GET /backends, blind to the laptop behind a remote pod) must not override it.
   let readinessFromOrchestrator = false;
   // Short per-provider hint shown under each provider row in the popup.
-  const BACKEND_HINTS = { claude: "Fable · Opus · Sonnet · Haiku", codex: "GPT-5 (Codex)", gemini: "Gemini 2.5 Pro · Flash", grok: "Grok Composer · Build", kimi: "Kimi (Moonshot)", moonshot: "Kimi K3 · Moonshot", ollama: "Local LLMs", openrouter: "MiMo · MiniMax (1M · SOTA)", lmstudio: "Local LLMs · no account", llamacpp: "Local LLMs · no account", custom: "DeepSeek · vLLM · any OpenAI-compatible API" };
+  const BACKEND_HINTS = { claude: "Fable · Opus · Sonnet · Haiku", codex: "GPT-5 (Codex)", gemini: "Gemini 2.5 Pro · Flash", antigravity: "Gemini 3 · Google subscription", grok: "Grok Composer · Build", kimi: "Kimi (Moonshot)", moonshot: "Kimi K3 · Moonshot", ollama: "Local LLMs", openrouter: "MiMo · MiniMax (1M · SOTA)", lmstudio: "Local LLMs · no account", llamacpp: "Local LLMs · no account", custom: "DeepSeek · vLLM · any OpenAI-compatible API" };
 
   // Hint for a provider that exists but isn't usable yet — distinguishes
   // "install the CLI" from "sign in". Empty when ready or readiness is unknown.
@@ -8337,10 +8630,12 @@ function buildPanel() {
       if (b.backend === "ollama") return "Ollama not installed — get it at ollama.com/download";
       if (b.backend === "lmstudio") return "LM Studio not installed — get it at lmstudio.ai";
       if (b.backend === "llamacpp") return "llama.cpp not found on PATH — github.com/ggml-org/llama.cpp/releases (a reachable server still works)";
+      if (b.backend === "antigravity") return "Install the Antigravity CLI (agy) and run `agy` once to sign in with your Google account.";
       return `${BACKEND_LABELS[b.backend] || b.backend} CLI not installed`;
     }
     if (b.backend === "codex") return "Not signed in — Sign in via API Keys (▾ menu) or run: codex login";
     if (b.backend === "gemini") return "Not signed in — run: gemini (then sign in with Google)";
+    if (b.backend === "antigravity") return "Install the Antigravity CLI (agy) and run `agy` once to sign in with your Google account.";
     if (b.backend === "grok") return "Not signed in — Sign in with Grok via API Keys (▾ menu) or run: grok";
     if (b.backend === "kimi") return "Not signed in — add a Kimi key via API Keys (▾ menu) or run: kimi";
     if (b.backend === "ollama") return "Ollama not running — run: ollama serve";
@@ -8593,6 +8888,9 @@ function buildPanel() {
     claude: { label: "Claude", install: "npm i -g @anthropic-ai/claude-code", login: "claude auth login" },
     codex: { label: "ChatGPT", install: "npm i -g @openai/codex", login: "codex login" },
     gemini: { label: "Gemini", install: "npm i -g @google/gemini-cli", login: "gemini" },
+    // Google's Antigravity CLI (agy) — the individual-tier Google-subscription
+    // path; auth lives in the OS keyring (no in-panel OAuth, no API-key slot).
+    antigravity: { label: "Antigravity (Google subscription)", install: "install the Antigravity CLI (agy)", login: "agy" },
     grok: { label: "Grok", install: "install the Grok CLI (Grok Build / xAI)", login: "grok" },
     kimi: { label: "Kimi", install: "install the Kimi CLI (Moonshot)", login: "kimi" },
     // No CLI — "setup" is pasting a Moonshot platform API key (Kimi K3).
@@ -8640,7 +8938,7 @@ function buildPanel() {
     sub.textContent =
       "The agent runs on YOUR machine on your own AI subscription (Claude, ChatGPT, Gemini, …) or a local model (Ollama, LM Studio, llama.cpp) — no API keys. Set up a provider (Node ≥ 22), start the agent with the command below, then click Connect.";
     onboard.append(title, sub);
-    for (const id of ["claude", "codex", "gemini", "grok", "kimi", "moonshot", "ollama", "openrouter", "lmstudio", "llamacpp", "custom"]) {
+    for (const id of ["claude", "codex", "gemini", "antigravity", "grok", "kimi", "moonshot", "ollama", "openrouter", "lmstudio", "llamacpp", "custom"]) {
       const meta = PROVIDER_SETUP[id];
       const st = list.find((b) => b.backend === id) || {};
       const col = document.createElement("div");
@@ -9550,71 +9848,6 @@ function buildPanel() {
   const sendBtn = iconBtn("pi-send", "Send (Enter)");
   sendBtn.type = "submit";
 
-  // ⚠ "Why is this red?" — LiteGraph paints a node red but stores no reason
-  // anywhere the user can see (its badge text is empty), so the standing
-  // complaint is "red node, no error message". This button appears ONLY while
-  // the live canvas has flagged nodes and routes the agent straight at
-  // panel_get_errors, which joins the actual cause (missing model/media +
-  // download URL, validation error, execution failure) onto each node.
-  const errorsBtn = iconBtn("pi-exclamation-triangle", "Nodes with errors — ask why");
-  errorsBtn.classList.add("cmcp-errors-btn");
-  errorsBtn.hidden = true;
-  const errorsCount = document.createElement("span");
-  errorsCount.className = "cmcp-errors-count";
-  errorsBtn.appendChild(errorsCount);
-  let _erroredIds = [];
-  /** Poll the live graph for flagged nodes and show/hide the affordance. Cheap
-   *  (one pass over nodes) and diffed against the last id list so we only touch
-   *  the DOM when the set actually changes. */
-  function refreshErroredAffordance() {
-    let ids = [];
-    try {
-      const nodes = app?.canvas?.graph?._nodes ?? app?.graph?._nodes ?? [];
-      ids = nodes.filter((n) => n?.has_errors).map((n) => n.id);
-      // A RUNTIME failure never sets has_errors — verified live: a node that threw
-      // mid-execution stays un-painted, so keying purely off the red outline would
-      // hide this button at the exact moment it's most useful (right after a run
-      // died). Fold in the node the last execution failure blames.
-      const store = getPiniaStore("executi" + "on" + "Error");
-      // Both keys assembled — see the registry-YARA note on graph_get_errors.
-      const failed = store?.["hasExecuti" + "on" + "Error"]
-        ? store["lastExecuti" + "on" + "Error"]
-        : null;
-      const failedId = failed?.node_id;
-      if (failedId != null) {
-        const asNum = Number(failedId);
-        const id = Number.isFinite(asNum) && nodes.some((n) => n.id === asNum) ? asNum : failedId;
-        if (nodes.some((n) => n.id === id) && !ids.includes(id)) ids.push(id);
-      }
-    } catch {
-      return; // canvas not ready — leave the affordance as-is
-    }
-    if (ids.length === _erroredIds.length && ids.every((v, i) => v === _erroredIds[i])) return;
-    _erroredIds = ids;
-    errorsBtn.hidden = ids.length === 0;
-    errorsCount.textContent = ids.length > 1 ? String(ids.length) : "";
-    errorsBtn.title = ids.length
-      ? `${ids.length} node${ids.length === 1 ? "" : "s"} with errors (id ${ids.join(", ")}) — ask why`
-      : "Nodes with errors — ask why";
-  }
-  errorsBtn.addEventListener("click", () => {
-    const ids = _erroredIds;
-    if (!ids.length) return;
-    const which =
-      ids.length === 1 ? `is node ${ids[0]}` : `are nodes ${ids.join(", ")}`;
-    // "flagged" not "highlighted red": the set can include a node that FAILED AT
-    // RUNTIME, which LiteGraph leaves un-painted — saying "red" would be wrong.
-    input.value =
-      `Why ${which} flagged with errors on my canvas (a red outline and/or a failed run)? ` +
-      `Use panel_get_errors to read the actual reason ` +
-      `(don't guess from widget values), then tell me plainly what's wrong and exactly how to fix it — ` +
-      `if a model is missing, name the file, the folder it belongs in, and where to get it.`;
-    input.focus();
-    // Submitting via the form keeps the normal send path (attachments, mid,
-    // pending bubble) instead of duplicating it here.
-    form.requestSubmit ? form.requestSubmit() : sendBtn.click();
-  });
-
   const fileInput = document.createElement("input");
   fileInput.type = "file";
   // Images + video upload into ComfyUI input/; workflows (.json) and text files
@@ -9643,6 +9876,10 @@ function buildPanel() {
   }
   const deafenBtn = toolbarBtn("pi-volume-up", "Deafen");
   const blindBtn = toolbarBtn("pi-eye", "Blind");
+  // Icon-only (user request): the glyph + tint + tooltip carry the state; the
+  // label span stays in the DOM (visually hidden) for screen readers.
+  deafenBtn.classList.add("cmcp-toolbtn-iconic");
+  blindBtn.classList.add("cmcp-toolbtn-iconic");
   // Ear icon (Lucide-style strokes): the ear is always drawn; the slash strokes
   // toggle for the deafened state (ear vs ear-off).
   let deafenSlash;
@@ -9735,6 +9972,9 @@ function buildPanel() {
     return {
       api,
       root,
+      // Agent-drive side-dock geometry/observation (pane may be docked L or R).
+      dockGeometry: panelDockGeometry,
+      watchDock: panelWatchDock,
       callTool: (t, a, o) => liveBridgeClient?.callTool(t, a, o),
       sendUserMessage: (t, c, i) => liveBridgeClient?.sendUserMessage(t, c, i),
       uploadBlobToInput,
@@ -9768,7 +10008,14 @@ function buildPanel() {
   }
   function openCivitai(opts) {
     try { _civitaiHandle?.close(); } catch {}
-    _civitaiHandle = openCivitaiModal(civitaiCtx(), opts || {});
+    const handle = openCivitaiModal(civitaiCtx(), {
+      ...(opts || {}),
+      // Null the stored handle whenever THIS modal closes (✕, reopen, backdrop)
+      // so post-open drive cmds get an honest "not open" error instead of
+      // operating on a detached grid.
+      onClose: () => { if (_civitaiHandle === handle) _civitaiHandle = null; },
+    });
+    _civitaiHandle = handle;
     return _civitaiHandle;
   }
   const civitaiBtn = toolbarBtn("pi-circle", "Civitai");
@@ -9796,16 +10043,34 @@ function buildPanel() {
     civitaiBtn.prepend(svg);
   }
 
-  // LoRA Training — the coming-soon preview modal (mobile-app parity). Same
-  // modal treatment as the CivitAI browser; dumbbell mark via currentColor.
+  // LoRA Training — the dataset gather/label/launch/monitor wizard for the
+  // local trainer (ai-toolkit in a GPU container, train_* tools over call_tool).
+  // Same modal treatment as the CivitAI browser; dumbbell mark via currentColor.
   let _trainingHandle = null;
+  function trainingCtx() {
+    return {
+      api,
+      root,
+      dockGeometry: panelDockGeometry,
+      watchDock: panelWatchDock,
+      callTool: (t, a, o) => liveBridgeClient?.callTool(t, a, o),
+      uploadBlobToInput,
+    };
+  }
+  // Reused by both the toolbar button (centered) and the agent bridge (docked).
+  function openTraining(opts) {
+    try { _trainingHandle?.close(); } catch {}
+    const handle = openTrainingModal(trainingCtx(), {
+      ...(opts || {}),
+      onClose: () => { if (_trainingHandle === handle) _trainingHandle = null; },
+    });
+    _trainingHandle = handle;
+    return _trainingHandle;
+  }
   const trainingBtn = toolbarBtn("pi-circle", "Training");
   trainingBtn.querySelector(".pi").remove();
-  trainingBtn.title = "LoRA Training — coming soon: train character/style/edit/slider and video LoRAs, locally or on RunPod.";
-  trainingBtn.addEventListener("click", () => {
-    try { _trainingHandle?.close(); } catch {}
-    _trainingHandle = openTrainingModal({ api });
-  });
+  trainingBtn.title = "LoRA Training — train a character LoRA locally on FLUX.1-dev (style/edit/slider/video coming in P2).";
+  trainingBtn.addEventListener("click", () => openTraining());
   {
     const svgNs = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNs, "svg");
@@ -9822,16 +10087,86 @@ function buildPanel() {
     trainingBtn.prepend(svg);
   }
 
+  // RunPod — cloud GPU control panel + honest host indicator. The button label
+  // reflects WHERE renders run (Local vs the pod), so it doubles as the host
+  // pill; clicking opens the control modal (deploy / start / stop / connect /
+  // use-local). Driven by the orchestrator's `runpod_status` + `comfyui_target`
+  // frames (wired below). The pod runs our template → full canvas parity.
+  let _runpodHandle = null;
+  let _runpodStatus = null; // last runpod_status frame
+  let _comfyuiTarget = null; // last comfyui_target frame
+  const runpodBtn = toolbarBtn("pi-circle", "Local");
+  runpodBtn.querySelector(".pi").remove();
+  runpodBtn.title = "RunPod — run this session on a cloud GPU (deploy / start / stop / connect), or switch back to local.";
+  {
+    const svgNs = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNs, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("aria-hidden", "true");
+    // Two stacked server bricks (cloud-GPU rack).
+    const r1 = document.createElementNS(svgNs, "rect");
+    r1.setAttribute("x", "3"); r1.setAttribute("y", "4"); r1.setAttribute("width", "18");
+    r1.setAttribute("height", "7"); r1.setAttribute("rx", "1.5");
+    const r2 = document.createElementNS(svgNs, "rect");
+    r2.setAttribute("x", "3"); r2.setAttribute("y", "13"); r2.setAttribute("width", "18");
+    r2.setAttribute("height", "7"); r2.setAttribute("rx", "1.5");
+    const d1 = document.createElementNS(svgNs, "line");
+    d1.setAttribute("x1", "7"); d1.setAttribute("y1", "7.5"); d1.setAttribute("x2", "7"); d1.setAttribute("y2", "7.5");
+    const d2 = document.createElementNS(svgNs, "line");
+    d2.setAttribute("x1", "7"); d2.setAttribute("y1", "16.5"); d2.setAttribute("x2", "7"); d2.setAttribute("y2", "16.5");
+    svg.append(r1, r2, d1, d2);
+    runpodBtn.prepend(svg);
+  }
+  function reflectRunpodHost() {
+    const t = _comfyuiTarget;
+    const s = _runpodStatus;
+    // Honesty: "on pod" comes ONLY from the comfyui_target frame — a watched
+    // RUNNING pod does NOT mean renders go there (runpod_watch broadcasts status
+    // without retargeting). Default to Local when the target is unknown.
+    const onPod = !!(t && !t.is_local);
+    const label = runpodBtn.querySelector("span");
+    if (onPod && s && s.watching) {
+      label.textContent = s.name || s.pod_id || "RunPod";
+    } else if (onPod) {
+      label.textContent = "RunPod";
+    } else {
+      label.textContent = "Local";
+    }
+    runpodBtn.classList.toggle("cmcp-runpod-onpod", onPod);
+    runpodBtn.style.color = onPod ? "#60a5fa" : "";
+    const gpu = s && s.watching && s.gpu ? ` · ${s.gpu}` : "";
+    const cost = s && s.watching && s.cost_per_hr != null ? ` · $${Number(s.cost_per_hr).toFixed(3)}/hr` : "";
+    runpodBtn.title = onPod
+      ? `Rendering on RunPod${gpu}${cost} — click to manage the pod or switch back to local.`
+      : "Rendering locally on this machine — click to run this session on a cloud GPU (RunPod).";
+  }
+  runpodBtn.addEventListener("click", () => {
+    try { _runpodHandle?.close(); } catch {}
+    _runpodHandle = openRunpodModal({
+      root,
+      callTool: (tool, args, o) => liveBridgeClient?.callTool(tool, args, o),
+      getStatus: () => _runpodStatus,
+      getTarget: () => _comfyuiTarget,
+      openUrl: (u) => { try { window.open(u, "_blank", "noopener"); } catch {} },
+    });
+  });
+  // Expose for the bridge callbacks (defined outside this closure).
+  panelRunpod = {
+    onStatus: (frame) => { _runpodStatus = frame; reflectRunpodHost(); if (_runpodHandle?.isOpen?.()) _runpodHandle.update(); },
+    onTarget: (frame) => { _comfyuiTarget = frame; reflectRunpodHost(); if (_runpodHandle?.isOpen?.()) _runpodHandle.update(); },
+  };
+  reflectRunpodHost();
+
   const toolbarSpacer = document.createElement("span");
   toolbarSpacer.className = "cmcp-spacer";
-  toolbar.append(deafenBtn, blindBtn, toolbarSpacer, civitaiBtn, trainingBtn);
+  toolbar.append(deafenBtn, blindBtn, toolbarSpacer, civitaiBtn, trainingBtn, runpodBtn);
 
-  row.append(ring, ctxLabel, modelChip, errorsBtn, spacer, attachBtn, micBtn, sendBtn);
-  // Watch the live canvas for flagged nodes. 1.2s is well under human reaction
-  // time for "I just saw a node go red" and costs one array pass; the interval
-  // is cleared with the panel's other timers on teardown.
-  refreshErroredAffordance();
-  const _errPoll = setInterval(refreshErroredAffordance, 1200);
+  row.append(ring, ctxLabel, modelChip, spacer, attachBtn, micBtn, sendBtn);
   form.append(menuPop, modelPop, attachBar, input, row, fileInput);
   root.appendChild(form);
 
@@ -9851,6 +10186,10 @@ function buildPanel() {
   })();
   let thread = null; // created lazily on first recorded message
 
+  function currentTranscriptScopeKey({ embed = false } = {}) {
+    return sessionFollowsPanel() ? workflowTabId() : workflowStorageKey({ embed });
+  }
+
   function persistThreads() {
     try {
       window.localStorage.setItem(THREADS_KEY, JSON.stringify(threads.slice(-MAX_THREADS)));
@@ -9859,9 +10198,19 @@ function buildPanel() {
     }
   }
 
-  // Find the (single) thread bound to a workflow id, or null. One conversation per
-  // workflow: newest wins if duplicates ever exist.
+  // Find the (single) thread bound to an exact transcript scope. Old path-keyed
+  // records are adopted only when their path exactly matches the open workflow;
+  // paths never authorize loading after that one-way migration.
   function threadForWorkflow(wfid) {
+    if (wfid.startsWith("workflow:") && !threads.some((candidate) => candidate.workflowKey === wfid)) {
+      const path = savedWorkflowPath();
+      const legacyKey = path ? `wf:${path}` : null;
+      const legacy = legacyKey ? threads.filter((candidate) => candidate.workflowKey === legacyKey) : [];
+      if (legacy.length) {
+        for (const candidate of legacy) candidate.workflowKey = wfid;
+        persistThreads();
+      }
+    }
     for (let i = threads.length - 1; i >= 0; i--) {
       if (threads[i].workflowKey === wfid) return threads[i];
     }
@@ -9869,8 +10218,16 @@ function buildPanel() {
   }
 
   function record(entry) {
+    const perWorkflow = !sessionFollowsPanel();
+    const scopeKey = perWorkflow ? workflowStorageKey({ embed: true }) : workflowTabId();
+    // Settings can hydrate after a greeting was painted. Never append a real
+    // workflow-scoped message to a thread carrying another scope.
+    if (thread && perWorkflow && !isThreadInScope(thread, scopeKey)) {
+      thread = null;
+      ssSet(CURRENT_THREAD_KEY, null);
+    }
     if (!thread) {
-      thread = { id: crypto.randomUUID(), ts: Date.now(), msgs: [], workflowKey: workflowTabId() };
+      thread = { id: crypto.randomUUID(), ts: Date.now(), msgs: [], workflowKey: scopeKey };
       // Adopt any session id the orchestrator has already reported for this tab.
       const sid = ssGet(SESSION_KEY);
       if (sid) thread.sessionId = sid;
@@ -10843,6 +11200,10 @@ function buildPanel() {
   }
 
   function loadThread(t) {
+    if (!sessionFollowsPanel() && !isThreadInScope(t, workflowStorageKey())) {
+      appendSystem("Blocked a chat from another workflow. Open its owning workflow before resuming it.");
+      return false;
+    }
     thread = t;
     ssSet(CURRENT_THREAD_KEY, t.id);
     resetFeed();
@@ -10860,6 +11221,7 @@ function buildPanel() {
     ssSet(SESSION_KEY, t.sessionId || null);
     if (t.sessionId) client?.sendFrame?.({ type: "resume_session", session_id: t.sessionId });
     else client?.sendFrame?.({ type: "new_session" });
+    return true;
   }
 
   // Per-workflow auto-follow. Called on any workflow change (open/switch/save/rename).
@@ -10900,7 +11262,7 @@ function buildPanel() {
       // tmp→wf adopt bookkeeping (a save gave the unsaved workflow a real id).
       if (wfid.startsWith("wf:") && wf && (wf.key || wf.id)) _tempWorkflowIds.delete(wf.key || wf.id);
       if (thread) {
-        thread.workflowKey = wfid; // thread rides along for per-workflow lookups
+        thread.workflowKey = wfid; // thread rides along for archive provenance
         thread.ts = Date.now();
         persistThreads();
       }
@@ -10924,6 +11286,10 @@ function buildPanel() {
       return;
     }
 
+    // Identity is read-only while switching/opening. Embedding happens only on
+    // first record(), and even then silently, so viewing a workflow never dirties it.
+    const historyKey = workflowStorageKey();
+
     const adopting =
       currentWorkflowId &&
       currentWorkflowKey &&
@@ -10931,8 +11297,7 @@ function buildPanel() {
       currentWorkflowId.startsWith("tmp:") &&
       wfid.startsWith("wf:");
     if (adopting) {
-      const t = threadForWorkflow(currentWorkflowId);
-      if (t) { t.workflowKey = wfid; persistThreads(); } // migrate to the file identity
+      const t = threadForWorkflow(historyKey);
       if (wf && (wf.key || wf.id)) _tempWorkflowIds.delete(wf.key || wf.id);
       currentWorkflowId = wfid;
       currentWorkflowKey = wfkey;
@@ -10953,12 +11318,7 @@ function buildPanel() {
       currentWorkflowId.startsWith("wf:") &&
       wfid.startsWith("wf:");
     if (renaming) {
-      const t = threadForWorkflow(currentWorkflowId);
-      if (t) {
-        t.workflowKey = wfid; // thread follows the workflow to its new path
-        t.ts = Date.now(); // newest-wins lookup must favor the migrated thread over any stray
-        persistThreads();
-      }
+      const t = threadForWorkflow(historyKey);
       currentWorkflowId = wfid;
       currentWorkflowKey = wfkey;
       currentWorkflowRef = wf;
@@ -10969,7 +11329,7 @@ function buildPanel() {
     currentWorkflowId = wfid;
     currentWorkflowKey = wfkey;
     currentWorkflowRef = wf;
-    const existing = threadForWorkflow(wfid);
+    const existing = threadForWorkflow(historyKey);
     // Bind THIS workflow's session BEFORE the re-hello. sendHello() reads
     // SESSION_KEY at hello time for its spawn-time `resume` — re-helloing first
     // carried the PREVIOUS workflow's session id, so a fresh workspace's agent
@@ -11029,7 +11389,14 @@ function buildPanel() {
         day: "numeric",
       });
       item.append(i, lbl, when);
+      const foreignWorkflow = !sessionFollowsPanel() && !isThreadInScope(t, currentTranscriptScopeKey());
+      if (foreignWorkflow) {
+        item.disabled = true;
+        item.title = "Open this chat's workflow before resuming it";
+        row.classList.add("foreign-workflow");
+      }
       item.addEventListener("click", () => {
+        if (foreignWorkflow) return;
         histPop.hidden = true;
         loadThread(t);
       });
@@ -11367,8 +11734,44 @@ function buildPanel() {
         tab: msg.tab,
         filters: msg.filters,
         browsingLevels: msg.browsingLevels,
+        // Agent-opened → side-dock by default (chat stays visible) unless the
+        // agent explicitly passes dock:false.
+        dock: msg.dock !== false,
       });
       return { ok: true };
+    },
+    // The agent DRIVES the already-open CivitAI browser (switch tab, re-search,
+    // read results, glow-highlight). Routes to the live modal handle; throws an
+    // honest "not open" error the agent can retry after re-opening.
+    onCivitaiCmd(msg) {
+      const h = _civitaiHandle;
+      if (!h) throw new Error("civitai browser not open");
+      switch (msg.cmd) {
+        case "civitai_results": return h.getResults({ limit: msg.limit });
+        case "civitai_highlight": return h.highlight(Array.isArray(msg.ids) ? msg.ids : (msg.ids != null ? [msg.ids] : []), { kind: msg.kind });
+        case "civitai_clear_highlight": return h.clearHighlight();
+        case "civitai_switch_tab": return h.switchTab(msg.tab);
+        case "civitai_search": return h.search({ query: msg.query, filters: msg.filters, browsingLevels: msg.browsingLevels });
+        case "civitai_open_lightbox": return h.openLightbox(msg.id);
+        default: throw new Error(`unknown civitai cmd "${msg.cmd}"`);
+      }
+    },
+    // The agent opens/drives the training wizard (parity with CivitAI).
+    onTrainingCmd(msg) {
+      if (msg.cmd === "open_training") {
+        openTraining({ dock: msg.dock !== false });
+        return { ok: true };
+      }
+      const h = _trainingHandle;
+      if (!h) throw new Error("training wizard not open");
+      switch (msg.cmd) {
+        case "training_get_state": return h.getState();
+        case "training_set_field": return h.setField(msg.name, msg.value);
+        case "training_goto_step": return h.gotoStep(msg.step);
+        case "training_set_target": return h.setTarget(msg.target);
+        case "training_highlight": return h.highlight(Array.isArray(msg.refs) ? msg.refs : (msg.refs != null ? [msg.refs] : []));
+        default: throw new Error(`unknown training cmd "${msg.cmd}"`);
+      }
     },
     // The agent called panel_ui_render / panel_ui_update — A2UI cards in the chat.
     onUiRender(msg) {
@@ -11401,6 +11804,14 @@ function buildPanel() {
     // Orchestrator pushed live download progress → render rows in the tray.
     onDownloads(list) {
       renderDownloads(list);
+    },
+    // Live RunPod pod status → the host pill + open control modal.
+    onRunpodStatus(frame) {
+      panelRunpod?.onStatus(frame);
+    },
+    // Honest host indicator (local ⇄ pod) → the host pill + open control modal.
+    onComfyuiTarget(frame) {
+      panelRunpod?.onTarget(frame);
     },
     // Live extended-thinking token count → update the working indicator.
     onThinking(tokens) {
@@ -12283,7 +12694,7 @@ function buildPanel() {
   // backend's handshake window (handshakeMs()) so a healthy slow reload completes
   // on its own backoff before the guard releases — Codex's app-server handshake is
   // 45s, so its guard is ~50s; Claude keeps 28s (still > its 20s handshake).
-  const SOFT_RELOAD_GUARD_MS_BY_BACKEND = { codex: 50000, gemini: 50000, grok: 50000, kimi: 50000, moonshot: 50000, ollama: 50000, claude: 28000 };
+  const SOFT_RELOAD_GUARD_MS_BY_BACKEND = { codex: 50000, gemini: 50000, antigravity: 50000, grok: 50000, kimi: 50000, moonshot: 50000, ollama: 50000, claude: 28000 };
   function softReloadGuardMs() {
     return SOFT_RELOAD_GUARD_MS_BY_BACKEND[selectedBackend] ?? 28000;
   }
@@ -12300,7 +12711,7 @@ function buildPanel() {
   // normal cold-start handshake (handshakeMs()) so a healthy-but-slow reload is
   // never pre-empted — Codex (45s handshake) escalates at ~40s, comfortably under
   // its ~50s guard; Claude keeps 11s (under its 28s guard and > its 20s handshake).
-  const SOFT_RELOAD_ESCALATE_MS_BY_BACKEND = { codex: 40000, gemini: 40000, grok: 40000, kimi: 40000, moonshot: 40000, ollama: 40000, claude: 11000 };
+  const SOFT_RELOAD_ESCALATE_MS_BY_BACKEND = { codex: 40000, gemini: 40000, antigravity: 40000, grok: 40000, kimi: 40000, moonshot: 40000, ollama: 40000, claude: 11000 };
   function softReloadEscalateMs() {
     return SOFT_RELOAD_ESCALATE_MS_BY_BACKEND[selectedBackend] ?? 11000;
   }
@@ -14242,9 +14653,31 @@ function buildPanel() {
   (function restoreLastThread() {
     try {
       const cur = ssGet(CURRENT_THREAD_KEY);
-      const t = cur ? threads.find((x) => x.id === cur) : null;
+      const pointed = cur ? threads.find((x) => x.id === cur) : null;
+      if (sessionFollowsPanel()) {
+        // Main/default behavior: restore the pointed chat exactly as stored.
+        // Settings may not be hydrated yet, so this path must never rewrite keys.
+        if (!pointed || !pointed.msgs?.length) return;
+        thread = pointed;
+        resetFeed();
+        for (const m of pointed.msgs) {
+          if (m.role === "user") paintUser(m.text, { attachments: m.attachments });
+          else if (m.role === "agent") paintAgent(m.text);
+          else if (m.role === "card") {
+            if (m.kind === "a2ui") paintA2UIRecord(m);
+            else paintCard(m);
+          }
+        }
+        renderTodo(pointed.todos || []);
+        return;
+      }
+      const scopeKey = workflowStorageKey();
+      const scopedPointed = pointed && isThreadInScope(pointed, scopeKey) ? pointed : null;
+      const t = scopedPointed || threadForWorkflow(scopeKey);
       if (!t || !t.msgs?.length) return;
       thread = t;
+      ssSet(CURRENT_THREAD_KEY, t.id);
+      ssSet(SESSION_KEY, t.sessionId || null);
       resetFeed();
       for (const m of t.msgs) {
         if (m.role === "user") paintUser(m.text, { attachments: m.attachments });
@@ -14407,7 +14840,6 @@ function buildPanel() {
         // recognition already stopped
       }
       clearInterval(_wfPoll); // stop per-workflow change polling on unmount
-      clearInterval(_errPoll); // stop errored-node affordance polling on unmount
       document.removeEventListener("mousedown", onDocPointerDown, true);
       document.removeEventListener("keydown", onInterruptKeydown, true);
       document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -14509,10 +14941,11 @@ function registerExtensionWhenReady(tries = 0) {
       const tabSpec = {
         id: tabId,
         title: "Agent",
-        // Our own logo mark (CSS mask, currentColor) — same mark as the
-        // registry icon and mobile app, so every surface shows one identity.
-        // `pi` keeps PrimeIcon box sizing; the mask class paints the glyph.
-        icon: "pi cmcp-tab-logo",
+        // The chat bubble. The sidebar rail is a row of FUNCTION glyphs (assets,
+        // nodes, models, workflows…), so a brand mark there reads as decoration
+        // and doesn't say what the tab does — brand belongs in the panel header,
+        // which is where the wordmark now lives.
+        icon: "pi pi-comments",
         tooltip: "ComfyUI Agent Panel — your agent session's window into this graph",
         type: "custom",
         // KEEP-ALIVE: the panel (bridge client, agent session, chat DOM) is built

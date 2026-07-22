@@ -19,15 +19,145 @@ export const LEVELS = [
 export const PERIODS = ["Day", "Week", "Month", "Year", "AllTime"];
 export const IMAGE_SORTS = ["Most Reactions", "Most Comments", "Most Collected", "Newest", "Oldest"];
 export const MODEL_SORTS = ["Most Downloaded", "Highest Rated", "Most Liked", "Newest", "Oldest"];
+/**
+ * Civitai's full `BaseModel` enum. The site accepts ONLY these strings for
+ * `baseModels=` — anything else silently returns nothing, so this list is the
+ * filter's entire vocabulary and an omission is invisible: the model just
+ * "doesn't exist" to the browser.
+ *
+ * It is hardcoded because Civitai publishes no endpoint for it. There is no
+ * paginated enum route to walk (`system.getBaseModels` 404s on the tRPC API);
+ * the values live in the site's own bundle. So this must be refreshed by hand
+ * when Civitai adds a family — see ACTIVE_BASE_MODELS below for the subset
+ * currently accepting uploads, which is what changes.
+ */
 export const BASE_MODELS = [
-  "SD 1.4", "SD 1.5", "SD 1.5 LCM", "SD 2.0", "SD 2.1", "SDXL 0.9", "SDXL 1.0",
-  "SDXL Turbo", "SDXL Lightning", "Pony", "Illustrious", "NoobAI", "SD 3", "SD 3.5",
-  "SD 3.5 Medium", "SD 3.5 Large", "SD 3.5 Large Turbo", "Flux.1 S", "Flux.1 D",
-  "Flux.1 Kontext", "Hunyuan Video", "Wan Video 2.2 I2V-A14B", "Wan Video 2.2 T2V-A14B",
-  "Wan Video 14B t2v", "Wan Video 14B i2v 480p", "Wan Video 14B i2v 720p", "LTXV",
-  "Mochi", "CogVideoX", "Kolors", "Qwen", "Chroma", "HiDream", "Lumina", "PixArt a",
-  "PixArt E", "Playground v2", "Stable Cascade", "Aura Flow", "Other",
+  "Anima", "AuraFlow", "Chroma", "CogVideoX", "Ernie",
+  "Flux.1 S", "Flux.1 D", "Flux.1 Krea", "Flux.1 Kontext",
+  "Flux.2 D", "Flux.2 Klein 9B", "Flux.2 Klein 9B-base",
+  "Flux.2 Klein 4B", "Flux.2 Klein 4B-base",
+  "Grok", "HappyHorse", "HiDream", "HiDream-O1", "Hunyuan 1", "Hunyuan Video",
+  "Hunyuan3D", "Ideogram 4.0", "Boogu", "Illustrious", "Imagen4", "Kolors",
+  "Krea 2", "LTXV", "LTXV2", "LTXV 2.3", "Lens", "Lumina", "MAI", "Mochi",
+  "Nano Banana", "NoobAI", "ODOR", "OpenAI", "Upscaler", "Other",
+  "PixArt a", "PixArt E", "Playground v2", "PolyGen", "Pony", "Pony V7",
+  "Qwen", "Qwen 2", "Reve", "Seedance", "Seedream", "Sora 2",
+  "Stable Cascade", "SVD", "SVD XT",
+  "SD 1.4", "SD 1.5", "SD 1.5 LCM", "SD 1.5 Hyper",
+  "SD 2.0", "SD 2.0 768", "SD 2.1", "SD 2.1 768", "SD 2.1 Unclip",
+  "SD 3", "SD 3.5", "SD 3.5 Medium", "SD 3.5 Large", "SD 3.5 Large Turbo",
+  "SDXL 0.9", "SDXL 1.0", "SDXL 1.0 LCM", "SDXL Distilled",
+  "SDXL Turbo", "SDXL Lightning", "SDXL Hyper",
+  "Tripo", "Veo 3", "Vidu Q1", "Hailuo by MiniMax", "Kling",
+  "Wan Video", "Wan Video 1.3B t2v", "Wan Video 14B t2v",
+  "Wan Video 14B i2v 480p", "Wan Video 14B i2v 720p",
+  "Wan Video 2.2 TI2V-5B", "Wan Video 2.2 I2V-A14B", "Wan Video 2.2 T2V-A14B",
+  "Wan Video 2.5 T2V", "Wan Video 2.5 I2V", "Wan Image 2.7", "Wan Video 2.7",
+  "ZImageTurbo", "ZImageBase", "ACE Audio",
 ];
+
+/**
+ * The subset Civitai still accepts new uploads for. Surfaced FIRST in the
+ * filter dropdown: the full list is 90+ entries and the retired half (SD 2.x,
+ * SVD, Playground) buries what people actually search for today under names
+ * that will return almost nothing.
+ */
+export const ACTIVE_BASE_MODELS = new Set([
+  "Anima", "AuraFlow", "Chroma", "CogVideoX", "Ernie",
+  "Flux.1 S", "Flux.1 D", "Flux.1 Krea", "Flux.1 Kontext",
+  "Flux.2 D", "Flux.2 Klein 9B", "Flux.2 Klein 9B-base",
+  "Flux.2 Klein 4B", "Flux.2 Klein 4B-base",
+  "Grok", "HappyHorse", "HiDream", "HiDream-O1", "Hunyuan 1", "Hunyuan Video",
+  "Ideogram 4.0", "Boogu", "Illustrious", "Kolors", "Krea 2",
+  "LTXV", "LTXV2", "LTXV 2.3", "Lens", "Lumina", "MAI", "Mochi", "NoobAI",
+  "Upscaler", "Other", "PixArt a", "PixArt E", "Pony", "Pony V7",
+  "Qwen", "Qwen 2", "Reve",
+  "SD 1.4", "SD 1.5", "SD 1.5 LCM", "SD 1.5 Hyper", "SD 2.0", "SD 2.1",
+  "SDXL 1.0", "SDXL Lightning", "SDXL Hyper",
+  "Wan Video 1.3B t2v", "Wan Video 14B t2v",
+  "Wan Video 14B i2v 480p", "Wan Video 14B i2v 720p",
+  "Wan Video 2.2 TI2V-5B", "Wan Video 2.2 I2V-A14B", "Wan Video 2.2 T2V-A14B",
+  "Wan Video 2.5 T2V", "Wan Video 2.5 I2V", "Wan Image 2.7", "Wan Video 2.7",
+  "ZImageTurbo", "ZImageBase", "ACE Audio",
+]);
+
+/**
+ * Match a base-model name against a typed query.
+ *
+ * Plain substring matching is wrong here, and fails on the most obvious
+ * searches there are: Civitai writes the families as "Flux.2 D" and
+ * "Wan Video 2.5 T2V", so `"flux 2"` and `"wan 2.5"` — what a person actually
+ * types — both find NOTHING, because of a dot in one and an interposed word in
+ * the other. A zero-result list reads as "this model isn't supported", which is
+ * exactly the wrong conclusion.
+ *
+ * So: split both sides on punctuation and require every query token to appear,
+ * IN ORDER, as the prefix of some later name token. "flux 2" reaches "Flux.2 D"
+ * and "wan 2.5" reaches "Wan Video 2.5 T2V", while "flux 2" still does not
+ * reach "Flux.1 D". Order matters — without it "d flux" would match too, and
+ * ranking suffers when every token floats free.
+ */
+/**
+ * Split into words, keeping a version number whole: "wan 2.5" -&gt; ["wan","2.5"],
+ * "Flux.2 D" -&gt; ["flux","2","d"]. The dot survives only BETWEEN DIGITS, which
+ * is what separates a version from ordinary punctuation — and it is what keeps
+ * "wan 2.5" off "Wan Video 2.2 TI2V-5B", where a naive split into ["wan","2","5"]
+ * happily matches the "2" of 2.2 and the "5" of 5B and offers the wrong model.
+ */
+export function tokenizeQuery(q) {
+  return String(q ?? "").toLowerCase().match(/[0-9]+(?:\.[0-9]+)+|[a-z0-9]+/g) || [];
+}
+
+/** Everything that isn't alphanumeric, dropped — "z-image" and "Z Image" both
+ *  collapse onto "zimage", which is how they reach "ZImageTurbo". */
+function compactify(s) {
+  return String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+export function prepareQuery(q) {
+  const raw = String(q ?? "").trim();
+  return { raw, tokens: tokenizeQuery(raw), compact: compactify(raw) };
+}
+
+/**
+ * Match a base-model name against a typed query.
+ *
+ * Two matching strategies, because Civitai's names break each one alone:
+ *
+ * - **Ordered token prefixes** handle names with words in between. "wan 2.5"
+ *   has to cross "Video" to reach "Wan Video 2.5 T2V".
+ * - **Compacted substring** handles names that are jammed together. "z-image"
+ *   and "aura flow" have to reach "ZImageTurbo" and "AuraFlow", which are one
+ *   token each — no amount of token matching gets there, since the query has
+ *   two tokens and the name has one.
+ *
+ * Either one hitting is a match. Both are ordered, so "flux 2" still cannot
+ * reach "Flux.1 D" and "sd 3.5" cannot reach bare "SD 3" — matching the wrong
+ * version is worse than matching nothing, because it sends someone off to
+ * download a model that will not do what they asked.
+ */
+export function matchesBaseModel(name, query) {
+  const q = query && typeof query === "object" && "raw" in query
+    ? query
+    : prepareQuery(Array.isArray(query) ? query.join(" ") : query);
+
+  // An empty box means "no filter". But a query of "🔥" or "..." is NOT empty —
+  // it tokenizes to nothing, and treating that as no-filter would answer a
+  // nonsense search with all 96 models, which reads as if they all matched.
+  if (!q.raw) return true;
+  if (!q.tokens.length && !q.compact) return false;
+
+  if (q.compact && compactify(name).includes(q.compact)) return true;
+
+  const words = tokenizeQuery(name);
+  let at = 0;
+  for (const t of q.tokens) {
+    const hit = words.findIndex((w, i) => i >= at && w.startsWith(t));
+    if (hit < 0) return false;
+    at = hit + 1;
+  }
+  return true;
+}
 
 export const DEFAULT_FILTERS = Object.freeze({
   period: "Week",

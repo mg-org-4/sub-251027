@@ -6,6 +6,31 @@ All notable changes to this project are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Added
+- **RunPod control panel** (`cmcp-runpod-ui.js`) — a toolbar host pill that
+  reads **🟢 Local** or **🔵 RunPod** and opens a control modal: live status
+  card (pod / GPU / VRAM / uptime / $·hr / ComfyUI URL / idle auto-stop
+  countdown), a **pod dropdown that lists your pods by name** (with refresh +
+  manual-ID fallback), Connect / Start / Stop / **Use Local**, and a
+  confirm-armed **Deploy** that routes through the referral deploy link. Driven
+  by the orchestrator's `runpod_status` + `comfyui_target` broadcasts and the
+  whitelisted `runpod_*` tools, so where a render runs is never ambiguous.
+  (requires comfyui-mcp >= 0.44.0)
+
+### Fixed
+- CivitAI browser: the **base-model filter is now complete and searchable**, and
+  the composer is uncrowded (#108, #110).
+
+## [0.9.9] - 2026-07-20
+
+### Changed
+- Registry listing refresh: display name is now **ComfyUI MCP | Agent Panel**,
+  the description is rewritten local-first in pure ASCII (the old text carried
+  double-encoded em-dashes that rendered as mojibake on registry.comfy.org),
+  and the icon/banner are the flat comfyui-mcp mark shared with the docs site
+  and mobile app — the sidebar tab wears the same mark (#99)
+
+
 ## [0.9.8] - 2026-07-20
 
 ### Fixed

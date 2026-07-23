@@ -778,22 +778,81 @@ Single frame tensor with shape [1, H, W, C] — ready for VAE encoding, preview,
 
 </details> 
 <details>
+  <summary>🦊 RS LoRA Loader</summary>
+
+# 🦊 RS LoRA Loader  
+**A powerful, highly customizable node for managing multiple LoRAs. It features a sleek custom interface, a robust preset system, drag-and-drop reordering, and seamless integration with the Civitai API for fetching metadata and trained words.**  
+
+<img width="605" height="560" alt="Screenshot_1" src="https://github.com/user-attachments/assets/81fe9316-02a3-4507-a6de-f458af353f4c" />
+
+### 🎨 Advanced Custom UI  
+- **Visual Multi-LoRA Management** - Add, remove, and reorder multiple LoRAs with drag-and-drop support.  
+- **Custom CLIP Toggle** - A dedicated, visually distinct button to enable/disable CLIP application per node. When the clip input is turned off, the node operates in the "model only" mode.  
+- **Precision Strength Control** - Adjust LoRA strength using `+` / `-` buttons or direct numeric input.  
+- **Auto-Resizing & Scrollable List** - The node automatically adjusts its height, with smooth scrolling for long lists.  
+- **Quick update** - When adding a new LoRA to the 'loras' folder, you do not need to reload ComfyUI or the browser page. Just click the ✔️ Update LoRA list button.  
+
+### Adding and Managing LoRAs  
+1. Click **➕ Add LoRA** to open the selector. Search or browse the tree, and click a LoRA to add it.  
+2. Use the **⋮⋮** handle on the left of each row to drag and drop LoRAs into your desired order.   
+
+### 💾 Preset System  
+- **Save & Load** - Save your current LoRA configurations (including strengths and enabled states) as named presets.  
+- **Quick Access** - Instantly apply complex LoRA stacks with a single click.  
+
+###  Smart LoRA Selector  
+- **Tree View & Search** - Easily find LoRAs using a structured folder tree or a fast, real-time search bar.  
+- **Visual Indicators** - Already added LoRAs are marked with a checkmark to prevent duplicates.  
+
+### 🌐 Civitai Metadata Integration (Info Popup)  
+- **Instant Info** - Click the `ℹ️` icon on any LoRA row to open a detailed popup.  
+- **Fetch from Civitai** - Automatically fetches the model's true name, description, and tags directly from Civitai using the file's SHA256 hash.  
+- **Getting metadata** - If no data is found, click the **🌐 Fetch from Civitai** button.  
+   - *Note: The node calculates the SHA256 hash of the `.safetensors` file and queries the Civitai API. This may take a few seconds on the first run.*  
+- **Local Caching** - Fetched metadata is saved locally in the `rayko_lora_data` folder. Subsequent views are instant and require no internet connection.  
+
+### 📋 One-Click Tag Copying  
+- **Click to Copy** - Click on any individual green tag chip in the Info popup to instantly copy it to your clipboard and auto-close the window.  
+- **📋 Copy All** - A dedicated button to copy all trained words/tags at once.
+
+### 🔔 Visual Feedback  
+- Custom toast notifications for successful actions, errors, and clipboard events.  
+
+</details> 
+<details>
   <summary>🦊 RS Models Loader</summary>
 
 # 🦊 RS Models Loader  
 **A powerful universal model loading node that combines UNET, CLIP (with additional dual-clip support), VAE and LoRa downloads in a single interface and the function of saving model and LoRA configurations to preset presets.**  
 
-<img width="561" height="610" alt="Screenshot_1" src="https://github.com/user-attachments/assets/cdaf73bc-1c92-4b39-ab03-aaf6069964ea" />
+<img width="598" height="644" alt="Screenshot_1" src="https://github.com/user-attachments/assets/b1c9da4a-a505-4694-be28-0024e8241821" />
 
 ### 🔥 Features  
 - **Unified Loading** - Load UNET, CLIP, VAE, and multiple LoRAs in one node  
 - **Dual CLIP Support** - Toggle between single CLIP mode (CLIPLoader) and dual CLIP mode (DualCLIPLoader) for models like Flux, SD3, Hunyuan DiT, and PixArt  
+- **Visual Multi-LoRA Management** - Add, remove, and reorder multiple LoRAs with drag-and-drop support. 
 - **LoRA Management** - Add, enable/disable, and adjust strengths for multiple LoRAs with an intuitive visual interface  
 - **Persistent Storage** - LoRA configurations are saved per node and persist across sessions  
 - **Folder Structure** - Browse LoRAs with folder tree navigation  
 - **Search Functionality** - Quickly find LoRAs by name  
-- **Presets of model sets** - Save model sets to presets for quick switching between models   
-- **Presets of LoRA sets** - Save LoRA sets to presets for quick switching between models   
+- **Presets of model sets** - Save model sets to presets for quick switching between models  
+- **Presets of LoRA sets** - Save LoRA sets to presets for quick switching between models  
+- **Quick update** - When adding a new LoRA to the 'loras' folder, you do not need to reload ComfyUI or the browser page. Just click the ✔️ Update LoRA list button  
+- **Pop-up messages** - Confirmation of successful or unsuccessful processes in the node  
+
+### 🌐 Civitai Metadata Integration (Info Popup)  
+- **Instant Info** - Click the `ℹ️` icon on any LoRA row to open a detailed popup.  
+- **Fetch from Civitai** - Automatically fetches the model's true name, description, and tags directly from Civitai using the file's SHA256 hash.  
+- **Getting metadata** - If no data is found, click the **🌐 Fetch from Civitai** button.  
+   - *Note: The node calculates the SHA256 hash of the `.safetensors` file and queries the Civitai API. This may take a few seconds on the first run.*  
+- **Local Caching** - Fetched metadata is saved locally in the `rayko_lora_data` folder. Subsequent views are instant and require no internet connection.  
+
+### 📋 One-Click Tag Copying  
+- **Click to Copy** - Click on any individual green tag chip in the Info popup to instantly copy it to your clipboard and auto-close the window.  
+- **📋 Copy All** - A dedicated button to copy all trained words/tags at once.
+
+### 🔔 Visual Feedback  
+- Custom toast notifications for successful actions, errors, and clipboard events. 
 
 ### 📃 Notes  
 - When dual CLIP mode is disabled, clip_name2 is visible but disabled (grayed out)  

@@ -1,10 +1,73 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
+window.showRaykoToast = function(message, type = "error", node = null) {
+    const existing = document.querySelector(".rayko-toast");
+    if (existing) existing.remove();
+
+    const toast = document.createElement("div");
+    toast.className = "rayko-toast";
+    const bgColor = type === "error" ? "#f44336" : "#4CAF50";
+    toast.style.cssText = `
+        position: fixed; background: ${bgColor}; color: white;
+        padding: 12px 20px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        z-index: 100000; font-size: 14px; font-family: sans-serif; opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease; transform: translateY(-20px);
+        pointer-events: none; white-space: nowrap;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    const toastRect = toast.getBoundingClientRect();
+    
+    let left, top;
+    
+    if (node && app && app.canvas) {
+        const canvasRect = app.canvas.canvas.getBoundingClientRect();
+        const scale = app.canvas.ds.scale;
+        const offsetX = app.canvas.ds.offset[0];
+        const offsetY = app.canvas.ds.offset[1];
+        
+        const nodeCenterGraphX = node.pos[0] + node.size[0] / 2;
+        const nodeCenterGraphY = node.pos[1] + node.size[1] / 2;
+        
+        const nodeCenterScreenX = canvasRect.left + (nodeCenterGraphX + offsetX) * scale;
+        const nodeCenterScreenY = canvasRect.top + (nodeCenterGraphY + offsetY) * scale;
+        
+        left = nodeCenterScreenX - (toastRect.width / 2);
+        top = nodeCenterScreenY - (toastRect.height / 2);
+        
+        if (left < 10) left = 10;
+        if (top < 10) top = 10;
+        if (left + toastRect.width > window.innerWidth - 10) {
+            left = window.innerWidth - toastRect.width - 10;
+        }
+        if (top + toastRect.height > window.innerHeight - 10) {
+            top = window.innerHeight - toastRect.height - 10;
+        }
+    } else {
+        left = window.innerWidth - toastRect.width - 20;
+        top = 20;
+    }
+    
+    toast.style.left = left + "px";
+    toast.style.top = top + "px";
+    
+    void toast.offsetWidth;
+    toast.style.opacity = "1";
+    toast.style.transform = "translateY(0)";
+    
+    setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-20px)";
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+};
+
 app.registerExtension({
-    name: "RaykoLoraWidget",
+    name: "RaykoLoRALoaderWidget",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === "RaykoModelsLoader") {
+        if (nodeData.name === "RaykoLoRALoader") {
             const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
             const originalOnConfigure = nodeType.prototype.onConfigure;
             const originalOnSerialize = nodeType.prototype.onSerialize;
@@ -29,11 +92,17 @@ app.registerExtension({
                 this.oldWheelHandler = null;
                 this.currentFilter = "";
                 
+                this.draggingIndex = null;
+                this.dragCurrentY = null;
+                
                 this.hiddenWidget = this.widgets.find(w => w.name === "lora_data");
                 const nodeRef = this;
                 
                 if (this.hiddenWidget) {
                     this.hiddenWidget.hidden = true;
+                    if (this.hiddenWidget.element) {
+                        this.hiddenWidget.element.style.display = "none";
+                    }
                     const originalSerializeValue = this.hiddenWidget.serializeValue;
                     this.hiddenWidget.serializeValue = function() {
                         nodeRef.syncData();
@@ -42,66 +111,85 @@ app.registerExtension({
                     };
                 }
 
-                const useClip2Widget = this.widgets.find(w => w.name === "use_clip2");
-                const clipName2Widget = this.widgets.find(w => w.name === "clip_name2");
-                
-                if (useClip2Widget && clipName2Widget) {
-                    clipName2Widget.disabled = !useClip2Widget.value;
-                    if (clipName2Widget.element) {
-                        clipName2Widget.element.classList.toggle("comfy-disabled", clipName2Widget.disabled);
+                const useClipWidget = this.widgets.find(w => w.name === "use_clip");
+                if (useClipWidget) {
+                    useClipWidget.hidden = true;
+                    if (useClipWidget.element) {
+                        useClipWidget.element.style.display = "none";
                     }
-                    const originalCallback = useClip2Widget.callback;
-                    useClip2Widget.callback = function(value) {
-                        if (originalCallback) originalCallback(value);
-                        clipName2Widget.disabled = !value;
-                        if (clipName2Widget.element) {
-                            clipName2Widget.element.classList.toggle("comfy-disabled", clipName2Widget.disabled);
-                        }
-                        nodeRef.graph?.setDirtyCanvas(true, true);
-                    };
                 }
+
+                const updateClipInputState = () => {
+                    if (!useClipWidget) return;
+                    const clipSlotIndex = this.findInputSlot("clip");
+                    if (clipSlotIndex !== -1 && this.inputs && this.inputs[clipSlotIndex]) {
+                        const isEnabled = useClipWidget.value;
+                        this.inputs[clipSlotIndex].disabled = !isEnabled;
+                        if (isEnabled) {
+                            delete this.inputs[clipSlotIndex].color;
+                            this.inputs[clipSlotIndex].tooltip = "CLIP input enabled";
+                        } else {
+                            this.inputs[clipSlotIndex].color = "#555";
+                            this.inputs[clipSlotIndex].tooltip = "CLIP input disabled";
+                        }
+                    }
+                };
 
                 this.setSize([this.targetWidth, this.size[1]]);
 
-                const collectPresetData = () => ({
-                    unet_name: this.widgets.find(w => w.name === "unet_name")?.value || "",
-                    weight_dtype: this.widgets.find(w => w.name === "weight_dtype")?.value || "default",
-                    use_clip2: this.widgets.find(w => w.name === "use_clip2")?.value || false,
-                    clip_name: this.widgets.find(w => w.name === "clip_name")?.value || "",
-                    clip_name2: this.widgets.find(w => w.name === "clip_name2")?.value || "",
-                    clip_type: this.widgets.find(w => w.name === "clip_type")?.value || "stable_diffusion",
-                    clip_device: this.widgets.find(w => w.name === "clip_device")?.value || "default",
-                    vae_name: this.widgets.find(w => w.name === "vae_name")?.value || ""
+                const clipButtonRoot = document.createElement("div");
+                clipButtonRoot.style.cssText = "display:flex;flex-direction:column;gap:4px;width:100%;margin:0;padding:0;box-sizing:border-box;";
+
+                const clipToggleBtn = document.createElement("button");
+                clipToggleBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border-radius:5px;cursor:pointer;height:26px;margin:0;font-weight:bold;";
+                
+                const updateClipButton = () => {
+                    const isEnabled = useClipWidget ? useClipWidget.value : true;
+                    if (isEnabled) {
+                        clipToggleBtn.textContent = "🟢 CLIP ON";
+                        clipToggleBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #4CAF50;border-radius:5px;background:#1a3a1a;color:#aaffaa;cursor:pointer;height:26px;margin:0;font-weight:bold;";
+                    } else {
+                        clipToggleBtn.textContent = "🔴 CLIP OFF";
+                        clipToggleBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #f44336;border-radius:5px;background:#3a1a1a;color:#ffaaaa;cursor:pointer;height:26px;margin:0;font-weight:bold;";
+                    }
+                };
+
+                clipToggleBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (useClipWidget) {
+                        const newValue = !useClipWidget.value;
+                        useClipWidget.value = newValue;
+                        if (useClipWidget.callback) useClipWidget.callback(newValue);
+                        updateClipButton();
+                        updateClipInputState();
+                        nodeRef.graph?.setDirtyCanvas(true, true);
+                    }
                 });
 
-                const applyPresetData = (data) => {
-                    const setWidgetValue = (name, value) => {
-                        const widget = this.widgets.find(w => w.name === name);
-                        if (widget) {
-                            widget.value = value;
-                            if (widget.callback) widget.callback(value);
-                        }
-                    };
-                    ["unet_name", "weight_dtype", "use_clip2", "clip_name", "clip_name2", "clip_type", "clip_device", "vae_name"].forEach(k => setWidgetValue(k, data[k]));
-                    this.loraRows = [];
-                    this.scrollOffset = 0;
-                    this.manual_size = false;
-                    this.syncData();
-                    
-                    requestAnimationFrame(() => {
-                        const startY = this.getLoraListStartY();
-                        const calculatedHeight = startY + this.rowHeight + 10;
-                        this.isAutoResizing = true;
-                        this.setSize([this.size[0], calculatedHeight]);
-                        this.isAutoResizing = false;
-                        if (this.graph) {
-                            this.graph.setDirtyCanvas(true, true);
-                            setTimeout(() => this.graph.setDirtyCanvas(true, true), 50);
-                            setTimeout(() => this.graph.setDirtyCanvas(true, true), 100);
-                            setTimeout(() => this.graph.setDirtyCanvas(true, true), 150);
-                        }
-                    });
-                };
+                clipButtonRoot.appendChild(clipToggleBtn);
+
+                const clipButtonWidget = this.addDOMWidget("clip_toggle_ui", "custom", clipButtonRoot);
+                clipButtonWidget.computeSize = function() { return [this.width || 130, 30]; };
+
+                const presetsWrapper = document.createElement("div");
+                presetsWrapper.style.cssText = "display:flex;flex-direction:column;gap:4px;width:100%;margin:0;padding:0;box-sizing:border-box;";
+
+                const loraPresetsRoot = document.createElement("div");
+                loraPresetsRoot.style.cssText = "display:flex;gap:4px;width:100%;align-items:center;height:30px;";
+                
+                const saveLoraPresetBtn = document.createElement("button");
+                saveLoraPresetBtn.textContent = "💾 Save LoRA preset";
+                saveLoraPresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #50cc90;border-radius:5px;background:#1a3a2a;color:#aaffcc;cursor:pointer;height:26px;margin:0;";
+                
+                const selectLoraPresetBtn = document.createElement("button");
+                selectLoraPresetBtn.textContent = "📂 Select LoRA preset";
+                selectLoraPresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #50cc90;border-radius:5px;background:#1a3a2a;color:#aaffcc;cursor:pointer;height:26px;margin:0;";
+                loraPresetsRoot.append(saveLoraPresetBtn, selectLoraPresetBtn);
+                
+                presetsWrapper.append(loraPresetsRoot);
+
+                const presetsWidget = this.addDOMWidget("presets_ui", "custom", presetsWrapper);
+                presetsWidget.computeSize = function() { return [this.width || 130, 35]; };
 
                 const collectLoraPresetData = () => ({
                     lora_rows: this.loraRows.map(row => ({
@@ -189,47 +277,11 @@ app.registerExtension({
                 deleteConfirmOverlay.append(deleteText, deleteBtns);
                 document.body.appendChild(deleteConfirmOverlay);
 
-                let pendingSaveType = "model";
-                let pendingSelectType = "model";
-                let pendingDeleteType = "model";
                 let pendingDeleteName = null;
 
-                const presetsWrapper = document.createElement("div");
-                presetsWrapper.style.cssText = "display:flex;flex-direction:column;gap:4px;width:100%;margin:0;padding:0;box-sizing:border-box;";
-
-                const presetsRoot = document.createElement("div");
-                presetsRoot.style.cssText = "display:flex;gap:4px;width:100%;align-items:center;height:30px;";
-                
-                const savePresetBtn = document.createElement("button");
-                savePresetBtn.textContent = " 💾 Save models preset";
-                savePresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #99c0ee;border-radius:5px;background:#1a3a5a;color:#aadaff;cursor:pointer;height:26px;margin:0;";
-                
-                const selectPresetBtn = document.createElement("button");
-                selectPresetBtn.textContent = " 📂 Select models preset";
-                selectPresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #99c0ee;border-radius:5px;background:#1a3a5a;color:#aadaff;cursor:pointer;height:26px;margin:0;";
-                presetsRoot.append(savePresetBtn, selectPresetBtn);
-
-                const loraPresetsRoot = document.createElement("div");
-                loraPresetsRoot.style.cssText = "display:flex;gap:4px;width:100%;align-items:center;height:30px;";
-                
-                const saveLoraPresetBtn = document.createElement("button");
-                saveLoraPresetBtn.textContent = " 💾 Save LoRA preset";
-                saveLoraPresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #50cc90;border-radius:5px;background:#1a3a2a;color:#aaffcc;cursor:pointer;height:26px;margin:0;";
-                
-                const selectLoraPresetBtn = document.createElement("button");
-                selectLoraPresetBtn.textContent = " 📂 Select LoRA preset";
-                selectLoraPresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #50cc90;border-radius:5px;background:#1a3a2a;color:#aaffcc;cursor:pointer;height:26px;margin:0;";
-                loraPresetsRoot.append(saveLoraPresetBtn, selectLoraPresetBtn);
-                
-                presetsWrapper.append(presetsRoot, loraPresetsRoot);
-
-                const presetsWidget = this.addDOMWidget("presets_ui", "custom", presetsWrapper);
-                presetsWidget.computeSize = function() { return [this.width || 130, 70]; };
-
-                const openSaveDialog = (type, btnElement) => {
+                const openSaveDialog = (btnElement) => {
                     presetListOverlay.style.display = "none";
                     deleteConfirmOverlay.style.display = "none";
-                    pendingSaveType = type;
                     const rect = btnElement.getBoundingClientRect();
                     presetNameInput.style.left = rect.left + "px";
                     presetNameInput.style.top = (rect.bottom + 5) + "px";
@@ -238,16 +290,15 @@ app.registerExtension({
                     setTimeout(() => inputField.focus(), 50);
                 };
 
-                savePresetBtn.addEventListener("click", (e) => { e.stopPropagation(); openSaveDialog("model", savePresetBtn); });
-                saveLoraPresetBtn.addEventListener("click", (e) => { e.stopPropagation(); openSaveDialog("lora", saveLoraPresetBtn); });
+                saveLoraPresetBtn.addEventListener("click", (e) => { e.stopPropagation(); openSaveDialog(saveLoraPresetBtn); });
 
                 const performSave = () => {
                     const name = inputField.value.trim();
                     if (!name) return;
                     presetNameInput.style.display = "none";
                     
-                    const endpoint = pendingSaveType === "model" ? "/rayko_models/save_preset" : "/rayko_loras/save_preset";
-                    const payload = pendingSaveType === "model" ? { name, ...collectPresetData() } : { name, ...collectLoraPresetData() };
+                    const endpoint = "/rayko_lora_loader/save_preset";
+                    const payload = { name, ...collectLoraPresetData() };
 
                     fetch(endpoint, {
                         method: "POST",
@@ -258,10 +309,10 @@ app.registerExtension({
                         if (!res.ok) {
                             return res.text().then(text => { throw new Error(text || res.statusText); });
                         }
+                        showRaykoToast("Preset saved successfully!", "success", this);
                     })
                     .catch(err => {
-                        console.error(`[Rayko] Failed to save preset:`, err);
-                        alert(`Failed to save preset:\n${err.message}`);
+                        showRaykoToast("Failed to save preset: " + err.message, "error", this);
                     });
                 };
 
@@ -279,7 +330,7 @@ app.registerExtension({
                     presetListOverlay.innerHTML = "<div style='padding:8px;color:#999;text-align:center;'>Loading...</div>";
                     presetListOverlay.style.display = "flex";
                     try {
-                        const endpoint = pendingSelectType === "model" ? "/rayko_models/list_presets" : "/rayko_loras/list_presets";
+                        const endpoint = "/rayko_lora_loader/list_presets";
                         const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" } });
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         const list = await res.json();
@@ -300,16 +351,15 @@ app.registerExtension({
                             nameSpan.onclick = async (e) => {
                                 e.stopPropagation();
                                 presetListOverlay.style.display = "none";
-                                const loadEndpoint = pendingSelectType === "model" ? "/rayko_models/load_preset" : "/rayko_loras/load_preset";
+                                const loadEndpoint = "/rayko_lora_loader/load_preset";
                                 try {
                                     const res2 = await fetch(loadEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
                                     if (!res2.ok) throw new Error(`HTTP ${res2.status}`);
                                     const data = await res2.json();
-                                    if (pendingSelectType === "model") applyPresetData(data);
-                                    else applyLoraPresetData(data);
+                                    applyLoraPresetData(data);
+                                    showRaykoToast("Preset loaded!", "success", this);
                                 } catch (err) {
-                                    console.error(`[Rayko] Failed to load preset:`, err);
-                                    alert(`Failed to load preset: ${err.message}`);
+                                    showRaykoToast("Failed to load preset: " + err.message, "error", this);
                                 }
                             };
                             
@@ -321,7 +371,6 @@ app.registerExtension({
                             delBtn.onclick = (e) => {
                                 e.stopPropagation();
                                 pendingDeleteName = name;
-                                pendingDeleteType = pendingSelectType;
                                 deleteText.textContent = `Delete "${name}"?`;
                                 const r = btnElement.getBoundingClientRect();
                                 deleteConfirmOverlay.style.left = r.left + "px";
@@ -333,41 +382,31 @@ app.registerExtension({
                             presetListOverlay.appendChild(row);
                         });
                     } catch (e) {
-                        console.error(`[Rayko] Failed to list presets:`, e);
+                        showRaykoToast("Failed to list presets: " + e.message, "error", this);
                         presetListOverlay.textContent = "Error loading";
                     }
                 };
-
-                selectPresetBtn.addEventListener("click", async (e) => {
-                    e.stopPropagation();
-                    presetNameInput.style.display = "none";
-                    deleteConfirmOverlay.style.display = "none";
-                    if (presetListOverlay.style.display === "flex") { presetListOverlay.style.display = "none"; return; }
-                    pendingSelectType = "model";
-                    showPresetList(selectPresetBtn);
-                });
 
                 selectLoraPresetBtn.addEventListener("click", async (e) => {
                     e.stopPropagation();
                     presetNameInput.style.display = "none";
                     deleteConfirmOverlay.style.display = "none";
                     if (presetListOverlay.style.display === "flex") { presetListOverlay.style.display = "none"; return; }
-                    pendingSelectType = "lora";
                     showPresetList(selectLoraPresetBtn);
                 });
 
                 deleteOk.addEventListener("click", async () => {
                     if (pendingDeleteName) {
-                        const endpoint = pendingDeleteType === "model" ? "/rayko_models/delete_preset" : "/rayko_loras/delete_preset";
+                        const endpoint = "/rayko_lora_loader/delete_preset";
                         try {
                             const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: pendingDeleteName }) });
                             if (!res.ok) throw new Error(`HTTP ${res.status}`);
                             deleteConfirmOverlay.style.display = "none";
                             presetListOverlay.style.display = "none";
                             pendingDeleteName = null;
+                            showRaykoToast("Preset deleted!", "success", this);
                         } catch (err) {
-                            console.error(`[Rayko] Failed to delete preset:`, err);
-                            alert(`Failed to delete preset: ${err.message}`);
+                            showRaykoToast("Failed to delete preset: " + err.message, "error", this);
                         }
                     }
                 });
@@ -390,11 +429,13 @@ app.registerExtension({
                     this.showLoraTreeSelector(btnWidget);
                 });
 
+                updateClipButton();
+                updateClipInputState();
+
                 const self = this;
                 
                 this.wheelHandler = function(e) {
                     if (app.canvas.node_over !== self) return;
-
                     const graphPos = app.canvas.graph_mouse;
                     if (!graphPos) return;
 
@@ -468,7 +509,7 @@ app.registerExtension({
 
                 setTimeout(() => {
                     if (this.id) {
-                        this.storageKey = `rayko_lora_${this.id}`;
+                        this.storageKey = `rayko_lora_loader_${this.id}`;
                         this.loadLoraList().then(() => {
                             this.restoreData();
                             this.isInitialized = true;
@@ -531,12 +572,18 @@ app.registerExtension({
                     });
                 });
                 
-                const useClip2Widget = this.widgets.find(w => w.name === "use_clip2");
-                const clipName2Widget = this.widgets.find(w => w.name === "clip_name2");
-                if (useClip2Widget && clipName2Widget) {
-                    clipName2Widget.disabled = !useClip2Widget.value;
-                    if (clipName2Widget.element) {
-                        clipName2Widget.element.classList.toggle("comfy-disabled", clipName2Widget.disabled);
+                const useClipWidget = this.widgets.find(w => w.name === "use_clip");
+                if (useClipWidget) {
+                    const clipSlotIndex = this.findInputSlot("clip");
+                    if (clipSlotIndex !== -1 && this.inputs && this.inputs[clipSlotIndex]) {
+                        this.inputs[clipSlotIndex].disabled = !useClipWidget.value;
+                        if (useClipWidget.value) {
+                            delete this.inputs[clipSlotIndex].color;
+                            this.inputs[clipSlotIndex].tooltip = "CLIP input enabled";
+                        } else {
+                            this.inputs[clipSlotIndex].color = "#555";
+                            this.inputs[clipSlotIndex].tooltip = "CLIP input disabled";
+                        }
                     }
                 }
                 return originalOnConfigure ? originalOnConfigure.apply(this, arguments) : undefined;
@@ -584,7 +631,7 @@ app.registerExtension({
 
             nodeType.prototype.loadLoraList = async function() {
                 try {
-                    const response = await api.fetchApi("/rayko/get_loras");
+                    const response = await api.fetchApi("/rayko_lora_loader/get_loras");
                     const data = await response.json();
                     this.loraOptions = data.filter(l => l !== "None" && l !== null && l !== undefined);
                     this.loraTree = this.buildLoraTree(this.loraOptions);
@@ -661,6 +708,9 @@ app.registerExtension({
                 for (let i = 0; i < visibleEnd - visibleStart; i++) {
                     const dataIdx = visibleStart + i;
                     const row = this.loraRows[dataIdx];
+                    
+                    if (this.draggingIndex === dataIdx) continue;
+
                     const y = startY + (i * this.rowHeight);
                     const h = this.rowHeight - 2;
                     const toggleY = y + h/2;
@@ -668,15 +718,27 @@ app.registerExtension({
                     ctx.fillStyle = i % 2 === 0 ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.15)";
                     ctx.fillRect(padding, y, this.size[0] - (padding * 2), h);
 
-                    const toggleX = padding + 5;
+                    this.clickZones.push({ type: "drag", index: dataIdx, x: padding, y: y, w: 20, h: h });
+                    ctx.fillStyle = "#888";
+                    ctx.font = "14px sans-serif";
+                    ctx.fillText("⋮⋮", padding + 2, toggleY + 5);
+
+                    const toggleX = padding + 20;
                     ctx.fillStyle = row.enabled ? "#4CAF50" : "#555";
                     ctx.beginPath();
                     ctx.arc(toggleX + 8, toggleY, 7, 0, Math.PI * 2);
                     ctx.fill();
                     this.clickZones.push({ type: "toggle", index: dataIdx, x: toggleX, y: y, w: 24, h: h });
 
-                    const nameX = toggleX + 30;
-                    const nameW = this.size[0] - (padding * 2) - 30 - rightPanelWidth - 20;
+                    const infoX = toggleX + 15;
+                    const infoW = 24;
+                    ctx.fillStyle = row.enabled ? "#4CAF50" : "#555";
+                    ctx.font = "bold 18px sans-serif";
+                    ctx.fillText("ℹ️", infoX + 2, toggleY + 6);
+                    this.clickZones.push({ type: "info", index: dataIdx, x: infoX, y: y, w: infoW, h: h });
+
+                    const nameX = infoX + infoW + 5;
+                    const nameW = this.size[0] - (padding * 2) - 50 - rightPanelWidth - 20 - infoW - 5;
                     ctx.fillStyle = row.enabled ? "#fff" : "#777";
                     ctx.font = "12px sans-serif";
                     let displayName = row.name;
@@ -724,6 +786,41 @@ app.registerExtension({
                     this.clickZones.push({ type: "delete", index: dataIdx, x: arrowRX + 35, y: y, w: 30, h: h });
                 }
 
+                if (this.draggingIndex !== null && this.dragCurrentY !== null) {
+                    const row = this.loraRows[this.draggingIndex];
+                    const h = this.rowHeight - 2;
+                    const y = this.dragCurrentY - (h / 2);
+                    const toggleY = y + h/2;
+                    const padding = 10;
+
+                    ctx.globalAlpha = 0.8;
+                    ctx.fillStyle = "#3a5a3a";
+                    ctx.fillRect(padding, y, this.size[0] - (padding * 2), h);
+                    
+                    ctx.fillStyle = "#fff";
+                    ctx.font = "14px sans-serif";
+                    ctx.fillText("⋮⋮", padding + 2, toggleY + 5);
+                    
+                    ctx.font = "12px sans-serif";
+                    ctx.fillText(row.name, padding + 25, toggleY + 4);
+                    ctx.globalAlpha = 1.0;
+
+                    const relativeY = this.dragCurrentY - startY;
+                    let targetIndex = Math.floor(relativeY / this.rowHeight) + this.scrollOffset;
+                    targetIndex = Math.max(0, Math.min(targetIndex, this.loraRows.length - 1));
+                    
+                    if (targetIndex !== this.draggingIndex) {
+                        const targetY = startY + ((targetIndex - this.scrollOffset) * this.rowHeight);
+                        ctx.strokeStyle = "#4CAF50";
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(padding, targetY);
+                        ctx.lineTo(this.size[0] - padding, targetY);
+                        ctx.stroke();
+                        ctx.lineWidth = 1;
+                    }
+                }
+
                 if (this.loraRows.length > maxVisibleStyles) {
                     if (this.scrollOffset > 0) {
                         const indicatorY = startY - 2;
@@ -753,10 +850,19 @@ app.registerExtension({
                 if (!this.clickZones || this.clickZones.length === 0) return false;
                 for (const zone of this.clickZones) {
                     if (pos[0] >= zone.x && pos[0] <= zone.x + zone.w && pos[1] >= zone.y && pos[1] <= zone.y + zone.h) {
-                        if (zone.type === "toggle") {
+                        if (zone.type === "drag") {
+                            this.draggingIndex = zone.index;
+                            this.dragCurrentY = pos[1];
+                            if (this.graph) this.graph.setDirtyCanvas(true, true);
+                            return true;
+                        } else if (zone.type === "toggle") {
                             this.loraRows[zone.index].enabled = !this.loraRows[zone.index].enabled;
                             this.syncData();
                             if (this.graph) this.graph.setDirtyCanvas(true, true);
+                            return true;
+                        } else if (zone.type === "info") {
+                            const loraName = this.loraRows[zone.index].name;
+                            this.showLoraInfo(loraName);
                             return true;
                         } else if (zone.type === "strength_input") {
                             const newValue = prompt("Enter strength LoRA:", this.loraRows[zone.index].strength_model.toFixed(2));
@@ -799,10 +905,40 @@ app.registerExtension({
                                     setTimeout(() => this.graph.setDirtyCanvas(true, true), 150);
                                 }
                             });
-                            
                             return true;
                         }
                     }
+                }
+                return false;
+            };
+
+            nodeType.prototype.onMouseMove = function(e, pos, canvas) {
+                if (this.draggingIndex !== null) {
+                    this.dragCurrentY = pos[1];
+                    if (this.graph) this.graph.setDirtyCanvas(true, true);
+                    return true;
+                }
+                return false;
+            };
+
+            nodeType.prototype.onMouseUp = function(e, pos, canvas) {
+                if (this.draggingIndex !== null) {
+                    const startY = this.getLoraListStartY();
+                    const relativeY = this.dragCurrentY - startY;
+                    let targetIndex = Math.floor(relativeY / this.rowHeight) + this.scrollOffset;
+                    targetIndex = Math.max(0, Math.min(targetIndex, this.loraRows.length - 1));
+
+                    if (targetIndex !== this.draggingIndex) {
+                        const item = this.loraRows.splice(this.draggingIndex, 1)[0];
+                        this.loraRows.splice(targetIndex, 0, item);
+                        this.syncData();
+                        this.updateUI();
+                    }
+                    
+                    this.draggingIndex = null;
+                    this.dragCurrentY = null;
+                    if (this.graph) this.graph.setDirtyCanvas(true, true);
+                    return true;
                 }
                 return false;
             };
@@ -846,11 +982,11 @@ app.registerExtension({
                     menuTop = finalTop;
                 }
 
-                const existingMenu = document.getElementById("rayko-lora-selector-menu");
+                const existingMenu = document.getElementById("rayko-lora-loader-selector-menu");
                 if (existingMenu) existingMenu.remove();
 
                 const menu = document.createElement("div");
-                menu.id = "rayko-lora-selector-menu";
+                menu.id = "rayko-lora-loader-selector-menu";
                 menu.style.cssText = `position: fixed; background: #1a1a1a; border: 1px solid #444; border-radius: 6px; height: ${menuHeight}px; width: ${menuWidth}px; overflow-y: auto; overflow-x: hidden; z-index: 10000; left: ${menuLeft}px; top: ${menuTop}px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); display: flex; flex-direction: column;`;
 
                 const headerContainer = document.createElement("div");
@@ -1039,6 +1175,186 @@ app.registerExtension({
                 });
             };
 
+            nodeType.prototype.showLoraInfo = function(loraName) {
+                const existingPopup = document.getElementById("rayko-lora-info-popup");
+                if (existingPopup) existingPopup.remove();
+                
+                const popup = document.createElement("div");
+                popup.id = "rayko-lora-info-popup";
+                popup.style.cssText = `
+                    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                    background: #1a1a1a; border: 1px solid #444; border-radius: 8px; padding: 20px;
+                    max-width: 500px; max-height: 400px; overflow-y: auto; z-index: 100001;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.8); font-family: sans-serif;
+                `;
+                
+                const header = document.createElement("div");
+                header.style.cssText = `display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #333;`;
+                
+                const title = document.createElement("div");
+                title.textContent = "LoRA Info";
+                title.style.cssText = `color: #fff; font-size: 16px; font-weight: bold;`;
+                
+                const closeBtn = document.createElement("button");
+                closeBtn.textContent = "✕";
+                closeBtn.style.cssText = `background: transparent; border: none; color: #888; font-size: 20px; cursor: pointer; padding: 0 5px; line-height: 1;`;
+                closeBtn.onmouseenter = () => closeBtn.style.color = "#fff";
+                closeBtn.onmouseleave = () => closeBtn.style.color = "#888";
+                closeBtn.onclick = () => { popup.remove(); document.removeEventListener("keydown", handleEsc); };
+                
+                header.appendChild(title);
+                header.appendChild(closeBtn);
+                popup.appendChild(header);
+                
+                const fullNameLabel = document.createElement("div");
+                fullNameLabel.textContent = "Full Name:";
+                fullNameLabel.style.cssText = `color: #888; font-size: 12px; margin-bottom: 5px;`;
+                
+                const fullName = document.createElement("div");
+                fullName.textContent = loraName;
+                fullName.style.cssText = `color: #fff; font-size: 13px; background: #2a2a2a; padding: 8px; border-radius: 4px; margin-bottom: 15px; word-break: break-all;`;
+                
+                popup.appendChild(fullNameLabel);
+                popup.appendChild(fullName);
+                
+                const content = document.createElement("div");
+                content.style.cssText = `color: #999; font-size: 13px; text-align: center; padding: 20px;`;
+                content.textContent = "Loading...";
+                popup.appendChild(content);
+                
+                const sourceLabel = document.createElement("div");
+                sourceLabel.style.cssText = `color: #666; font-size: 10px; text-align: right; margin-top: 10px; font-style: italic;`;
+                popup.appendChild(sourceLabel);
+                
+                document.body.appendChild(popup);
+                
+                const handleEsc = (e) => { if (e.key === "Escape") { popup.remove(); document.removeEventListener("keydown", handleEsc); } };
+                document.addEventListener("keydown", handleEsc);
+                
+                const updateContent = (data) => {
+                    content.innerHTML = "";
+                    sourceLabel.textContent = `Source: ${data.source || 'unknown'}`;
+                    
+                    if (data.error) {
+                        content.textContent = data.message || "No metadata available";
+                        content.style.color = "#f44336";
+                        return;
+                    }
+                    
+                    if (data.full_name && data.full_name !== loraName) {
+                        fullName.textContent = data.full_name;
+                    }
+                    
+                    if (data.trained_words && data.trained_words.length > 0) {
+                        const twLabel = document.createElement("div");
+                        twLabel.textContent = "Trained Words:";
+                        twLabel.style.cssText = `color: #888; font-size: 12px; margin-bottom: 8px;`;
+                        content.appendChild(twLabel);
+                        
+                        const twContainer = document.createElement("div");
+                        twContainer.style.cssText = `display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px;`;
+                        
+                        data.trained_words.forEach(word => {
+                            const chip = document.createElement("div");
+                            chip.textContent = word;
+                            chip.style.cssText = `background: #2a3a2a; color: #4CAF50; padding: 4px 10px; border-radius: 12px; font-size: 11px; border: 1px solid #4CAF50; cursor: pointer; user-select: none;`;
+                            chip.onmouseenter = () => { chip.style.background = "#3a5a3a"; chip.style.borderColor = "#66dd66"; };
+                            chip.onmouseleave = () => { chip.style.background = "#2a3a2a"; chip.style.borderColor = "#4CAF50"; };
+                            chip.onclick = () => {
+                                navigator.clipboard.writeText(word).then(() => {
+                                    showRaykoToast(`Copied: "${word}"`, "success", this);
+                                    popup.remove();
+                                    document.removeEventListener("keydown", handleEsc);
+                                }).catch(() => showRaykoToast("Failed to copy", "error", this));
+                            };
+                            twContainer.appendChild(chip);
+                        });
+                        content.appendChild(twContainer);
+                        
+                        const copyBtn = document.createElement("button");
+                        copyBtn.textContent = "📋 Copy All";
+                        copyBtn.style.cssText = `background: #1a3a5a; color: #aadaff; border: 1px solid #5090cc; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 11px; margin-bottom: 15px;`;
+                        copyBtn.onmouseenter = () => copyBtn.style.background = "#2a4a6a";
+                        copyBtn.onmouseleave = () => copyBtn.style.background = "#1a3a5a";
+                        copyBtn.onclick = () => {
+                            const text = data.trained_words.join(", ");
+                            navigator.clipboard.writeText(text).then(() => {
+                                showRaykoToast("Trained words copied!", "success", this);
+                                popup.remove();
+                                document.removeEventListener("keydown", handleEsc);
+                            }).catch(() => showRaykoToast("Failed to copy", "error", this));
+                        };
+                        content.appendChild(copyBtn);
+                    }
+                    
+                    if (data.description) {
+                        const descLabel = document.createElement("div");
+                        descLabel.textContent = "Description:";
+                        descLabel.style.cssText = `color: #888; font-size: 12px; margin-bottom: 5px;`;
+                        content.appendChild(descLabel);
+                        
+                        const desc = document.createElement("div");
+                        desc.textContent = data.description;
+                        desc.style.cssText = `color: #ccc; font-size: 12px; background: #2a2a2a; padding: 8px; border-radius: 4px; line-height: 1.4;`;
+                        content.appendChild(desc);
+                    }
+                    
+                    if (!data.trained_words?.length && !data.description) {
+                        content.textContent = "No metadata available";
+                        content.style.color = "#888";
+                    }
+                    
+                    const actionsDiv = document.createElement("div");
+                    actionsDiv.style.cssText = `display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap;`;
+                    
+                    const fetchBtn = document.createElement("button");
+                    fetchBtn.textContent = "🌐 Fetch from Civitai";
+                    fetchBtn.style.cssText = `flex: 1; background: #3a2a1a; color: #fbbf24; border: 1px solid #fbbf24; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 11px;`;
+                    fetchBtn.onmouseenter = () => fetchBtn.style.background = "#4a3a2a";
+                    fetchBtn.onmouseleave = () => fetchBtn.style.background = "#3a2a1a";
+                    fetchBtn.onclick = async () => {
+                        fetchBtn.textContent = "⏳ Loading...";
+                        fetchBtn.disabled = true;
+                        fetchBtn.style.opacity = "0.5";
+                        
+                        try {
+                            const res = await fetch("/rayko_lora_loader/fetch_civitai_info", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ name: loraName })
+                            });
+                            const result = await res.json();
+                            if (result.error) {
+                                content.textContent = result.message || "Error fetching from Civitai";
+                                content.style.color = "#f44336";
+                                sourceLabel.textContent = "";
+                            } else {
+                                updateContent(result);
+                            }
+                        } catch (err) {
+                            content.textContent = "Network error";
+                            content.style.color = "#f44336";
+                            sourceLabel.textContent = "";
+                        }
+                    };
+                    actionsDiv.appendChild(fetchBtn);
+                    
+                    content.appendChild(actionsDiv);
+                };
+                
+                fetch("/rayko_lora_loader/get_lora_info", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: loraName })
+                })
+                .then(res => res.json())
+                .then(updateContent)
+                .catch(err => {
+                    content.textContent = "Error loading metadata";
+                    content.style.color = "#f44336";
+                });
+            };
+
             nodeType.prototype.updateUI = function() {
                 this.syncData();
                 if (this.graph) this.graph.setDirtyCanvas(true, true);
@@ -1080,7 +1396,7 @@ document.addEventListener("visibilitychange", () => {
     if (!document.hidden && app && app.graph) {
         setTimeout(() => {
             app.graph._nodes.forEach(node => {
-                if (node.type === "RaykoModelsLoader" && node.restoreData) {
+                if (node.type === "RaykoLoRALoader" && node.restoreData) {
                     node.restoreData();
                     node.updateUI();
                 }
@@ -1093,7 +1409,7 @@ window.addEventListener("focus", () => {
     if (app && app.graph) {
         setTimeout(() => {
             app.graph._nodes.forEach(node => {
-                if (node.type === "RaykoModelsLoader" && node.restoreData) {
+                if (node.type === "RaykoLoRALoader" && node.restoreData) {
                     node.restoreData();
                     node.updateUI();
                 }
@@ -1126,7 +1442,7 @@ function createTreeItems(path, tree, level, container, expandedFolders, self, he
             folderHeader.style.cssText = `padding: 8px 12px; cursor: pointer; color: #ffd700; font-size: 13px; background: #252525; display: flex; align-items: center;`;
             folderHeader.style.paddingLeft = (12 + level * 16) + "px";
             const isExpanded = expandedFolders[itemPath];
-            folderHeader.innerHTML = `<span style="margin-right:8px;">${isExpanded ? "▼" : "▶"}</span> 📁 ${name}`;
+            folderHeader.innerHTML = `<span style="margin-right:8px;">${isExpanded ? "▼" : "▶"}</span>  ${name}`;
             folderHeader.onclick = (e) => {
                 e.stopPropagation();
                 expandedFolders[itemPath] = !expandedFolders[itemPath];

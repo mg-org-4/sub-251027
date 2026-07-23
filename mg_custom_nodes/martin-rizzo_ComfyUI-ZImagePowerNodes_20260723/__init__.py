@@ -100,7 +100,7 @@ def _register_node(node_class      : type,
     if deprecated:
         title = f"❌[DEPRECATED] {title}"
     elif experimental:
-        title = f"⚗️🔬| Experimental: {title}"
+        title = f"⚗️🔬| {title}"
     else:
         title = f"{__PROJECT_EMOJI}| {title}"
 
@@ -185,6 +185,9 @@ class ZImagePowerNodesExtension(ComfyExtension):
 
         #--[ __experimental ]--------------------
         subcategory = "__experimental"
+
+        from .nodes.load_qwen34b_model import LoadQwen34bModel
+        _register_node( LoadQwen34bModel, nodes, subcategory )
 
         from .nodes.zsampler_turbo_X21 import ZSamplerTurboX21
         _register_node( ZSamplerTurboX21, nodes, subcategory )

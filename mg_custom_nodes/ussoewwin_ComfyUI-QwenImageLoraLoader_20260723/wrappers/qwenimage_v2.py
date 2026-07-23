@@ -1,24 +1,26 @@
 from typing import Callable, List, Tuple, Union
 from pathlib import Path
+import os
 
 import torch
 from torch import nn
 import comfy.model_management
+import folder_paths
 import logging
 
 from nunchaku import NunchakuQwenImageTransformer2DModel
 from nunchaku.caching.fbcache import cache_context, create_cache_context
-from nunchaku.caching.fbcache import cache_context, create_cache_context
-from nunchaku_code.lora_qwen import compose_loras_v2, reset_lora_v2
+from nunchaku_code.lora_qwen import compose_loras_v2_v2, reset_lora_v2
 
 logger = logging.getLogger(__name__)
 
 
-class ComfyQwenImageWrapper(nn.Module):
+class ComfyQwenImageWrapperV2(nn.Module):
     """
-    Wrapper for NunchakuQwenImageTransformer2DModel to support ComfyUI workflows.
-
-    This wrapper separates LoRA composition from the forward pass for maximum efficiency.
+    V2 node-specific wrapper for NunchakuQwenImageTransformer2DModel to support ComfyUI workflows.
+    
+    This wrapper uses compose_loras_v2_v2 to ensure complete isolation from v1/v3 nodes.
+    It separates LoRA composition from the forward pass for maximum efficiency.
     It detects changes to its `loras` attribute and recomposes the underlying model
     lazily when the forward pass is executed.
     """
@@ -31,7 +33,7 @@ class ComfyQwenImageWrapper(nn.Module):
             forward_kwargs: dict | None = None,
             cpu_offload_setting: str = "auto",
             vram_margin_gb: float = 4.0,
-            apply_awq_mod: Union[bool, str] = "auto"
+            apply_awq_mod: bool | str | None = None,
     ):
         super().__init__()
         self.model = model
@@ -44,10 +46,9 @@ class ComfyQwenImageWrapper(nn.Module):
 
         self.cpu_offload_setting = cpu_offload_setting
         self.vram_margin_gb = vram_margin_gb
-        self.apply_awq_mod = apply_awq_mod
 
         # Log CPU offload setting on initialization
-        logger.info(f"🔧 CPU offload setting: '{cpu_offload_setting}' (VRAM margin: {vram_margin_gb}GB)")
+        logger.info(f"[V2 Node] 🔧 CPU offload setting: '{cpu_offload_setting}' (VRAM margin: {vram_margin_gb}GB)")
 
         self.customized_forward = customized_forward
         self.forward_kwargs = forward_kwargs or {}
@@ -66,33 +67,8 @@ class ComfyQwenImageWrapper(nn.Module):
         # Track last seen device to detect CPU/GPU moves that require re-compose
         self._last_device = None
 
-    def process_img(self, x, index=0, h_offset=0, w_offset=0):
-        """
-        Delegate to the inner model so Qwen Image ControlNet (e.g. Fun ControlNet)
-        can call base_model.process_img(x). Required when using Union CN with
-        Nunchaku Qwen Image model wrapped by this wrapper.
-        """
-        if self.model is None:
-            raise RuntimeError("Model has been unloaded. Cannot call process_img.")
-        return self.model.process_img(x, index=index, h_offset=h_offset, w_offset=w_offset)
-
-    def __getattr__(self, name):
-        """
-        Forward attribute access to the inner model so Qwen Image ControlNet
-        (e.g. Fun ControlNet) can access patch_size, pe_embedder, img_in,
-        txt_norm, txt_in, time_text_embed, etc. when base_model is this wrapper.
-        Use _modules to get the inner model to avoid recursion: inside this
-        __getattr__, accessing self.model would trigger __getattr__ again.
-        """
-        try:
-            inner = object.__getattribute__(self, "_modules").get("model")
-        except (AttributeError, KeyError):
-            inner = None
-        if inner is None:
-            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-        if name == "model":
-            return inner
-        return getattr(inner, name)
+        # AWQ modulation control (None means "follow global env setting")
+        self.apply_awq_mod = apply_awq_mod
 
     def to_safely(self, device):
         """Safely move the model to the specified device."""
@@ -119,7 +95,7 @@ class ComfyQwenImageWrapper(nn.Module):
         Forward pass for the wrapped model.
 
         Detects changes to the `self.loras` list and recomposes the model
-        on-the-fly before inference.
+        on-the-fly before inference using v2-specific compose function.
         """
         # Remove guidance, transformer_options, and attention_mask from kwargs
         # These may be added by ComfyUI-EulerDiscreteScheduler or other patches
@@ -162,12 +138,13 @@ class ComfyQwenImageWrapper(nn.Module):
         )
         
         # Deep comparison of LoRA stacks to detect any changes
-        # This ensures we catch changes in weights, paths, or order
+        # Check against the shared model's currently composed LoRAs to handle multiple wrappers sharing the model.
+        model_applied = getattr(self.model, "_applied_loras", None)
         loras_changed = False
-        if self._applied_loras is None or len(self._applied_loras) != len(self.loras):
+        if model_applied is None or len(model_applied) != len(self.loras):
             loras_changed = True
         else:
-            for applied, current in zip(self._applied_loras, self.loras):
+            for applied, current in zip(model_applied, self.loras):
                 if applied != current:
                     loras_changed = True
                     break
@@ -183,6 +160,7 @@ class ComfyQwenImageWrapper(nn.Module):
         if loras_changed or model_is_dirty or device_changed:
             # The compose function handles resetting before applying the new stack
             reset_lora_v2(self.model)
+            self.model._applied_loras = self.loras.copy()
             self._applied_loras = self.loras.copy()
             
             # Reset cache when LoRAs change to prevent stale cache in multi-stage workflows
@@ -191,7 +169,7 @@ class ComfyQwenImageWrapper(nn.Module):
             if loras_changed:
                 self._cache_context = None
                 self._prev_timestep = None
-                logger.debug("Cache reset due to LoRA change")
+                logger.debug("[V2 Node] Cache reset due to LoRA change")
 
             # --- NEW DYNAMIC VRAM CHECK (conditionally applied) ---
 
@@ -212,25 +190,47 @@ class ComfyQwenImageWrapper(nn.Module):
 
                     if free_vram_gb < self.vram_margin_gb:
                         logger.info(
-                            f"Free VRAM is {free_vram_gb:.2f}GB (below safety margin of {self.vram_margin_gb}GB) and 'cpu_offload' is 'auto'. Force-enabling CPU offload for LoRA composition.")
+                            f"[V2 Node] Free VRAM is {free_vram_gb:.2f}GB (below safety margin of {self.vram_margin_gb}GB) and 'cpu_offload' is 'auto'. Force-enabling CPU offload for LoRA composition.")
                         should_enable_offload = True
                     else:
                         logger.info(
-                            f"Free VRAM is {free_vram_gb:.2f}GB (>= {self.vram_margin_gb}GB margin). LoRAs will be composed without enabling CPU offload.")
+                            f"[V2 Node] Free VRAM is {free_vram_gb:.2f}GB (>= {self.vram_margin_gb}GB margin). LoRAs will be composed without enabling CPU offload.")
 
                 except Exception as e:
-                    logger.error(f"Error during VRAM check for LoRA offloading: {e}. Offload will not be enabled.")
+                    logger.error(f"[V2 Node] Error during VRAM check for LoRA offloading: {e}. Offload will not be enabled.")
             elif self.cpu_offload_setting == "disable" and not offload_is_on:
-                logger.debug("CPU offload is 'disable' and not on. Skipping VRAM check.")
+                logger.debug("[V2 Node] CPU offload is 'disable' and not on. Skipping VRAM check.")
             elif self.cpu_offload_setting == "enable" and offload_is_on:
-                logger.debug("CPU offload is 'enable'. Will rebuild offload manager for LoRAs.")
+                logger.debug("[V2 Node] CPU offload is 'enable'. Will rebuild offload manager for LoRAs.")
 
             # --- END NEW VRAM CHECK ---
 
-            # 4. Compose LoRAs. This changes internal tensor shapes.
-            # 4. Compose LoRAs. This changes internal tensor shapes.
-            # Returns True if successful (supported format), False if unsupported (skipped).
-            is_supported_format = compose_loras_v2(self.model, self.loras, apply_awq_mod=self.apply_awq_mod)
+            # 4. Build cache args — same pattern as the V1 wrapper.
+            try:
+                _comfy_base = str(Path(folder_paths.models_dir).parent)
+            except Exception:
+                _comfy_base = None
+
+            # Separate per-LoRA meta dicts and derive the global save_precompiled flag.
+            _lora_configs_clean = []
+            _any_save_flag = False
+            for _entry in self.loras:
+                _lc_path = _entry[0]
+                _lc_strength = _entry[1]
+                _lc_meta: dict = _entry[2] if len(_entry) > 2 else {}
+                _lora_configs_clean.append((_lc_path, _lc_strength, _lc_meta))
+                if _lc_meta.get("save_precompiled", False):
+                    _any_save_flag = True
+
+            # 5. Compose LoRAs using v2-specific function.
+            logger.info(f"[V2 Node] 🔧 Forward pass: calling compose_loras_v2_v2 with apply_awq_mod={self.apply_awq_mod} (type: {type(self.apply_awq_mod).__name__})")
+            is_supported_format = compose_loras_v2_v2(
+                self.model,
+                _lora_configs_clean,
+                apply_awq_mod=self.apply_awq_mod,
+                save_precompiled_lora=_any_save_flag,
+                cache_dir=_comfy_base,
+            )
 
             # Validate composition result; if 0 targets after a crash/transition, retry once
             # But ONLY if the format was supported. If unsupported, retrying is pointless.
@@ -240,14 +240,20 @@ class ComfyQwenImageWrapper(nn.Module):
                 except Exception:
                     has_slots = True
                 if self.loras and not has_slots:
-                    logger.warning("LoRA composition reported 0 target modules. Forcing reset and one retry.")
+                    logger.warning("[V2 Node] LoRA composition reported 0 target modules. Forcing reset and one retry.")
                     try:
                         reset_lora_v2(self.model)
-                        compose_loras_v2(self.model, self.loras, apply_awq_mod=self.apply_awq_mod)
+                        compose_loras_v2_v2(
+                            self.model,
+                            _lora_configs_clean,
+                            apply_awq_mod=self.apply_awq_mod,
+                            save_precompiled_lora=_any_save_flag,
+                            cache_dir=_comfy_base,
+                        )
                     except Exception as e:
-                        logger.error(f"LoRA re-compose retry failed: {e}")
+                        logger.error(f"[V2 Node] LoRA re-compose retry failed: {e}")
             else:
-                 logger.warning("Skipping retry because LoRA format is unsupported.")
+                 logger.warning("[V2 Node] Skipping retry because LoRA format is unsupported.")
 
             # 5. Re-build offload manager if it's supposed to be on
             # This block now runs if offload was on *or* if our new check decided to turn it on.
@@ -266,7 +272,7 @@ class ComfyQwenImageWrapper(nn.Module):
                         "num_blocks_on_gpu": 1,
                         "use_pin_memory": False,  # 'disable' maps to False
                     }
-                    logger.info("Building new CPU offload manager due to LoRA VRAM check.")
+                    logger.info("[V2 Node] Building new CPU offload manager due to LoRA VRAM check.")
 
                 # Step 1: Completely disable and clear any old offloader (safe to call even if off)
                 self.model.set_offload(False)
@@ -277,7 +283,9 @@ class ComfyQwenImageWrapper(nn.Module):
 
             # --- END MODIFIED SECTION ---
 
-            # Update last known device signature after (re)composition
+            # Always update state tracking so subsequent calls see a consistent snapshot.
+            self.model._applied_loras = self.loras.copy()
+            self._applied_loras = self.loras.copy()
             self._last_device = current_device
 
         # Caching logic

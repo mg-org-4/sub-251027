@@ -171,24 +171,27 @@ def _enhanced_txtfusion_forward(
     return out, debug
 
 
-def krea2t_enhancer_wrapper(executor, x, timesteps, context, attention_mask=None, transformer_options=None, **kwargs):
-    transformer_options = transformer_options or {}
+def krea2t_enhancer_wrapper(executor, *args, **kwargs):
+    transformer_options = kwargs.get("transformer_options")
+    if transformer_options is None:
+        transformer_options = next((arg for arg in args if isinstance(arg, dict)), {})
+
     cfg = transformer_options.get("krea2t_prompt_adherence_enhancer", {})
     if not cfg or not cfg.get("enabled", True):
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(*args, **kwargs)
 
     if cfg.get("_active", False):
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(*args, **kwargs)
 
     dm = executor.class_obj
     if not _is_krea2_dm(dm):
         if cfg.get("debug", False):
             print("[Krea2TEnhancer] skipped: diffusion model does not match Krea2 text-fusion layout")
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(*args, **kwargs)
 
     strength = _bounded_float(cfg.get("strength", 1.0), 1.0, 0.0, 2.0)
     if strength == 0.0:
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(*args, **kwargs)
 
     txtfusion = dm.txtfusion
     if hasattr(txtfusion, "_krea2t_enhancer_original_forward"):
@@ -227,7 +230,7 @@ def krea2t_enhancer_wrapper(executor, x, timesteps, context, attention_mask=None
     try:
         cfg["_active"] = True
         txtfusion.forward = enhanced_forward
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(*args, **kwargs)
     finally:
         cfg["_active"] = False
         txtfusion.forward = original_forward

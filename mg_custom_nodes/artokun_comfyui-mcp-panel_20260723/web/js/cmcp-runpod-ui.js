@@ -54,6 +54,9 @@ function injectStyle() {
 .cmcp-rp-credit{font-size:0.7rem;opacity:0.5;}
 .cmcp-rp-credit a{color:inherit;}
 .cmcp-rp-muted{font-size:0.75rem;opacity:0.6;}
+/* The unified side-panel shell (cmcp-sidepanel-ui.js) owns the overlay + dock +
+   slide; the Local tab centers this body in the shared card. */
+.cmcp-rp-title{font-weight:600;font-size:0.85rem;}
 `;
   const el = document.createElement("style");
   el.textContent = css;
@@ -89,20 +92,20 @@ function fmtCountdown(sec) {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-export function openRunpodModal(ctx, opts = {}) {
-  const { root, callTool, getStatus, getTarget, openUrl } = ctx;
+/** Content-provider factory for the Local/RunPod tab of the unified side panel.
+ *  The shell owns the overlay/dock/close; this builds the centered control body.
+ *  hasSearch:false, drive:null; update() re-renders on runpod_status frames. */
+export function createLocalContent(ctx, shell, opts = {}) {
+  const { callTool, getStatus, getTarget, openUrl } = ctx;
   injectStyle();
-
-  const overlay = document.createElement("div");
-  overlay.className = "cmcp-modal-overlay";
-  const modal = document.createElement("div");
-  modal.className = "cmcp-modal cmcp-rp-modal";
-  const title = document.createElement("div");
-  title.className = "cmcp-modal-title";
-  title.textContent = "RunPod — cloud GPU for this session";
 
   const body = document.createElement("div");
   body.className = "cmcp-rp-body";
+  // Center the control body in the shared card (was a viewport-centered modal).
+  body.style.margin = "1rem auto";
+  const title = document.createElement("div");
+  title.className = "cmcp-rp-title";
+  title.textContent = "RunPod — cloud GPU for this session";
 
   // Host indicator (honest: where renders run right now).
   const host = document.createElement("div");
@@ -174,19 +177,7 @@ export function openRunpodModal(ctx, opts = {}) {
   credit.className = "cmcp-rp-credit";
   credit.innerHTML = `Pod control inspired by <a href="${GPU_CLI_URL}" target="_blank" rel="noopener">gpu-cli.sh</a>.`;
 
-  const btnRow = document.createElement("div");
-  btnRow.className = "cmcp-modal-btns";
-  const doneBtn = mkBtn("Close", "primary");
-  btnRow.append(doneBtn);
-
-  body.append(host, card, connectRow, manualRow, actions, linkRow, log, credit);
-  modal.append(title, body, btnRow);
-  overlay.append(modal);
-  // Mount the overlay on <body>, NOT the panel root: the ComfyUI sidebar clips
-  // its descendants, so a root-mounted overlay would be squeezed into the narrow
-  // panel (buttons + status values cut off). On body it's a true viewport-centered
-  // modal at its full width.
-  document.body.appendChild(overlay);
+  body.append(title, host, card, connectRow, manualRow, actions, linkRow, log, credit);
 
   // ── state + rendering ──────────────────────────────────────────────────────
   let busy = false;
@@ -306,10 +297,16 @@ export function openRunpodModal(ctx, opts = {}) {
   }
 
   // Re-render the idle countdown every second while a status frame is live.
-  tick = setInterval(() => {
-    const s = getStatus?.();
-    if (s && s.watching && s.autostop_in_seconds != null) render();
-  }, 1000);
+  // Re-render the idle countdown every second while a status frame is live —
+  // only while the Local tab is active (started/stopped by the shell).
+  function startTick() {
+    if (tick) return;
+    tick = setInterval(() => {
+      const s = getStatus?.();
+      if (s && s.watching && s.autostop_in_seconds != null) render();
+    }, 1000);
+  }
+  function stopTick() { if (tick) { clearInterval(tick); tick = null; } }
 
   async function run(label, fn) {
     if (busy) return false;
@@ -414,29 +411,25 @@ export function openRunpodModal(ctx, opts = {}) {
     }
   });
 
-  const close = () => {
-    closed = true;
-    if (tick) clearInterval(tick);
-    overlay.remove();
-  };
-  doneBtn.addEventListener("click", close);
-  overlay.addEventListener("mousedown", (e) => {
-    if (e.target === overlay) close();
-  });
-
-  // Load the pod dropdown on open, preselecting the watched pod (or opts.pod_id).
-  const s0 = getStatus?.();
-  void loadPods((s0 && s0.watching && s0.pod_id) || opts.pod_id);
-
-  render();
+  // Load the pod dropdown once, preselecting the watched pod (or opts.pod_id).
+  let _loaded = false;
+  function loadOnce() {
+    if (_loaded) return;
+    _loaded = true;
+    const s0 = getStatus?.();
+    void loadPods((s0 && s0.watching && s0.pod_id) || opts.pod_id);
+  }
 
   return {
-    close,
-    /** Called by the panel when a new runpod_status / comfyui_target frame arrives. */
-    update() {
-      render();
-    },
-    isOpen: () => !closed,
+    key: "local", label: "RunPod", icon: "pi-server", driveKind: null,
+    hasSearch: false, drive: null,
+    subnavExtras: () => [],
+    mount(bodyEl) { bodyEl.appendChild(body); render(); },
+    onActivate() { startTick(); loadOnce(); render(); },
+    onDeactivate() { stopTick(); },
+    // RunPod status / comfyui_target frames → re-render (no-op unless mounted).
+    update() { if (!closed) render(); },
+    teardown() { closed = true; stopTick(); },
   };
 }
 

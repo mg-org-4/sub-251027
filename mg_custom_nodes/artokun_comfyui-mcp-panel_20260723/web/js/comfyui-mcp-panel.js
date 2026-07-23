@@ -73,9 +73,7 @@ import {
   workflowAliasForPath,
 } from "./lib/workflow-chat-identity.js";
 import { validateA2UISpec, renderA2UICard, renderA2UIInert, renderA2UIFailCard, A2UI_CSS } from "./cmcp-a2ui.js";
-import { openCivitaiModal } from "./cmcp-civitai-ui.js";
-import { openRunpodModal } from "./cmcp-runpod-ui.js";
-import { openTrainingModal } from "./cmcp-training-ui.js";
+import { openSidePanel } from "./cmcp-sidepanel-ui.js";
 
 let app = null;
 let api = null;
@@ -105,7 +103,7 @@ const DISCORD_INVITE_URL = "https://discord.gg/cW9arBhzCu";
 // Panel version — surfaced in the "Need help?" diagnostics blob. Bump via
 // `node scripts/set-version.mjs <v>` (updates this AND pyproject together); CI
 // and the publish gate FAIL if the two ever drift, so this can't go stale.
-const PANEL_VERSION = "0.9.9";
+const PANEL_VERSION = "0.11.0";
 
 // The connected orchestrator's console URL/token (captured off the `backends`
 // bridge message — see onBackends). Drives the "API Keys" credentials frame;
@@ -6481,11 +6479,14 @@ const GRAPH_TOOL_EXECUTORS = {
     // ago, so a dropped connection here means the reboot fired (not that the
     // endpoint is unreachable). Treat that as success and let the auto-reconnect/
     // resume flow take over. Try the canonical v2 route first, then the legacy
-    // GET route for older Manager builds; a real Response that is 404/non-OK means
-    // "wrong route on this build" → try the next; 403 means Manager security
-    // blocked it (a real, actionable failure). On total failure we RETURN a
-    // structured error (rebooting:false) rather than throw, so the agent is told
-    // accurately AND the auto-resume flag is not armed.
+    // GET route for older Manager builds. Classification of a real Response:
+    // 403 means Manager security blocked it (a real, actionable failure); a
+    // 502/503/504 means we're reaching ComfyUI through a reverse proxy / tunnel
+    // whose origin was just killed by the reboot (the proxy can't reach it) —
+    // that's a reboot that FIRED, same as a dropped connection; any other
+    // non-OK (404, etc.) means "wrong route on this build" → try the next. On
+    // total failure we RETURN a structured error (rebooting:false) rather than
+    // throw, so the agent is told accurately AND the auto-resume flag is not armed.
     const candidates = [
       { route: "/v2/manager/reboot", method: "POST" },
       { route: "/manager/reboot", method: "GET" },
@@ -6502,6 +6503,20 @@ const GRAPH_TOOL_EXECUTORS = {
               "ComfyUI-Manager refused the reboot (HTTP 403): rebooting requires the Manager " +
               "security level to be 'middle' or below. Ask the user to lower it in ComfyUI-Manager " +
               "settings, then retry. ComfyUI was NOT restarted.",
+          };
+        }
+        // Reverse proxy / Cloudflare tunnel case: killing the origin doesn't drop
+        // the connection here — the proxy answers with a gateway error instead.
+        // 502/503/504 means the request reached the proxy and the origin is going
+        // down, i.e. the reboot FIRED. Treat it EXACTLY like the connection-drop
+        // success branch below (arms the same auto-resume via rebooting:true), NOT
+        // as a refusal — so a remote agent isn't told a fired reboot "failed".
+        if (res && (res.status === 502 || res.status === 503 || res.status === 504)) {
+          return {
+            rebooting: true,
+            endpoint: route,
+            method,
+            note: `proxy returned ${res.status} (origin going down) — reboot initiated`,
           };
         }
         // 404 / other non-OK: this route isn't the one on this build — try next.
@@ -6778,7 +6793,32 @@ const RECONNECT_MAX_MS = 15000;
 let AGENT_MUTED = (() => { try { return localStorage.getItem("cmcp.muteAgents") === "1"; } catch { return false; } })();
 let AGENT_BLIND = (() => { try { return localStorage.getItem("cmcp.blindAgents") === "1"; } catch { return false; } })();
 
-function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk, onSecret, onSecretSaved, onReload, onTodo, onShowMedia, onOpenCivitai, onCivitaiCmd, onTrainingCmd, onUiRender, onUiUpdate, onDownloads, onThinking, onAgentStatus, onSession, onModels, onCommands, onBackends, onAck, onTurn, onTurnAnchor, getResume, getBackend, onHandshakeTimeout, onBridgeClosed, onPairUrl, onPairError, onRunpodStatus, onComfyuiTarget }) {
+/**
+ * Strip the auth token out of a bridge URL before it goes anywhere a human can
+ * see it.
+ *
+ * These lines get screenshotted into bug reports and pasted into chats — a live
+ * bridge token does not belong in either, and there's no reason a status line
+ * needs it. It is also what made these lines overflow: a 64-char hex token is
+ * one unbreakable word, so it blew past the panel width and forced a horizontal
+ * scrollbar on the whole log. Keeping the first few characters preserves the
+ * one thing the token is useful for here — telling two sessions apart.
+ */
+function redactBridgeUrl(u) {
+  const raw = String(u ?? "");
+  try {
+    const url = new URL(raw);
+    const t = url.searchParams.get("token");
+    if (t) url.searchParams.set("token", `${t.slice(0, 4)}…`);
+    return decodeURIComponent(url.toString());
+  } catch {
+    // Unparseable (relative, malformed) — redact textually rather than give up,
+    // so a bad URL can't leak the token the parsed path would have caught.
+    return raw.replace(/([?&]token=)[^&\s]+/gi, "$1…");
+  }
+}
+
+function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk, onSecret, onSecretSaved, onReload, onTodo, onShowMedia, onOpenCivitai, onCivitaiCmd, onTrainingCmd, onUiRender, onUiUpdate, onDownloads, onThinking, onAgentStatus, onSession, onModels, onCommands, onBackends, onAck, onTurn, onTurnAnchor, getResume, getBackend, onHandshakeTimeout, onBridgeClosed, onPairUrl, onPairError, onRunpodStatus, onComfyuiTarget, onRunpodAlert }) {
   let sock = null;
   let url = loadBridgeUrl();
   let closed = false;
@@ -6915,7 +6955,7 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
       // sequence instead of on every (re)open during a cold-start flicker.
       if (!loggedWaiting) {
         loggedWaiting = true;
-        onLog(`Connected to ${url} — waiting for the panel agent…`);
+        onLog(`Connected to ${redactBridgeUrl(url)} — waiting for the panel agent…`);
       }
       sendHello();
       clearHandshake();
@@ -7068,6 +7108,16 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
         }
         return;
       }
+      // Reply to a direct uploadMedia() request (cid-correlated).
+      if (msg && msg.type === "media_uploaded" && typeof msg.cid === "string") {
+        const pend = pendingCalls.get(msg.cid);
+        if (pend) {
+          pendingCalls.delete(msg.cid);
+          clearTimeout(pend.timer);
+          pend.resolve(msg);
+        }
+        return;
+      }
       if (msg && msg.type === "say" && typeof msg.text === "string") {
         // `id` reconciles this committed reply with its live streaming preview.
         onSay(msg.text, { id: msg.id, streamed: !!msg.streamed });
@@ -7159,6 +7209,11 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
       // pod is being watched.
       if (msg && msg.type === "runpod_status") {
         onRunpodStatus?.(msg);
+      }
+      // Auto-connect FAILURE alerts (timeout/superseded/resolved) — a billing
+      // warning separate from the single status slot (#287).
+      if (msg && msg.type === "runpod_alert") {
+        onRunpodAlert?.(msg);
       }
       // Honest host indicator: where renders currently run (local ⇄ pod).
       if (msg && msg.type === "comfyui_target") {
@@ -7365,6 +7420,50 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
               cid,
               tool,
               args: args || {},
+            }),
+          );
+        } catch (e) {
+          pendingCalls.delete(cid);
+          clearTimeout(timer);
+          reject(e);
+        }
+      });
+    },
+    /** Upload image bytes to the ComfyUI input/ folder OF THE CURRENT TARGET —
+     *  when the session is connected to a pod, the orchestrator's upload_media
+     *  handler writes the bytes to the POD's input/ (same handler the mobile
+     *  app uses). cid-correlated like callTool; resolves the media_uploaded
+     *  frame { ok, name, kind } or rejects on timeout/socket close. Used by
+     *  the Apps modal to transfer image inputs before a pod run. */
+    async uploadMedia(blob, name) {
+      if (!sock || sock.readyState !== WebSocket.OPEN) {
+        throw new Error("bridge not connected");
+      }
+      const cid = `um-${Date.now()}-${cidSeq++}`;
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      let bin = "";
+      const CHUNK = 0x8000;
+      for (let i = 0; i < buf.length; i += CHUNK) {
+        bin += String.fromCharCode.apply(null, buf.subarray(i, i + CHUNK));
+      }
+      const data_base64 = btoa(bin);
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          pendingCalls.delete(cid);
+          reject(new Error("upload_media timed out"));
+          // Large images over slow pod links legitimately exceed a minute;
+          // the mobile client uses the same 3-minute budget for this frame.
+        }, 180_000);
+        pendingCalls.set(cid, { resolve, reject, timer });
+        try {
+          sock.send(
+            JSON.stringify({
+              type: "upload_media",
+              tab_id: workflowTabId(),
+              cid,
+              filename: name || "upload.png",
+              mime: blob.type || "image/png",
+              data_base64,
             }),
           );
         } catch (e) {
@@ -7833,6 +7932,12 @@ const PANEL_CSS = `
   align-self: center; font-size: 0.6875rem; font-style: italic;
   color: var(--p-text-muted-color, #a1a1aa);
   animation: cmcp-in 0.18s ease-out;
+  /* Status lines quote URLs, paths and ids — strings with no spaces to break
+     at. Without this, a single long token is one unbreakable word that widens
+     the whole log and forces a horizontal scrollbar across the panel. Uses
+     overflow-wrap:anywhere rather than break-word so it also breaks MID-token
+     when the token alone is wider than the panel, which is the case here. */
+  max-width: 100%; overflow-wrap: anywhere; text-align: center;
 }
 .cmcp-card {
   align-self: flex-start; max-width: 92%; width: 100%; box-sizing: border-box;
@@ -7974,12 +8079,28 @@ const PANEL_CSS = `
   box-shadow: 0 0 0 2px var(--p-surface-900, #18181b);
   pointer-events: none; z-index: 5;
 }
+/* Model chip (composer). Stays on ONE line at every panel width: a wrapped
+   chip pushed the composer row taller and shoved the send/mic buttons around,
+   and the only way to get it back on one line was to widen the panel until it
+   ate the canvas. The model NAME truncates with an ellipsis instead; the
+   effort suffix and caret never shrink, so "which model + which effort" stays
+   readable even when the name is clipped, and the full value is in the title. */
 .cmcp-chip {
   display: flex; align-items: center; gap: 0.25rem;
   border: none; background: transparent; cursor: pointer;
   color: var(--p-text-muted-color, #a1a1aa); font: inherit; font-size: 0.6875rem;
   padding: 0.125rem 0.375rem; border-radius: var(--p-border-radius-sm, 4px);
+  white-space: nowrap; min-width: 0; overflow: hidden; flex: 0 1 auto;
 }
+/* The NAME keeps a floor so it never truncates to nothing — at very narrow
+   widths an unfloored ellipsis ate the whole model name and left a bare
+   "· medium", which tells you the least useful half. The effort suffix yields
+   first instead: "which model" matters more than "which effort", and the full
+   value is on the chip's title either way. The caret never shrinks, so the
+   dropdown affordance survives at any width. */
+.cmcp-chip .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 4.5ch; }
+.cmcp-chip .dim { overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.cmcp-chip .pi-angle-down { flex: 0 0 auto; }
 .cmcp-chip:hover { background: var(--p-surface-700, #3f3f46); }
 /* Attachment chip strip (composer): viewable/expandable pasted text + files. */
 .cmcp-attachbar { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.25rem 0.25rem 0; }
@@ -8041,6 +8162,10 @@ const PANEL_CSS = `
 .cmcp-popover-item .pi { font-size: 0.75rem; color: var(--p-text-muted-color, #a1a1aa); flex: none; }
 .cmcp-popover-item small { margin-left: auto; color: var(--p-text-muted-color, #a1a1aa); flex: none; padding-left: 0.5rem; }
 .cmcp-popover-item .lbl { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Hover-to-read: while revealing, drop the ellipsis so the tail is legible, and
+   hide the scrollbar the programmatic scroll would otherwise expose. */
+.cmcp-revealing { text-overflow: clip !important; scrollbar-width: none; }
+.cmcp-revealing::-webkit-scrollbar { display: none; }
 /* Slash commands: keep the short /command always visible and let the (often
    long) hint truncate instead — otherwise a long hint collapsed the label. */
 .cmcp-popover-item.cmcp-slash .lbl { flex: 0 0 auto; }
@@ -9427,8 +9552,11 @@ function buildPanel() {
   const modelChip = document.createElement("button");
   modelChip.type = "button";
   modelChip.className = "cmcp-chip";
+  // Initial title only — refreshModelChip() replaces it with the live model and
+  // effort, since the name can be ellipsised at narrow widths.
   modelChip.title = "Model & reasoning effort for the background agent";
   const modelChipLabel = document.createElement("span");
+  modelChipLabel.className = "name";
   const modelChipEffort = document.createElement("span");
   modelChipEffort.className = "dim";
   const modelChipCaret = document.createElement("i");
@@ -9436,8 +9564,15 @@ function buildPanel() {
   modelChip.append(modelChipLabel, modelChipEffort, modelChipCaret);
 
   function refreshModelChip() {
-    modelChipLabel.textContent = prefs.modelAuto ? "Auto" : modelLabel(modelCatalog, prefs.model);
+    const name = prefs.modelAuto ? "Auto" : modelLabel(modelCatalog, prefs.model);
+    modelChipLabel.textContent = name;
     modelChipEffort.textContent = prefs.effort ? ` · ${prefs.effort}` : "";
+    // The name ellipsises in a narrow panel, so the hover has to carry the full
+    // value — otherwise a truncated model id is unrecoverable without widening
+    // the panel, which is the thing we're avoiding.
+    modelChip.title =
+      `Model: ${name}${prefs.effort ? ` · effort: ${prefs.effort}` : ""}` +
+      "\nModel & reasoning effort for the background agent";
   }
 
   // Reconcile the ComfyUI Settings defaults with the panel's localStorage runtime.
@@ -9963,12 +10098,13 @@ function buildPanel() {
   ring.style.cursor = "pointer"; ring.onclick = deafenBtn.onclick; // clicking the ring toggles deafen
   reflectFeedGates();
 
-  // Civitai explorer — opens the in-panel CivitAI browser modal. Also opened BY
-  // the agent (cmd:open_civitai) pre-seeded with a query + filters.
+  // Unified side panel (issue #124): ONE tabbed overlay hosting Civitai / Apps /
+  // Training / Local-RunPod. openSidePanelTab opens it (or switches tab if it is
+  // already open); the four openX wrappers + toolbar buttons all route through it.
   // Mark: Civitai's hexagon-C, monochrome via currentColor (no brand gradients,
   // no event attrs — keeps the registry's SVG YARA gate happy).
-  let _civitaiHandle = null;
-  function civitaiCtx() {
+  let _sidePanelHandle = null;
+  function sidePanelCtx() {
     return {
       api,
       root,
@@ -9982,14 +10118,22 @@ function buildPanel() {
       isMuted: () => AGENT_MUTED,
       marked,
       DOMPurify,
-      // Canvas access for "load workflow onto canvas": dirty check for the
-      // confirm-overwrite prompt, then the SAME undoable path the bridge's
-      // graph_load command takes (snapshot → await loadGraphData → checkState,
-      // so one load = one Ctrl+Z step). Rejects with a readable message when
-      // the graph isn't a loadable UI workflow or the load itself fails.
-      // Dirty check fails CLOSED: when the workflow state can't be read
-      // (older frontend, missing service, throw), report dirty so the caller
-      // confirms instead of silently clobbering an unsaved canvas.
+      // Apps tab: live canvas app; Local tab: honest host + pod status frames.
+      getApp: () => app,
+      getRunpodTarget: () => _comfyuiTarget,
+      // Apps pod runs: transfer image inputs through the bridge's upload_media
+      // handler → the CONNECTED ComfyUI (the pod when on one), not the local
+      // /upload/image (#125).
+      uploadMedia: (b, n) => liveBridgeClient?.uploadMedia(b, n),
+      getStatus: () => _runpodStatus,
+      getTarget: () => _comfyuiTarget,
+      openUrl: (u) => { try { window.open(u, "_blank", "noopener"); } catch {} },
+      // Canvas access for "load workflow onto canvas" (Civitai tab): dirty check
+      // for the confirm-overwrite prompt, then the SAME undoable path the bridge's
+      // graph_load command takes (snapshot → await loadGraphData → checkState, so
+      // one load = one Ctrl+Z step). Dirty check fails CLOSED: when the workflow
+      // state can't be read (older frontend, missing service, throw), report dirty
+      // so the caller confirms instead of silently clobbering an unsaved canvas.
       graphIsDirty: () => {
         try {
           const wf = app?.extensionManager?.workflow?.activeWorkflow;
@@ -10006,22 +10150,35 @@ function buildPanel() {
       },
     };
   }
-  function openCivitai(opts) {
-    try { _civitaiHandle?.close(); } catch {}
-    const handle = openCivitaiModal(civitaiCtx(), {
-      ...(opts || {}),
-      // Null the stored handle whenever THIS modal closes (✕, reopen, backdrop)
-      // so post-open drive cmds get an honest "not open" error instead of
-      // operating on a detached grid.
-      onClose: () => { if (_civitaiHandle === handle) _civitaiHandle = null; },
+  /** Open the unified side panel on `tab`, or switch to it if already open. */
+  function openSidePanelTab(tab, { tabOpts, dock = true } = {}) {
+    if (_sidePanelHandle?.isOpen?.()) {
+      try { _sidePanelHandle.switchTab(tab, tabOpts); } catch { /* stale */ }
+      return _sidePanelHandle;
+    }
+    const handle = openSidePanel(sidePanelCtx(), {
+      tab,
+      dock,
+      ...(tabOpts ? { tabOpts: { [tab]: tabOpts } } : {}),
+      // Null the stored handle whenever the panel closes (✕, Escape, backdrop) so
+      // post-open drive cmds get an honest "not open" error.
+      onClose: () => { if (_sidePanelHandle === handle) _sidePanelHandle = null; },
     });
-    _civitaiHandle = handle;
-    return _civitaiHandle;
+    _sidePanelHandle = handle;
+    return handle;
   }
+  const openCivitai = (opts = {}) => openSidePanelTab("civitai", {
+    dock: opts.dock !== false,
+    tabOpts: { query: opts.query, tab: opts.tab, filters: opts.filters, browsingLevels: opts.browsingLevels },
+  });
+  const openApps = () => openSidePanelTab("apps");
+  const openTraining = (opts = {}) => openSidePanelTab("training", { dock: opts.dock !== false });
+  const openRunpod = () => openSidePanelTab("local");
   const civitaiBtn = toolbarBtn("pi-circle", "Civitai");
   civitaiBtn.querySelector(".pi").remove();
   civitaiBtn.title = "Civitai explorer — browse and pull models, LoRAs, and workflows without leaving the panel.";
-  civitaiBtn.addEventListener("click", () => openCivitai());
+  // Manual open side-docks too (chat stays visible) — parity with the agent open.
+  civitaiBtn.addEventListener("click", () => openCivitai({ dock: true }));
   {
     const svgNs = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNs, "svg");
@@ -10043,34 +10200,38 @@ function buildPanel() {
     civitaiBtn.prepend(svg);
   }
 
+  // Apps — the micro-app layer: convert the canvas workflow (or an existing
+  // ComfyUI APP-mode config) into a named, one-click app; runs headless via
+  // the pack's py/apps_routes.py (canvas never touched). Grid of four rounded
+  // squares (mini-app launcher mark), currentColor like the neighbors.
+  const appsBtn = toolbarBtn("pi-circle", "Apps");
+  appsBtn.querySelector(".pi").remove();
+  appsBtn.title = "Apps — one-click micro-apps built from workflows: convert, run locally or on RunPod, share.";
+  appsBtn.addEventListener("click", () => openApps());
+  {
+    const svgNs = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNs, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "currentColor");
+    svg.setAttribute("aria-hidden", "true");
+    // 2x2 grid of rounded squares (mini-app launcher).
+    for (const [x, y] of [[4, 4], [14, 4], [4, 14], [14, 14]]) {
+      const r = document.createElementNS(svgNs, "rect");
+      r.setAttribute("x", String(x)); r.setAttribute("y", String(y));
+      r.setAttribute("width", "6"); r.setAttribute("height", "6"); r.setAttribute("rx", "1.5");
+      svg.append(r);
+    }
+    appsBtn.prepend(svg);
+  }
+
   // LoRA Training — the dataset gather/label/launch/monitor wizard for the
   // local trainer (ai-toolkit in a GPU container, train_* tools over call_tool).
-  // Same modal treatment as the CivitAI browser; dumbbell mark via currentColor.
-  let _trainingHandle = null;
-  function trainingCtx() {
-    return {
-      api,
-      root,
-      dockGeometry: panelDockGeometry,
-      watchDock: panelWatchDock,
-      callTool: (t, a, o) => liveBridgeClient?.callTool(t, a, o),
-      uploadBlobToInput,
-    };
-  }
-  // Reused by both the toolbar button (centered) and the agent bridge (docked).
-  function openTraining(opts) {
-    try { _trainingHandle?.close(); } catch {}
-    const handle = openTrainingModal(trainingCtx(), {
-      ...(opts || {}),
-      onClose: () => { if (_trainingHandle === handle) _trainingHandle = null; },
-    });
-    _trainingHandle = handle;
-    return _trainingHandle;
-  }
+  // Same side-panel treatment as the CivitAI browser; dumbbell mark via currentColor.
   const trainingBtn = toolbarBtn("pi-circle", "Training");
   trainingBtn.querySelector(".pi").remove();
   trainingBtn.title = "LoRA Training — train a character LoRA locally on FLUX.1-dev (style/edit/slider/video coming in P2).";
-  trainingBtn.addEventListener("click", () => openTraining());
+  // Manual open side-docks too (chat stays visible) — parity with the agent open.
+  trainingBtn.addEventListener("click", () => openTraining({ dock: true }));
   {
     const svgNs = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNs, "svg");
@@ -10089,10 +10250,9 @@ function buildPanel() {
 
   // RunPod — cloud GPU control panel + honest host indicator. The button label
   // reflects WHERE renders run (Local vs the pod), so it doubles as the host
-  // pill; clicking opens the control modal (deploy / start / stop / connect /
-  // use-local). Driven by the orchestrator's `runpod_status` + `comfyui_target`
-  // frames (wired below). The pod runs our template → full canvas parity.
-  let _runpodHandle = null;
+  // pill; clicking opens the unified side panel on the Local tab (deploy / start
+  // / stop / connect / use-local). Driven by the orchestrator's `runpod_status` +
+  // `comfyui_target` frames (wired below). The pod runs our template → full parity.
   let _runpodStatus = null; // last runpod_status frame
   let _comfyuiTarget = null; // last comfyui_target frame
   const runpodBtn = toolbarBtn("pi-circle", "Local");
@@ -10122,6 +10282,10 @@ function buildPanel() {
     svg.append(r1, r2, d1, d2);
     runpodBtn.prepend(svg);
   }
+  // Auto-connect failure alerts (pod_id → frame). Resolved frames retract.
+  // Seeded by the orchestrator's failedFrames() so a reloaded tab sees every
+  // still-billing failure (#287).
+  const _runpodAlerts = new Map();
   function reflectRunpodHost() {
     const t = _comfyuiTarget;
     const s = _runpodStatus;
@@ -10138,33 +10302,38 @@ function buildPanel() {
       label.textContent = "Local";
     }
     runpodBtn.classList.toggle("cmcp-runpod-onpod", onPod);
-    runpodBtn.style.color = onPod ? "#60a5fa" : "";
+    const alertCount = _runpodAlerts.size;
+    runpodBtn.style.color = alertCount > 0 ? "#f59e0b" : onPod ? "#60a5fa" : "";
     const gpu = s && s.watching && s.gpu ? ` · ${s.gpu}` : "";
     const cost = s && s.watching && s.cost_per_hr != null ? ` · $${Number(s.cost_per_hr).toFixed(3)}/hr` : "";
-    runpodBtn.title = onPod
+    const alertNote = alertCount > 0
+      ? ` ⚠ ${alertCount} pod alert${alertCount > 1 ? "s" : ""}: ${[..._runpodAlerts.keys()].join(", ")} — auto-connect ${[..._runpodAlerts.values()][0].reason === "superseded" ? "superseded" : "timed out"}, still billing. Click to manage/stop.`
+      : "";
+    runpodBtn.title = (onPod
       ? `Rendering on RunPod${gpu}${cost} — click to manage the pod or switch back to local.`
-      : "Rendering locally on this machine — click to run this session on a cloud GPU (RunPod).";
+      : "Rendering locally on this machine — click to run this session on a cloud GPU (RunPod).") + alertNote;
   }
-  runpodBtn.addEventListener("click", () => {
-    try { _runpodHandle?.close(); } catch {}
-    _runpodHandle = openRunpodModal({
-      root,
-      callTool: (tool, args, o) => liveBridgeClient?.callTool(tool, args, o),
-      getStatus: () => _runpodStatus,
-      getTarget: () => _comfyuiTarget,
-      openUrl: (u) => { try { window.open(u, "_blank", "noopener"); } catch {} },
-    });
-  });
-  // Expose for the bridge callbacks (defined outside this closure).
+  runpodBtn.addEventListener("click", () => openRunpod());
+  // Expose for the bridge callbacks (defined outside this closure). Status/target
+  // frames update the host pill independently, and re-render the side panel's
+  // Local tab only when it's the active tab (update() no-ops on other tabs).
   panelRunpod = {
-    onStatus: (frame) => { _runpodStatus = frame; reflectRunpodHost(); if (_runpodHandle?.isOpen?.()) _runpodHandle.update(); },
-    onTarget: (frame) => { _comfyuiTarget = frame; reflectRunpodHost(); if (_runpodHandle?.isOpen?.()) _runpodHandle.update(); },
+    onStatus: (frame) => { _runpodStatus = frame; reflectRunpodHost(); if (_sidePanelHandle?.isOpen?.()) _sidePanelHandle.update(); },
+    onTarget: (frame) => { _comfyuiTarget = frame; reflectRunpodHost(); if (_sidePanelHandle?.isOpen?.()) _sidePanelHandle.update(); },
+    onAlert: (frame) => {
+      const id = frame && frame.pod_id;
+      if (!id) return;
+      if (frame.resolved || frame.reason === "resolved") _runpodAlerts.delete(id);
+      else _runpodAlerts.set(id, frame);
+      reflectRunpodHost();
+      if (_sidePanelHandle?.isOpen?.()) _sidePanelHandle.update();
+    },
   };
   reflectRunpodHost();
 
   const toolbarSpacer = document.createElement("span");
   toolbarSpacer.className = "cmcp-spacer";
-  toolbar.append(deafenBtn, blindBtn, toolbarSpacer, civitaiBtn, trainingBtn, runpodBtn);
+  toolbar.append(deafenBtn, blindBtn, toolbarSpacer, civitaiBtn, appsBtn, trainingBtn, runpodBtn);
 
   row.append(ring, ctxLabel, modelChip, spacer, attachBtn, micBtn, sendBtn);
   form.append(menuPop, modelPop, attachBar, input, row, fileInput);
@@ -11645,7 +11814,17 @@ function buildPanel() {
     onStatus(state) {
       statusText.textContent = state;
       dot.className = "cmcp-dot" + (state === "connected" ? " connected" : state === "connecting" ? " connecting" : "");
-      settingsBox.hidden = state !== "disconnected";
+      // Connection status does NOT drive this box's visibility. It's a
+      // dropdown: the user opens it and the user closes it (trigger, click
+      // away, or Escape). Deriving `hidden` from status here is what made it
+      // flash open and snap shut — the bridge re-emits "connected" on every
+      // handshake frame, and each emission re-hid a box the user had just
+      // opened, putting Disconnect out of reach. Guarding that on "only when
+      // the status changed" papered over it; not owning the visibility at all
+      // is the actual fix, and it means no future status path can steal it
+      // back. The places that legitimately REVEAL the box are user-initiated
+      // (clicking Disconnect, or trying to send while disconnected) and live
+      // at those call sites.
       const connected = state === "connected";
       connectBtn.hidden = connected;
       disconnectBtn.hidden = !connected;
@@ -11740,36 +11919,37 @@ function buildPanel() {
       });
       return { ok: true };
     },
-    // The agent DRIVES the already-open CivitAI browser (switch tab, re-search,
-    // read results, glow-highlight). Routes to the live modal handle; throws an
-    // honest "not open" error the agent can retry after re-opening.
+    // The agent DRIVES the already-open CivitAI browser tab (switch sub-tab,
+    // re-search, read results, glow-highlight). Routes to the unified side-panel
+    // handle's civitai facade; throws an honest "civitai browser not open" error
+    // (guard here, plus the facade re-checks the active tab).
     onCivitaiCmd(msg) {
-      const h = _civitaiHandle;
+      const h = _sidePanelHandle;
       if (!h) throw new Error("civitai browser not open");
       switch (msg.cmd) {
-        case "civitai_results": return h.getResults({ limit: msg.limit });
-        case "civitai_highlight": return h.highlight(Array.isArray(msg.ids) ? msg.ids : (msg.ids != null ? [msg.ids] : []), { kind: msg.kind });
-        case "civitai_clear_highlight": return h.clearHighlight();
-        case "civitai_switch_tab": return h.switchTab(msg.tab);
-        case "civitai_search": return h.search({ query: msg.query, filters: msg.filters, browsingLevels: msg.browsingLevels });
-        case "civitai_open_lightbox": return h.openLightbox(msg.id);
+        case "civitai_results": return h.civitai.getResults({ limit: msg.limit });
+        case "civitai_highlight": return h.civitai.highlight(Array.isArray(msg.ids) ? msg.ids : (msg.ids != null ? [msg.ids] : []), { kind: msg.kind });
+        case "civitai_clear_highlight": return h.civitai.clearHighlight();
+        case "civitai_switch_tab": return h.civitai.switchTab(msg.tab);
+        case "civitai_search": return h.civitai.search({ query: msg.query, filters: msg.filters, browsingLevels: msg.browsingLevels });
+        case "civitai_open_lightbox": return h.civitai.openLightbox(msg.id);
         default: throw new Error(`unknown civitai cmd "${msg.cmd}"`);
       }
     },
-    // The agent opens/drives the training wizard (parity with CivitAI).
+    // The agent opens/drives the training wizard tab (parity with CivitAI).
     onTrainingCmd(msg) {
       if (msg.cmd === "open_training") {
         openTraining({ dock: msg.dock !== false });
         return { ok: true };
       }
-      const h = _trainingHandle;
+      const h = _sidePanelHandle;
       if (!h) throw new Error("training wizard not open");
       switch (msg.cmd) {
-        case "training_get_state": return h.getState();
-        case "training_set_field": return h.setField(msg.name, msg.value);
-        case "training_goto_step": return h.gotoStep(msg.step);
-        case "training_set_target": return h.setTarget(msg.target);
-        case "training_highlight": return h.highlight(Array.isArray(msg.refs) ? msg.refs : (msg.refs != null ? [msg.refs] : []));
+        case "training_get_state": return h.training.getState();
+        case "training_set_field": return h.training.setField(msg.name, msg.value);
+        case "training_goto_step": return h.training.gotoStep(msg.step);
+        case "training_set_target": return h.training.setTarget(msg.target);
+        case "training_highlight": return h.training.highlight(Array.isArray(msg.refs) ? msg.refs : (msg.refs != null ? [msg.refs] : []));
         default: throw new Error(`unknown training cmd "${msg.cmd}"`);
       }
     },
@@ -11812,6 +11992,10 @@ function buildPanel() {
     // Honest host indicator (local ⇄ pod) → the host pill + open control modal.
     onComfyuiTarget(frame) {
       panelRunpod?.onTarget(frame);
+    },
+    // Auto-connect failure alerts → the pod button warning treatment (#287).
+    onRunpodAlert(frame) {
+      panelRunpod?.onAlert(frame);
     },
     // Live extended-thinking token count → update the working indicator.
     onThinking(tokens) {
@@ -12604,7 +12788,7 @@ function buildPanel() {
 
   saveBtn.addEventListener("click", () => {
     client.setUrl(urlInput.value.trim());
-    appendSystem(`Reconnecting to ${client.currentUrl()}…`);
+    appendSystem(`Reconnecting to ${redactBridgeUrl(client.currentUrl())}…`);
   });
 
   // Connect: ask ComfyUI's server to start the background agent on demand, then
@@ -14615,6 +14799,121 @@ function buildPanel() {
   // close when clicking inside the panel. Capturing runs on the way DOWN to the
   // target, before LiteGraph can swallow the event, so a click ANYWHERE (canvas,
   // toolbar, other widgets) dismisses the dropdown.
+  // ── Hover to read the rest of a truncated label ────────────────────────
+  // An ellipsis hides the END of the string, and the end is usually the part
+  // that identifies it: a quantisation suffix, a size tag, a date. Model ids
+  // are the worst case — "…-instruct-q4_K_M" and Ollama's size suffix both sit
+  // past the cut, so a list of clipped names can be genuinely unusable.
+  //
+  // Hovering a clipped element scrolls it to its end and hovering away returns
+  // it. Delegated from the panel root so it covers popover rows, the model
+  // chip, download and attachment names — including elements rendered later,
+  // which is most of them.
+  const REVEAL_SEL = [
+    ".cmcp-popover-item .lbl",
+    ".cmcp-popover-item small",
+    ".cmcp-chip .name",
+    ".cmcp-chip .dim",
+    ".cmcp-dl-name",
+    ".cmcp-attach-name",
+    ".cmcp-pending-text",
+    ".cmcp-card-text",
+  ].join(", ");
+  // Respect the OS setting — an animation that chases the cursor is exactly the
+  // kind of motion people disable it for. They still get the reveal, instantly.
+  const revealReduced = () =>
+    !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  let revealEl = null;
+  let revealResetTimer = null;
+
+  /**
+   * Ease scrollLeft by hand rather than using scrollTo({behavior:"smooth"}).
+   *
+   * Three reasons, in order of weight:
+   *  - Pacing. Distance-proportional duration keeps a 60-char model id from
+   *    crawling and a short one from snapping; the built-in curve is fixed.
+   *  - Reduced-motion gets a clean instant branch instead of relying on the
+   *    browser to honour it for programmatic scrolls.
+   *  - Interruptibility. Moving the cursor across a list cancels the previous
+   *    animation explicitly (`cancelAnimationFrame`), so rows don't fight.
+   *
+   * Note: `scrollLeft =` and `scrollTo({behavior:"auto"})` are both confirmed
+   * to move these overflow:hidden labels. Whether `behavior:"smooth"` also
+   * works on them is UNVERIFIED — it appeared not to during testing, but that
+   * was measured in a backgrounded tab where rAF was paused and every
+   * animation was frozen, so the observation proves nothing either way. Don't
+   * cite it as a reason to avoid smooth; the reasons above stand on their own.
+   */
+  function revealScroll(el, toEnd) {
+    const max = el.scrollWidth - el.clientWidth;
+    if (max <= 0) return false;
+    const from = el.scrollLeft;
+    const to = toEnd ? max : 0;
+    if (Math.abs(to - from) < 1) return true;
+    if (el._revealRaf) cancelAnimationFrame(el._revealRaf);
+    if (revealReduced()) { el.scrollLeft = to; return true; }
+    // Pace by distance so a long id doesn't crawl and a short one doesn't jerk.
+    const dur = Math.min(600, Math.max(160, Math.abs(to - from) * 2.5));
+    const t0 = performance.now();
+    const step = (now) => {
+      const p = Math.min(1, (now - t0) / dur);
+      const eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      el.scrollLeft = from + (to - from) * eased;
+      if (p < 1) el._revealRaf = requestAnimationFrame(step);
+      else el._revealRaf = 0;
+    };
+    el._revealRaf = requestAnimationFrame(step);
+    return true;
+  }
+  function revealRelease(el) {
+    if (!el) return;
+    revealScroll(el, false);
+    // Keep `clip` until the scroll-back lands, or the ellipsis snaps in over
+    // text that is still sliding — which reads as a glitch rather than a return.
+    clearTimeout(revealResetTimer);
+    revealResetTimer = setTimeout(() => el.classList.remove("cmcp-revealing"), 320);
+  }
+  function onRootOver(ev) {
+    const el = ev.target?.closest?.(REVEAL_SEL);
+    if (!el || el === revealEl) return;
+    if (revealEl) revealRelease(revealEl);
+    revealEl = null;
+    // Only act on text that is ACTUALLY clipped; otherwise every hover would
+    // add a class and run a no-op scroll across the whole panel.
+    if (el.scrollWidth > el.clientWidth + 1) {
+      clearTimeout(revealResetTimer);
+      if (revealEl && revealEl._revealRaf) cancelAnimationFrame(revealEl._revealRaf);
+      el.classList.add("cmcp-revealing");
+      revealScroll(el, true);
+      revealEl = el;
+    }
+  }
+  function onRootOut(ev) {
+    if (!revealEl) return;
+    const to = ev.relatedTarget;
+    // mouseout fires when crossing into a CHILD of the same label too; ignore
+    // those or the reveal would stutter as the cursor moves across the text.
+    if (to && (revealEl.contains(to) || to.closest?.(REVEAL_SEL) === revealEl)) return;
+    revealRelease(revealEl);
+    revealEl = null;
+  }
+  root.addEventListener("mouseover", onRootOver);
+  root.addEventListener("mouseout", onRootOut);
+
+  // Escape closes whichever dropdown is open, the way every other menu does.
+  // Capture phase for the same reason as the pointer handler: ComfyUI binds its
+  // own Escape (deselect / close dialogs) and we want ours to win while a panel
+  // dropdown is open, without stealing the key when nothing is open.
+  function onDocEscape(ev) {
+    if (ev.key !== "Escape") return;
+    if (!settingsBox.hidden) {
+      settingsBox.hidden = true;
+      ev.stopPropagation();
+      ev.preventDefault();
+    }
+  }
+  document.addEventListener("keydown", onDocEscape, true);
+
   function onDocPointerDown(ev) {
     const t = ev.target;
     if (!settingsBox.hidden && !settingsBox.contains(t) && !status.contains(t)) {
@@ -14748,7 +15047,7 @@ function buildPanel() {
     saveBridgeUrl(u);
     if (client.isConnected()) {
       client.setUrl(u);
-      appendSystem(`Bridge URL → ${u} (reconnecting).`);
+      appendSystem(`Bridge URL → ${redactBridgeUrl(u)} (reconnecting).`);
     }
   };
   panelHooks.applyAutoConnect = (on) => {
@@ -14841,6 +15140,10 @@ function buildPanel() {
       }
       clearInterval(_wfPoll); // stop per-workflow change polling on unmount
       document.removeEventListener("mousedown", onDocPointerDown, true);
+      document.removeEventListener("keydown", onDocEscape, true);
+      root.removeEventListener("mouseover", onRootOver);
+      root.removeEventListener("mouseout", onRootOut);
+      clearTimeout(revealResetTimer);
       document.removeEventListener("keydown", onInterruptKeydown, true);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       try {

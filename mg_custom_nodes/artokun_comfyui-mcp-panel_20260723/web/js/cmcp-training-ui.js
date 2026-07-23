@@ -10,17 +10,17 @@
 //    output listing, image-ref → absolute-path resolution, and serving
 //    training-sample images from the rig's training root.
 
+import { openSidePanel } from "./cmcp-sidepanel-ui.js";
+
 let cssInjected = false;
 function injectCss() {
   if (cssInjected) return;
   cssInjected = true;
   const style = document.createElement("style");
   style.textContent = `
-    /* Self-contained overlay + modal base (the CivitAI modal's .cmcp-cv-overlay
-       styles only exist once that modal has opened, and the base .cmcp-modal is
-       a narrow confirm-dialog — neither can be relied on here). */
-    .cmcp-cv-overlay { position: fixed; inset: 0; z-index: 10000; display: flex;
-      align-items: center; justify-content: center; padding: 1.5rem; background: rgba(0,0,0,.6); }
+    /* The unified side-panel shell (cmcp-sidepanel-ui.js) owns the overlay + dock
+       + slide + Escape; this keeps only the .cmcp-tr-* wizard body CSS. The
+       .cmcp-modal.cmcp-tr-modal sizing rule is the active-tab alias. */
     .cmcp-modal.cmcp-tr-modal { width: min(94vw, 960px); max-width: none;
       max-height: min(92vh, 880px); padding: 0; gap: 0; overflow: hidden;
       display: flex; flex-direction: column; }
@@ -95,15 +95,6 @@ function injectCss() {
       border-radius: 8px; animation: cmcp-glow 1.4s ease-in-out infinite; }
     @keyframes cmcp-glow { 50% { box-shadow: 0 0 0 3px var(--p-green-400,#4ade80),
       0 0 24px 6px rgba(74,222,128,.9); } }
-    /* Agent-driven side-dock (parity with the CivitAI modal): anchor to the
-       sidebar's right edge, drop the backdrop, keep chat interactive. */
-    .cmcp-cv-overlay.cmcp-docked { display: block; padding: 0; background: transparent;
-      pointer-events: none; }
-    .cmcp-cv-overlay.cmcp-docked .cmcp-tr-modal { position: fixed; pointer-events: auto;
-      width: auto; max-width: none; max-height: none; border-radius: 0;
-      box-shadow: -8px 0 32px rgba(0,0,0,.45); transform: translateX(24px); opacity: 0;
-      transition: transform .28s ease, opacity .28s ease; }
-    .cmcp-cv-overlay.cmcp-docked.cmcp-dock-in .cmcp-tr-modal { transform: translateX(0); opacity: 1; }
   `;
   document.head.appendChild(style);
 }
@@ -230,43 +221,42 @@ function fmtAgo(iso) {
 
 const STATUS_BADGE = { running: "ok", queued: "warn", completed: "ok", failed: "err", cancelled: "warn" };
 
-export function openTrainingModal(ctx = {}, opts = {}) {
+/** Content-provider factory for the LoRA Training tab of the unified side panel.
+ *  The shell owns the overlay/header/✕/dock/Escape; this builds the wizard body +
+ *  the agent-drive surface. The shared search filters the outputs grid on the
+ *  Dataset step (decision B); it's hidden everywhere else. */
+export function createTrainingContent(ctx = {}, shell, opts = {}) {
   injectCss();
-  const overlay = document.createElement("div");
-  overlay.className = "cmcp-cv-overlay";
-  const modal = document.createElement("div");
-  modal.className = "cmcp-modal cmcp-tr-modal";
+  const modal = shell.modal; // for data-ref query + highlight scoping
 
   let pollTimer = null;
   let pollGen = 0;
   let closed = false;
-  let _onDockResize = null;
-  let _dockDispose = null;
-  let _onEscape = null;
   // train_doctor generation: every doctor request captures the current value;
   // only the NEWEST completion may write wiz.podInfo, so a slow stale doctor
   // can't resurrect a pod that a later check found gone (codex finding).
   let doctorGen = 0;
+  let _started = false;
+  // Shared-search → outputs filename filter (decision B). outputsTabActive gates
+  // whether the search shows at all (the Upload sub-tab has nothing to filter).
+  let outputsFilter = "";
+  let outputsTabActive = false;
+  let repaintOutputs = null; // renderOutputs' paint(), so onSearch can re-run it
   const stopPolling = () => {
     pollGen++; // invalidate any in-flight poll response
     if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
   };
-  const close = () => {
+  // close() closes the WHOLE side panel; teardown() (run by the shell) does the
+  // async cleanup — parity with the old close() minus the DOM/dock/Escape/slide
+  // that the shell now owns.
+  const close = () => { try { shell.close(); } catch { /* already gone */ } };
+  function teardown() {
     if (closed) return; // idempotent
     closed = true;
     stopPolling();
-    if (_onEscape) { document.removeEventListener("keydown", _onEscape); _onEscape = null; }
-    if (_onDockResize) { window.removeEventListener("resize", _onDockResize); _onDockResize = null; }
-    if (_dockDispose) { try { _dockDispose(); } catch { /* best effort */ } _dockDispose = null; }
     wiz.launchGen++; // a pending launch's continuation self-discards (codex finding)
     wiz.uploadGen++;
-    overlay.remove();
-    try { opts.onClose?.(); } catch { /* host bookkeeping only */ }
-  };
-  overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) close(); });
-  // Base modal had no Escape handler (audit item 9) — add one through close().
-  _onEscape = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
-  document.addEventListener("keydown", _onEscape);
+  }
 
   // Wizard state (one character-LoRA job being configured/tracked). Held at
   // modal scope so it survives view navigation: launching/uploadsPending MUST
@@ -326,74 +316,14 @@ export function openTrainingModal(ctx = {}, opts = {}) {
     return true;
   }
 
-  const head = el("div", "cmcp-tr-head");
-  const title = el("h2", null, "LoRA Training");
+  // Jobs button → shell subnav (via subnavExtras). The shell owns the ✕/title.
   const jobsBtn = el("button", "cmcp-tr-btn", "Jobs");
   jobsBtn.style.flex = "none";
-  const closeBtn = el("button", "cmcp-tr-close");
-  closeBtn.innerHTML = "&#10005;";
-  closeBtn.title = "Close";
-  closeBtn.onclick = close;
-  head.append(title, jobsBtn, closeBtn);
 
+  // Step chips (carry data-ref) + the wizard body, mounted into the shell's
+  // .cmcp-cv-body scroll surface.
   const stepsBar = el("div", "cmcp-tr-steps");
   const body = el("div", "cmcp-tr-body");
-  modal.append(head, stepsBar, body);
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  // ── docked mode (agent-driven, parity with the CivitAI modal) ───────────────
-  // Geometry from the host (ctx.dockGeometry owns pane/canvas measurement +
-  // left/right detection); three states detached(hide)/centered/docked. See the
-  // CivitAI modal for the full rationale.
-  applyDock.centered = false;
-  function applyDock() {
-    if (!opts.dock) { setCentered(); return; }
-    const geo = _dockGeometry();
-    if (geo?.status === "detached") { overlay.style.display = "none"; return; }
-    overlay.style.display = "";
-    if (geo?.status === "docked" && window.innerWidth >= 900) {
-      overlay.classList.add("cmcp-docked");
-      modal.style.left = `${Math.round(geo.left)}px`;
-      modal.style.top = `${Math.round(geo.top)}px`;
-      modal.style.right = `${Math.round(geo.right)}px`;
-      modal.style.bottom = `${Math.round(geo.bottom)}px`;
-      modal.style.height = "auto";
-      applyDock.centered = false;
-    } else { setCentered(); }
-  }
-  function setCentered() {
-    overlay.classList.remove("cmcp-docked");
-    overlay.style.display = "";
-    modal.style.left = modal.style.right = modal.style.top = modal.style.bottom = modal.style.height = "";
-    applyDock.centered = true;
-  }
-  function _dockGeometry() {
-    if (typeof ctx.dockGeometry === "function") {
-      try { const g = ctx.dockGeometry(); if (g) return g; } catch { /* fall through */ }
-    }
-    try {
-      const root = ctx.root;
-      if (root && !root.isConnected) return { status: "detached" };
-      const pane = root?.closest?.(".side-bar-panel") || root?.closest?.("[class*='sidebar']") || root;
-      const pr = pane?.getBoundingClientRect?.();
-      if (!pr || pr.width < 1 || pr.height < 1) return { status: "centered" };
-      const vw = window.innerWidth, vh = window.innerHeight;
-      const paneOnLeft = (pr.left + pr.right) / 2 < vw / 2;
-      const left = paneOnLeft ? Math.max(0, pr.right) : 0;
-      const right = paneOnLeft ? 0 : Math.max(0, vw - pr.left);
-      if (vw - left - right < 320) return { status: "centered" };
-      return { status: "docked", left, right, top: Math.max(0, pr.top), bottom: Math.max(0, vh - pr.bottom) };
-    } catch { return { status: "centered" }; }
-  }
-  if (opts.dock) {
-    applyDock();
-    if (typeof ctx.watchDock === "function") {
-      try { _dockDispose = ctx.watchDock(applyDock); } catch { _dockDispose = null; }
-    }
-    if (!_dockDispose) { _onDockResize = () => applyDock(); window.addEventListener("resize", _onDockResize); }
-    requestAnimationFrame(() => overlay.classList.add("cmcp-dock-in"));
-  }
 
   // Stable step namespace (audit item 7): refs survive the body rebuild every
   // show(view) because they're regenerated deterministically per render.
@@ -423,6 +353,10 @@ export function openTrainingModal(ctx = {}, opts = {}) {
     if (closed) return;
     currentView = view;
     stopPolling();
+    // Leaving/re-entering any view resets the outputs-filter binding; renderOutputs
+    // re-arms it. The shell re-evaluates search visibility at the end.
+    outputsTabActive = false;
+    repaintOutputs = null;
     body.textContent = "";
     if (view === "flows") { setSteps(null); renderFlows(); }
     else if (view === "jobs") { setSteps(null); renderJobs(); }
@@ -433,6 +367,7 @@ export function openTrainingModal(ctx = {}, opts = {}) {
     // Re-glow after the new view's DOM exists (renderers can be async but stamp
     // their static refs synchronously; async content re-applies on its own).
     reapplyHighlight();
+    try { shell.syncSearch(); } catch { /* not mounted yet */ }
   }
 
   jobsBtn.onclick = () => show("jobs");
@@ -579,18 +514,17 @@ export function openTrainingModal(ctx = {}, opts = {}) {
         : wiz.uploadsPending > 0 ? `Waiting for ${wiz.uploadsPending} upload(s)…` : "";
     }
 
-    // Outputs tab.
+    // Outputs tab. The filename filter is the shell's shared search box
+    // (decision B) — no local input; paint() reads `outputsFilter`.
     let refreshGridSel = null;
     async function renderOutputs() {
       tabBody.textContent = "";
-      const filterRow = el("div", "cmcp-tr-row");
-      const filter = el("input", null);
-      filter.type = "text";
-      filter.placeholder = "Filter by filename…";
-      filterRow.appendChild(filter);
+      outputsTabActive = true;
+      try { shell.searchEl.value = outputsFilter; } catch { /* not mounted */ }
+      try { shell.syncSearch(); } catch { /* not mounted */ }
       const grid = el("div", "cmcp-tr-pickgrid");
       const status = el("p", "cmcp-tr-hint", "Loading recent outputs…");
-      tabBody.append(filterRow, status, grid);
+      tabBody.append(status, grid);
       let images = [];
       try {
         const res = await apiFetch(ctx, "/comfyui_mcp_panel/training/list-outputs?limit=120");
@@ -604,7 +538,7 @@ export function openTrainingModal(ctx = {}, opts = {}) {
       const isSel = (img) => wiz.images.some((w) => w.ref.filename === img.filename && (w.ref.subfolder || "") === (img.subfolder || "") && w.ref.type === "output");
       function paint() {
         grid.textContent = "";
-        const pat = filter.value.trim().toLowerCase();
+        const pat = outputsFilter.trim().toLowerCase();
         for (const img of images) {
           if (pat && !img.filename.toLowerCase().includes(pat)) continue;
           const cell = el("div", "cmcp-tr-pick");
@@ -629,8 +563,8 @@ export function openTrainingModal(ctx = {}, opts = {}) {
           grid.appendChild(cell);
         }
         refreshGridSel = paint;
+        repaintOutputs = paint; // the shared search re-runs this via onSearch
       }
-      filter.oninput = paint;
       paint();
     }
 
@@ -730,7 +664,13 @@ export function openTrainingModal(ctx = {}, opts = {}) {
     }
 
     outTab.onclick = () => { outTab.classList.add("active"); upTab.classList.remove("active"); renderOutputs(); };
-    upTab.onclick = () => { upTab.classList.add("active"); outTab.classList.remove("active"); renderUpload(); };
+    upTab.onclick = () => {
+      upTab.classList.add("active"); outTab.classList.remove("active");
+      // Upload has nothing to filter — hide the shared search.
+      outputsTabActive = false; repaintOutputs = null;
+      try { shell.syncSearch(); } catch { /* not mounted */ }
+      renderUpload();
+    };
     renderOutputs();
     syncTray();
     syncNext();
@@ -834,6 +774,15 @@ export function openTrainingModal(ctx = {}, opts = {}) {
       const parts = v.split(",").map((s) => s.trim()).filter(Boolean);
       return parts.length && parts.every((p) => /^\d+$/.test(p) && parseInt(p, 10) > 0) ? parts.map((p) => parseInt(p, 10)) : null;
     };
+    // Sane ceilings for free-form custom params (#104): the Custom preset
+    // accepts any number, so a typo (steps=10^9, rank=100000, resolution=100000)
+    // starts a doomed/OOM BILLED run. Mirrored by the backend train_start
+    // schema's max constraints in comfyui-mcp — this is the friendly gate,
+    // that one is the hard wall.
+    const PARAM_MAX = { steps: 100000, lr: 1, rank: 1024, resolution: 4096 };
+    const PARAM_MIN = { resolution: 64 };
+    const inBounds = (key, n) => Number.isFinite(n) && n > 0 && n <= PARAM_MAX[key];
+    const resInBounds = (list) => !!list && list.every((r) => r >= PARAM_MIN.resolution && r <= PARAM_MAX.resolution);
     for (const [key, label] of [["steps", "Steps"], ["lr", "Learning rate"], ["rank", "LoRA rank"], ["resolution", "Resolutions (comma)"]]) {
       const l = el("label", null, label);
       l.style.minWidth = "auto";
@@ -841,6 +790,9 @@ export function openTrainingModal(ctx = {}, opts = {}) {
       inp.type = "text";
       inp.dataset.ref = `param:${key}`;
       inp.style.flex = "0 1 110px";
+      inp.title = key === "resolution"
+        ? `each ${PARAM_MIN.resolution}–${PARAM_MAX.resolution}`
+        : `max ${PARAM_MAX[key]}`;
       const saved = wiz.customParams?.[key];
       inp.value = saved !== undefined
         ? (key === "resolution" ? saved.join(",") : String(saved))
@@ -850,11 +802,11 @@ export function openTrainingModal(ctx = {}, opts = {}) {
         wiz.customParams = wiz.customParams || {};
         if (key === "resolution") {
           const list = parseResStrict(inp.value);
-          if (list) wiz.customParams.resolution = list;
+          if (resInBounds(list)) wiz.customParams.resolution = list;
           else delete wiz.customParams.resolution;
         } else {
           const n = key === "lr" ? parseLrStrict(inp.value) : parseIntStrict(inp.value);
-          if (Number.isFinite(n) && n > 0) wiz.customParams[key] = n;
+          if (inBounds(key, n)) wiz.customParams[key] = n;
           else delete wiz.customParams[key];
         }
         syncLaunchEnabled();
@@ -870,8 +822,8 @@ export function openTrainingModal(ctx = {}, opts = {}) {
       if (wiz.preset !== "custom") return true;
       return ["steps", "lr", "rank"].every((k) => {
         const n = k === "lr" ? parseLrStrict(customFields[k].value) : parseIntStrict(customFields[k].value);
-        return Number.isFinite(n) && n > 0;
-      }) && !!parseResStrict(customFields.resolution.value);
+        return inBounds(k, n);
+      }) && resInBounds(parseResStrict(customFields.resolution.value));
     }
     for (const key of Object.keys(PRESETS)) {
       const b = el("button", key === wiz.preset ? "active" : null, PRESETS[key].label);
@@ -1302,7 +1254,7 @@ export function openTrainingModal(ctx = {}, opts = {}) {
       preset: wiz.preset, images: wiz.images.length,
       launching: !!wiz.launching, jobId: wiz.jobId || null,
       podAvailable: !!(wiz.podInfo && wiz.podInfo.ssh),
-      docked: !applyDock.centered && overlay.classList.contains("cmcp-docked"),
+      docked: shell.isDocked(),
       highlighted: wiz.highlightRefs.slice(),
       readiness: _readiness(),
     };
@@ -1391,10 +1343,40 @@ export function openTrainingModal(ctx = {}, opts = {}) {
     return { ok: true };
   }
 
-  show("flows");
+  // ── content provider (the shell owns the chrome; this owns the body) ──────
   return {
-    close, getState: driveGetState, setField: driveSetField,
-    gotoStep: driveGotoStep, setTarget: driveSetTarget,
-    highlight: driveHighlight, clearHighlight: driveClearHighlight,
+    key: "training", label: "Training", icon: "pi-bolt", driveKind: "training",
+    // Search filters the outputs grid on the Dataset step only (decision B).
+    hasSearch: () => currentView === "wizard-1" && outputsTabActive,
+    searchPlaceholder: "Filter outputs by filename…",
+    subnavExtras: () => [jobsBtn],
+    mount(bodyEl) { bodyEl.append(stepsBar, body); },
+    onActivate() {
+      // First activation lands on Flows; every re-activation RE-ENTERS the
+      // current view so its renderer rebinds to the freshly re-mounted DOM — and
+      // in particular the Monitor poll re-arms (renderMonitor bumps pollGen +
+      // poll()) after having been stopped on deactivate. All field state lives in
+      // `wiz`, so a re-render is lossless (inputs re-seed from wiz).
+      if (!_started) { _started = true; show("flows"); }
+      else show(currentView);
+    },
+    // Halt the monitor poll while the tab is hidden — otherwise it keeps writing
+    // to the DOM the shell detached on switch (frozen monitor after a round-trip).
+    onDeactivate() { stopPolling(); },
+    onSearch(value) {
+      outputsFilter = value;
+      if (repaintOutputs) repaintOutputs();
+    },
+    update: () => {},
+    teardown,
+    drive: {
+      getState: driveGetState, setField: driveSetField, gotoStep: driveGotoStep,
+      setTarget: driveSetTarget, highlight: driveHighlight, clearHighlight: driveClearHighlight,
+    },
   };
+}
+
+/** Thin back-compat wrapper: opens the unified side panel on the Training tab. */
+export function openTrainingModal(ctx = {}, opts = {}) {
+  return openSidePanel(ctx, { tab: "training", dock: opts.dock, onClose: opts.onClose });
 }

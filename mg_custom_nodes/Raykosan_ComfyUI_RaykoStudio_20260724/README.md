@@ -783,14 +783,15 @@ Single frame tensor with shape [1, H, W, C] — ready for VAE encoding, preview,
 # 🦊 RS LoRA Loader  
 **A powerful, highly customizable node for managing multiple LoRAs. It features a sleek custom interface, a robust preset system, drag-and-drop reordering, and seamless integration with the Civitai API for fetching metadata and trained words.**  
 
-<img width="605" height="560" alt="Screenshot_1" src="https://github.com/user-attachments/assets/81fe9316-02a3-4507-a6de-f458af353f4c" />
+<img width="1078" height="696" alt="Screenshot_2" src="https://github.com/user-attachments/assets/41171801-a066-4f82-8416-dd16d1ad869e" />
 
 ### 🎨 Advanced Custom UI  
 - **Visual Multi-LoRA Management** - Add, remove, and reorder multiple LoRAs with drag-and-drop support.  
 - **Custom CLIP Toggle** - A dedicated, visually distinct button to enable/disable CLIP application per node. When the clip input is turned off, the node operates in the "model only" mode.  
 - **Precision Strength Control** - Adjust LoRA strength using `+` / `-` buttons or direct numeric input.  
 - **Auto-Resizing & Scrollable List** - The node automatically adjusts its height, with smooth scrolling for long lists.  
-- **Quick update** - When adding a new LoRA to the 'loras' folder, you do not need to reload ComfyUI or the browser page. Just click the ✔️ Update LoRA list button.  
+- **Quick update** - When adding a new LoRA to the 'loras' folder, you do not need to reload ComfyUI or the browser page. Just click the ✔️ Update LoRA list button.
+- **Tag Editing** - Many loras rely on resources other than Civitai. You can register the tags for such loras manually.  
 
 ### Adding and Managing LoRAs  
 1. Click **➕ Add LoRA** to open the selector. Search or browse the tree, and click a LoRA to add it.  
@@ -815,6 +816,16 @@ Single frame tensor with shape [1, H, W, C] — ready for VAE encoding, preview,
 - **Click to Copy** - Click on any individual green tag chip in the Info popup to instantly copy it to your clipboard and auto-close the window.  
 - **📋 Copy All** - A dedicated button to copy all trained words/tags at once.
 
+**The principle of adding a tag:**  
+One line is one tag.  
+If it is written in one line, even separated by commas:  
+(1tag, 2tag, 3tag) is one tag.  
+If it is written in several lines, there are several tags:  
+1tag  
+2tag  
+3tag  
+is three tags.  
+
 ### 🔔 Visual Feedback  
 - Custom toast notifications for successful actions, errors, and clipboard events.  
 
@@ -837,7 +848,8 @@ Single frame tensor with shape [1, H, W, C] — ready for VAE encoding, preview,
 - **Search Functionality** - Quickly find LoRAs by name  
 - **Presets of model sets** - Save model sets to presets for quick switching between models  
 - **Presets of LoRA sets** - Save LoRA sets to presets for quick switching between models  
-- **Quick update** - When adding a new LoRA to the 'loras' folder, you do not need to reload ComfyUI or the browser page. Just click the ✔️ Update LoRA list button  
+- **Quick update** - When adding a new LoRA to the 'loras' folder, you do not need to reload ComfyUI or the browser page. Just click the ✔️ Update LoRA list button
+- **Tag Editing** - Many loras rely on resources other than Civitai. You can register the tags for such loras manually  
 - **Pop-up messages** - Confirmation of successful or unsuccessful processes in the node  
 
 ### 🌐 Civitai Metadata Integration (Info Popup)  
@@ -849,7 +861,17 @@ Single frame tensor with shape [1, H, W, C] — ready for VAE encoding, preview,
 
 ### 📋 One-Click Tag Copying  
 - **Click to Copy** - Click on any individual green tag chip in the Info popup to instantly copy it to your clipboard and auto-close the window.  
-- **📋 Copy All** - A dedicated button to copy all trained words/tags at once.
+- **📋 Copy All** - A dedicated button to copy all trained words/tags at once.  
+
+**The principle of adding a tag:**  
+One line is one tag.  
+If it is written in one line, even separated by commas:  
+(1tag, 2tag, 3tag) is one tag.  
+If it is written in several lines, there are several tags:  
+1tag  
+2tag  
+3tag  
+is three tags.  
 
 ### 🔔 Visual Feedback  
 - Custom toast notifications for successful actions, errors, and clipboard events. 

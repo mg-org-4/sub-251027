@@ -25,7 +25,7 @@
                                   │  └───────────────────────┘  │
                                   └────────────┬────────────────┘
                                                │
-                                 image · latent · source_image outputs
+                        image · latent · source_image · loaded_filename outputs
 ```
 
 That's the entire workflow. No KSampler upstream, no ADetailer downstream, no Image-to-Mask plumbing or outpaint-pad chains in between. Generate, click, done. The image always scales to fit the node — resize the node and the preview tracks it.
@@ -68,8 +68,8 @@ Angelo collapses all of it into one node:
 - **Hold `\`** over the preview for an instant before/after flash of the original base (Lightroom's compare key).
 - **⛶ Fullscreen** — pop the whole editor out to a full-screen canvas for precise detail work; every tool keeps working, Esc returns it.
 - **Undo / Redo** to step back and forward through your refines.
-- **Load Image** to edit an existing photo directly in the node — no Empty Latent + `VAEEncode` chain to wire (you still connect the `vae` input as normal; Angelo does the encode itself). Or just **drag-drop an image file** onto the node; **right-click** the preview to copy it or open it in a new tab.
-- **`source_image` output** emits the original pre-edit base, ready to wire straight into a compare node.
+- **Load Image** to edit an existing photo directly in the node — no Empty Latent + `VAEEncode` chain to wire (you still connect the `vae` input as normal; Angelo does the encode itself). Or just **drag-drop an image file** onto the node; **right-click** the preview to copy it, open it in a new tab, switch mode, or generate a new / same base.
+- **`source_image` output** emits the original pre-edit base, ready to wire straight into a compare node. The **`loaded_filename` output** emits the filename of the currently loaded image (empty when the base was generated) — handy for tagging when you save the edited result.
 
 **Two models, one canvas**
 
@@ -146,6 +146,16 @@ Angelo acts as a normal sampler — generates the base image from the incoming l
 
 When you flip Mode to Edit Mode, `Smpl Ctrl` auto-locks to `fixed` and `Smpl Seed` snaps to the seed that actually produced the cached image (preserves it across the mode switch). The Sampler-seed row greys out in Edit Mode.
 
+Flipping **back** to Sampler Mode undoes the lock: `Smpl Ctrl` returns to whatever you had before (e.g. `randomize`), and the seed is advanced one step immediately — so the very next Queue produces a **new** base instead of silently repeating the last one. If you had `fixed` before entering Edit Mode, it stays `fixed`.
+
+**Queueing before a base exists just works.** Open a workflow that was saved in Edit Mode (or restart ComfyUI, which clears the session) and press Queue — either button — and Angelo notices there's nothing to edit yet: it runs the **base generation** instead and flips Mode back to Sampler Mode for you. A wired *non-empty* latent is respected as-is — that's the "refine an upstream sampler's output" pattern.
+
+**Right-click the preview (or the node body) for quick actions** that cover the whole generate→edit loop without touching the toolbar:
+
+- **Switch to Edit / Sampler Mode** — the Mode dropdown, one right-click away.
+- **Generate new base (fresh seed)** — jumps to Sampler Mode, rolls a fresh random seed, and queues. The "give me another one" button.
+- **Regenerate same base** — jumps to Sampler Mode and re-queues with the exact seed that produced the current base. The "run that one again" button.
+
 ![Mode dropdown](screenshots/mode-dropdown.png)
 
 ### Edit Mode
@@ -214,6 +224,8 @@ The **Mode** switch sits centred up top, with **🖼 Load Image** beside it (bot
 **Driving Steps / CFG / Sampler / Scheduler from elsewhere in the workflow.** If you'd rather have a single source of truth for those four values across your workflow than set them again on Angelo's toolbar, drop an **Angelo — Overrides** node (same `sampling/Angelo` category), set the fields you want to drive (leave others at `-1` / `(toolbar)` to fall through), and wire its `overrides` output into Angelo's `overrides` input slot. Per-field opt-in: override only `steps`, only `cfg`, any combination. Anything left at its sentinel uses the toolbar value as normal.
 
 The Overrides node also carries **`disable_live_preview`** — flip this ON if ComfyUI's global latent preview (Settings → Preview method = Latent2RGB / TAESD) is rendering into the Angelo node mid-sample and squashing the editor area. It suppresses the preview callback for this Angelo only, so KSampler etc. elsewhere in your workflow keep their previews.
+
+**Driving the Area Prompt from another node.** The Overrides node's **`area_prompt_text`** input takes any `STRING` output — a wildcard resolver, an LLM prompt generator, whatever. When it's wired and non-empty, it **replaces the text typed in Angelo's Area Prompt box** on every run, so each Queue can pull a freshly resolved prompt for the region you're editing. Two things to know: the **Area Prompt toggle still gates whether area text is used at all** (the Smart modes force it ON as usual — the wire only swaps the *text*), and the on-node box keeps showing its own text while the wired value wins at run time.
 
 **Generate with one model, edit with another (the gen bundle).** The Overrides node's `gen_model` / `gen_positive` / `gen_negative` / `gen_vae` inputs carry a **second, generation-only model stack**. When wired, **Sampler Mode** generates the base with the gen model using the node's `gen_steps` / `gen_cfg` / `gen_sampler_name` / `gen_scheduler` settings, decodes it with `gen_vae`, and re-encodes the pixels with your main edit VAE — so every edit after that runs on the edit model exactly as if the image had come in via Load Image. Edit Mode never touches the gen bundle; leave it unwired and nothing changes. The wiring rules:
 
@@ -551,7 +563,7 @@ The preview fits the node by default, but you can zoom in to work on fine detail
 
 | Action | Does |
 |---|---|
-| **Mouse wheel** | Zoom in / out, centered on the cursor (0.25×–8×) |
+| **Mouse wheel** | Zoom in / out, centered on the cursor (fit–8×; zooming out stops at fit) |
 | **Middle-mouse hold + drag** | Pan around |
 | **Double middle-click**, or **F** (cursor over node) | Reset back to fit |
 

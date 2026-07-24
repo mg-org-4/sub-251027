@@ -251,6 +251,17 @@ _GUIDED_LOCATION_PREFIXES = {
 }
 
 
+def _latent_is_blank(latent: torch.Tensor) -> bool:
+    """True when the latent is a constant fill — i.e. an EMPTY latent that
+    was never sampled. Empty-latent nodes fill with a constant (0.0 for
+    EmptyLatentImage and most others; the latent shift, e.g. 0.0609, for
+    EmptySD3LatentImage), while a real image latent is never perfectly
+    uniform. Used to tell "base was never generated" from "a real latent
+    was wired in" on a fresh Edit-Mode queue."""
+    v = latent.flatten()[0]
+    return bool((latent == v).all())
+
+
 def _latent_fingerprint(latent: torch.Tensor) -> str:
     """Quick non-cryptographic fingerprint of an incoming latent.
 
@@ -1969,15 +1980,21 @@ class AngeloRefine:
                                                               "to supply a dedicated GENERATION "
                                                               "model (gen bundle): Sampler Mode "
                                                               "generates the base with it, then "
-                                                              "the main model handles all edits."}),
+                                                              "the main model handles all edits. "
+                                                              "Also carries an external Area "
+                                                              "Prompt text (wire a wildcard / "
+                                                              "prompt-generator node into the "
+                                                              "Overrides node's area_prompt_text)."}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "LATENT", "IMAGE")
-    RETURN_NAMES = ("image", "latent", "source_image")
+    # loaded_filename (#30) is APPENDED — output slots serialize by index
+    # in saved workflow links, so new outputs go last, same rule as widgets.
+    RETURN_TYPES = ("IMAGE", "LATENT", "IMAGE", "STRING")
+    RETURN_NAMES = ("image", "latent", "source_image", "loaded_filename")
     FUNCTION = "run"
     OUTPUT_NODE = True
     CATEGORY = "sampling/Angelo"
@@ -2112,6 +2129,16 @@ class AngeloRefine:
                 ov_gen_sampler_name = overrides["gen_sampler_name"]
             if overrides.get("gen_scheduler") is not None:
                 ov_gen_scheduler = overrides["gen_scheduler"]
+            # External Area Prompt (#30): a wired STRING (wildcard resolver /
+            # prompt generator) that REPLACES the Area Prompt box's positive
+            # text for this run when non-empty. Substituted here at the top
+            # so every downstream reader of area_text_positive picks it up
+            # (area conditioning, Smart Guided prefixing, Outpaint, the ✨
+            # "Use Area Prompt" mode). The area_prompt TOGGLE still decides
+            # whether area text is used at all — this only swaps the text.
+            ov_area_text = overrides.get("area_prompt_text")
+            if ov_area_text is not None and str(ov_area_text).strip():
+                area_text_positive = str(ov_area_text)
 
         node_id = str(unique_id)
         state = _STATE.get(node_id)
@@ -2129,6 +2156,18 @@ class AngeloRefine:
         loaded_ref = str(loaded_image).strip()
         loaded_active = bool(loaded_ref)
         loaded_seq = int(loaded_image_seq)
+        # loaded_filename output (#30): the bare filename of the image
+        # currently loaded via Load Image / drag-drop / paste (useful for
+        # tagging on save), "" when the base is a generated latent. Stays
+        # populated across runs because loaded_image holds the ref until
+        # Unload clears it.
+        loaded_filename = ""
+        if loaded_active:
+            try:
+                _lref = json.loads(loaded_ref)
+                loaded_filename = str(_lref.get("name") or _lref.get("filename") or "")
+            except (ValueError, TypeError):
+                loaded_filename = loaded_ref
         new_loaded = loaded_active and (
             state is None or state.get("loaded_seq") != loaded_seq
         )
@@ -2234,6 +2273,29 @@ class AngeloRefine:
             # other edit params aren't read on the outpaint path (denoise is
             # fixed at 1.0 inside it; the JS dims their controls).
             persistent_mask = False
+
+        # ===== Auto base generation on a fresh Edit-Mode queue =====
+        # Queueing in Edit Mode with NO session, NO loaded image, and a
+        # BLANK wired latent (a workflow opened saved-in-Edit-Mode, or a
+        # ComfyUI restart) means the base was never generated — "editing"
+        # would just decode an empty grey canvas. Run the Sampler-Mode base
+        # generation instead (both queue buttons arrive here identically)
+        # and flag the JS to flip the Mode widget so the UI matches what
+        # actually ran. A wired NON-blank latent is left alone — that's the
+        # downstream-refiner pattern (edit an upstream sampler's output
+        # directly). A mid-session browser refresh is also left alone: the
+        # server-side state survives it, so state is not None.
+        auto_sampler = False
+        if (mode == "Edit Mode"
+                and state is None
+                and not loaded_active
+                and base_from_wired_latent
+                and _latent_is_blank(incoming)):
+            print("[Angelo] Edit Mode queued with no session and an empty "
+                  "wired latent — running the base generation instead "
+                  "(Mode flips to Sampler Mode).")
+            mode = "Sampler Mode"
+            auto_sampler = True
 
         # ===== Sampler Mode branch =====
         # Acts like a KSampler: take the incoming latent (typically empty),
@@ -2423,6 +2485,10 @@ class AngeloRefine:
                 "Angelo_mode": ["Sampler Mode"],
                 "Angelo_sampler_seed_at_run": [int(sampler_seed)],
             }
+            if auto_sampler:
+                # Tell the JS this run auto-generated the base so it can
+                # flip the Mode widget to Sampler Mode (see onExecuted).
+                ui_msg["Angelo_auto_sampler"] = [True]
             # Preview always decodes now (auto_decode deprecated). Gen-bundle
             # path already holds the gen VAE's pixels — preview those rather
             # than the edit-VAE round-trip of them.
@@ -2438,7 +2504,7 @@ class AngeloRefine:
             _STATE[node_id]["source_pixels"] = image
             _STATE[node_id]["source_preview_refs"] = image_refs
             ui_msg["Angelo_source_preview"] = image_refs
-            return {"ui": ui_msg, "result": (image, out_latent, image)}
+            return {"ui": ui_msg, "result": (image, out_latent, image, loaded_filename)}
 
         # ===== Edit Mode branch (existing behaviour) =====
 
@@ -3503,7 +3569,7 @@ class AngeloRefine:
         if op_refs_out:
             ui_msg["Angelo_outpaint_preview"] = op_refs_out
 
-        return {"ui": ui_msg, "result": (image, out_latent, source_image)}
+        return {"ui": ui_msg, "result": (image, out_latent, source_image, loaded_filename)}
 
 
 class AngeloOverrides:
@@ -3530,6 +3596,12 @@ class AngeloOverrides:
     the edit model's latent space. Edit Mode never uses the gen bundle.
     Seed and denoise for the base generation stay on Angelo's toolbar
     (sampler_seed / Smpl Denoise) so the seed controls keep working.
+
+    External Area Prompt (#30): wire any STRING output into
+    area_prompt_text and, when non-empty, it replaces the text typed in
+    Angelo's Area Prompt box each run — lets wildcard / prompt-generator
+    nodes drive region edits. The Area Prompt toggle still gates whether
+    area text is used at all.
 
     WIDGET ORDER IS APPEND-ONLY: this node lives in saved workflows
     with positional widgets_values — new widgets go after gen_scheduler,
@@ -3628,6 +3700,23 @@ class AngeloOverrides:
                                   {"default": "normal",
                                    "tooltip": "[Gen bundle] Scheduler for the base "
                                               "generation with gen_model."}),
+                # External Area Prompt (#30): wire a prompt-generator /
+                # wildcard-resolver node's STRING output here and, when it's
+                # non-empty, it REPLACES the text typed in Angelo's Area
+                # Prompt box each run. forceInput = a socket only, no widget
+                # — widgets_values order is untouched, and it's the wired-
+                # node use case anyway (typing text belongs in the box).
+                "area_prompt_text": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "Optional. Wire a STRING output (wildcard "
+                               "resolver, prompt generator, ...) here and "
+                               "when it's non-empty it replaces the text in "
+                               "Angelo's Area Prompt box for that run. The "
+                               "Area Prompt toggle still decides whether "
+                               "area text is used at all (the Smart modes "
+                               "force it ON as usual). Note the on-node box "
+                               "keeps showing its own text — the wired text "
+                               "wins at run time."}),
             },
         }
 
@@ -3642,13 +3731,17 @@ class AngeloOverrides:
         "disable_live_preview flag for #21. Also carries an optional "
         "gen bundle (gen_model / gen_positive / gen_negative / gen_vae "
         "+ gen_* settings): generate the base in Sampler Mode with a "
-        "dedicated generation model, then edit with the main edit model."
+        "dedicated generation model, then edit with the main edit model. "
+        "And an optional area_prompt_text input: wire any STRING output "
+        "(wildcard / prompt-generator nodes) to replace the Area Prompt "
+        "box's text at run time."
     )
 
     def build(self, steps, cfg, sampler_name, scheduler, disable_live_preview,
               gen_steps=25, gen_cfg=5.0, gen_sampler_name="euler", gen_scheduler="normal",
               guider=None, sampler=None, sigmas=None,
-              gen_model=None, gen_positive=None, gen_negative=None, gen_vae=None):
+              gen_model=None, gen_positive=None, gen_negative=None, gen_vae=None,
+              area_prompt_text=None):
         bundle = {
             "steps": steps if isinstance(steps, int) and steps >= 1 else None,
             "cfg": float(cfg) if isinstance(cfg, (int, float)) and cfg >= 0 else None,
@@ -3670,6 +3763,8 @@ class AngeloOverrides:
             "gen_cfg": float(gen_cfg),
             "gen_sampler_name": gen_sampler_name,
             "gen_scheduler": gen_scheduler,
+            # External Area Prompt (#30) — None/empty means "use the box".
+            "area_prompt_text": area_prompt_text,
         }
         return (bundle,)
 

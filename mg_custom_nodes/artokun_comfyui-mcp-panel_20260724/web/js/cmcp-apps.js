@@ -91,6 +91,9 @@ export class RegistryClient {
   star(id, on = true) {
     return this._req("POST", `/v1/apps/${id}/${on ? "star" : "unstar"}`, { star_key: starKey() });
   }
+  starred(id) {
+    return this._req("GET", `/v1/apps/${id}/starred?key=${encodeURIComponent(starKey())}`);
+  }
   ran(id) {
     return this._req("POST", `/v1/apps/${id}/ran`, { star_key: starKey() }).catch(() => {});
   }
@@ -235,7 +238,10 @@ export class AppBuilder {
 
   /** Node types whose widgets are natural app INPUTS by default (mirrors what
    *  the frontend APP builder highlights: prompt text, images, models,
-   *  primitives, seeds/steps-samplers). */
+   *  primitives, seeds/steps-samplers, and the empty-latent/image generators
+   *  whose size/batch widgets are among the most-exposed app endpoints — found
+   *  dogfooding: an EmptyImage→Preview graph offered NO candidates without
+   *  these). */
   static INPUT_HINT_TYPES = new Set([
     "CLIPTextEncode",
     "LoadImage",
@@ -255,14 +261,28 @@ export class AppBuilder {
     "KSampler",
     "KSamplerAdvanced",
     "SamplerCustom",
+    "EmptyImage",
+    "EmptyLatentImage",
+    "EmptySD3LatentImage",
+    "EmptyLTXVLatentVideo",
+    "EmptyHunyuanLatentVideo",
+    "EmptyMochiLatentVideo",
   ]);
 
   /** Widget value → app input kind. `nodeType` refines (LoadImage → image
-   *  upload; *Loader → model picker). */
-  static classifyWidget(nodeType, widgetName, value) {
+   *  upload; *Loader → model picker); `widgetType` is the live litegraph widget
+   *  type when available (lets us spot a `color` widget, which is otherwise an
+   *  ordinary string). seed/noise_seed get the dedicated seed control. */
+  static classifyWidget(nodeType, widgetName, value, widgetType) {
     const t = String(nodeType || "");
+    const name = String(widgetName || "");
+    const wt = String(widgetType || "").toLowerCase();
     if (/loadimage/i.test(t)) return "image";
-    if (/loader/i.test(t) || /_name$/i.test(widgetName)) return "model";
+    if (/loader/i.test(t) || /_name$/i.test(name)) return "model";
+    if (wt === "color" || (/color/i.test(name) && typeof value === "string" && /^#?[0-9a-fA-F]{6}$/.test(value))) {
+      return "color";
+    }
+    if (name === "seed" || name === "noise_seed" || name === "rand_seed") return "seed";
     if (typeof value === "number") return "number";
     if (typeof value === "boolean") return "toggle";
     if (Array.isArray(value)) return "combo";

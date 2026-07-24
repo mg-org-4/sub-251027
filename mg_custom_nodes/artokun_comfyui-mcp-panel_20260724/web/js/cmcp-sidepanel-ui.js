@@ -24,7 +24,7 @@ import { createLocalContent } from "./cmcp-runpod-ui.js";
 
 // key → content factory + tab presentation. Order = tab-bar order.
 const TABS = [
-  { key: "civitai", label: "Civitai", icon: "pi-images", factory: createCivitaiContent },
+  { key: "civitai", label: "CivitAI", icon: "pi-images", factory: createCivitaiContent },
   { key: "apps", label: "Apps", icon: "pi-th-large", factory: createAppsContent },
   { key: "training", label: "Training", icon: "pi-bolt", factory: createTrainingContent },
   { key: "local", label: "RunPod", icon: "pi-server", factory: createLocalContent },
@@ -46,6 +46,7 @@ function injectCss() {
   .cmcp-cv-head { display: flex; align-items: center; gap: .5rem; padding: .6rem .7rem;
     border-bottom: 1px solid var(--p-content-border-color, #3f3f46); flex-wrap: wrap; }
   .cmcp-cv-tabs { display: flex; gap: .25rem; flex-wrap: wrap; }
+  .cmcp-sp-title { font-weight: 600; font-size: .85rem; color: var(--p-text-color, #fafafa); padding: 0 .25rem; }
   .cmcp-cv-tab { display: inline-flex; align-items: center; gap: .3rem; padding: .3rem .55rem;
     border-radius: 8px; border: 1px solid transparent; background: transparent;
     color: var(--p-text-muted-color, #a1a1aa); cursor: pointer; font-size: .8rem; }
@@ -139,12 +140,14 @@ export function openSidePanel(ctx = {}, opts = {}) {
   const overlay = el("div", "cmcp-cv-overlay");
   const modal = el("div", "cmcp-modal cmcp-sidepanel");
   const head = el("div", "cmcp-cv-head");
-  const tabsWrap = el("div", "cmcp-cv-tabs");
+  // The four TOOLBAR buttons ARE the tabs (host toggles their active state via
+  // onTabChange); the panel header just names the active surface + carries the ✕.
+  const titleEl = el("div", "cmcp-sp-title");
   const closeBtn = el("button", "cmcp-cv-iconbtn");
   closeBtn.innerHTML = '<i class="pi pi-times"></i>';
   closeBtn.title = "Close";
   closeBtn.style.marginLeft = "auto";
-  head.append(tabsWrap, closeBtn);
+  head.append(titleEl, closeBtn);
 
   const subnav = el("div", "cmcp-cv-subnav");
   const searchEl = el("input", "cmcp-cv-search");
@@ -261,6 +264,12 @@ export function openSidePanel(ctx = {}, opts = {}) {
   const shell = {
     ctx, overlay, modal, body, searchEl, subnav, extras, head,
     close, applyDock, syncSearch,
+    // Cross-tab hop for content providers (e.g. CivitAI's "Create App from
+    // workflow" jumping to the Apps tab). `reseed` is forwarded to the target
+    // tab's reseed()/factory opt — the same seam the host handle's switchTab uses.
+    // `activate` is a hoisted declaration below, so this closure resolves it at
+    // call time.
+    switchTab: (key, reseed) => activate(key, { reseed }),
     isDocked: () => overlay.classList.contains("cmcp-docked") && !applyDock.centered,
     isCentered: () => applyDock.centered,
   };
@@ -288,8 +297,11 @@ export function openSidePanel(ctx = {}, opts = {}) {
     extras.textContent = "";
     for (const a of Object.values(ALIAS)) modal.classList.remove(a);
     activeKey = key;
-    for (const b of tabsWrap.children) b.classList.toggle("active", b._key === key);
+    const def = TABS.find((t) => t.key === key);
+    titleEl.textContent = def ? def.label : "";
     if (ALIAS[key]) modal.classList.add(ALIAS[key]);
+    // The toolbar buttons are the tab bar — tell the host to reflect the active one.
+    try { opts.onTabChange?.(key); } catch { /* host toolbar sync only */ }
     const inst = ensureContent(key);
     const ex = typeof inst.subnavExtras === "function" ? inst.subnavExtras() : null;
     for (const n of (ex || [])) if (n) extras.appendChild(n);
@@ -299,14 +311,6 @@ export function openSidePanel(ctx = {}, opts = {}) {
     if (typeof inst.onActivate === "function") { try { inst.onActivate(); } catch { /* ignore */ } }
     applyDock(); // re-dock (no slide replay: cmcp-dock-in stays set)
     return inst;
-  }
-
-  for (const t of TABS) {
-    const b = el("button", "cmcp-cv-tab");
-    b.innerHTML = `<i class="pi ${t.icon}"></i><span>${t.label}</span>`;
-    b._key = t.key;
-    b.addEventListener("click", () => activate(t.key));
-    tabsWrap.appendChild(b);
   }
 
   // ── go: mount the initial tab, then wire the dock + slide-in ──────────────────

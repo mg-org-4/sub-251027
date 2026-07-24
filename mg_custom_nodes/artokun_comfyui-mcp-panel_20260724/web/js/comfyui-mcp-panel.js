@@ -67,6 +67,14 @@ import DOMPurify from "./vendor/purify.es.js";
 import qrcodegen from "./vendor/qrcode.esm.js";
 import { computeLayout } from "./lib/layout-engine.js";
 import {
+  ChatHistoryStore,
+  mergeHistorySnapshots,
+  retainBoundedThreads,
+  selectRestoreThread,
+  selectThreadForScope,
+  updateMetadataEntry,
+} from "./lib/chat-history-store.js";
+import {
   isThreadInScope,
   normalizedWorkflowPath,
   shouldForkEmbeddedWorkflowUuid,
@@ -659,6 +667,7 @@ let _workflowUuidAliases = (() => {
     return {};
   }
 })();
+let workflowAliasMutationSink = null;
 // MODULE-scoped so they survive buildPanel re-mounts (the panel re-mounts on every
 // ComfyUI workflow switch). If these lived in the panel closure, each re-mount would
 // re-seed them to the now-current workflow and defeat change detection.
@@ -776,18 +785,24 @@ function workflowStableUuid(wf = activeWorkflowRef(), { embed = false } = {}) {
 
   _workflowObjectUuids.set(identityObject, id);
   rememberWorkflowUuidOwner(id, identityObject);
+  const aliasMutations = [];
   if (objectUuid && path) {
     // Rename/Save-As mutates the same live workflow object. Drop stale aliases
     // so a cold start does not later misclassify the renamed file as a clone.
     for (const [knownPath, knownUuid] of Object.entries(_workflowUuidAliases)) {
       if (knownUuid === id && normalizedWorkflowPath(knownPath) !== normalizedWorkflowPath(path)) {
         delete _workflowUuidAliases[knownPath];
+        aliasMutations.push([knownPath, null]);
       }
     }
   }
   if (path && _workflowUuidAliases[path] !== id) {
     _workflowUuidAliases[path] = id;
+    aliasMutations.push([path, id]);
+  }
+  if (aliasMutations.length) {
     persistWorkflowAliases();
+    for (const [aliasPath, value] of aliasMutations) workflowAliasMutationSink?.(aliasPath, value);
   }
   if (embed) {
     try {
@@ -1212,8 +1227,9 @@ let suppressSettingOnChange = false;
 // side effects: a persisted Auto-connect/Bridge-URL would call connectAgent() and
 // race the sticky-autoconnect path, and with the bridge's one-socket-per-tab policy
 // each new socket closes the other → a ~1s reconnect storm. So onChange appliers
-// stay disarmed until the panel has mounted AND made its single initial connect
-// decision; only genuine post-load user edits in the Settings dialog take effect.
+// stay disarmed until the panel has mounted and the startup volley has settled.
+// Reload restore and the single initial connect decision wait on that boundary;
+// only genuine post-load user edits in the Settings dialog take effect.
 let settingsArmed = false;
 
 // Per-backend FETCHED model catalog PUBLISHED for the Settings dialog's
@@ -6818,7 +6834,7 @@ function redactBridgeUrl(u) {
   }
 }
 
-function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk, onSecret, onSecretSaved, onReload, onTodo, onShowMedia, onOpenCivitai, onCivitaiCmd, onTrainingCmd, onUiRender, onUiUpdate, onDownloads, onThinking, onAgentStatus, onSession, onModels, onCommands, onBackends, onAck, onTurn, onTurnAnchor, getResume, getBackend, onHandshakeTimeout, onBridgeClosed, onPairUrl, onPairError, onRunpodStatus, onComfyuiTarget, onRunpodAlert }) {
+function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk, onSecret, onSecretSaved, onReload, onTodo, onShowMedia, onOpenCivitai, onCivitaiCmd, onTrainingCmd, onUiRender, onUiUpdate, onDownloads, onThinking, onAgentStatus, onSession, onModels, onCommands, onBackends, onAck, onTurn, onAction, onTurnAnchor, getResume, getBackend, onHandshakeTimeout, onBridgeClosed, onPairUrl, onPairError, onRunpodStatus, onComfyuiTarget, onRunpodAlert }) {
   let sock = null;
   let url = loadBridgeUrl();
   let closed = false;
@@ -7198,6 +7214,13 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onAsk
       // turn incl. silent tool work; done clears it).
       if (msg && msg.type === "turn" && typeof msg.state === "string") {
         onTurn?.(msg.state);
+      }
+      // The tool/operation the agent is currently running (e.g.
+      // "panel.panel_query_graph") → live activity label on the working
+      // indicator, so a long SILENT tool phase shows progress instead of
+      // looking idle. Emitted throughout a turn; cleared on turn:done.
+      if (msg && msg.type === "action" && typeof msg.name === "string") {
+        onAction?.(msg.name);
       }
       // Live download progress for the status tray (sourced orchestrator-side
       // from the download tool's temp progress file and/or the Manager queue).
@@ -7592,6 +7615,24 @@ const PANEL_CSS = `
 }
 .cmcp-toolbtn.cmcp-toolbtn-iconic .pi { font-size: 0.9375rem; }
 .cmcp-toolbtn.cmcp-toolbtn-iconic svg { width: 15px; height: 15px; }
+/* Active tab: the four surface buttons ARE the tab bar (issue #124) — the open
+   one gets the themed toggled state (inverts light/dark via the primary tokens). */
+.cmcp-toolbtn.cmcp-toolbtn-active {
+  background: var(--p-primary-color, #3a7bd5);
+  color: var(--p-primary-contrast-color, #fff);
+}
+.cmcp-toolbtn.cmcp-toolbtn-active:hover { background: var(--p-primary-color, #3a7bd5); color: var(--p-primary-contrast-color, #fff); }
+/* Responsive tab bar: under 400px the toolbar collapses its labels to icons only
+   (container query on the bar's OWN width, so a narrow docked/sidebar pane
+   collapses even on a wide screen). Mirrors the iconic Deafen/Blind hide. */
+.cmcp-toolbar { container-type: inline-size; }
+@container (max-width: 400px) {
+  .cmcp-toolbar .cmcp-toolbtn span {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
+  .cmcp-toolbar .cmcp-toolbtn { padding: 0.25rem 0.375rem; }
+}
 /* Engaged gates get a colored tint so their state is readable at a glance. */
 .cmcp-toolbtn.gate-on-deafen { color: var(--p-red-400, #f87171); }
 .cmcp-toolbtn.gate-on-deafen svg { animation: cmcp-pulse 1s ease-in-out infinite; }
@@ -8195,6 +8236,23 @@ const PANEL_CSS = `
 .cmcp-hist-row:hover .cmcp-hist-del { opacity: 1; }
 .cmcp-hist-del:hover { background: var(--p-surface-700, #3f3f46); color: var(--p-red-400, #f87171); }
 .cmcp-hist-del .pi { font-size: 0.75rem; }
+.cmcp-hist-footer {
+  margin-top: 0.25rem; padding: 0.5rem 0.375rem 0.125rem;
+  border-top: 1px solid var(--p-content-border-color, #3f3f46);
+}
+.cmcp-hist-note {
+  margin: 0 0 0.375rem; color: var(--p-text-muted-color, #a1a1aa);
+  font-size: 0.625rem; line-height: 1.35;
+}
+.cmcp-hist-clear {
+  display: flex; align-items: center; justify-content: center; gap: 0.375rem;
+  width: 100%; padding: 0.3125rem 0.5rem; border-radius: var(--p-border-radius-sm, 4px);
+  border: 1px solid color-mix(in srgb, var(--p-red-400, #f87171) 45%, transparent);
+  background: transparent; color: var(--p-red-400, #f87171); cursor: pointer;
+  font: inherit; font-size: 0.6875rem;
+}
+.cmcp-hist-clear:hover:not(:disabled) { background: color-mix(in srgb, var(--p-red-400, #f87171) 12%, transparent); }
+.cmcp-hist-clear:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Model/effort picker popover (anchored above the composer). */
 .cmcp-pop-section { padding: 0.25rem 0.5rem 0.125rem; font-size: 0.625rem; font-weight: 600;
@@ -9412,13 +9470,13 @@ function buildPanel() {
     }
     scrollLog();
   }
-  function renderTodo(items) {
+  function renderTodo(items, { persist = true } = {}) {
     todoItems = Array.isArray(items) ? items : [];
     renderTray();
     // Persist the plan ON the active thread so it survives a reload / panel
     // remount (the tray is otherwise rebuilt empty) and follows thread switches.
-    if (thread) {
-      thread.todos = todoItems;
+    if (thread && persist) {
+      historyStore.reviseThread(thread, { todos: todoItems });
       persistThreads();
     }
   }
@@ -9710,13 +9768,17 @@ function buildPanel() {
     }
   }
   seedFromSettings();
-  // Arm the setting onChange appliers only AFTER mount + the startup onChange volley
-  // and the initial (sticky) connect decision have settled — so ComfyUI applying a
-  // persisted Auto-connect/Bridge-URL at load can't drive a connect that storms.
-  // Genuine user edits in the Settings dialog happen long after this window.
-  setTimeout(() => {
-    settingsArmed = true;
-  }, 2500);
+  // Resolve only after ComfyUI's startup onChange volley has settled. Reload
+  // restore and the initial connection both wait on this same boundary, so neither
+  // can bind a thread/session using the default value before settings hydrate.
+  const settingsHydrated = settingsArmed
+    ? Promise.resolve()
+    : new Promise((resolve) => {
+      setTimeout(() => {
+        settingsArmed = true;
+        resolve();
+      }, 2500);
+    });
 
   refreshModelChip();
 
@@ -10150,6 +10212,15 @@ function buildPanel() {
       },
     };
   }
+  // The four toolbar buttons ARE the tab bar: reflect the open surface with a
+  // themed toggled state (cleared on close). The buttons are const-declared below,
+  // but this only runs at tab-change time, by which point they're initialized.
+  function setActiveToolbarTab(key) {
+    const map = { civitai: civitaiBtn, apps: appsBtn, training: trainingBtn, local: runpodBtn };
+    for (const [k, btn] of Object.entries(map)) {
+      if (btn) btn.classList.toggle("cmcp-toolbtn-active", k === key);
+    }
+  }
   /** Open the unified side panel on `tab`, or switch to it if already open. */
   function openSidePanelTab(tab, { tabOpts, dock = true } = {}) {
     if (_sidePanelHandle?.isOpen?.()) {
@@ -10160,12 +10231,24 @@ function buildPanel() {
       tab,
       dock,
       ...(tabOpts ? { tabOpts: { [tab]: tabOpts } } : {}),
+      // The toolbar buttons are the tabs — highlight the active one on every switch.
+      onTabChange: setActiveToolbarTab,
       // Null the stored handle whenever the panel closes (✕, Escape, backdrop) so
-      // post-open drive cmds get an honest "not open" error.
-      onClose: () => { if (_sidePanelHandle === handle) _sidePanelHandle = null; },
+      // post-open drive cmds get an honest "not open" error; clear the toolbar too.
+      onClose: () => { if (_sidePanelHandle === handle) _sidePanelHandle = null; setActiveToolbarTab(null); },
     });
     _sidePanelHandle = handle;
     return handle;
+  }
+  // Toolbar-click toggle: clicking the ALREADY-active surface closes the panel.
+  // Scoped to the toolbar buttons only — the agent open path (openCivitai etc.)
+  // must never self-close when it re-opens an already-open tab.
+  function toggleSidePanelTab(tab, openFn) {
+    if (_sidePanelHandle?.isOpen?.() && _sidePanelHandle.activeTab?.() === tab) {
+      _sidePanelHandle.close();
+      return;
+    }
+    openFn();
   }
   const openCivitai = (opts = {}) => openSidePanelTab("civitai", {
     dock: opts.dock !== false,
@@ -10174,11 +10257,12 @@ function buildPanel() {
   const openApps = () => openSidePanelTab("apps");
   const openTraining = (opts = {}) => openSidePanelTab("training", { dock: opts.dock !== false });
   const openRunpod = () => openSidePanelTab("local");
-  const civitaiBtn = toolbarBtn("pi-circle", "Civitai");
+  const civitaiBtn = toolbarBtn("pi-circle", "CivitAI");
   civitaiBtn.querySelector(".pi").remove();
-  civitaiBtn.title = "Civitai explorer — browse and pull models, LoRAs, and workflows without leaving the panel.";
+  civitaiBtn.title = "CivitAI explorer — browse and pull models, LoRAs, and workflows without leaving the panel.";
   // Manual open side-docks too (chat stays visible) — parity with the agent open.
-  civitaiBtn.addEventListener("click", () => openCivitai({ dock: true }));
+  // Clicking the already-open CivitAI tab toggles it closed.
+  civitaiBtn.addEventListener("click", () => toggleSidePanelTab("civitai", () => openCivitai({ dock: true })));
   {
     const svgNs = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNs, "svg");
@@ -10207,7 +10291,7 @@ function buildPanel() {
   const appsBtn = toolbarBtn("pi-circle", "Apps");
   appsBtn.querySelector(".pi").remove();
   appsBtn.title = "Apps — one-click micro-apps built from workflows: convert, run locally or on RunPod, share.";
-  appsBtn.addEventListener("click", () => openApps());
+  appsBtn.addEventListener("click", () => toggleSidePanelTab("apps", () => openApps()));
   {
     const svgNs = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNs, "svg");
@@ -10231,7 +10315,7 @@ function buildPanel() {
   trainingBtn.querySelector(".pi").remove();
   trainingBtn.title = "LoRA Training — train a character LoRA locally on FLUX.1-dev (style/edit/slider/video coming in P2).";
   // Manual open side-docks too (chat stays visible) — parity with the agent open.
-  trainingBtn.addEventListener("click", () => openTraining({ dock: true }));
+  trainingBtn.addEventListener("click", () => toggleSidePanelTab("training", () => openTraining({ dock: true })));
   {
     const svgNs = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNs, "svg");
@@ -10313,7 +10397,7 @@ function buildPanel() {
       ? `Rendering on RunPod${gpu}${cost} — click to manage the pod or switch back to local.`
       : "Rendering locally on this machine — click to run this session on a cloud GPU (RunPod).") + alertNote;
   }
-  runpodBtn.addEventListener("click", () => openRunpod());
+  runpodBtn.addEventListener("click", () => toggleSidePanelTab("local", () => openRunpod()));
   // Expose for the bridge callbacks (defined outside this closure). Status/target
   // frames update the host pill independently, and re-render the side panel's
   // Local tab only when it's the active tab (update() no-ops on other tabs).
@@ -10341,31 +10425,185 @@ function buildPanel() {
 
   // ---- feed renderers + thread persistence ----
   // paint* draws DOM only; append* paints AND records into the current
-  // thread (localStorage), so history can replay a conversation verbatim.
+  // thread. IndexedDB is canonical; localStorage remains a small synchronous
+  // startup shadow and migration source for pre-v2 panel builds.
   const THREADS_KEY = "comfyui-mcp.panel.threads";
-  const MAX_THREADS = 20;
-  const MAX_THREAD_MSGS = 200;
-  let threads = (() => {
-    try {
-      const t = JSON.parse(window.localStorage.getItem(THREADS_KEY) ?? "[]");
-      return Array.isArray(t) ? t : [];
-    } catch {
-      return [];
-    }
-  })();
+  // Intentional canonical durable caps. The synchronous localStorage startup
+  // shadow stays much smaller (20 threads / 200 messages) in ChatHistoryStore.
+  const MAX_THREADS = 500;
+  const MAX_THREAD_MSGS = 5000;
+  const historyStore = new ChatHistoryStore({
+    threadsKey: THREADS_KEY,
+    maxThreads: MAX_THREADS,
+    maxMessages: MAX_THREAD_MSGS,
+    onPersistenceError: () => {
+      appendSystem(
+        "Chat history could not be saved. Keep this tab open, free browser storage, then send or edit once to retry.",
+      );
+    },
+  });
+  const localHistory = historyStore.readLocal();
+  let threads = localHistory.threads;
+  let historyMeta = localHistory.meta;
   let thread = null; // created lazily on first recorded message
+
+  function nextHistoryRevision() {
+    return historyStore.nextRevision(Math.max(Date.now(), Number(historyMeta?.updatedAt) + 1 || 0));
+  }
+
+  function applyWorkflowAliasesFromHistory() {
+    // This materialized map is the complete canonical view, including the
+    // current checkpoint baseline plus every newer local/remote operation in
+    // the merge. Replace the cache wholesale so a compacted delete cannot
+    // leave a stale module-level alias that the next local diff republishes.
+    const materialized = historyMeta.workflowAliases || {};
+    for (const path of Object.keys(_workflowUuidAliases)) {
+      if (!Object.hasOwn(materialized, path)) delete _workflowUuidAliases[path];
+    }
+    for (const [path, value] of Object.entries(materialized)) {
+      _workflowUuidAliases[path] = value;
+    }
+    persistWorkflowAliases();
+  }
+
+  applyWorkflowAliasesFromHistory();
 
   function currentTranscriptScopeKey({ embed = false } = {}) {
     return sessionFollowsPanel() ? workflowTabId() : workflowStorageKey({ embed });
   }
 
-  function persistThreads() {
-    try {
-      window.localStorage.setItem(THREADS_KEY, JSON.stringify(threads.slice(-MAX_THREADS)));
-    } catch {
-      // localStorage unavailable — history is session-only.
+  function currentHistorySelectionKey({ embed = false } = {}) {
+    return sessionFollowsPanel() ? "panel:global" : workflowStorageKey({ embed });
+  }
+
+  function setActiveThread(scopeKey, threadId, updatedAt = nextHistoryRevision()) {
+    historyMeta = updateMetadataEntry(
+      historyMeta,
+      "activeByScope",
+      scopeKey,
+      threadId || null,
+      updatedAt,
+    );
+  }
+
+  function syncWorkflowAliases() {
+    const previous = historyMeta.workflowAliases || {};
+    const paths = new Set([...Object.keys(previous), ...Object.keys(_workflowUuidAliases)]);
+    for (const path of paths) {
+      const oldValue = previous[path];
+      const newValue = _workflowUuidAliases[path];
+      if (oldValue === newValue) continue;
+      historyMeta = updateMetadataEntry(
+        historyMeta,
+        "workflowAliases",
+        path,
+        newValue ?? null,
+        nextHistoryRevision(),
+      );
     }
   }
+
+  function protectedHistoryThreadIds(preferredThreadId = null) {
+    return [
+      preferredThreadId,
+      thread?.id,
+      ssGet(CURRENT_THREAD_KEY),
+      ...Object.values(historyMeta.activeByScope || {}),
+    ].filter(Boolean);
+  }
+
+  function capHistoryThreads(candidates, preferredThreadId = null) {
+    return retainBoundedThreads(
+      candidates,
+      MAX_THREADS,
+      protectedHistoryThreadIds(preferredThreadId),
+    );
+  }
+
+  function persistThreads({ syncAliases = true } = {}) {
+    if (syncAliases) syncWorkflowAliases();
+    threads = capHistoryThreads(threads);
+    historyStore.persist(threads, historyMeta, {
+      protectedThreadIds: protectedHistoryThreadIds(),
+      maxThreads: MAX_THREADS,
+      maxMessages: MAX_THREAD_MSGS,
+    });
+  }
+
+  async function invalidateDurableAgentSession() {
+    ssSet(SESSION_KEY, null);
+    if (thread) historyStore.reviseThread(thread, { sessionId: null });
+    persistThreads();
+    const result = await historyStore.flush();
+    return result === true || result?.ok === true;
+  }
+
+  const panelAliasMutationSink = (path, value) => {
+    historyMeta = updateMetadataEntry(
+      historyMeta,
+      "workflowAliases",
+      path,
+      value,
+      nextHistoryRevision(),
+    );
+    persistThreads({ syncAliases: false });
+  };
+  workflowAliasMutationSink = panelAliasMutationSink;
+
+  function detachInvalidCurrentThread({ scopeKey = null, rebind = false } = {}) {
+    thread = null;
+    ssSet(CURRENT_THREAD_KEY, null);
+    ssSet(SESSION_KEY, null);
+    resetFeed();
+    renderTodo([], { persist: false });
+    const replacement = rebind && scopeKey
+      ? selectThreadForScope(threads, historyMeta, scopeKey)
+      : null;
+    if (replacement) {
+      thread = replacement;
+      ssSet(CURRENT_THREAD_KEY, replacement.id);
+      ssSet(SESSION_KEY, replacement.sessionId || null);
+      setActiveThread(currentHistorySelectionKey(), replacement.id);
+      paintThread(replacement);
+    } else {
+      if (scopeKey) setActiveThread(currentHistorySelectionKey(), null);
+      // A remote delete/reset removed the conversation this tab's live agent
+      // belonged to. Clear backend memory as well as the visible transcript so
+      // the next message cannot continue a history the user just deleted.
+      client?.sendFrame?.({ type: "new_session" });
+    }
+    persistThreads();
+    return replacement;
+  }
+
+  const unsubscribeHistorySync = historyStore.subscribe((incoming) => {
+    const currentThreadId = thread?.id;
+    const merged = mergeHistorySnapshots({ threads, meta: historyMeta }, incoming);
+    historyMeta = merged.meta;
+    // Remote alias operations are authoritative cache updates. Apply them before
+    // any local-diff pass so a received tombstone cannot be echoed as a new set.
+    applyWorkflowAliasesFromHistory();
+    threads = capHistoryThreads(merged.threads, currentThreadId);
+    if (currentThreadId) {
+      const refreshed = threads.find((candidate) => candidate.id === currentThreadId);
+      const panelOwned = sessionFollowsPanel();
+      if (refreshed && (panelOwned || isThreadInScope(refreshed, currentTranscriptScopeKey()))) {
+        thread = refreshed;
+        // The merge cloned every message — rebind live A2UI cards to the NEW
+        // records by id, or their next action mutates a detached object that
+        // persistThreads no longer writes (codex finding).
+        const byId = new Map((thread.msgs || []).map((m) => [m.id, m]));
+        for (const entry of liveA2uiCards.values()) {
+          const live = byId.get(entry.rec?.id);
+          if (live) entry.rec = live;
+        }
+      } else {
+        const scopeKey = panelOwned ? null : currentTranscriptScopeKey();
+        detachInvalidCurrentThread({ scopeKey, rebind: !panelOwned });
+      }
+    }
+    if (!histPop.hidden) renderHistory();
+  });
 
   // Find the (single) thread bound to an exact transcript scope. Old path-keyed
   // records are adopted only when their path exactly matches the open workflow;
@@ -10376,14 +10614,11 @@ function buildPanel() {
       const legacyKey = path ? `wf:${path}` : null;
       const legacy = legacyKey ? threads.filter((candidate) => candidate.workflowKey === legacyKey) : [];
       if (legacy.length) {
-        for (const candidate of legacy) candidate.workflowKey = wfid;
+        for (const candidate of legacy) historyStore.reviseThread(candidate, { workflowKey: wfid });
         persistThreads();
       }
     }
-    for (let i = threads.length - 1; i >= 0; i--) {
-      if (threads[i].workflowKey === wfid) return threads[i];
-    }
-    return null;
+    return selectThreadForScope(threads, historyMeta, wfid);
   }
 
   function record(entry) {
@@ -10392,31 +10627,60 @@ function buildPanel() {
     // Settings can hydrate after a greeting was painted. Never append a real
     // workflow-scoped message to a thread carrying another scope.
     if (thread && perWorkflow && !isThreadInScope(thread, scopeKey)) {
-      thread = null;
-      ssSet(CURRENT_THREAD_KEY, null);
+      detachInvalidCurrentThread({ scopeKey, rebind: true });
     }
     if (!thread) {
-      thread = { id: crypto.randomUUID(), ts: Date.now(), msgs: [], workflowKey: scopeKey };
-      // Adopt any session id the orchestrator has already reported for this tab.
+      const now = Date.now();
+      thread = {
+        id: crypto.randomUUID(),
+        schemaVersion: 2,
+        createdAt: now,
+        updatedAt: now,
+        ts: now,
+        msgs: [],
+        workflowKey: scopeKey,
+      };
+      historyStore.reviseThread(thread, { workflowKey: scopeKey }, now);
+      // A workflow-scoped conversation never adopts a loose tab session. Its
+      // session must arrive through a thread selected for this exact scope.
       const sid = ssGet(SESSION_KEY);
-      if (sid) thread.sessionId = sid;
+      if (sid && !perWorkflow) historyStore.reviseThread(thread, { sessionId: sid }, now);
       threads.push(thread);
-      if (threads.length > MAX_THREADS) threads = threads.slice(-MAX_THREADS);
+      if (threads.length > MAX_THREADS) threads = capHistoryThreads(threads, thread.id);
       ssSet(CURRENT_THREAD_KEY, thread.id);
+      setActiveThread(currentHistorySelectionKey(), thread.id);
     }
+    const now = Date.now();
+    // Mutate in place — NEVER clone: callers (appendA2UICard) keep the record
+    // they passed and mutate it later (resolve/dismiss/ui_update). Replacing
+    // it with a spread here detached those mutations from thread.msgs, so card
+    // state silently never persisted (codex finding).
+    if (
+      !(
+        typeof entry.id === "string" &&
+        entry.id &&
+        !Object.hasOwn(thread.deletedMessages || {}, entry.id)
+      )
+    ) {
+      entry.id = crypto.randomUUID();
+    }
+    if (!Number(entry.createdAt)) entry.createdAt = now;
+    historyStore.touchMessage(entry, now);
     thread.msgs.push(entry);
     if (thread.msgs.length > MAX_THREAD_MSGS) {
       thread.msgs.splice(0, thread.msgs.length - MAX_THREAD_MSGS);
     }
-    thread.ts = Date.now();
+    thread.updatedAt = now;
+    thread.ts = now;
     persistThreads();
+    return entry;
   }
 
   /** Bind the agent's current session id to the open thread (for reload/resume). */
   function bindSession(sessionId) {
     ssSet(SESSION_KEY, sessionId);
     if (thread) {
-      thread.sessionId = sessionId || undefined;
+      historyStore.reviseThread(thread, { sessionId: sessionId || null });
       persistThreads();
     }
   }
@@ -10666,6 +10930,7 @@ function buildPanel() {
       onAction(text) {
         rec.resolved = true;
         rec.choice = text;
+        historyStore.touchMessage(rec);
         persistThreads();
         liveA2uiCards.delete(handle.cardId);
         setChatSurfaceForCards();
@@ -10673,6 +10938,7 @@ function buildPanel() {
       },
       onDismiss() {
         rec.resolved = true; // dismissed: inert, no choice, agent NOT notified
+        historyStore.touchMessage(rec);
         persistThreads();
         liveA2uiCards.delete(handle.cardId);
         setChatSurfaceForCards();
@@ -11127,7 +11393,14 @@ function buildPanel() {
     if (msgs) {
       const i = msgs.findIndex((m) => m.role === "user" && m.mid === mid);
       if (i >= 0) {
-        msgs.splice(i, 1);
+        const [removed] = msgs.splice(i, 1);
+        const now = Math.max(Date.now(), Number(thread.updatedAt) + 1 || 0);
+        if (removed?.id) {
+          thread.deletedMessages = thread.deletedMessages || {};
+          thread.deletedMessages[removed.id] = now;
+        }
+        thread.updatedAt = now;
+        thread.ts = now;
         persistThreads();
       }
     }
@@ -11348,11 +11621,25 @@ function buildPanel() {
     // claiming success; and a stale unresolved surface:"wide" entry would keep
     // the sidebar wide forever. Cards replay INERT from the thread instead.
     liveA2uiCards.clear();
+    // The thinking indicator lived in `log` and was just detached along with
+    // everything else. Drop the stale refs — otherwise a later showThinking()
+    // sees a truthy-but-detached thinkingEl and silently no-ops, hiding a live
+    // turn's progress (reachable when an async history/thread repaint runs mid
+    // turn). If a turn is still authoritative, recreate the indicator so it
+    // stays visible; loadThread re-pins it below the repainted messages.
+    thinkingEl = null;
+    thinkingLabel = null;
     setChatSurfaceForCards();
     log.appendChild(empty);
+    if (agentWorking) showThinking();
   }
 
   function newChat() {
+    // Abandoning the current conversation ends any in-flight turn from THIS
+    // tab's point of view — clear agentWorking first so resetFeed() below won't
+    // rebuild a working indicator onto the fresh, empty chat.
+    endTurnLocally();
+    setActiveThread(currentHistorySelectionKey(), null);
     thread = null;
     turnAnchors = []; // fresh conversation → no rewind anchors
     ssSet(CURRENT_THREAD_KEY, null);
@@ -11362,19 +11649,15 @@ function buildPanel() {
     resetFeed();
     renderTodo([]); // fresh chat → empty plan tray
     setContextPct(0);
+    persistThreads();
     ctxLabel.textContent = "—";
     // Tell the orchestrator to forget this tab's session so the NEXT message
     // starts a genuinely fresh agent (no memory of the prior conversation).
     client?.sendFrame?.({ type: "new_session" });
   }
 
-  function loadThread(t) {
-    if (!sessionFollowsPanel() && !isThreadInScope(t, workflowStorageKey())) {
-      appendSystem("Blocked a chat from another workflow. Open its owning workflow before resuming it.");
-      return false;
-    }
+  function paintThread(t) {
     thread = t;
-    ssSet(CURRENT_THREAD_KEY, t.id);
     resetFeed();
     for (const m of t.msgs) {
       if (m.role === "user") paintUser(m.text, { attachments: m.attachments });
@@ -11384,7 +11667,22 @@ function buildPanel() {
         else paintCard(m);
       }
     }
-    renderTodo(t.todos || []); // restore this thread's plan into the tray
+    // resetFeed() recreated the indicator (if a turn is live) ABOVE these
+    // repainted messages — re-pin it to the bottom so it trails the newest one.
+    if (agentWorking) bumpThinking();
+    renderTodo(t.todos || [], { persist: false });
+  }
+
+  function loadThread(t) {
+    if (!sessionFollowsPanel() && !isThreadInScope(t, workflowStorageKey())) {
+      detachInvalidCurrentThread({ scopeKey: workflowStorageKey(), rebind: true });
+      appendSystem("Blocked a chat from another workflow. Open its owning workflow before resuming it.");
+      return false;
+    }
+    ssSet(CURRENT_THREAD_KEY, t.id);
+    setActiveThread(currentHistorySelectionKey(), t.id);
+    persistThreads();
+    paintThread(t);
     // Resume this conversation's agent session (or start fresh if it has none),
     // so typing continues THIS chat rather than whatever was last active.
     ssSet(SESSION_KEY, t.sessionId || null);
@@ -11431,8 +11729,8 @@ function buildPanel() {
       // tmp→wf adopt bookkeeping (a save gave the unsaved workflow a real id).
       if (wfid.startsWith("wf:") && wf && (wf.key || wf.id)) _tempWorkflowIds.delete(wf.key || wf.id);
       if (thread) {
-        thread.workflowKey = wfid; // thread rides along for archive provenance
-        thread.ts = Date.now();
+        historyStore.reviseThread(thread, { workflowKey: wfid }); // archive provenance
+        setActiveThread("panel:global", thread.id);
         persistThreads();
       }
       currentWorkflowId = wfid;
@@ -11537,7 +11835,6 @@ function buildPanel() {
       none.style.padding = "0.375rem";
       none.textContent = "No past chats yet.";
       histPop.appendChild(none);
-      return;
     }
     for (const t of list) {
       const row = document.createElement("div");
@@ -11579,7 +11876,19 @@ function buildPanel() {
       del.appendChild(di);
       del.addEventListener("click", (ev) => {
         ev.stopPropagation();
+        const now = nextHistoryRevision();
+        historyMeta.deletedThreads = historyMeta.deletedThreads || {};
+        historyMeta.deletedThreads[t.id] = {
+          value: null,
+          deleted: true,
+          updatedAt: now.updatedAt,
+          revision: now,
+        };
+        historyMeta.updatedAt = Math.max(Number(historyMeta.updatedAt) || 0, now.updatedAt);
         threads = threads.filter((x) => x.id !== t.id);
+        for (const [key, value] of Object.entries(historyMeta.activeByScope || {})) {
+          if (value === t.id) setActiveThread(key, null, now);
+        }
         persistThreads();
         // Deleting the open chat clears the feed and starts fresh.
         if (thread && thread.id === t.id) newChat();
@@ -11589,6 +11898,65 @@ function buildPanel() {
       row.append(item, del);
       histPop.appendChild(row);
     }
+
+    const footer = document.createElement("div");
+    footer.className = "cmcp-hist-footer";
+    const note = document.createElement("p");
+    note.className = "cmcp-hist-note";
+    note.textContent = "Transcripts are stored in this browser using IndexedDB.";
+    const clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "cmcp-hist-clear";
+    clear.disabled = !threads.length;
+    clear.title = "Permanently clear chat history for every workflow in this browser";
+    const clearIcon = document.createElement("i");
+    clearIcon.className = "pi pi-trash";
+    const clearLabel = document.createElement("span");
+    clearLabel.textContent = "Clear all history";
+    clear.append(clearIcon, clearLabel);
+    clear.addEventListener("click", async () => {
+      if (!threads.length) return;
+      const confirmed = globalThis.confirm?.(
+        "Clear all Agent Panel chat history from this browser?\n\n" +
+        "This affects every workflow and open ComfyUI tab. It cannot be undone. " +
+        "Your workflows and their stable identities will not be deleted.",
+      );
+      if (!confirmed) return;
+      clear.disabled = true;
+      clearLabel.textContent = "Clearing…";
+      const result = await historyStore.clearAll(threads, historyMeta);
+      if (!result?.ok || !result.snapshot) {
+        clear.disabled = false;
+        clearLabel.textContent = "Clear all history";
+        appendSystem(
+          "Chat history could not be cleared from IndexedDB. Close other ComfyUI tabs, then try again.",
+        );
+        return;
+      }
+
+      threads = result.snapshot.threads;
+      historyMeta = result.snapshot.meta;
+      applyWorkflowAliasesFromHistory();
+      // Clearing history abandons the current conversation — end any in-flight
+      // turn locally first so resetFeed() below won't rebuild a working
+      // indicator onto the fresh, empty chat (same invariant as newChat()).
+      endTurnLocally();
+      thread = null;
+      turnAnchors = [];
+      ssSet(CURRENT_THREAD_KEY, null);
+      ssSet(SESSION_KEY, null);
+      ssSet(CTX_KEY, null);
+      if (typeof resetAttachments === "function") resetAttachments();
+      resetFeed();
+      renderTodo([], { persist: false });
+      setContextPct(0);
+      ctxLabel.textContent = "—";
+      client?.sendFrame?.({ type: "new_session" });
+      histPop.hidden = true;
+      appendSystem("Chat history was cleared from this browser.");
+    });
+    footer.append(note, clear);
+    histPop.appendChild(footer);
   }
 
   newChatBtn.addEventListener("click", () => {
@@ -11629,6 +11997,8 @@ function buildPanel() {
   let workWordIdx = 0;
   let thinkingSafety = null;
   let thinkingTokens = 0;
+  let thinkingAction = null; // current tool/operation label (from `action` frames)
+  let thinkingReconnecting = false; // transient bridge drop while a turn is live
   // Backstop: if no activity (say/command/turn signal) for this long, auto-hide
   // — covers a missed turn:done (e.g. an older orchestrator, or an errored turn)
   // so the indicator never sticks forever.
@@ -11636,7 +12006,24 @@ function buildPanel() {
 
   function armSafety() {
     if (thinkingSafety) clearTimeout(thinkingSafety);
-    thinkingSafety = setTimeout(hideThinking, THINKING_SAFETY_MS);
+    thinkingSafety = setTimeout(onThinkingSafety, THINKING_SAFETY_MS);
+  }
+
+  // The 120s backstop must never make a STILL-RUNNING turn look finished (a
+  // silent tool phase can exceed two minutes). If the turn is still
+  // authoritative, repair a detached indicator and re-arm; only auto-hide when
+  // no turn is in flight (covers a missed turn:done so it can't stick forever).
+  function onThinkingSafety() {
+    thinkingSafety = null;
+    // Persist only while the turn is genuinely live — working AND connected.
+    // A permanent disconnect leaves agentWorking true with no more frames, so
+    // gating on bridgeConnected too lets this backstop still hide it in ≤120s.
+    if (agentWorking && bridgeConnected) {
+      if (!thinkingEl) showThinking(); // rebuilds the indicator AND re-arms
+      else armSafety();
+      return;
+    }
+    hideThinking();
   }
 
   function fmtThinkTokens(n) {
@@ -11644,19 +12031,44 @@ function buildPanel() {
   }
   function cycleWord() {
     if (!thinkingLabel) return;
-    const base =
-      thinkingTokens > 0
-        ? `Thinking… (${fmtThinkTokens(thinkingTokens)} tokens)`
-        : `${WORK_WORDS[workWordIdx % WORK_WORDS.length]}…`;
+    // Priority: a transient reconnect banner > the live token meter (active
+    // extended thinking) > the current tool/operation label > playful idle
+    // words. A running tool clears the token meter (setThinkingAction), so the
+    // action label wins during silent tool phases rather than a stale count.
+    let base;
+    if (thinkingReconnecting) base = "Reconnecting… (turn still running)";
+    else if (thinkingTokens > 0) base = `Thinking… (${fmtThinkTokens(thinkingTokens)} tokens)`;
+    else if (thinkingAction) base = thinkingAction;
+    else base = `${WORK_WORDS[workWordIdx % WORK_WORDS.length]}…`;
     thinkingLabel.textContent = `${base} (Esc or Ctrl+C to stop)`;
     workWordIdx += 1;
   }
   // Live extended-thinking token meter (from the orchestrator's thinking frame).
   function setThinkingTokens(n) {
     thinkingTokens = Number(n) || 0;
+    thinkingAction = null; // live thinking supersedes the last tool's label
     if (!thinkingEl) showThinking();
     cycleWord();
     armSafety();
+  }
+
+  // Humanize an `action` frame name — "panel.panel_query_graph" → "Using query
+  // graph…" — into a live activity label so silent tool phases show what the
+  // agent is doing. Rebuilds a detached indicator and re-pins/re-arms it.
+  function humanizeAction(name) {
+    let s = String(name || "").trim();
+    s = s.split(".").pop() || s; // drop a "panel." (etc.) namespace prefix
+    s = s.replace(/^panel_/, "").replace(/_/g, " ").trim();
+    return s ? `Using ${s}…` : "Working…";
+  }
+  function setThinkingAction(name) {
+    thinkingAction = humanizeAction(name);
+    thinkingTokens = 0; // a tool is running now, not extended thinking
+    if (!thinkingEl) showThinking(); // rebuilds + re-arms; cycleWord shows the label
+    else {
+      cycleWord();
+      bumpThinking(); // re-pin below the newest activity + re-arm the safety timer
+    }
   }
 
   function hideThinking() {
@@ -11676,6 +12088,18 @@ function buildPanel() {
       thinkingLabel = null;
     }
     thinkingTokens = 0; // reset so the next turn doesn't show a stale count
+    thinkingAction = null;
+    thinkingReconnecting = false;
+  }
+
+  // A user-initiated local stop (Esc / Ctrl+C, or discarding the last turn).
+  // Mark the turn terminated authoritatively BEFORE hiding, so the safety timer
+  // and a transient reconnect (both of which now keep a live turn visible) can't
+  // resurrect the indicator in the window before the orchestrator's turn:done.
+  function endTurnLocally() {
+    agentWorking = false;
+    ssSet(MID_TASK_KEY, null); // turn stopped — nothing to resume
+    hideThinking();
   }
 
   function showThinking() {
@@ -11752,6 +12176,11 @@ function buildPanel() {
   // tray) rather than start immediately. Drives the tray-vs-inline decision so
   // an idle send doesn't briefly flash through the tray.
   let agentWorking = false;
+  // Best-effort "is the bridge live" flag (mirrors onStatus). The working
+  // indicator persists past the 120s backstop only while a turn is BOTH working
+  // AND connected — so a permanent bridge drop mid-turn still self-clears in
+  // ≤120s instead of spinning "Reconnecting…" forever.
+  let bridgeConnected = false;
 
   // Set by a Settings "Set … token" button just before it asks the agent to open
   // the secure input, so the resolved value can be marked set/not-set (timestamp
@@ -11826,6 +12255,7 @@ function buildPanel() {
       // (clicking Disconnect, or trying to send while disconnected) and live
       // at those call sites.
       const connected = state === "connected";
+      bridgeConnected = connected; // bounds the working-indicator backstop
       connectBtn.hidden = connected;
       disconnectBtn.hidden = !connected;
       connectBtn.disabled = state === "connecting";
@@ -11843,8 +12273,23 @@ function buildPanel() {
         sendStallConfig();
         // Sync preferred models + ollama endpoint config (only when non-default).
         sendAgentModelConfig(false);
+        // Reconnected — drop any transient "reconnecting" banner; live frames
+        // resume the normal label from here.
+        thinkingReconnecting = false;
       }
-      if (!connected) hideThinking();
+      // A transient drop mid-turn keeps the turn AUTHORITATIVE — the orchestrator
+      // still owns it and the bridge will rebind/resume. Clearing the indicator
+      // here falsely reads as "turn finished", so keep it up (with a reconnecting
+      // banner) while a turn is live; only hide when nothing is in flight.
+      if (!connected) {
+        if (agentWorking) {
+          thinkingReconnecting = true;
+          if (!thinkingEl) showThinking();
+          else cycleWord();
+        } else {
+          hideThinking();
+        }
+      }
       if (state === "disconnected" && externalOrchestratorMode()) showExternalHintOnce();
       // NB: do NOT push set_options here. The saved model id is only known-valid
       // once the live catalog arrives, so the push happens in applyModelCatalog
@@ -11977,6 +12422,7 @@ function buildPanel() {
       if (!v.ok) throw new Error(`invalid a2ui spec: ${v.errors.slice(0, 5).join("; ")}`);
       if (!entry.handle.update(v.spec)) throw new Error(`card "${msg.card_id}" is resolved`);
       entry.rec.spec = v.spec;
+      historyStore.touchMessage(entry.rec);
       persistThreads();
       setChatSurfaceForCards();
       return { ok: true };
@@ -11997,8 +12443,11 @@ function buildPanel() {
     onRunpodAlert(frame) {
       panelRunpod?.onAlert(frame);
     },
-    // Live extended-thinking token count → update the working indicator.
+    // Live extended-thinking token count → update the working indicator. Gate
+    // on agentWorking (like onAction): a late thinking frame arriving AFTER a
+    // local interrupt must not resurrect the indicator the user just dismissed.
     onThinking(tokens) {
+      if (!agentWorking) return;
       setThinkingTokens(tokens);
     },
     // The agent called panel_request_secret — collect a token securely.
@@ -12045,6 +12494,13 @@ function buildPanel() {
     onReload(scope) {
       softReload("agent", scope);
     },
+    onAction(name) {
+      // A tool/operation started (or changed). Only meaningful while a turn is
+      // in flight; keep the indicator alive with its label so a silent tool
+      // phase never looks idle.
+      if (!agentWorking) return;
+      setThinkingAction(name);
+    },
     onTurn(state) {
       if (state === "working") {
         agentWorking = true;
@@ -12052,7 +12508,7 @@ function buildPanel() {
         ssSet(MID_TASK_KEY, "1"); // a turn is in flight — arm the resume nudge
       } else if (state === "done") {
         agentWorking = false;
-        hideThinking();
+        hideThinking(); // authoritative terminal frame — clears the action label too
         ssSet(MID_TASK_KEY, null); // turn finished cleanly — nothing to resume
         // Snapshot the graph the agent is leaving behind; the next user turn diffs
         // the live graph against this to surface MANUAL edits made between turns.
@@ -13130,6 +13586,9 @@ function buildPanel() {
   }
 
   async function connectAgent(opts = {}) {
+    // hello reads SESSION_KEY, so wait until reload reconciliation has made the
+    // single settings-aware thread/session binding for this browser tab.
+    await historyRestoreReady;
     // A chip pick (opts.fromChip) is an EXPLICIT backend choice — it must always
     // (re)connect to that backend's port, so it bypasses the in-flight guard (which
     // a sticky-reconnect could otherwise hold) and the manual-URL override below.
@@ -13274,7 +13733,7 @@ function buildPanel() {
     );
   }
 
-  function connectBackend(id) {
+  async function connectBackend(id) {
     // CENTRALIZED per-backend seeding: every switch path routes through here — the
     // backend chips, the model-popover provider row, AND the Settings backend combo
     // (panelHooks.applyBackend). When the target backend differs from the one prefs
@@ -13313,13 +13772,15 @@ function buildPanel() {
     // the visible chat log stays, only the agent session resets.
     const switching = connectedBackend !== null && connectedBackend !== id;
     if (switching) {
-      ssSet(SESSION_KEY, null);
-      if (thread) thread.sessionId = undefined;
       // Replay the visible transcript to the NEW provider as one-shot context so
       // its fresh session has the conversation (session/thinking aren't portable
       // across providers). Consumed by the next user message, then auto-cleared.
       const replay = buildReplayTranscript();
       if (replay) client.armContext(replay);
+      // The old provider's session must be durably invalid before any reconnect
+      // can observe it. If reconnect fails or the browser closes here, reload
+      // still starts fresh instead of restoring a foreign session.
+      if (!await invalidateDurableAgentSession()) return;
     }
     // Reflect the picked backend in the composer placeholder immediately; onModels
     // reaffirms it authoritatively from the handshake (fix #3).
@@ -13440,7 +13901,10 @@ function buildPanel() {
       // Start FRESH on reconnect: clear the saved session id so hello sends no
       // resume (resuming would restore the wedged shell). Don't arm the resume
       // nudge. The reconnect spins up a brand-new agent.
-      ssSet(SESSION_KEY, null);
+      if (!await invalidateDurableAgentSession()) {
+        appendSystem("The old session could not be invalidated durably; reconnect is paused to avoid restoring it.");
+        return;
+      }
       ssSet(SOFT_RELOAD_KEY, null);
       ssSet(MID_TASK_KEY, null);
       appendSystem("Agent restarted with a fresh session — your message history is still here.");
@@ -13455,6 +13919,11 @@ function buildPanel() {
     lsSet(AUTOCONNECT_KEY, null);
     setSetting(SETTING_AUTOCONNECT, false);
     client.stop();
+    // client.stop() sets closed=true, so the socket onclose suppresses onStatus
+    // — end the turn locally so the working indicator can't spin forever against
+    // a turn the user just walked away from (no turn:done will ever arrive).
+    bridgeConnected = false;
+    endTurnLocally();
     connectBtn.hidden = false;
     disconnectBtn.hidden = true;
     connectBtn.disabled = false;
@@ -14233,7 +14702,14 @@ function buildPanel() {
   function retractLastUserMessage() {
     const msgs = thread?.msgs;
     if (!msgs || !msgs.length || msgs[msgs.length - 1].role !== "user") return;
-    msgs.pop();
+    const removed = msgs.pop();
+    const now = Math.max(Date.now(), Number(thread.updatedAt) + 1 || 0);
+    if (removed?.id) {
+      thread.deletedMessages = thread.deletedMessages || {};
+      thread.deletedMessages[removed.id] = now;
+    }
+    thread.updatedAt = now;
+    thread.ts = now;
     persistThreads();
     for (const s of streamBubbles.values()) s.el.remove(); // interrupting → drop previews
     streamBubbles.clear();
@@ -14250,7 +14726,7 @@ function buildPanel() {
     }
     if (thinkingEl) {
       client?.sendFrame?.({ type: "interrupt" });
-      hideThinking();
+      endTurnLocally();
     }
   }
 
@@ -14773,7 +15249,7 @@ function buildPanel() {
     }
     if (client.sendFrame({ type: "interrupt" })) {
       ev.preventDefault();
-      hideThinking();
+      endTurnLocally();
       appendSystem("Interrupted.");
     }
   }
@@ -14933,6 +15409,7 @@ function buildPanel() {
   // gets stranded as an empty cursor bubble; when it returns, resume the typewriters.
   function onVisibilityChange() {
     if (document.hidden) {
+      void historyStore.flush();
       for (const s of [...streamBubbles.values()]) {
         if (s.commitText != null) finalizeStream(s);
       }
@@ -14944,52 +15421,76 @@ function buildPanel() {
     }
   }
   document.addEventListener("visibilitychange", onVisibilityChange);
+  const onPageHide = () => { void historyStore.flush(); };
+  window.addEventListener("pagehide", onPageHide);
 
-  // Reload restore: repaint the chat this tab was last showing. The agent's
-  // memory continues automatically — either the orchestrator's agent for this
-  // (stable) tab id is still alive, or hello's `resume` (the session id kept in
-  // sessionStorage) rehydrates it from disk after an orchestrator restart.
+  // Reload restore preserves this tab's exact conversation/session pair. When
+  // those tab-scoped pointers were lost in a full browser restart, the durable
+  // active pointer supplies the fallback after settings and IndexedDB hydrate.
+  const reloadThreadId = ssGet(CURRENT_THREAD_KEY);
+  const reloadSessionId = ssGet(SESSION_KEY);
+
+  // This synchronous pass is paint-only. Settings may not be hydrated, so it
+  // must not infer a scope, rewrite session keys, persist metadata, or send a
+  // session frame. With no tab pointer, canonical IndexedDB recovery paints later.
   (function restoreLastThread() {
     try {
-      const cur = ssGet(CURRENT_THREAD_KEY);
-      const pointed = cur ? threads.find((x) => x.id === cur) : null;
-      if (sessionFollowsPanel()) {
-        // Main/default behavior: restore the pointed chat exactly as stored.
-        // Settings may not be hydrated yet, so this path must never rewrite keys.
-        if (!pointed || !pointed.msgs?.length) return;
-        thread = pointed;
-        resetFeed();
-        for (const m of pointed.msgs) {
-          if (m.role === "user") paintUser(m.text, { attachments: m.attachments });
-          else if (m.role === "agent") paintAgent(m.text);
-          else if (m.role === "card") {
-            if (m.kind === "a2ui") paintA2UIRecord(m);
-            else paintCard(m);
-          }
-        }
-        renderTodo(pointed.todos || []);
-        return;
-      }
-      const scopeKey = workflowStorageKey();
-      const scopedPointed = pointed && isThreadInScope(pointed, scopeKey) ? pointed : null;
-      const t = scopedPointed || threadForWorkflow(scopeKey);
-      if (!t || !t.msgs?.length) return;
-      thread = t;
-      ssSet(CURRENT_THREAD_KEY, t.id);
-      ssSet(SESSION_KEY, t.sessionId || null);
-      resetFeed();
-      for (const m of t.msgs) {
-        if (m.role === "user") paintUser(m.text, { attachments: m.attachments });
-        else if (m.role === "agent") paintAgent(m.text);
-        else if (m.role === "card") {
-          if (m.kind === "a2ui") paintA2UIRecord(m);
-          else paintCard(m);
-        }
-      }
-      renderTodo(t.todos || []); // restore this thread's plan into the tray
+      const pointed = reloadThreadId
+        ? threads.find((candidate) => candidate.id === reloadThreadId)
+        : null;
+      if (pointed?.msgs?.length) paintThread(pointed);
     } catch {
       // Corrupt/absent state — start clean.
     }
+  })();
+
+  // Merge the canonical IndexedDB snapshot in the background and promote any
+  // legacy records before making the final, settings-aware binding.
+  const historyRestoreReady = (async () => {
+    try {
+      const loaded = await historyStore.load({ protectedThreadIds: [reloadThreadId].filter(Boolean) });
+      const merged = mergeHistorySnapshots({ threads, meta: historyMeta }, loaded);
+      historyMeta = merged.meta;
+      threads = capHistoryThreads(merged.threads, reloadThreadId);
+      applyWorkflowAliasesFromHistory();
+      persistThreads();
+    } catch {
+      // localStorage shadow remains usable when IndexedDB is unavailable.
+    }
+
+    await settingsHydrated;
+    const panelOwned = sessionFollowsPanel();
+    const scopeKey = panelOwned ? "panel:global" : workflowStorageKey();
+    const durableActive = selectRestoreThread(threads, historyMeta, {
+      panelOwned,
+      scopeKey,
+      preferredThreadId: reloadThreadId,
+    });
+
+    if (!durableActive) {
+      thread = null;
+      ssSet(CURRENT_THREAD_KEY, null);
+      ssSet(SESSION_KEY, null);
+      setActiveThread(scopeKey, null);
+      resetFeed();
+      renderTodo([]);
+      persistThreads();
+      return;
+    }
+
+    // For the exact conversation already owned by this tab, sessionStorage is
+    // authoritative even when empty. The stored id is only a full-restart fallback.
+    const boundSessionId = durableActive.id === reloadThreadId
+      ? reloadSessionId
+      : (durableActive.sessionId || null);
+    if (durableActive.id === reloadThreadId) {
+      historyStore.reviseThread(durableActive, { sessionId: boundSessionId });
+    }
+    ssSet(CURRENT_THREAD_KEY, durableActive.id);
+    ssSet(SESSION_KEY, boundSessionId);
+    setActiveThread(scopeKey, durableActive.id);
+    paintThread(durableActive);
+    persistThreads();
   })();
 
   // ---- Settings dialog → live panel hooks ----
@@ -15099,6 +15600,7 @@ function buildPanel() {
   void loadBackends();
 
   (async () => {
+    await historyRestoreReady;
     // If a restart we triggered reloaded the page, finish the autonomous resume:
     // respawn the orchestrator and let onStatus(connected) nudge the agent.
     if (ssGet(REBOOT_KEY)) {
@@ -15146,6 +15648,10 @@ function buildPanel() {
       clearTimeout(revealResetTimer);
       document.removeEventListener("keydown", onInterruptKeydown, true);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", onPageHide);
+      unsubscribeHistorySync();
+      void historyStore.flush().finally(() => historyStore.close());
+      if (workflowAliasMutationSink === panelAliasMutationSink) workflowAliasMutationSink = null;
       try {
         api.removeEventListener("executed", onExecuted);
         api.removeEventListener("execution_success", onExecutionSuccess);

@@ -186,6 +186,9 @@ class ZImagePowerNodesExtension(ComfyExtension):
         #--[ __experimental ]--------------------
         subcategory = "__experimental"
 
+        from .nodes.load_zimage_model import LoadZImageModel
+        _register_node( LoadZImageModel, nodes, subcategory )
+
         from .nodes.load_qwen34b_model import LoadQwen34bModel
         _register_node( LoadQwen34bModel, nodes, subcategory )
 

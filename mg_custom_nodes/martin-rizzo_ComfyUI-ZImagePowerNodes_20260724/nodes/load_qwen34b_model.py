@@ -39,11 +39,11 @@ class LoadQwen34bModel(io.ComfyNode):
                 "load clip", "clip loader", "text encoder loader", "qwen", "qwen3", "llm loader", "gguf loader", "z-image"
             ],
             inputs=[
-                io.Combo.Input  ("text_encoder", options=cls.text_encoders(),
+                io.Combo.Input  ("checkpoint", options=cls.text_encoders(),
                                  tooltip="The text encoder checkpoint, typically a variant of Qwen3-4B model."),
-                io.Boolean.Input("show_all_files", default=False,
+                io.Boolean.Input("file_filter", default=False, label_off="Show All Files", label_on="Qwen3-4B Checkpoints Only",
                                  tooltip="If True, all available checkpoints will be listed, including those that may not be compatible."),
-                io.Boolean.Input("execute_on_cpu", default=False,
+                io.Boolean.Input("run_on_gpu", default=True,
                                  tooltip="If enabled, the text encoder will be executed on the CPU rather than the GPU. "
                                          "This will consume less VRAM but will be significantly slower."),
             ],
@@ -55,12 +55,12 @@ class LoadQwen34bModel(io.ComfyNode):
     #__ FUNCTION __________________________________________
     @classmethod
     def execute(cls,
-                text_encoder  : str,
-                show_all_files: bool = False,
-                execute_on_cpu: bool = False,
+                checkpoint : str,
+                file_filter: bool = False,
+                run_on_gpu : bool = False,
                 ) -> io.NodeOutput:
-        clip_device = "cpu" if execute_on_cpu else "default"
-        clip_output = cls.load_clip(text_encoder, type="lumina2", device=clip_device)
+        clip_device = "default" if run_on_gpu else "cpu"
+        clip_output = cls.load_clip(checkpoint, type="lumina2", device=clip_device)
         return io.NodeOutput(clip_output, )
 
 

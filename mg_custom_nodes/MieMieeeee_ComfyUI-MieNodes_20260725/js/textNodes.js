@@ -922,6 +922,14 @@ function injectRichStyles() {
     .mie-rich-content input[type="checkbox"] { margin-right: 0.3em; }
     .mie-rich-content img { max-width: 100%; height: auto; }
     .mie-rich-empty { color: inherit; }
+    /* ComfyUI wraps our element inside a div.dom-widget overlay with the
+       default pointer-events: auto. That wrapper absorbs clicks on the
+       node body even though the inner .mie-rich-frame is now none,
+       so the bottom-right resize handle stays unreachable. Use :has() to
+       flip the wrapper to none only when it actually contains a
+       .mie-rich-frame direct child (i.e. our RichText widget), so we do
+       not disturb DOM widgets from other extensions. */
+    .dom-widget:has(> .mie-rich-frame) { pointer-events: none !important; }
   `;
   document.head.appendChild(style);
 }
@@ -1033,12 +1041,14 @@ function installRichTextBehavior(nodeType) {
     el.style.flexDirection = "column";
     el.style.justifyContent = "center";
     el.style.background = "transparent";
+    el.style.pointerEvents = "none";
 
     const inner = document.createElement("div");
     inner.className = "mie-rich-content";
     inner.style.boxSizing = "border-box";
     inner.style.width = "100%";
     inner.style.background = "transparent";
+    inner.style.pointerEvents = "none";
     el.appendChild(inner);
 
     // Cache BEFORE addDOMWidget: if addDOMWidget throws, the next call
@@ -1064,14 +1074,18 @@ function installRichTextBehavior(nodeType) {
       this._mieDomWidget = { element: el };
     }
 
-    // The DOM widget sits on top of the node, so the canvas underneath
-    // never sees clicks on the node body. Without this, onDblClick is
-    // dead for RichText. We catch the native dblclick on the DOM element
-    // and route it to openEditor.
-    el.addEventListener("dblclick", (ev) => {
-      ev.stopPropagation();
-      this.openEditor();
-    });
+    // Collapse the auto-created .dom-widget wrapper height to zero so
+    // the new Vue-driven frontend's domWidget layout does not stack
+    // this widget's height under the title bar (which would push the
+    // node taller on every layout pass -- a runaway feedback loop).
+    // The wrapper has pointer-events: none (via the :has() rule in
+    // injectRichStyles), so its visual size does not affect clicks.
+    // The Markdown band still fills the full node body because the
+    // inner .mie-rich-frame is sized explicitly in _renderContent.
+    const w = this._mieDomWidget;
+    if (w && !w.computeSize) {
+      w.computeSize = function () { return [0, 0]; };
+    }
 
     return el;
   };

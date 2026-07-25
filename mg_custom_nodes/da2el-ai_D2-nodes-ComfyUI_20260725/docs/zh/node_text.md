@@ -145,7 +145,7 @@ Output text
 ### D2 Multi Output
 
 <figure>
-<img src="../img/multi.png">
+<img src="../img/multi_2.png">
 </figure>
 
 - 以列表形式輸出 seed、cfg 等通用參數的節點
@@ -160,6 +160,63 @@ Output text
 - `Add Random`
     - 在輸入欄位添加隨機數
     - 僅在 `type` 為 `SEED` 時顯示
+
+### Output
+
+- `LIST`
+  - 以換行分解並以陣列形式輸出
+- `x/y_list`
+  - 普通的換行分隔文字
+  - 用於 `D2 XY Plot`、`D2 XY Plot Easy`、`D2 XY Plot Easy Mini`
+
+
+---
+
+### D2 List To String
+
+<figure>
+  <img src="../img/list_to_string.png">
+</figure>
+
+- 將陣列（LIST）結合成單一字串的節點
+- 以 `separator` 選擇分隔字元
+
+#### Input
+
+- `separator`
+    - `Comma + Space`: 以 `, ` 結合
+    - `Comma`: 以 `,` 結合
+    - `Line break`: 以換行結合
+    - `Semicolon`: 以 `;` 結合
+    - `Space`: 以半形空格結合
+    - `None`: 不使用分隔字元結合
+
+---
+
+### D2 Text Concat
+
+<figure>
+  <img src="../img/text_concat.png">
+</figure>
+
+- 可調整輸入數量的文字結合節點
+- 以 `text_count` 增減輸入欄位，結合連接到 `text_1` 〜 `text_N` 的文字
+- `separator` 與 `D2 List To String` 共用
+
+#### Input
+
+- `text_count`
+    - 增減輸入欄位的數量（1〜50）
+- `separator`
+    - `Comma + Space`: 以 `, ` 結合
+    - `Comma`: 以 `,` 結合
+    - `Line break`: 以換行結合
+    - `Semicolon`: 以 `;` 結合
+    - `Space`: 以半形空格結合
+    - `None`: 不使用分隔字元結合
+- `skip_empty`
+    - 為 `true` 時，跳過未連接或空白（僅空格・換行）的輸入再結合
+    - 可避免混入多餘的分隔字元（`, , `）
 
 
 ---
@@ -254,13 +311,14 @@ Output text
 ### D2 Prompt Sanitizer
 
 <figure>
-  <img src="../img/prompt_sanitizer.png">
+  <img src="../img/prompt_sanitizer_2.png">
 </figure>
 
 - 整理提示詞字串的節點
 - 將 `_`（底線）轉換為半形空格（`long_hair` → `long hair`）
 - 在每個 `,`（逗號）之後確保有一個半形空格，並整理前後多餘的空白（`a ,  b` → `a, b`）
 - 合併多餘的連續逗號，並刪除行首的逗號（`a,, ,b` → `a, b`）
+- 也可以轉換換行、刪除重複的標籤
 - 各項處理皆可獨立切換開關
 
 #### Input
@@ -270,6 +328,16 @@ Output text
 - `remove_extra_comma`：將多餘的連續逗號（`,,` / `, ,`）合併為一個，並刪除行首的逗號（保留換行）
 - `protect_lora`：保護以 `<...>` 包圍的 LoRA 表記不被轉換（保留 `<lora:my_lora:1>` 中的底線）
 - `protect_score`：保護 Pony 系的品質標籤 `score_9` / `score_8_up` 等不被轉換
+- `newline_mode`：換行的轉換方式
+    - `keep`：不做任何處理（保留換行）
+    - `add_comma`：在每行結尾加上 `,`（保留換行；空行與已以 `,` 結尾的行不會添加）
+    - `to_comma`：將換行轉換為 `,` 並合併為一行
+    - `to_space`：將換行轉換為半形空格
+    - `remove`：刪除換行（`1girl\nsmile` → `1girlsmile`；適合結合日文文字）
+- `remove_duplicate_tags`：刪除重複的標籤（保留先出現的；比較時忽略 `_` 與半形空格的差異、以及大小寫）
+- `strip_trailing_comma`：刪除整個字串結尾的逗號（適合與 `add_comma` 搭配使用）
+
+> 處理順序為「刪除重複標籤 → 轉換換行 → 轉換底線 → 移除多餘逗號 → 整理逗號 → 刪除結尾逗號」。`remove_duplicate_tags` 殘留的 `,,` 會由 `remove_extra_comma` 清理，因此兩者都開啟即可整理得乾淨。
 
 ---
 
@@ -309,15 +377,58 @@ Output text
 
 ---
 
+### D2 Load CSV
+
+<figure>
+  <img src="../img/load_csv.png">
+</figure>
+
+- 讀取 CSV / TSV 檔案，並指定行・列的範圍取出的節點
+- 像提示詞這種含有逗號的資料，前提是已用雙引號括起（標準的 CSV 跳脫）
+- 為了即使是大型檔案也能抑制記憶體用量，輸出只有一個，並以 `output_mode` 切換格式
+
+#### Input
+
+- `file_path`
+  - 要讀取的檔案完整路徑
+- `file_type`
+  - `csv`: 逗號分隔 / `tsv`: 定位字元（Tab）分隔。輸入檔案的分隔字元
+- `encode_to_utf8`
+  - `true`: 自動判別字元編碼並轉換為 utf-8 後讀取
+- `output_mode`
+  - `list`: 以 2 維陣列輸出
+  - `csv`: 以換行＋逗號分隔的文字輸出
+- `row_index` / `column_index`
+  - 要輸出的行・列範圍（從 1 開始）。留空表示全部
+  - `3`: 只有第 3 行（列）
+  - `2-`: 從第 2 行（列）到最後
+  - `-4`: 第 1〜4 行（列）
+  - `2-4`: 第 2〜4 行（列）
+  - 格式錯誤（`0`・`2--4`・非數值等）會以錯誤停止執行（避免流出錯誤的資料）
+- `use_doublequote`
+  - 當 `output_mode:csv` 時，將所有儲存格加上雙引號
+  - 設為 `false` 則為單純的逗號結合，含逗號的儲存格會失去分隔（`"AAA,BBB","XXX,YYY"` -> `AAA,BBB,XXX,YYY`）
+
+#### Output
+
+- `output`
+  - 選取範圍的資料。依 `output_mode` 為 2 維陣列或文字
+- `lines_count`
+  - 選取範圍的行數
+- `file_path`
+  - 將輸入的 `file_path` 原樣輸出
+
+---
+
 ### D2 Save Caption
 
 <figure>
-  <img src="../img/save_caption.png">
+  <img src="../img/save_caption_2.png">
 </figure>
 
 - 整形標籤並儲存標註檔案的節點
 - 儲存到將 `base_filename` 的副檔名替換為 `extension` 的路徑（例 `d:/images/aaa.jpg` -> `d:/images/aaa.txt`）
-- 整形依「分割 -> 去除前後空白 -> `_` 替換 -> 排除 -> 去除重複 -> 開頭追加 -> 結尾逗號」的順序進行
+- 整形依「分割 -> 去除前後空白 -> 統一分隔 -> 移除跳脫 -> 排除 -> 去除重複 -> 開頭追加 -> 結尾逗號」的順序進行
 
 #### Input
 
@@ -331,10 +442,16 @@ Output text
 - `exclude_tags`
   - 要排除的標籤。以逗號與換行兩者分隔
   - 寫成 `regex/pattern/` 時排除符合正規表示式的標籤（僅排除）
+  - 比較時忽略括號的跳脫（提示詞的 `rem_\(re:zero\)` 可用排除標籤 `rem_(re:zero)` 排除）
 - `prepend_tags`
   - 追加到開頭的標籤。以逗號分隔。已存在的標籤不會追加
-- `replace_underscore`
-  - `true`: 將 `_` 轉換為空格
+- `word_separator`
+  - 統一單字分隔（整合 `blue eyes` 與 `blue_hair` 的混用）
+  - `underscore`（預設）: 將空格統一為 `_`（`blue eyes` -> `blue_eyes`）
+  - `space`: 將 `_` 統一為空格（`blue_hair` -> `blue hair`）
+  - `none`: 不轉換
+- `remove_escape`
+  - `true`: 從輸出標籤移除括號的跳脫（`\(` `\)` `\[` `\]`）（`rem_\(re:zero\)` -> `rem_(re:zero)`）。適合訓練用標註
 - `trailing_comma`
   - `true`: 在結尾追加逗號
 - `ignore_case`

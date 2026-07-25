@@ -26,6 +26,8 @@ from server import PromptServer
 
 from .modules import util
 from .modules import caption_util
+from .modules import text_util
+from .modules import csv_util
 from .modules.util import AnyType, delete_comment
 # from .modules import checkpoint_util
 # from .modules import pnginfo_util
@@ -41,12 +43,6 @@ D2 RegexSwitcher
 
 """
 class D2_RegexSwitcher(io.ComfyNode):
-
-    DELIMITER = {
-        "Comma": ",",
-        "Line break": "\n",
-        "None": "",
-    }
 
     @classmethod
     def define_schema(cls) -> io.Schema:
@@ -99,10 +95,10 @@ class D2_RegexSwitcher(io.ComfyNode):
         parts = []
         if prefix:
             parts.append(prefix)
-            parts.append(cls.DELIMITER[pre_delim])
+            parts.append(util.get_separator_str(pre_delim))
         parts.append(match_text)
         if suffix:
-            parts.append(cls.DELIMITER[suf_delim])
+            parts.append(util.get_separator_str(suf_delim))
             parts.append(suffix)
 
         combined_text = "".join(parts)
@@ -511,7 +507,7 @@ class D2_ListToString(io.ComfyNode):
             category="D2",
             inputs=[
                 io.Custom("LIST").Input("LIST"),
-                io.Combo.Input("separator", options=util.SEPARATOR),
+                io.Combo.Input("separator", options=util.SEPARATOR, default=util.LINE_BREAK),
             ],
             outputs=[
                 io.String.Output(display_name="STRING"),
@@ -521,6 +517,49 @@ class D2_ListToString(io.ComfyNode):
     @classmethod
     def execute(cls, LIST, separator) -> io.NodeOutput:
         output = util.list_to_text(LIST, separator)
+        return io.NodeOutput(output)
+
+
+"""
+
+D2 Text Concat
+入力数を調整できるテキスト結合ノード
+
+"""
+class D2_TextConcat(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="D2 Text Concat",
+            display_name="D2 Text Concat",
+            category="D2",
+            inputs=[
+                io.Int.Input("text_count", default=3, min=1, max=50, step=1),
+                io.Combo.Input("separator", options=util.SEPARATOR, default="Comma + Space"),
+                io.Boolean.Input("skip_empty", default=True),
+            ],
+            outputs=[
+                io.String.Output(display_name="text"),
+            ],
+            # JS が text_1..text_N を addInput で動的追加するため **kwargs で受ける
+            accept_all_inputs=True,
+        )
+
+    @classmethod
+    def execute(cls, text_count, separator="Comma + Space", skip_empty=True, **kwargs) -> io.NodeOutput:
+        texts = []
+        for i in range(1, text_count + 1):
+            text = kwargs.get(f"text_{i}")
+            if text is None:
+                continue
+            if skip_empty:
+                # 前後の空白・改行を除去し、空になったものはスキップ
+                text = text.strip()
+                if text == "":
+                    continue
+            texts.append(text)
+
+        output = util.get_separator_str(separator).join(texts)
         return io.NodeOutput(output)
 
 
@@ -622,6 +661,9 @@ class D2_PromptSanitizer(io.ComfyNode):
                 io.Boolean.Input("remove_extra_comma", default=True),
                 io.Boolean.Input("protect_lora", default=True),
                 io.Boolean.Input("protect_score", default=True),
+                io.Combo.Input("newline_mode", options=text_util.NEWLINE_MODES, default="keep"),
+                io.Boolean.Input("remove_duplicate_tags", default=False),
+                io.Boolean.Input("strip_trailing_comma", default=False),
             ],
             outputs=[
                 io.String.Output(display_name="prompt"),
@@ -629,42 +671,18 @@ class D2_PromptSanitizer(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, prompt, underscore_to_space=True, space_after_comma=True, remove_extra_comma=True, protect_lora=True, protect_score=True) -> io.NodeOutput:
-        # 保護対象（LoRA等の <...> と Pony 品質タグ score_9 / score_8_up 等）を
-        # プレースホルダへ退避し、整形対象から除外する
-        protected = []
-
-        def _stash(match):
-            protected.append(match.group(0))
-            return f"\x00{len(protected) - 1}\x00"
-
-        text = prompt
-
-        # <...> を退避（LoRA ファイル名のアンダースコアを保護）
-        if protect_lora:
-            text = re.sub(r"<[^>]*>", _stash, text)
-        # score_数字_語 を退避
-        if protect_score:
-            text = re.sub(r"score_\d+(?:_[a-zA-Z0-9]+)*", _stash, text)
-
-        # アンダースコアを半角スペースへ変換
-        if underscore_to_space:
-            text = text.replace("_", " ")
-
-        # 連続するカンマ（間が空白・タブのみ。例: ",," ", ,"）を1つにまとめる（改行はまたがない）
-        if remove_extra_comma:
-            text = re.sub(r",(?:[ \t]*,)+", ",", text)
-            # 行頭のカンマを削除（各行頭・文字列先頭。改行は保持）
-            text = re.sub(r"(?m)^[ \t]*,[ \t]*", "", text)
-
-        # カンマ前後の空白（スペース・タブ）を整理し ", " に統一（改行は保持）
-        if space_after_comma:
-            text = re.sub(r"[ \t]*,[ \t]*", ", ", text)
-
-        # 退避した保護対象を復元
-        if protected:
-            text = re.sub(r"\x00(\d+)\x00", lambda m: protected[int(m.group(1))], text)
-
+    def execute(cls, prompt, underscore_to_space=True, space_after_comma=True, remove_extra_comma=True, protect_lora=True, protect_score=True, newline_mode="keep", remove_duplicate_tags=False, strip_trailing_comma=False) -> io.NodeOutput:
+        text = text_util.sanitize_prompt(
+            prompt,
+            underscore_to_space=underscore_to_space,
+            space_after_comma=space_after_comma,
+            remove_extra_comma=remove_extra_comma,
+            protect_lora=protect_lora,
+            protect_score=protect_score,
+            newline_mode=newline_mode,
+            remove_duplicate_tags=remove_duplicate_tags,
+            strip_trailing_comma=strip_trailing_comma,
+        )
         return io.NodeOutput(text)
 
 
@@ -710,6 +728,58 @@ class D2_LoadText(io.ComfyNode):
 
 """
 
+D2 Load CSV
+CSV / TSV を読み込み、行・列の範囲を指定して取り出すノード
+
+"""
+class D2_LoadCSV(io.ComfyNode):
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="D2 Load CSV",
+            display_name="D2 Load CSV",
+            category="D2",
+            inputs=[
+                io.String.Input("file_path", default=""),
+                io.Combo.Input("file_type", options=["csv", "tsv"], default="csv"),
+                io.Boolean.Input("encode_to_utf8", default=False),
+                io.Combo.Input("output_mode", options=["list", "csv"], default="csv"),
+                io.String.Input("row_index", default=""),
+                io.String.Input("column_index", default=""),
+                io.Boolean.Input("use_doublequote", default=False),
+            ],
+            outputs=[
+                io.AnyType.Output(display_name="output"),
+                io.Int.Output(display_name="lines_count"),
+                io.String.Output(display_name="file_path"),
+            ],
+        )
+
+    # 同じ file_path でも外部アプリでファイルが更新されたら再読込させるため mtime を返す。
+    @classmethod
+    def fingerprint_inputs(cls, file_path="", file_type="csv", encode_to_utf8=False, output_mode="csv", row_index="", column_index="", use_doublequote=False):
+        if file_path and os.path.isfile(file_path):
+            return os.path.getmtime(file_path)
+        return file_path
+
+    @classmethod
+    def execute(cls, file_path="", file_type="csv", encode_to_utf8=False, output_mode="csv", row_index="", column_index="", use_doublequote=False) -> io.NodeOutput:
+        text = caption_util.load_text_file(file_path, encode_to_utf8)
+        # row_index / column_index が壊れた書式なら csv_util が ValueError を投げ、
+        # ワークフローの実行が停止する（誤った結果を流さない）。
+        output, lines_count = csv_util.load_csv(
+            text,
+            file_type=file_type,
+            output_mode=output_mode,
+            row_index=row_index,
+            column_index=column_index,
+            use_doublequote=use_doublequote,
+        )
+        return io.NodeOutput(output, lines_count, file_path)
+
+
+"""
+
 D2 Save Caption
 タグ整形をしてキャプションファイルを保存するノード
 保存先は base_filename の拡張子を extension に置換したパス
@@ -728,7 +798,8 @@ class D2_SaveCaption(io.ComfyNode):
                 io.String.Input("extension", default="txt"),
                 io.String.Input("exclude_tags", multiline=True, default=""),
                 io.String.Input("prepend_tags", default=""),
-                io.Boolean.Input("replace_underscore", default=False),
+                io.Combo.Input("word_separator", options=["underscore", "space", "none"], default="underscore"),
+                io.Boolean.Input("remove_escape", default=True),
                 io.Boolean.Input("trailing_comma", default=False),
                 io.Boolean.Input("ignore_case", default=True),
                 io.Boolean.Input("backup", default=True),
@@ -742,14 +813,15 @@ class D2_SaveCaption(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, base_filename="", text="", extension="txt", exclude_tags="", prepend_tags="", replace_underscore=False, trailing_comma=False, ignore_case=True, backup=True, dry_run=False) -> io.NodeOutput:
+    def execute(cls, base_filename="", text="", extension="txt", exclude_tags="", prepend_tags="", word_separator="underscore", remove_escape=True, trailing_comma=False, ignore_case=True, backup=True, dry_run=False) -> io.NodeOutput:
         formatted = caption_util.format_caption(
             text,
             exclude_tags=exclude_tags,
             prepend_tags=prepend_tags,
-            replace_underscore=replace_underscore,
+            word_separator=word_separator,
             trailing_comma=trailing_comma,
             ignore_case=ignore_case,
+            remove_escape=remove_escape,
         )
         save_path = caption_util.save_caption(base_filename, formatted, extension, backup, dry_run)
         return io.NodeOutput(formatted, save_path)
@@ -776,7 +848,7 @@ class D2_TagReport(io.ComfyNode):
                 io.Combo.Input("order_by", options=["count_9-0", "count_0-9", "tag_a-z", "tag_z-a"], default="count_9-0"),
                 io.Boolean.Input("without_count", default=False),
                 io.Combo.Input("output_type", options=["remove_comment", "output_comment"], default="remove_comment"),
-                io.Combo.Input("separator", options=["newline", "comma"], default="newline"),
+                io.Combo.Input("separator", options=["Line break", "Comma + Space"], default="Line break"),
                 io.Custom("D2_BUTTON").Input("get_tags", optional=True),
                 io.String.Input("text", multiline=True, default=""),
             ],
@@ -786,8 +858,9 @@ class D2_TagReport(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, folder="", include_subfolders=False, extension="txt", order_by="count_9-0", without_count=False, output_type="remove_comment", separator="newline", get_tags=None, text="") -> io.NodeOutput:
-        result = caption_util.format_tag_report(text, output_type, separator)
+    def execute(cls, folder="", include_subfolders=False, extension="txt", order_by="count_9-0", without_count=False, output_type="remove_comment", separator="Line break", get_tags=None, text="") -> io.NodeOutput:
+        # separator ラベルを実際の区切り文字へ変換して渡す（caption_util は comfy 非依存のため util を import しない）
+        result = caption_util.format_tag_report(text, output_type, util.get_separator_str(separator))
         return io.NodeOutput(result)
 
 
@@ -822,11 +895,13 @@ NODE_CLASS_MAPPINGS = {
     "D2 Token Counter": D2_TokenCounter,
     "D2 Multi Output": D2_MultiOutput,
     "D2 List To String": D2_ListToString,
+    "D2 Text Concat": D2_TextConcat,
     "D2 Filename Template": D2_FilenameTemplate,
     "D2 Filename Template2": D2_FilenameTemplate2,
     "D2 Prompt": D2_Prompt,
     "D2 Prompt Sanitizer": D2_PromptSanitizer,
     "D2 Load Text": D2_LoadText,
+    "D2 Load CSV": D2_LoadCSV,
     "D2 Save Caption": D2_SaveCaption,
     "D2 Tag Report": D2_TagReport,
 }

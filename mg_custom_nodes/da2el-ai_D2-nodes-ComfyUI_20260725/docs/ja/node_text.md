@@ -156,7 +156,7 @@ Output text
 ### D2 Multi Output
 
 <figure>
-  <img src="../img/multi.png">
+  <img src="../img/multi_2.png">
 </figure>
 
 - seed や cfg など汎用的なパラメータをリスト出力するノード
@@ -172,6 +172,62 @@ Output text
     - 入力欄に乱数を追加する
     - `type` が `SEED` の時だけ表示される
 
+### Output
+
+- `LIST`
+  - 改行で分解して配列で出力する
+- `x/y_list`
+  - 普通の改行区切りテキスト
+  - `D2 XY Plot`、`D2 XY Plot Easy`、`D2 XY Plot Easy Mini` で使用する
+
+
+---
+
+### D2 List To String
+
+<figure>
+  <img src="../img/list_to_string.png">
+</figure>
+
+- 配列（LIST）を1つの文字列に結合するノード
+- `separator` で区切り文字を選択する
+
+#### Input
+
+- `separator`
+    - `Comma + Space`: `, ` で結合
+    - `Comma`: `,` で結合
+    - `Line break`: 改行で結合
+    - `Semicolon`: `;` で結合
+    - `Space`: 半角スペースで結合
+    - `None`: 区切り文字なしで結合
+
+---
+
+### D2 Text Concat
+
+<figure>
+  <img src="../img/text_concat.png">
+</figure>
+
+- 入力数を調整できるテキスト結合ノード
+- `text_count` で入力欄を増減し、`text_1` 〜 `text_N` に接続したテキストを結合する
+- `separator` は `D2 List To String` と共通
+
+#### Input
+
+- `text_count`
+    - 入力欄の数を増減する（1〜50）
+- `separator`
+    - `Comma + Space`: `, ` で結合
+    - `Comma`: `,` で結合
+    - `Line break`: 改行で結合
+    - `Semicolon`: `;` で結合
+    - `Space`: 半角スペースで結合
+    - `None`: 区切り文字なしで結合
+- `skip_empty`
+    - `true` のとき、未接続や空（空白・改行のみ）の入力をスキップして結合する
+    - 余計な区切り文字（`, , `）が入るのを防ぐ
 
 ---
 
@@ -265,13 +321,14 @@ Output text
 ### D2 Prompt Sanitizer
 
 <figure>
-  <img src="../img/prompt_sanitizer.png">
+  <img src="../img/prompt_sanitizer_2.png">
 </figure>
 
 - プロンプト文字列を整形するノード
 - `_`（アンダースコア）を半角スペースに変換する（`long_hair` → `long hair`）
 - `,`（カンマ）の後に必ず半角スペースを1つ入れ、前後の余分な空白を整理する（`a ,  b` → `a, b`）
 - 連続した余分なカンマをまとめ、行頭のカンマを削除する（`a,, ,b` → `a, b`）
+- 改行の変換、重複タグの削除もできる
 - 各処理は個別に ON / OFF できる
 
 #### Input
@@ -281,6 +338,16 @@ Output text
 - `remove_extra_comma`：連続した余分なカンマ（`,,` / `, ,`）を1つにまとめ、行頭のカンマを削除する（改行は保持）
 - `protect_lora`：`<...>` で囲まれた LoRA 表記などを変換対象から保護する（`<lora:my_lora:1>` のアンダースコアを残す）
 - `protect_score`：Pony 系の品質タグ `score_9` / `score_8_up` などを変換対象から保護する
+- `newline_mode`：改行の変換方式
+    - `keep`：何もしない（改行を保持）
+    - `add_comma`：各行末に `,` を追加する（改行は保持。空行・既に `,` で終わる行には追加しない）
+    - `to_comma`：改行を `,` に変換して1行にまとめる
+    - `to_space`：改行を半角スペースに変換する
+    - `remove`：改行を削除する（`1girl\nsmile` → `1girlsmile`。日本語テキストの結合向け）
+- `remove_duplicate_tags`：重複したタグを削除する（先に出てきたものを残す。`_` と半角スペースの違い・大文字小文字は無視して比較する）
+- `strip_trailing_comma`：文字列全体の末尾にあるカンマを削除する（`add_comma` との併用向け）
+
+> 処理は「重複タグ削除 → 改行変換 → アンダースコア変換 → 余分なカンマ除去 → カンマ整形 → 末尾カンマ削除」の順で行われる。`remove_duplicate_tags` で残る `,,` は `remove_extra_comma` が掃除するので、両方 ON にしておくときれいに整う。
 
 ---
 
@@ -320,15 +387,58 @@ Output text
 
 ---
 
+### D2 Load CSV
+
+<figure>
+  <img src="../img/load_csv.png">
+</figure>
+
+- CSV / TSV ファイルを読み込み、行・列の範囲を指定して取り出すノード
+- プロンプトのようにカンマを含むデータは、ダブルクォートされている前提（標準的な CSV エスケープ）
+- 巨大なファイルでもメモリを抑えるため、出力は1つにし `output_mode` で形式を切り替える
+
+#### Input
+
+- `file_path`
+  - 読み込むファイルのフルパス
+- `file_type`
+  - `csv`: カンマ区切り / `tsv`: タブ区切り。入力ファイルの区切り文字
+- `encode_to_utf8`
+  - `true`: 文字コードを自動判別して utf-8 に変換して読み込む
+- `output_mode`
+  - `list`: 2次元配列で出力
+  - `csv`: 改行＋カンマ区切りのテキストで出力
+- `row_index` / `column_index`
+  - 出力する行・列の範囲（1スタート）。無指定（空）で全て
+  - `3`: 3行（列）目のみ
+  - `2-`: 2行（列）目から最後まで
+  - `-4`: 1〜4行（列）目
+  - `2-4`: 2〜4行（列）目
+  - 壊れた書式（`0`・`2--4`・非数値など）はエラーで実行を停止する（誤ったデータを流さないため）
+- `use_doublequote`
+  - `output_mode:csv` のとき、全セルをダブルクォートする
+  - `false` にすると素のカンマ結合になり、カンマを含むセルは区切りが失われる（`"AAA,BBB","XXX,YYY"` → `AAA,BBB,XXX,YYY`）
+
+#### Output
+
+- `output`
+  - 選択範囲のデータ。`output_mode` により2次元配列またはテキスト
+- `lines_count`
+  - 選択範囲の行数
+- `file_path`
+  - 入力した `file_path` をそのまま出力
+
+---
+
 ### D2 Save Caption
 
 <figure>
-  <img src="../img/save_caption.png">
+  <img src="../img/save_caption_2.png">
 </figure>
 
 - タグを整形してキャプションファイルを保存するノード
 - `base_filename` の拡張子を `extension` に置き換えたパスに保存する（例 `d:/images/aaa.jpg` → `d:/images/aaa.txt`）
-- 整形は「分割 → 前後空白除去 → `_` 置換 → 除外 → 重複除去 → 先頭追加 → 末尾カンマ」の順で行う
+- 整形は「分割 → 前後空白除去 → 区切り統一 → エスケープ除去 → 除外 → 重複除去 → 先頭追加 → 末尾カンマ」の順で行う
 
 #### Input
 
@@ -342,10 +452,16 @@ Output text
 - `exclude_tags`
   - 除外するタグ。カンマ・改行の両方で区切る
   - `regex/パターン/` と書くと正規表現にマッチしたタグを除外する（除外専用）
+  - 括弧のエスケープは無視して比較する（プロンプトの `rem_\(re:zero\)` を除外タグ `rem_(re:zero)` で除外できる）
 - `prepend_tags`
   - 先頭に追加するタグ。カンマ区切り。既に存在するタグは追加しない
-- `replace_underscore`
-  - `true`: `_` を空白に変換
+- `word_separator`
+  - 単語区切りを統一する（`blue eyes` と `blue_hair` の混在を揃える）
+  - `underscore`（デフォルト）: スペースを `_` に統一（`blue eyes` → `blue_eyes`）
+  - `space`: `_` をスペースに統一（`blue_hair` → `blue hair`）
+  - `none`: 変換しない
+- `remove_escape`
+  - `true`: 出力タグから括弧のエスケープ（`\(` `\)` `\[` `\]`）を外す（`rem_\(re:zero\)` → `rem_(re:zero)`）。学習用キャプション向け
 - `trailing_comma`
   - `true`: 末尾にカンマを追加
 - `ignore_case`

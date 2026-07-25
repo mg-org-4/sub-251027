@@ -93,6 +93,8 @@ If you have installed any of the following custom nodes previously, please remov
   - Outputs SEED / STRING / INT / FLOAT as lists
 - <a href="node_text.md#D2-List-To-String">`D2 List To String`</a>
   - Converts arrays to strings
+- <a href="node_text.md#D2-Text-Concat">`D2 Text Concat`</a>
+  - Text concatenation node with an adjustable number of inputs
 - <a href="node_text.md#D2-Filename-Template">`D2 Filename Template`</a>
   - Creates filenames
 - <a href="node_text.md#D2-Token-Counter">`D2 Token Counter`</a>
@@ -103,6 +105,8 @@ If you have installed any of the following custom nodes previously, please remov
   - Cleans up prompt strings (convert `_` to space, add a space after commas)
 - <a href="node_text.md#D2-Load-Text">`D2 Load Text`</a>
   - A general-purpose node that loads a text file
+- <a href="node_text.md#D2-Load-CSV">`D2 Load CSV`</a>
+  - Loads a CSV / TSV file and extracts a range of rows and columns
 - <a href="node_text.md#D2-Save-Caption">`D2 Save Caption`</a>
   - Formats tags and saves a training caption file
 - <a href="node_text.md#D2-Tag-Report">`D2 Tag Report`</a>
@@ -188,6 +192,19 @@ If you have installed any of the following custom nodes previously, please remov
 
 
 ## :blossom: Changelog
+
+**2026.07.25**
+
+- `D2_LoadCSV`: Added a node that loads a CSV / TSV file and extracts a range of rows and columns
+- `D2_SaveCaption`: Fixed exclude matching to treat escaped brackets (`\(` `\)` `\[` `\]`) as equal to their bare forms
+- `D2_SaveCaption`: Added `remove_escape` to strip bracket escaping from the output tags
+- `D2_SaveCaption`: Replaced `replace_underscore` with `word_separator` (`underscore` / `space` / `none`), so word separators can be unified to either spaces or underscores
+
+**2026.07.24**
+
+- `D2_TextConcat`: Added a text concatenation node with an adjustable number of inputs
+- `D2_ListToString` / `D2_RegexSwitcher` / `D2_TagReport`: Unified the separator options (`Comma + Space` / `Comma` / `Line break` / `Semicolon` / `Space` / `None`). Values saved in old workflows keep working
+- `D2_PromptSanitizer`: Added line-break conversion (`newline_mode`), duplicate tag removal (`remove_duplicate_tags`), and trailing comma removal (`strip_trailing_comma`)
 
 **2026.07.19**
 

@@ -95,6 +95,8 @@
   - 以列表形式輸出 SEED / STRING / INT / FLOAT
 - <a href="node_text.md#D2-List-To-String">`D2 List To String`</a>
   - 將陣列轉換為字串
+- <a href="node_text.md#D2-Text-Concat">`D2 Text Concat`</a>
+  - 可調整輸入數量的文字結合節點
 - <a href="node_text.md#D2-Filename-Template">`D2 Filename Template`</a>
   - 生成文件名稱
 - <a href="node_text.md#D2-Token-Counter">`D2 Token Counter`</a>
@@ -105,6 +107,8 @@
   - 整理提示詞字串（將 `_` 轉換為空格、逗號後插入空格）
 - <a href="node_text.md#D2-Load-Text">`D2 Load Text`</a>
   - 讀取文字檔案的通用節點
+- <a href="node_text.md#D2-Load-CSV">`D2 Load CSV`</a>
+  - 讀取 CSV / TSV 檔案，並指定行・列的範圍取出
 - <a href="node_text.md#D2-Save-Caption">`D2 Save Caption`</a>
   - 整形標籤並儲存訓練用標註檔案
 - <a href="node_text.md#D2-Tag-Report">`D2 Tag Report`</a>
@@ -190,6 +194,19 @@
 
 
 ## :blossom: 更新日誌
+
+**2026.07.25**
+
+- `D2_LoadCSV`：新增讀取 CSV / TSV 檔案並指定行・列範圍取出的節點
+- `D2_SaveCaption`：修正排除標籤的比較，將括號的跳脫（`\(` `\)` `\[` `\]`）與素括號視為相同
+- `D2_SaveCaption`：新增從輸出標籤移除括號跳脫的 `remove_escape`
+- `D2_SaveCaption`：將 `replace_underscore` 改為 `word_separator`（`underscore` / `space` / `none`），可將單字分隔統一為空格或底線任一方
+
+**2026.07.24**
+
+- `D2_TextConcat`：新增可調整輸入數量的文字結合節點
+- `D2_ListToString` / `D2_RegexSwitcher` / `D2_TagReport`：統一分隔字元（separator）的選項表記（`Comma + Space` / `Comma` / `Line break` / `Semicolon` / `Space` / `None`）。舊工作流程中儲存的值仍可正常運作
+- `D2_PromptSanitizer`：新增換行轉換（`newline_mode`）、重複標籤刪除（`remove_duplicate_tags`）、結尾逗號刪除（`strip_trailing_comma`）
 
 **2026.07.19**
 

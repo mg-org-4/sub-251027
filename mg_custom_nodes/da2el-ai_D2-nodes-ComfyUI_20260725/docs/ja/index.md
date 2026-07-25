@@ -95,6 +95,8 @@ D2 Nodes ComfyUI
   - SEED / STRING / INT / FLOAT をリスト出力する
 - <a href="node_text.md#D2-List-To-String">`D2 List To String`</a>
   - 配列を文字列に変換する
+- <a href="node_text.md#D2-Text-Concat">`D2 Text Concat`</a>
+  - 入力数を調整できるテキスト結合ノード
 - <a href="node_text.md#D2-Filename-Template">`D2 Filename Template`</a>
   - ファイルネームを作る
 - <a href="node_text.md#D2-Token-Counter">`D2 Token Counter`</a>
@@ -105,6 +107,8 @@ D2 Nodes ComfyUI
   - プロンプト文字列を整形する（`_` を空白に変換、カンマ後に空白を挿入）
 - <a href="node_text.md#D2-Load-Text">`D2 Load Text`</a>
   - テキストファイルを読み込む汎用ノード
+- <a href="node_text.md#D2-Load-CSV">`D2 Load CSV`</a>
+  - CSV / TSV を読み込み、行・列の範囲を指定して取り出す
 - <a href="node_text.md#D2-Save-Caption">`D2 Save Caption`</a>
   - タグを整形して学習用キャプションファイルを保存する
 - <a href="node_text.md#D2-Tag-Report">`D2 Tag Report`</a>
@@ -191,6 +195,19 @@ D2 Nodes ComfyUI
 
 ## :blossom: Changelog
 
+
+**2026.07.25**
+
+- `D2_LoadCSV`: CSV / TSV を読み込み、行・列の範囲を指定して取り出すノードを新規追加
+- `D2_SaveCaption`: 除外タグの比較で括弧のエスケープ（`\(` `\)` `\[` `\]`）と素の括弧を同一視するように修正
+- `D2_SaveCaption`: 出力タグの括弧エスケープを外す `remove_escape` を追加
+- `D2_SaveCaption`: `replace_underscore` を `word_separator`（`underscore` / `space` / `none`）に変更。単語区切りをスペース・アンダースコアのどちらにも統一できるように
+
+**2026.07.24**
+
+- `D2_TextConcat`: 入力数を調整できるテキスト結合ノードを新規追加
+- `D2_ListToString` / `D2_RegexSwitcher` / `D2_TagReport`: 区切り文字（separator）の選択肢の表記を統一（`Comma + Space` / `Comma` / `Line break` / `Semicolon` / `Space` / `None`）。旧ワークフローの値も引き続き動作する
+- `D2_PromptSanitizer`: 改行の変換（`newline_mode`）、重複タグの削除（`remove_duplicate_tags`）、末尾カンマの削除（`strip_trailing_comma`）を追加
 
 **2026.07.19**
 

@@ -1,0 +1,265 @@
+import logging
+
+import comfy.lora
+import comfy.sd
+import comfy.utils
+import folder_paths
+
+from .int8_lora_patching import (
+	_append_lora_signature,
+	_can_merge_stochastic_stack,
+	_create_stochastic_stack_adapter,
+	_get_key_map,
+	_get_weight_scale_for_module,
+	_model_has_quantized_int8_modules,
+	_resolve_target_module_cached,
+	_upgrade_patch_dict_for_int8,
+	_wrap_adapter_for_stochastic,
+)
+
+
+LORA_MODE_STOCHASTIC = "Stochastic"
+LORA_MODE_DYNAMIC = "Dynamic"
+LORA_MODE_STANDARD = "Standard"
+LORA_MODE_CHOICES = [LORA_MODE_STOCHASTIC, LORA_MODE_DYNAMIC, LORA_MODE_STANDARD]
+
+
+def _dispatch_dynamic_single(model, lora_name, strength):
+	from .int8_dynamic_lora import INT8DynamicLoraLoader
+	return INT8DynamicLoraLoader().load_lora(model, lora_name, strength)
+
+
+def _dispatch_dynamic_stack(model, kwargs):
+	from .int8_dynamic_lora import INT8DynamicLoraStack
+	return INT8DynamicLoraStack().apply_stack(model, **kwargs)
+
+
+def _dispatch_standard_single(model, lora_name, strength, seed=318008):
+	if _model_has_quantized_int8_modules(model):
+		lora_path = folder_paths.get_full_path("loras", lora_name)
+		lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+		model_patcher = model.clone()
+		key_map = _get_key_map(model_patcher)
+		patch_dict = comfy.lora.load_lora(lora, key_map, log_missing=True)
+		del lora
+
+		final_patch_dict, applied_count = _upgrade_patch_dict_for_int8(
+			model_patcher=model_patcher,
+			patch_dict=patch_dict,
+			seed=seed,
+			module_cache={},
+			defer_unquantized=False,
+		)
+		model_patcher.add_patches(final_patch_dict, strength)
+		_append_lora_signature(model_patcher, LORA_MODE_STANDARD, lora_name, strength, seed)
+		print(f"[INT8 LoRA:{LORA_MODE_STANDARD}] Patched {applied_count} INT8-aware layers.")
+		return (model_patcher,)
+
+	lora_path = folder_paths.get_full_path("loras", lora_name)
+	lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+	model_patcher, _ = comfy.sd.load_lora_for_models(model, None, lora, strength, 0)
+	del lora
+	return (model_patcher,)
+
+
+def _collect_lora_entries(kwargs):
+	lora_entries = []
+	for i in range(1, 11):
+		name = kwargs.get(f"lora_{i}")
+		strength = kwargs.get(f"strength_{i}", 0)
+		if name and name != "None" and strength != 0:
+			lora_entries.append((name, strength))
+	return lora_entries
+
+
+def _dispatch_standard_stack(model, lora_entries, seed=318008):
+	model_patcher = model
+	for lora_name, strength in lora_entries:
+		model_patcher = _dispatch_standard_single(model_patcher, lora_name, strength, seed=seed)[0]
+	return (model_patcher,)
+
+
+class INT8LoraLoader:
+	"""
+	Unified INT8 LoRA loader.
+
+	Use `mode` to switch between standard patching, stochastic INT8-space patching,
+	and dynamic runtime LoRA.
+	"""
+
+	@classmethod
+	def INPUT_TYPES(s):
+		return {
+			"required": {
+				"mode": (LORA_MODE_CHOICES, {"tooltip": "Standard uses ComfyUI's regular MODEL LoRA patch path. Stochastic merges LoRA deltas into INT8 weights using stochastic rounding. Dynamic keeps compatible LoRAs as runtime additions without modifying INT8 weights."}),
+				"model": ("MODEL", {"tooltip": "INT8 or float diffusion model to receive the LoRA patch."}),
+				"lora_name": (folder_paths.get_filename_list("loras"), {"tooltip": "LoRA file from ComfyUI's loras folder."}),
+				"strength": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01, "tooltip": "LoRA strength for the diffusion model. Negative values invert the LoRA effect."}),
+			}
+		}
+
+	RETURN_TYPES = ("MODEL",)
+	FUNCTION = "load_lora"
+	CATEGORY = "loaders"
+	DESCRIPTION = "Load one LoRA with selectable standard, stochastic INT8, or dynamic runtime behavior."
+
+	def load_lora(self, mode, model, lora_name, strength, seed=318008):
+		if strength == 0:
+			return (model,)
+
+		if mode == LORA_MODE_DYNAMIC:
+			return _dispatch_dynamic_single(model, lora_name, strength)
+
+		if mode == LORA_MODE_STANDARD:
+			return _dispatch_standard_single(model, lora_name, strength)
+
+		lora_path = folder_paths.get_full_path("loras", lora_name)
+		lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+
+		model_patcher = model.clone()
+		key_map = _get_key_map(model_patcher)
+		patch_dict = comfy.lora.load_lora(lora, key_map, log_missing=True)
+		del lora
+
+		module_cache = {}
+		final_patch_dict, applied_count = _upgrade_patch_dict_for_int8(
+			model_patcher=model_patcher,
+			patch_dict=patch_dict,
+			seed=seed,
+			module_cache=module_cache,
+		)
+
+		model_patcher.add_patches(final_patch_dict, strength)
+		_append_lora_signature(model_patcher, mode, lora_name, strength, seed)
+
+		logging.info(
+			f"INT8 LoRA ({mode}): Registered '{lora_name}' with strength {strength:.2f} for {applied_count} quantized layers."
+		)
+		print(f"[INT8 LoRA:{mode}] Patched {applied_count} layers, skipped {len(patch_dict) - applied_count}.")
+		return (model_patcher,)
+
+
+class INT8LoraLoaderStack:
+	"""
+	Unified INT8 LoRA stack loader.
+
+	Use `mode` to switch between standard stack patching, stochastic INT8 stack
+	patching, and dynamic runtime stack composition.
+	"""
+
+	@classmethod
+	def INPUT_TYPES(s):
+		inputs = {
+			"required": {
+				"mode": (LORA_MODE_CHOICES, {"tooltip": "Standard applies LoRAs through ComfyUI's regular MODEL patch path. Stochastic combines stack deltas before one INT8 rounding step. Dynamic keeps compatible LoRAs as runtime additions."}),
+				"model": ("MODEL", {"tooltip": "INT8 or float diffusion model to receive the LoRA stack."}),
+			},
+			"optional": {}
+		}
+		lora_list = ["None"] + folder_paths.get_filename_list("loras")
+		for i in range(1, 11):
+			inputs["optional"][f"lora_{i}"] = (lora_list, {"tooltip": f"Optional LoRA slot {i}. Choose None to leave this slot unused."})
+			inputs["optional"][f"strength_{i}"] = ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01, "tooltip": f"Strength for LoRA slot {i}. Ignored when the slot is None or strength is 0."})
+		return inputs
+
+	RETURN_TYPES = ("MODEL",)
+	FUNCTION = "apply_stack"
+	CATEGORY = "loaders"
+	DESCRIPTION = "Apply a LoRA stack for INT8 models with a selectable patching mode."
+
+	def apply_stack(self, mode, model, seed=318008, **kwargs):
+		lora_entries = _collect_lora_entries(kwargs)
+
+		if mode == LORA_MODE_DYNAMIC:
+			return _dispatch_dynamic_stack(model, kwargs)
+
+		if not lora_entries:
+			return (model,)
+
+		if mode == LORA_MODE_STANDARD:
+			return _dispatch_standard_stack(model, lora_entries, seed=seed)
+
+		if len(lora_entries) == 1:
+			lora_name, strength = lora_entries[0]
+			return INT8LoraLoader().load_lora(LORA_MODE_STOCHASTIC, model, lora_name, strength, seed=seed)
+
+		model_patcher = model.clone()
+		key_map = _get_key_map(model_patcher)
+
+		layered_patches = {}
+		for name, strength in lora_entries:
+			path = folder_paths.get_full_path("loras", name)
+			data = comfy.utils.load_torch_file(path, safe_load=True)
+			patch_dict = comfy.lora.load_lora(data, key_map, log_missing=True)
+			del data
+			for key, adapter in patch_dict.items():
+				if key not in layered_patches:
+					layered_patches[key] = []
+				layered_patches[key].append((adapter, strength))
+
+		final_patch_dict = {}
+		applied_count = 0
+		module_cache = {}
+
+		for key, patches in layered_patches.items():
+			try:
+				target_module = _resolve_target_module_cached(model_patcher, key, module_cache)
+				is_quantized = hasattr(target_module, "_is_quantized") and target_module._is_quantized
+
+				if not is_quantized:
+					if _can_merge_stochastic_stack(patches):
+						final_patch_dict[key] = _create_stochastic_stack_adapter(
+							patches,
+							1.0,
+							seed,
+							defer_until_quantized=True,
+						)
+					else:
+						for adapter, adapter_strength in patches:
+							wrapped_adapter = _wrap_adapter_for_stochastic(
+								adapter,
+								1.0,
+								seed,
+								defer_until_quantized=True,
+							)
+							model_patcher.add_patches({key: wrapped_adapter}, adapter_strength)
+					continue
+
+				weight_scale = _get_weight_scale_for_module(target_module)
+				outlier_method = getattr(target_module, "_outlier_method", None)
+				hadanorm_sigma = getattr(target_module, "hadanorm_sigma", None)
+				mergeable = all(hasattr(adapter, "calculate_weight") for adapter, _ in patches)
+				if mergeable:
+					final_patch_dict[key] = _create_stochastic_stack_adapter(
+						patches,
+						weight_scale,
+						seed=seed,
+						outlier_method=outlier_method,
+						hadanorm_sigma=hadanorm_sigma,
+					)
+					applied_count += 1
+				else:
+					for adapter, adapter_strength in patches:
+						model_patcher.add_patches({key: adapter}, adapter_strength)
+			except Exception:
+				for adapter, strength in patches:
+					model_patcher.add_patches({key: adapter}, strength)
+
+		model_patcher.add_patches(final_patch_dict, 1.0)
+		for lora_name, strength in lora_entries:
+			_append_lora_signature(model_patcher, mode, lora_name, strength, seed)
+
+		logging.info(f"INT8 LoRA Stack ({mode}): Merged {len(lora_entries)} LoRAs for {applied_count} quantized layers.")
+		print(f"[INT8 LoRA Stack:{mode}] Applied {len(lora_entries)} LoRAs, merged {applied_count} quantized layers.")
+		return (model_patcher,)
+
+
+NODE_CLASS_MAPPINGS = {
+	"INT8LoraLoader": INT8LoraLoader,
+	"INT8LoraLoaderStack": INT8LoraLoaderStack,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+	"INT8LoraLoader": "Load LoRA INT8",
+	"INT8LoraLoaderStack": "Load LoRA Stack INT8",
+}

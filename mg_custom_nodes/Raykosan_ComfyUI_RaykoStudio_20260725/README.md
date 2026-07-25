@@ -1,5 +1,6 @@
 # 🦊 ComfyUI_RaykoStudio  
 Set of custom nodes for ComfyUI providing additional image processing capabilities  
+--- 
 ---  
 
 <details>
@@ -807,9 +808,9 @@ Single frame tensor with shape [1, H, W, C] — ready for VAE encoding, preview,
 
 ### 🌐 Civitai Metadata Integration (Info Popup)  
 - **Instant Info** - Click the `ℹ️` icon on any LoRA row to open a detailed popup.  
-- **Fetch from Civitai** - Automatically fetches the model's true name, description, and tags directly from Civitai using the file's SHA256 hash.  
+- **Fetch from Civitai** - Automatically fetches the model's true name, description, and tags directly from Civitai.  
 - **Getting metadata** - If no data is found, click the **🌐 Fetch from Civitai** button.  
-   - *Note: The node calculates the SHA256 hash of the `.safetensors` file and queries the Civitai API. This may take a few seconds on the first run.*  
+   - *Note: This may take a few seconds on the first run.*  
 - **Local Caching** - Fetched metadata is saved locally in the `rayko_lora_data` folder. Subsequent views are instant and require no internet connection.  
 
 ### 📋 One-Click Tag Copying  
@@ -854,9 +855,9 @@ is three tags.
 
 ### 🌐 Civitai Metadata Integration (Info Popup)  
 - **Instant Info** - Click the `ℹ️` icon on any LoRA row to open a detailed popup.  
-- **Fetch from Civitai** - Automatically fetches the model's true name, description, and tags directly from Civitai using the file's SHA256 hash.  
+- **Fetch from Civitai** - Automatically fetches the model's true name, description, and tags directly from Civitai.  
 - **Getting metadata** - If no data is found, click the **🌐 Fetch from Civitai** button.  
-   - *Note: The node calculates the SHA256 hash of the `.safetensors` file and queries the Civitai API. This may take a few seconds on the first run.*  
+   - *Note: This may take a few seconds on the first run.*  
 - **Local Caching** - Fetched metadata is saved locally in the `rayko_lora_data` folder. Subsequent views are instant and require no internet connection.  
 
 ### 📋 One-Click Tag Copying  
@@ -1099,18 +1100,20 @@ Toggle **ENABLE SHADOW** to activate.
   <summary>🦊 RS Color Picker</summary>
 
 # 🦊 RS Color Picker  
-**Professional color picker node with advanced features including eyedropper and color history**  
+**Professional color picker node with advanced features including eyedropper, color history and presets**  
 
-<img width="470" height="664" alt="Screenshot_13" src="https://github.com/user-attachments/assets/0c5bb126-1c46-4ece-ae3d-037399a0b6c5" />
+<img width="412" height="667" alt="Screenshot_1" src="https://github.com/user-attachments/assets/13c817b7-28c8-414c-9f3c-39494c9e468a" />
 
 ### 🔥 Features  
 - **Visual Color Picker** - Intuitive color selection with live preview  
 - **Eyedropper Tool** - Pick colors from anywhere on screen (Chrome/Edge) or from ComfyUI canvas (all browsers)  
-- **Copy to Clipboard** - Double-click color swatch to copy HEX value  
+- **Copy to Clipboard** - Click Copy button next to the HEX values window  
 - **Basic Colors** - 8 preset colors for quick access  
 - **Recent Colors** - History of last 24 used colors (saved in localStorage)  
 - **Multiple Outputs** - HEX_INT, HEX_STR, and RGB formats  
-- **Clean UI** - Professional interface matching ComfyUI design  
+- **Presets** - Saving color history to preset, loading saved presets  
+- **Clean All** - The '❌ Clear All' button clears the panel of all colors
+- **Delete button** - Appears by right-clicking on any color in the panel and deletes the selected color when clicked  
 
 ### 🪛 Usage  
 1. **Select a color using one of these methods:**  

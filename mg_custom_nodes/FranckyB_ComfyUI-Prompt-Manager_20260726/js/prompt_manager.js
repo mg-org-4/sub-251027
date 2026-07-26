@@ -207,15 +207,7 @@ app.registerExtension({
             type: "boolean",
             defaultValue: true
         },
-        {
-            id: "PromptManager.DefaultViewMode",
-            category: ["Prompt Manager", "4. Advanced Preferences", "Prompt Browser View Mode"],
-            name: "Default prompt browser view mode",
-            tooltip: "Choose the default display mode for the prompt browser: thumbnails grid or compact list view.",
-            type: "combo",
-            options: ["thumbnails", "list"],
-            defaultValue: "thumbnails"
-        },
+
         {
             id: "PromptManager.EnableThumbnailPreview",
             category: ["Prompt Manager", "4. Advanced Preferences", "Enable Thumbnail Hover Preview"],
@@ -225,12 +217,54 @@ app.registerExtension({
             defaultValue: true
         },
         {
+            id: "PromptManager.CompactPromptBrowser",
+            category: ["Prompt Manager", "4. Advanced Preferences", "Compact Prompt Browser"],
+            name: "Use compact prompt browser",
+            tooltip: "When enabled, the prompt browser dialog uses the smaller legacy size. When disabled (default), it is enlarged to show more thumbnails.",
+            type: "boolean",
+            defaultValue: false
+        },
+        {
             id: "PromptManager.ThumbnailCheckpoint",
             category: ["Prompt Manager", "4. Advanced Preferences", "Thumbnail Generation Checkpoint"],
             name: "Checkpoint for thumbnail generation",
             tooltip: "The checkpoint model used when generating thumbnails via right-click menu. Can also be changed from the prompt context menu.",
             type: "text",
             defaultValue: ""
+        },
+        {
+            id: "PromptManager.ExpressionSeed",
+            category: ["Prompt Manager", "4. Advanced Preferences", "Expression Seed"],
+            name: "Static seed for expression thumbnail generation",
+            tooltip: "Seed used when generating thumbnails for Expression-category prompts. Set to 0 to use random seeds instead.",
+            type: "number",
+            defaultValue: 42,
+            onChange(value) {
+                fetch("/prompt-manager/save-preference", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ key: "expression_seed", value: value })
+                }).catch(error => {
+                    console.error("[PromptManager] Error saving expression seed preference:", error);
+                });
+            }
+        },
+        {
+            id: "PromptManager.ExpressionCharacterDescription",
+            category: ["Prompt Manager", "4. Advanced Preferences", "Expression Character Description"],
+            name: "Character description for expression thumbnails",
+            tooltip: "The character description used when generating Expression thumbnails. The expression prompt is appended after this description.",
+            type: "text",
+            defaultValue: "A close portrait of a young woman with sun-kissed skin and wavy, chestnut-brown hair that falls just past her shoulders, her face and bare shoulders bathed in warm, direct sunlight against a smooth, neutral cream-colored background. She is bare-shouldered, her skin glowing with a natural sheen, captured in a tight, intimate close-up that keeps her face as the dominant 70% of the frame while the background remains softly out of focus. The lighting is bright and directional, casting distinct highlights on her hair and skin.",
+            onChange(value) {
+                fetch("/prompt-manager/save-preference", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ key: "expression_character_description", value: value })
+                }).catch(error => {
+                    console.error("[PromptManager] Error saving expression character description preference:", error);
+                });
+            }
         },
         {
             id: "PromptManager.LLMBackend",

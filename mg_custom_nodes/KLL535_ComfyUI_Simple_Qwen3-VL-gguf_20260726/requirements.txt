@@ -1,0 +1,6 @@
+llama-cpp-python>=0.3.17
+pillow
+json_repair
+colorama
+opencv-python
+av

@@ -1,0 +1,641 @@
+"""
+Unified Download System for TTS Audio Suite
+Centralized downloading for all models (F5-TTS, ChatterBox, RVC, etc.) without cache duplication
+"""
+
+import os
+import requests
+import subprocess
+from typing import Optional, Dict, Any, List
+from pathlib import Path
+import fnmatch
+import folder_paths
+
+# Import extra paths support
+from utils.models.extra_paths import get_preferred_download_path, find_model_in_paths
+
+class UnifiedDownloader:
+    """
+    Centralized downloader that handles all model downloads directly to organized TTS/ folder structure
+    without using HuggingFace cache to avoid duplication.
+    """
+    
+    def __init__(self):
+        # Use extra_model_paths.yaml aware directory resolution
+        self.tts_dir = get_preferred_download_path('TTS')
+        # Keep backward compatibility
+        self.models_dir = folder_paths.models_dir
+        # SSL verification bypass for environments with certificate issues
+        self.verify_ssl = os.environ.get('CURL_CA_BUNDLE') is not None or os.environ.get('REQUESTS_CA_BUNDLE') is not None
+        if not self.verify_ssl:
+            # Check if user explicitly disabled SSL verification
+            self.verify_ssl = os.environ.get('TTS_DISABLE_SSL_VERIFY', '0') != '1'
+
+        if not self.verify_ssl:
+            print("⚠️ SSL certificate verification is DISABLED")
+            print("   Set environment variable TTS_DISABLE_SSL_VERIFY=0 to re-enable")
+    
+    def download_from_hf_cli(
+        self,
+        repo_id: str,
+        filename: str,
+        target_dir: str,
+        revision: Optional[str] = None,
+        force_download: bool = False,
+    ) -> bool:
+        """
+        Download a single file from HuggingFace using HF CLI (faster than HTTP).
+        Uses existing huggingface-hub dependency.
+
+        Args:
+            repo_id: HuggingFace repository ID (e.g., "Diogodiogod/voicefixer-models")
+            filename: Name of file in repo (e.g., "vf.ckpt")
+            target_dir: Local directory to save file
+
+        Returns:
+            True if successful, False otherwise
+        """
+        target_path = os.path.join(target_dir, filename)
+
+        # Check if already exists
+        if os.path.exists(target_path) and not force_download:
+            return True
+
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+
+            if force_download and os.path.exists(target_path):
+                try:
+                    os.remove(target_path)
+                except OSError:
+                    pass
+
+            # Set PYTHONIOENCODING to prevent Windows Unicode errors
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'
+
+            # Try modern 'hf download' first, fallback to legacy 'huggingface-cli download'
+            # Show progress bar by not capturing output
+            hf_command = [
+                "hf", "download",
+                repo_id,
+                filename,
+                "--local-dir", target_dir
+            ]
+            if revision:
+                hf_command.extend(["--revision", revision])
+            if force_download:
+                hf_command.append("--force-download")
+            result = subprocess.run(
+                hf_command,
+                check=False,
+                env=env,
+                capture_output=False  # Allow progress bar to show
+            )
+
+            # If new command succeeded, return
+            if result.returncode == 0 and os.path.exists(target_path):
+                return True
+
+            # Try legacy command if new one failed
+            legacy_command = [
+                "huggingface-cli", "download",
+                repo_id,
+                filename,
+                "--local-dir", target_dir
+            ]
+            if revision:
+                legacy_command.extend(["--revision", revision])
+            if force_download:
+                legacy_command.append("--force-download")
+            result = subprocess.run(
+                legacy_command,
+                check=False,
+                env=env,
+                capture_output=False  # Allow progress bar to show
+            )
+
+            if result.returncode == 0 and os.path.exists(target_path):
+                return True
+
+            return False
+
+        except Exception:
+            # Silently fail - will use HTTP fallback
+            return False
+
+    def download_file(
+        self,
+        url: str,
+        target_path: str,
+        description: str = None,
+        force_download: bool = False,
+    ) -> bool:
+        """
+        Download a file directly to target path with progress display.
+        
+        Args:
+            url: Direct download URL
+            target_path: Full local path where file should be saved
+            description: Optional description for progress display
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if os.path.exists(target_path) and not force_download:
+            print(f"📁 File already exists: {os.path.basename(target_path)}")
+            return True
+            
+        try:
+            # Create directory structure
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+
+            if force_download and os.path.exists(target_path):
+                try:
+                    os.remove(target_path)
+                except OSError:
+                    pass
+            
+            # Download with progress
+            desc = description or os.path.basename(target_path)
+            print(f"📥 Downloading {desc} directly (no cache)")
+
+            # Apply SSL verification setting
+            response = requests.get(url, stream=True, verify=self.verify_ssl)
+            response.raise_for_status()
+            
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded_size = 0
+            
+            with open(target_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded_size += len(chunk)
+                        
+                        if total_size > 0:
+                            progress = (downloaded_size / total_size) * 100
+                            print(f"\r📥 Downloading {os.path.basename(target_path)}: {progress:.1f}%", end='', flush=True)
+            
+            print(f"\n✅ Downloaded: {target_path}")
+            return True
+            
+        except Exception as e:
+            print(f"\n❌ Download failed for {desc}: {e}")
+            # Clean up partial download
+            if os.path.exists(target_path):
+                try:
+                    os.remove(target_path)
+                except:
+                    pass
+            
+            # Re-raise authentication errors so they can be handled upstream
+            error_str = str(e)
+            if "401" in error_str or "Unauthorized" in error_str:
+                raise RuntimeError(f"401 Unauthorized: Authentication required for {desc} - {e}")
+            
+            return False
+    
+    def download_huggingface_model(
+        self,
+        repo_id: str,
+        model_name: str,
+        files: List[Dict[str, str]],
+        engine_type: str,
+        subfolder: str = None,
+        revision: Optional[str] = None,
+        force_download: bool = False,
+        target_dir: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Download HuggingFace model files to organized TTS/ structure.
+        
+        Args:
+            repo_id: HuggingFace repository ID (e.g., "SWivid/F5-TTS")
+            model_name: Model name for folder organization (e.g., "F5TTS_v1_Base")
+            files: List of files to download, each dict with 'remote' and 'local' keys
+            engine_type: Engine type for organization ("F5-TTS", "chatterbox", etc.)
+            subfolder: Optional subfolder for organization (e.g., "vocos")
+            
+        Returns:
+            Path to model directory if successful, None otherwise
+        """
+        # Create organized path with optional subfolder
+        if target_dir:
+            model_dir = target_dir
+        elif subfolder:
+            model_dir = os.path.join(self.tts_dir, engine_type, model_name, subfolder)
+        else:
+            model_dir = os.path.join(self.tts_dir, engine_type, model_name)
+        
+        success = True
+        critical_files = ['config.json']  # These files are absolutely required
+        failed_files = []
+        
+        for file_info in files:
+            remote_path = file_info['remote']  # e.g., "F5TTS_v1_Base/model_1250000.safetensors"
+            local_filename = file_info['local']  # e.g., "model_1250000.safetensors"
+            source_repo_id = file_info.get('alt_repo', repo_id)
+            source_remote_path = file_info.get('alt_remote', remote_path)
+            source_revision = file_info.get('revision', revision)
+            source_force_download = file_info.get('force_download', force_download)
+            
+            target_path = os.path.join(model_dir, local_filename)
+            
+            # Skip if already exists in TTS folder
+            if os.path.exists(target_path) and not source_force_download:
+                continue
+
+            # Note: Don't copy from cache - just download to TTS folder if missing
+
+            # Try HF CLI first (more reliable), fall back to direct HTTP
+            # HF CLI handles network issues better than requests library
+            if not self.download_from_hf_cli(
+                source_repo_id,
+                source_remote_path,
+                model_dir,
+                revision=source_revision,
+                force_download=source_force_download,
+            ):
+                # HF CLI failed, try direct HTTP download as fallback
+                url_revision = source_revision or "main"
+                url = f"https://huggingface.co/{source_repo_id}/resolve/{url_revision}/{source_remote_path}"
+                if not self.download_file(
+                    url,
+                    target_path,
+                    f"{model_name}/{local_filename} from {source_repo_id}",
+                    force_download=source_force_download,
+                ):
+                    failed_files.append(local_filename)
+                    # Only fail completely if critical files are missing
+                    if local_filename in critical_files:
+                        success = False
+                        break
+        
+        if failed_files:
+            print(f"⚠️ Some files failed to download: {failed_files}")
+            
+        # For sharded models, we need either all shards OR none (to use cache fallback)
+        if any('model-' in f and '.safetensors' in f for f in failed_files):
+            print("❌ Sharded model files incomplete, using cache fallback")
+            success = False
+        
+        return model_dir if success else None
+
+    def download_huggingface_snapshot(
+        self,
+        repo_id: str,
+        target_dir: str,
+        revision: Optional[str] = None,
+        allow_patterns: Optional[List[str]] = None,
+        required_files: Optional[List[str]] = None,
+        force_download: bool = False,
+        description: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Download an entire HuggingFace repo snapshot directly into target_dir without
+        treating HuggingFace cache as the final storage location.
+
+        This is intended for folder-shaped artifacts such as PEFT/LoRA adapters.
+        """
+        try:
+            from huggingface_hub import HfApi
+        except Exception as e:
+            raise RuntimeError(
+                "huggingface_hub is required for snapshot-style downloads."
+            ) from e
+
+        os.makedirs(target_dir, exist_ok=True)
+        label = description or repo_id
+        print(f"📥 Downloading snapshot for {label} directly into {target_dir}")
+
+        api = HfApi()
+        try:
+            repo_files = api.list_repo_files(repo_id=repo_id, revision=revision)
+        except Exception as e:
+            raise RuntimeError(f"Failed to list files for Hugging Face repo {repo_id}: {e}") from e
+
+        if allow_patterns:
+            matched_files = []
+            for file_path in repo_files:
+                if any(fnmatch.fnmatch(file_path, pattern) for pattern in allow_patterns):
+                    matched_files.append(file_path)
+            repo_files = matched_files
+
+        if not repo_files:
+            raise RuntimeError(f"No files matched for Hugging Face repo {repo_id}")
+
+        if force_download:
+            for rel_path in repo_files:
+                target_path = os.path.join(target_dir, rel_path)
+                if os.path.exists(target_path):
+                    try:
+                        os.remove(target_path)
+                    except OSError:
+                        pass
+
+        failed_files = []
+        url_revision = revision or "main"
+        for rel_path in repo_files:
+            target_path = os.path.join(target_dir, rel_path)
+            url = f"https://huggingface.co/{repo_id}/resolve/{url_revision}/{rel_path}"
+            ok = self.download_file(
+                url,
+                target_path,
+                f"{label}/{rel_path}",
+                force_download=force_download,
+            )
+            if not ok:
+                failed_files.append(rel_path)
+
+        if failed_files:
+            raise RuntimeError(
+                f"Failed to download {len(failed_files)} file(s) from {repo_id}: {failed_files[:10]}"
+            )
+
+        missing_required = []
+        for rel_path in required_files or []:
+            if not os.path.exists(os.path.join(target_dir, rel_path)):
+                missing_required.append(rel_path)
+        if missing_required:
+            raise RuntimeError(
+                f"Downloaded snapshot for {repo_id} is incomplete. Missing required files: {missing_required}"
+            )
+
+        print(f"✅ Snapshot ready: {target_dir}")
+        return target_dir
+    
+    def download_chatterbox_model(self, repo_id: str, model_name: str, subdirectory: str = None, 
+                                files: List[str] = None) -> Optional[str]:
+        """
+        Download ChatterBox model with optional subdirectory support.
+        
+        Args:
+            repo_id: HuggingFace repository ID (e.g., "niobures/Chatterbox-TTS")
+            model_name: Model name for folder organization (e.g., "Russian")
+            subdirectory: Optional subdirectory in repo (e.g., "ru")
+            files: Optional list of specific files to download
+            
+        Returns:
+            Path to model directory if successful, None otherwise
+        """
+        # Default ChatterBox files
+        if files is None:
+            files = [
+                "t3_cfg.safetensors",
+                "s3gen.safetensors", 
+                "ve.safetensors",
+                "conds.pt",
+                "tokenizer.json"
+            ]
+        
+        # Create target directory - use different paths for different ChatterBox variants
+        # Check if this is an official 23-lang model (including community finetunes)
+        is_official_23lang = ("Official 23-Lang" in model_name or
+                             "Vietnamese (Viterbox)" in model_name or
+                             "Egyptian Arabic (oddadmix)" in model_name or
+                             repo_id in ["dolly-vn/viterbox", "oddadmix/chatterbox-egyptian-v0"])
+
+        if is_official_23lang:
+            model_dir = os.path.join(self.tts_dir, "chatterbox_official_23lang", model_name)
+        else:
+            model_dir = os.path.join(self.tts_dir, "chatterbox", model_name)
+
+        success = True
+        # Different critical files for Official 23-Lang model and its variants
+        if is_official_23lang:
+            # V2 and V3 use the expanded multilingual tokenizer. Keep the
+            # requested T3 generation explicit so checkpoints cannot mix.
+            modern_t3 = next(
+                (
+                    f for f in files
+                    if f.startswith("t3_")
+                    and (f.endswith("_v2.safetensors") or f.endswith("_v3.safetensors"))
+                ),
+                None,
+            )
+
+            if modern_t3:
+                t3_file = modern_t3
+                # Check for either the standard tokenizer or expanded tokenizer.
+                tokenizer_file = next((f for f in files if "tokenizer" in f and f.endswith(".json")), None)
+                if not tokenizer_file:
+                    tokenizer_file = "grapheme_mtl_merged_expanded_v1.json"
+                
+                # Community V2 models often need official tokenizer assets
+                # which are not present in their own repositories.
+                if repo_id != "ResembleAI/chatterbox":
+                    official_dependencies = []
+                    if not any("grapheme_mtl_merged_expanded" in f for f in files):
+                        official_dependencies.append(
+                            "grapheme_mtl_merged_expanded_v1.json"
+                        )
+                    if "Cangjie5_TC.json" not in files:
+                        official_dependencies.append("Cangjie5_TC.json")
+
+                    for dependency in official_dependencies:
+                        target_dependency_path = os.path.join(model_dir, dependency)
+                        if os.path.exists(target_dependency_path):
+                            continue
+                        print(
+                            "📥 Expanded multilingual architecture detected. "
+                            f"Downloading official {dependency} dependency..."
+                        )
+                        if not self.download_from_hf_cli(
+                            "ResembleAI/chatterbox", dependency, model_dir
+                        ):
+                            url = (
+                                "https://huggingface.co/ResembleAI/chatterbox/"
+                                f"resolve/main/{dependency}"
+                            )
+                            self.download_file(
+                                url,
+                                target_dependency_path,
+                                f"Official multilingual {dependency} dependency",
+                            )
+                
+                critical_files = [t3_file, tokenizer_file]
+            else:
+                critical_files = ["t3_23lang.safetensors", "mtl_tokenizer.json"]  # v1 requirements
+        else:
+            critical_files = ["t3_cfg.safetensors", "tokenizer.json"]  # Standard ChatterBox requirements
+        failed_files = []
+        
+        for filename in files:
+            # Build URL with optional subdirectory
+            if subdirectory:
+                url = f"https://huggingface.co/{repo_id}/resolve/main/{subdirectory}/{filename}"
+            else:
+                url = f"https://huggingface.co/{repo_id}/resolve/main/{filename}"
+            
+            target_path = os.path.join(model_dir, filename)
+            
+            if not self.download_file(url, target_path, f"{model_name}/{filename}"):
+                failed_files.append(filename)
+                # Only fail completely if critical files are missing
+                if filename in critical_files:
+                    success = False
+                    break
+        
+        if failed_files:
+            print(f"⚠️ Some files failed to download for {model_name}: {failed_files}")
+            # For incomplete models (Japanese, Korean), missing optional files is okay
+            if not any(f in critical_files for f in failed_files):
+                print(f"ℹ️ {model_name} model will use shared English components for missing files")
+        
+        return model_dir if success else None
+
+    def download_direct_url_model(self, base_url: str, model_path: str, target_dir: str) -> bool:
+        """
+        Download model from direct URL to target directory.
+        
+        Args:
+            base_url: Base URL for downloads
+            model_path: Relative path of model (e.g., "RVC/Claire.pth")
+            target_dir: Target directory in TTS/ structure
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        url = f"{base_url}{model_path}"
+        filename = os.path.basename(model_path)
+        target_path = os.path.join(self.tts_dir, target_dir, filename)
+        
+        return self.download_file(url, target_path, f"{target_dir}/{filename}")
+    
+    def get_organized_path(self, engine_type: str, model_name: str = None) -> str:
+        """
+        Get the organized path for a model, respecting extra_model_paths.yaml.
+        
+        Args:
+            engine_type: Engine type ("F5-TTS", "chatterbox", "RVC", "UVR")
+            model_name: Optional model name for subfolder
+            
+        Returns:
+            Full path to organized model directory
+        """
+        # Use extra_model_paths.yaml aware directory resolution
+        base_path = get_preferred_download_path('TTS', engine_type.lower())
+        
+        if model_name:
+            return os.path.join(base_path, model_name)
+        else:
+            return base_path
+    
+    def check_existing_model(self, engine_type: str, model_name: str = None) -> Optional[str]:
+        """
+        Check if model exists in any configured path (extra_model_paths.yaml aware).
+        
+        Args:
+            engine_type: Engine type
+            model_name: Optional model name
+            
+        Returns:
+            Path if found in any configured location, None otherwise
+        """
+        if not model_name:
+            return None
+        
+        # First, try to find in any configured TTS paths using extra_paths system
+        search_subdirs = [engine_type.lower(), engine_type]
+        existing_path = find_model_in_paths(model_name, 'TTS', search_subdirs)
+        if existing_path:
+            return existing_path
+        legacy_paths = []
+        
+        if engine_type == "F5-TTS":
+            legacy_paths = [
+                os.path.join(self.models_dir, "F5-TTS", model_name or ""),
+                os.path.join(self.models_dir, "Checkpoints", "F5-TTS", model_name or "")
+            ]
+        elif engine_type == "chatterbox":
+            legacy_paths = [
+                os.path.join(self.models_dir, "chatterbox", model_name or "")
+            ]
+        elif engine_type == "chatterbox_official_23lang":
+            legacy_paths = [
+                os.path.join(self.models_dir, "chatterbox_official_23lang", model_name or "")
+            ]
+        elif engine_type == "RVC":
+            legacy_paths = [
+                os.path.join(self.models_dir, "RVC", model_name or "")
+            ]
+        elif engine_type == "UVR":
+            legacy_paths = [
+                os.path.join(self.models_dir, "UVR", model_name or "")
+            ]
+        
+        for path in legacy_paths:
+            if os.path.exists(path):
+                return path
+        
+        return None
+    
+    def download_vocos_model(self) -> Optional[str]:
+        """
+        Download Vocos vocoder model to organized TTS/ structure.
+        
+        Returns:
+            Path to vocos directory if successful, None otherwise
+        """
+        # Check if vocos already exists in organized location
+        vocos_dir = os.path.join(self.tts_dir, "F5-TTS", "vocos")
+        config_path = os.path.join(vocos_dir, "config.yaml")
+        model_path = os.path.join(vocos_dir, "pytorch_model.bin")
+        
+        if os.path.exists(config_path) and os.path.exists(model_path):
+            # Vocos already available locally
+            return vocos_dir
+        
+        # Download Vocos files
+        vocos_files = [
+            {'remote': 'config.yaml', 'local': 'config.yaml'},
+            {'remote': 'pytorch_model.bin', 'local': 'pytorch_model.bin'}
+        ]
+        
+        print("📥 Downloading Vocos vocoder to organized directory (no cache)")
+        downloaded_dir = self.download_huggingface_model(
+            repo_id="charactr/vocos-mel-24khz",
+            model_name="vocos",
+            files=vocos_files,
+            engine_type="F5-TTS"
+        )
+        
+        return downloaded_dir
+    
+    def _check_huggingface_cache(self, repo_id: str, file_path: str) -> Optional[str]:
+        """
+        Check if file exists in HuggingFace cache.
+        
+        Args:
+            repo_id: Repository ID (e.g., "facebook/w2v-bert-2.0")
+            file_path: File path in repo (e.g., "model.safetensors")
+            
+        Returns:
+            Path to cached file if exists, None otherwise
+        """
+        import os
+        import glob
+        
+        # Get HuggingFace cache directory
+        cache_home = os.environ.get('HUGGINGFACE_HUB_CACHE', os.path.expanduser('~/.cache/huggingface/hub'))
+        
+        # Convert repo ID to cache format
+        cache_folder_name = f"models--{repo_id.replace('/', '--')}"
+        cache_repo_dir = os.path.join(cache_home, cache_folder_name)
+        
+        if not os.path.exists(cache_repo_dir):
+            return None
+        
+        # Find snapshot directories (they have commit hashes as names)
+        snapshot_pattern = os.path.join(cache_repo_dir, "snapshots", "*", file_path)
+        matching_files = glob.glob(snapshot_pattern)
+        
+        if matching_files:
+            # Return the most recent one (by modification time)
+            return max(matching_files, key=os.path.getmtime)
+        
+        return None
+
+# Global instance for easy access
+unified_downloader = UnifiedDownloader()

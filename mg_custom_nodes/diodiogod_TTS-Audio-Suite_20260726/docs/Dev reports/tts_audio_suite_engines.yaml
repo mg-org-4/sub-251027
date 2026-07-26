@@ -1,0 +1,2453 @@
+# TTS Audio Suite Engines - Complete Reference Data
+# This is the single source of truth for all engine documentation tables
+
+runtime_isolation_modes:
+  field_label: "⚠️ Runtime Isolation"
+  modes:
+    main_environment:
+      label: "Main Environment"
+      short_label: "Main"
+      description: "Use the main ComfyUI Python environment."
+    shared_runtime:
+      label: "Shared Runtime"
+      short_label: "Shared"
+      description: "Use a secondary shared runtime for engines with dependency conflicts. This runtime reuses heavy base packages like PyTorch from the main environment when configured."
+    dedicated_runtime:
+      label: "Dedicated Runtime"
+      short_label: "Dedicated"
+      description: "Use a dedicated secondary runtime only for one engine when the shared runtime is not enough."
+
+engines:
+  - id: f5-tts
+    name: F5-TTS
+    models: "Base, v1, E2TTS + 8 lang models"
+    size: "~1.2GB each"
+    license: "CC-BY-NC-4.0"
+    commercial: false
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      training: false
+
+    special_features:
+      - "Targeted Word/Speech Editing"
+      - "Speed control"
+
+    model_sources:
+      - component: "F5TTS_Base"
+        source_name: "SWivid/F5-TTS"
+        source_url: "https://huggingface.co/SWivid/F5-TTS/tree/main/F5TTS_Base"
+        size: "~1.2GB"
+        auto_download: true
+        notes: "English base model"
+      - component: "F5TTS_v1_Base"
+        source_name: "SWivid/F5-TTS"
+        source_url: "https://huggingface.co/SWivid/F5-TTS/tree/main/F5TTS_v1_Base"
+        size: "~1.2GB"
+        auto_download: true
+        notes: "English v1 model"
+      - component: "E2TTS_Base"
+        source_name: "SWivid/E2-TTS"
+        source_url: "https://huggingface.co/SWivid/E2-TTS/tree/main/E2TTS_Base"
+        size: "~1.2GB"
+        auto_download: true
+        notes: "English E2-TTS model"
+      - component: "F5-DE"
+        source_name: "aihpi/F5-TTS-German"
+        source_url: "https://huggingface.co/aihpi/F5-TTS-German"
+        size: "~1.2GB"
+        auto_download: true
+        notes: "German finetune"
+      - component: "F5-ES"
+        source_name: "jpgallegoar/F5-Spanish"
+        source_url: "https://huggingface.co/jpgallegoar/F5-Spanish"
+        size: "~1.2GB"
+        auto_download: true
+        notes: "Spanish finetune"
+      - component: "F5-FR"
+        source_name: "RASPIAUDIO/F5-French-MixedSpeakers-reduced"
+        source_url: "https://huggingface.co/RASPIAUDIO/F5-French-MixedSpeakers-reduced"
+        size: "~1.2GB"
+        auto_download: true
+        notes: "French finetune"
+      - component: "F5-JP"
+        source_name: "Jmica/F5TTS"
+        source_url: "https://huggingface.co/Jmica/F5TTS"
+        size: "~1.2GB"
+        auto_download: true
+        notes: "Japanese finetune"
+      - component: "F5-Hindi-Small"
+        source_name: "SPRINGLab/F5-Hindi-24KHz"
+        source_url: "https://huggingface.co/SPRINGLab/F5-Hindi-24KHz"
+        size: "~632MB"
+        auto_download: true
+        notes: "Hindi finetune"
+      - component: "Vocos Mel-24kHz"
+        source_name: "charactr/vocos-mel-24khz"
+        source_url: "https://huggingface.co/charactr/vocos-mel-24khz"
+        size: "N/A"
+        auto_download: true
+        notes: "Optional vocoder"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: false, flag: "🇨🇳", notes: "" }
+      de: { supported: true, flag: "🇩🇪", notes: "" }
+      es: { supported: true, flag: "🇪🇸", notes: "" }
+      fr: { supported: true, flag: "🇫🇷", notes: "" }
+      it: { supported: true, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "" }
+      ko: { supported: false, flag: "🇰🇷", notes: "" }
+      ru: { supported: false, flag: "🇷🇺", notes: "" }
+      pt: { supported: true, flag: "🇧🇷", notes: "(BR)" }
+      pl: { supported: true, flag: "🇵🇱", notes: "" }
+      hi: { supported: true, flag: "🇮🇳", notes: "" }
+      ar: { supported: false, flag: "🇪🇬", notes: "" }
+      tr: { supported: false, flag: "🇹🇷", notes: "" }
+      th: { supported: true, flag: "🇹🇭", notes: "" }
+      no: { supported: false, flag: "🇳🇴", notes: "" }
+      vi: { supported: false, flag: "🇻🇳", notes: "" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: false, flag: "🇩🇰", notes: "" }
+      fi: { supported: false, flag: "🇫🇮", notes: "" }
+      el: { supported: false, flag: "🇬🇷", notes: "" }
+      he: { supported: false, flag: "🇮🇱", notes: "" }
+      ms: { supported: false, flag: "🇲🇾", notes: "" }
+      nl: { supported: false, flag: "🇳🇱", notes: "" }
+      sv: { supported: false, flag: "🇸🇪", notes: "" }
+      sw: { supported: false, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: required }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: false, notes: "" }
+      native_long_form: { supported: false, notes: "" }
+      community_finetunes: { supported: true, notes: "" }
+      vram_efficient: { supported: true, notes: "" }
+      speed_performance: { supported: true, notes: "Very Fast" }
+      reference_free_tts: { supported: false, notes: "" }
+
+  - id: chatterbox
+    name: ChatterBox
+    models: "EN, DE×3, IT, FR, RU, HY, KA, JA, KO, NO"
+    size: "~4.3GB"
+    license: "MIT"
+    commercial: true
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: true
+      asr: false
+      training: false
+
+    special_features:
+      - "Expressiveness slider"
+
+    model_sources:
+      - component: "English"
+        source_name: "ResembleAI/chatterbox"
+        source_url: "https://huggingface.co/ResembleAI/chatterbox"
+        size: "~2GB"
+        auto_download: true
+        notes: ".pt model set"
+      - component: "German"
+        source_name: "stlohrey/chatterbox_de"
+        source_url: "https://huggingface.co/stlohrey/chatterbox_de"
+        size: "~4.3GB"
+        auto_download: true
+        notes: ".safetensors model set"
+      - component: "German (havok2)"
+        source_name: "niobures/Chatterbox-TTS"
+        source_url: "https://huggingface.co/niobures/Chatterbox-TTS"
+        size: "~4.3GB"
+        auto_download: true
+        notes: ".safetensors model set"
+      - component: "German (SebastianBodza)"
+        source_name: "niobures/Chatterbox-TTS"
+        source_url: "https://huggingface.co/niobures/Chatterbox-TTS"
+        size: "~4.3GB"
+        auto_download: true
+        notes: ".safetensors model set"
+      - component: "Italian"
+        source_name: "niobures/Chatterbox-TTS"
+        source_url: "https://huggingface.co/niobures/Chatterbox-TTS"
+        size: "~4.3GB"
+        auto_download: true
+        notes: ".pt model set"
+      - component: "French"
+        source_name: "Thomcles/ChatterBox-fr"
+        source_url: "https://huggingface.co/Thomcles/ChatterBox-fr"
+        size: "~4.3GB"
+        auto_download: true
+        notes: ".safetensors model set"
+      - component: "Russian"
+        source_name: "niobures/Chatterbox-TTS"
+        source_url: "https://huggingface.co/niobures/Chatterbox-TTS"
+        size: "~4.3GB"
+        auto_download: true
+        notes: ".safetensors model set"
+      - component: "Armenian"
+        source_name: "niobures/Chatterbox-TTS"
+        source_url: "https://huggingface.co/niobures/Chatterbox-TTS"
+        size: "~4.3GB"
+        auto_download: true
+        notes: ".safetensors model set"
+      - component: "Georgian"
+        source_name: "niobures/Chatterbox-TTS"
+        source_url: "https://huggingface.co/niobures/Chatterbox-TTS"
+        size: "~4.3GB"
+        auto_download: true
+        notes: ".safetensors model set"
+      - component: "Japanese"
+        source_name: "niobures/Chatterbox-TTS"
+        source_url: "https://huggingface.co/niobures/Chatterbox-TTS"
+        size: "~4.3GB"
+        auto_download: true
+        notes: ".safetensors model set"
+      - component: "Korean"
+        source_name: "niobures/Chatterbox-TTS"
+        source_url: "https://huggingface.co/niobures/Chatterbox-TTS"
+        size: "~4.3GB"
+        auto_download: true
+        notes: ".safetensors model set"
+      - component: "Norwegian"
+        source_name: "akhbar/chatterbox-tts-norwegian"
+        source_url: "https://huggingface.co/akhbar/chatterbox-tts-norwegian"
+        size: "~4.3GB"
+        auto_download: true
+        notes: ".safetensors model set"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: false, flag: "🇨🇳", notes: "" }
+      de: { supported: true, flag: "🇩🇪", notes: "(×3)" }
+      es: { supported: false, flag: "🇪🇸", notes: "" }
+      fr: { supported: true, flag: "🇫🇷", notes: "" }
+      it: { supported: true, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "" }
+      ko: { supported: true, flag: "🇰🇷", notes: "" }
+      ru: { supported: true, flag: "🇷🇺", notes: "" }
+      pt: { supported: false, flag: "🇧🇷", notes: "" }
+      pl: { supported: false, flag: "🇵🇱", notes: "" }
+      hi: { supported: false, flag: "🇮🇳", notes: "" }
+      ar: { supported: false, flag: "🇪🇬", notes: "" }
+      tr: { supported: false, flag: "🇹🇷", notes: "" }
+      th: { supported: false, flag: "🇹🇭", notes: "" }
+      no: { supported: true, flag: "🇳🇴", notes: "" }
+      vi: { supported: false, flag: "🇻🇳", notes: "" }
+      hy: { supported: true, flag: "🇦🇲", notes: "" }
+      ka: { supported: true, flag: "🇬🇪", notes: "" }
+      da: { supported: false, flag: "🇩🇰", notes: "" }
+      fi: { supported: false, flag: "🇫🇮", notes: "" }
+      el: { supported: false, flag: "🇬🇷", notes: "" }
+      he: { supported: false, flag: "🇮🇱", notes: "" }
+      ms: { supported: false, flag: "🇲🇾", notes: "" }
+      nl: { supported: false, flag: "🇳🇱", notes: "" }
+      sv: { supported: false, flag: "🇸🇪", notes: "" }
+      sw: { supported: false, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: not_used }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: true, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: false, notes: "" }
+      native_long_form: { supported: false, notes: "" }
+      community_finetunes: { supported: true, notes: "" }
+      vram_efficient: { supported: true, notes: "" }
+      speed_performance: { supported: true, notes: "Fast" }
+      reference_free_tts: { supported: true, notes: "(default speaker)" }
+
+  - id: chatterbox-23l
+    name: ChatterBox 23L
+    models: "v1, v2, v3, Vietnamese (Viterbox), Egyptian Arabic (oddadmix)"
+    size: "~4.3GB"
+    license: "MIT"
+    commercial: true
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: true
+      asr: false
+      training: false
+
+    special_features:
+      - "V1, V2, and V3 official checkpoints"
+      - "Emotion tokens (v2; currently ineffective)"
+      - "V3 skips the legacy alignment analyzer and trims the final token artifact"
+    readme_key_features:
+      - "V1, V2, and V3 official checkpoints"
+
+    model_sources:
+      - component: "Official 23-Lang (v1/v2/v3)"
+        source_name: "ResembleAI/chatterbox"
+        source_url: "https://huggingface.co/ResembleAI/chatterbox"
+        size: "~4.3GB"
+        auto_download: true
+        notes: "v1 + v2 + v3 T3 checkpoints with shared tokenizer, voice encoder, and S3Gen"
+      - component: "Russian stress dictionary (Russian only)"
+        source_name: "Vuizur/add-stress-to-epub release"
+        source_url: "https://github.com/Vuizur/add-stress-to-epub/releases/download/v1.0.1/russian_dict.zip"
+        size: "~1.5GB"
+        auto_download: true
+        notes: "Auxiliary Official 23-Lang Russian stress-labeling data; downloads on demand only when Russian stress support is used"
+      - component: "Vietnamese (Viterbox)"
+        source_name: "dolly-vn/viterbox"
+        source_url: "https://huggingface.co/dolly-vn/viterbox"
+        size: "~4.3GB"
+        auto_download: true
+        notes: "Vietnamese community finetune used by downloader"
+      - component: "Egyptian Arabic (oddadmix)"
+        source_name: "oddadmix/chatterbox-egyptian-v0"
+        source_url: "https://huggingface.co/oddadmix/chatterbox-egyptian-v0"
+        size: "~4.3GB"
+        auto_download: true
+        notes: "Egyptian Arabic community finetune (architecture v2)"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: true, flag: "🇨🇳", notes: "" }
+      de: { supported: true, flag: "🇩🇪", notes: "" }
+      es: { supported: true, flag: "🇪🇸", notes: "" }
+      fr: { supported: true, flag: "🇫🇷", notes: "" }
+      it: { supported: true, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "" }
+      ko: { supported: true, flag: "🇰🇷", notes: "" }
+      ru: { supported: true, flag: "🇷🇺", notes: "" }
+      pt: { supported: true, flag: "🇵🇹", notes: "" }
+      pl: { supported: true, flag: "🇵🇱", notes: "" }
+      hi: { supported: true, flag: "🇮🇳", notes: "" }
+      ar: { supported: true, flag: "🇪🇬", notes: "(Egyptian)" }
+      tr: { supported: true, flag: "🇹🇷", notes: "" }
+      th: { supported: true, flag: "🇹🇭", notes: "" }
+      no: { supported: true, flag: "🇳🇴", notes: "" }
+      vi: { supported: true, flag: "🇻🇳", notes: "(Viterbox)" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: true, flag: "🇩🇰", notes: "" }
+      fi: { supported: true, flag: "🇫🇮", notes: "" }
+      el: { supported: true, flag: "🇬🇷", notes: "" }
+      he: { supported: true, flag: "🇮🇱", notes: "" }
+      ms: { supported: true, flag: "🇲🇾", notes: "" }
+      nl: { supported: true, flag: "🇳🇱", notes: "" }
+      sv: { supported: true, flag: "🇸🇪", notes: "" }
+      sw: { supported: true, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: not_used }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: true, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: "partial", notes: "(v2 tags - doesn't work)" }
+      native_long_form: { supported: false, notes: "" }
+      community_finetunes: { supported: true, notes: "" }
+      vram_efficient: { supported: true, notes: "" }
+      speed_performance: { supported: true, notes: "Fast" }
+      reference_free_tts: { supported: true, notes: "(default speaker)" }
+
+  - id: vibevoice
+    name: VibeVoice
+    models: "1.5B, 7B, KugelAudio-0 (7B), kugel-2 (7B), Hindi-1.5B/7B"
+    size: "5.4GB / 18GB"
+    license: "MIT (research-only per model card)"
+    commercial: false
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      training: false
+
+    special_features:
+      - "90-min long-form"
+      - "Native 4-speaker (Base models)"
+      - "Multilingual (KugelAudio variants)"
+      - "4-bit quantization"
+
+    runtime_isolation:
+      default_mode: "shared_runtime"
+      supported_modes:
+        - "main_environment"
+        - "shared_runtime"
+        - "dedicated_runtime"
+      status: "implemented"
+      runtime_profile: "vibevoice_transformers4_shared"
+      dedicated_profile: "vibevoice_transformers4_dedicated"
+      notes: "Recommended on modern ComfyUI stacks because VibeVoice/Kugel currently needs a secondary dependency layer. The shared runtime reuses heavy base packages like PyTorch from the main environment to avoid full duplication."
+
+    model_sources:
+      - component: "vibevoice-1.5B"
+        source_name: "microsoft/VibeVoice-1.5B"
+        source_url: "https://huggingface.co/microsoft/VibeVoice-1.5B"
+        size: "~5.4GB"
+        auto_download: true
+        notes: "Microsoft official model"
+      - component: "vibevoice-7B"
+        source_name: "aoi-ot/VibeVoice-Large"
+        source_url: "https://huggingface.co/aoi-ot/VibeVoice-Large"
+        size: "~18GB"
+        auto_download: true
+        notes: "Community mirror used by downloader"
+      - component: "kugelaudio-0-open"
+        source_name: "kugelaudio/kugelaudio-0-open"
+        source_url: "https://huggingface.co/kugelaudio/kugelaudio-0-open"
+        size: "~18GB"
+        auto_download: true
+        notes: "KugelAudio multilingual 7B variant"
+      - component: "kugel-2"
+        source_name: "kugelaudio/kugel-2"
+        source_url: "https://huggingface.co/kugelaudio/kugel-2"
+        size: "~18.7GB"
+        auto_download: true
+        notes: "KugelAudio v2 merged 7B variant"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: true, flag: "🇨🇳", notes: "" }
+      de: { supported: true, flag: "🇩🇪", notes: "(Kugel)" }
+      es: { supported: true, flag: "🇪🇸", notes: "(Kugel)" }
+      fr: { supported: true, flag: "🇫🇷", notes: "(Kugel)" }
+      it: { supported: true, flag: "🇮🇹", notes: "(Kugel)" }
+      ja: { supported: true, flag: "🇯🇵", notes: "(Kugel)" }
+      ko: { supported: true, flag: "🇰🇷", notes: "(Kugel)" }
+      ru: { supported: true, flag: "🇷🇺", notes: "(Kugel)" }
+      pt: { supported: true, flag: "🇧🇷", notes: "(Kugel)" }
+      pl: { supported: true, flag: "🇵🇱", notes: "(Kugel)" }
+      hi: { supported: true, flag: "🇮🇳", notes: "" }
+      ar: { supported: true, flag: "🇪🇬", notes: "(Kugel)" }
+      tr: { supported: true, flag: "🇹🇷", notes: "(Kugel)" }
+      th: { supported: true, flag: "🇹🇭", notes: "(Kugel)" }
+      no: { supported: true, flag: "🇳🇴", notes: "(Kugel)" }
+      vi: { supported: true, flag: "🇻🇳", notes: "(Kugel)" }
+      hy: { supported: true, flag: "🇦🇲", notes: "(Kugel)" }
+      ka: { supported: true, flag: "🇬🇪", notes: "(Kugel)" }
+      da: { supported: true, flag: "🇩🇰", notes: "(Kugel)" }
+      fi: { supported: true, flag: "🇫🇮", notes: "(Kugel)" }
+      el: { supported: true, flag: "🇬🇷", notes: "(Kugel)" }
+      he: { supported: true, flag: "🇮🇱", notes: "(Kugel)" }
+      ms: { supported: true, flag: "🇲🇾", notes: "(Kugel)" }
+      nl: { supported: true, flag: "🇳🇱", notes: "(Kugel)" }
+      sv: { supported: true, flag: "🇸🇪", notes: "(Kugel)" }
+      sw: { supported: true, flag: "🇰🇪", notes: "(Kugel)" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: not_used }
+      native_multi_speaker: { supported: true, notes: "(Base only, Kugel uses fallback)" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: false, notes: "" }
+      native_long_form: { supported: true, notes: "" }
+      community_finetunes: { supported: true, notes: "KugelAudio, Hindi" }
+      vram_efficient: { supported: "partial", notes: "(5-18GB)" }
+      speed_performance: { supported: "partial", notes: "" }
+      reference_free_tts: { supported: true, notes: "(zero-shot / default speaker)" }
+
+  - id: higgs-audio-2
+    name: Higgs Audio 2
+    models: "3B"
+    size: "~9GB"
+    license: "Boson Higgs Audio 2 Community License"
+    commercial: "conditional"
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      training: false
+
+    special_features:
+      - "3 multi-speaker"
+      - "CUDA graphs (55+ tokens/sec)"
+
+    runtime_isolation:
+      default_mode: "shared_runtime"
+      supported_modes:
+        - "main_environment"
+        - "shared_runtime"
+      status: "implemented"
+      runtime_profile: "vibevoice_transformers4_shared"
+      notes: "Recommended on modern ComfyUI stacks. Native Transformers 5 path proved unreliable for correct Higgs generation, so the shared legacy T4 runtime is now the supported compatibility path."
+
+    model_sources:
+      - component: "higgs-audio-v2-3B"
+        source_name: "bosonai/higgs-audio-v2-generation-3B-base"
+        source_url: "https://huggingface.co/bosonai/higgs-audio-v2-generation-3B-base"
+        size: "~9GB"
+        auto_download: true
+        notes: "Generation model"
+      - component: "Audio tokenizer"
+        source_name: "bosonai/higgs-audio-v2-tokenizer"
+        source_url: "https://huggingface.co/bosonai/higgs-audio-v2-tokenizer"
+        size: "~200MB"
+        auto_download: true
+        notes: "Tokenizer model"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: true, flag: "🇨🇳", notes: "(Mandarin)" }
+      de: { supported: true, flag: "🇩🇪", notes: "" }
+      es: { supported: true, flag: "🇪🇸", notes: "" }
+      fr: { supported: false, flag: "🇫🇷", notes: "" }
+      it: { supported: false, flag: "🇮🇹", notes: "" }
+      ja: { supported: false, flag: "🇯🇵", notes: "" }
+      ko: { supported: true, flag: "🇰🇷", notes: "" }
+      ru: { supported: false, flag: "🇷🇺", notes: "" }
+      pt: { supported: false, flag: "🇧🇷", notes: "" }
+      pl: { supported: false, flag: "🇵🇱", notes: "" }
+      hi: { supported: false, flag: "🇮🇳", notes: "" }
+      ar: { supported: false, flag: "🇬", notes: "" }
+      tr: { supported: false, flag: "🇹🇷", notes: "" }
+      th: { supported: false, flag: "🇹🇭", notes: "" }
+      no: { supported: false, flag: "🇳🇴", notes: "" }
+      vi: { supported: false, flag: "🇻🇳", notes: "" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: false, flag: "🇩🇰", notes: "" }
+      fi: { supported: false, flag: "🇫🇮", notes: "" }
+      el: { supported: false, flag: "🇬🇷", notes: "" }
+      he: { supported: false, flag: "🇮🇱", notes: "" }
+      ms: { supported: false, flag: "🇲🇾", notes: "" }
+      nl: { supported: false, flag: "🇳🇱", notes: "" }
+      sv: { supported: false, flag: "🇸🇪", notes: "" }
+      sw: { supported: false, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: optional }
+      native_multi_speaker: { supported: true, notes: "" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: "partial", notes: "(via prompt)" }
+      native_long_form: { supported: false, notes: "" }
+      community_finetunes: { supported: false, notes: "" }
+      vram_efficient: { supported: "partial", notes: "(9GB)" }
+      speed_performance: { supported: "partial", notes: "" }
+      reference_free_tts: { supported: true, notes: "(basic TTS if no narrator/reference is provided)" }
+
+  - id: higgs-audio-v3
+    name: Higgs Audio v3
+    models: "4B"
+    size: "~8GB"
+    license: "Boson Higgs Audio v3 Research and Non-Commercial License"
+    commercial: false
+    language_summary_compact: "🌐 100+ languages"
+    language_summary_full: "100+"
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      training: false
+
+    special_features:
+      - "Native inline emotion/style/prosody/SFX tags"
+      - "Zero-shot voice cloning"
+      - "100+ language support"
+    readme_key_features:
+      - "Native inline emotion/style/prosody/SFX tags"
+
+    model_sources:
+      - component: "higgs-audio-v3-tts-4b"
+        source_name: "bosonai/higgs-audio-v3-tts-4b"
+        source_url: "https://huggingface.co/bosonai/higgs-audio-v3-tts-4b"
+        size: "~8GB"
+        auto_download: true
+        notes: "Official 4B multilingual controllable TTS model"
+
+    languages:
+      af: { supported: true, flag: "🇿🇦", notes: "(polished)" }
+      sq: { supported: true, flag: "🇦🇱", notes: "(usable)" }
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      ast: { supported: true, flag: "🇪🇸", notes: "(polished)" }
+      as: { supported: true, flag: "🇮🇳", notes: "(polished)" }
+      zh: { supported: true, flag: "🇨🇳", notes: "" }
+      az: { supported: true, flag: "🇦🇿", notes: "(polished)" }
+      ba: { supported: true, flag: "🇷🇺", notes: "(polished)" }
+      eu: { supported: true, flag: "🇪🇸", notes: "(polished)" }
+      be: { supported: true, flag: "🇧🇾", notes: "(polished)" }
+      bn: { supported: true, flag: "🇧🇩", notes: "(polished)" }
+      bs: { supported: true, flag: "🇧🇦", notes: "(polished)" }
+      bg: { supported: true, flag: "🇧🇬", notes: "(polished)" }
+      ca: { supported: true, flag: "🇪🇸", notes: "(polished)" }
+      ceb: { supported: true, flag: "🇵🇭", notes: "(polished)" }
+      ckb: { supported: true, flag: "🇮🇶", notes: "(polished)" }
+      de: { supported: true, flag: "🇩🇪", notes: "" }
+      es: { supported: true, flag: "🇪🇸", notes: "" }
+      fr: { supported: true, flag: "🇫🇷", notes: "" }
+      it: { supported: true, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "" }
+      ko: { supported: true, flag: "🇰🇷", notes: "" }
+      ru: { supported: true, flag: "🇷🇺", notes: "" }
+      pt: { supported: true, flag: "🇧🇷", notes: "" }
+      pl: { supported: true, flag: "🇵🇱", notes: "" }
+      hi: { supported: true, flag: "🇮🇳", notes: "" }
+      ar: { supported: true, flag: "🇪🇬", notes: "" }
+      hr: { supported: true, flag: "🇭🇷", notes: "(polished)" }
+      cs: { supported: true, flag: "🇨🇿", notes: "(polished)" }
+      tr: { supported: true, flag: "🇹🇷", notes: "" }
+      th: { supported: true, flag: "🇹🇭", notes: "" }
+      no: { supported: true, flag: "🇳🇴", notes: "" }
+      vi: { supported: true, flag: "🇻🇳", notes: "" }
+      hy: { supported: true, flag: "🇦🇲", notes: "" }
+      ka: { supported: true, flag: "🇬🇪", notes: "" }
+      da: { supported: true, flag: "🇩🇰", notes: "" }
+      fi: { supported: true, flag: "🇫🇮", notes: "" }
+      el: { supported: true, flag: "🇬🇷", notes: "" }
+      he: { supported: true, flag: "🇮🇱", notes: "" }
+      ms: { supported: true, flag: "🇲🇾", notes: "" }
+      nl: { supported: true, flag: "🇳🇱", notes: "" }
+      sv: { supported: true, flag: "🇸🇪", notes: "" }
+      sw: { supported: true, flag: "🇰🇪", notes: "" }
+      mhr: { supported: true, flag: "🇷🇺", notes: "(polished)" }
+      eo: { supported: true, flag: "🌍", notes: "(polished)" }
+      et: { supported: true, flag: "🇪🇪", notes: "(polished)" }
+      gl: { supported: true, flag: "🇪🇸", notes: "(polished)" }
+      gu: { supported: true, flag: "🇮🇳", notes: "(polished)" }
+      ht: { supported: true, flag: "🇭🇹", notes: "(polished)" }
+      ha: { supported: true, flag: "🇳🇬", notes: "(polished)" }
+      hu: { supported: true, flag: "🇭🇺", notes: "(polished)" }
+      id: { supported: true, flag: "🇮🇩", notes: "(polished)" }
+      jv: { supported: true, flag: "🇮🇩", notes: "(polished)" }
+      kn: { supported: true, flag: "🇮🇳", notes: "(polished)" }
+      kk: { supported: true, flag: "🇰🇿", notes: "(polished)" }
+      rw: { supported: true, flag: "🇷🇼", notes: "(polished)" }
+      ky: { supported: true, flag: "🇰🇬", notes: "(polished)" }
+      lv: { supported: true, flag: "🇱🇻", notes: "(polished)" }
+      ln: { supported: true, flag: "🇨🇩", notes: "(polished)" }
+      lt: { supported: true, flag: "🇱🇹", notes: "(polished)" }
+      luo: { supported: true, flag: "🇰🇪", notes: "(polished)" }
+      mk: { supported: true, flag: "🇲🇰", notes: "(polished)" }
+      ml: { supported: true, flag: "🇮🇳", notes: "(polished)" }
+      mt: { supported: true, flag: "🇲🇹", notes: "(polished)" }
+      mi: { supported: true, flag: "🇳🇿", notes: "(polished)" }
+      mr: { supported: true, flag: "🇮🇳", notes: "(polished)" }
+      mn: { supported: true, flag: "🇲🇳", notes: "(polished)" }
+      ne: { supported: true, flag: "🇳🇵", notes: "(polished)" }
+      oc: { supported: true, flag: "🇫🇷", notes: "(polished)" }
+      fa: { supported: true, flag: "🇮🇷", notes: "(polished)" }
+      ro: { supported: true, flag: "🇷🇴", notes: "(polished)" }
+      nso: { supported: true, flag: "🇿🇦", notes: "(polished)" }
+      sr: { supported: true, flag: "🇷🇸", notes: "(polished)" }
+      sn: { supported: true, flag: "🇿🇼", notes: "(polished)" }
+      sk: { supported: true, flag: "🇸🇰", notes: "(polished)" }
+      sl: { supported: true, flag: "🇸🇮", notes: "(polished)" }
+      tl: { supported: true, flag: "🇵🇭", notes: "(polished)" }
+      tg: { supported: true, flag: "🇹🇯", notes: "(polished)" }
+      ta: { supported: true, flag: "🇮🇳", notes: "(polished)" }
+      te: { supported: true, flag: "🇮🇳", notes: "(polished)" }
+      uk: { supported: true, flag: "🇺🇦", notes: "(polished)" }
+      ur: { supported: true, flag: "🇵🇰", notes: "(polished)" }
+      ug: { supported: true, flag: "🇨🇳", notes: "(polished)" }
+      uz: { supported: true, flag: "🇺🇿", notes: "(polished)" }
+      xh: { supported: true, flag: "🇿🇦", notes: "(polished)" }
+      zu: { supported: true, flag: "🇿🇦", notes: "(polished)" }
+      ny: { supported: true, flag: "🇲🇼", notes: "(usable)" }
+      pa: { supported: true, flag: "🇮🇳", notes: "(usable)" }
+      lg: { supported: true, flag: "🇺🇬", notes: "(usable)" }
+      is: { supported: true, flag: "🇮🇸", notes: "(usable)" }
+      ga: { supported: true, flag: "🇮🇪", notes: "(usable)" }
+      kab: { supported: true, flag: "🇩🇿", notes: "(usable)" }
+      kea: { supported: true, flag: "🇨🇻", notes: "(usable)" }
+      kam: { supported: true, flag: "🇰🇪", notes: "(usable)" }
+      la: { supported: true, flag: "🇻🇦", notes: "(usable)" }
+      lb: { supported: true, flag: "🇱🇺", notes: "(usable)" }
+      om: { supported: true, flag: "🇪🇹", notes: "(usable)" }
+      ps: { supported: true, flag: "🇦🇫", notes: "(usable)" }
+      sd: { supported: true, flag: "🇵🇰", notes: "(usable)" }
+      so: { supported: true, flag: "🇸🇴", notes: "(usable)" }
+      umb: { supported: true, flag: "🇦🇴", notes: "(usable)" }
+      cy: { supported: true, flag: "🏴", notes: "(usable)" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: optional }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: true, notes: "(native inline tags)" }
+      native_long_form: { supported: false, notes: "(chunked best-effort)" }
+      community_finetunes: { supported: false, notes: "" }
+      vram_efficient: { supported: "partial", notes: "(~8-10GB)" }
+      speed_performance: { supported: "partial", notes: "CUDA recommended" }
+      reference_free_tts: { supported: true, notes: "(zero-shot)" }
+
+  - id: indextts-2
+    name: IndexTTS-2
+    models: "IndexTTS-2"
+    size: "~4.7GB"
+    license: "bilibili Model Use License"
+    commercial: "conditional"
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      training: false
+
+    special_features:
+      - "Emotion Control: 8 vectors"
+      - "Text as reference"
+      - "Audio as reference"
+
+    model_sources:
+      - component: "IndexTTS-2"
+        source_name: "IndexTeam/IndexTTS-2"
+        source_url: "https://huggingface.co/IndexTeam/IndexTTS-2"
+        size: "Multiple files"
+        auto_download: true
+        notes: "Main TTS engine"
+      - component: "w2v-bert-2.0"
+        source_name: "facebook/w2v-bert-2.0"
+        source_url: "https://huggingface.co/facebook/w2v-bert-2.0"
+        size: "~2GB"
+        auto_download: true
+        notes: "Semantic feature extractor"
+      - component: "qwen0.6bemo4-merge"
+        source_name: "Included with IndexTTS-2"
+        size: "Included"
+        auto_download: true
+        notes: "Text emotion model bundle"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: true, flag: "🇨🇳", notes: "" }
+      de: { supported: false, flag: "🇩🇪", notes: "" }
+      es: { supported: false, flag: "🇪🇸", notes: "" }
+      fr: { supported: false, flag: "🇫🇷", notes: "" }
+      it: { supported: false, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "?" }
+      ko: { supported: false, flag: "🇰🇷", notes: "" }
+      ru: { supported: false, flag: "🇷🇺", notes: "" }
+      pt: { supported: false, flag: "🇧🇷", notes: "" }
+      pl: { supported: false, flag: "🇵🇱", notes: "" }
+      hi: { supported: false, flag: "🇮🇳", notes: "" }
+      ar: { supported: false, flag: "��", notes: "" }
+      tr: { supported: false, flag: "🇹🇷", notes: "" }
+      th: { supported: false, flag: "🇹🇭", notes: "" }
+      no: { supported: false, flag: "🇳🇴", notes: "" }
+      vi: { supported: false, flag: "🇻🇳", notes: "" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: false, flag: "🇩🇰", notes: "" }
+      fi: { supported: false, flag: "🇫🇮", notes: "" }
+      el: { supported: false, flag: "🇬🇷", notes: "" }
+      he: { supported: false, flag: "🇮🇱", notes: "" }
+      ms: { supported: false, flag: "🇲🇾", notes: "" }
+      nl: { supported: false, flag: "🇳🇱", notes: "" }
+      sv: { supported: false, flag: "🇸🇪", notes: "" }
+      sw: { supported: false, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: not_used }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: true, notes: "(8 emotions)" }
+      native_long_form: { supported: false, notes: "" }
+      community_finetunes: { supported: false, notes: "" }
+      vram_efficient: { supported: "partial", notes: "(9-12GB)" }
+      speed_performance: { supported: "partial", notes: "" }
+      reference_free_tts: { supported: false, notes: "" }
+
+  - id: cosyvoice3
+    name: CosyVoice3
+    models: "0.5B, 0.5B-RL"
+    size: "~5.4GB"
+    license: "Apache-2.0"
+    commercial: true
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: true
+      asr: false
+      training: false
+
+    special_features:
+      - "Paralinguistic tags"
+
+    model_sources:
+      - component: "Fun-CosyVoice3-0.5B / 0.5B-RL"
+        source_name: "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+        source_url: "https://huggingface.co/FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
+        size: "~5.4GB first variant (+~2GB second)"
+        auto_download: true
+        notes: "Both variants share common files"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: true, flag: "🇨🇳", notes: "+ 18 dialects" }
+      de: { supported: false, flag: "🇩🇪", notes: "" }
+      es: { supported: false, flag: "🇪🇸", notes: "" }
+      fr: { supported: false, flag: "🇫🇷", notes: "" }
+      it: { supported: false, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "" }
+      ko: { supported: true, flag: "🇰🇷", notes: "" }
+      ru: { supported: false, flag: "🇷🇺", notes: "" }
+      pt: { supported: false, flag: "🇧🇷", notes: "" }
+      pl: { supported: false, flag: "🇵🇱", notes: "" }
+      hi: { supported: false, flag: "🇮🇳", notes: "" }
+      ar: { supported: false, flag: "🇪🇬", notes: "" }
+      tr: { supported: false, flag: "🇹🇷", notes: "" }
+      th: { supported: false, flag: "🇹🇭", notes: "" }
+      no: { supported: false, flag: "🇳🇴", notes: "" }
+      vi: { supported: false, flag: "🇻🇳", notes: "" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: false, flag: "🇩🇰", notes: "" }
+      fi: { supported: false, flag: "🇫🇮", notes: "" }
+      el: { supported: false, flag: "🇬🇷", notes: "" }
+      he: { supported: false, flag: "🇮🇱", notes: "" }
+      ms: { supported: false, flag: "🇲🇾", notes: "" }
+      nl: { supported: false, flag: "🇳🇱", notes: "" }
+      sv: { supported: false, flag: "🇸🇪", notes: "" }
+      sw: { supported: false, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: conditional }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: true, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: "partial", notes: "(via instruct)" }
+      native_long_form: { supported: false, notes: "" }
+      community_finetunes: { supported: false, notes: "" }
+      vram_efficient: { supported: true, notes: "(5.4GB)" }
+      speed_performance: { supported: true, notes: "Fast" }
+      reference_free_tts: { supported: true, notes: "(cross-lingual or instruct mode)" }
+
+  - id: qwen3-tts
+    name: Qwen3-TTS
+    models: "0.6B, 1.7B (CustomVoice/VoiceDesign/Base)"
+    size: "~3-6GB"
+    license: "Apache-2.0"
+    commercial: true
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: true
+      voice_design: true
+      training: false
+
+    special_features:
+      - "Voice design"
+      - "ASR (Automatic Speech Recognition)"
+
+    runtime_isolation:
+      default_mode: "shared_runtime"
+      supported_modes:
+        - "main_environment"
+        - "shared_runtime"
+        - "dedicated_runtime"
+      status: "implemented"
+      runtime_profile: "vibevoice_transformers4_shared"
+      dedicated_profile: "qwen3_tts_transformers4_dedicated"
+      notes: "Recommended on modern ComfyUI stacks because Qwen3-TTS, Qwen3-ASR, and the reused Qwen forced aligner currently rely on the shared legacy T4 runtime for stable operation."
+
+    model_sources:
+      - component: "CustomVoice 0.6B"
+        source_name: "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
+        source_url: "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice"
+        size: "~1.5GB"
+        auto_download: true
+        notes: "Preset voices + instructions"
+      - component: "CustomVoice 1.7B"
+        source_name: "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
+        source_url: "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
+        size: "~4.2GB"
+        auto_download: true
+        notes: "Preset voices + instructions"
+      - component: "VoiceDesign 1.7B"
+        source_name: "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+        source_url: "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+        size: "~4.2GB"
+        auto_download: true
+        notes: "Text-to-voice design model"
+      - component: "Base 0.6B"
+        source_name: "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+        source_url: "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+        size: "~1.5GB"
+        auto_download: true
+        notes: "Zero-shot voice cloning"
+      - component: "Base 1.7B"
+        source_name: "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+        source_url: "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+        size: "~4.2GB"
+        auto_download: true
+        notes: "Zero-shot voice cloning"
+      - component: "Qwen3-ASR-1.7B"
+        source_name: "Qwen/Qwen3-ASR-1.7B"
+        source_url: "https://huggingface.co/Qwen/Qwen3-ASR-1.7B"
+        size: "N/A"
+        auto_download: true
+        notes: "ASR transcribe model"
+      - component: "Qwen3-ForcedAligner-0.6B"
+        source_name: "Qwen/Qwen3-ForcedAligner-0.6B"
+        source_url: "https://huggingface.co/Qwen/Qwen3-ForcedAligner-0.6B"
+        size: "N/A"
+        auto_download: true
+        notes: "Word-level timestamps"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: true, flag: "🇨🇳", notes: "" }
+      de: { supported: true, flag: "🇩🇪", notes: "" }
+      es: { supported: true, flag: "🇪🇸", notes: "" }
+      fr: { supported: true, flag: "🇫🇷", notes: "" }
+      it: { supported: true, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "" }
+      ko: { supported: true, flag: "🇰🇷", notes: "" }
+      ru: { supported: true, flag: "🇷🇺", notes: "" }
+      pt: { supported: true, flag: "🇵🇹", notes: "(EU/BR*)" }
+      pl: { supported: false, flag: "🇵🇱", notes: "" }
+      hi: { supported: false, flag: "🇮🇳", notes: "" }
+      ar: { supported: false, flag: "🇬", notes: "" }
+      tr: { supported: false, flag: "🇹🇷", notes: "" }
+      th: { supported: false, flag: "🇹🇭", notes: "" }
+      no: { supported: false, flag: "🇳🇴", notes: "" }
+      vi: { supported: false, flag: "🇻🇳", notes: "" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: false, flag: "🇩🇰", notes: "" }
+      fi: { supported: false, flag: "🇫🇮", notes: "" }
+      el: { supported: false, flag: "🇬🇷", notes: "" }
+      he: { supported: false, flag: "🇮🇱", notes: "" }
+      ms: { supported: false, flag: "🇲🇾", notes: "" }
+      nl: { supported: false, flag: "🇳🇱", notes: "" }
+      sv: { supported: false, flag: "🇸🇪", notes: "" }
+      sw: { supported: false, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: true, notes: "(Base model)" }
+      reference_transcript: { requirement: conditional }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: true, notes: "" }
+      emotion_control: { supported: "partial", notes: "(via instruct)" }
+      native_long_form: { supported: false, notes: "" }
+      community_finetunes: { supported: false, notes: "" }
+      vram_efficient: { supported: true, notes: "(3-6GB)" }
+      speed_performance: { supported: "partial", notes: "" }
+      reference_free_tts: { supported: true, notes: "(Base default voice or CustomVoice presets)" }
+
+  - id: granite-asr
+    name: Granite ASR
+    models: "granite-4.0-1b-speech, granite-speech-4.1-2b, granite-speech-4.1-2b-plus"
+    size: "~4.6GB"
+    license: "Apache-2.0"
+    commercial: true
+
+    capabilities:
+      tts: false
+      srt: true
+      vc: false
+      asr: true
+      training: false
+
+    special_features:
+      - "Native speaker attribution / diarization (plus model variant)"
+      - "Native word-level timestamps (plus model variant)"
+      - "ASR (Automatic Speech Recognition)"
+      - "Custom timestamps/SRT via reused Qwen forced aligner"
+      - "Speech translation (experimental)"
+      - "Optional forced aligner auto-routed through shared legacy T4 runtime"
+
+    model_sources:
+      - component: "granite-4.0-1b-speech"
+        source_name: "ibm-granite/granite-4.0-1b-speech"
+        source_url: "https://huggingface.co/ibm-granite/granite-4.0-1b-speech"
+        size: "~4.6GB"
+        auto_download: true
+        notes: "Main Granite ASR / AST model"
+      - component: "granite-speech-4.1-2b"
+        source_name: "ibm-granite/granite-speech-4.1-2b"
+        source_url: "https://huggingface.co/ibm-granite/granite-speech-4.1-2b"
+        size: "~4.6GB"
+        auto_download: true
+        notes: "Granite Speech 4.1 2B multilingual model (supports Japanese)"
+      - component: "granite-speech-4.1-2b-plus"
+        source_name: "ibm-granite/granite-speech-4.1-2b-plus"
+        source_url: "https://huggingface.co/ibm-granite/granite-speech-4.1-2b-plus"
+        size: "~4.6GB"
+        auto_download: true
+        notes: "Plus variant supporting native speaker diarization and word-level timestamps"
+      - component: "Qwen3-ForcedAligner-0.6B"
+        source_name: "Qwen/Qwen3-ForcedAligner-0.6B"
+        source_url: "https://huggingface.co/Qwen/Qwen3-ForcedAligner-0.6B"
+        size: "N/A"
+        auto_download: true
+        notes: "Optional custom word-level timestamps/SRT path; reused from Qwen folder"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: false, flag: "🇨🇳", notes: "" }
+      de: { supported: true, flag: "🇩🇪", notes: "" }
+      es: { supported: true, flag: "🇪🇸", notes: "" }
+      fr: { supported: true, flag: "🇫🇷", notes: "" }
+      it: { supported: false, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "(4.1-2b supports Japanese; plus variant does not)" }
+      ko: { supported: false, flag: "🇰🇷", notes: "" }
+      ru: { supported: false, flag: "🇷🇺", notes: "" }
+      pt: { supported: true, flag: "🇵🇹", notes: "" }
+      pl: { supported: false, flag: "🇵🇱", notes: "" }
+      hi: { supported: false, flag: "🇮🇳", notes: "" }
+      ar: { supported: false, flag: "🇪🇬", notes: "" }
+      tr: { supported: false, flag: "🇹🇷", notes: "" }
+      th: { supported: false, flag: "🇹🇭", notes: "" }
+      no: { supported: false, flag: "🇳🇴", notes: "" }
+      vi: { supported: false, flag: "🇻🇳", notes: "" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: false, flag: "🇩🇰", notes: "" }
+      fi: { supported: false, flag: "🇫🇮", notes: "" }
+      el: { supported: false, flag: "🇬🇷", notes: "" }
+      he: { supported: false, flag: "🇮🇱", notes: "" }
+      ms: { supported: false, flag: "🇲🇾", notes: "" }
+      nl: { supported: false, flag: "🇳🇱", notes: "" }
+      sv: { supported: false, flag: "🇸🇪", notes: "" }
+      sw: { supported: false, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: false, notes: "" }
+      reference_transcript: { requirement: not_applicable }
+      native_multi_speaker: { supported: "partial", notes: "(Plus variant speaker attribution / diarization)" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: true, notes: "" }
+      emotion_control: { supported: false, notes: "" }
+      native_long_form: { supported: false, notes: "" }
+      community_finetunes: { supported: false, notes: "" }
+      vram_efficient: { supported: true, notes: "(~4.6GB)" }
+      speed_performance: { supported: "partial", notes: "Moderate" }
+      reference_free_tts: { supported: null, notes: "N/A" }
+
+  - id: step-editx
+    name: Step Audio EditX
+    models: "3B LLM + CosyVoice"
+    size: "~7GB"
+    license: "Apache-2.0 (verify before commercial use)"
+    commercial: "conditional"
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      training: false
+
+    special_features:
+      - "Second Pass Speech Editing Node: 14 emotions"
+      - "32 speaking styles"
+      - "Paralinguistic effects"
+      - "Selectable main, shared, or dedicated Python runtime (shared Transformers 4 runtime recommended)"
+
+    model_sources:
+      - component: "Step-Audio-EditX"
+        source_name: "stepfun-ai/Step-Audio-EditX"
+        source_url: "https://huggingface.co/stepfun-ai/Step-Audio-EditX"
+        size: "~7GB"
+        auto_download: true
+        notes: "Main 3B audio editing model"
+      - component: "Step-Audio-Tokenizer"
+        source_name: "stepfun-ai/Step-Audio-Tokenizer"
+        source_url: "https://huggingface.co/stepfun-ai/Step-Audio-Tokenizer"
+        size: "Included"
+        auto_download: true
+        notes: "Tokenizer bundle used by Step EditX"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: true, flag: "🇨🇳", notes: "(Mandarin + Sichuanese, Cantonese)" }
+      de: { supported: false, flag: "🇩🇪", notes: "" }
+      es: { supported: false, flag: "🇪🇸", notes: "" }
+      fr: { supported: false, flag: "🇫🇷", notes: "" }
+      it: { supported: false, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "" }
+      ko: { supported: true, flag: "🇰🇷", notes: "" }
+      ru: { supported: false, flag: "🇷🇺", notes: "" }
+      pt: { supported: false, flag: "🇧🇷", notes: "" }
+      pl: { supported: false, flag: "🇵🇱", notes: "" }
+      hi: { supported: false, flag: "🇮🇳", notes: "" }
+      ar: { supported: false, flag: "��", notes: "" }
+      tr: { supported: false, flag: "🇹🇷", notes: "" }
+      th: { supported: false, flag: "🇹🇭", notes: "" }
+      no: { supported: false, flag: "🇳🇴", notes: "" }
+      vi: { supported: false, flag: "🇻🇳", notes: "" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: false, flag: "🇩🇰", notes: "" }
+      fi: { supported: false, flag: "🇫🇮", notes: "" }
+      el: { supported: false, flag: "🇬🇷", notes: "" }
+      he: { supported: false, flag: "🇮🇱", notes: "" }
+      ms: { supported: false, flag: "🇲🇾", notes: "" }
+      nl: { supported: false, flag: "🇳🇱", notes: "" }
+      sv: { supported: false, flag: "🇸🇪", notes: "" }
+      sw: { supported: false, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: required }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: true, notes: "(14 emotions)" }
+      native_long_form: { supported: false, notes: "" }
+      community_finetunes: { supported: false, notes: "" }
+      vram_efficient: { supported: "partial", notes: "(7GB)" }
+      speed_performance: { supported: "partial", notes: "" }
+      reference_free_tts: { supported: false, notes: "(clone mode only)" }
+
+  - id: echo-tts
+    name: Echo-TTS
+    models: "echo-tts-base + fish-s1-dac-min"
+    size: "~5.3GB + ~1.8GB"
+    license: "CC-BY-NC-SA-4.0"
+    commercial: false
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      training: false
+
+    special_features:
+      - "Diffusion-based (~30s best)"
+      - "Force Speaker KV (speaker drift control)"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: false, flag: "🇨🇳", notes: "" }
+      de: { supported: false, flag: "🇩🇪", notes: "" }
+      es: { supported: false, flag: "🇪🇸", notes: "" }
+      fr: { supported: false, flag: "🇫🇷", notes: "" }
+      it: { supported: false, flag: "🇮🇹", notes: "" }
+      ja: { supported: false, flag: "🇯🇵", notes: "" }
+      ko: { supported: false, flag: "🇰🇷", notes: "" }
+      ru: { supported: false, flag: "🇷🇺", notes: "" }
+      pt: { supported: false, flag: "🇧🇷", notes: "" }
+      pl: { supported: false, flag: "🇵🇱", notes: "" }
+      hi: { supported: false, flag: "🇮🇳", notes: "" }
+      ar: { supported: false, flag: "🇦🇪", notes: "" }
+      tr: { supported: false, flag: "🇹🇷", notes: "" }
+      th: { supported: false, flag: "🇹🇭", notes: "" }
+      no: { supported: false, flag: "🇳🇴", notes: "" }
+      vi: { supported: false, flag: "🇻🇳", notes: "" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: false, flag: "🇩🇰", notes: "" }
+      fi: { supported: false, flag: "🇫🇮", notes: "" }
+      el: { supported: false, flag: "🇬🇷", notes: "" }
+      he: { supported: false, flag: "🇮🇱", notes: "" }
+      ms: { supported: false, flag: "🇲🇾", notes: "" }
+      nl: { supported: false, flag: "🇳🇱", notes: "" }
+      sv: { supported: false, flag: "🇸🇪", notes: "" }
+      sw: { supported: false, flag: "🇰🇪", notes: "" }
+
+    model_sources:
+      - component: "echo-tts-base (model + PCA state)"
+        source_name: "jordand/echo-tts-base"
+        source_url: "https://huggingface.co/jordand/echo-tts-base"
+        size: "~5.3GB"
+        auto_download: true
+        notes: "pytorch_model.safetensors + pca_state.safetensors"
+      - component: "fish-s1-dac-min (audio codec)"
+        source_name: "jordand/fish-s1-dac-min"
+        source_url: "https://huggingface.co/jordand/fish-s1-dac-min"
+        size: "~1.8GB"
+        auto_download: true
+        notes: "pytorch_model.safetensors — audio codec required by Echo-TTS"
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: not_used }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: false, notes: "" }
+      native_long_form: { supported: false, notes: "(chunked best-effort)" }
+      community_finetunes: { supported: false, notes: "" }
+      vram_efficient: { supported: "partial", notes: "(~7GB total)" }
+      speed_performance: { supported: true, notes: "Fast (diffusion, realtime-capable)" }
+      reference_free_tts: { supported: false, notes: "(reference audio required)" }
+
+  - id: fish-audio-s2-pro
+    name: Fish Audio S2 Pro
+    models: "S2 Pro 4B / FP8"
+    size: "~10.3GB / ~8.0GB"
+    license: "Fish Audio Research License"
+    commercial: false
+    language_summary_full: "80+ languages"
+    language_summary_compact: "🌐 80+ languages"
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      training: false
+
+    runtime_isolation:
+      default_mode: "main_environment"
+      main_environment: true
+      shared_runtime: false
+      dedicated_runtime: false
+
+    special_features:
+      - "Free-form sub-word emotion/prosody tags"
+      - "Native multi-speaker and multi-turn dialogue with dynamic speaker references"
+      - "Zero-shot voice cloning"
+      - "Optional per-segment custom character switching"
+      - "Configurable 4K-32K native context with reduced KV-cache VRAM"
+      - "Optional community FP8 weight-only checkpoint with BF16 activations"
+      - "Optional on-the-fly BitsAndBytes INT8/NF4 for the official checkpoint"
+
+    model_sources:
+      - component: "S2 Pro"
+        source_name: "fishaudio/s2-pro"
+        source_url: "https://huggingface.co/fishaudio/s2-pro"
+        size: "~10.3GB"
+        auto_download: true
+        notes: "Official 4B model and codec; BNB INT8/NF4 are optional load-time quantization modes that reuse these files; non-commercial license"
+      - component: "S2 Pro FP8"
+        source_name: "drbaph/s2-pro-fp8"
+        source_url: "https://huggingface.co/drbaph/s2-pro-fp8"
+        size: "~8.0GB"
+        auto_download: true
+        notes: "Community weight-only FP8 checkpoint; BF16 activations; RTX 4090/5090-class CUDA GPU required"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "Tier 1" }
+      zh: { supported: true, flag: "🇨🇳", notes: "Tier 1" }
+      ja: { supported: true, flag: "🇯🇵", notes: "Tier 1" }
+      ko: { supported: true, flag: "🇰🇷", notes: "Tier 2" }
+      es: { supported: true, flag: "🇪🇸", notes: "Tier 2" }
+      pt: { supported: true, flag: "🇵🇹", notes: "Tier 2" }
+      ar: { supported: true, flag: "🇦🇪", notes: "Tier 2" }
+      ru: { supported: true, flag: "🇷🇺", notes: "Tier 2" }
+      fr: { supported: true, flag: "🇫🇷", notes: "Tier 2" }
+      de: { supported: true, flag: "🇩🇪", notes: "Tier 2" }
+
+    features:
+      voice_cloning: { supported: true, notes: "Reference audio plus exact transcript" }
+      reference_transcript: { requirement: required }
+      native_multi_speaker: { supported: true, notes: "Native dialogue is default; optional custom mode generates each [Character] segment independently as local speaker 0" }
+      voice_conversion: { supported: false, notes: "Not exposed by official S2 TTS inference" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: true, notes: "Free-form inline natural-language tags" }
+      native_long_form: { supported: true, notes: "Configurable 4K-32K native context; suite text chunking is bypassed" }
+      community_finetunes: { supported: false, notes: "No suite integration" }
+      vram_efficient: { supported: "partial", notes: "8K context measured at ~15.2GB BF16, ~11.2GB FP8, ~11.2GB BNB INT8, or ~8.9GB BNB NF4; BF16 codec and activations; BNB is a load-time option for the official checkpoint" }
+      speed_performance: { supported: true, notes: "Main-environment subprocess with reliable teardown; local compile measurements: ~40 it/s BF16, ~11.8 it/s NF4 at ~8.9GB VRAM, and ~3.7 it/s INT8 at ~11.2GB VRAM; quality comparison pending" }
+      reference_free_tts: { supported: true, notes: "Reference audio is optional" }
+
+  - id: dots-tts
+    name: Dots TTS
+    models: "dots.tts-base, dots.tts-soar, dots.tts-mf"
+    size: "~6GB"
+    license: "Apache-2.0"
+    commercial: true
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      training: false
+
+    special_features:
+      - "Official auto language detect / language control"
+      - "SOAR and MeanFlow distilled variants"
+
+    model_sources:
+      - component: "dots.tts-base"
+        source_name: "rednote-hilab/dots.tts-base"
+        source_url: "https://huggingface.co/rednote-hilab/dots.tts-base"
+        size: "~6GB"
+        auto_download: true
+        notes: "Official base checkpoint with tokenizer, vocoder, speaker encoder, and latent stats"
+      - component: "dots.tts-soar"
+        source_name: "rednote-hilab/dots.tts-soar"
+        source_url: "https://huggingface.co/rednote-hilab/dots.tts-soar"
+        size: "~6GB"
+        auto_download: true
+        notes: "Official SOAR checkpoint for higher-quality zero-shot cloning"
+      - component: "dots.tts-mf"
+        source_name: "rednote-hilab/dots.tts-mf"
+        source_url: "https://huggingface.co/rednote-hilab/dots.tts-mf"
+        size: "~6GB"
+        auto_download: true
+        notes: "Official MeanFlow-distilled checkpoint for faster inference"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: true, flag: "🇨🇳", notes: "(Mandarin; official also exposes YUE separately outside this matrix)" }
+      de: { supported: true, flag: "🇩🇪", notes: "" }
+      es: { supported: true, flag: "🇪🇸", notes: "" }
+      fr: { supported: true, flag: "🇫🇷", notes: "" }
+      it: { supported: true, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "" }
+      ko: { supported: true, flag: "🇰🇷", notes: "" }
+      ru: { supported: true, flag: "🇷🇺", notes: "" }
+      pt: { supported: true, flag: "🇵🇹", notes: "(Official PT tag is generic; upstream does not expose separate PT-BR/PT-PT tags and it may lean more European Portuguese than Brazilian Portuguese)" }
+      pl: { supported: true, flag: "🇵🇱", notes: "" }
+      hi: { supported: true, flag: "🇮🇳", notes: "" }
+      ar: { supported: true, flag: "🇦🇪", notes: "" }
+      tr: { supported: true, flag: "🇹🇷", notes: "" }
+      th: { supported: true, flag: "🇹🇭", notes: "" }
+      no: { supported: false, flag: "🇳🇴", notes: "" }
+      vi: { supported: true, flag: "🇻🇳", notes: "" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: false, flag: "🇩🇰", notes: "" }
+      fi: { supported: true, flag: "🇫🇮", notes: "" }
+      el: { supported: true, flag: "🇬🇷", notes: "" }
+      he: { supported: false, flag: "🇮🇱", notes: "" }
+      ms: { supported: false, flag: "🇲🇾", notes: "" }
+      nl: { supported: true, flag: "🇳🇱", notes: "" }
+      sv: { supported: false, flag: "🇸🇪", notes: "" }
+      sw: { supported: false, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: optional }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: false, notes: "" }
+      native_long_form: { supported: false, notes: "(use suite chunking)" }
+      community_finetunes: { supported: false, notes: "" }
+      vram_efficient: { supported: "partial", notes: "(main env works; 2B-class model is not lightweight)" }
+      speed_performance: { supported: "partial", notes: "Moderate; mf variant is faster" }
+      reference_free_tts: { supported: true, notes: "(default speaker)" }
+
+  - id: dramabox
+    name: DramaBox
+    models: "DramaBox 3.3B"
+    size: "~16.4GB"
+    license: "LTX-2 Community License"
+    commercial: conditional
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      training: false
+
+    special_features:
+      - "Expressive scene prompting and stage directions"
+      - "Native and SRT-aware duration targeting"
+      - "Official duration-aware long-form chunking with scene-prefix preservation"
+      - "Optional 10-second zero-shot voice reference"
+      - "CFG negative prompt with per-segment switching"
+      - "Explicit generation/reference durations, CFG rescale control, and optional Perth watermark"
+      - "Experimental staged and sequential strategies for lowering peak VRAM; official LTX FP8-cast storage"
+      - "Optional official torch.compile path"
+
+    model_sources:
+      - component: "DramaBox DiT + audio components"
+        source_name: "ResembleAI/Dramabox"
+        source_url: "https://huggingface.co/ResembleAI/Dramabox"
+        size: "~8.5GB"
+        auto_download: true
+        notes: "Official merged DramaBox transformer and LTX audio VAE/vocoder components"
+      - component: "Gemma 3 12B 4-bit text encoder"
+        source_name: "unsloth/gemma-3-12b-it-bnb-4bit"
+        source_url: "https://huggingface.co/unsloth/gemma-3-12b-it-bnb-4bit"
+        size: "~7.8GB"
+        auto_download: true
+        notes: "Official pre-quantized text encoder; loaded locally with no HF cache fallback"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "Official model is English-only" }
+      zh: { supported: false, flag: "🇨🇳", notes: "" }
+      de: { supported: false, flag: "🇩🇪", notes: "" }
+      es: { supported: false, flag: "🇪🇸", notes: "" }
+      fr: { supported: false, flag: "🇫🇷", notes: "" }
+      it: { supported: false, flag: "🇮🇹", notes: "" }
+      ja: { supported: false, flag: "🇯🇵", notes: "" }
+      ko: { supported: false, flag: "🇰🇷", notes: "" }
+      ru: { supported: false, flag: "🇷🇺", notes: "" }
+      pt: { supported: false, flag: "🇵🇹", notes: "" }
+      pl: { supported: false, flag: "🇵🇱", notes: "" }
+      hi: { supported: false, flag: "🇮🇳", notes: "" }
+      ar: { supported: false, flag: "🇦🇪", notes: "" }
+      tr: { supported: false, flag: "🇹🇷", notes: "" }
+      th: { supported: false, flag: "🇹🇭", notes: "" }
+      no: { supported: false, flag: "🇳🇴", notes: "" }
+      vi: { supported: false, flag: "🇻🇳", notes: "" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: false, flag: "🇩🇰", notes: "" }
+      fi: { supported: false, flag: "🇫🇮", notes: "" }
+      el: { supported: false, flag: "🇬🇷", notes: "" }
+      he: { supported: false, flag: "🇮🇱", notes: "" }
+      ms: { supported: false, flag: "🇲🇾", notes: "" }
+      nl: { supported: false, flag: "🇳🇱", notes: "" }
+      sv: { supported: false, flag: "🇸🇪", notes: "" }
+      sw: { supported: false, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: true, notes: "Optional reference audio; configurable 3-30 second window from the beginning of the source, default 10 seconds" }
+      reference_transcript: { requirement: not_used }
+      native_multi_speaker: { supported: false, notes: "Suite character switching generates speakers as separate segments" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: true, notes: "Natural-language scene prompt and stage directions" }
+      native_long_form: { supported: true, notes: "Official duration-aware quote-group chunking; ~37s target / 45s cap" }
+      native_srt_duration_targeting: { supported: true, notes: "Subtitle duration is passed as gen_duration before the selected SRT timing mode applies final correction" }
+      community_finetunes: { supported: false, notes: "Not integrated" }
+      vram_efficient: { supported: true, notes: "Fast mode is ~24GB; experimental FP8 peaks on RTX 4090: staged ~15.1GB allocated, sequential ~11.7GB allocated / ~12.4GB reserved" }
+      speed_performance: { supported: "partial", notes: "Fast favors repeated generation; staged reloads temporary components; sequential also transfers the transformer; optional block-level torch.compile accelerates repeat denoising" }
+      reference_free_tts: { supported: true, notes: "Voice reference is optional" }
+
+  - id: omnivoice
+    name: OmniVoice
+    models: "OmniVoice"
+    size: "~3.7GB"
+    license: "Apache-2.0"
+    commercial: true
+    language_summary_compact: "🌐 600+ languages"
+    language_summary_full: "600+"
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      voice_design: true
+      training: false
+
+    special_features:
+      - "Inline non-verbal tags and pronunciation overrides"
+      - "Reference-free voice design"
+      - "600+ language support"
+      - "Upstream long-form chunk orchestration"
+
+    model_sources:
+      - component: "OmniVoice"
+        source_name: "k2-fsa/OmniVoice"
+        source_url: "https://huggingface.co/k2-fsa/OmniVoice"
+        size: "~3.7GB"
+        auto_download: true
+        notes: "Official main model including bundled audio_tokenizer assets"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: true, flag: "🇨🇳", notes: "" }
+      de: { supported: true, flag: "🇩🇪", notes: "" }
+      es: { supported: true, flag: "🇪🇸", notes: "" }
+      fr: { supported: true, flag: "🇫🇷", notes: "" }
+      it: { supported: true, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "" }
+      ko: { supported: true, flag: "🇰🇷", notes: "" }
+      ru: { supported: true, flag: "🇷🇺", notes: "" }
+      pt: { supported: true, flag: "🇵🇹", notes: "(generic PT; official language space is much broader than this matrix)" }
+      pl: { supported: true, flag: "🇵🇱", notes: "" }
+      hi: { supported: true, flag: "🇮🇳", notes: "" }
+      ar: { supported: true, flag: "🇦🇪", notes: "" }
+      tr: { supported: true, flag: "🇹🇷", notes: "" }
+      th: { supported: true, flag: "🇹🇭", notes: "" }
+      no: { supported: true, flag: "🇳🇴", notes: "" }
+      vi: { supported: true, flag: "🇻🇳", notes: "" }
+      hy: { supported: true, flag: "🇦🇲", notes: "" }
+      ka: { supported: true, flag: "🇬🇪", notes: "" }
+      da: { supported: true, flag: "🇩🇰", notes: "" }
+      fi: { supported: true, flag: "🇫🇮", notes: "" }
+      el: { supported: true, flag: "🇬🇷", notes: "" }
+      he: { supported: true, flag: "🇮🇱", notes: "" }
+      ms: { supported: true, flag: "🇲🇾", notes: "" }
+      nl: { supported: true, flag: "🇳🇱", notes: "" }
+      sv: { supported: true, flag: "🇸🇪", notes: "" }
+      sw: { supported: true, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: required }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "(no standalone ASR node)" }
+      emotion_control: { supported: "partial", notes: "(voice-design instruct + inline non-verbal tags)" }
+      native_long_form: { supported: true, notes: "(uses upstream audio_chunk_duration / audio_chunk_threshold orchestration; bypasses suite char-based chunk splitting)" }
+      community_finetunes: { supported: false, notes: "" }
+      vram_efficient: { supported: "partial", notes: "(main env works; 2B-class model is not lightweight)" }
+      speed_performance: { supported: true, notes: "Fast; upstream reports sub-realtime RTF" }
+      reference_free_tts: { supported: true, notes: "(native default voice; instruct also works without narrator)" }
+
+  - id: moss-tts
+    name: MOSS-TTS
+    models: "Local 1.7B, Delay 8B v1.5/1.0, VoiceGenerator 1.7B, SoundEffect 8B v1, TTSD 8B"
+    size: "~8.5GB tokenizer + ~6.1GB/17GB/18GB model"
+    license: "Apache-2.0"
+    commercial: true
+
+    capabilities:
+      tts: true
+      srt: true
+      vc: false
+      asr: false
+      voice_design: true
+      sound_effects: true
+      training: true
+
+    special_features:
+      - "Reference-free voice design with MOSS-VoiceGenerator"
+      - "Native 1-5 speaker TTSD dialogue"
+      - "31-language generation with MOSS-TTS-v1.5"
+      - "Prompt-only sound-effect generation with MOSS-SoundEffect v1"
+      - "Long-form generation (TTSD/Delay)"
+      - "Duration token hint"
+      - "Local/Delay/TTSD variants"
+      - "Initial integrated LoRA training workflow (Delay 8B)"
+
+    model_sources:
+      - component: "MOSS-TTS-Local-Transformer"
+        source_name: "OpenMOSS-Team/MOSS-TTS-Local-Transformer"
+        source_url: "https://huggingface.co/OpenMOSS-Team/MOSS-TTS-Local-Transformer"
+        size: "~6.1GB"
+        auto_download: true
+        notes: "Official 1.7B local-transformer model"
+      - component: "MOSS-TTS"
+        source_name: "OpenMOSS-Team/MOSS-TTS"
+        source_url: "https://huggingface.co/OpenMOSS-Team/MOSS-TTS"
+        size: "~17GB"
+        auto_download: true
+        notes: "Official 8B delay model"
+      - component: "MOSS-TTS-v1.5"
+        source_name: "OpenMOSS-Team/MOSS-TTS-v1.5"
+        source_url: "https://huggingface.co/OpenMOSS-Team/MOSS-TTS-v1.5"
+        size: "~17GB"
+        auto_download: true
+        notes: "Current official 8B delay model with 31 languages and more stable voice cloning"
+      - component: "MOSS-VoiceGenerator"
+        source_name: "OpenMOSS-Team/MOSS-VoiceGenerator"
+        source_url: "https://huggingface.co/OpenMOSS-Team/MOSS-VoiceGenerator"
+        size: "~4.2GB"
+        auto_download: true
+        notes: "Official 1.7B reference-free voice-design model"
+      - component: "MOSS-TTSD-v1.0"
+        source_name: "OpenMOSS-Team/MOSS-TTSD-v1.0"
+        source_url: "https://huggingface.co/OpenMOSS-Team/MOSS-TTSD-v1.0"
+        size: "~18GB"
+        auto_download: true
+        notes: "Official 8B native multi-speaker dialogue model"
+      - component: "MOSS-SoundEffect"
+        source_name: "OpenMOSS-Team/MOSS-SoundEffect"
+        source_url: "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect"
+        size: "~17GB"
+        auto_download: true
+        notes: "Official MOSS v1 prompt-only sound-effect checkpoint; uses the shared MOSS audio tokenizer"
+      - component: "MOSS-Audio-Tokenizer"
+        source_name: "OpenMOSS-Team/MOSS-Audio-Tokenizer"
+        source_url: "https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer"
+        size: "~8.5GB"
+        auto_download: true
+        notes: "Shared official codec required by MOSS-TTS"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: true, flag: "🇨🇳", notes: "" }
+      de: { supported: true, flag: "🇩🇪", notes: "" }
+      es: { supported: true, flag: "🇪🇸", notes: "" }
+      fr: { supported: true, flag: "🇫🇷", notes: "" }
+      it: { supported: true, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "" }
+      ko: { supported: true, flag: "🇰🇷", notes: "" }
+      ru: { supported: true, flag: "🇷🇺", notes: "" }
+      pt: { supported: true, flag: "🇧🇷", notes: "" }
+      pl: { supported: true, flag: "🇵🇱", notes: "" }
+      hi: { supported: true, flag: "🇮🇳", notes: "(v1.5)" }
+      ar: { supported: true, flag: "🇪🇬", notes: "" }
+      tr: { supported: true, flag: "🇹🇷", notes: "" }
+      th: { supported: true, flag: "🇹🇭", notes: "(v1.5)" }
+      no: { supported: false, flag: "🇳🇴", notes: "" }
+      vi: { supported: true, flag: "🇻🇳", notes: "(v1.5)" }
+      hy: { supported: false, flag: "🇦🇲", notes: "" }
+      ka: { supported: false, flag: "🇬🇪", notes: "" }
+      da: { supported: true, flag: "🇩🇰", notes: "" }
+      fi: { supported: true, flag: "🇫🇮", notes: "(v1.5)" }
+      el: { supported: true, flag: "🇬🇷", notes: "" }
+      he: { supported: true, flag: "🇮🇱", notes: "(v1.5)" }
+      ms: { supported: true, flag: "🇲🇾", notes: "(v1.5)" }
+      nl: { supported: true, flag: "🇳🇱", notes: "(v1.5)" }
+      sv: { supported: true, flag: "🇸🇪", notes: "" }
+      sw: { supported: true, flag: "🇰🇪", notes: "(v1.5)" }
+
+    features:
+      voice_cloning: { supported: true, notes: "" }
+      reference_transcript: { requirement: conditional }
+      native_multi_speaker: { supported: true, notes: "(TTSD v1.0; 1-5 speakers)" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: true, notes: "(MOSS-VoiceGenerator instruction-conditioned voice design)" }
+      native_long_form: { supported: true, notes: "(TTSD/Delay long-form; use chunk orchestration for very long inputs)" }
+      community_finetunes: { supported: true, notes: "(LoRA adapter inference supported; initial integrated LoRA training support added for MOSS-TTS Delay 8B)" }
+      vram_efficient: { supported: "partial", notes: "(Local 1.7B smaller; tokenizer is large)" }
+      speed_performance: { supported: true, notes: "Fast with CUDA/FlashAttention" }
+      reference_free_tts: { supported: true, notes: "(direct TTS and prompt-only generation)" }
+
+  - id: moss-soundeffect-v2
+    name: MOSS-SoundEffect v2
+    models: "MOSS-SoundEffect-v2.0"
+    size: "~11.2GB"
+    license: "Apache-2.0"
+    commercial: true
+
+    capabilities:
+      tts: false
+      srt: false
+      vc: false
+      asr: false
+      sound_effects: true
+      training: false
+
+    runtime_isolation:
+      default_mode: "main_environment"
+      supported_modes:
+        - "main_environment"
+      status: "implemented"
+      notes: "Runs in the configured ComfyUI environment; the bundled official inference pipeline works with the installed Transformers 5 and Diffusers stack, with a small dtype compatibility patch."
+
+    special_features:
+      - "Durations up to 30 seconds"
+      - "Native negative prompting, CFG, flow shift, and diffusion-step controls"
+      - "Prompt-only text-to-sound generation"
+      - "48 kHz mono output"
+      - "Seeded generation"
+
+    model_sources:
+      - component: "MOSS-SoundEffect-v2.0"
+        source_name: "OpenMOSS-Team/MOSS-SoundEffect-v2.0"
+        source_url: "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0"
+        size: "~11.2GB"
+        auto_download: true
+        notes: "Official DiT + DAC VAE + Qwen3 text-encoder sound-effect pipeline"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "Officially demonstrated prompt language" }
+      zh: { supported: true, flag: "🇨🇳", notes: "Officially demonstrated prompt language" }
+      de: { supported: false, flag: "🇩🇪", notes: "Not officially documented" }
+      es: { supported: false, flag: "🇪🇸", notes: "Not officially documented" }
+      fr: { supported: false, flag: "🇫🇷", notes: "Not officially documented" }
+      it: { supported: false, flag: "🇮🇹", notes: "Not officially documented" }
+      ja: { supported: false, flag: "🇯🇵", notes: "Not officially documented" }
+      ko: { supported: false, flag: "🇰🇷", notes: "Not officially documented" }
+      ru: { supported: false, flag: "🇷🇺", notes: "Not officially documented" }
+      pt: { supported: false, flag: "🇧🇷", notes: "Not officially documented" }
+      pl: { supported: false, flag: "🇵🇱", notes: "Not officially documented" }
+      hi: { supported: false, flag: "🇮🇳", notes: "Not officially documented" }
+      ar: { supported: false, flag: "🇪🇬", notes: "Not officially documented" }
+      tr: { supported: false, flag: "🇹🇷", notes: "Not officially documented" }
+      th: { supported: false, flag: "🇹🇭", notes: "Not officially documented" }
+      no: { supported: false, flag: "🇳🇴", notes: "Not officially documented" }
+      vi: { supported: false, flag: "🇻🇳", notes: "Not officially documented" }
+      hy: { supported: false, flag: "🇦🇲", notes: "Not officially documented" }
+      ka: { supported: false, flag: "🇬🇪", notes: "Not officially documented" }
+      da: { supported: false, flag: "🇩🇰", notes: "Not officially documented" }
+      fi: { supported: false, flag: "🇫🇮", notes: "Not officially documented" }
+      el: { supported: false, flag: "🇬🇷", notes: "Not officially documented" }
+      he: { supported: false, flag: "🇮🇱", notes: "Not officially documented" }
+      ms: { supported: false, flag: "🇲🇾", notes: "Not officially documented" }
+      nl: { supported: false, flag: "🇳🇱", notes: "Not officially documented" }
+      sv: { supported: false, flag: "🇸🇪", notes: "Not officially documented" }
+      sw: { supported: false, flag: "🇰🇪", notes: "Not officially documented" }
+
+    features:
+      voice_cloning: { supported: false, notes: "" }
+      reference_transcript: { requirement: not_used }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: false, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: false, notes: "(not a speech engine)" }
+      native_long_form: { supported: false, notes: "(maximum 30 seconds)" }
+      community_finetunes: { supported: false, notes: "" }
+      vram_efficient: { supported: "partial", notes: "(runs in the main ComfyUI environment but remains GPU-heavy)" }
+      speed_performance: { supported: "partial", notes: "(100 diffusion steps by default)" }
+      reference_free_tts: { supported: false, notes: "(generates non-speech audio)" }
+
+  - id: rvc
+    name: RVC
+    models: "Community .pth"
+    size: "100-300MB"
+    license: "MIT (framework); community models vary"
+    commercial: "varies"
+
+    capabilities:
+      tts: false
+      srt: false
+      vc: true
+      asr: false
+      training: true
+
+    special_features:
+      - "Real-time VC"
+      - "Integrated training workflow"
+      - "Pitch shift (±14)"
+      - "6 HuBERT models"
+      - "Language-independent"
+
+    model_sources:
+      - component: "RVC character pack"
+        source_name: "SayanoAI/RVC-Studio (RVC folder)"
+        source_url: "https://huggingface.co/datasets/SayanoAI/RVC-Studio/tree/main/RVC"
+        size: "Varies"
+        auto_download: true
+        notes: "Default auto-download characters: Claire, Sayano, Mae_v2, Fuji, Monika (extras also available)"
+      - component: "RVC index pack (.index)"
+        source_name: "SayanoAI/RVC-Studio (.index folder)"
+        source_url: "https://huggingface.co/datasets/SayanoAI/RVC-Studio/tree/main/RVC/.index"
+        size: "Varies"
+        auto_download: true
+        notes: "Optional FAISS indexes for improved voice similarity"
+      - component: "content-vec-best.safetensors"
+        source_name: "lengyue233/content-vec-best"
+        source_url: "https://huggingface.co/lengyue233/content-vec-best"
+        size: "~300MB"
+        auto_download: true
+        notes: "Voice feature model"
+      - component: "rmvpe.pt"
+        source_name: "lj1995/VoiceConversionWebUI"
+        source_url: "https://huggingface.co/lj1995/VoiceConversionWebUI"
+        size: "~55MB"
+        auto_download: true
+        notes: "Pitch extraction model"
+      - component: "pretrained_v2 (f0 G/D pairs)"
+        source_name: "lj1995/VoiceConversionWebUI"
+        source_url: "https://huggingface.co/lj1995/VoiceConversionWebUI/tree/main/pretrained_v2"
+        size: "~300MB total"
+        auto_download: true
+        notes: "Training init checkpoints for 32k/40k/48k RVC runs; downloaded on first training use"
+
+    languages:
+      en: { supported: true, flag: "🇺🇸", notes: "" }
+      zh: { supported: true, flag: "🇨🇳", notes: "" }
+      de: { supported: true, flag: "🇩🇪", notes: "" }
+      es: { supported: true, flag: "🇪🇸", notes: "" }
+      fr: { supported: true, flag: "🇫🇷", notes: "" }
+      it: { supported: true, flag: "🇮🇹", notes: "" }
+      ja: { supported: true, flag: "🇯🇵", notes: "" }
+      ko: { supported: true, flag: "🇰🇷", notes: "" }
+      ru: { supported: true, flag: "🇷🇺", notes: "" }
+      pt: { supported: true, flag: "🇧🇷", notes: "" }
+      pl: { supported: true, flag: "🇵🇱", notes: "" }
+      hi: { supported: true, flag: "🇮🇳", notes: "" }
+      ar: { supported: true, flag: "🇪🇬", notes: "" }
+      tr: { supported: true, flag: "🇹🇷", notes: "" }
+      th: { supported: true, flag: "🇹🇭", notes: "" }
+      no: { supported: true, flag: "🇳🇴", notes: "" }
+      vi: { supported: true, flag: "🇻🇳", notes: "" }
+      hy: { supported: true, flag: "🇦🇲", notes: "" }
+      ka: { supported: true, flag: "🇬🇪", notes: "" }
+      da: { supported: true, flag: "🇩🇰", notes: "" }
+      fi: { supported: true, flag: "🇫🇮", notes: "" }
+      el: { supported: true, flag: "🇬🇷", notes: "" }
+      he: { supported: true, flag: "🇮🇱", notes: "" }
+      ms: { supported: true, flag: "🇲🇾", notes: "" }
+      nl: { supported: true, flag: "🇳🇱", notes: "" }
+      sv: { supported: true, flag: "🇸🇪", notes: "" }
+      sw: { supported: true, flag: "🇰🇪", notes: "" }
+
+    features:
+      voice_cloning: { supported: "partial", notes: "(needs training)" }
+      reference_transcript: { requirement: not_applicable }
+      native_multi_speaker: { supported: false, notes: "" }
+      voice_conversion: { supported: true, notes: "" }
+      asr_transcribe: { supported: false, notes: "" }
+      emotion_control: { supported: false, notes: "" }
+      native_long_form: { supported: null, notes: "N/A" }
+      community_finetunes: { supported: true, notes: "" }
+      vram_efficient: { supported: true, notes: "" }
+      speed_performance: { supported: true, notes: "Fast" }
+      reference_free_tts: { supported: null, notes: "N/A" }
+
+# Language metadata for reference
+language_metadata:
+  en: { name: "English", code: "EN" }
+  zh: { name: "Chinese", code: "ZH" }
+  de: { name: "German", code: "DE" }
+  es: { name: "Spanish", code: "ES" }
+  fr: { name: "French", code: "FR" }
+  it: { name: "Italian", code: "IT" }
+  ja: { name: "Japanese", code: "JA" }
+  ko: { name: "Korean", code: "KO" }
+  ru: { name: "Russian", code: "RU" }
+  pt: { name: "Portuguese", code: "PT" }
+  pl: { name: "Polish", code: "PL" }
+  hi: { name: "Hindi", code: "HI" }
+  ar: { name: "Arabic", code: "AR" }
+  tr: { name: "Turkish", code: "TR" }
+  th: { name: "Thai", code: "TH" }
+  no: { name: "Norwegian", code: "NO" }
+  vi: { name: "Vietnamese", code: "VI" }
+  hy: { name: "Armenian", code: "HY" }
+  ka: { name: "Georgian", code: "KA" }
+  da: { name: "Danish", code: "DA" }
+  fi: { name: "Finnish", code: "FI" }
+  el: { name: "Greek", code: "EL" }
+  he: { name: "Hebrew", code: "HE" }
+  ms: { name: "Malay", code: "MS" }
+  nl: { name: "Dutch", code: "NL" }
+  sv: { name: "Swedish", code: "SV" }
+  sw: { name: "Swahili", code: "SW" }
+  af: { name: "Afrikaans", code: "AF", flag: "🇿🇦" }
+  sq: { name: "Albanian", code: "SQ", flag: "🇦🇱" }
+  as: { name: "Assamese", code: "AS", flag: "🇮🇳" }
+  ast: { name: "Asturian", code: "AST", flag: "🇪🇸" }
+  az: { name: "Azerbaijani", code: "AZ", flag: "🇦🇿" }
+  ba: { name: "Bashkir", code: "BA", flag: "🇷🇺" }
+  eu: { name: "Basque", code: "EU", flag: "🇪🇸" }
+  be: { name: "Belarusian", code: "BE", flag: "🇧🇾" }
+  bn: { name: "Bengali", code: "BN", flag: "🇧🇩" }
+  bs: { name: "Bosnian", code: "BS", flag: "🇧🇦" }
+  bg: { name: "Bulgarian", code: "BG", flag: "🇧🇬" }
+  ca: { name: "Catalan", code: "CA", flag: "🇪🇸" }
+  ceb: { name: "Cebuano", code: "CEB", flag: "🇵🇭" }
+  ckb: { name: "Central Kurdish", code: "CKB", flag: "🇮🇶" }
+  hr: { name: "Croatian", code: "HR", flag: "🇭🇷" }
+  cs: { name: "Czech", code: "CS", flag: "🇨🇿" }
+  mhr: { name: "Eastern Mari", code: "MHR", flag: "🇷🇺" }
+  eo: { name: "Esperanto", code: "EO", flag: "🌍" }
+  et: { name: "Estonian", code: "ET", flag: "🇪🇪" }
+  gl: { name: "Galician", code: "GL", flag: "🇪🇸" }
+  gu: { name: "Gujarati", code: "GU", flag: "🇮🇳" }
+  ht: { name: "Haitian Creole", code: "HT", flag: "🇭🇹" }
+  ha: { name: "Hausa", code: "HA", flag: "🇳🇬" }
+  hu: { name: "Hungarian", code: "HU", flag: "🇭🇺" }
+  id: { name: "Indonesian", code: "ID", flag: "🇮🇩" }
+  jv: { name: "Javanese", code: "JV", flag: "🇮🇩" }
+  kn: { name: "Kannada", code: "KN", flag: "🇮🇳" }
+  kk: { name: "Kazakh", code: "KK", flag: "🇰🇿" }
+  rw: { name: "Kinyarwanda", code: "RW", flag: "🇷🇼" }
+  ky: { name: "Kyrgyz", code: "KY", flag: "🇰🇬" }
+  lv: { name: "Latvian", code: "LV", flag: "🇱🇻" }
+  ln: { name: "Lingala", code: "LN", flag: "🇨🇩" }
+  lt: { name: "Lithuanian", code: "LT", flag: "🇱🇹" }
+  luo: { name: "Luo", code: "LUO", flag: "🇰🇪" }
+  mk: { name: "Macedonian", code: "MK", flag: "🇲🇰" }
+  ml: { name: "Malayalam", code: "ML", flag: "🇮🇳" }
+  mt: { name: "Maltese", code: "MT", flag: "🇲🇹" }
+  mi: { name: "Māori", code: "MI", flag: "🇳🇿" }
+  mr: { name: "Marathi", code: "MR", flag: "🇮🇳" }
+  mn: { name: "Mongolian", code: "MN", flag: "🇲🇳" }
+  ne: { name: "Nepali", code: "NE", flag: "🇳🇵" }
+  oc: { name: "Occitan", code: "OC", flag: "🇫🇷" }
+  fa: { name: "Persian", code: "FA", flag: "🇮🇷" }
+  ro: { name: "Romanian", code: "RO", flag: "🇷🇴" }
+  nso: { name: "Sepedi", code: "NSO", flag: "🇿🇦" }
+  sr: { name: "Serbian", code: "SR", flag: "🇷🇸" }
+  sn: { name: "Shona", code: "SN", flag: "🇿🇼" }
+  sk: { name: "Slovak", code: "SK", flag: "🇸🇰" }
+  sl: { name: "Slovene", code: "SL", flag: "🇸🇮" }
+  tl: { name: "Tagalog", code: "TL", flag: "🇵🇭" }
+  tg: { name: "Tajik", code: "TG", flag: "🇹🇯" }
+  ta: { name: "Tamil", code: "TA", flag: "🇮🇳" }
+  te: { name: "Telugu", code: "TE", flag: "🇮🇳" }
+  uk: { name: "Ukrainian", code: "UK", flag: "🇺🇦" }
+  ur: { name: "Urdu", code: "UR", flag: "🇵🇰" }
+  ug: { name: "Uyghur", code: "UG", flag: "🇨🇳" }
+  uz: { name: "Uzbek", code: "UZ", flag: "🇺🇿" }
+  xh: { name: "Xhosa", code: "XH", flag: "🇿🇦" }
+  zu: { name: "Zulu", code: "ZU", flag: "🇿🇦" }
+  ny: { name: "Chichewa/Nyanja", code: "NY", flag: "🇲🇼" }
+  pa: { name: "Eastern Punjabi", code: "PA", flag: "🇮🇳" }
+  lg: { name: "Ganda", code: "LG", flag: "🇺🇬" }
+  is: { name: "Icelandic", code: "IS", flag: "🇮🇸" }
+  ga: { name: "Irish", code: "GA", flag: "🇮🇪" }
+  kab: { name: "Kabyle", code: "KAB", flag: "🇩🇿" }
+  kea: { name: "Kabuverdianu", code: "KEA", flag: "🇨🇻" }
+  kam: { name: "Kamba", code: "KAM", flag: "🇰🇪" }
+  la: { name: "Latin", code: "LA", flag: "🇻🇦" }
+  lb: { name: "Luxembourgish", code: "LB", flag: "🇱🇺" }
+  om: { name: "Oromo", code: "OM", flag: "🇪🇹" }
+  ps: { name: "Pashto", code: "PS", flag: "🇦🇫" }
+  sd: { name: "Sindhi", code: "SD", flag: "🇵🇰" }
+  so: { name: "Somali", code: "SO", flag: "🇸🇴" }
+  umb: { name: "Umbundu", code: "UMB", flag: "🇦🇴" }
+  cy: { name: "Welsh", code: "CY", flag: "🏴" }
+
+# Feature metadata for reference
+feature_metadata:
+  voice_cloning: { name: "Voice Cloning", display: "**Voice Cloning**" }
+  reference_transcript: { name: "Reference Transcript", display: "**Reference Transcript†**", value_type: "requirement" }
+  native_multi_speaker: { name: "Native Multi-Speaker", display: "**Native Multi-Speaker**" }
+  voice_conversion: { name: "Voice Conversion", display: "**Voice Conversion**" }
+  asr_transcribe: { name: "ASR (Transcribe)", display: "**ASR (Transcribe)**" }
+  emotion_control: { name: "Emotion Control", display: "**Emotion Control**" }
+  native_long_form: { name: "Native Long-form", display: "**Native Long-form**" }
+  community_finetunes: { name: "Community Finetunes", display: "**Community Finetunes**" }
+  vram_efficient: { name: "VRAM Efficient", display: "**VRAM Efficient**" }
+  speed_performance: { name: "Speed/Performance", display: "**Speed/Performance**" }
+  reference_free_tts: { name: "No Narrator Required", display: "**No Narrator Required**" }
+
+# Table notes for additional context
+table_notes:
+  reference_transcript: >-
+    Conditional means the transcript is required only for the specific mode:
+    CosyVoice3 zero-shot, Qwen3-TTS full Base cloning, or MOSS-TTSD cloned-speaker
+    dialogue. Higgs Audio 2, Higgs Audio v3, and Dots TTS accept matching text
+    when provided but do not require it.
+  language_support:
+    - "**CosyVoice3 Chinese**: Includes 18+ dialects (Cantonese, Sichuan, Dongbei, Shanghai, etc.)"
+    - "**Higgs Audio 2**: Trained on EN, ZH (Mandarin), KO, DE, ES (English majority) - 10M hours AudioVerse dataset"
+    - "**Higgs Audio v3**: Official model card lists 102 languages total: 85 polished-production languages and 17 usable but less polished languages."
+    - "**IndexTTS-2**: Trained on 55K+ hours - ZH, EN, JA primary."
+    - "**MOSS-TTS**: Official list includes ZH, EN, DE, ES, FR, JA, IT, HU, KO, RU, FA, AR, PL, PT, CS, DA, SV, EL, TR; HU/FA/CS are not separate columns in this matrix."
+    - "**OmniVoice**: Official model supports 600+ languages; this matrix only shows the suite's comparison subset."
+    - "**RVC**: Language-agnostic voice conversion/post-processing; it is marked supported for every language row."
+    - "Qwen3-TTS: Supports pt-BR only with instruction (voice design or harcoded voices). Base can't do instructions, so it will always ouput pt-PT."
+
+readme_model_download_table:
+  - engine: "ChatterBox"
+    primary_model_path: "ComfyUI/models/TTS/chatterbox/"
+    auto_download: "✅"
+    notes: "Legacy `ComfyUI/models/chatterbox/` still works"
+  - engine: "ChatterBox 23-Lang"
+    primary_model_path: "ComfyUI/models/TTS/chatterbox_official_23lang/"
+    auto_download: "✅"
+    notes: "v1/v2/v3 coexist in same folder"
+  - engine: "F5-TTS"
+    primary_model_path: "ComfyUI/models/TTS/F5-TTS/"
+    auto_download: "✅"
+    notes: "Optional Vocos and voice refs"
+  - engine: "Higgs Audio 2"
+    primary_model_path: "ComfyUI/models/TTS/HiggsAudio/"
+    auto_download: "✅"
+    notes: "Generation + tokenizer"
+  - engine: "Higgs Audio v3"
+    primary_model_path: "ComfyUI/models/TTS/higgs_audio_v3/"
+    auto_download: "✅"
+    notes: "Official 4B multilingual TTS model"
+  - engine: "VibeVoice"
+    primary_model_path: "ComfyUI/models/TTS/VibeVoice/"
+    auto_download: "✅"
+    notes: "1.5B and 7B variants"
+  - engine: "RVC"
+    primary_model_path: "ComfyUI/models/TTS/RVC/"
+    auto_download: "✅*"
+    notes: "Base models auto; character `.pth` can be user-provided"
+  - engine: "IndexTTS-2"
+    primary_model_path: "ComfyUI/models/TTS/IndexTTS/"
+    auto_download: "✅"
+    notes: "Emotion components included"
+  - engine: "Step Audio EditX"
+    primary_model_path: "ComfyUI/models/TTS/step_audio_editx/"
+    auto_download: "✅"
+    notes: "Main model + tokenizer stack"
+  - engine: "CosyVoice3"
+    primary_model_path: "ComfyUI/models/TTS/CosyVoice/"
+    auto_download: "✅"
+    notes: "Variant-specific lazy downloads"
+  - engine: "Qwen3-TTS / ASR"
+    primary_model_path: "ComfyUI/models/TTS/qwen3_tts/"
+    auto_download: "✅"
+    notes: "Per-variant download + shared tokenizer"
+  - engine: "MOSS-TTS"
+    primary_model_path: "ComfyUI/models/TTS/moss_tts/"
+    auto_download: "✅"
+    notes: "Local/Delay/VoiceGenerator/SoundEffect v1/TTSD models plus shared MOSS-Audio-Tokenizer codec"
+  - engine: "MOSS-SoundEffect v2"
+    primary_model_path: "ComfyUI/models/TTS/moss_soundeffect_v2/"
+    auto_download: "✅"
+    notes: "Official v2 diffusion pipeline; configured ComfyUI environment"
+  - engine: "Granite ASR"
+    primary_model_path: "ComfyUI/models/TTS/granite_asr/"
+    auto_download: "✅"
+    notes: "Granite ASR models; plus adds native diarization/timestamps, optional Qwen forced aligner reused lazily for timestamps/SRT fallback"
+  - engine: "Echo-TTS"
+    primary_model_path: "ComfyUI/models/TTS/echo-tts-base/"
+    auto_download: "✅"
+    notes: "~7.1GB total (base + dac); CC-BY-NC-SA"
+  - engine: "Dots TTS"
+    primary_model_path: "ComfyUI/models/TTS/dots_tts/"
+    auto_download: "✅"
+    notes: "Official base / soar / mf checkpoints with tokenizer, vocoder, speaker encoder"
+  - engine: "DramaBox"
+    primary_model_path: "ComfyUI/models/TTS/dramabox/DramaBox/"
+    auto_download: "✅"
+    notes: "~16.4GB download; fast mode roughly 24GB VRAM; experimental FP8 peaks on RTX 4090: staged ~15.1GB allocated, sequential ~11.7GB allocated / ~12.4GB reserved; conditional LTX-2 Community License"
+  - engine: "Fish Audio S2 Pro"
+    primary_model_path: "ComfyUI/models/TTS/fish_audio_s2_pro/"
+    auto_download: "✅"
+    notes: "Official BF16 or optional community FP8 checkpoint; the official checkpoint can be quantized on load with BNB INT8/NF4; main T5 environment with process teardown for Clear VRAM; Fish Audio Research License"
+  - engine: "OmniVoice"
+    primary_model_path: "ComfyUI/models/TTS/omnivoice/"
+    auto_download: "✅"
+    notes: "Official OmniVoice model. Voice cloning in this suite requires explicit reference text."
+
+model_layouts_markdown: |
+  # Model Folder Layouts
+  
+  Use this document for folder structures and placement notes.
+  For repository/source URLs, use [MODEL_DOWNLOAD_SOURCES.md](MODEL_DOWNLOAD_SOURCES.md).
+  
+  ## ChatterBox
+  
+  Recommended:
+  
+  ```text
+  ComfyUI/models/TTS/chatterbox/
+  ```
+  
+  Legacy (still supported):
+  
+  ```text
+  ComfyUI/models/chatterbox/
+  ```
+  
+  Required base files:
+  
+  - `conds.pt`
+  - `s3gen.pt`
+  - `t3_cfg.pt`
+  - `tokenizer.json`
+  - `ve.pt`
+  
+  Optional multilingual subfolders:
+  
+  ```text
+  ComfyUI/models/TTS/chatterbox/
+  ├── English/
+  ├── German/
+  └── Norwegian/
+  ```
+  
+  ## ChatterBox Official 23-Lang
+  
+  ```text
+  ComfyUI/models/TTS/chatterbox_official_23lang/
+  ├── ChatterBox Official 23-Lang/
+  │   ├── t3_23lang.safetensors
+  │   ├── t3_mtl23ls_v2.safetensors
+  │   ├── grapheme_mtl_merged_expanded_v1.json
+  │   ├── s3gen.pt
+  │   ├── ve.pt
+  │   ├── mtl_tokenizer.json
+  │   └── conds.pt
+  └── russian_text_stresser/
+      ├── russian_dict.db
+      └── simple_cases.pkl
+  ```
+  
+  Notes:
+  
+  - v1 and v2 coexist in one directory.
+  - Vietnamese (Viterbox) is available as a community finetune option.
+  - `russian_text_stresser/` is auxiliary Russian-only data for Official 23-Lang stress labeling and downloads on demand.
+  
+  ## F5-TTS
+  
+  Recommended:
+  
+  ```text
+  ComfyUI/models/TTS/F5-TTS/
+  ```
+  
+  Legacy (still supported):
+  
+  ```text
+  ComfyUI/models/F5-TTS/
+  ```
+  
+  Typical structure:
+  
+  ```text
+  ComfyUI/models/TTS/F5-TTS/
+  ├── F5TTS_Base/
+  │   ├── model_1200000.safetensors
+  │   └── vocab.txt
+  ├── F5TTS_v1_Base/
+  │   ├── model_1250000.safetensors
+  │   └── vocab.txt
+  └── vocos/
+      ├── config.yaml
+      └── pytorch_model.bin
+  ```
+  
+  Notes:
+  
+  - F5-TTS models auto-download on first use.
+  - `vocab.txt` is required per model.
+  - Vocos is optional and also auto-downloadable.
+  
+  ## F5-TTS Voice References
+  
+  ```text
+  ComfyUI/models/voices/
+  ├── character1.wav
+  ├── character1.reference.txt
+  ├── narrator.wav
+  └── narrator.txt
+  ```
+  
+  Requirements:
+  
+  - WAV, clean speech, 5-30s (24kHz recommended).
+  - Text must match spoken audio.
+  - Naming: `name.wav` + `name.reference.txt` (preferred) or `name.txt`.
+  
+  Inference guidelines:
+  
+  1. Keep reference audio under ~12s with a little trailing silence.
+  2. Use uppercase letter-by-letter only when desired.
+  3. Use spaces/punctuation for explicit pauses.
+  4. Keep a space after sentence-ending punctuation.
+  5. For Chinese output, preprocess numbers if needed.
+  
+  ## Higgs Audio 2
+  
+  ```text
+  ComfyUI/models/TTS/HiggsAudio/
+  └── higgs-audio-v2-3B/
+      ├── generation/
+      ├── tokenizer/
+      └── voices/
+  ```
+  
+  Notes:
+  
+  - Both generation model and tokenizer auto-download.
+  - Place reference audio/transcription in `voices/`.
+  
+  ## VibeVoice
+  
+  ```text
+  ComfyUI/models/TTS/VibeVoice/
+  ├── vibevoice-1.5B/
+  └── vibevoice-7B/
+  ```
+  
+  Notes:
+  
+  - Both variants auto-download on first use.
+  - `vibevoice-7B` uses a community mirror in downloader config.
+  
+  ## RVC
+  
+  Recommended:
+  
+  ```text
+  ComfyUI/models/TTS/RVC/
+  ├── *.pth
+  ├── content-vec-best.safetensors
+  ├── rmvpe.pt
+  ├── hubert/
+  ├── pretrained_v2/
+  │   ├── f0G32k.pth
+  │   ├── f0D32k.pth
+  │   ├── f0G40k.pth
+  │   ├── f0D40k.pth
+  │   ├── f0G48k.pth
+  │   └── f0D48k.pth
+  └── .index/
+  ```
+  
+  Legacy (still supported):
+  
+  ```text
+  ComfyUI/models/RVC/
+  ```
+  
+  Notes:
+  
+  - Base models auto-download.
+  - Character `.pth` models can be auto-downloaded defaults or user-provided.
+  - `pretrained_v2/` is used by the integrated RVC trainer and auto-downloads on first training run.
+  - Training datasets, logs, progress snapshots, and resumable checkpoints are stored under `ComfyUI/output/tts_audio_suite_training/rvc/`, not inside the custom node repo.
+  - UVR models are downloaded under `ComfyUI/models/TTS/UVR/` (or legacy `ComfyUI/models/UVR/`).
+  
+  ## IndexTTS-2
+  
+  ```text
+  ComfyUI/models/TTS/IndexTTS/
+  ├── IndexTTS-2/
+  └── w2v-bert-2.0/
+  ```
+  
+  Notes:
+  
+  - Emotion components and semantic feature models auto-download.
+  
+  ## Step Audio EditX
+
+  ```text
+  ComfyUI/models/TTS/step_audio_editx/
+  ├── Step-Audio-EditX/
+  │   └── CosyVoice-300M-25Hz/
+  └── FunASR-Paraformer/
+  ```
+  
+  Notes:
+  
+  - Main model, tokenizer assets, and speech stack auto-download.
+
+  ## Higgs Audio v3
+
+  ```text
+  ComfyUI/models/TTS/higgs_audio_v3/
+  └── higgs-audio-v3-tts-4b/
+      ├── config.json
+      ├── tokenizer.json
+      ├── tokenizer_config.json
+      ├── chat_template.jinja
+      ├── model.safetensors
+      ├── model.safetensors.index.json
+      └── LICENSE
+  ```
+
+  Notes:
+
+  - Downloads into its own `higgs_audio_v3` folder.
+  - Requires the main Transformers 5 environment.
+  - Reference transcript `.txt` files are optional but improve cloning quality.
+
+  ## DramaBox
+
+  ```text
+  ComfyUI/models/TTS/dramabox/
+  └── DramaBox/
+      ├── dramabox-dit-v1.safetensors
+      ├── dramabox-audio-components.safetensors
+      ├── assets/
+      │   └── silence_latent_frame.pt
+      └── gemma-3-12b-it-bnb-4bit/
+          ├── config.json
+          ├── model-00001-of-00002.safetensors
+          ├── model-00002-of-00002.safetensors
+          ├── model.safetensors.index.json
+          └── tokenizer and processor files...
+  ```
+
+  Notes:
+
+  - Both repositories download directly into the organized suite folder.
+  - Transformers is forced into local-only loading after download.
+  - Requires NVIDIA CUDA. Fast mode targets approximately 24GB VRAM; experimental staged/sequential modes can run with less.
+  - The LTX-2 Community License requires a paid license for entities with at
+    least USD 10 million in annual revenue.
+
+  ## CosyVoice3
+  
+  ```text
+  ComfyUI/models/TTS/CosyVoice/
+  └── Fun-CosyVoice3-0.5B/
+      ├── llm.pt
+      ├── llm.rl.pt
+      └── shared model files...
+  ```
+  
+  Notes:
+  
+  - First selected variant downloads first.
+  - Shared files are reused across variants.
+  
+  ## Qwen3-TTS and Qwen3-ASR
+  
+  ```text
+  ComfyUI/models/TTS/qwen3_tts/
+  ├── Qwen3-TTS-12Hz-0.6B-CustomVoice/
+  ├── Qwen3-TTS-12Hz-1.7B-CustomVoice/
+  ├── Qwen3-TTS-12Hz-1.7B-VoiceDesign/
+  ├── Qwen3-TTS-12Hz-0.6B-Base/
+  ├── Qwen3-TTS-12Hz-1.7B-Base/
+  ├── qwen2-audio-encoder/
+  └── asr/
+      ├── Qwen3-ASR-1.7B/
+      └── Qwen3-ForcedAligner-0.6B/
+  ```
+  
+  Notes:
+
+  - Only selected variants download.
+  - Shared tokenizer assets are reused.
+
+  ## MOSS-TTS
+
+  ```text
+  ComfyUI/models/TTS/moss_tts/
+  ├── MOSS-TTS-Local-Transformer/
+  ├── MOSS-TTS-v1.5/
+  ├── MOSS-TTS/
+  ├── MOSS-VoiceGenerator/
+  ├── MOSS-SoundEffect/
+  ├── MOSS-TTSD-v1.0/
+  ├── MOSS-Audio-Tokenizer/
+  └── loras/
+      └── <adapter_name>/
+          ├── adapter_config.json
+          └── adapter_model.safetensors
+  ```
+
+  Notes:
+
+  - `MOSS-Audio-Tokenizer` is required by the official TTS and TTSD variants.
+  - `MOSS-TTS-Local-Transformer` is the smaller 1.7B model.
+  - `MOSS-TTS-v1.5` is the current 8B delay model with 31-language support.
+  - `MOSS-TTS` is the legacy official 8B delay model.
+  - `MOSS-VoiceGenerator` is the 1.7B voice-design provider used by Voice Designer.
+  - `MOSS-SoundEffect` is the v1 sound-effect checkpoint used through the MOSS-TTS engine and 🌩️ Sound Effects.
+  - `MOSS-TTSD-v1.0` is the official 8B native multi-speaker dialogue model.
+  - Integrated training currently exports LoRA adapters into `moss_tts/loras/<adapter_name>/`.
+  - Training jobs, temporary manifests, and checkpoints are stored under `ComfyUI/output/tts_audio_suite_training/moss_tts/`.
+
+  ## MOSS-SoundEffect v2
+
+  ```text
+  ComfyUI/models/TTS/moss_soundeffect_v2/
+  └── MOSS-SoundEffect-v2.0/
+      ├── model_index.json
+      ├── scheduler/
+      ├── text_encoder/
+      ├── tokenizer/
+      ├── transformer/
+      └── vae/
+  ```
+
+  Notes:
+
+  - This is a separate v2 diffusion family, not a MOSS-TTS checkpoint variant.
+  - It runs in the configured ComfyUI environment; the official Apache-2.0 inference package is bundled without modifying its dependencies.
+  - The 🌩️ Sound Effects node limits generation to the official 30-second maximum.
+
+  ## Granite ASR
+
+  ```text
+  ComfyUI/models/TTS/granite_asr/
+  └── granite-4.0-1b-speech/
+      ├── config.json
+      ├── chat_template.jinja
+      ├── model-00001-of-00003.safetensors
+      ├── model-00002-of-00003.safetensors
+      ├── model-00003-of-00003.safetensors
+      └── tokenizer / processor files...
+  ```
+
+  Notes:
+
+  - Granite downloads into its own `granite_asr` folder.
+  - `granite-speech-4.1-2b-plus` adds native speaker diarization and native word-level timestamps, but drops Japanese.
+  - If Granite word timestamps are enabled, it lazily reuses `Qwen3-ForcedAligner-0.6B` from the Qwen ASR folder instead of duplicating that model.
+
+  ## Echo-TTS
+
+  ```text
+  ComfyUI/models/TTS/
+  ├── echo-tts-base/
+  │   ├── pytorch_model.safetensors
+  │   └── pca_state.safetensors
+  └── fish-s1-dac-min/
+      └── pytorch_model.safetensors
+  ```
+
+  Notes:
+
+  - Both components are required and auto-downloaded on first use.
+  - License: CC-BY-NC-SA (non-commercial).
+
+  ## Fish Audio S2 Pro
+
+  ```text
+  ComfyUI/models/TTS/fish_audio_s2_pro/
+  ├── codec.pth
+  ├── config.json
+  ├── model-00001-of-00002.safetensors
+  ├── model-00002-of-00002.safetensors
+  ├── model.safetensors.index.json
+  └── tokenizer.json
+  ```
+
+  Optional FP8 variant:
+
+  ```text
+  ComfyUI/models/TTS/fish_audio_s2_pro_fp8/
+  ├── codec.pth
+  ├── config.json
+  ├── model.safetensors
+  ├── quantization_info.json
+  └── tokenizer.json
+  ```
+
+  The complete official repository metadata and tokenizer files are downloaded alongside these files. License: Fish Audio Research License (non-commercial without a separate commercial license).
+
+  The `s2-pro-bnb-int8` and `s2-pro-bnb-nf4` options reuse `fish_audio_s2_pro/` and quantize its official checkpoint while loading. They do not download another model copy and require `bitsandbytes`.
+
+  ## Dots TTS
+
+  ```text
+  ComfyUI/models/TTS/dots_tts/
+  ├── dots.tts-base/
+  ├── dots.tts-soar/
+  └── dots.tts-mf/
+  ```
+
+  Typical checkpoint contents:
+
+  ```text
+  ComfyUI/models/TTS/dots_tts/dots.tts-soar/
+  ├── added_tokens.json
+  ├── chat_template.jinja
+  ├── config.json
+  ├── latent_stats.pt
+  ├── llm_config.json
+  ├── merges.txt
+  ├── model.safetensors
+  ├── speaker_encoder.safetensors
+  ├── special_tokens_map.json
+  ├── tokenizer.json
+  ├── tokenizer_config.json
+  ├── vocab.json
+  └── vocoder.safetensors
+  ```
+
+  Notes:
+
+  - Downloads into a dedicated `dots_tts/` folder.
+  - Native sample rate is 48kHz.
+  - Main-environment support works on Transformers 5; on Windows, `normalize_text` falls back to no-op if `WeTextProcessing` is unavailable.
+
+  ## OmniVoice
+
+  ```text
+  ComfyUI/models/TTS/omnivoice/
+  └── OmniVoice/
+  ```
+
+  Main model contents:
+
+  ```text
+  ComfyUI/models/TTS/omnivoice/OmniVoice/
+  ├── chat_template.jinja
+  ├── config.json
+  ├── model.safetensors
+  ├── tokenizer.json
+  ├── tokenizer_config.json
+  └── audio_tokenizer/
+      ├── config.json
+      ├── model.safetensors
+      └── preprocessor_config.json
+  ```
+
+  Notes:
+
+  - Downloads into a dedicated `omnivoice/` folder.
+  - Native sample rate is 24kHz.
+  - The main OmniVoice model stays in the main Transformers 5 environment.
+  - Voice cloning requires reference audio plus explicit reference text in this suite.

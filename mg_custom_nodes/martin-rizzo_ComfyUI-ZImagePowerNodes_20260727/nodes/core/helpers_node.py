@@ -1,6 +1,6 @@
 """
 File    : helpers_node.py
-Purpose : Functions to help with ComfyUI nodes data extraction.
+Purpose : Functions to help with ComfyUI nodes data extraction and node execution.
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Jan 24, 2026
 Repo    : https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes
@@ -20,6 +20,9 @@ There are two types of structures that store the nodes in ComfyUI:
 In general, the functions in this file operate on the "prompt" structure.
 
 """
+import nodes
+from .system import logger
+
 
 def get_class_type(node: dict) -> str:
     """Returns the class name of a node."""
@@ -172,3 +175,69 @@ def find_prompt(node: dict, type: str, *, nodes: dict, depth: int = 0) -> str:
             return prompt
 
     return ""
+
+
+def execute_node(node_name: str,
+                 *,
+                 remove_none_args      : bool = False,
+                 fallback_methods_names: list[str] | tuple[str] | None = None,
+                 **kwargs
+                 ):
+    """Locate, instantiate, and execute any ComfyUI node dynamically.
+
+    Use this function to execute specific node logic by node name (like model loaders,
+    image processors, or samplers), providing node parameters as keyword arguments.
+    Ensure that all required inputs for the node are correctly passed via `**kwargs`.
+
+    Args:
+        node_name             : The exact key name of the node as registered in NODE_CLASS_MAPPINGS.
+        remove_none_args      : If True, removes arguments with `None` values before execution.
+        fallback_methods_names: A list of candidate method names to attempt if the standard
+                                execution entry points are not found or accessible.
+        **kwargs              : Arbitrary keyword arguments required by the node.
+
+    Returns:
+        Any value returned by the executed node method.
+    """
+    # dynamically retrieve the node class
+    node_class = nodes.NODE_CLASS_MAPPINGS.get(node_name)
+    if node_class is None:
+        raise RuntimeError(
+            f"The node '{node_name}' is not available. "
+            f"Please ensure the required custom nodes are installed."
+        )
+
+    # optional cleaning of arguments with `None` values
+    node_kwargs = {k: v for k, v in kwargs.items() if v is not None} if remove_none_args else kwargs
+
+    # attempt modern node execution: direct call to class method 'execute'
+    if hasattr(node_class, "execute") and callable(getattr(node_class, "execute")):
+        try:
+            return node_class.execute(**node_kwargs)
+        except Exception as e:
+            logger.warning(f"Failed modern 'execute' method on \"{node_name}\" node: {e}")
+
+    # safe node instance creation
+    try:
+        node_instance = node_class()
+    except Exception as e:
+        logger.warning(f"Could not instantiate \"{node_name}\" node: {e}")
+        node_instance = None
+
+    # attempt legacy node execution: use the 'FUNCTION' property defined in the node
+    legacy_func_name = getattr(node_class, "FUNCTION", None)
+    if legacy_func_name and node_instance and hasattr(node_instance, legacy_func_name):
+        method = getattr(node_instance, legacy_func_name)
+        return method(**node_kwargs)
+
+    # brute force attempt to find the legacy method in the instance or class
+    if isinstance(fallback_methods_names,list) or isinstance(fallback_methods_names,tuple):
+        for method_name in fallback_methods_names:
+            if node_instance and hasattr(node_instance, method_name):
+                emergency_method = getattr(node_instance, method_name)
+                return emergency_method(**node_kwargs)
+            elif hasattr(node_class, method_name):
+                emergency_method = getattr(node_class, method_name)
+                return emergency_method(**node_kwargs)
+
+    raise AttributeError(f"Node \"{node_name}\" found, but no compatible execution method was identified.")

@@ -14,11 +14,15 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  - https://docs.comfy.org/custom-nodes/v3_migration
 
 """
+import time
 import torch
 import kornia
 import comfy.sd
-from typing           import Final
-from comfy_api.latest import io
+from typing             import Final, Any, cast
+from server             import PromptServer
+from comfy_api.latest   import io
+from .custom_widgets    import Separator
+from .core.helpers_node import execute_node
 
 
 #class AdjustableVAEDecoderX21
@@ -49,6 +53,21 @@ class VAEDecoderX21(io.ComfyNode):
                 io.Vae.Input         ("vae",
                                       tooltip="The VAE model used to decode the latent input."
                                      ),
+                io.Boolean.Input     ("allow_extended_range",
+                                      tooltip="When enabled, the standard numerical clamping on the VAE "
+                                              "output is bypassed, permitting pixel values to exist outside "
+                                              "the typical [0.0, 1.0] range, which could be beneficial for "
+                                              "preserving high dynamic range data. Disable if image artifacts "
+                                              "or distortion appear."
+                                     ),
+                io.Boolean.Input     ("low_vram_mode",
+                                      tooltip="When enabled, force the VAE decoding process to be split into smaller "
+                                              "tiles. While this significantly reduces VRAM usage on large images, "
+                                              "it results in slower processing speeds and a slight reduction in final "
+                                              "image quality. This option should remain disabled unless you are operating "
+                                              "under severe GPU memory constraints."
+                                     ),
+                Separator.Input("divider", mode="divider"),#=======================================
                 io.Combo.Input       ("filter",
                                       options=["none", "bw", "color", "color_twist", "intensity_1", "intensity_2", ],
                                       tooltip="The color correction filter to apply to the resulting image."
@@ -60,41 +79,100 @@ class VAEDecoderX21(io.ComfyNode):
 
                                       ),
                 io.Boolean.Input     ("auto_contrast",
-                                      tooltip="When enabled, automatically expands the dynamic range of the "
+                                      tooltip="When enabled, automatically adjusts the dynamic range of the "
                                               "image to fix washed-out tones and optimize contrast boundaries."
                                      ),
             ],
             outputs=[
                 io.Image.Output(tooltip="The final decoded image with post-processing adjustments applied."),
-            ]
+            ],
+            hidden=[
+                io.Hidden.unique_id,
+            ],
         )
 
     #__ FUNCTION __________________________________________
     @classmethod
     def execute(cls,
-                vae          : comfy.sd.VAE,
-                samples      : dict[str, torch.Tensor],
-                filter       : str,
-                filter_shift : float,
-                auto_contrast: bool,
+                vae                 : comfy.sd.VAE,
+                samples             : dict[str, torch.Tensor],
+                allow_extended_range: bool,
+                low_vram_mode       : bool,
+                filter              : str,
+                filter_shift        : float,
+                auto_contrast       : bool,
+                divider = None,
                 ):
+        # execute VAE decoder (with cache)
+        images = cls.execute_vae_decoder(cls.hidden.unique_id, vae, samples, allow_extended_range, low_vram_mode)
 
-        # extract latents from samples
+        # apply filter to images
+        images = cls.execute_filter(images,
+                                    filter        = filter,
+                                    filter_shift  = filter_shift,
+                                    auto_contrast = auto_contrast)
+        return (images, )
+
+
+    #__ internal functions ________________________________
+
+    @classmethod
+    def execute_vae_decoder(cls, node_id, vae, samples, allow_extended_range, low_vram_mode) -> torch.Tensor:
+        _CACHE_STATE["last_execution_time"] = time.time()
+        global_cache = _CACHE_STATE["global_cache"]
+
+        # get the cache specific to this node
+        if node_id not in global_cache:
+            global_cache[node_id] = {}
+        nodecache = global_cache[node_id]
+
+        # extract latents from the samples object
         latents: torch.Tensor = samples["samples"]
         if latents.is_nested:
             latents = latents.unbind()[0]
 
-        # decode all latents to images
-        # images = [B, H, W, C]
-        images = vae.decode(latents)
+        # generate the cache validation key
+        cache_key = ( id(vae), id(vae.patcher), id(samples), latents.sum().item(), allow_extended_range, low_vram_mode )
+        if nodecache.get("cache_key") == cache_key:
+            return cast(torch.Tensor, nodecache.get("images"))
 
-        # convert video(?) tensor to standard image batch:
-        # [B, T, H, W, C] -> [(B*T), H, W, C]
-        if len(images.shape) == 5:
-            images = images.reshape(-1, images.shape[-3], images.shape[-2], images.shape[-1])
-        elif len(images.shape) == 3:
-            images = images.unsqueeze(0)
+        # remove clipping adjustment if 'extended_range' option is selected by the user
+        orig_process_output = vae.process_output
+        if allow_extended_range:
+            vae.process_output = lambda image: image.add_(1.0).div_(2.0)
 
+        # decode latents to images
+        if low_vram_mode:
+            # when low_vram_mode is enabled,
+            # decode the latents using the "VAEDecodeTiled" node
+            images_tuple = execute_node("VAEDecodeTiled", vae=vae, samples=samples, tile_size=512)
+            images = images_tuple[0] if isinstance(images_tuple, tuple) else images_tuple
+        else:
+            # otherwise, decode the latents using the standard method
+            images = vae.decode(latents)
+            if len(images.shape) == 5:
+                images = images.reshape(-1, images.shape[-3], images.shape[-2], images.shape[-1])
+            elif len(images.shape) == 3:
+                images = images.unsqueeze(0)
+
+        # restore the clipping adjustment
+        vae.process_output = orig_process_output
+
+        # store cache for future use and return
+        images = images.cpu()
+        nodecache["cache_key"] = cache_key
+        nodecache["images"]    = images
+        return images
+
+
+    @classmethod
+    def execute_filter(cls,
+                       images: torch.Tensor,
+                       *,
+                       filter       : str,
+                       filter_shift : float,
+                       auto_contrast: bool
+                       ):
         images = images.permute(0, 3, 1, 2)
 
         if filter == "bw":
@@ -121,10 +199,9 @@ class VAEDecoderX21(io.ComfyNode):
             images = cls.stretch_histogram(images)
 
         images = images.permute(0, 2, 3, 1).contiguous()
-        return (images, )
+        return images
 
 
-    #__ internal functions ________________________________
 
     @staticmethod
     def adjust_hsv_components(images: torch.Tensor,
@@ -248,3 +325,29 @@ class VAEDecoderX21(io.ComfyNode):
         # add uniform noise centered at zero with the desired amplitude
         noise = (torch.rand_like(images) - 0.5) * (amplitude_bits * STEP_SIZE)
         return torch.clamp(images + noise, 0.0, 1.0)
+
+
+
+#========================== Internal Cache System ==========================#
+
+_CACHE_TIMEOUT = 20  # 20 segundos
+_CACHE_STATE   = {
+    "global_cache": {},
+    "last_execution_time": 0.0,
+}
+def _on_prompt_start(json_data):
+    """
+    Executes synchronously BEFORE building and executing the graph queue.
+    It is the only moment where inactivity is evaluated and the cache is
+    cleared to release any images held in the cache when nodes are no
+    longer being used.
+    """
+    global_cache = _CACHE_STATE["global_cache"]
+    if global_cache:
+        last_execution_time = _CACHE_STATE["last_execution_time"]
+        if (time.time() - last_execution_time) > _CACHE_TIMEOUT:
+            global_cache.clear()
+
+    return json_data
+
+PromptServer.instance.add_on_prompt_handler(_on_prompt_start)

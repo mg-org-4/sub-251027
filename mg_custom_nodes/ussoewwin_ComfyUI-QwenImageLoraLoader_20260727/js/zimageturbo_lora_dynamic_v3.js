@@ -1,20 +1,20 @@
 import { app } from "../../scripts/app.js";
 
-console.log("★★★ zimageturbo_lora_dynamic.js: Z-Image-Turbo LoRA Stack V2 ★★★");
+console.log("★★★ zimageturbo_lora_dynamic_v3.js: Z-Image-Turbo LoRA Stack V3 ★★★");
 
 const HIDDEN_TAG = "tschide";
 
 app.registerExtension({
-    name: "nunchaku.zimageturbo_lora_dynamic_combo_final_restore",
-    
+    name: "nunchaku.zimageturbo_lora_dynamic_v3",
+
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === "NunchakuZImageTurboLoraStackV2") {
+        if (nodeData.name === "NunchakuZImageTurboLoraStackV3") {
             nodeType["@visibleLoraCount"] = { type: "number", default: 1, min: 1, max: 10, step: 1 };
         }
     },
 
-        nodeCreated(node) {
-        if (node.comfyClass !== "NunchakuZImageTurboLoraStackV2") return;
+    nodeCreated(node) {
+        if (node.comfyClass !== "NunchakuZImageTurboLoraStackV3") return;
 
         if (!node.properties) node.properties = {};
         if (node.properties["visibleLoraCount"] === undefined) node.properties["visibleLoraCount"] = 1;
@@ -36,7 +36,7 @@ app.registerExtension({
         const initCache = () => {
             if (cacheReady) return;
             const all = [...node.widgets];
-            
+
             // Cache lora_count widget (required for Python backend, but hidden in UI)
             const loraCountWidget = all.find(w => w.name === "lora_count");
             if (loraCountWidget) {
@@ -50,20 +50,29 @@ app.registerExtension({
                 loraCountWidget.type = HIDDEN_TAG;
                 loraCountWidget.computeSize = () => [0, -4];
             }
-            
+
             // Cache cpu_offload widget
             const cpuOffloadWidget = all.find(w => w.name === "cpu_offload");
             if (cpuOffloadWidget) {
                 node.cachedCpuOffload = cpuOffloadWidget;
             }
-            
+
+            // Cache toggle_all widget
+            const toggleAllWidget = all.find(w => w.name === "toggle_all");
+            if (toggleAllWidget) {
+                node.cachedToggleAll = toggleAllWidget;
+            }
+
             for (let i = 1; i <= 10; i++) {
+                const wEnabled = all.find(w => w.name === `enabled_${i}`);
                 const wName = all.find(w => w.name === `lora_name_${i}`);
                 const wStrength = all.find(w => w.name === `lora_strength_${i}`);
-                if (wName && wStrength) {
-                    node.cachedWidgets[i] = [wName, wStrength];
+                if (wEnabled && wName && wStrength) {
+                    node.cachedWidgets[i] = [wEnabled, wName, wStrength];
+                    wEnabled.type = "toggle";
                     wName.type = "combo";
                     wStrength.type = "number";
+                    if (wEnabled.computeSize) delete wEnabled.computeSize;
                     if (wName.computeSize) delete wName.computeSize;
                     if (wStrength.computeSize) delete wStrength.computeSize;
                 }
@@ -71,9 +80,11 @@ app.registerExtension({
             cacheReady = true;
         };
 
+
+
         const ensureControlWidget = () => {
             const name = "🔢 LoRA Count";
-            
+
             // Remove old button widgets
             for (let i = node.widgets.length - 1; i >= 0; i--) {
                 const w = node.widgets[i];
@@ -89,7 +100,6 @@ app.registerExtension({
                     const num = parseInt(v);
                     if (!isNaN(num)) {
                         node.properties["visibleLoraCount"] = num;
-                        // Sync with lora_count widget for Python backend
                         if (node.cachedLoraCount) {
                             node.cachedLoraCount.value = num;
                         }
@@ -98,72 +108,105 @@ app.registerExtension({
                 }, { values });
             }
             w.value = node.properties["visibleLoraCount"].toString();
-            // Sync lora_count widget value
             if (node.cachedLoraCount) {
                 node.cachedLoraCount.value = node.properties["visibleLoraCount"];
             }
             return w;
         };
 
-        node.updateLoraSlots = function() {
+        const ensureToggleAllWidget = () => {
+            if (!node.cachedToggleAll) return null;
+            if (!node.cachedToggleAll.origCallback) {
+                node.cachedToggleAll.origCallback = node.cachedToggleAll.callback;
+            }
+            node.cachedToggleAll.callback = (value) => {
+                if (node.cachedToggleAll.origCallback) {
+                    node.cachedToggleAll.origCallback(value);
+                }
+                const count = parseInt(node.properties["visibleLoraCount"] || 1);
+                for (let i = 1; i <= count; i++) {
+                    const pair = node.cachedWidgets[i];
+                    if (pair && pair[0]) {
+                        pair[0].value = value;
+                    }
+                }
+            };
+            return node.cachedToggleAll;
+        };
+
+        // Plain logic restored
+        node.updateLoraSlots = function () {
             if (!cacheReady) initCache();
 
             const count = parseInt(this.properties["visibleLoraCount"] || 1);
             const controlWidget = ensureControlWidget();
-        
-            // Physical widget reconstruction for clean layout (like Flux V2)
+
             this.widgets = [controlWidget];
 
-            // Add lora_count widget (required for Python backend, but hidden in UI using HIDDEN_TAG)
             if (node.cachedLoraCount) {
-                // Ensure it's hidden
                 node.cachedLoraCount.type = HIDDEN_TAG;
                 node.cachedLoraCount.computeSize = () => [0, -4];
-                // Sync value for Python backend
                 node.cachedLoraCount.value = count;
-                // Add to widgets array (for Python backend, but hidden in UI)
                 this.widgets.push(node.cachedLoraCount);
             }
 
-            // Add cpu_offload widget from cache (required for Python backend)
+            const toggleAllWidget = ensureToggleAllWidget();
+            if (toggleAllWidget) {
+                this.widgets.push(toggleAllWidget);
+            }
+
             if (node.cachedCpuOffload) {
                 this.widgets.push(node.cachedCpuOffload);
             }
 
-            // Add only visible LoRA slots (non-visible widgets are removed from array)
             for (let i = 1; i <= count; i++) {
                 const pair = this.cachedWidgets[i];
-                if (pair) {
-                    this.widgets.push(pair[0]); 
-                    this.widgets.push(pair[1]);
+                if (pair && pair.length >= 3) {
+                    const wEnabled = pair[0];
+                    const wName = pair[1];
+                    const wStrength = pair[2];
+
+                    // Restore standard widgets
+                    wEnabled.type = "toggle";
+                    wName.type = "combo";
+                    wStrength.type = "number";
+
+                    // Clear custom compute sizes if any
+                    if (wEnabled.computeSize) delete wEnabled.computeSize;
+                    if (wName.computeSize) delete wName.computeSize;
+                    if (wStrength.computeSize) delete wStrength.computeSize;
+
+                    this.widgets.push(wEnabled);
+                    this.widgets.push(wName);
+                    this.widgets.push(wStrength);
                 }
             }
 
-            // Height calculation
             const HEADER_H = 60;
-            const SLOT_H = 54;
-            const CPU_OFFLOAD_H = node.cachedCpuOffload ? 40 : 0;
+            // 3 lines per slot (Toggle ~20 + Name ~26 + Strength ~26 + margins)
+            const SLOT_H = 80;
+            const TOGGLE_ALL_H = toggleAllWidget ? 30 : 0;
+            const CPU_OFFLOAD_H = node.cachedCpuOffload ? 30 : 0;
             const PADDING = 20;
-            const targetH = HEADER_H + CPU_OFFLOAD_H + (count * SLOT_H) + PADDING;
-            
+            const targetH = HEADER_H + TOGGLE_ALL_H + CPU_OFFLOAD_H + (count * SLOT_H) + PADDING;
+
             this.setSize([this.size[0], targetH]);
-            
+
             if (app.canvas) app.canvas.setDirty(true, true);
         };
 
-        node.onPropertyChanged = function(property, value) {
+        node.onPropertyChanged = function (property, value) {
             if (property === "visibleLoraCount") {
                 const w = this.widgets.find(x => x.name === "🔢 LoRA Count");
                 if (w) w.value = value.toString();
                 this.updateLoraSlots();
             }
         };
-        
-        // Restore UI on configure
+
         const origOnConfigure = node.onConfigure;
-        node.onConfigure = function() {
-             if (origOnConfigure) origOnConfigure.apply(this, arguments);
-             setTimeout(() => node.updateLoraSlots(), 100);
+        node.onConfigure = function () {
+            if (origOnConfigure) origOnConfigure.apply(this, arguments);
+            setTimeout(() => node.updateLoraSlots(), 100);
         };
 
         setTimeout(() => {

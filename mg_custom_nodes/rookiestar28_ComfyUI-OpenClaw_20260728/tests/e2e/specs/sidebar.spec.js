@@ -3,11 +3,12 @@ import { mockComfyUiCore, waitForOpenClawReady, clickTab } from '../utils/helper
 
 async function routeTransientOpenClawEntryFailures(page, failureCount) {
   let remainingFailures = failureCount;
-  let totalEntryRequests = 0;
   let abortedEntryRequests = 0;
 
   // IMPORTANT: keep this query-agnostic; Windows CI must intercept the harness
   // retry seam even when the dynamic import URL carries cache-busting params.
+  // IMPORTANT: assert logical harness attempts, not raw request counts; Chromium
+  // may duplicate a module transport request on Windows without a new attempt.
   await page.route('**/web/openclaw.js**', async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname !== '/web/openclaw.js') {
@@ -15,7 +16,6 @@ async function routeTransientOpenClawEntryFailures(page, failureCount) {
       return;
     }
 
-    totalEntryRequests += 1;
     if (remainingFailures > 0) {
       remainingFailures -= 1;
       abortedEntryRequests += 1;
@@ -27,7 +27,6 @@ async function routeTransientOpenClawEntryFailures(page, failureCount) {
   });
 
   return {
-    totalEntryRequests: () => totalEntryRequests,
     abortedEntryRequests: () => abortedEntryRequests,
   };
 }
@@ -125,7 +124,6 @@ test.describe('OpenClaw Sidebar', () => {
     await waitForOpenClawReady(page);
     await expect(page.locator('.openclaw-title')).toHaveText('OpenClaw');
     expect(entryRetry.abortedEntryRequests()).toBe(1);
-    expect(entryRetry.totalEntryRequests()).toBe(2);
     await expect
       .poll(() => page.evaluate(() => window.__openclawTestLoadAttempts))
       .toBe(2);
@@ -138,7 +136,6 @@ test.describe('OpenClaw Sidebar', () => {
     await waitForOpenClawReady(page);
     await expect(page.locator('.openclaw-title')).toHaveText('OpenClaw');
     expect(entryRetry.abortedEntryRequests()).toBe(2);
-    expect(entryRetry.totalEntryRequests()).toBe(3);
     await expect
       .poll(() => page.evaluate(() => window.__openclawTestLoadAttempts))
       .toBe(3);
@@ -150,8 +147,12 @@ test.describe('OpenClaw Sidebar', () => {
     await page.reload();
     await waitForOpenClawReady(page);
     await expect(page.locator('.openclaw-title')).toHaveText('OpenClaw');
+    // Reproduce Chromium's Windows-only duplicate transport request without
+    // advancing the harness's logical retry attempt.
+    await page.evaluate(() => fetch(
+      '../../web/openclaw.js?openclaw_harness_attempt=4',
+    ).then((response) => response.text()));
     expect(entryRetry.abortedEntryRequests()).toBe(3);
-    expect(entryRetry.totalEntryRequests()).toBe(4);
     await expect
       .poll(() => page.evaluate(() => window.__openclawTestLoadAttempts))
       .toBe(4);
@@ -164,6 +165,8 @@ test.describe('OpenClaw Sidebar', () => {
     await waitForOpenClawReady(page);
     await expect(page.locator('.openclaw-title')).toHaveText('OpenClaw');
     expect(entryRetry.abortedEntryRequests()).toBe(4);
-    expect(entryRetry.totalEntryRequests()).toBe(5);
+    await expect
+      .poll(() => page.evaluate(() => window.__openclawTestLoadAttempts))
+      .toBe(1);
   });
 });

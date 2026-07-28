@@ -1,5 +1,5 @@
 """
-File    : text.py
+File    : helpers_text.py
 Purpose : Helpers functions for text handling in PIL images
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Mar 27, 2026

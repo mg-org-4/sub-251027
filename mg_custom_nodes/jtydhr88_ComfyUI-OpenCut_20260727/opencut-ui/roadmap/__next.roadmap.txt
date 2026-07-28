@@ -1,4 +1,0 @@
-1:"$Sreact.fragment"
-2:I[72532,["/opencut/_next/static/chunks/ba87d901fca5afd6.js","/opencut/_next/static/chunks/6ced418915ddbb2a.js"],"default"]
-3:I[26661,["/opencut/_next/static/chunks/ba87d901fca5afd6.js","/opencut/_next/static/chunks/6ced418915ddbb2a.js"],"default"]
-0:{"buildId":"s6P8sDhi397Y5G9wJI3N2","rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"loading":null,"isPartial":false}

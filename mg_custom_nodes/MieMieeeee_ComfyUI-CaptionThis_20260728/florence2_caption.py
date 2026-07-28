@@ -14,7 +14,7 @@ from transformers.dynamic_module_utils import get_imports
 
 import folder_paths
 import comfy.model_management as mm
-from .common import hash_seed, mie_log, describe_images_core, image_to_pil_image
+from .common import hash_seed, mie_log, describe_images_core, image_to_pil_image, normalize_directory_path, assert_model_complete
 
 import transformers
 
@@ -82,9 +82,38 @@ def describe_single_image(image, model, processor, prompt, device, dtype, num_be
     # 转换为PIL图像
     pil_image = image_to_pil_image(image)
 
-    inputs = processor(text=prompt, images=pil_image, return_tensors="pt", do_rescale=False).to(dtype).to(
-        device)
+    # transformers >= 5.0 no longer pulls `do_resize` / `size` / `resample`
+    # from the preprocessor config defaults. The Florence2Processor wrapper
+    # does NOT forward a `size=` kwarg to its image_processor, so passing
+    # `size` here raises TypeError. The robust fix is to resize the PIL
+    # image ourselves before handing it to the processor (with
+    # `do_resize=False` to prevent the image_processor from re-applying its
+    # own broken resize path). The DaViT vision tower requires square
+    # feature maps; non-square inputs are rejected with
+    # "only support square feature maps for now" in `_encode_image`.
+    img_proc = getattr(processor, "image_processor", None)
+    if img_proc is not None and getattr(img_proc, "do_resize", True):
+        proc_size = dict(img_proc.size) if hasattr(img_proc.size, "__getitem__") else img_proc.size
+        proc_resample = getattr(img_proc, "resample", 3)
+        target_h = int(proc_size.get("height", 768))
+        target_w = int(proc_size.get("width", 768))
+        if pil_image.size != (target_w, target_h):
+            pil_image = pil_image.resize((target_w, target_h), resample=proc_resample)
+        inputs = processor(text=prompt, images=pil_image, return_tensors="pt", do_resize=False, do_rescale=False).to(dtype).to(device)
+    else:
+        inputs = processor(text=prompt, images=pil_image, return_tensors="pt", do_resize=False, do_rescale=False).to(dtype).to(device)
 
+    # NOTE(v9-compat): the Florence-2 / BART-style decoder in this plugin does not
+    # correctly interact with the transformers >= 5.0 `EncoderDecoderCache` API.
+    # The decoder code path was originally written for the 4.x tuple-of-tuples
+    # contract and has not been ported to honour `cache_position` / 4-D attention
+    # masks. Enabling `use_cache=True` on 5.x produces degenerate output (e.g.
+    # one token repeated hundreds of times). The robust workaround is to disable
+    # the cache entirely -- the model produces correct captions at the cost of
+    # O(max_new_tokens) instead of O(1) extra decoder steps. (Round 7+ attempts
+    # at porting to 5.x cache.update() + is_updated dict also produced gibberish;
+    # the cache object mutation interacts poorly with the BART decoder
+    # cache_position expectations.)
     try:
         generated_ids = model.generate(
             input_ids=inputs["input_ids"],
@@ -92,6 +121,7 @@ def describe_single_image(image, model, processor, prompt, device, dtype, num_be
             max_new_tokens=max_new_tokens,
             do_sample=do_sample,
             num_beams=num_beams,
+            use_cache=False,
         )
     except AttributeError as e:
         if "NoneType object has no attribute 'shape'" in str(e) or "NoneType' object has no attribute 'shape'" in str(e):
@@ -164,6 +194,13 @@ class Florence2ModelLoader:
             snapshot_download(repo_id=model_name,
                               local_dir=model_path,
                               local_dir_use_symlinks=False)
+
+        # Guard against a partially-downloaded model (e.g. only model.safetensors
+        # present, config.json missing). Without this, loading fails with a
+        # cryptic "'NoneType' object has no attribute 'model_type'".
+        assert_model_complete(model_path, repo_id=model_name,
+                              required_files=("config.json", "configuration_florence2.py",
+                                              "modeling_florence2.py", "tokenizer.json"))
 
         mie_log(f"Florence2 using {attention} for attention")
 
@@ -270,6 +307,11 @@ class Florence2CaptionImageUnderDirectory:
         if is_relative_path:
             directory = os.path.join(folder_paths.base_path, directory)
             save_directory = os.path.join(folder_paths.base_path, save_directory) if save_directory else None
+        # Normalize whatever the user typed (strip whitespace, expand ~, drop
+        # trailing separator) so copy-pasted / POSIX paths resolve cleanly.
+        directory = normalize_directory_path(directory)
+        if save_directory:
+            save_directory = normalize_directory_path(save_directory)
 
         mie_log(
             f"Describing images in {directory} and save to {save_directory if save_to_new_directory else directory}")

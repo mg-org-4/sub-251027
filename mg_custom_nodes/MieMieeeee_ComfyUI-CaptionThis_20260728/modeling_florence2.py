@@ -557,7 +557,12 @@ class DaViT(nn.Module):
         assert self.num_stages == len(self.num_heads) == len(self.num_groups)
 
         num_stages = len(embed_dims)
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths)*2)]
+        # NOTE(v9-compat): pure-Python drop-path schedule. The original `torch.linspace(...).item()`
+        # form touches tensors during `__init__`, which raises under meta-device instantiation
+        # (transformers >= 5.0 `from_pretrained` / `init_empty_weights`). This mirrors the
+        # official microsoft/Florence-2 5.x compatibility patch and is numerically identical.
+        _n_dpr = sum(depths) * 2
+        dpr = [drop_path_rate * i / (_n_dpr - 1) for i in range(_n_dpr)]
 
         depth_offset = 0
         convs = []
@@ -746,6 +751,7 @@ class Florence2Attention(nn.Module):
             bias: bool = True,
             is_causal: bool = False,
             config: Optional[Florence2LanguageConfig] = None,
+            layer_idx: Optional[int] = None,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -762,6 +768,13 @@ class Florence2Attention(nn.Module):
         self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
         self.is_causal = is_causal
+        # NOTE(v9-compat): transformers >= 5.0 requires every attention layer in a
+        # `PreTrainedModel` to know its `layer_idx` so the shared `Cache` (an
+        # `EncoderDecoderCache` for BART-style models) can address its own slot
+        # via `cache.layers[layer_idx]`. Without this, the new `Cache` API cannot
+        # disambiguate per-layer k/v writes and the model breaks at first decode
+        # step with `'EncoderDecoderCache' object is not subscriptable`.
+        self.layer_idx = layer_idx
 
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
@@ -775,57 +788,89 @@ class Florence2Attention(nn.Module):
             self,
             hidden_states: torch.Tensor,
             key_value_states: Optional[torch.Tensor] = None,
-            past_key_value: Optional[Tuple[torch.Tensor]] = None,
+            past_key_value=None,
             attention_mask: Optional[torch.Tensor] = None,
             layer_head_mask: Optional[torch.Tensor] = None,
             output_attentions: bool = False,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
-        """Input shape: Batch x Time x Channel"""
+    ):
+        """Input shape: Batch x Time x Channel.
 
-        # if key_value_states are provided this layer is used as a cross-attention layer
-        # for the decoder
+        `past_key_value` accepts either the legacy 4.x tuple-of-tensor form (a single
+        layer's k/v cache, fed through `[:2]` for self-attn / `[-2:]` for cross-attn
+        from `Florence2DecoderLayer`) OR the new transformers 5.x `Cache` object
+        (an `EncoderDecoderCache` wrapping a `self_attention_cache` + a
+        `cross_attention_cache` `DynamicCache`). The branch is auto-detected by
+        the presence of `self_attention_cache` on the object.
+        """
+
         is_cross_attention = key_value_states is not None
-
         bsz, tgt_len, _ = hidden_states.size()
 
         # get query proj
         query_states = self.q_proj(hidden_states) * self.scaling
-        # get key, value proj
-        # `past_key_value[0].shape[2] == key_value_states.shape[1]`
-        # is checking that the `sequence_length` of the `past_key_value` is the same as
-        # the provided `key_value_states` to support prefix tuning
-        if (
+
+        # Detect the new transformers 5.x Cache API vs the legacy 4.x tuple.
+        is_cache_object = past_key_value is not None and hasattr(past_key_value, "self_attention_cache")
+
+        if is_cache_object:
+            # transformers 5.x: pick the right sub-cache (self vs cross), and decide
+            # whether to reuse the cached k/v (cross-attn after the first step always
+            # reuses; self-attn reuses the previous step's k/v when present).
+            if is_cross_attention:
+                curr_past_key_value = past_key_value.cross_attention_cache
+                is_updated = getattr(past_key_value, "is_updated", {}).get(self.layer_idx, False)
+            else:
+                curr_past_key_value = past_key_value.self_attention_cache
+                is_updated = False
+
+            if (
                 is_cross_attention
-                and past_key_value is not None
-                and past_key_value[0].shape[2] == key_value_states.shape[1]
+                and is_updated
+                and curr_past_key_value is not None
+                and len(curr_past_key_value.layers) > self.layer_idx
+                and curr_past_key_value.layers[self.layer_idx].keys is not None
+                and curr_past_key_value.layers[self.layer_idx].values is not None
+            ):
+                # Reuse cross-attn k/v (encoder output does not change across decode steps).
+                key_states = curr_past_key_value.layers[self.layer_idx].keys
+                value_states = curr_past_key_value.layers[self.layer_idx].values
+            else:
+                # Compute k/v for the current step, then write back into the cache slot.
+                current_states = key_value_states if is_cross_attention else hidden_states
+                key_states = self._shape(self.k_proj(current_states), -1, bsz)
+                value_states = self._shape(self.v_proj(current_states), -1, bsz)
+                if (
+                    curr_past_key_value is not None
+                    and hasattr(curr_past_key_value, "update")
+                    and self.layer_idx is not None
+                ):
+                    key_states, value_states = curr_past_key_value.update(
+                        key_states, value_states, self.layer_idx
+                    )
+                    if is_cross_attention and hasattr(past_key_value, "is_updated"):
+                        past_key_value.is_updated[self.layer_idx] = True
+        elif (
+            is_cross_attention
+            and past_key_value is not None
+            and past_key_value[0].shape[2] == key_value_states.shape[1]
         ):
-            # reuse k,v, cross_attentions
+            # legacy 4.x: reuse cross-attn k/v
             key_states = past_key_value[0]
             value_states = past_key_value[1]
         elif is_cross_attention:
-            # cross_attentions
+            # legacy 4.x: compute cross-attn k/v
             key_states = self._shape(self.k_proj(key_value_states), -1, bsz)
             value_states = self._shape(self.v_proj(key_value_states), -1, bsz)
         elif past_key_value is not None:
-            # reuse k, v, self_attention
+            # legacy 4.x: concat previous self-attn k/v
             key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
             value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
             key_states = torch.cat([past_key_value[0], key_states], dim=2)
             value_states = torch.cat([past_key_value[1], value_states], dim=2)
         else:
-            # self_attention
+            # first step (no past)
             key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
             value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
-
-        if self.is_decoder:
-            # if cross_attention save Tuple(torch.Tensor, torch.Tensor) of all cross attention key/value_states.
-            # Further calls to cross_attention layer can then reuse all cross-attention
-            # key/value_states (first "if" case)
-            # if uni-directional self-attention (decoder) save Tuple(torch.Tensor, torch.Tensor) of
-            # all previous decoder key/value_states. Further calls to uni-directional self-attention
-            # can concat previous decoder key/value_states to current projected key/value_states (third "elif" case)
-            # if encoder bi-directional self-attention `past_key_value` is always `None`
-            past_key_value = (key_states, value_states)
 
         proj_shape = (bsz * self.num_heads, -1, self.head_dim)
         query_states = self._shape(query_states, tgt_len, bsz).view(*proj_shape)
@@ -889,7 +934,18 @@ class Florence2Attention(nn.Module):
 
         attn_output = self.out_proj(attn_output)
 
-        return attn_output, attn_weights_reshaped, past_key_value
+        # Return the per-layer cache in a shape the calling code can append to
+        # `next_decoder_cache` (legacy 4.x callers do `next_cache += (present_kv,)`).
+        # - In the 5.x Cache branch the cache was mutated in place; return the same
+        #   object reference so the caller can pass it forward unchanged.
+        # - In the 4.x tuple branch the canonical form is `(key_states, value_states)`,
+        #   matching the upstream BART legacy contract.
+        if is_cache_object:
+            present_key_value = past_key_value
+        else:
+            present_key_value = (key_states, value_states)
+
+        return attn_output, attn_weights_reshaped, present_key_value
 
 
 class Florence2FlashAttention2(Florence2Attention):
@@ -899,9 +955,10 @@ class Florence2FlashAttention2(Florence2Attention):
     flash attention and deal with padding tokens in case the input contains any of them.
     """
 
-    # Copied from transformers.models.llama.modeling_llama.LlamaFlashAttention2.__init__
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    # NOTE(v9-compat): pass through `layer_idx` to the base class so it knows its slot
+    # in the shared `EncoderDecoderCache`.
+    def __init__(self, *args, layer_idx=None, **kwargs):
+        super().__init__(*args, layer_idx=layer_idx, **kwargs)
 
         # TODO: Should be removed once Flash Attention for RoCm is bumped to 2.1.
         # flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignement, that was made default for flash_attn>=2.1. This attribute is used to handle this difference. Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.
@@ -915,14 +972,28 @@ class Florence2FlashAttention2(Florence2Attention):
             self,
             hidden_states: torch.Tensor,
             key_value_states: Optional[torch.Tensor] = None,
-            past_key_value: Optional[Tuple[torch.Tensor]] = None,
+            past_key_value=None,
             attention_mask: Optional[torch.Tensor] = None,
             layer_head_mask: Optional[torch.Tensor] = None,
             output_attentions: bool = False,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
+    ):
         # Florence2FlashAttention2 attention does not support output_attentions
         if output_attentions:
             raise ValueError("Florence2FlashAttention2 attention does not support output_attentions")
+
+        # NOTE(v9-compat): if the new transformers 5.x `Cache` API is in use, fall
+        # back to the eager implementation in `Florence2Attention` -- the k/v write
+        # semantics against the shared `EncoderDecoderCache` are handled there. The
+        # Flash kernel path is kept for the legacy 4.x tuple-of-tensor cache only.
+        if past_key_value is not None and hasattr(past_key_value, "self_attention_cache"):
+            return super().forward(
+                hidden_states,
+                key_value_states=key_value_states,
+                past_key_value=past_key_value,
+                attention_mask=attention_mask,
+                layer_head_mask=layer_head_mask,
+                output_attentions=output_attentions,
+            )
 
         # if key_value_states are provided this layer is used as a cross-attention layer
         # for the decoder
@@ -1009,7 +1080,14 @@ class Florence2FlashAttention2(Florence2Attention):
         if not output_attentions:
             attn_weights = None
 
-        return attn_output, attn_weights, past_key_value
+        # See Florence2Attention.forward for the rationale on the present_key_value
+        # derivation. Same 5.x-Cache / 4.x-tuple split applies here.
+        if past_key_value is not None and hasattr(past_key_value, "self_attention_cache"):
+            present_key_value = past_key_value
+        else:
+            present_key_value = (key_states, value_states)
+
+        return attn_output, attn_weights, present_key_value
 
     # Copied from transformers.models.llama.modeling_llama.LlamaFlashAttention2._flash_attention_forward
     def _flash_attention_forward(
@@ -1112,15 +1190,21 @@ class Florence2FlashAttention2(Florence2Attention):
 
 
 class Florence2SdpaAttention(Florence2Attention):
+    # NOTE(v9-compat): forward is rewritten below to mirror the 5.x Cache branch
+    # from `Florence2Attention.forward`. The eager fallback path (`output_attentions`
+    # or `layer_head_mask` not None) is preserved verbatim.
+    def __init__(self, *args, layer_idx=None, **kwargs):
+        super().__init__(*args, layer_idx=layer_idx, **kwargs)
+
     def forward(
             self,
             hidden_states: torch.Tensor,
             key_value_states: Optional[torch.Tensor] = None,
-            past_key_value: Optional[Tuple[torch.Tensor]] = None,
+            past_key_value=None,
             attention_mask: Optional[torch.Tensor] = None,
             layer_head_mask: Optional[torch.Tensor] = None,
             output_attentions: bool = False,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
+    ):
         """Input shape: Batch x Time x Channel"""
         if output_attentions or layer_head_mask is not None:
             # TODO: Improve this warning with e.g. `model.config._attn_implementation = "manual"` once this is implemented.
@@ -1128,6 +1212,21 @@ class Florence2SdpaAttention(Florence2Attention):
                 "Florence2Model is using Florence2SdpaAttention, but `torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True` or `layer_head_mask` not None. Falling back to the manual attention"
                 ' implementation, but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
             )
+            return super().forward(
+                hidden_states,
+                key_value_states=key_value_states,
+                past_key_value=past_key_value,
+                attention_mask=attention_mask,
+                layer_head_mask=layer_head_mask,
+                output_attentions=output_attentions,
+            )
+
+        # NOTE(v9-compat): if the new transformers 5.x `Cache` API is in use, fall
+        # back to the eager implementation in `Florence2Attention` -- the legacy
+        # 4.x tuple branch is also handled there. This keeps the k/v write semantics
+        # consistent (the SDPA path in 5.x would otherwise need its own `update()`
+        # call against the shared `EncoderDecoderCache`).
+        if past_key_value is not None and hasattr(past_key_value, "self_attention_cache"):
             return super().forward(
                 hidden_states,
                 key_value_states=key_value_states,
@@ -1214,7 +1313,14 @@ class Florence2SdpaAttention(Florence2Attention):
 
         attn_output = self.out_proj(attn_output)
 
-        return attn_output, None, past_key_value
+        # See Florence2Attention.forward for the rationale on the present_key_value
+        # derivation. Same 5.x-Cache / 4.x-tuple split applies here.
+        if past_key_value is not None and hasattr(past_key_value, "self_attention_cache"):
+            present_key_value = past_key_value
+        else:
+            present_key_value = (key_states, value_states)
+
+        return attn_output, None, present_key_value
 
 
 FLORENCE2_ATTENTION_CLASSES = {
@@ -1225,15 +1331,19 @@ FLORENCE2_ATTENTION_CLASSES = {
 
 
 class Florence2EncoderLayer(nn.Module):
-    def __init__(self, config: Florence2LanguageConfig):
+    def __init__(self, config: Florence2LanguageConfig, layer_idx: Optional[int] = None):
         super().__init__()
         self.embed_dim = config.d_model
-
+        # NOTE(v9-compat): `layer_idx` is required for the new transformers 5.x
+        # `Cache` API. The encoder does not typically use past_key_values at
+        # inference time, but the same attention module class is used for both
+        # encoder/decoder, so we pass it through unconditionally.
         self.self_attn = FLORENCE2_ATTENTION_CLASSES[config._attn_implementation](
             embed_dim=self.embed_dim,
             num_heads=config.encoder_attention_heads,
             dropout=config.attention_dropout,
             config=config,
+            layer_idx=layer_idx,
         )
         self.self_attn_layer_norm = nn.LayerNorm(self.embed_dim)
         self.dropout = config.dropout
@@ -1295,10 +1405,14 @@ class Florence2EncoderLayer(nn.Module):
 
 
 class Florence2DecoderLayer(nn.Module):
-    def __init__(self, config: Florence2LanguageConfig):
+    def __init__(self, config: Florence2LanguageConfig, layer_idx: Optional[int] = None):
         super().__init__()
         self.embed_dim = config.d_model
 
+        # NOTE(v9-compat): `layer_idx` is required by the new transformers 5.x
+        # `Cache` API. The shared `EncoderDecoderCache` addresses per-layer k/v
+        # by `layer_idx`; without it the cache cannot disambiguate writes and
+        # the model breaks at the first decode step.
         self.self_attn = FLORENCE2_ATTENTION_CLASSES[config._attn_implementation](
             embed_dim=self.embed_dim,
             num_heads=config.decoder_attention_heads,
@@ -1306,6 +1420,7 @@ class Florence2DecoderLayer(nn.Module):
             is_decoder=True,
             is_causal=True,
             config=config,
+            layer_idx=layer_idx,
         )
         self.dropout = config.dropout
         self.activation_fn = ACT2FN[config.activation_function]
@@ -1318,6 +1433,7 @@ class Florence2DecoderLayer(nn.Module):
             dropout=config.attention_dropout,
             is_decoder=True,
             config=config,
+            layer_idx=layer_idx,
         )
         self.encoder_attn_layer_norm = nn.LayerNorm(self.embed_dim)
         self.fc1 = nn.Linear(self.embed_dim, config.decoder_ffn_dim)
@@ -1332,7 +1448,12 @@ class Florence2DecoderLayer(nn.Module):
             encoder_attention_mask: Optional[torch.Tensor] = None,
             layer_head_mask: Optional[torch.Tensor] = None,
             cross_attn_layer_head_mask: Optional[torch.Tensor] = None,
-            past_key_value: Optional[Tuple[torch.Tensor]] = None,
+            # NOTE(v9-compat): in transformers >= 5.0 the shared `Cache` (a `DynamicCache`
+            # or `EncoderDecoderCache`) is passed as-is to the layer. The legacy 4.x
+            # per-layer 4-tuple `(self_attn_k, self_attn_v, cross_attn_k, cross_attn_v)`
+            # is still accepted. The `Florence2Attention.forward` here dispatches based on
+            # the type at runtime via `hasattr(past_key_value, "self_attention_cache")`.
+            past_key_value=None,
             output_attentions: Optional[bool] = False,
             use_cache: Optional[bool] = True,
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
@@ -1357,9 +1478,20 @@ class Florence2DecoderLayer(nn.Module):
         residual = hidden_states
 
         # Self Attention
-        # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
-        self_attn_past_key_value = past_key_value[:2] if past_key_value is not None else None
-        # add present self-attn cache to positions 1,2 of present_key_value tuple
+        # NOTE(v9-compat): is_cache_object distinguishes the 5.x Cache API from the
+        # legacy 4.x tuple-of-tensor cache. In 5.x we pass the WHOLE cache to the
+        # attention and the attention does the right thing via layer_idx + cache.update.
+        # In 4.x we slice the per-layer 4-tuple (self_attn_k, self_attn_v,
+        # cross_attn_k, cross_attn_v) at positions [0:2] for self-attn, matching the
+        # upstream BART legacy contract this repo forked from.
+        is_cache_object = past_key_value is not None and hasattr(past_key_value, "self_attention_cache")
+        if is_cache_object:
+            # 5.x: pass the whole Cache; the attention mutates it in place via
+            # cache.update(key_states, value_states, self.layer_idx).
+            self_attn_past_key_value = past_key_value
+        else:
+            # 4.x: pass the per-layer (self_attn_k, self_attn_v) slice.
+            self_attn_past_key_value = past_key_value[:2] if past_key_value is not None else None
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
             hidden_states=hidden_states,
             past_key_value=self_attn_past_key_value,
@@ -1377,8 +1509,14 @@ class Florence2DecoderLayer(nn.Module):
         if encoder_hidden_states is not None:
             residual = hidden_states
 
-            # cross_attn cached key/values tuple is at positions 3,4 of present_key_value tuple
-            cross_attn_past_key_value = past_key_value[-2:] if past_key_value is not None else None
+            if is_cache_object:
+                # 5.x: pass the whole Cache; the cross-attention mutates it in
+                # place via cache.cross_attention_cache.update(...) and flips
+                # past_key_value.is_updated[self.layer_idx] = True.
+                cross_attn_past_key_value = past_key_value
+            else:
+                # 4.x: pass the per-layer (cross_attn_k, cross_attn_v) slice.
+                cross_attn_past_key_value = past_key_value[-2:] if past_key_value is not None else None
             hidden_states, cross_attn_weights, cross_attn_present_key_value = self.encoder_attn(
                 hidden_states=hidden_states,
                 key_value_states=encoder_hidden_states,
@@ -1391,8 +1529,14 @@ class Florence2DecoderLayer(nn.Module):
             hidden_states = residual + hidden_states
             hidden_states = self.encoder_attn_layer_norm(hidden_states)
 
-            # add cross-attn to positions 3,4 of present_key_value tuple
-            present_key_value = present_key_value + cross_attn_present_key_value
+            # NOTE(v9-compat): in the 5.x Cache branch the cross-attention writes
+            # directly to past_key_value.cross_attention_cache.layers[layer_idx],
+            # so the cache object is already mutated; no tuple composition needed.
+            # In the legacy 4.x branch, both attentions return their own 2-tuple
+            # and we concatenate to form the per-layer 4-tuple the BART legacy
+            # contract expects.
+            if not is_cache_object:
+                present_key_value = present_key_value + cross_attn_present_key_value
 
         # Fully Connected
         residual = hidden_states
@@ -1426,6 +1570,29 @@ class Florence2LanguagePreTrainedModel(PreTrainedModel):
     _supports_sdpa = True
 
     def _init_weights(self, module):
+        # NOTE(v9-compat): transformers >= 5.0 loads via meta-device + `init_empty_weights`,
+        # then materializes and runs `initialize_weights` -> `_init_weights` over the whole
+        # model. `mark_tied_weights_as_initialized` only sets the `_is_hf_initialized` flag on
+        # *parameters* (the tied targets), not on the *modules* that own them, so
+        # `PreTrainedModel._initialize_weights` (which checks the flag at the MODULE level)
+        # sees `Florence2LanguageModel`/encoder/decoder layers as "not initialized" and re-runs
+        # this method in-place, OVERWRITING freshly-loaded checkpoint weights with random
+        # values. The result: vision_tower loads fine but the entire BART encoder+decoder+embeds
+        # become random -> captions are gibberish (verified: teacher-forcing acc 0%, loss ~17).
+        #
+        # Fix: honor the per-parameter `_is_hf_initialized` flag the way transformers documents
+        # for remote-code models (see `PreTrainedModel._initialize_weights` docstring). If every
+        # direct parameter/buffer of this module is already hf-initialized, the weights came from
+        # the checkpoint and must NOT be re-randomized. Container modules with no own params
+        # (e.g. the top-level model) fall through and recurse normally.
+        own_params = list(module.parameters(recurse=False))
+        own_buffers = [b for b in module.buffers(recurse=False) if b is not None]
+        if own_params or own_buffers:
+            if all(getattr(p, "_is_hf_initialized", False) for p in own_params) and all(
+                getattr(b, "_is_hf_initialized", False) for b in own_buffers
+            ):
+                return
+
         std = self.config.init_std
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=std)
@@ -1490,7 +1657,13 @@ class Florence2Encoder(Florence2LanguagePreTrainedModel):
             config.max_position_embeddings,
             embed_dim,
         )
-        self.layers = nn.ModuleList([Florence2EncoderLayer(config) for _ in range(config.encoder_layers)])
+        # NOTE(v9-compat): pass `layer_idx` so each encoder layer's attention knows its
+        # slot in the shared `Cache`. The encoder does not typically use past_key_values
+        # during inference, but the same attention module class is used for both
+        # encoder/decoder so we wire it through unconditionally.
+        self.layers = nn.ModuleList(
+            [Florence2EncoderLayer(config, layer_idx=i) for i in range(config.encoder_layers)]
+        )
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
         self._use_sdpa = config._attn_implementation == "sdpa"
         self.layernorm_embedding = nn.LayerNorm(embed_dim)
@@ -1674,7 +1847,13 @@ class Florence2Decoder(Florence2LanguagePreTrainedModel):
             config.max_position_embeddings,
             config.d_model,
         )
-        self.layers = nn.ModuleList([Florence2DecoderLayer(config) for _ in range(config.decoder_layers)])
+        # NOTE(v9-compat): pass `layer_idx` so each decoder layer's attention knows its
+        # slot in the shared `EncoderDecoderCache`. Without this the 5.x `Cache.update()`
+        # call would write into the wrong slot and the model would degrade silently at
+        # decode time. See `Florence2Decoder.forward` for the runtime usage.
+        self.layers = nn.ModuleList(
+            [Florence2DecoderLayer(config, layer_idx=i) for i in range(config.decoder_layers)]
+        )
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
         self._use_sdpa = config._attn_implementation == "sdpa"
 
@@ -1791,7 +1970,19 @@ class Florence2Decoder(Florence2LanguagePreTrainedModel):
             raise ValueError("You have to specify either decoder_input_ids or decoder_inputs_embeds")
 
         # past_key_values_length
-        past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
+        # NOTE(v9-compat): see Florence2LanguageForConditionalGeneration.prepare_inputs_for_generation.
+        # transformers >= 5.0 wraps past_key_values in EncoderDecoderCache; the legacy
+        # tuple-of-tuples indexing is gone. Use the public get_seq_length() API when
+        # available and fall back to the 4.x tuple format for safety.
+        if past_key_values is not None:
+            if hasattr(past_key_values, "get_seq_length"):
+                past_key_values_length = past_key_values.get_seq_length()
+            elif isinstance(past_key_values, (tuple, list)) and len(past_key_values) > 0 and len(past_key_values[0]) > 0:
+                past_key_values_length = past_key_values[0][0].shape[2]
+            else:
+                past_key_values_length = 0
+        else:
+            past_key_values_length = 0
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input)
@@ -1873,7 +2064,23 @@ class Florence2Decoder(Florence2LanguagePreTrainedModel):
                 if dropout_probability < self.layerdrop:
                     continue
 
-            past_key_value = past_key_values[idx] if past_key_values is not None else None
+            # NOTE(v9-compat): with the 5.x `Cache` API the per-layer cache is the WHOLE
+            # cache object (the cache has per-slot storage internally addressed by
+            # `layer_idx`). With the legacy 4.x tuple API we slice the per-layer
+            # 4-tuple `past_key_values[idx]` -- the original BART legacy contract this
+            # repo forked from. Passing the entire `past_key_values` (a tuple-of-tuples)
+            # to a single layer would make slices like `past_key_value[:2]` land on the
+            # outer tuple, which is the round-6 regression that broke generation.
+            if past_key_values is None:
+                past_key_value = None
+            elif hasattr(past_key_values, "self_attention_cache"):
+                # 5.x: pass the whole cache object; the attention writes into its
+                # own slot via cache.update(key_states, value_states, self.layer_idx).
+                past_key_value = past_key_values
+            else:
+                # 4.x: slice the per-layer 4-tuple (self_attn_k, self_attn_v,
+                # cross_attn_k, cross_attn_v). The layer further slices it as needed.
+                past_key_value = past_key_values[idx]
 
             if self.gradient_checkpointing and self.training:
                 layer_outputs = self._gradient_checkpointing_func(
@@ -1905,7 +2112,22 @@ class Florence2Decoder(Florence2LanguagePreTrainedModel):
             hidden_states = layer_outputs[0]
 
             if use_cache:
-                next_decoder_cache += (layer_outputs[3 if output_attentions else 1],)
+                # NOTE(v9-compat): in the 5.x Cache branch the layer already wrote
+                # into the shared `EncoderDecoderCache`; the returned `present_key_value`
+                # is the same object reference. In the legacy 4.x branch the layer
+                # returned the per-layer 4-tuple (self_attn_k, self_attn_v, cross_attn_k,
+                # cross_attn_v) which we still need to accumulate in `next_decoder_cache`
+                # to maintain the tuple-of-tuples output contract.
+                layer_cache = layer_outputs[3 if output_attentions else 1]
+                is_cache_obj = layer_cache is not None and hasattr(layer_cache, "self_attention_cache")
+                if is_cache_obj:
+                    # 5.x: cache was mutated in place; final value is the same shared object.
+                    next_decoder_cache = layer_cache
+                else:
+                    # 4.x: per-layer 4-tuple; append to the tuple-of-tuples.
+                    if next_decoder_cache is None:
+                        next_decoder_cache = ()
+                    next_decoder_cache = next_decoder_cache + (layer_cache,)
 
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
@@ -1934,7 +2156,17 @@ class Florence2Decoder(Florence2LanguagePreTrainedModel):
 
 
 class Florence2LanguageModel(Florence2LanguagePreTrainedModel):
-    _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight"]
+    # NOTE(v9-compat): transformers >= 5.0 changed `_tied_weights_keys` from a flat list
+    # to a `dict[target -> source]` mapping. The downstream code in
+    # `PreTrainedModel.mark_tied_weights_as_initialized` does `self.get_parameter(tgt)`
+    # to set the `_is_hf_initialized` flag on each target; paths must be navigable from
+    # `self` of the class they are declared on. Florence2LanguageModel wraps
+    # `self.shared` (the canonical tied-embedding source used by `_tie_weights` here),
+    # so all targets are relative to the language model itself (no `model.` prefix).
+    _tied_weights_keys = {
+        "encoder.embed_tokens.weight": "shared.weight",
+        "decoder.embed_tokens.weight": "shared.weight",
+    }
 
     def __init__(self, config: Florence2LanguageConfig):
         super().__init__(config)
@@ -2057,7 +2289,15 @@ class Florence2LanguageModel(Florence2LanguagePreTrainedModel):
 
 class Florence2LanguageForConditionalGeneration(Florence2LanguagePreTrainedModel, GenerationMixin):
     base_model_prefix = "model"
-    _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight", "lm_head.weight"]
+    # NOTE(v9-compat): see Florence2LanguageModel. Florence2LanguageForConditionalGeneration
+    # wraps the inner BART-like `Florence2LanguageModel` at `self.model` AND owns `self.lm_head`
+    # (Linear) directly. `_tie_weights` ties encoder.embed_tokens, decoder.embed_tokens, and
+    # lm_head all to `self.model.shared` -- preserve that intent in the dict.
+    _tied_weights_keys = {
+        "model.encoder.embed_tokens.weight": "model.shared.weight",
+        "model.decoder.embed_tokens.weight": "model.shared.weight",
+        "lm_head.weight": "model.shared.weight",
+    }
     _keys_to_ignore_on_load_missing = ["final_logits_bias"]
 
     def __init__(self, config: Florence2LanguageConfig):
@@ -2197,7 +2437,17 @@ class Florence2LanguageForConditionalGeneration(Florence2LanguagePreTrainedModel
     ):
         # cut decoder_input_ids if past_key_values is used
         if past_key_values is not None:
-            past_length = past_key_values[0][0].shape[2]
+            # NOTE(v9-compat): transformers >= 5.0 wraps past_key_values in
+            # `EncoderDecoderCache` (no longer a list-of-tuples). The legacy
+            # `past_key_values[0][0].shape[2]` access raises TypeError on 5.x.
+            # Use the public `get_seq_length()` API when available; fall back to the
+            # legacy index for the 4.x tuple-of-tuple format (and for None).
+            if hasattr(past_key_values, "get_seq_length"):
+                past_length = past_key_values.get_seq_length()
+            elif isinstance(past_key_values, (tuple, list)) and len(past_key_values) > 0 and len(past_key_values[0]) > 0:
+                past_length = past_key_values[0][0].shape[2]
+            else:
+                past_length = 0
 
             # Some generation methods already pass only the last input ID
             if decoder_input_ids.shape[1] > past_length:
@@ -2226,6 +2476,17 @@ class Florence2LanguageForConditionalGeneration(Florence2LanguagePreTrainedModel
 
     @staticmethod
     def _reorder_cache(past_key_values, beam_idx):
+        # NOTE(v9-compat): transformers >= 5.0 wraps past_key_values in an
+        # `EncoderDecoderCache` (or `DynamicCache`) which is not iterable as a
+        # tuple-of-tuples. On 5.x we delegate to the cache's native reorder method.
+        # On 4.x we keep the original BART legacy contract: iterate per-layer 4-tuples.
+        if past_key_values is not None and hasattr(past_key_values, "reorder_cache"):
+            # 5.x path: EncoderDecoderCache.reorder_cache(beam_idx) reorders both
+            # self_attention_cache and cross_attention_cache internally and returns
+            # the same cache object.
+            past_key_values.reorder_cache(beam_idx)
+            return past_key_values
+        # 4.x path: tuple-of-tuples contract.
         reordered_past = ()
         for layer_past in past_key_values:
             # cached cross_attention states don't have to be reordered -> they are always the same
@@ -2536,7 +2797,15 @@ class Florence2VisionModelWithProjection(Florence2PreTrainedModel):
     FLORENCE2_START_DOCSTRING,
 )
 class Florence2ForConditionalGeneration(Florence2PreTrainedModel, GenerationMixin):
-    _tied_weights_keys = ["language_model.encoder.embed_tokens.weight", "language_model.decoder.embed_tokens.weight", "language_model.lm_head.weight"]
+    # NOTE(v9-compat): see Florence2LanguageModel. The top-level composite model has no
+    # own lm_head / shared; tying is delegated through `self.language_model` (which is a
+    # `Florence2LanguageForConditionalGeneration`). Paths here are relative to the top-level
+    # model, so they get the `language_model.` and the inner `model.` (BART wrapper) prefixes.
+    _tied_weights_keys = {
+        "language_model.model.encoder.embed_tokens.weight": "language_model.model.shared.weight",
+        "language_model.model.decoder.embed_tokens.weight": "language_model.model.shared.weight",
+        "language_model.lm_head.weight": "language_model.model.shared.weight",
+    }
     def __init__(self, config: Florence2Config):
         super().__init__(config)
         assert config.vision_config.model_type == 'davit', 'only DaViT is supported for now'
@@ -2820,7 +3089,13 @@ class Florence2ForConditionalGeneration(Florence2PreTrainedModel, GenerationMixi
     ):
         # cut decoder_input_ids if past_key_values is used
         if past_key_values is not None:
-            past_length = past_key_values[0][0].shape[2]
+            # NOTE(v9-compat): see Florence2LanguageForConditionalGeneration.prepare_inputs_for_generation
+            if hasattr(past_key_values, "get_seq_length"):
+                past_length = past_key_values.get_seq_length()
+            elif isinstance(past_key_values, (tuple, list)) and len(past_key_values) > 0 and len(past_key_values[0]) > 0:
+                past_length = past_key_values[0][0].shape[2]
+            else:
+                past_length = 0
 
             # Some generation methods already pass only the last input ID
             if decoder_input_ids.shape[1] > past_length:
@@ -2843,8 +3118,8 @@ class Florence2ForConditionalGeneration(Florence2PreTrainedModel, GenerationMixi
             "decoder_head_mask": decoder_head_mask,
             "cross_attn_head_mask": cross_attn_head_mask,
             "use_cache": use_cache,  # change this to avoid caching (presumably for debugging)
-        }
 
+        }
     def prepare_decoder_input_ids_from_labels(self, labels: torch.Tensor):
         return self.language_model.shift_tokens_right(labels)
 

@@ -2,7 +2,7 @@
 # Copyright 2025-2026 Raykosan (RaykoStudio)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
+# you may not use th is file except in compliance with the License.
 # You may obtain a copy of the License at
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
@@ -13,9 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import aiohttp
-import base64
-from io import BytesIO
 import os
 import torch
 import numpy as np
@@ -27,6 +24,7 @@ from PIL import Image
 from collections import OrderedDict
 from server import PromptServer
 from aiohttp import web
+import aiohttp
 
 class LRUCache:
     def __init__(self, max_size: int = 50):
@@ -69,7 +67,6 @@ def apply_basic_adjustments(img_bgr, brightness, contrast, hue, saturation):
     if brightness != 0 or contrast != 0:
         alpha = 1.0 + (contrast / 100.0)
         beta = brightness
-        
         img_bgr = img_bgr.astype(np.float32)
         img_bgr = img_bgr * alpha + beta
         img_bgr = np.clip(img_bgr, 0, 255).astype(np.uint8)
@@ -81,6 +78,44 @@ def apply_basic_adjustments(img_bgr, brightness, contrast, hue, saturation):
         img_bgr = cv2.cvtColor(img_hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
     
     return img_bgr
+
+def apply_sharpen(img_bgr, amount):
+    if amount <= 0:
+        return img_bgr
+    
+    amount = min(amount, 200) / 100.0
+    blurred = cv2.GaussianBlur(img_bgr, (0, 0), 3)
+    sharpened = cv2.addWeighted(img_bgr, 1.0 + amount, blurred, -amount, 0)
+    return sharpened
+
+def apply_vibrance(img_bgr, amount):
+    if amount == 0:
+        return img_bgr
+    
+    amount = amount / 100.0
+    img_float = img_bgr.astype(np.float32) / 255.0
+    
+    max_rgb = np.max(img_float, axis=2)
+    avg_rgb = np.mean(img_float, axis=2)
+    saturation = max_rgb - avg_rgb
+    
+    mask = 1.0 - saturation
+    
+    result = img_float.copy()
+    for c in range(3):
+        result[:, :, c] = img_float[:, :, c] + (img_float[:, :, c] - avg_rgb[:, :, np.newaxis][:, :, 0]) * amount * mask
+    
+    result = np.clip(result * 255, 0, 255).astype(np.uint8)
+    return result
+
+def apply_clarity(img_bgr, amount):
+    if amount == 0:
+        return img_bgr
+    
+    amount = amount / 100.0
+    blurred = cv2.GaussianBlur(img_bgr, (0, 0), 30)
+    clarified = cv2.addWeighted(img_bgr, 1.0 + amount, blurred, -amount, 0)
+    return clarified
 
 def parse_cube_lut(lut_path):
     try:
@@ -109,11 +144,8 @@ def parse_cube_lut(lut_path):
                 continue
     
     lut_array = np.array(lut_data, dtype=np.float32).reshape((size, size, size, 3))
-    
     lut_array = np.transpose(lut_array, (2, 1, 0, 3))
-    
     LUT_CACHE.put(cache_key, lut_array)
-    
     return lut_array
 
 def apply_lut(img_bgr, lut_path, intensity):
@@ -168,7 +200,6 @@ def apply_lut(img_bgr, lut_path, intensity):
         )
     
     result = np.clip(result, 0, 1)
-    
     result_bgr = result[:, :, ::-1]
     
     if intensity < 1.0:
@@ -182,7 +213,6 @@ def apply_levels(img_bgr, input_black, gamma, input_white):
         return img_bgr
     
     img_float = img_bgr.astype(np.float32) / 255.0
-    
     in_min = input_black / 255.0
     in_max = input_white / 255.0
     in_range = max(0.001, in_max - in_min)
@@ -201,7 +231,6 @@ def apply_exposure(img_bgr, exposure, offset):
         return img_bgr
     
     img_float = img_bgr.astype(np.float32) / 255.0
-    
     multiplier = 2.0 ** (exposure / 100.0)
     img_float = img_float * multiplier + (offset / 100.0)
     
@@ -244,7 +273,7 @@ def apply_black_and_white(img_bgr, red, yellow, green, cyan, blue, magenta):
     img_float = img_bgr.astype(np.float32) / 255.0
     img_rgb = img_float[:, :, ::-1]
     img_hsv = cv2.cvtColor((img_rgb * 255).astype(np.uint8), cv2.COLOR_RGB2HSV)
-    hue = img_hsv[:, :, 0].astype(np.float32) * 2.0  # 0..358
+    hue = img_hsv[:, :, 0].astype(np.float32) * 2.0
 
     w_red = red / 100.0
     w_yellow = yellow / 100.0
@@ -256,11 +285,11 @@ def apply_black_and_white(img_bgr, red, yellow, green, cyan, blue, magenta):
     ref_hues = np.array([0, 30, 60, 90, 120, 150], dtype=np.float32)
     ref_weights = np.array([
         [w_red, 0, 0],
-        [w_red, w_green, 0],
+        [w_yellow, w_yellow, 0],
         [0, w_green, 0],
-        [0, w_green, w_blue],
+        [0, w_cyan, w_cyan],
         [0, 0, w_blue],
-        [w_red, 0, w_blue]
+        [w_magenta, 0, w_magenta]
     ], dtype=np.float32)
 
     ref_hues_ext = np.array([0, 30, 60, 90, 120, 150, 360])
@@ -314,62 +343,49 @@ def apply_selective_color(img_bgr, color_name, cyan, magenta, yellow, black):
     if cyan == 0 and magenta == 0 and yellow == 0 and black == 0:
         return img_bgr
     
-    img_float = img_bgr.astype(np.float32) / 255.0
+    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
     img_hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV).astype(np.float32)
-    h = img_hsv[:, :, 0]  # 0..179
-    s = img_hsv[:, :, 1]  # 0..255
-    v = img_hsv[:, :, 2]  # 0..255
     
-    h_deg = h * 2.0  # 0..358
-    s_norm = s / 255.0
-    v_norm = v / 255.0
+    h_deg = img_hsv[:, :, 0] * 2.0
+    s_norm = img_hsv[:, :, 1] / 255.0
+    v_norm = img_hsv[:, :, 2] / 255.0
     
-    color_configs = {
-        "Reds":     (0, 25),
-        "Yellows":  (30, 20),
-        "Greens":   (60, 20),
-        "Cyans":    (90, 20),
-        "Blues":    (120, 20),
-        "Magentas": (150, 20),
+    color_centers = {
+        "Reds": 0, "Yellows": 60, "Greens": 120, 
+        "Cyans": 180, "Blues": 240, "Magentas": 300
     }
     
-    if color_name in color_configs:
-        center, sigma = color_configs[color_name]
+    if color_name in color_centers:
+        center = color_centers[color_name]
         diff = np.abs(h_deg - center)
-        diff = np.minimum(diff, 360 - diff)
-        mask = np.exp(-(diff ** 2) / (2 * sigma ** 2))
-    elif color_name == "Whites":
-        mask = (v_norm > 0.8) * (1 - s_norm)
-        mask = np.exp(-((v_norm - 1.0)**2) / (2*0.1**2)) * np.exp(-(s_norm**2) / (2*0.2**2))
-    elif color_name == "Neutrals":
-        mask = np.exp(-((v_norm - 0.5)**2) / (2*0.15**2)) * np.exp(-(s_norm**2) / (2*0.2**2))
-    elif color_name == "Blacks":
-        mask = np.exp(-(v_norm**2) / (2*0.15**2)) * np.exp(-(s_norm**2) / (2*0.2**2))
+        diff = np.minimum(diff, 360.0 - diff)
+        mask_h = np.exp(-(diff ** 2) / (2 * 40.0 ** 2))
+        mask_s = 1.0 - np.exp(-(s_norm ** 2) / (2 * 0.15 ** 2))
+        mask = mask_h * mask_s
     else:
-        mask = np.ones_like(h, dtype=np.float32)
+        if color_name == "Whites":
+            mask_v = np.exp(-((v_norm - 1.0) ** 2) / (2 * 0.15 ** 2))
+            mask_s = np.exp(-(s_norm ** 2) / (2 * 0.25 ** 2))
+            mask = mask_v * mask_s
+        elif color_name == "Neutrals":
+            mask_v = np.exp(-((v_norm - 0.5) ** 2) / (2 * 0.15 ** 2))
+            mask_s = np.exp(-(s_norm ** 2) / (2 * 0.25 ** 2))
+            mask = mask_v * mask_s
+        elif color_name == "Blacks":
+            mask_v = np.exp(-(v_norm ** 2) / (2 * 0.15 ** 2))
+            mask_s = np.exp(-(s_norm ** 2) / (2 * 0.25 ** 2))
+            mask = mask_v * mask_s
+        else:
+            mask = np.zeros_like(h_deg)
+
+    c, m, y, k = cyan / 100.0, magenta / 100.0, yellow / 100.0, black / 100.0
     
-    height, width = img_float.shape[:2]
-    img_cmyk = np.zeros((height, width, 4), dtype=np.float32)
-    k = 1.0 - np.max(img_float, axis=2)
-    img_cmyk[:, :, 0] = (1.0 - img_float[:, :, 2] - k) / np.maximum(1.0 - k, 0.001)
-    img_cmyk[:, :, 1] = (1.0 - img_float[:, :, 1] - k) / np.maximum(1.0 - k, 0.001)
-    img_cmyk[:, :, 2] = (1.0 - img_float[:, :, 0] - k) / np.maximum(1.0 - k, 0.001)
-    img_cmyk[:, :, 3] = k
+    img_rgb[:, :, 0] += mask * (-c - k)  # Red: Cyan уменьшает Red, Black уменьшает все
+    img_rgb[:, :, 1] += mask * (-m - k)  # Green: Magenta уменьшает Green
+    img_rgb[:, :, 2] += mask * (-y - k)  # Blue: Yellow уменьшает Blue
     
-    img_cmyk[:, :, 0] += mask * (cyan / 100.0)
-    img_cmyk[:, :, 1] += mask * (magenta / 100.0)
-    img_cmyk[:, :, 2] += mask * (yellow / 100.0)
-    img_cmyk[:, :, 3] += mask * (black / 100.0)
-    
-    img_cmyk = np.clip(img_cmyk, 0, 1)
-    
-    result_rgb = np.zeros((height, width, 3), dtype=np.float32)
-    result_rgb[:, :, 2] = 1.0 - img_cmyk[:, :, 0] - img_cmyk[:, :, 3]
-    result_rgb[:, :, 1] = 1.0 - img_cmyk[:, :, 1] - img_cmyk[:, :, 3]
-    result_rgb[:, :, 0] = 1.0 - img_cmyk[:, :, 2] - img_cmyk[:, :, 3]
-    
-    result_rgb = np.clip(result_rgb, 0, 1)
-    result_bgr = (result_rgb[:, :, ::-1] * 255).astype(np.uint8)
+    img_rgb = np.clip(img_rgb, 0, 1)
+    result_bgr = (cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR) * 255).astype(np.uint8)
     return result_bgr
 
 def process_image(img_bgr, adjustments):
@@ -380,10 +396,22 @@ def process_image(img_bgr, adjustments):
     
     result_bgr = apply_basic_adjustments(img_bgr, brightness, contrast, hue, saturation)
     
+    sharpen = adjustments.get("sharpen", 0)
+    if sharpen != 0:
+        result_bgr = apply_sharpen(result_bgr, sharpen)
+    
     lut_path = adjustments.get("lut_path", "")
     lut_intensity = adjustments.get("lut_intensity", 100)
     if lut_path:
         result_bgr = apply_lut(result_bgr, lut_path, lut_intensity / 100.0)
+
+    vibrance = adjustments.get("vibrance", 0)
+    if vibrance != 0:
+        result_bgr = apply_vibrance(result_bgr, vibrance)
+    
+    clarity = adjustments.get("clarity", 0)
+    if clarity != 0:
+        result_bgr = apply_clarity(result_bgr, clarity)
     
     levels = adjustments.get("levels", {})
     result_bgr = apply_levels(
@@ -606,6 +634,7 @@ class RS_ImageAdjustments:
                 "image": ("IMAGE",),
                 "brightness": ("INT", {"default": 0, "min": -100, "max": 100, "step": 1}),
                 "contrast": ("INT", {"default": 0, "min": -100, "max": 100, "step": 1}),
+                "sharpen": ("INT", {"default": 0, "min": 0, "max": 200, "step": 1}),
                 "hue": ("INT", {"default": 0, "min": -180, "max": 180, "step": 1}),
                 "saturation": ("INT", {"default": 0, "min": -100, "max": 100, "step": 1}),
             },
@@ -621,7 +650,7 @@ class RS_ImageAdjustments:
     OUTPUT_NODE = True
     DESCRIPTION = "Interactive image adjustments with real-time preview"
 
-    def apply_adjustments(self, image, brightness, contrast, hue, saturation, unique_id=None, advanced_params=None):
+    def apply_adjustments(self, image, brightness, contrast, sharpen, hue, saturation, unique_id=None, advanced_params=None):
         unique_id = str(unique_id) if unique_id is not None else "unknown"
         
         if image.numel() == 0:
@@ -656,6 +685,7 @@ class RS_ImageAdjustments:
             "timestamp": ts,
             "brightness": brightness,
             "contrast": contrast,
+            "sharpen": sharpen,
             "hue": hue,
             "saturation": saturation,
             "advanced_params": advanced_params or "{}"
@@ -686,6 +716,7 @@ class RS_ImageAdjustments:
         
         brightness = adjustments.get("brightness", brightness)
         contrast = adjustments.get("contrast", contrast)
+        sharpen = adjustments.get("sharpen", sharpen)
         hue = adjustments.get("hue", hue)
         saturation = adjustments.get("saturation", saturation)
         
@@ -693,6 +724,7 @@ class RS_ImageAdjustments:
         
         adjustments["brightness"] = brightness
         adjustments["contrast"] = contrast
+        adjustments["sharpen"] = sharpen
         adjustments["hue"] = hue
         adjustments["saturation"] = saturation
         

@@ -289,10 +289,13 @@ The node pauses the queue until you confirm the settings, then outputs a ready-t
 - **Padding Indicators** — Visual labels show generated padding areas (▲▼◀▶)  
 - **Keyboard Shortcuts** — Arrow keys to nudge crop box (Shift for 4× step)  
 - **Heartbeat** — mechanism to prevent freezes  
-- **Instant reset** — reset of the state after each generation  
 
 ### 🪛 Usage  
 ❗ *The ⚙️ BATCH, ✔️ ACCEPT, and ❌ CANCEL buttons appear only after the generation is started.*  
+
+- When receiving an image, the node pauses during the generation process. During the pause, you set the parameters to get the result you need and press the ✔️ ACCEPT button. The finished image with the mask goes to the following nodes according to your workflow. The parameters of this image are cached on the server, so when you restart generation with the same image, the node will give exactly the same result as when it was first generated. This is useful if you process this image in subsequent nodes with different parameters.  
+- If you need to edit the parameters for this image, you can press the 🔄️ Reset button. The cache on the server will be erased, and the next time the node is generated, it will consider the resulting image as new and pause for editing.  
+- ❗ When a new image is received, the node always pauses for editing.  
 
 **Single mode**  
 Add the node to your workflow and connect an IMAGE input.  
@@ -1135,8 +1138,8 @@ Toggle **ENABLE SHADOW** to activate.
 # 🦊 RS Image Adjustments  
 **A powerful interactive image adjustment node with real-time preview and professional-grade controls.**  
 
-<img width="621" height="953" alt="Screenshot_1" src="https://github.com/user-attachments/assets/9d921205-5d92-43da-aebe-3884664afe61" />
-<img width="1862" height="1060" alt="Screenshot_2" src="https://github.com/user-attachments/assets/832a63c5-7cc6-483b-a5da-a6470526015b" />
+<img width="566" height="905" alt="Screenshot_5" src="https://github.com/user-attachments/assets/b329aa14-58e4-41a1-a382-94e09cdd61e8" />
+<img width="315" height="929" alt="Screenshot_6" src="https://github.com/user-attachments/assets/31bf377d-7515-4591-9430-f169143ca9d9" />
 
 ### 🔥 Features  
 - **Real-time Preview** - See adjustments instantly with GPU-accelerated rendering  
@@ -1151,6 +1154,7 @@ Toggle **ENABLE SHADOW** to activate.
 **Basic Adjustments**  
 - **Brightness**: -100 to +100  
 - **Contrast**: -100 to +100  
+- **Sharpen**: 0 to +100  
 - **Hue**: -180° to +180°  
 - **Saturation**: -100% to +100%  
 
@@ -1158,6 +1162,10 @@ Toggle **ENABLE SHADOW** to activate.
 - Load `.cube` files  
 - Adjustable intensity (0-100%)  
 - Support for 3D LUTs  
+
+**Advanced Tools**  
+- Vibrance: -100 to +100    
+- Clarity: -100 to +100   
 
 **Levels**  
 - Input Black: 0-255  

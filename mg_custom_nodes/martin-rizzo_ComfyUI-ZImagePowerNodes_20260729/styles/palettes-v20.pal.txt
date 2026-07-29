@@ -1,0 +1,139 @@
+@PALETTES
+>## File    : palettes_v20.txt
+>## Purpose : Collection of color palettes (version 2.0)
+>## Author  : Martin Rizzo | <martinrizzo@gmail.com>
+>## Date    : May 29, 2026
+>## Repo    : https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes
+>## License : MIT
+>## - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+>##                          ComfyUI-ZImagePowerNodes
+>##        ComfyUI nodes designed for the "Z-Image/Z-Image Turbo" models.
+>##_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+>##
+>##  PALETTE DEFINITION
+>##    Each new palette starts with a line prefixed by ">>>" followed by
+>##    the palette name. Example: ">>> Ocean Breeze"
+>##
+>##  COLOR ENTRY FORMAT
+>##    Every line under a palette name represents a single color.
+>##    Fields must be separated by colons (:) using the following structure:
+>##
+>##       <HEX_CODE> : <COLOR_NAME> : <OPTIONAL_TEXTURE> : <OPTIONAL_OBJECT>
+>##
+>##    * HEX_CODE         : Hexadecimal color code (e.g., #00FFFF). Mandatory.
+>##    * COLOR_NAME       : Simple english name for the color. Mandatory.
+>##    * OPTIONAL_TEXTURE : Descriptive texture string. Can be left empty.
+>##    * OPTIONAL_OBJECT  : Descriptive object/concept string. Can be left empty.
+>##
+>##  PALETTE STRUCTURE & GRADIENT RULES
+>##    Color Count : A standard palette MUST contain exactly 4 colors.
+>##    Color Order : Order colors sequentially from HIGHEST illumination (brightest)
+>##                  to LOWEST illumination (darkest).
+>##    5th Color   : An optional 5th color can be added at the end of the palette:
+>##                   - It does NOT follow the gradient rule (any intensity allowed).
+>##                   - It serves as a "Special Highlight Color".
+>##                   - Usage: Linework, accents or any special effect
+>##                   - This 5th element will be used in specific cases.
+>##
+
+
+>>>Ocean Breeze
+#00FFFF : azure            : clear crystal water : tropical wave
+#87CEEB : sky blue         : misty fog           : puffy cloud
+#008080 : teal             : smooth sea glass    :
+#000080 : navy             :                     : deep sea trench
+
+>>>Sunset Glow
+#FFDAB9 : peach            : soft velvet      : ripe fruit
+#FFD700 : gold             : metallic glitter : golden crown
+#FF7F50 : coral            : rough coral reef :
+#DC143C : crimson          :                  : burning ember
+
+>>>Forest Trek
+#228B22 : forest green     : dense foliage : mossy pine tree
+#556B2F : dark olive green : rough bark    : military jacket
+#8B4513 : saddle brown     : muddy soil    : hiking boots
+#A0522D : sienna           :               : autumn leaf
+
+>>>Cyberpunk Neon
+#FF00FF : magenta          : glowing neon tube : cyberpunk visor
+#00FFFF : cyan             : digital glitch    : holographic projection
+#7000FF : matrix purple    :                   : synthetic leather
+#00FF00 : lime green       : laser beam        : radioactive isotope
+
+>>>Vintage Desert
+#EDC9AF : desert sand      : fine powder  : sand dune
+#C19A6B : camel            : woven burlap : old burlap sack
+#E2725B : terracotta       : baked clay   : ceramic pottery pot
+#800020 : burgundy         :              : antique rug
+
+>>>Midnight Aurora
+#E0FFFF : pale cyan    : shimmering silk   : northern lights
+#9370DB : medium purple: ionized gas       : nebula cloud
+#483D8B : dark slate   : velvet night sky  : deep space
+#191970 : midnight blue: obsidian mirror   : void
+#7FFF00 : neon chartreuse : electric flicker : aurora flare
+
+>>>Royal Chamber
+#FFFACD : lemon chiffon: satin drapery    : antique lace
+#DAA520 : golden rod   : polished brass   : regal crown
+#A52A2A : brown        : worn leather     : library book
+#4B0082 : indigo       : heavy velvet     : royal cloak
+#FF4500 : orange red   : candle flame     : wax seal
+
+>>>Artic Frost
+#FFFFFF : snow white   : fresh powder     : mountain peak
+#B0C4DE : light steel  : frost crystal    : ice shard
+#708090 : slate grey   : wet stone        : mountain rock
+#2F4F4F : dark slate   : frozen lake      : deep crevasse
+#00CED1 : dark turquoise : cold spark     : glacial refraction
+
+>>>Industrial Grime
+#D3D3D3 : light grey   : cold concrete    : dusty surface
+#808080 : grey         : weathered metal  : steel beam
+#696969 : dim grey     : oil slick        : rusted pipe
+#2F2F2F : charcoal     : soot layer       : coal lump
+#FFD700 : vivid gold   : fresh spark      : welding arc
+
+>>>Pastel Dreams
+#FFC0CB : pink         : cotton candy     : cherry blossom
+#FFEFD5 : papaya whip  : soft marshmallow : silk ribbon
+#ADD8E6 : light blue   : clear morning sky: porcelain vase
+#98FB98 : pale green   : spring leaf      : garden fern
+#FFB6C1 : light pink   : chalk pastel     : ballet slipper
+
+>>>Volcanic Core
+#FFF44F : sulphur      : toxic steam      : bubbling vent
+#FF8C00 : dark orange  : molten rock      : cooling magma
+#B22222 : fire brick   : charred wood     : embers
+#4A0404 : dark maroon  : obsidian glass   : volcanic crater
+#FF0000 : intense red  : laser heat       : plasma arc
+
+>>>Deep Forest Moss
+#9ACD32 : yellow green : morning dew      : fresh sprout
+#6B8E23 : olive drab   : damp moss        : river stone
+#556B2F : dark olive   : dense canopy     : tree trunk
+#1A2421 : near black   : wet soil         : cave entrance
+#40E0D0 : turquoise    : bioluminescent   : glowing fungi
+
+>>>Antique Parchment
+#F5F5DC : beige        : old paper        : scroll
+#DEB887 : burly wood   : dried ink        : calligraphy pen
+#A0522D : sienna       : worn leather     : book binding
+#3E2723 : chocolate    : faded pigment    : wax seal
+#8B0000 : dark red     : blood stain      : ancient stamp
+
+>>>Midnight Garden
+#D8BFD8 : thistle      : moonlight mist   : night flower
+#9370DB : medium purple: deep petal       : lavender field
+#4B0082 : indigo       : dense shadow     : ivy vine
+#191970 : midnight blue: stillness        : garden gate
+#FFD700 : bright gold  : firefly light    : moonbeam
+
+>>>Industrial Copper
+#F4A460 : sandy brown  : oxidized copper  : old coin
+#CD853F : peru         : weathered patina : copper wire
+#8B4513 : saddle brown : vintage bronze   : clockwork gear
+#3E2723 : dark brown   : tarnished metal  : heavy machinery
+#00FF7F : spring green : chemical drip    : radioactive fluid
+

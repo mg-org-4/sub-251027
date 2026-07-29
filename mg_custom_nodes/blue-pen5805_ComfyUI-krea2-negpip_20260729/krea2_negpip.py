@@ -386,6 +386,33 @@ def _prepare_krea2_text_batch(pair_sections, clip_model):
     )
 
 
+def _rows_have_embeds(rows) -> bool:
+    return any(not _is_plain_int_token(token) for row in rows for token in row)
+
+
+def _encode_krea2_rows(clip_model, rows):
+    if len(rows) <= 1 or not _rows_have_embeds(rows):
+        return clip_model.encode(rows)
+
+    encoded_rows = [clip_model.encode([row]) for row in rows]
+    context = torch.cat([encoded[0] for encoded in encoded_rows], dim=0)
+
+    pooled_rows = [encoded[1] for encoded in encoded_rows]
+    pooled = torch.cat(pooled_rows, dim=0) if all(torch.is_tensor(row) for row in pooled_rows) else pooled_rows[0]
+
+    extra_rows = [encoded[2] if len(encoded) > 2 and isinstance(encoded[2], dict) else None for encoded in encoded_rows]
+    if not any(extra is not None for extra in extra_rows):
+        return context, pooled
+
+    extra = dict(next(extra for extra in extra_rows if extra is not None))
+    masks = [row.get("attention_mask") if row is not None else None for row in extra_rows]
+    if all(torch.is_tensor(mask) for mask in masks):
+        extra["attention_mask"] = torch.cat(masks, dim=0)
+    else:
+        extra.pop("attention_mask", None)
+    return context, pooled, extra
+
+
 def _flatten_krea2_taps(tensor: torch.Tensor) -> torch.Tensor:
     batch, layers, seq_len, width = tensor.shape
     return tensor.permute(0, 2, 1, 3).reshape(batch, seq_len, layers * width)
@@ -530,7 +557,7 @@ def _make_krea2_negpip_encode_token_weights(cond_stage_model):
         clip_model = getattr(cond_stage_model, KREA2_TEXT_ENCODER_KEY)
         pairs = token_weight_pairs[KREA2_TEXT_ENCODER_KEY]
         plan = _prepare_krea2_text_batch(pairs, clip_model)
-        encoded = clip_model.encode(plan.rows)
+        encoded = _encode_krea2_rows(clip_model, plan.rows)
         pooled = encoded[1]
         first_pooled = _intermediate(pooled[0:1]) if pooled is not None else None
         cond, negative_positions, source_length = _build_krea2_conditioning(
@@ -1168,11 +1195,11 @@ def _restore_runtime_model_patches(dm: Any):
             _restore_block_runtime_cfg(block)
 
 
-def krea2_negpip_wrapper(executor, x, timesteps, context, attention_mask=None, transformer_options=None, **kwargs):
+def krea2_negpip_wrapper(executor, x, timesteps, context, attention_mask=None, ref_latents=None, transformer_options=None, **kwargs):
     transformer_options = transformer_options or {}
     cfg = transformer_options.get(WRAPPER_KEY, {})
     if not cfg or not cfg.get("enabled", True):
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)
 
     dm = executor.class_obj
     if not _is_krea2_dm(dm):
@@ -1180,7 +1207,7 @@ def krea2_negpip_wrapper(executor, x, timesteps, context, attention_mask=None, t
         attention_mask = _strip_mask_with_indices(attention_mask, keep_indices, context.shape[1])
         if negative_positions is not None:
             raise RuntimeError("Krea2 NegPiP conditioning was connected to a non-Krea2 diffusion model.")
-        return executor(x, timesteps, context_without_sidecar, attention_mask, transformer_options, **kwargs)
+        return executor(x, timesteps, context_without_sidecar, attention_mask, ref_latents, transformer_options, **kwargs)
 
     original_context_len = context.shape[1]
     context, negative_positions, keep_indices = _parse_and_strip_sidecar_full(context)
@@ -1188,7 +1215,7 @@ def krea2_negpip_wrapper(executor, x, timesteps, context, attention_mask=None, t
     if negative_positions is None:
         metadata_fallback = _negative_metadata_from_transformer_options(transformer_options, context.shape[1])
         if metadata_fallback is None:
-            return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+            return executor(x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)
         negative_positions, trim_to_length = metadata_fallback
         if trim_to_length is not None and trim_to_length < int(context.shape[1]):
             context = context[:, :trim_to_length, :]
@@ -1198,7 +1225,7 @@ def krea2_negpip_wrapper(executor, x, timesteps, context, attention_mask=None, t
     total_neg = sum(len(r) for r in negative_positions)
     value_strength = _bounded_float(cfg.get("value_strength", 1.0), 1.0, 0.0, 8.0)
     if total_neg == 0 or value_strength == 0.0:
-        return executor(x, timesteps, context, attention_mask, transformer_options, **kwargs)
+        return executor(x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)
 
     # Keep the original transformer_options shape but install a per-call active cfg.
     # The temporary block/wv forward wrappers read this and are restored after this call.
@@ -1212,7 +1239,7 @@ def krea2_negpip_wrapper(executor, x, timesteps, context, attention_mask=None, t
 
     try:
         _install_runtime_model_patches(dm, active_cfg)
-        return executor(x, timesteps, context, attention_mask, new_transformer_options, **kwargs)
+        return executor(x, timesteps, context, attention_mask, ref_latents, new_transformer_options, **kwargs)
     finally:
         _restore_runtime_model_patches(dm)
 
@@ -1285,11 +1312,18 @@ class ApplyKrea2NegPiP:
         diffusion_wrappers = wrappers.get(comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL, {})
         diffusion_wrappers.pop(WRAPPER_KEY, None)
 
-        patched.add_wrapper_with_key(
+        comfy.patcher_extension.add_wrapper_with_key(
             comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL,
             WRAPPER_KEY,
             krea2_negpip_wrapper,
+            to,
         )
+        diffusion_wrappers = to["wrappers"][comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL]
+        negpip_wrapper = diffusion_wrappers.pop(WRAPPER_KEY)
+        to["wrappers"][comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL] = {
+            WRAPPER_KEY: negpip_wrapper,
+            **diffusion_wrappers,
+        }
 
         return patched, new_clip
 

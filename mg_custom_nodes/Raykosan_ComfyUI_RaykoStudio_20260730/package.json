@@ -1,0 +1,43 @@
+{
+  "name": "ComfyUI_RaykoStudio",
+  "version": "0.33.2",
+  "description": "Set of custom nodes for ComfyUI providing additional image processing capabilities",
+  "author": "Raykosan",
+  "license": "Apache License 2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Raykosan/ComfyUI_RaykoStudio"
+  },
+  "comfyui": {
+    "nodes": [
+      "Rayko_Adjustments.py"
+      "Rayko_Any_Switch.py"
+      "Rayko_Bypass.py"
+      "Rayko_Collage.py"
+      "Rayko_Color_Picker.py"
+      "Rayko_Crop_Image.py"
+      "Rayko_Image_Compare.py"
+      "Rayko_Image_Selector.py"
+      "Rayko_Image_Text.py"
+      "Rayko_Image_To_Latent.py"
+      "Rayko_Image_to_Latent_(simplified).py"
+      "Rayko_Insert_Crop.py"
+      "Rayko_Intermediate_Spline_Mask.py"
+      "Rayko_Last_Frame.py"
+      "Rayko_Loop_Switch.py"
+      "Rayko_LoRA Loader.py"
+      "Rayko_Models_Loader.py"
+      "Rayko_MultiLatent.py"
+      "Rayko_Outpaint.py"
+      "Rayko_Prompts.py"
+      "Rayko_Ref2Latent.py"
+      "Rayko_RGB2RGBA.py"
+      "Rayko_Save_Image.py"
+      "Rayko_Save_Image_Pair.py"
+      "Rayko_Spline_Mask.py"
+      "Rayko_Styles_Loader.py"
+      "Rayko_Text_Overlay_Pro.py"
+      "settings_manager_api.py"
+    ]
+  }
+}

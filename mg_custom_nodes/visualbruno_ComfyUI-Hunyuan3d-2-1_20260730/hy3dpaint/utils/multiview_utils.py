@@ -44,7 +44,8 @@ class multiviewDiffusionNet:
                 
         pipeline = HunyuanPaintPipeline.from_pretrained(
             model_path,
-            torch_dtype=torch.float16
+            torch_dtype=torch.float16,
+            use_fast=False
         )
 
         pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(pipeline.scheduler.config, timestep_spacing="trailing")

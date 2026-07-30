@@ -40,9 +40,9 @@ diffusers_logging.set_verbosity(50)
 def quick_convert_with_obj2gltf(obj_path: str, glb_path: str) -> bool:
     # 执行转换
     textures = {
-        'albedo': obj_path.replace('.obj', '.jpg'),
-        'metallic': obj_path.replace('.obj', '_metallic.jpg'),
-        'roughness': obj_path.replace('.obj', '_roughness.jpg')
+        'albedo': obj_path.replace('.obj', '.png'),
+        'metallic': obj_path.replace('.obj', '_metallic.png'),
+        'roughness': obj_path.replace('.obj', '_roughness.png')
         }
     create_glb_with_pbr_materials(obj_path, textures, glb_path)
 

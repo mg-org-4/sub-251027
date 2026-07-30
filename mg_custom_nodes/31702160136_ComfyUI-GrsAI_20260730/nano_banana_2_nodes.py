@@ -3,9 +3,6 @@ ComfyUI节点实现
 定义 Nano Banana 图像生成节点（文生图 / 图生图 / 多图）
 """
 
-import os
-import io
-import base64
 import logging
 from typing import Any, Tuple, Optional, Dict, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -20,12 +17,12 @@ try:
     from .utils import (
         pil_to_tensor,
         format_error_message,
-        tensor_to_pil,
+        tensor_to_base64,
     )
 except ImportError:
     from api_client import GrsaiAPI, GrsaiAPIError
     from config import default_config
-    from utils import pil_to_tensor, format_error_message, tensor_to_pil
+    from utils import pil_to_tensor, format_error_message, tensor_to_base64
 
 
 class SuppressFalLogs:
@@ -51,14 +48,14 @@ class SuppressFalLogs:
             logging.getLogger(logger_name).setLevel(original_level)
 
 
-class GrsaiNanoBanana_Node:
+class GrsaiNanoBanana2_Node:
     """
     Nano Banana 图像生成节点
     - 可选多图作为参考：不输入图像时为文生图；输入1张或多张时为图生图
     """
 
     FUNCTION = "execute"
-    CATEGORY = "GrsAI/Nano Banana"
+    CATEGORY = "GrsAI/Nano Banana 2"
 
     def _execute_generation(
         self,
@@ -68,6 +65,7 @@ class GrsaiNanoBanana_Node:
         model: str,
         urls: list[str] = [],
         aspect_ratio: str = "auto",
+        image_size: str = "1K",
         **kwargs,
     ) -> Tuple[List[Any], List[str], List[str]]:
         results_pil, result_urls, errors = [], [], []
@@ -80,6 +78,7 @@ class GrsaiNanoBanana_Node:
                     "model": model,
                     "urls": urls,
                     "aspect_ratio": aspect_ratio,
+                    "image_size": image_size,
                 }
                 api_params.update(kwargs)
                 pil_imgs, img_urls, errs = api_client.banana_generate_image(
@@ -124,12 +123,16 @@ class GrsaiNanoBanana_Node:
                 "apikey": ("STRING", {"default": "请输入您的APIKEY: sk-xxxxxxx"}),
                 "model": (
                     [
-                        "nano-banana-fast",
-                        "nano-banana",
+                        "nano-banana-2",
+                        "nano-banana-2-cl",
+                        "nano-banana-2-cl-4k",
                     ],
-                    {"default": "nano-banana-fast"},
+                    {"default": "nano-banana-2"},
                 ),
-                "num_images": ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], {"default": 1}),
+                "num_images": (
+                    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+                    {"default": "1"},
+                ),
             },
             "optional": {
                 "aspect_ratio": (
@@ -145,8 +148,20 @@ class GrsaiNanoBanana_Node:
                         "5:4",
                         "4:5",
                         "21:9",
+                        "4:1",
+                        "1:4",
+                        "8:1",
+                        "1:8",
                     ],
                     {"default": "auto"},
+                ),
+                "image_size": (
+                    [
+                        "1K",
+                        "2K",
+                        "4K",
+                    ],
+                    {"default": "1K"},
                 ),
                 "image_1": ("IMAGE",),
                 "image_2": ("IMAGE",),
@@ -154,6 +169,10 @@ class GrsaiNanoBanana_Node:
                 "image_4": ("IMAGE",),
                 "image_5": ("IMAGE",),
                 "image_6": ("IMAGE",),
+                "image_7": ("IMAGE",),
+                "image_8": ("IMAGE",),
+                "image_9": ("IMAGE",),
+                "image_10": ("IMAGE",),
             },
         }
 
@@ -183,7 +202,8 @@ class GrsaiNanoBanana_Node:
         model = kwargs.pop("model")
         apikey = kwargs.pop("apikey")
         aspect_ratio = kwargs.pop("aspect_ratio", None)
-        num_images = kwargs.pop("num_images", 1)
+        image_size = kwargs.pop("image_size", "1K")
+        num_images = int(kwargs.pop("num_images", "1"))
 
         # 收集可选输入图像
         images_in: List[torch.Tensor] = [
@@ -194,28 +214,24 @@ class GrsaiNanoBanana_Node:
         for i in range(1, 11):
             kwargs.pop(f"image_{i}", None)
 
-        image_payloads: List[str] = []
-
-        # 若提供了参考图，则转换为 base64 data URL
+        # 若提供了参考图，则转换为 base64 data URI 直接传入 urls 参数
+        image_data_uris: List[str] = []
         if images_in:
             try:
                 for image_tensor in images_in:
-                    pil_images = tensor_to_pil(image_tensor)
-                    if not pil_images:
+                    try:
+                        base64_str = tensor_to_base64(image_tensor, image_format="png")
+                    except ValueError:
                         continue
+                    image_data_uris.append(base64_str)
 
-                    buffer = io.BytesIO()
-                    pil_images[0].save(buffer, format="PNG")
-                    encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                    image_payloads.append(encoded)
-
-                if not image_payloads:
+                if not image_data_uris:
                     return self._create_error_result(
                         "All input images could not be processed."
                     )
             except Exception as e:
                 return self._create_error_result(
-                    f"Image encoding failed: {format_error_message(e)}"
+                    f"Image processing failed: {format_error_message(e)}"
                 )
 
         # 调用 Nano Banana 接口
@@ -226,8 +242,9 @@ class GrsaiNanoBanana_Node:
                     final_prompt=prompt,
                     num_images=num_images,
                     model=model,
-                    urls=image_payloads,
+                    urls=image_data_uris,
                     aspect_ratio=aspect_ratio,
+                    image_size=image_size,
                 )
         except Exception as e:
             return self._create_error_result(
@@ -243,9 +260,10 @@ class GrsaiNanoBanana_Node:
             detail = f"; {errors}" if errors else ""
             return self._create_error_result(error_msg + detail)
 
+        size_note = f" | imageSize: {image_size}" if image_size else ""
         failed_count = max(0, num_images - len(pil_images))
         fail_note = f" | 失败: {failed_count} 张" if failed_count > 0 else ""
-        status = f"Nano Banana | 模型: {model} | 参考图片: {len(image_payloads)} 张 | 成功生成: {len(pil_images)} 张{fail_note}"
+        status = f"Nano Banana | 模型: {model}{size_note} | 参考图片: {len(image_data_uris)} 张 | 成功生成: {len(pil_images)} 张{fail_note}"
 
         return {
             "ui": {"string": [status]},
@@ -254,9 +272,9 @@ class GrsaiNanoBanana_Node:
 
 
 NODE_CLASS_MAPPINGS = {
-    "Grsai_NanoBanana": GrsaiNanoBanana_Node,
+    "Grsai_NanoBanana2": GrsaiNanoBanana2_Node,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "Grsai_NanoBanana": "🍌 GrsAI Nano Banana - Text/Image",
+    "Grsai_NanoBanana2": "🍌 GrsAI Nano Banana 2 - Text/Image",
 }

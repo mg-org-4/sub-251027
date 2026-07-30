@@ -570,7 +570,7 @@ class ConditioningMergeMulti:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "main"
-    CATEGORY = "conditioning"
+    CATEGORY = "Rebalance-Pack/conditioning"
 
     def main(self, conditioning_1, match_percent=0.5, conditioning_2=None,
              conditioning_3=None, conditioning_4=None, conditioning_5=None):
@@ -581,37 +581,6 @@ class ConditioningMergeMulti:
         if not structures:
             raise ValueError("ConditioningMergeMulti: at least one conditioning is required.")
         return (merge_conditioning_multi(structures, match_percent),)
-
-
-class ConditioningMergeAnchor:
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {"required": {
-            "anchor": ("CONDITIONING",),
-            "conditioning_1": ("CONDITIONING",),
-            "match_percent": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
-        }, "optional": {
-            "conditioning_2": ("CONDITIONING",),
-            "conditioning_3": ("CONDITIONING",),
-            "conditioning_4": ("CONDITIONING",),
-            "conditioning_5": ("CONDITIONING",),
-        }}
-
-    RETURN_TYPES = ("CONDITIONING",)
-    RETURN_NAMES = ("conditioning",)
-    FUNCTION = "main"
-    CATEGORY = "conditioning"
-
-    def main(self, anchor, conditioning_1, match_percent=0.5, conditioning_2=None,
-             conditioning_3=None, conditioning_4=None, conditioning_5=None):
-        match_percent = float(min(max(match_percent, 0.0), 1.0))
-        structures = [conditioning_1, conditioning_2, conditioning_3,
-                      conditioning_4, conditioning_5]
-        structures = [s for s in structures if s is not None]
-        if not structures:
-            raise ValueError("ConditioningMergeAnchor: at least one conditioning is required.")
-        return (merge_conditioning_anchor(anchor, structures, match_percent),)
 
 
 class ConditioningMerge:
@@ -627,7 +596,7 @@ class ConditioningMerge:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "main"
-    CATEGORY = "conditioning"
+    CATEGORY = "Rebalance-Pack/conditioning"
 
     def main(self, conditioning_1, conditioning_2, match_percent=0.5):
         match_percent = float(min(max(match_percent, 0.0), 1.0))
@@ -647,7 +616,7 @@ class RebalanceGuider:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "main"
-    CATEGORY = "conditioning"
+    CATEGORY = "Rebalance-Pack/conditioning"
 
     def main(self, positive, negative, guidance_strength=0.500):
         return (guidance(positive, negative, guidance_strength),)
@@ -668,7 +637,7 @@ class StepRebalance:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "main"
-    CATEGORY = "conditioning"
+    CATEGORY = "Rebalance-Pack/conditioning"
 
     def main(self, conditioning_1, conditioning_2, step=0.00, bound=0.00):
         if not _COMFY_AVAILABLE:
@@ -793,7 +762,7 @@ class RebalanceCFG:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "main"
-    CATEGORY = "conditioning"
+    CATEGORY = "Rebalance-Pack/conditioning"
 
     def main(self, conditioning_1, conditioning_2, schedule_1, schedule_2,
              interpolation="gradual", sub_steps=8):
@@ -820,7 +789,6 @@ NODE_CLASS_MAPPINGS = {
     "RebalanceCFG": RebalanceCFG,
     "ConditioningMerge": ConditioningMerge,
     "ConditioningMergeMulti": ConditioningMergeMulti,
-    "ConditioningMergeAnchor": ConditioningMergeAnchor,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -829,7 +797,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "RebalanceCFG": "Rebalance CFG Custom",
     "ConditioningMerge": "Conditioning Merge",
     "ConditioningMergeMulti": "Conditioning Merge (Multi)",
-    "ConditioningMergeAnchor": "Conditioning Merge (Anchor)",
 }
 
 __all__ = [
@@ -849,10 +816,8 @@ __all__ = [
     "guidance_conditioning",
     "merge_conditioning",
     "merge_conditioning_multi",
-    "merge_conditioning_anchor",
     "ConditioningMerge",
     "ConditioningMergeMulti",
-    "ConditioningMergeAnchor",
     "RebalanceCFG",
     "RebalanceGuider",
     "StepRebalance",

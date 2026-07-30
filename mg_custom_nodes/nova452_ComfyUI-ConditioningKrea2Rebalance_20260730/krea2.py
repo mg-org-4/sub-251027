@@ -68,7 +68,7 @@ class ConditioningKrea2Rebalance:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "main"
-    CATEGORY = "conditioning"
+    CATEGORY = "Rebalance-Pack/conditioning"
 
     def main(self, conditioning, multiplier, per_layer_weights=None):
         plw = core._parse_floats(per_layer_weights) if per_layer_weights else None
@@ -98,7 +98,7 @@ class Krea2EncodeRebalance:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "main"
-    CATEGORY = "conditioning"
+    CATEGORY = "Rebalance-Pack/conditioning"
 
     def main(self, text, clip,
              image1=None, image1_tokens="normal",
@@ -152,7 +152,7 @@ class Krea2EditRebalance:
 
     OUTPUT_IS_LIST = (True,)
     FUNCTION = "main"
-    CATEGORY = "conditioning"
+    CATEGORY = "Rebalance-Pack/conditioning"
 
     @staticmethod
     def _batch_len(image):

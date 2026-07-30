@@ -1,4 +1,14 @@
-"""Utility nodes for the Conditioning Rebalance custom node pack."""
+"""
+    Foundational utility nodes for the OmniNode custom node pack.
+
+    LoadImages - Load a range of images from a directory (with sibling
+        .txt captions and alpha masks).
+    Any        - Wildcard passthrough node.
+    Input      - Multiline string input node.
+    Concatenate - Concatenate up to nine string sections into one.
+    Switch     - Switch between two wildcard inputs based on a boolean.
+    StringInline - Multiline string with {{text_a}}/{{text_b}} substitution.
+"""
 
 import os
 import hashlib
@@ -31,7 +41,8 @@ _ANY = _AnyType("*")
 
 
 def _normalize_path(path):
-    """Normalize a path: strip whitespace, unify separators..."""
+    """Normalize a path: strip whitespace, unify separators, and resolve
+    relative paths against the current working directory."""
     if not path:
         return path
     path = path.strip()
@@ -55,7 +66,6 @@ def _load_single_image(file_path):
 
     i = node_helpers.pillow(ImageOps.exif_transpose, img)
 
-    # Handle 16-bit images (mode 'I')
     if i.mode == 'I':
         i = i.point(lambda x: x * (1 / 65535))
 
@@ -82,7 +92,7 @@ def _load_single_image(file_path):
 
 
 def _read_sibling_txt(image_path):
-
+    """Read a sibling .txt caption file next to the given image, if any."""
     base, _ = os.path.splitext(image_path)
     txt_path = base + ".txt"
     if not os.path.isfile(txt_path):
@@ -125,7 +135,7 @@ class LoadImages:
     RETURN_NAMES = ("image", "mask", "filename", "caption")
     OUTPUT_IS_LIST = (True, True, True, True)
     FUNCTION = "main"
-    CATEGORY = "conditioning/utils"
+    CATEGORY = "Rebalance-Pack/foundational"
 
     def main(self, directory_path, start_index, cap):
         normalized_path = _normalize_path(directory_path)
@@ -133,7 +143,6 @@ class LoadImages:
         if not normalized_path or not os.path.isdir(normalized_path):
             raise ValueError(f"Invalid directory path: {directory_path}")
 
-        # Gather valid image files
         files = []
         for f in os.listdir(normalized_path):
             ext = os.path.splitext(f)[1].lower()
@@ -168,8 +177,6 @@ class LoadImages:
         if not output_images:
             raise ValueError("No valid images loaded (checked dimensions and validity).")
 
-        # Return as lists so images of differing resolutions are kept separate
-        # (each item is its own [1, H, W, C] tensor) rather than stacked.
         return (output_images, output_masks, output_filenames, output_captions)
 
     @classmethod
@@ -225,7 +232,7 @@ class Any:
     RETURN_TYPES = (_ANY,)
     RETURN_NAMES = ("any",)
     FUNCTION = "main"
-    CATEGORY = "conditioning/utils"
+    CATEGORY = "Rebalance-Pack/foundational"
 
     def main(self, any):
         return (any,)
@@ -258,28 +265,168 @@ class Input:
     RETURN_TYPES = (_ANY,)
     RETURN_NAMES = ("OUT",)
     FUNCTION = "main"
-    CATEGORY = "conditioning/utils"
+    CATEGORY = "Rebalance-Pack/foundational"
 
     def main(self, string):
         return (string,)
+
+
+class Concatenate:
+
+    SEARCH_ALIASES = [
+        "concatenate",
+        "text concat",
+        "join text",
+        "merge text",
+        "combine strings",
+        "string concat",
+        "append text",
+        "combine text",
+    ]
+    ESSENTIALS_CATEGORY = "Text"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "delimiter": ("STRING", {
+                "default": "",
+                "multiline": False,
+                "tooltip": "Inserted between non-empty sections.",
+            }),
+            "string_1": ("STRING", {"default": "", "multiline": False}),
+            "string_2": ("STRING", {"default": "", "multiline": False}),
+            "string_3": ("STRING", {"default": "", "multiline": False}),
+            "string_4": ("STRING", {"default": "", "multiline": False}),
+            "string_5": ("STRING", {"default": "", "multiline": False}),
+            "string_6": ("STRING", {"default": "", "multiline": False}),
+            "string_7": ("STRING", {"default": "", "multiline": False}),
+            "string_8": ("STRING", {"default": "", "multiline": False}),
+            "string_9": ("STRING", {"default": "", "multiline": False}),
+        }}
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("STRING",)
+    FUNCTION = "main"
+    CATEGORY = "Rebalance-Pack/foundational"
+
+    def main(self, delimiter, string_1, string_2, string_3, string_4,
+             string_5, string_6, string_7, string_8, string_9):
+        sections = [
+            string_1, string_2, string_3, string_4, string_5,
+            string_6, string_7, string_8, string_9,
+        ]
+        parts = [s for s in sections if s is not None and s.strip() != ""]
+        return (delimiter.join(parts),)
+
+
+class Switch:
+    """Switch between two wildcard (any-type) inputs based on a boolean"""
+
+    SEARCH_ALIASES = [
+        "switch",
+        "omni switch",
+        "toggle",
+        "if",
+        "boolean switch",
+        "any switch",
+    ]
+    ESSENTIALS_CATEGORY = "Logic"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "on_true": (_ANY, {}),
+            "on_false": (_ANY, {}),
+            "switch": ("BOOLEAN", {
+                "default": True,
+                "tooltip": "True passes on_true, False passes on_false.",
+            }),
+        }}
+
+    RETURN_TYPES = (_ANY,)
+    RETURN_NAMES = ("OUT",)
+    FUNCTION = "main"
+    CATEGORY = "Rebalance-Pack/foundational"
+
+    def main(self, on_true, on_false, switch):
+        return (on_true if switch else on_false,)
+
+
+class StringInline:
+    """Multiline string with optional ``{{text_a}}`` / ``{{text_b}}`` token substitution"""
+
+    SEARCH_ALIASES = [
+        "string inline",
+        "inline string",
+        "text template",
+        "string template",
+        "text replace",
+        "token replace",
+        "text_a",
+        "text_b",
+    ]
+    ESSENTIALS_CATEGORY = "Text"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "text": ("STRING", {
+                    "default": "{{text_a}}",
+                    "multiline": True,
+                }),
+            },
+            "optional": {
+                "text_a": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "Replaces every {{text_a}} token in the text.",
+                }),
+                "text_b": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "Replaces every {{text_b}} token in the text.",
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("STRING",)
+    FUNCTION = "main"
+    CATEGORY = "Rebalance-Pack/foundational"
+
+    def main(self, text, text_a=None, text_b=None):
+        out = text
+        if text_a is not None:
+            out = out.replace("{{text_a}}", text_a)
+        if text_b is not None:
+            out = out.replace("{{text_b}}", text_b)
+        return (out,)
 
 
 NODE_CLASS_MAPPINGS = {
     "LoadImages": LoadImages,
     "Any": Any,
     "Input": Input,
+    "Concatenate": Concatenate,
+    "Switch": Switch,
+    "StringInline": StringInline,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "LoadImages": "Load Images",
     "Any": "Any",
     "Input": "Input",
+    "Concatenate": "Concatenate",
+    "Switch": "Switch",
+    "StringInline": "String (Inline)",
 }
 
 __all__ = [
     "LoadImages",
     "Any",
     "Input",
+    "Concatenate",
+    "Switch",
+    "StringInline",
     "NODE_CLASS_MAPPINGS",
     "NODE_DISPLAY_NAME_MAPPINGS",
 ]

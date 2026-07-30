@@ -6,6 +6,84 @@ All notable changes to this project are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [0.11.8] - 2026-07-30
+
+### Fixed
+- **SEVERE: `panel_install_node` no longer silently reports success without installing (#232).** ComfyUI-Manager marks every queued task "done" even when the git clone fails, and its status surface exposes only aggregate counts — so a GitHub-repo install that never landed reported identically to a real success. Install now goes through a tri-state verifier: **installed** only on a positively-observed queue drain + the pack actually present in `/customnode/installed`; **failed** only when the queue drained with readable data, explicit failure evidence, and an identifiable target definitively absent; **unverified** (honest `pending`, never a false success or false failure) for everything else — a rename-prone install (git URL / `owner/repo` whose on-disk dir differs), a still-processing queue, or a malformed/unreadable status or installed-list. Every Manager request (dialect probe, install, start, status, list) is now timeout-bounded. Live-verified: a bogus git-URL install returns `installed:false, verified:false, pending:true` with no false success and no crash. (#246)
+
+## [0.11.7] - 2026-07-30
+
+### Fixed
+- **SEVERE graph corruption: `panel_set_widget` on a promoted subgraph widget + combo enums (#233, #240).** `graph_set_widget` did `w.value = value` with no target resolution or value validation. On a SubgraphNode the promoted widget's slot is positionally shifted vs the inner node, so writing by name clobbered a DIFFERENT inner widget (an INT `steps` slot ended up holding `"euler"`) while reporting success; and a combo write was later reinterpreted as a stale dropdown index, drifting to a neighbouring enum. New `web/js/lib/widget-write.js`: `resolvePromotedInnerTarget` walks the subgraph-input link to the ACTUAL inner `(node,widget)` and FAILS CLOSED (throws before any mutation) when a promoted widget can't be resolved or is ambiguous — never writing a shifted parent slot; `coerceWidgetValue` validates by declared type (combo = exact current option only, numeric rejects arrays/objects/blanks/non-finite) and the handler verifies the value stuck exactly. Live-verified: a valid combo value sets exactly, an invalid one is rejected (not silently coerced). (#244)
+- **`[object Object]` at the sidebar + persisted-replay sites (#238, #241).** WS-9 (#228) serialized the live chat but the sidebar output payload and the persisted-message rehydration path still stringified objects. Both now route through the shared `coerceMessageText`; replay drops only content-losing objects, never a legitimately empty message. Live-verified after reload. (#243)
+
+## [0.11.6] - 2026-07-29
+
+### Fixed
+- **SEVERE data loss: save-as must never move a persisted source (#226, reopened).** The
+  earlier #231 fix trusted the frontend's `saveWorkflowAs` to copy, but on comfyui-frontend
+  1.45.21 that call MOVES a source flagged temporary — and a `panel_open_workflow` ack-timeout
+  race (#215) can leave a real on-disk workflow flagged temporary, so `save_workflow({name})`
+  silently deleted the original. `saveActiveWorkflow` now classifies the source by ACTUAL
+  on-disk state (tri-state: persisted / never-persisted / unknown; only a null oracle result or
+  a doc with no path proves absence — a returned object, a thrown lookup, or a list-miss all fail
+  safe) and REFUSES any rename/move of a persisted-or-unknown source; a persisted save-as copies
+  with the source verified surviving; an empty/unresolved target can no longer be recomputed into
+  a move. Verified by 238 unit tests + a Chrome live-test (the exact repro that destroyed a file
+  under #231 now preserves it). (#239)
+- **Chat media persistence + structured-payload serialization (WS-9).** Inline chat images/video
+  survive a panel reload, and structured error/user payloads render as readable text instead of
+  `[object Object]`. (#228)
+- **Invalidate stale caches/snapshots after a restart+edit (WS-3).** Graph tools see the live
+  graph after a restart instead of a stale snapshot. (#227)
+- **Stop leaking typed-message image attachments in Blind mode (#174).** (#217)
+- **Route panel node ops by Manager generation (#187, #182, #184).** The
+  built-in Manager helpers hardcoded the `/v2/manager/queue/task` envelope, so
+  `panel_install_node` / `panel_update_node` returned HTTP 405 against Manager
+  v4 in legacy-UI mode (`--enable-manager-legacy-ui`, #187) and against the
+  released ComfyUI-Manager 3.x (#182). Added `detectManagerDialect()` (probes
+  `/v2/manager/queue/status` + `/v2/manager/is_legacy_manager_ui`, falls back to
+  `/manager/queue/status`; cached per session) and a `managerCall()` sibling
+  that hits absolute (non-`/v2`) routes. Install/update/queue-status/list/search
+  now pick per dialect: `v2` (unified task envelope), `v2-batch` (POST
+  `/v2/manager/queue/batch` with 3.x body shapes), or `legacy` (per-operation
+  `/manager/queue/*`, no `/v2` prefix). Mirrors the mcp orchestrator's
+  `detectManagerApi`.
+- **`panel_install_node` no longer silently no-ops (#184).** On the batch
+  dialect it now inspects the `{failed:[...]}` response and throws when the
+  target pack failed instead of reporting a queued success — the rgthree-comfy
+  case where the queue drained "done" but the pack never hit disk. The queued
+  note also tells the agent to VERIFY with `panel_list_nodes`.
+- **git-URL installs send valid per-dialect payloads.** A full git URL was
+  being placed in `id`, which resolves to nothing on v4 (queue silently marks
+  "done") and fails late on 3.x (past the immediate `failed` array). Now the
+  repo NAME is derived from the URL: v4 installs by `{id: repoName,
+  selected_version: ref||"nightly", channel: "dev"}` (no `files`); v2-batch and
+  legacy install the URL natively via `{id: repoName, version: "unknown",
+  files: [url]}`. Registry-id installs are unchanged. Recognizes every git
+  protocol (`https://`, `ssh://`, `git://`, `git+…`, scp-form
+  `git@host:owner/repo`, and `.git` suffix) whether the URL arrives via `id` or
+  `repository`. The routing helpers were extracted to
+  `web/js/lib/manager-install.js` with `node --test` unit coverage.
+- **Pre-empt the coming comfy-cli hard error.** Publishing already warns that
+  "we will soon disable exec and eval, and multiple statements in a single
+  line"; when that lands it breaks `Publish to Comfy Registry`, i.e. we'd find
+  out at release time. Split the four semicolon-joined lines in the brand-asset
+  scripts and turned a `seg = lambda` into a `def`. No exec/eval existed
+  anywhere, and the shipped `__init__.py` / `py/*.py` were already clean.
+
+### Added
+- CI step enforcing comfy-cli parity (no exec/eval, no multi-statement lines).
+  AST-based rather than grep — a `;` search matches semicolons inside string
+  literals and reported false positives on every `py/` file.
+
+### Changed
+- **Registry tags now claim the local/offline story.** The listing advertised
+  Claude/ChatGPT/GPT-5 but nothing about running locally, so a user browsing
+  ComfyUI-Manager for a self-hosted option had no way to find it. Adds `local`,
+  `local-first`, `offline`, `self-hosted`, `ollama`, `local-llm`, `no-api-key`,
+  and `gemini` — the differentiators against a cloud-only agent.
+
 ### Added
 - **Chat archive UI** — multiple named or pinned conversations per workflow,
   workflow-grouped search and filtering, JSON merge import/export, explicit

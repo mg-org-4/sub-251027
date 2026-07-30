@@ -66,6 +66,7 @@ import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.js";
 import qrcodegen from "./vendor/qrcode.esm.js";
 import { computeLayout } from "./lib/layout-engine.js";
+import { buildInstallRequest, classifyInstallOutcome, installGitUrl, queueDrained } from "./lib/manager-install.js";
 import {
   CHAT_HISTORY_MAX_IMPORT_BYTES,
   CHAT_HISTORY_SCHEMA,
@@ -84,6 +85,15 @@ import {
 } from "./lib/workflow-chat-identity.js";
 import { validateA2UISpec, renderA2UICard, renderA2UIInert, renderA2UIFailCard, A2UI_CSS } from "./cmcp-a2ui.js";
 import { openSidePanel } from "./cmcp-sidepanel-ui.js";
+import {
+  isStaleAssetCandidate as isStaleAssetCandidateLib,
+  reconcileUnknownWidgetNames,
+  reapplyDefsToLiveNodes,
+} from "./lib/asset-staleness.js";
+import { applyWidgetWrite, WidgetWriteError } from "./lib/widget-write.js";
+import { coerceMessageText, isDroppedAgentReplay } from "./lib/chat-serialize.js";
+import { createMediaRecorder } from "./lib/chat-media.js";
+import { saveActiveWorkflow } from "./lib/workflow-save.js";
 
 let app = null;
 let api = null;
@@ -93,6 +103,74 @@ let api = null;
 // setupListeners, called from registerExtensionWhenReady). execution_start clears
 // state for the new run.
 let lastExecFailure = null;
+
+/**
+ * After a ComfyUI restart (panel_restart_comfyui / Manager reboot), the browser
+ * tab stays loaded but the backend rescanned node packs and model folders. The
+ * ComfyUI frontend does NOT re-fetch its node definitions on its own when its
+ * websocket to the backend reconnects, so the live LiteGraph registry and the
+ * loader combo lists go stale:
+ *   - newly installed node classes are "Unknown node type" to panel_add_node,
+ *     and existing nodes keep the old input/widget schema (#221 / #171)
+ *   - freshly downloaded/rescanned models are absent from loader combos, so a
+ *     genuinely installed file still looks missing (#185 / #181), and the
+ *     collectMissingAssets live-combo cross-check can't clear stale candidates.
+ * Re-pull /object_info and re-register the defs + refresh every combo so graph
+ * tools resume against the current server. Fully defensive: each frontend method
+ * is optional across ComfyUI versions, and any failure is a no-op (worst case is
+ * today's stale behaviour, never a thrown tool call).
+ */
+let nodeDefRefreshInFlight = null;
+// True only AFTER a node-def + combo refresh has completed successfully. The
+// missing-asset combo cross-check is trusted only when this is set — a combo left
+// from page load can be stale (still listing a deleted file) and must never
+// suppress a genuine miss (codex WS-3 finding #4). Reset to false whenever the
+// backend socket drops, since the combos may be about to change under us.
+let nodeDefsRefreshConfirmed = false;
+async function refreshComfyNodeDefs() {
+  if (nodeDefRefreshInFlight) return nodeDefRefreshInFlight;
+  nodeDefRefreshInFlight = (async () => {
+    // Trust the live combos for suppressing missing-asset candidates ONLY once
+    // the combo refresh has ACTUALLY RUN and succeeded. If refreshComboInNodes is
+    // absent on this ComfyUI build (or throws), the combos are still whatever
+    // page-load left them — possibly stale — so we must stay in over-report-safe
+    // mode and NOT trust them (finding #4).
+    let comboRefreshed = false;
+    try {
+      const a =
+        typeof app !== "undefined" && app ? app : window.comfyAPI?.app?.app;
+      if (!a) return;
+      // Re-register node definitions so newly installed/updated classes and
+      // their current widget schemas are known to LiteGraph (#221/#171).
+      let defs = null;
+      if (typeof a.registerNodesFromDefs === "function" && typeof api?.getNodeDefs === "function") {
+        defs = await api.getNodeDefs();
+        if (defs) await a.registerNodesFromDefs(defs);
+      }
+      // registerNodesFromDefs mints NEW classes; already-loaded node INSTANCES
+      // keep their old constructor and would never see the fresh schema. Stamp
+      // the fresh def onto existing instances + repair UNKNOWN widgets so old
+      // nodes are actually fixed, not just newly-created ones (finding #3).
+      if (defs) {
+        const rootGraph = a.graph ?? a.canvas?.graph;
+        if (rootGraph) reapplyDefsToLiveNodes(rootGraph, defs);
+      }
+      // Refresh combo widget option lists (model dropdowns etc.) so freshly
+      // installed models resolve and stale entries clear (#185/#181/#223).
+      if (typeof a.refreshComboInNodes === "function") {
+        await a.refreshComboInNodes();
+        comboRefreshed = true;
+      }
+    } catch (e) {
+      console.warn("[comfyui-mcp-panel] node-def refresh after reconnect failed:", e);
+    } finally {
+      nodeDefsRefreshConfirmed = comboRefreshed;
+      nodeDefRefreshInFlight = null;
+    }
+  })();
+  return nodeDefRefreshInFlight;
+}
+
 function setupListeners() {
   if (!api) return;
   try {
@@ -101,6 +179,21 @@ function setupListeners() {
     });
     api.addEventListener("execution_start", () => {
       lastExecFailure = null;
+    });
+    // While the backend socket is down, distrust the combos (they may be about
+    // to change) so a stale combo can't suppress a genuine miss (finding #4).
+    api.addEventListener("reconnecting", () => {
+      nodeDefsRefreshConfirmed = false;
+    });
+    api.addEventListener("status", (ev) => {
+      // A null status payload is ComfyUI's "backend connection lost" signal.
+      if (ev?.detail == null) nodeDefsRefreshConfirmed = false;
+    });
+    // ComfyUI's own socket to its backend re-establishing is the reliable
+    // in-tab signal that the server came back after a restart — refresh the
+    // stale node registry + combos then (#221/#171/#185/#181).
+    api.addEventListener("reconnected", () => {
+      void refreshComfyNodeDefs();
     });
   } catch {
     // api unavailable — graph_get_errors reports null.
@@ -113,7 +206,7 @@ const DISCORD_INVITE_URL = "https://discord.gg/cW9arBhzCu";
 // Panel version — surfaced in the "Need help?" diagnostics blob. Bump via
 // `node scripts/set-version.mjs <v>` (updates this AND pyproject together); CI
 // and the publish gate FAIL if the two ever drift, so this can't go stale.
-const PANEL_VERSION = "0.11.4";
+const PANEL_VERSION = "0.11.8";
 
 // The connected orchestrator's console URL/token (captured off the `backends`
 // bridge message — see onBackends). Drives the "API Keys" credentials frame;
@@ -2251,53 +2344,20 @@ function autoWorkflowName() {
   return `Untitled ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
 }
 
-/** True when `name` is a placeholder rather than a name the user/agent chose.
- *  ComfyUI's brand-new temporary tabs are pathed "Unsaved Workflow.json" (and
- *  "Unsaved Workflow (2).json", …); our own grounding auto-name is
- *  "Untitled <timestamp>". Anything else is a real, deliberate name (e.g. set
- *  via rename_workflow) and must NOT be clobbered by a fresh auto-name on save. */
-function isDefaultWorkflowName(name) {
-  const n = String(name || "").trim();
-  return !n || /^Unsaved Workflow\b/i.test(n) || /^Untitled\b/.test(n);
-}
-
-/** Programmatically save the active workflow — NO Save/Rename dialog. Uses the
- *  workflow STORE's saveWorkflow() (which calls workflow.save({force}); the
- *  dialog only comes from the Comfy.SaveWorkflow *command* path). If the
- *  workflow was never saved (or a `name` is given), it's renamed first so it
- *  lands as a real, named file. Best-effort + feature-detected. Returns the
- *  saved name, or null if it couldn't save. */
+/** Programmatically save the active workflow — NO Save/Rename dialog.
+ *
+ *  Delegates to the shared, unit-tested `saveActiveWorkflow` (web/js/lib/
+ *  workflow-save.js). Its one hard rule: saving an already-persisted workflow
+ *  under a DIFFERENT name is a Save-As (copy) — it writes a new file via
+ *  ComfyUI's own saveWorkflowAs/workflowStore.saveAs path and leaves the source
+ *  file on disk untouched. It must NEVER renameWorkflow() the source, which
+ *  moved and silently destroyed the original (issue #226). Saving under the
+ *  same name overwrites in place, as before. Returns the saved name, or a title
+ *  fallback. */
 async function programmaticSave(name) {
   const svc = app?.extensionManager?.workflow;
-  const wf = svc?.activeWorkflow;
-  if (!wf) throw new Error("no active workflow to save");
-  const wasUnsaved = wf.isTemporary === true || wf.isPersisted === false;
-  // Respect a name the workflow ALREADY carries. A workflow can be unsaved yet
-  // already named — e.g. rename_workflow set its title/path but it hasn't hit
-  // disk. In that case auto-naming would clobber the user's chosen name, so we
-  // only mint a fresh auto-name for a genuinely placeholder ("Unsaved Workflow"
-  // / "Untitled …") workflow. A named-but-unsaved workflow saves in place.
-  const currentName = (wf.filename || "").replace(/\.json$/i, "").trim();
-  const needsAutoName = wasUnsaved && isDefaultWorkflowName(currentName);
-  // Rename FIRST when we want a specific/auto name, so it persists under that
-  // name (renameWorkflow does the store bookkeeping; path needs the prefix).
-  const desired = (name ? String(name) : needsAutoName ? autoWorkflowName() : "")
-    .replace(/\.json$/i, "")
-    .trim();
-  if (desired && typeof svc.renameWorkflow === "function") {
-    const target = `workflows/${desired}.json`;
-    if (wf.path !== target) {
-      try {
-        await svc.renameWorkflow(wf, target);
-      } catch {
-        /* keep going — we'll still save under the current name */
-      }
-    }
-  }
-  if (typeof svc.saveWorkflow === "function") await svc.saveWorkflow(wf);
-  else if (typeof wf.save === "function") await wf.save();
-  else throw new Error("workflow save API unavailable on this frontend");
-  return desired || wf.filename || getWorkflowTitle();
+  const saved = await saveActiveWorkflow(svc, name, { autoWorkflowName });
+  return saved || getWorkflowTitle();
 }
 
 /** If the open workflow was never saved to disk, save it (no dialog) so the
@@ -2361,9 +2421,10 @@ async function clearSpuriousOpenModified(wf) {
  *  UI uses via useComfyManagerService). Because the panel runs inside the
  *  frontend, api.fetchApi resolves the identical URL the UI hits — so this works
  *  against the bundled Desktop Manager without the MCP/cm-cli path. */
-async function managerV2(route, { method = "GET", body } = {}) {
+async function managerV2(route, { method = "GET", body, signal } = {}) {
   const res = await api.fetchApi(`/v2/${route}`, {
     method,
+    ...(signal ? { signal } : {}),
     ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
   });
   if (!res || res.status === 404) {
@@ -2381,6 +2442,183 @@ async function managerV2(route, { method = "GET", body } = {}) {
   }
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;
+}
+
+/** Like managerV2 but hits an ABSOLUTE route (NO /v2 prefix). Used for the
+ *  released 3.x ComfyUI-Manager whose queue lives under /manager/* with
+ *  per-operation routes. Same error handling as managerV2. */
+async function managerCall(route, { method = "GET", body, signal } = {}) {
+  const res = await api.fetchApi(`/${route}`, {
+    method,
+    ...(signal ? { signal } : {}),
+    ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
+  });
+  if (!res || res.status === 404) {
+    throw new Error("ComfyUI-Manager not reachable (is the built-in Manager enabled?)");
+  }
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const j = await res.json();
+      if (j?.message) msg = j.message;
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new Error(`Manager ${route}: ${msg}`);
+  }
+  const txt = await res.text();
+  return txt ? JSON.parse(txt) : null;
+}
+
+// --- Manager generation detection (issues #187 #182 #184) -------------------
+// The /v2/manager/* task API exists only on the Manager v4 lineage. Three
+// dialects appear in the wild (mirrors the mcp orchestrator's detectManagerApi
+// in src/services/node-management.ts):
+//   "v2"       pip comfyui_manager v4, normal mode — unified POST
+//              /v2/manager/queue/task envelope {ui_id, client_id, kind, params}.
+//   "v2-batch" pip v4 started with --enable-manager-legacy-ui: /v2 GET routes
+//              exist but POST /v2/manager/queue/task 405s (frontend catchall).
+//              Mutations go through POST /v2/manager/queue/batch with 3.x body
+//              shapes {<op>:[body]}; failures reported as {failed:[id]}.
+//   "legacy"   released 3.x custom-node Manager — NO /v2 prefix; per-operation
+//              routes /manager/queue/{install,update,start,status,...}.
+let managerDialectCache = null;
+
+/** Every Manager HTTP call is bounded by this timeout so a stalled request can
+ *  never hang the install path (codex round 2 #5 — probes, install, start,
+ *  status, list are ALL bounded). */
+const MANAGER_FETCH_TIMEOUT_MS = 15000;
+
+/** Soft GET probe: parsed JSON, or null on any non-ok / 404 / throw / stall.
+ *  Never throws — a probe must not blow up detection. Bounded by an AbortSignal
+ *  so a hanging probe can't wedge dialect detection. */
+async function managerProbe(route) {
+  try {
+    const res = await api.fetchApi(route, {
+      method: "GET",
+      signal: AbortSignal.timeout(MANAGER_FETCH_TIMEOUT_MS),
+    });
+    if (!res || !res.ok) return null;
+    const txt = await res.text();
+    return txt ? JSON.parse(txt) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A real queue/status payload — guards against SPA/index catchalls that answer
+ *  200 with HTML for unknown GETs. */
+function looksLikeQueueStatus(s) {
+  return (
+    !!s &&
+    typeof s === "object" &&
+    (typeof s.total_count === "number" || typeof s.is_processing === "boolean")
+  );
+}
+
+/** Detect (and cache per session) which Manager generation the connected
+ *  ComfyUI runs. See the dialect comment above. */
+async function detectManagerDialect() {
+  if (managerDialectCache) return managerDialectCache;
+  const v2 = await managerProbe("/v2/manager/queue/status");
+  if (looksLikeQueueStatus(v2)) {
+    const legacyUi = await managerProbe("/v2/manager/is_legacy_manager_ui");
+    managerDialectCache =
+      legacyUi && typeof legacyUi === "object" && legacyUi.is_legacy_manager_ui === true
+        ? "v2-batch"
+        : "v2";
+    return managerDialectCache;
+  }
+  const legacy = await managerProbe("/manager/queue/status");
+  if (looksLikeQueueStatus(legacy)) {
+    managerDialectCache = "legacy";
+    return managerDialectCache;
+  }
+  throw new Error(
+    "ComfyUI-Manager's queue API is not reachable (neither /v2/manager/queue/status " +
+      "nor /manager/queue/status answered with a queue status). Is the built-in " +
+      "Manager installed and enabled on the connected ComfyUI?",
+  );
+}
+
+/** GET the queue status / installed / getmappings surface for the detected
+ *  dialect. Legacy has NO /v2 prefix; both pip modes serve /v2. */
+async function managerGet(route, { signal } = {}) {
+  const dialect = await detectManagerDialect();
+  const opts = signal ? { signal } : {};
+  return dialect === "legacy" ? managerCall(route, opts) : managerV2(route, opts);
+}
+
+/** Throw if a /v2/manager/queue/batch response reported the target id as failed.
+ *  The batch runs synchronously and surfaces failures as {failed:[id,...]} — a
+ *  silent success on a failed op is exactly the #184 no-op bug. */
+function assertBatchOk(res, id, op) {
+  const failed = Array.isArray(res?.failed) ? res.failed : [];
+  if (failed.length && (id === undefined || failed.includes(id))) {
+    throw new Error(
+      `ComfyUI-Manager batch reported the ${op} of "${String(id ?? "?")}" as failed ` +
+        "(check the ComfyUI server log for the underlying error — security_level " +
+        "gating is a common cause). The pack was NOT installed.",
+    );
+  }
+}
+
+/** Await a delay, but never longer than the remaining budget (>=0). */
+function boundedDelay(ms, deadline) {
+  const budget = Math.max(0, Math.min(ms, deadline - Date.now()));
+  return new Promise((r) => setTimeout(r, budget));
+}
+
+/** Poll the Manager queue/status until it POSITIVELY drains (queueDrained) or
+ *  the deadline passes. Each status fetch is bounded by an AbortSignal so a
+ *  stalled request cannot run past the deadline, and the initial settle-sleep
+ *  respects the remaining budget. Never throws. Returns the LAST status seen (or
+ *  null on a stall) — the caller's classifyInstallOutcome re-derives drained
+ *  from it via queueDrained, so a null/malformed status is never a false drain
+ *  (codex round 2 #1). */
+async function waitForQueueDrain({ timeoutMs = 120000, intervalMs = 1500 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let status = null;
+  // Give the queue a beat to register the task before the first poll, so we
+  // don't read a stale is_processing=false from before queue/start.
+  await boundedDelay(1000, deadline);
+  while (Date.now() < deadline) {
+    // Cap this individual fetch by whatever budget remains.
+    const perFetch = Math.max(1000, Math.min(MANAGER_FETCH_TIMEOUT_MS, deadline - Date.now()));
+    try {
+      status = await managerGet("manager/queue/status", {
+        signal: AbortSignal.timeout(perFetch),
+      });
+    } catch {
+      return status; // unreadable/aborted — inconclusive (not drained)
+    }
+    if (queueDrained(status)) return status;
+    await boundedDelay(intervalMs, deadline);
+  }
+  return status; // deadline hit
+}
+
+/**
+ * After an install is queued+started, resolve the TRUE outcome (#232 / codex
+ * rounds 1-2). Waits for the queue to drain (bounded), reads the installed-nodes
+ * list (bounded), then delegates the installed/failed/unverified decision to the
+ * pure classifyInstallOutcome (which re-derives drained + list-readability from
+ * the raw values — no false drain, no false-readable). `batchFailed` carries the
+ * synchronous v2-batch `failed[]` as failure EVIDENCE (still gated by the
+ * tri-state — never an early throw). Returns { state, status, message }.
+ */
+async function verifyInstalled(target, dialect, { batchFailed, renameProne } = {}) {
+  const status = await waitForQueueDrain();
+  let installed = null;
+  let listError = false;
+  try {
+    installed = await managerGet("customnode/installed", {
+      signal: AbortSignal.timeout(MANAGER_FETCH_TIMEOUT_MS),
+    });
+  } catch {
+    listError = true;
+  }
+  return classifyInstallOutcome({ target, dialect, status, installed, listError, batchFailed, renameProne });
 }
 
 /** Build a ComfyUI /view URL for an output image descriptor. */
@@ -2884,6 +3122,19 @@ function revertGraphToLastSnapshot() {
 // prepend a compact change-list to the agent's input so it isn't caught unaware
 // of edits the user made by hand (a bypassed node, a tweaked widget, a rewire).
 let lastAgentGraph = null;
+// The WORKFLOW IDENTITY the snapshot above was taken from. The snapshot is a
+// single module-global, but a diff is only meaningful against the SAME workflow:
+// if the user switched tabs between the agent's turn-end and their next message,
+// diffing the now-active tab B against tab A's snapshot attributed all of B's graph
+// as "manual edits" to A — a bogus, authoritative-framed change list that could
+// drive the agent to edit the wrong graph (panel #348/#198). We compare identity
+// before diffing and, on a mismatch, emit a tab-switch notice + reseed instead of
+// a false diff.
+// We key on workflowStableUuid() — which FOLLOWS a workflow across save (tmp:→wf:)
+// and rename — rather than workflowTabId(), whose "wf:<path>" id CHURNS on those
+// same-workflow events and would otherwise drop a real manual edit made across a
+// save/rename as a spurious "different workflow".
+let lastAgentGraphKey = null;
 
 const MODE_NAME = { 0: "active", 2: "mute", 4: "bypass" };
 const modeName = (m) => MODE_NAME[m] ?? `mode${m ?? 0}`;
@@ -3024,8 +3275,28 @@ function manualChangeBanner() {
   } catch {
     return "";
   }
+  // If the active workflow is not the one the snapshot came from, the user
+  // switched tabs — do NOT diff two different graphs (that produces a bogus
+  // "manual edits" list, #348/#198). Reseed to the now-active graph and tell the
+  // agent to re-read, rather than asserting a false ground-truth delta.
+  let currKey = null;
+  try {
+    currKey = workflowStableUuid();
+  } catch {
+    currKey = null;
+  }
+  if (lastAgentGraphKey && currKey && currKey !== lastAgentGraphKey) {
+    lastAgentGraph = curr;
+    lastAgentGraphKey = currKey;
+    return (
+      `⟳ ACTIVE WORKFLOW CHANGED since your last turn. ` +
+      `The canvas you're now bound to is a DIFFERENT workflow — your remembered ` +
+      `node ids may not apply. Re-read with panel_graph_outline before editing.\n\n`
+    );
+  }
   const lines = diffGraphsForAgent(lastAgentGraph, curr, live);
   lastAgentGraph = curr;
+  lastAgentGraphKey = currKey;
   if (!lines.length) return "";
   const MAX = 40;
   const shown = lines.slice(0, MAX);
@@ -3064,6 +3335,27 @@ let lastInjectedValidationSig = null;
  * Shared by graph_get_errors and validationBanner so the tool and the proactive
  * turn-start injection can never drift apart again.
  */
+/** The missing-asset Pinia stores (`missingModel`/`missingMedia`) are populated
+ *  ONCE at workflow LOAD and never re-evaluated, so a candidate the user or the
+ *  agent has since fixed (set_widget) — or a file that has since appeared on disk
+ *  (download + restart) — keeps getting reported missing until a full reload.
+ *  Delegate the live-graph cross-check to the pure helper: drop a candidate when
+ *  no widget still references the file OR it now resolves against the node's live
+ *  combo. Fails toward over-reporting, never swallowing a genuine miss.
+ *  (#196/#352/#364/#203/#223/#185/#181) */
+function isStaleAssetCandidate(c) {
+  let rootGraph;
+  try {
+    rootGraph = getGraphCtx().rootGraph;
+  } catch {
+    return false; // no graph → can't prove stale, keep reporting
+  }
+  // Only trust live combo membership to clear a candidate once a node-def refresh
+  // has confirmably succeeded — otherwise a stale combo could suppress a genuine
+  // miss (finding #4). The widget-still-references check is always safe.
+  return isStaleAssetCandidateLib(rootGraph, c, { trustCombo: nodeDefsRefreshConfirmed });
+}
+
 function collectMissingAssets() {
   const models = [];
   const media = [];
@@ -3072,6 +3364,7 @@ function collectMissingAssets() {
   try {
     for (const c of getPiniaStore("missingModel")?.missingModelCandidates ?? []) {
       if (c?.isMissing === false) continue;
+      if (isStaleAssetCandidate(c)) continue;
       models.push({
         node_id: c?.nodeId ?? null,
         file: c?.name ?? null,
@@ -3086,6 +3379,7 @@ function collectMissingAssets() {
   try {
     for (const c of getPiniaStore("missingMedia")?.missingMediaCandidates ?? []) {
       if (c?.isMissing === false) continue;
+      if (isStaleAssetCandidate(c)) continue;
       media.push({
         node_id: c?.nodeId ?? null,
         file: c?.name ?? null,
@@ -3317,6 +3611,7 @@ function resolveNode(graph, nodeId) {
   if (!node) throw new Error(`No node with id ${nodeId} in the current graph`);
   return node;
 }
+
 
 // ---- Subgraph boundary rails (input/output proxy nodes) -------------------
 // LiteGraph: subgraph.inputNode.id === SUBGRAPH_INPUT_ID (-10),
@@ -4934,29 +5229,35 @@ const GRAPH_TOOL_EXECUTORS = {
   graph_set_widget({ node_id, widget, value }) {
     const { app, graph } = getGraphCtx();
     const node = resolveNode(graph, node_id);
-    const w = (node.widgets ?? []).find(
-      (cand) => cand?.name?.toLowerCase() === String(widget).toLowerCase(),
-    );
-    if (!w) {
-      const names = (node.widgets ?? []).map((cand) => cand?.name).join(", ");
-      throw new Error(
-        `Node ${node.id} (${node.type}) has no widget "${widget}" (available: ${names || "none"})`,
-      );
-    }
-    graph.beforeChange();
-    const previous = w.value;
+    // Repair positional UNKNOWN/UNKNOWN_n placeholders against the live def so
+    // the caller's real widget name resolves (#199) before we look it up.
+    reconcileUnknownWidgetNames(node);
+
+    // applyWidgetWrite owns the whole write: for a PARENT SubgraphNode it
+    // resolves a PROMOTED widget to its ACTUAL inner (node, widget) and writes
+    // THERE — never the positionally-shifted parent slot (#233), throwing if
+    // the promotion can't be resolved unambiguously rather than falling open.
+    // It validates the value against the target's declared type (combo must be
+    // an exact CURRENT option — no index drift, #240; numeric must be numeric)
+    // and verifies the write stuck exactly. Same driveable path the unit tests
+    // exercise.
     try {
-      w.value = value;
-      // Fire the widget's own callback so combo/number side effects run —
-      // the same path a manual UI edit takes.
-      w.callback?.(value, app.canvas, node, node.pos, undefined);
-    } finally {
-      graph.afterChange();
+      const set = applyWidgetWrite(node, widget, value, {
+        resolveSource: sourceForSubgraphInput,
+        canvas: app.canvas,
+        beforeChange: () => graph.beforeChange(),
+        afterChange: () => graph.afterChange(),
+        setDirty: () => graph.setDirtyCanvas(true, true),
+      });
+      return { set };
+    } catch (err) {
+      if (err instanceof WidgetWriteError) {
+        throw new Error(
+          `panel_set_widget refused "${widget}" on node ${node.id} (${node.type}): ${err.message}`,
+        );
+      }
+      throw err;
     }
-    graph.setDirtyCanvas(true, true);
-    return {
-      set: { node_id: node.id, widget: w.name, previous, value: w.value },
-    };
   },
 
   graph_move_node({ node_id, pos }) {
@@ -5491,7 +5792,12 @@ const GRAPH_TOOL_EXECUTORS = {
     });
     return {
       active: active ? { path: active.path, filename: active.filename, key: active.key } : null,
-      open: (s.openWorkflows ?? []).map(brief),
+      // Guard against nullish entries in openWorkflows: a tab mid-open/close can
+      // momentarily leave an undefined slot, and an unguarded `w.path` in `brief`
+      // threw "Cannot read properties of undefined (reading 'path')" — removing the
+      // only way to list open tabs exactly when it was needed to diagnose a desync
+      // (panel #197). Filter first so the list is best-effort rather than fatal.
+      open: (s.openWorkflows ?? []).filter(Boolean).map(brief),
     };
   },
 
@@ -6456,7 +6762,7 @@ const GRAPH_TOOL_EXECUTORS = {
 
   // --- Custom-node management via the BUILT-IN ComfyUI Manager (/v2 API) ----
   async nodes_search({ query, limit }) {
-    const data = await managerV2("customnode/getmappings?mode=cache");
+    const data = await managerGet("customnode/getmappings?mode=cache");
     const q = String(query ?? "").toLowerCase();
     const out = [];
     const push = (id, title, desc) => {
@@ -6480,34 +6786,77 @@ const GRAPH_TOOL_EXECUTORS = {
   },
 
   async nodes_list() {
-    return { installed: await managerV2("customnode/installed") };
+    return { installed: await managerGet("customnode/installed") };
   },
 
-  async nodes_install({ id, version, repository, channel, mode, selected_version }) {
+  async nodes_install(args) {
+    const { id, repository } = args ?? {};
     if (!id && !repository) {
       throw new Error("id (registry id or author/repo) or repository (git URL) is required");
     }
-    const sel = selected_version || version || (repository ? "nightly" : "latest");
-    const params = {
-      id: id ?? repository,
-      version: version || (sel === "nightly" ? "nightly" : "latest"),
-      selected_version: sel,
-      ...(repository ? { repository } : {}),
-      mode: mode || "remote",
-      channel: channel || "default",
-    };
+    const dialect = await detectManagerDialect();
     const ui_id = crypto.randomUUID();
     const client_id = api.clientId ?? api.initialClientId ?? "comfyui-mcp-panel";
-    await managerV2("manager/queue/task", {
-      method: "POST",
-      body: { kind: "install", params, ui_id, client_id },
-    });
-    await managerV2("manager/queue/start", { method: "POST" });
+    // buildInstallRequest (./lib/manager-install.js) derives the repo NAME for a
+    // git URL (arriving via id OR repository, any protocol) and picks the right
+    // per-dialect payload — issues #187/#182/#184. A full URL is never sent as
+    // `id` (v4 would silently mark it "done"; 3.x fails late, past `failed`).
+    const req = buildInstallRequest(dialect, args, ui_id);
+    // The install id we verify against on disk (already the repo NAME for a git
+    // URL). #232: the Manager queue reports every task "done" even when the
+    // clone/resolve fails, so after queueing we resolve the TRUE outcome instead
+    // of claiming success — installed / failed / unverified (see verifyInstalled).
+    const target = dialect === "v2" ? req.params.id : req.body.id;
+    // A git URL or an owner/repo id can install under a directory name that
+    // differs from the repo name (e.g. TenStrip/10S-Comfy-nodes → 10S_Nodes), so
+    // its on-disk presence can't be confirmed OR ruled out by name — absence is
+    // NOT proof of failure for such targets (codex round 3). A claimed registry
+    // id is identifiable (matched via cnr_id/aux_id), so its absence IS proof.
+    const renameProne = !!installGitUrl(args) || String(id ?? "").includes("/");
+    // Every Manager mutation is bounded (codex round 2 #5).
+    const post = (body) => ({ method: "POST", body, signal: AbortSignal.timeout(MANAGER_FETCH_TIMEOUT_MS) });
+    let batchFailed; // v2-batch synchronous failed[] — FEEDS the gate as evidence
+    if (dialect === "v2") {
+      await managerV2("manager/queue/task", post({ kind: "install", params: req.params, ui_id, client_id }));
+      await managerV2("manager/queue/start", post());
+    } else if (dialect === "v2-batch") {
+      const res = await managerV2("manager/queue/batch", post({ install: [req.body] }));
+      // Capture the synchronous `failed[]` as failure EVIDENCE — but do NOT throw
+      // early (codex round 2 #4). The final outcome still goes through the
+      // tri-state gate (drained + list-readable + absent) below.
+      batchFailed = Array.isArray(res?.failed) ? res.failed : undefined;
+      await managerV2("manager/queue/start", post());
+    } else {
+      await managerCall("manager/queue/install", post(req.body));
+      await managerCall("manager/queue/start", post());
+    }
+    // Resolve the true outcome. Throw ONLY on positive failure evidence; an
+    // inconclusive result returns an honest unverified status (never a silent
+    // success, never a false failure). #232 + codex rounds 1-2.
+    const outcome = await verifyInstalled(target, dialect, { batchFailed, renameProne });
+    if (outcome.state === "failed") throw new Error(outcome.message);
+    if (outcome.state === "installed") {
+      return {
+        queued: true,
+        installed: true,
+        verified: true,
+        ui_id,
+        id: target,
+        dialect,
+        note:
+          "Installed and VERIFIED present in custom_nodes. A ComfyUI restart " +
+          "(comfy_reboot) is usually required to load new nodes.",
+      };
+    }
     return {
       queued: true,
+      installed: false,
+      verified: false,
+      pending: outcome.state === "unverified",
       ui_id,
-      id: params.id,
-      note: "Install queued. Poll nodes_queue_status; a ComfyUI restart (comfy_reboot) is usually required to load new nodes.",
+      id: target,
+      dialect,
+      note: outcome.message,
     };
   },
 
@@ -6519,34 +6868,47 @@ const GRAPH_TOOL_EXECUTORS = {
   async graph_update_node({ id, version, channel, mode }) {
     if (!id) throw new Error("id (installed pack name/dir or registry id) is required");
     const sel = version === "nightly" ? "nightly" : "latest";
-    const params = {
-      // The Manager's update task keys off node_name; include id too for
-      // correlation parity with install (harmless if the server ignores it).
-      node_name: id,
-      id,
-      selected_version: sel,
-      version: sel,
-      mode: mode || "remote",
-      channel: channel || "default",
-    };
+    const dialect = await detectManagerDialect();
     const ui_id = crypto.randomUUID();
     const client_id = api.clientId ?? api.initialClientId ?? "comfyui-mcp-panel";
-    await managerV2("manager/queue/task", {
-      method: "POST",
-      body: { kind: "update", params, ui_id, client_id },
-    });
-    await managerV2("manager/queue/start", { method: "POST" });
-    return {
-      queued: true,
-      ui_id,
-      id,
-      version: sel,
-      note: "Update queued. Poll nodes_queue_status; a ComfyUI restart (comfy_reboot) is usually required to load the updated node.",
-    };
+    const note =
+      "Update queued. Poll nodes_queue_status; a ComfyUI restart (comfy_reboot) is usually required to load the updated node.";
+    if (dialect === "v2") {
+      const params = {
+        // The Manager's update task keys off node_name; include id too for
+        // correlation parity with install (harmless if the server ignores it).
+        node_name: id,
+        id,
+        selected_version: sel,
+        version: sel,
+        mode: mode || "remote",
+        channel: channel || "default",
+      };
+      await managerV2("manager/queue/task", {
+        method: "POST",
+        body: { kind: "update", params, ui_id, client_id },
+      });
+      await managerV2("manager/queue/start", { method: "POST" });
+      return { queued: true, ui_id, id, version: sel, dialect, note };
+    }
+    // v2-batch + legacy: 3.x update body {ui_id, id, version} (issues #187/#182).
+    const body = { ui_id, id, version: sel };
+    if (dialect === "v2-batch") {
+      const res = await managerV2("manager/queue/batch", {
+        method: "POST",
+        body: { update: [body] },
+      });
+      assertBatchOk(res, id, "update");
+      await managerV2("manager/queue/start", { method: "POST" });
+    } else {
+      await managerCall("manager/queue/update", { method: "POST", body });
+      await managerCall("manager/queue/start", { method: "POST" });
+    }
+    return { queued: true, ui_id, id, version: sel, dialect, note };
   },
 
   async nodes_queue_status() {
-    return { status: await managerV2("manager/queue/status") };
+    return { status: await managerGet("manager/queue/status") };
   },
 
   async comfy_reboot({ force } = {}) {
@@ -7166,6 +7528,43 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onCom
           } else {
             const executor = GRAPH_TOOL_EXECUTORS[msg.cmd];
             if (!executor) throw new Error(`Unknown command "${msg.cmd}"`);
+            // PINNED-TARGET GUARD (#349): a `workflow_path` on the command means the
+            // agent's session is pinned to a SPECIFIC workflow. But every executor
+            // runs against the ACTIVE canvas (getGraphCtx = app.canvas.graph) — the
+            // panel has no way to mutate a non-active workflow's graph. So if the
+            // pinned workflow is not the active one, executing would SILENTLY write
+            // to the wrong graph (the reported data corruption). Fail loudly with a
+            // retryable error instead. Only fires on a POSITIVE mismatch (active
+            // identity resolvable and none of its ids match), so an unresolvable
+            // frontend never spuriously rejects, and current-mode sessions (which
+            // never carry workflow_path) are wholly unaffected.
+            const pinnedPath = msg?.[WORKFLOW_PATH_FIELD];
+            if (typeof pinnedPath === "string" && pinnedPath.trim()) {
+              const wf = activeWorkflowRef();
+              const want = normalizedWorkflowPath(pinnedPath);
+              // A pin identifier from panel_list_workflows / panel_set_workflow_target
+              // may be a path, a key, OR a filename (all three are documented as valid
+              // pin ids), so compare against every form the active workflow exposes —
+              // otherwise a legitimate filename-based pin is falsely rejected.
+              const wfFilename = typeof wf?.filename === "string" ? wf.filename : null;
+              const have = [
+                wf?.path,
+                wf?.key,
+                wf?.path ? "wf:" + wf.path : null,
+                wfFilename,
+                wfFilename ? wfFilename.replace(/\.json$/i, "") : null,
+              ]
+                .filter((x) => typeof x === "string" && x)
+                .map(normalizedWorkflowPath);
+              if (have.length && !have.includes(want)) {
+                throw new Error(
+                  `workflow mismatch: your session is pinned to "${pinnedPath}", but the active ` +
+                    `canvas is "${wf?.path || wf?.key || "unknown"}". The panel can only edit the ` +
+                    `active workflow — switch to the pinned tab (panel_open_workflow) or re-target ` +
+                    `with panel_set_workflow_target({mode:"current"}), then retry.`,
+                );
+              }
+            }
             result = await executor(msg);
             // ComfyUI's ChangeTracker snapshots on USER input events only —
             // graph.beforeChange/afterChange is not wired into it, so bridge-driven
@@ -7230,9 +7629,13 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onCom
         }
         return;
       }
-      if (msg && msg.type === "say" && typeof msg.text === "string") {
+      if (msg && msg.type === "say" && msg.text != null) {
+        // A completed render/output frame can arrive as a structured payload,
+        // not a bare string (#238). Route it through the SAME serializer the
+        // A2UI/replay paths use so the sidebar shows readable text instead of a
+        // dropped frame or an "[object Object]" bubble.
         // `id` reconciles this committed reply with its live streaming preview.
-        onSay(msg.text, { id: msg.id, streamed: !!msg.streamed });
+        onSay(coerceMessageText(msg.text), { id: msg.id, streamed: !!msg.streamed });
       }
       // Live streaming deltas: incremental thinking / reply text before the final
       // `say` commits. phase: "think" | "text" | "end".
@@ -7476,6 +7879,11 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onCom
     },
     sendUserMessage(text, context, images, mid) {
       if (!sock || sock.readyState !== WebSocket.OPEN) return false;
+      // Blind mode withholds pixels from EVERY agent-facing path — including
+      // images explicitly attached to a typed user message. The sendFrame() gate
+      // below only covers agent_event, so without this a blind session still
+      // leaks user attachments into the user_message frame (#174, privacy).
+      if (AGENT_BLIND) images = undefined;
       // Merge any armed one-shot context (transcript replay) ahead of this
       // message's own context, then clear it so it's sent exactly once.
       const mergedContext =
@@ -11346,6 +11754,16 @@ function buildPanel() {
     return entry;
   }
 
+  // Media persistence controller (#177): owns the record decision + replay
+  // guard (see lib/chat-media.js). paintImage/paintVideo call mediaRecorder.record
+  // after painting; paintThread wraps its replay loop in mediaRecorder.replay so
+  // stored media repaints without re-recording. Only DURABLE urls are persisted
+  // (ComfyUI /view / absolute http(s)); data:/blob:/other are rejected.
+  const mediaRecorder = createMediaRecorder(record);
+  function recordMedia(mkind, url, caption) {
+    mediaRecorder.record(mkind, url, caption);
+  }
+
   /** Bind the agent's current session id to the open thread (for reload/resume). */
   function bindSession(sessionId) {
     const previousSessionId = thread?.sessionId || null;
@@ -11462,10 +11880,20 @@ function buildPanel() {
   }
 
   function paintAgent(text) {
+    // History can contain structured assistant payloads persisted by an older
+    // runtime (e.g. codex app-server callback shapes). Re-normalize on replay
+    // through the SHARED serializer so reload/restart cannot resurrect the
+    // literal "[object Object]" that renderRichText's String() coercion would
+    // otherwise produce, even after the live `say` path has been fixed (#241).
+    // Drop ONLY a structured payload that coerced to nothing (see
+    // isDroppedAgentReplay) — a genuinely-empty STRING record is valid stored
+    // input and must still render its empty bubble (#241).
+    if (isDroppedAgentReplay(text)) return;
+    const safeText = coerceMessageText(text);
     clearEmpty();
     const b = document.createElement("div");
     b.className = "cmcp-bubble agent";
-    renderRichText(b, text);
+    renderRichText(b, safeText);
     log.appendChild(b);
     scrollLog();
   }
@@ -11513,6 +11941,8 @@ function buildPanel() {
     }
     log.appendChild(card);
     scrollLog();
+    // Persist servable images so they survive reload / thread switch (#177).
+    recordMedia("image", url, name);
   }
 
   // Lazy chat-video manager: only videos currently scrolled into view hold a live
@@ -11589,6 +12019,8 @@ function buildPanel() {
     log.appendChild(card);
     videoObserver().observe(holder);
     scrollLog();
+    // Persist servable videos so they survive reload / thread switch (#177).
+    recordMedia("video", url, name);
   }
 
   /** Decide whether a ComfyUI output descriptor is a VIDEO (render <video>) vs an
@@ -11611,8 +12043,14 @@ function buildPanel() {
 
   /** Round-trip: a card interaction becomes a normal, visible user message. */
   function sendCardReply(text) {
-    appendUser(text, {});
-    const ok = client?.sendUserMessage?.(text);
+    // Card interactions are supposed to hand us a string reply, but a malformed
+    // A2UI spec can send an object through this boundary — coerce it so neither
+    // the visible bubble nor the outgoing user_message becomes "[object Object]"
+    // (#219). cmcp-a2ui already normalizes at ctx.choose(); this is the panel's
+    // own guard for any other caller.
+    const reply = coerceMessageText(text);
+    appendUser(reply, {});
+    const ok = client?.sendUserMessage?.(reply);
     if (!ok) appendSystem("Card reply couldn't be sent — agent disconnected.");
   }
 
@@ -12353,14 +12791,22 @@ function buildPanel() {
   function paintThread(t) {
     thread = t;
     resetFeed();
-    for (const m of t.msgs) {
-      if (m.role === "user") paintUser(m.text, { attachments: m.attachments, workflowVersion: m.workflowVersion });
-      else if (m.role === "agent") paintAgent(m.text);
-      else if (m.role === "card") {
-        if (m.kind === "a2ui") paintA2UIRecord(m);
-        else paintCard(m);
+    // Replay guard: paintImage/paintVideo record servable media as they paint;
+    // during a stored-history replay they must repaint WITHOUT re-recording
+    // (which would duplicate the media on every reload / thread switch) (#177).
+    mediaRecorder.replay(() => {
+      for (const m of t.msgs) {
+        if (m.role === "user") paintUser(m.text, { attachments: m.attachments, workflowVersion: m.workflowVersion });
+        else if (m.role === "agent") paintAgent(m.text);
+        else if (m.role === "media") {
+          if (m.mkind === "video") paintVideo(m.url, m.caption);
+          else paintImage(m.url, m.caption);
+        } else if (m.role === "card") {
+          if (m.kind === "a2ui") paintA2UIRecord(m);
+          else paintCard(m);
+        }
       }
-    }
+    });
     // resetFeed() recreated the indicator (if a turn is live) ABOVE these
     // repainted messages — re-pin it to the bottom so it trails the newest one.
     if (agentWorking) bumpThinking();
@@ -13489,6 +13935,13 @@ function buildPanel() {
         // the live graph against this to surface MANUAL edits made between turns.
         try {
           lastAgentGraph = getGraphCtx().rootGraph.serialize();
+          // Stamp the rename-stable workflow identity so the next turn's diff only
+          // compares like-with-like (see manualChangeBanner / #348/#198).
+          try {
+            lastAgentGraphKey = workflowStableUuid();
+          } catch {
+            lastAgentGraphKey = null;
+          }
         } catch {}
       }
     },

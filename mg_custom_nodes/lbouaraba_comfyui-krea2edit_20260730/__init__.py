@@ -40,7 +40,9 @@ def _imgids_offset(bs, frame, gh, gw, th, tw, device):
     pixels are already resampled to target grid density, so the position grid is
     stride-1 BY CONSTRUCTION — scaling it again only manufactures skip/collision
     artifacts. Requires gh<=th, gw<=tw (guaranteed by the floor+cap in fit)."""
-    off_h, off_w = max(0, (th - gh) // 2), max(0, (tw - gw) // 2)
+    # fractional center (2026-07-28): integer floor placed odd-gap refs 8px off
+    # their true center — RoPE is continuous, half-token positions are exact.
+    off_h, off_w = max(0.0, (th - gh) / 2), max(0.0, (tw - gw) / 2)
     ids = torch.zeros(gh, gw, 3, device=device, dtype=torch.float32)
     ids[..., 0] = frame
     ids[..., 1] = (torch.arange(gh, device=device, dtype=torch.float32) + off_h)[:, None]
@@ -110,6 +112,15 @@ def _fit_encode_image(image, vae, H, W, cache, key, fit_mode="crop"):
             # (train/infer geometry must be byte-identical). 2026-07-15 alignment.
             nh = min(max(16, int(ih * sc) // 16 * 16), max(16, px_h // 16 * 16))
             nw = min(max(16, int(iw * sc) // 16 * 16), max(16, px_w // 16 * 16))
+            # CROP-TO-GRID (2026-07-28 seam-doubling RCA): resizing ih*sc -> floor16
+            # SQUASHES content by up to 15px; the misregistration peaks exactly at
+            # the ref band edges — the outpaint seam — and renders as a doubled
+            # band (proven causal: 754px vs 753px input A/B, one pixel flips
+            # clean<->worst). Center-crop the source so the fitted axis lands on
+            # the /16 grid at scale sc EXACTLY: zero squash, stride-1 stays true.
+            ch2, cw2 = min(ih, max(1, int(round(nh / sc)))), min(iw, max(1, int(round(nw / sc))))
+            y0, x0 = (ih - ch2) // 2, (iw - cw2) // 2
+            img = img[..., y0:y0 + ch2, x0:x0 + cw2]
         img = F.interpolate(img.float(), size=(nh, nw), mode="bicubic", antialias=True)
         lat = vae.encode(img.movedim(1, -1)[..., :3].clamp(0, 1))
         cache[key] = lat
@@ -264,6 +275,9 @@ class Krea2EditModelPatch:
             "vae": ("VAE", {"tooltip": "RECOMMENDED with source_image: enables the blur-proof pixel-space path (crop+resize in pixels, encode internally) — immune to input/output resolution mismatches"}),
             "source_image": ("IMAGE", {"tooltip": "source as IMAGE (with vae connected): overrides source_latent with exact pixel-space fitting — fixes blurry results from mismatched resolutions"}),
             "source_image_b": ("IMAGE", {"tooltip": "2nd reference as IMAGE (with vae)"}),
+            # declared last on purpose: appending keeps every existing socket index put,
+            # so workflows saved before this input still reload with their links intact.
+            "target_latent": ("LATENT", {"tooltip": "RECOMMENDED with vae + source_image: wire the SAME latent you feed KSampler.latent_image. Lets the node VAE-encode the source here, before sampling starts, instead of on the first step — otherwise the VAE is pulled onto the GPU mid-sampling and can evict part of the diffusion model, slowing every remaining step on VRAM-tight setups"}),
         }}
 
     RETURN_TYPES = ("MODEL",)
@@ -273,7 +287,7 @@ class Krea2EditModelPatch:
 
     def patch(self, model, source_latent, source_latent_b=None, ref_boost=1.0, ref_boost_a=1.0,
               ref_boost_mask=None, vae=None, source_image=None,
-              source_image_b=None, fit_mode="fit", **_future):
+              source_image_b=None, fit_mode="fit", target_latent=None, **_future):
         if _future:
             print(f"[krea2edit] WARNING: workflow provides inputs this node version does not "
                   f"know ({', '.join(sorted(_future))}). The workflow is newer than the "
@@ -288,11 +302,36 @@ class Krea2EditModelPatch:
 
         px_cache = {}   # pixel-path encoded sources, keyed per target resolution
         mm = model.model  # for process_latent_in on the pixel path
+        state = {"announced": False}
 
         if fit_mode == "fit" and (vae is None or source_image is None):
             print(f"[krea2edit] WARNING: fit_mode='fit' has NO EFFECT — it needs both "
                   f"'vae' and 'source_image' connected (the pixel path). Falling back to the "
                   f"latent crop path.", flush=True)
+
+        # Pre-encode OUTSIDE the sampling window. vae.encode -> load_models_gpu ->
+        # free_memory(keep_loaded=[]), which partially unloads whatever is resident —
+        # including the diffusion model, if the first call lands inside the sampler.
+        # Nothing re-expands it (sampler_helpers loads once, before the loop), so the
+        # rest of the run streams weights from CPU every step. Running the encode here,
+        # at node-execution time, restores the ordinary VAEEncode -> KSampler order
+        # where the sampler evicts the VAE instead of the reverse.
+        primed = None
+        if vae is not None and source_image is not None:
+            if target_latent is not None:
+                Hh, Ww = target_latent["samples"].shape[-2], target_latent["samples"].shape[-1]
+                print(f"[krea2edit] pre-encoding sources at target {Hh * 8}x{Ww * 8}px "
+                      f"(before sampling, fit_mode={fit_mode})", flush=True)
+                _fit_encode_image(source_image, vae, Hh, Ww, px_cache, ("a", Hh, Ww), fit_mode)
+                if source_image_b is not None:
+                    _fit_encode_image(source_image_b, vae, Hh, Ww, px_cache, ("b", Hh, Ww), fit_mode)
+                primed = (Hh, Ww)
+            else:
+                print("[krea2edit] NOTE: connect 'target_latent' (the same latent that feeds "
+                      "KSampler.latent_image) to pre-encode the source here instead of on the "
+                      "first sampling step. Without it the VAE is loaded mid-sampling and can "
+                      "evict part of the diffusion model, slowing every remaining step.",
+                      flush=True)
 
         def wrapper(executor, x, timesteps, context, *wargs, **kwargs):
             # ComfyUI signature drift (2026-07-19, commit c9602625 adds ref_latents):
@@ -310,10 +349,18 @@ class Krea2EditModelPatch:
             dm = executor.class_obj  # the SingleStreamDiT instance
             src = src_samples
             if vae is not None and source_image is not None:
-                if not px_cache:
-                    print(f"[krea2edit] pixel path ACTIVE (fit_mode={fit_mode})", flush=True)
                 xx = _to_4d(x)
                 Hh, Ww = xx.shape[-2], xx.shape[-1]
+                # not `if not px_cache` — the cache is already primed when target_latent
+                # is wired, so an explicit one-shot flag is needed to announce once.
+                if not state["announced"]:
+                    state["announced"] = True
+                    print(f"[krea2edit] pixel path ACTIVE (fit_mode={fit_mode})", flush=True)
+                    if primed is not None and primed != (Hh, Ww):
+                        print(f"[krea2edit] WARNING: 'target_latent' is {primed[0] * 8}x{primed[1] * 8}px but "
+                              f"sampling is at {Hh * 8}x{Ww * 8}px — the pre-encode is unused and the VAE "
+                              f"will run mid-sampling. Wire the SAME latent that feeds KSampler.",
+                              flush=True)
                 lat = mm.process_latent_in(_fit_encode_image(source_image, vae, Hh, Ww, px_cache, ("a", Hh, Ww), fit_mode))
                 if source_image_b is not None:
                     lat = [lat, mm.process_latent_in(_fit_encode_image(source_image_b, vae, Hh, Ww, px_cache, ("b", Hh, Ww), fit_mode))]

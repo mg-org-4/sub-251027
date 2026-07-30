@@ -4,6 +4,41 @@ Weights: https://huggingface.co/conradlocke/krea2-identity-edit
 v1.2 updates the **nodes** (see below); they stay backward-compatible with v1/v1.1
 weights via `fit_mode: crop`.
 
+## v1.2.5 — 2026-07-29
+
+### Added
+- **`target_latent` input on the patch node** (#15 — thanks @ethanfel, first outside
+  code contribution!): wire the same latent that feeds `KSampler.latent_image` and the
+  pixel path VAE-encodes the source at node-execution time instead of on the first
+  sampling step. Without it, that mid-sampling encode can make ComfyUI evict part of
+  the resident diffusion model on VRAM-tight setups — every remaining step then
+  streams weights from CPU. Optional; unwired behavior is unchanged. See the README
+  section "Pixel path and VRAM".
+
+### Fixed
+- Pre-encode console messages now report resolutions in pixels, not latent units.
+
+## v1.2.4 — 2026-07-29
+
+Node-only update (no new weights) — recommended for everyone on v1.2 weights.
+
+### Fixed
+- **Vertical-outpaint "doubling" band largely fixed.** Two geometry defects made the
+  reference band misregister against the target grid: content was squashed by up to
+  15px by /16 flooring, and odd-gap refs sat 8px off their true center from integer
+  offset flooring. Sources are now center-cropped so the fitted axis lands on the /16
+  grid exactly, and RoPE offsets are placed at the true (fractional) center. Biggest
+  effect on outpaint, style-guard and removal edits. Note: the v1.2 weights learned
+  some of this artifact during training, so rare cases can persist — `fit_mode: crop`
+  remains a workaround; a fully clean from-scratch training is in progress for v2.
+- From v1.2.3 (pushed, never release-tagged): a newer workflow meeting an older node
+  install now warns "update the node pack" instead of crashing with a TypeError (#5);
+  README `grounding_px` trained range corrected to the v1.2 reality (384–768).
+
+### Advisory
+- **Prefer `euler` (or other ODE samplers) over `er_sde` for outpainting.** The SDE
+  noise injection disrupts the reference-copy channel and ruins outpaint coherence.
+
 ## v1.2 — 2026-07-17 (recommended)
 
 `krea2_identity_edit_v1_2.safetensors` — pair it with the v1.2 nodes in this repo.

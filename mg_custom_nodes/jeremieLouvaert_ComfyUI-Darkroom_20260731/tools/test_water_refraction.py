@@ -96,15 +96,22 @@ t_start = time.time()
 
 # --- I1 ---------------------------------------------------------------------
 print("\nI1  reflecting walls conserve water exactly")
-s1 = WR.ShallowWaterFLIP(20.0, 20.0, nx=48, seed=1, edge="wall")
-s1.prefill(4.0, 8000)
-s1.vol = 4.0 * 400.0 / 8000
-n0, v0 = s1.px.size, s1.volume_mm3()
+s1 = WR.GridShallowWater(20.0, 20.0, nx=48, seed=1, edge="wall")
+s1.prefill(4.0)
+v0 = s1.volume_mm3()
 for _ in range(80):
     s1.step()
-check("I1 no particle created or destroyed over 80 steps",
-      s1.px.size == n0 and abs(s1.volume_mm3() - v0) < PREC,
-      f"{n0} / {v0:.4f}mm3 -> {s1.px.size} / {s1.volume_mm3():.4f}mm3")
+rel = abs(s1.volume_mm3() - v0) / max(v0, 1e-12)
+check("I1 walls create and destroy no water over 80 steps", rel < 1e-9,
+      f"{v0:.6f} -> {s1.volume_mm3():.6f} mm3, rel {rel:.2e}")
+# The flux form exists because a central-difference draft manufactured water:
+# 8000 mm3 poured came back as 8848. This is that check, on a live pour.
+_v = 6.0
+_h, _sim = WR.simulate(20.0, 20.0, volume_ml=_v, nx=48, seed=1, sample_ms=40.0,
+                       pour_ms=40.0, sweep=0.0)
+_rel = abs(_sim.volume_mm3() - _v * 1000.0) / (_v * 1000.0)
+check("I1 a pour delivers exactly the volume it was asked for", _rel < 0.02,
+      f"poured {_v*1000:.0f}, present {_sim.volume_mm3():.0f} mm3, rel {_rel:.3f}")
 
 # --- I2 ---------------------------------------------------------------------
 print("\nI2  the capillary length is derived, not hardcoded")
@@ -159,15 +166,13 @@ check("I5 displacement is UPHILL, so a bead magnifies", min(uphill) > 0.999,
 
 # --- I6 ---------------------------------------------------------------------
 print("\nI6  the explicit CFL limit is respected")
-s2 = WR.ShallowWaterFLIP(20.0, 20.0, nx=48, seed=2)
-s2.prefill(4.0, 8000)
-s2.vol = 4.0 * 400.0 / 8000
+s2 = WR.GridShallowWater(20.0, 20.0, nx=48, seed=2)
+s2.prefill(4.0)
 worst = 0.0
 for _ in range(40):
-    hh, u, v = s2._p2g()
-    dt = s2.cfl_dt(hh, u, v)
-    lim = s2.dx / max(math.sqrt(s2.g_normal * max(float(hh.max()), 1e-6))
-                      + float(np.hypot(u, v).max()), 1e-9)
+    dt = s2.cfl_dt()
+    lim = s2.dx / max(math.sqrt(s2.g_normal * max(float(s2.h.max()), 1e-6))
+                      + float(np.hypot(s2.u, s2.v).max()), 1e-9)
     worst = max(worst, dt / lim)
     s2.step(dt)
 check("I6 dt stays under dx/(|u|+sqrt(gh))", worst <= 1.0 + 1e-12,
@@ -218,10 +223,19 @@ from importlib import import_module as _im
 NodeMod = _im(f"{_pkg}.nodes.water_refraction")
 node = NodeMod.WaterRefraction()
 batch = torch.rand(2, 96, 72, 3)
-img_out, mask_out = node.execute(batch, field_width_mm=40.0, water_ml=8.0,
-                                 pour_sweep=1.0, sweep_angle=55.0, sample_ms=40.0,
+img_out, mask_out = node.execute(batch, field_width_mm=40.0,
+                                 surface=NodeMod.SURFACES[0], water_ml=8.0,
+                                 pour_sweep=1.0, sweep_angle=45.0, sample_ms=40.0,
                                  settle_ms=0.0, depth_scale=1.0, aperture=0.02,
                                  seed=0, sim_resolution=64, aperture_samples=8)
+# both surface modes must execute -- the switch is a look control, not a code path
+for _sf in NodeMod.SURFACES:
+    _i, _m = node.execute(batch, field_width_mm=40.0, surface=_sf, water_ml=8.0,
+                          pour_sweep=1.0, sweep_angle=45.0, sample_ms=40.0,
+                          settle_ms=0.0, depth_scale=1.0, aperture=0.02, seed=0,
+                          sim_resolution=64, aperture_samples=8)
+    check(f"I10 surface mode runs: {_sf.split(' (')[0]}",
+          bool(torch.isfinite(_i).all()) and _i.shape == batch.shape)
 check("I10 IMAGE shape and dtype survive", img_out.shape == batch.shape
       and img_out.dtype == torch.float32, f"{tuple(img_out.shape)} {img_out.dtype}")
 check("I10 output is finite and in [0,1]",
@@ -233,6 +247,89 @@ check("I10 MASK is (B,H,W) and in [0,1]",
 check("I10 batch frames share one surface when vary_per_frame is off",
       float((img_out[0] - img_out[1]).abs().max()) > 0.0 or True,
       "(frames differ only by content, surface is shared)")
+
+# --- I13 the defect that forced the grid rewrite -----------------------------
+print("\nI13  still water must reconstruct as still (the particle-noise defect)")
+_g = WR.GridShallowWater(40.0, 39.5, nx=112, seed=1, edge="wall")
+_g.prefill(6.0)
+for _ in range(20):
+    _g.step()
+_hf = _g.height()
+_noise = float(_hf.std() / max(_hf.mean(), 1e-12))
+check("I13 a flat 6.00mm film stays flat", _noise < 0.01,
+      f"h {_hf.min():.3f}..{_hf.max():.3f}mm, noise {100*_noise:.2f}% "
+      f"(the particle solver gave 1.62..9.81mm, 12.70%)")
+
+# --- I11/I12 the two live-reported bugs -------------------------------------
+# Both were found by Jeremie running the node, not by this suite, so both get a
+# check here. Neither needs a simulation: the defect was in where the pour is
+# placed, which is pure geometry.
+print("\nI11  the seed must MOVE the pour (live-reported: it did not)")
+cs = [WR.stroke_centre(sd, 1.0) for sd in (100, 101, 999, 4242, 7, 31)]
+spread = max(math.hypot(a[0] - b[0], a[1] - b[1]) for a in cs for b in cs)
+check("I11 stroke centre varies with seed", spread > 0.10,
+      f"spread {spread:.3f} of frame across 6 seeds")
+
+print("\nI12  the stroke must stay ON THE PLATE for every seed")
+worst, off = 0.0, 0
+for sd in range(64):
+    for sw in (0.0, 0.5, 1.0):
+        c = WR.stroke_centre(sd, sw)
+        xs = [WR.sweep_path(t, 40.0, 40.0, sw, 45.0, centre=c)[0] / 40.0
+              for t in (0.0, 0.25, 0.5, 0.75, 1.0)]
+        ys = [WR.sweep_path(t, 40.0, 40.0, sw, 45.0, centre=c)[1] / 40.0
+              for t in (0.0, 0.25, 0.5, 0.75, 1.0)]
+        m = max(max(xs) - 1.0, -min(xs), max(ys) - 1.0, -min(ys))
+        worst = max(worst, m)
+        off += m > 0
+check("I12 no seed puts the pour off the plate", off == 0,
+      f"{off}/192 seed-sweep combinations off-plate, worst overshoot {worst:+.3f}")
+
+# --- I15 minification must AVERAGE, not point-sample -------------------------
+print("\nI15  a compressed region must area-average, not alias")
+_K = 4
+_rng2 = np.random.default_rng(5)
+_yy, _xx = np.mgrid[0:128, 0:128].astype(np.float64)
+_fine = (0.5 * ((np.floor(_xx / 3) + np.floor(_yy / 3)) % 2)
+         + 0.5 * _rng2.random((128, 128)))
+_img15 = np.dstack([_fine] * 3)
+_h15 = band_surface(128, 128, seed=9, pool=0.30, rough=0.10)
+from scipy.ndimage import zoom as _zoom15
+_big = np.clip(_zoom15(_img15, (_K, _K, 1), order=1), 0.0, 1.0)
+_bigh = WR.to_image_res(_h15, 128 * _K, 128 * _K)
+_tr = WR.render(_big, _bigh, FIELD, aperture_ratio=0.0, samples=1, fresnel=False,
+                pixel_aa=False)
+_tr = _tr.reshape(128, _K, 128, _K, 3).mean(axis=(1, 3))
+_dJ = np.abs(WR.jacobian_det(_h15, FIELD))
+_hot = _dJ >= 2.0
+_e = {}
+for _tag, _aa in (("point", False), ("area", True)):
+    _r = WR.render(_img15, _h15, FIELD, aperture_ratio=0.0, samples=24,
+                   fresnel=False, pixel_aa=_aa, seed=1)
+    _e[_tag] = float(np.abs(_r - _tr).mean(axis=2)[_hot].mean()) if _hot.sum() > 50 else 0.0
+check("I15 area sampling beats point sampling where the map compresses",
+      _e["area"] < 0.85 * _e["point"],
+      f"error at detJ>=2: point {_e['point']:.4f} -> area {_e['area']:.4f} "
+      f"({100*(_e['area']-_e['point'])/max(_e['point'],1e-9):+.0f}%)")
+
+# --- I14 the auto grid rule -------------------------------------------------
+print("\nI14  the auto grid must keep the CELL SIZE physical, not a number fixed")
+_bad = []
+for _f in (10.0, 20.0, 40.0, 60.0):
+    _nx = NodeMod.auto_sim_resolution(_f)
+    _cells = WR.CAPILLARY_MM / (_f / _nx)
+    if _cells < 9.5:
+        _bad.append((_f, _cells))
+check("I14 the capillary length stays resolved up to a 60mm field", not _bad,
+      f"worst {min([WR.CAPILLARY_MM/(f/NodeMod.auto_sim_resolution(f)) for f in (10.,20.,40.,60.)]):.1f}"
+      f" cells per capillary length" + (f"; failures {_bad}" if _bad else ""))
+check("I14 auto scales with field width rather than staying constant",
+      NodeMod.auto_sim_resolution(40.0) > NodeMod.auto_sim_resolution(20.0),
+      f"20mm -> {NodeMod.auto_sim_resolution(20.0)}, "
+      f"40mm -> {NodeMod.auto_sim_resolution(40.0)}")
+check("I14 auto is capped so a wide field cannot hang the node",
+      NodeMod.auto_sim_resolution(250.0) <= NodeMod.AUTO_NX_MAX,
+      f"250mm -> {NodeMod.auto_sim_resolution(250.0)} (cap {NodeMod.AUTO_NX_MAX})")
 
 # --- negative controls ------------------------------------------------------
 print("\nNC  negative controls — each MUST fail")

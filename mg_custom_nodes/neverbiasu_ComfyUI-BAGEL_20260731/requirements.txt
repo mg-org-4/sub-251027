@@ -1,0 +1,11 @@
+decord
+einops
+huggingface_hub
+matplotlib
+opencv_python
+pyarrow
+accelerate
+# Optional / CUDA-only (do not install on CPU or macOS):
+#   flash_attn   -> pip install "comfyui-bagel[cuda]"
+#   bitsandbytes -> pip install "comfyui-bagel[quantization]"
+# dfloat11[cuda12]  # uncomment if you want DFloat11 support

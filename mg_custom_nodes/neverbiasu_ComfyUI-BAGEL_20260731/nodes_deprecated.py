@@ -16,7 +16,6 @@ from accelerate import (
     dispatch_model,
 )
 from accelerate.utils import BnbQuantizationConfig, load_and_quantize_model
-from dfloat11 import DFloat11Model
 
 # Add current directory to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -37,11 +36,60 @@ from modeling.bagel import (
 )
 from modeling.qwen2 import Qwen2Tokenizer
 
-# Register the BAGEL model folder
-folder_names_and_paths["bagel"] = (
-    [os.path.join(comfy_models_dir, "bagel")],
-    [".json", ".safetensors"],
-)
+def _register_bagel_model_folder() -> None:
+    """Register BAGEL model paths without clobbering extra_model_paths.yaml."""
+
+    default_path = os.path.join(comfy_models_dir, "bagel")
+    paths, extensions = folder_names_and_paths.get("bagel", ([], []))
+    merged_paths = list(paths)
+    if default_path not in merged_paths:
+        merged_paths.append(default_path)
+
+    merged_extensions = list(extensions)
+    for extension in (".json", ".safetensors"):
+        if extension not in merged_extensions:
+            merged_extensions.append(extension)
+
+    folder_names_and_paths["bagel"] = (merged_paths, merged_extensions)
+
+
+_register_bagel_model_folder()
+
+
+_DEPRECATION_NOTICE_EMITTED = False
+
+
+def _warn_deprecated_nodes_once() -> None:
+    """Make the legacy path visible without disrupting old workflow loading."""
+    global _DEPRECATION_NOTICE_EMITTED
+    if not _DEPRECATION_NOTICE_EMITTED:
+        print(
+            "[BAGEL] Deprecated all-in-one nodes are loaded for legacy workflows. "
+            "Use the native BAGEL nodes with official VAEEncode/VAEDecode for new graphs."
+        )
+        _DEPRECATION_NOTICE_EMITTED = True
+
+
+_warn_deprecated_nodes_once()
+
+
+def _require_dfloat11():
+    """Lazily import ``DFloat11Model`` only when a legacy DF11 model is requested.
+
+    Importing ``dfloat11`` pulls in ``cupy`` (CUDA-only), so it must never happen
+    at custom-node import time -- the native BF16 path and the importable package
+    must work without CUDA-only dependencies installed.
+    """
+    try:
+        from dfloat11 import DFloat11Model
+    except ImportError as exc:
+        raise ImportError(
+            "The selected model requires DFloat11, but the 'dfloat11' package is "
+            "not installed (it needs CUDA + cupy). Install it on a CUDA host with "
+            "'pip install dfloat11 --no-build-isolation', or pick a standard BF16 "
+            "BAGEL model instead."
+        ) from exc
+    return DFloat11Model
 
 
 def discover_bagel_model_dirs() -> Dict[str, str]:
@@ -76,7 +124,7 @@ def is_df11_name(name: str) -> bool:
 
 def is_echo4o_name(name: str) -> bool:
     """Heuristic to detect Echo-4o model names.
-    
+
     Matches folder or repo names containing echo-4o, echo4o
     """
     if not name:
@@ -133,17 +181,17 @@ def find_vae_path(model_dir: str) -> Optional[str]:
     """Find VAE model file in standard locations"""
     common_vae_dir = os.path.join(comfy_models_dir, "vae")
     common_vae_file = os.path.join(common_vae_dir, "ae.safetensors")
-    
+
     potential_vae_paths = [
         os.path.join(model_dir, "vae", "ae.safetensors"),
         os.path.join(model_dir, "ae.safetensors"),
         common_vae_file,
     ]
-    
+
     for vae_path in potential_vae_paths:
         if os.path.exists(vae_path):
             return vae_path
-    
+
     return None
 
 
@@ -159,7 +207,7 @@ def load_vae_model(model_dir: str):
         raise FileNotFoundError(
             f"VAE model (ae.safetensors) could not be found in any of the expected paths: {potential_paths}"
         )
-    
+
     try:
         vae_model, vae_config = load_ae(local_path=vae_path)
         if vae_model is None or vae_config is None:
@@ -228,10 +276,10 @@ def create_common_inference_config(
         "cfg_renorm_min": cfg_renorm_min,
         "cfg_renorm_type": cfg_renorm_type,
     }
-    
+
     # Add additional parameters
     config.update(kwargs)
-    
+
     return config
 
 
@@ -280,33 +328,33 @@ def download_model_with_git(
 def fix_nested_model_structure(model_dir: str, repo_id: str) -> bool:
     """
     Fix nested model directory structure if exists.
-    
+
     Some downloads may create nested folders like models/bagel/Echo-4o/Echo-4o/
     This function detects and fixes such structure to models/bagel/Echo-4o/
-    
+
     Args:
         model_dir: The expected model directory path
         repo_id: Repository ID (e.g., "Yejy53/Echo-4o")
-        
+
     Returns:
         True if structure was fixed or already correct, False if error
     """
     if not os.path.exists(model_dir):
         return False
-    
+
     try:
         repo_name = repo_id.split("/")[-1]
         nested_path = os.path.join(model_dir, repo_name)
-        
+
         # Check if nested structure exists
         if os.path.exists(nested_path) and os.path.isdir(nested_path):
             nested_files = os.listdir(nested_path)
             main_files = [f for f in os.listdir(model_dir) if f != repo_name and not f.startswith('.')]
-            
+
             # If main directory only contains the nested folder and some metadata
             if len(main_files) == 0 and nested_files:
                 print(f"Fixing nested directory structure: {nested_path} -> {model_dir}")
-                
+
                 # Move all files from nested directory to parent
                 import shutil
                 for item in nested_files:
@@ -318,14 +366,14 @@ def fix_nested_model_structure(model_dir: str, repo_id: str) -> bool:
                         else:
                             os.remove(dst)
                     shutil.move(src, dst)
-                
+
                 # Remove empty nested directory
                 os.rmdir(nested_path)
                 print("Successfully fixed nested directory structure")
                 return True
-        
+
         return True
-        
+
     except Exception as e:
         print(f"Error fixing nested structure: {e}")
         return False
@@ -336,22 +384,22 @@ def download_model_with_hf_hub(
 ) -> str:
     """
     Download model using huggingface_hub with resume support
-    
+
     Args:
         model_dir: Directory to download the repo to (repo files will be placed directly here)
         repo_id: Hugging Face repository ID
-        
+
     Returns:
         Path to the downloaded model if successful, None otherwise
     """
     try:
         from huggingface_hub import snapshot_download
-        
+
         print(f"Downloading model from {repo_id} using huggingface_hub to {model_dir}...")
-        
+
         # Create parent directory if it doesn't exist
         os.makedirs(model_dir, exist_ok=True)
-        
+
         # Download with resume support and better error handling
         downloaded_path = snapshot_download(
             repo_id=repo_id,
@@ -360,13 +408,13 @@ def download_model_with_hf_hub(
             resume_download=True,  # Enable resume functionality
             force_download=False,  # Don't re-download existing files
         )
-        
+
         # Fix any nested directory structure
         fix_nested_model_structure(model_dir, repo_id)
-        
+
         print(f"Successfully downloaded model from {repo_id} to {model_dir}")
         return model_dir
-        
+
     except ImportError:
         print(
             "huggingface_hub not installed. Please install it with: pip install huggingface_hub"
@@ -535,7 +583,7 @@ class BagelModelLoader:
     RETURN_TYPES = ("BAGEL_MODEL",)
     RETURN_NAMES = ("model",)
     FUNCTION = "load_model"
-    CATEGORY = "BAGEL/Core"
+    CATEGORY = "BAGEL/Deprecated"
 
     @classmethod
     def VALIDATE_INPUTS(cls, model_path, quantization_mode="BF16", **kwargs):
@@ -561,8 +609,16 @@ class BagelModelLoader:
         else:
             return f"Invalid model selection: {model_path}. Choose a local folder under models/bagel or a supported remote repo: {cls.SUPPORTED_MODEL_REPOS}"
 
-        if final_is_df11 and DFloat11Model is None:
-            return "DFloat11 model selected, but DFloat11Model library is not installed or failed to import. Please install it: pip install dfloat11"
+        if final_is_df11:
+            try:
+                import dfloat11  # noqa: F401
+            except ImportError:
+                return (
+                    "DFloat11 model selected, but the 'dfloat11' package is not "
+                    "installed (it requires CUDA + cupy). Install it on a CUDA host "
+                    "with: pip install dfloat11 --no-build-isolation  (or select a "
+                    "standard BF16 BAGEL model instead)."
+                )
 
         # If choosing quantization modes that require bitsandbytes for standard models
         if quantization_mode in ["NF4", "INT8"] and not final_is_df11:
@@ -652,15 +708,15 @@ class BagelModelLoader:
                 # Check for nested directory structure and fix if needed
                 repo_name = model_path.split("/")[-1]
                 nested_path = os.path.join(local_model_dir, repo_name)
-                
+
                 if os.path.exists(nested_path) and os.path.isdir(nested_path):
                     # Check if main directory is empty except for the nested folder
                     main_files = [f for f in os.listdir(local_model_dir) if f != repo_name and not f.startswith('.')]
                     nested_files = os.listdir(nested_path)
-                    
+
                     if len(main_files) == 0 and len(nested_files) > 0:
                         print(f"Detected nested folder structure. Moving files from {nested_path} to {local_model_dir}")
-                        
+
                         # Move all files from nested directory to parent directory
                         import shutil
                         for item in nested_files:
@@ -672,7 +728,7 @@ class BagelModelLoader:
                                 else:
                                     os.remove(dst)
                             shutil.move(src, dst)
-                        
+
                         # Remove the now-empty nested directory
                         os.rmdir(nested_path)
                         print(f"Successfully flattened directory structure for {model_path}")
@@ -734,6 +790,7 @@ class BagelModelLoader:
                     },
                     assign=True,
                 )
+                DFloat11Model = _require_dfloat11()
                 model = DFloat11Model.from_pretrained(
                     local_model_dir,
                     bfloat16_model=model,
@@ -1104,7 +1161,7 @@ class BagelTextToImage:
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("image", "thinking")
     FUNCTION = "generate_image"
-    CATEGORY = "BAGEL/Core"
+    CATEGORY = "BAGEL/Deprecated"
 
     @classmethod
     def VALIDATE_INPUTS(
@@ -1321,7 +1378,7 @@ class BagelImageEdit:
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("image", "thinking")
     FUNCTION = "edit_image"
-    CATEGORY = "BAGEL/Core"
+    CATEGORY = "BAGEL/Deprecated"
 
     @classmethod
     def VALIDATE_INPUTS(
@@ -1492,7 +1549,7 @@ class BagelImageUnderstanding:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("text",)
     FUNCTION = "understand_image"
-    CATEGORY = "BAGEL/Core"
+    CATEGORY = "BAGEL/Deprecated"
 
     @classmethod
     def VALIDATE_INPUTS(cls, model, image, prompt, **kwargs):
@@ -1683,7 +1740,7 @@ class BagelMultiImageEdit:
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("image", "thinking")
     FUNCTION = "edit_multi_images"
-    CATEGORY = "BAGEL/Enhanced"
+    CATEGORY = "BAGEL/Deprecated"
 
     @classmethod
     def VALIDATE_INPUTS(
@@ -1733,7 +1790,7 @@ class BagelMultiImageEdit:
             prompt: Multi-image editing prompt
             seed: Random seed
             cfg_text_scale: CFG text scaling
-            cfg_img_scale: CFG image scaling  
+            cfg_img_scale: CFG image scaling
             num_timesteps: Denoising steps
             ref_image_3: Third reference image (optional)
             ref_image_4: Fourth reference image (optional)
@@ -1753,21 +1810,21 @@ class BagelMultiImageEdit:
 
             # Get inferencer
             inferencer = model["inferencer"]
-            
+
             # Check if this is Echo-4o model
             is_echo4o = model.get("is_echo4o", False)
             model_type = model.get("model_type", "BAGEL")
-            
+
             if not is_echo4o:
                 print("Note: Multi-image editing is optimized for Echo-4o models. Current model may have limited multi-image support.")
 
             # Collect all reference images
             pil_images = []
-            
+
             # Add required images
             pil_images.append(tensor_to_pil(ref_image_1))
             pil_images.append(tensor_to_pil(ref_image_2))
-            
+
             # Add optional images if provided
             if ref_image_3 is not None:
                 pil_images.append(tensor_to_pil(ref_image_3))
@@ -1794,7 +1851,7 @@ class BagelMultiImageEdit:
 
             print(f"Multi-image editing prompt: {prompt}")
             print("-" * 50)
-            
+
             # Execute inference with multiple images (Echo-4o enhanced)
             result = inferencer(
                 image=pil_images,  # pass list of images
@@ -1836,11 +1893,11 @@ NODE_CLASS_MAPPINGS = {
 
 # Display name mappings
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "BagelModelLoader": "BAGEL Model Loader",
-    "BagelTextToImage": "BAGEL Text to Image",
-    "BagelImageEdit": "BAGEL Image Edit",
-    "BagelImageUnderstanding": "BAGEL Image Understanding",
-    "BagelMultiImageEdit": "BAGEL Multi-Image Edit (Echo-4o only)",
+    "BagelModelLoader": "BAGEL Model Loader (Deprecated)",
+    "BagelTextToImage": "BAGEL Text to Image (Deprecated)",
+    "BagelImageEdit": "BAGEL Image Edit (Deprecated)",
+    "BagelImageUnderstanding": "BAGEL Image Understanding (Deprecated)",
+    "BagelMultiImageEdit": "BAGEL Multi-Image Edit (Deprecated, Echo-4o only)",
 }
 
 # Export for ComfyUI

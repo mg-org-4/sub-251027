@@ -1,13 +1,8 @@
 from PIL import Image, ImageSequence, ImageOps
-from torch.utils.data import Dataset
 import torch
 import shutil
 import argparse
 import copy
-import torch.nn as nn
-from torch.utils.data import DataLoader
-from torchvision.utils import save_image as imwrite
-from torchvision import transforms
 import os
 import time
 import re
@@ -16,24 +11,8 @@ import torch.nn.functional as F
 import trimesh as Trimesh
 import gc
 import json
-from .hy3dshape.hy3dshape.pipelines import Hunyuan3DDiTFlowMatchingPipeline
-from .hy3dshape.hy3dshape.postprocessors import FaceReducer, FloaterRemover, DegenerateFaceRemover
-from .hy3dshape.hy3dshape.rembg import BackgroundRemover
 from typing import Union, Optional, Tuple, List, Any, Callable
 from pathlib import Path
-
-#painting
-from .hy3dpaint.DifferentiableRenderer.MeshRender import MeshRender
-from .hy3dpaint.utils.simplify_mesh_utils import remesh_mesh
-from .hy3dpaint.utils.multiview_utils import multiviewDiffusionNet
-from .hy3dpaint.utils.pipeline_utils import ViewProcessor
-from .hy3dpaint.utils.image_super_utils import imageSuperNet
-from .hy3dpaint.utils.uvwrap_utils import mesh_uv_wrap
-from .hy3dpaint.convert_utils import create_glb_with_pbr_materials
-from .hy3dpaint.textureGenPipeline import Hunyuan3DPaintPipeline, Hunyuan3DPaintConfig
-from .hy3dshape.hy3dshape.models.autoencoders import ShapeVAE
-
-from .hy3dshape.hy3dshape.meshlib import postprocessmesh
 
 from spandrel import ModelLoader, ImageModelDescriptor
 
@@ -44,6 +23,59 @@ import hashlib
 import comfy.model_management as mm
 from comfy.utils import load_torch_file, ProgressBar
 import comfy.utils
+
+
+class _LazyImport:
+    """Defer a heavy import until the symbol is first actually used.
+
+    Importing the shape/paint stacks at module scope made ComfyUI's startup scan
+    of this pack cost 10.7s (now 0.6s): diffusers, transformers, meshlib, plus
+    two separate paths into onnxruntime -- rembg, and textureGenPipeline ->
+    multiview_utils -> pytorch_lightning -> torchmetrics.functional.audio.
+    None of it is needed until a node actually runs, so we bind a proxy here
+    and resolve it on first use.
+
+    Note this only moves the cost off startup; whichever pack loads first and
+    eagerly imports the same shared stack (ComfyUI-Hunyuan3DWrapper does) will
+    pay it instead.
+
+    Only safe for names that are exclusively called or attribute-accessed;
+    anything used with isinstance() or subclassed must stay a real import.
+    """
+
+    __slots__ = ("_module", "_attr", "_resolved")
+
+    def __init__(self, module, attr):
+        self._module = module
+        self._attr = attr
+        self._resolved = None
+
+    def _get(self):
+        if self._resolved is None:
+            from importlib import import_module
+            self._resolved = getattr(import_module(self._module, __package__), self._attr)
+        return self._resolved
+
+    def __call__(self, *args, **kwargs):
+        return self._get()(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._get(), name)
+
+
+#shape
+Hunyuan3DDiTFlowMatchingPipeline = _LazyImport(".hy3dshape.hy3dshape.pipelines", "Hunyuan3DDiTFlowMatchingPipeline")
+FaceReducer = _LazyImport(".hy3dshape.hy3dshape.postprocessors", "FaceReducer")
+FloaterRemover = _LazyImport(".hy3dshape.hy3dshape.postprocessors", "FloaterRemover")
+DegenerateFaceRemover = _LazyImport(".hy3dshape.hy3dshape.postprocessors", "DegenerateFaceRemover")
+BackgroundRemover = _LazyImport(".hy3dshape.hy3dshape.rembg", "BackgroundRemover")
+ShapeVAE = _LazyImport(".hy3dshape.hy3dshape.models.autoencoders", "ShapeVAE")
+postprocessmesh = _LazyImport(".hy3dshape.hy3dshape.meshlib", "postprocessmesh")
+
+#painting
+mesh_uv_wrap = _LazyImport(".hy3dpaint.utils.uvwrap_utils", "mesh_uv_wrap")
+Hunyuan3DPaintPipeline = _LazyImport(".hy3dpaint.textureGenPipeline", "Hunyuan3DPaintPipeline")
+Hunyuan3DPaintConfig = _LazyImport(".hy3dpaint.textureGenPipeline", "Hunyuan3DPaintConfig")
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 comfy_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))

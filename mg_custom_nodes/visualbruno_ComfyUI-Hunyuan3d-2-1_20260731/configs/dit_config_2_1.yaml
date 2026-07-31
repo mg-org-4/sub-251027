@@ -76,7 +76,7 @@ image_processor:
   target: .hy3dshape.hy3dshape.preprocessors.ImageProcessorV2
   params:
     size: 512
-    border_ratio: 0.15
+    border_ratio: 0.0
 
 pipeline:
   target: .hy3dshape.hy3dshape.pipelines.Hunyuan3DDiTFlowMatchingPipeline

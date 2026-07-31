@@ -37,6 +37,61 @@ git clone https://github.com/Raykosan/ComfyUI_RaykoStudio.git
 - To update ComfyUI_RaykoStudio, use the update.bat file  
 
 </details>
+<details>
+  <summary>🆙 UPDATES</summary>
+
+- v0.17.3 - Adding to RS Prompts node output "PROMPT_STRING", which returns the text value of the final prompt  
+- v0.17.5 - A switch has been added that allows you to enable/disable external text input with a single mouse click  
+- v0.17.6 - Changing the name of the RS Spline Mask node to RS Load Image
+- v0.17.8 - Minor fix in RS Load Image node. Added the ability to upload images to a node by dragging an image from Explorer to node  
+- v0.18.0 - Added a new node - RS Image to Latent
+- v0.18.1 - Modification of the RS Models Loader node
+- v0.19.0 - License change and addition of the RS Collage node and the RS rgb2rgba node
+- v0.20.0 - Complete modification of the RS Collage node
+- v0.20.1 - Fixed the behavior of the overlay, which in some cases overlapped the ComfyUI popups
+- v0.20.2 - Modification of the RS Crop Image node  
+- v0.20.3 - Adding a mask mode to the RS Crop Image node  
+- v0.20.4 - Fixed image loading by dragging in the RS Load Image node  
+- v0.20.5 - Adding the ideogram4 parameter to the Models Loader clip node list  
+- v0.20.6 - Fixed the logic of the RS Prompts node  
+- v0.21.0 - Complete redesign of the RS Prompts node logic  
+- v0.21.2 - Modification of the RS Models Loader node: pixel_spaces has been added to the VAE list  
+- v0.22.0 - Added the 'Interface Settings Manager' extension
+- v0.23.0 - Added the RS Any Switch node
+- v0.23.1 - Adding an RS Image to Latent (simplified) node
+- v0.23.2 - The 'UPDATE NAME' button has been added to the RS Any Switch node
+- v0.23.3 - Fixed resetting the mask color to default after pressing the ACCEPT and CANCEL buttons in the RS Outpaint node
+- v0.23.4 - A BATCH button has been added to the RS Intermediate Spline Mask node for batch image processing with a permanent mask
+- v0.23.5 - Fixed the operation of the RS Prompts node with light themes of the ComfyUI interface
+- v0.25.0 - Modification of the RS Color Picker node
+- v0.25.1 - Fixed a bug with the generation process hanging under certain circumstances
+- v0.25.2 - Clip added to RS Models Loader node: boogu and krea2
+- v0.26.0 - Adding a new RS Text Overlay Pro node  
+- v0.26.1 - Correcting the color selection in the RS Colorpicker node
+- v0.27.0 - Added the RS MultiLatent node
+- v0.28.0 - Adding preset functions to the RS Models Loader node
+- v0.28.2 - Adding a new node RS Ref 2 Latent  
+- v0.29.0 - Adding a new node RS Bypass Manager
+- v0.29.1 - Added a csv file with the styles 'Krea2 Style RS'
+- v0.30.0 - Upgrading the RS Styles Loader node
+- v0.30.1 - Upgrading the RS Models Loader node
+- v0.30.2 - Code optimization and visual changes in the RS Models Loader node
+- v0.30.3 - Adding the LoRA drag and drop feature to the RS Models Loader node
+- v0.31.0 - Adding a new node RS Lora Loader
+- v0.31.1 - Adding the metadata display function for LoRA to the RS Models Loader node
+- v0.31.2 - Added the ability to create and edit tags for LoRA
+- v0.31.3 - Upgrading the RS Color Picker node
+- v0.32.1 - Adding the RS Image Adjustments node
+- v0.32.2 - Code optimization in the RS Image Adjustments node. The time to receive data from the ComfyUI server has been reduced by 10-15 times
+- v0.32.3 - The Sharpen, Vibration and Clarity parameters have been added to the RS Image Adjustments node
+- v0.32.4 - Corrections of formulas for calculating the parameters of the RS Image Adjustments node
+- v0.33.0 - Changing the operating method of the RS Outpaint node
+- v0.33.1 - clip_type 'mage' added to RS Models Loader node
+- v0.33.2 - Deep modification of the RS Outpaint node  
+- v0.34.0 - Adding the RS Load Images From Dir node
+- v0.34.1 - Added the 'Paste' button to the RS Load Images From Dir node  
+
+</details>
 
 ---
 ---
@@ -121,9 +176,51 @@ You can create a chain of these nodes by connecting the Image output to the Back
 
 </details>
 <details>
-  <summary>🦊 RS RS Bypass Manager</summary>
+  <summary>🦊 RS Load Images From Dir</summary>
 
-# 🦊 RS RS Bypass Manager  
+# 🦊 RS Load Images From Dir  
+**A custom node designed to load images from a local directory with advanced filtering, precise index control, and a fully custom user interface.**  
+
+<img width="495" height="537" alt="Screenshot_1" src="https://github.com/user-attachments/assets/ca0c42c5-3dc6-42a4-a3e7-ef6b5498aadb" />
+<img width="461" height="429" alt="Screenshot_1" src="https://github.com/user-attachments/assets/6457cde5-2940-4215-a13e-a9b6733d79bc" />
+
+### 🔥 Features  
+- **Unified Custom UI** - All widgets are custom-drawn with a consistent dark theme, rounded corners, and custom modal prompts (no ugly native browser dialogs).  
+- **Smart Path Display** - Automatically truncates long folder paths from the beginning, ensuring the actual folder name is always visible (e.g., `...omfyUI\output\images`).  
+- **Advanced Filtering** - Built-in support for common formats (`*.png`, `*.jpg`, `*.webp`, etc.) plus a "custom" mode for specific glob patterns (e.g., `*_mask.png`).  
+- **Precise Index Control** - Load specific subsets of images using 1-based Start and End indices.  
+- **Quality Preservation** - Maintains the original image resolution and preserves the alpha channel (RGBA) when present.  
+- **Detailed Outputs** - Returns the images, filenames, folder path, and total file count.
+- **"Paste" button** - Inserting a folder path from the clipboard
+
+💡 Tip: The "Paste" button works differently in all browsers.  
+In Chrome and Edge, the button works immediately (requires a one-time confirmation of access to the clipboard).  
+In Firefox, the Paste button will additionally pop up, when clicked, the path will be inserted.  
+**These are browser security principles and cannot be circumvented.**  
+In any case, you can always paste the path using the keyboard shortcut Ctrl+V.  
+   
+### Inputs  
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `folder_path` | String | Absolute path to the directory containing your images. Use the "📁 Select folder" button to input it. |
+| `filter_type` | Dropdown | Choose a standard file extension filter or select `custom` to use the `custom_filter` input. |
+| `start_index` | Integer | The 1-based starting index of the file range to load (inclusive). |
+| `end_index` | Integer | The 1-based ending index of the file range to load (inclusive). |
+| `custom_filter` | String | *(Optional)* Custom glob pattern used only when `filter_type` is set to `custom`. |
+
+### Outputs  
+| Output | Type | Description |
+| :--- | :--- | :--- |
+| `image` | IMAGE (List) | A list of image tensors loaded from the directory. |
+| `filename` | STRING (List) | A list of corresponding filenames for each loaded image. |
+| `folder_path` | STRING | The absolute path of the processed directory. |
+| `number_of_files` | INT | The total number of files found matching the filter in the directory. | 
+
+</details>
+<details>
+  <summary>🦊 RS Bypass Manager</summary>
+
+# 🦊 RS Bypass Manager  
 **A powerful node for managing the states of Bypass nodes and groups in complex ComfyUI circuits. If your workflow has turned into a "spaghetti monster" and you need to quickly disable entire modules (for example, switch between txt2img, inpaint and upscale), this node will save you dozens of clicks and nerves.**  
 
 https://youtu.be/Ockp2SpuFSY

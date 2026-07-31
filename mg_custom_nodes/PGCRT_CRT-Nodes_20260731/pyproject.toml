@@ -1,0 +1,37 @@
+[project]
+name = "crt-nodes"
+description = "CRT-Nodes is a collection of custom nodes for ComfyUI"
+version = "2.6.1"
+license = {file = "LICENSE"}
+dependencies = [
+    "opencv-contrib-python",
+    "scipy",
+    "ultralytics",
+    "color-matcher",
+    "spandrel",
+    "pedalboard",
+    "wordcloud",
+    "librosa",
+    "imageio-ffmpeg",
+    "soundfile",
+    "huggingface_hub>=0.27",
+    "einops>=0.6",
+    "rotary-embedding-torch",
+    "openai-whisper",
+    "omnivoice>=0.1.0",
+    "accelerate>=1.0",
+    "sentencepiece>=0.1.99",
+    "timm>=0.9",
+    "transformers>=4.48.3",
+    "tqdm>=4.66",
+]
+
+[project.urls]
+Repository = "https://github.com/PGCRT/CRT-Nodes"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool]
+[tool.comfy]
+PublisherId = "crt"
+DisplayName = "CRT-Nodes"
+Icon = ""

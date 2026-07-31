@@ -24,7 +24,7 @@
  *_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  */
 export { GalleryWidget, GalleryWidgetDelegate };
-import { LiteGraph } from "../comfyui_bridge.js";
+import { LiteGraph, isNodes20, getWidgetBgColor20 } from "../comfyui_bridge.js";
 const DEFAULT_CACHE_BUSTER = Math.floor(Date.now() / 3600000);
 
 
@@ -156,37 +156,24 @@ class GalleryWidgetDelegate {
     }
 
     /**
-     * Called when the main container and navigation arrows need to be drawn.
+     * Called when the navigation arrows (left/right) need to be drawn.
      * This method is NOT intended to be overridden by subclasses.
      *
-     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
-     * @param {Object}  rect - The rectangle object (left, top, width, height).
-     *                         Input : The bounding box where the container should be drawn.
-     *                         Output: The inner rectangle area where items should be drawn.
-     * @param {number}  padding          - The padding to apply inside the container.
-     * @param {number}  arrowWidth       - The width allocated for the arrow buttons.
-     * @param {boolean} enableLeftArrow  - Whether the left arrow is enabled.
-     * @param {boolean} enableRightArrow - Whether the right arrow is enabled.
-     * @returns {Object}
-     *     The updated rectangle object after accounting for container margins and arrows.
+     * @param {CanvasRenderingContext2D} ctx - The canvas rendering context used for drawing.
+     * @param {Object} rect - The rectangle object containing {left, top, width, height}.
+     *                        The method will adjust the properties of this object to define
+     *                        the inner area available for subsequent content drawing.
+     * @param {number}  padding          - The internal padding to be subtracted from the rectangle dimensions.
+     * @param {number}  arrowWidth       - The width allocated for each arrow button area.
+     * @param {boolean} enableLeftArrow  - Whether the left arrow should be rendered as enabled.
+     * @param {boolean} enableRightArrow - Whether the right arrow should be rendered as enabled.
+     * 
+     * @example
+     * const area = { left: 0, top: 0, width: 100, height: 50 };
+     * drawArrows(ctx, area, 5, 20, true, false);
+     * // The 'area' object is now updated to represent the inner content space.
      */
-    drawContainerAndArrows(ctx, rect, padding, arrowWidth, enableLeftArrow, enableRightArrow) {
-        const lineSize = 1;
-        const radii = rect.height / 4;
-
-        // draw the main container
-        ctx.fillStyle   = LiteGraph.WIDGET_BGCOLOR;
-        ctx.strokeStyle = LiteGraph.WIDGET_OUTLINE_COLOR;
-        ctx.lineWidth   = lineSize;
-        ctx.beginPath();
-        ctx.roundRect(rect.left, rect.top, rect.width, rect.height, radii);
-        ctx.fill();
-        ctx.stroke();
-
-        const midLineSize = Math.floor(lineSize / 2);
-        rect.left += midLineSize ; rect.width  -= 2*midLineSize;
-        rect.top  += midLineSize ; rect.height -= 2*midLineSize;
-
+    drawArrows(ctx, rect, padding, arrowWidth, enableLeftArrow, enableRightArrow) {
         // prepare for drawing arrows
         ctx.font         = `${LiteGraph.NODE_TEXT_SIZE}px ${LiteGraph.NODE_FONT}`;
         ctx.textAlign    = "center";
@@ -391,13 +378,34 @@ class GalleryWidget {
 
         ctx.save();
 
-        // draw container and arrows
         const rect = {
             left  : 0 + this.widgetMargin[0],
             top   : y + this.widgetMargin[1],
             width : widgetWidth         - 2*this.widgetMargin[0],
             height: this.options.height - 2*this.widgetMargin[1] };
-        this.delegate.drawContainerAndArrows(ctx, rect, padding, this.arrowButtonWidth, selectedIndex>0, selectedIndex<lastIndex);
+
+        // hack to modify the widget appearance in Nodes 2.0
+        let borderLineSize = 1;
+        let widgetBgColor  = LiteGraph.WIDGET_BGCOLOR;
+        if( isNodes20() ) {
+            borderLineSize = 0;
+            widgetBgColor  = getWidgetBgColor20();
+        }
+
+        // draw the widget container
+        ctx.fillStyle   = widgetBgColor;
+        ctx.strokeStyle = LiteGraph.WIDGET_OUTLINE_COLOR;
+        ctx.lineWidth   = borderLineSize;
+        ctx.beginPath();
+        ctx.roundRect(rect.left, rect.top, rect.width, rect.height, rect.height / 4);
+        ctx.fill();
+        if( borderLineSize>0 ) { ctx.stroke(); }
+
+        // draw the arrows
+        const midLineSize = Math.floor(borderLineSize / 2);
+        rect.left += midLineSize ; rect.width  -= 2*midLineSize;
+        rect.top  += midLineSize ; rect.height -= 2*midLineSize;
+        this.delegate.drawArrows(ctx, rect, padding, this.arrowButtonWidth, selectedIndex>0, selectedIndex<lastIndex, this.bgColor20);
 
         // draw item thumbnail
         const thumbWidth = this.delegate.drawItemThumbnail(ctx, rect, item, this.value, this.options, (url) => this.requestImage(url) );

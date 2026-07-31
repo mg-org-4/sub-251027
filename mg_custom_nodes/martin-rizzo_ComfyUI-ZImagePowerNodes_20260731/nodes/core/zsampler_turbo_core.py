@@ -192,9 +192,9 @@ def zsampler_turbo_core(latent_input             : ComfyLatent,
     if len(sigma_preset) != 7:
         raise ValueError(f"Sigma presets must have 7 elements but the \"{sigma_preset_name}\" preset has {len(sigma_preset)} elements")
     index   = min(max( 3, steps), 9 ) - 3
-    sigmas1 = list(sigma_preset[index][0])
-    sigmas2 = list(sigma_preset[index][1])
-    sigmas3 = list(sigma_preset[index][2])
+    sigmas1 = list(sigma_preset[index][0]) if sigma_preset[index][0] else None
+    sigmas2 = list(sigma_preset[index][1]) if sigma_preset[index][1] else None
+    sigmas3 = list(sigma_preset[index][2]) if sigma_preset[index][2] else None
 
     # when the number of steps is greater than 9, the same 9-step sigma
     # sequence is used, but the Stage 2 and Stage 3 are refined to match

@@ -60,8 +60,8 @@ class EmptyZImageLatentImage(io.ComfyNode):
                 "Create a new batch of empty latent images to be used as a starting point for denoising with the Z-Image model."
             ),
             inputs=[
-                io.Boolean.Input("horizontal",
-                                 default=False, label_on="yes", label_off="no",
+                io.Boolean.Input("orientation",
+                                 default=False, label_on="horizontal", label_off="vertical",
                                  tooltip="When enabled, the generated images will have a landscape orientation. "
                                          "By default, the node produces portrait images prioritizing mobile use. ",
                                 ),
@@ -88,15 +88,16 @@ class EmptyZImageLatentImage(io.ComfyNode):
 
     #__ FUNCTION __________________________________________
     @classmethod
-    def execute(cls, horizontal: bool, ratio: str, size: str, batch_size: int) -> io.NodeOutput:
+    def execute(cls, orientation: bool, ratio: str, size: str, batch_size: int) -> io.NodeOutput:
         GRID_SIZE         = 32
         LATENT_CHANNELS   = 16  #< z-image latent has 16 channels
         LATENT_BLOCK_SIZE =  8  #< 8x8 pixels per latent block
+        vertical = (orientation == False)
 
         scale                         = SCALES_BY_NAME.get(size, 1.0)
         desired_width, desired_height = LANDSCAPE_SIZES_BY_ASPECT_RATIO.get(ratio, (1024, 1024))
         desired_width, desired_height = desired_width * scale, desired_height * scale
-        if not horizontal:
+        if vertical:
             desired_width, desired_height = desired_height, desired_width
 
         # fix image size to be divisible by the grid

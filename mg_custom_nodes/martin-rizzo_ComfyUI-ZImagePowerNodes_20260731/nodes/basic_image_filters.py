@@ -40,9 +40,13 @@ class BasicImageFilters(io.ComfyNode):
             search_aliases=["decode", "decode latent", "latent to image", "render latent"],
             inputs=[
                 io.Image.Input       ("images"),
-                io.Boolean.Input     ("auto_contrast",
+                io.Boolean.Input     ("enable_auto_contrast",
                                       tooltip="When enabled, automatically adjusts the dynamic range of the "
                                               "image to fix washed-out tones and optimize contrast boundaries."
+                                     ),
+                io.Boolean.Input     ("enable_filters",
+                                      tooltip="When enabled, applies the color correction filters configured below. "
+                                              "If disabled, all filter selections and adjustments are bypassed."
                                      ),
                 Separator.Input("divider1", mode="divider"),#--------------------------------------
                 io.Combo.Input       ("filter_1",
@@ -53,7 +57,7 @@ class BasicImageFilters(io.ComfyNode):
                                       tooltip="The calibration offset for the selected filter. "
                                               "This value has a range from -0.5 to 0.5 with 0.0 as the "
                                               "default ideal baseline balance."
-                                      ),
+                                     ),
                 Separator.Input("divider2", mode="spacer"),#--------------------------------------
                 io.Combo.Input       ("filter_2",
                                       options=["none", "bw", "color", "color_twist", "intensity_1", "intensity_2", ],
@@ -63,7 +67,7 @@ class BasicImageFilters(io.ComfyNode):
                                       tooltip="The calibration offset for the selected filter. "
                                               "This value has a range from -0.5 to 0.5 with 0.0 as the "
                                               "default ideal baseline balance."
-                                      ),
+                                     ),
             ],
             outputs=[
                 io.Image.Output(tooltip="The final filtered image."),
@@ -73,21 +77,23 @@ class BasicImageFilters(io.ComfyNode):
     #__ FUNCTION __________________________________________
     @classmethod
     def execute(cls,
-                images          : torch.Tensor,
-                filter_1        : str,
-                filter_1_control: float,
-                filter_2        : str,
-                filter_2_control: float,
-                auto_contrast   : bool,
+                images: torch.Tensor,
+                enable_auto_contrast: bool,
+                enable_filters      : bool,
+                filter_1            : str,
+                filter_1_control    : float,
+                filter_2            : str,
+                filter_2_control    : float,
                 divider1: Any = None,
                 divider2: Any = None,
                 ):
         images = images.permute(0, 3, 1, 2)
 
-        images = cls.apply_filter_to_images(images, filter_1, filter_1_control)
-        images = cls.apply_filter_to_images(images, filter_2, filter_2_control)
+        if enable_filters:
+            images = cls.apply_filter_to_images(images, filter_1, filter_1_control)
+            images = cls.apply_filter_to_images(images, filter_2, filter_2_control)
 
-        if auto_contrast:
+        if enable_auto_contrast:
             images = stretch_histogram(images)
 
         images = images.permute(0, 2, 3, 1).contiguous()

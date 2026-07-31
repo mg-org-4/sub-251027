@@ -81,8 +81,11 @@ class ZSamplerTurboX21(io.ComfyNode):
                                       tooltip="The seed used for the random noise generator, ensuring the same "
                                               "result is produced with the same value. ",
                                      ),
+
+                Separator.Input("divider1", mode="divider"),#======================================
+
                 io.Int.Input         ("steps",
-                                      default=8, min=3, max=20, step=1,
+                                      default=8, min=2, max=14, step=1,
                                       tooltip="Number of iterations to perform during the denoising process.",
                                      ),
                 io.Float.Input       ("ibias",
@@ -98,32 +101,24 @@ class ZSamplerTurboX21(io.ComfyNode):
                                       tooltip=""
                                      ),
 
-                Separator.Input("divider1", mode="divider"),#======================================
-
                 io.Boolean.Input     ("turbo_creativity",
-                                      default=False, label_on="yes", label_off="no",
+                                      default=False,
                                       tooltip="Enables turbo creativity. This scrambles the image to boost diversity "
                                               "in compositions while maintaining the general style and tone color. "
                                               "Be aware that this may lead to hallucinations. ",
                                      ),
-                io.Boolean.Input     ("alternative_refiner",
-                                      default=False, label_on="yes", label_off="no",
+                io.Boolean.Input     ("detailed_refiner",
+                                      default=True,
                                       tooltip="Enables an alternative refiner using the DPM++ SDE sampler during the "
                                               "final stage. This enhances contrast and sharpness in fine details but "
                                               "increases overall processing time. ",
                                      ),
-                io.Boolean.Input     ("disable_ibias",
-                                      default=False, label_on="yes", label_off="no",
-                                      tooltip="Disables the custom adjustment for the intensity noise bias (ibias). "
-                                              "When this option is selected, the ibias parameter is ignored and not "
-                                              "calculated during the denoising process, saving a computation step. "
-                                     ),
-                io.Boolean.Input     ("old_scheduler",
-                                      default=False, label_on="yes", label_off="no",
-                                      tooltip="Enables the legacy scheduler with a different set of sigmas. Although "
-                                              "the new scheduler is optimized for general quality, this old version "
-                                              "may produce better results in specific cases. ",
-                                     ),
+                io.Boolean.Input     ("new_scheduler",
+                                      default=True,
+                                      tooltip="Enables the optimized scheduler with an updated set of sigmas for superior "
+                                              "general quality. Disabling this switches back to the legacy version, which "
+                                              "may still perform better in specific edge cases.",
+                                      ),
             ],
             outputs=[
                 io.Latent.Output(display_name="latent_output",
@@ -144,9 +139,8 @@ class ZSamplerTurboX21(io.ComfyNode):
                 ibias                 : float,
                 spectral_tilt         : str,
                 turbo_creativity      : bool,
-                alternative_refiner   : bool,
-                disable_ibias         : bool,
-                old_scheduler         : bool,
+                detailed_refiner   : bool,
+                new_scheduler         : bool,
                 *,
                 positive_stg2 : list | None = None,
                 positive_stg3 : list | None = None,
@@ -163,9 +157,13 @@ class ZSamplerTurboX21(io.ComfyNode):
         initial_noise_bias_level = (intensity+1)*4-1                            # = 5.0
         initial_noise_bias_level = min(max(initial_noise_bias_level, 0.0), 4.0) #< bias_level = 4.0
 
+        print("##>> initial_noise_bias_level:", initial_noise_bias_level)
+
         # apply user-defined adjustment `ibias` to the calculated noise bias level
         initial_noise_bias_level += 10 * ibias
         initial_noise_bias_level = min(max(initial_noise_bias_level, -6.0), 14.0)
+
+        initial_noise_bias_level = min(max(10 * ibias, -10.0), 10.0)
 
         # turbo_creativity enables stage2 scrambling + coherence step
         stage2_scramble       = False
@@ -198,7 +196,7 @@ class ZSamplerTurboX21(io.ComfyNode):
 
         # if alternative refiner is selected -> set "dpmpp_sde" as the sampler for stage 3;
         # when "Spectral Tilt" is enabled, a custom sampler is used (DPMPP_SDEss)
-        if alternative_refiner:
+        if detailed_refiner:
             samplers[2] = "dpmpp_sde"
             if "3" in spectral_tilt:
                 samplers[2] = DPMPP_SDEss(alpha_tilting, alpha_sharpness=spectral_tilt_sharpness)
@@ -210,10 +208,10 @@ class ZSamplerTurboX21(io.ComfyNode):
             positive,
             seed  = seed,
             steps = steps,
-            initial_noise_bias_level = initial_noise_bias_level if not disable_ibias else 0,
+            initial_noise_bias_level = initial_noise_bias_level,
             initial_noise_overdose   = initial_noise_overdose,
             noise_est_sample_size    = "full_size",
-            sigma_preset_name        = "bravo" if not old_scheduler else "alpha",
+            sigma_preset_name        = "bravo" if new_scheduler else "alpha",
             sigma_limits             = sigma_limits,
             positive_stg2_preproc    = positive if weak_stg2_prompt_influence else positive_stg2,
             positive_stg2            = positive_stg2,

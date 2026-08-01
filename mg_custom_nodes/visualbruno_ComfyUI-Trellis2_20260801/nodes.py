@@ -2880,6 +2880,87 @@ class Trellis2PostProcess2:
         gc.collect()
                 
         return (mesh_copy,)    
+        
+class Trellis2SmoothMeshWithPyMeshlab:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "mesh": ("MESHWITHVOXEL",),
+                "isotropic_remeshing_iterations": ("INT",{"default":5,"min":1,"max":99}),
+                "isotropic_remeshing_target_len": ("FLOAT",{"default":0.25,"min":0.10,"max":0.90,"step":0.01}),
+                "taubin_smoothing_step": ("INT",{"default":30,"min":1,"max":200}),
+            },
+        }
+
+    RETURN_TYPES = ("MESHWITHVOXEL",)
+    RETURN_NAMES = ("mesh",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, mesh, isotropic_remeshing_iterations, isotropic_remeshing_target_len, taubin_smoothing_step):
+        mesh_copy = copy.deepcopy(mesh)
+        
+        vertices_np = mesh_copy.vertices.cpu().numpy()
+        faces_np = mesh_copy.faces.cpu().numpy()
+
+        ms = pymeshlab.MeshSet()
+        ms.add_mesh(pymeshlab.Mesh(vertices_np, faces_np))
+        #ms.apply_filter('generate_surface_reconstruction_screened_poisson', depth=9)
+        ms.apply_filter('meshing_isotropic_explicit_remeshing',
+                         targetlen=pymeshlab.PercentageValue(isotropic_remeshing_target_len),  # tune relative to model size
+                         iterations=isotropic_remeshing_iterations)
+        ms.apply_filter('apply_coord_taubin_smoothing', lambda_=0.5, mu=-0.53, stepsmoothnum=taubin_smoothing_step, selected=False)
+        result = ms.current_mesh()
+        
+        new_vertices = torch.from_numpy(result.vertex_matrix()).float()
+        new_faces = torch.from_numpy(result.face_matrix()).int()
+        
+        mesh_copy.vertices = new_vertices.to(mesh_copy.device)
+        mesh_copy.faces = new_faces.to(mesh_copy.device) 
+        
+        del ms
+        gc.collect()
+                
+        return (mesh_copy,)    
+
+class Trellis2SmoothTrimeshWithPyMeshlab:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "trimesh": ("TRIMESH",),
+                "isotropic_remeshing_iterations": ("INT",{"default":5,"min":1,"max":99}),
+                "isotropic_remeshing_target_len": ("FLOAT",{"default":0.25,"min":0.10,"max":0.90,"step":0.01}),
+                "taubin_smoothing_step": ("INT",{"default":30,"min":1,"max":200}),
+            },
+        }
+
+    RETURN_TYPES = ("TRIMESH",)
+    RETURN_NAMES = ("trimesh",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, trimesh, isotropic_remeshing_iterations, isotropic_remeshing_target_len, taubin_smoothing_step):
+        mesh_copy = trimesh.copy()       
+
+        ms = pymeshlab.MeshSet()
+        ms.add_mesh(pymeshlab.Mesh(mesh_copy.vertices, mesh_copy.faces))
+        #ms.apply_filter('generate_surface_reconstruction_screened_poisson', depth=9)
+        ms.apply_filter('meshing_isotropic_explicit_remeshing',
+                         targetlen=pymeshlab.PercentageValue(isotropic_remeshing_target_len),  # tune relative to model size
+                         iterations=isotropic_remeshing_iterations)
+        ms.apply_filter('apply_coord_taubin_smoothing', lambda_=0.5, mu=-0.53, stepsmoothnum=taubin_smoothing_step, selected=False)
+        result = ms.current_mesh()
+        
+        mesh_copy = Trimesh.Trimesh(result.vertex_matrix(), result.face_matrix())
+        
+        del ms
+        gc.collect()
+                
+        return (mesh_copy,)           
 
 class Trellis2OvoxelExportToGLB:
     @classmethod
@@ -7296,6 +7377,69 @@ class Trellis2RenderMultiViewNvdiffrast:
             existing_base = None
         return existing_base
         
+class Trellis2SelectImagesForMultiView:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "front": ("STRING",{"default":""}),
+                "preprocess": ("BOOLEAN",{"default":False}),
+                "padding": ("INT",{"default":0,"min":0,"max":1024}),
+                "remove_background": ("BOOLEAN",{"default":False}),
+                "max_size": ("INT",{"default":2048,"min":512,"max":8192,"step":128}),
+            },
+            "optional":{
+                "back": ("STRING",{"default":""}),
+                "left": ("STRING",{"default":""}),
+                "right": ("STRING",{"default":""})
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "IMAGE", "IMAGE", "IMAGE",)
+    RETURN_NAMES = ("front", "back", "left", "right",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+
+    def load_view(self, path):
+        """Resolve a path (absolute, or relative to the ComfyUI input dir) to an IMAGE tensor."""
+        if path is None or str(path).strip() == '':
+            return None
+
+        path = str(path).strip()
+        if not os.path.exists(path):
+            path = os.path.join(folder_paths.get_input_directory(), path)
+            if not os.path.exists(path):
+                return None
+
+        image = Image.open(path)
+        image = image.convert("RGBA" if 'A' in image.getbands() else "RGB")
+        return pil2tensor(image)
+
+    def process(self, front, preprocess, padding, remove_background, max_size, back = None, left = None, right = None):
+
+        front_image = self.load_view(front)
+        back_image = self.load_view(back)
+        left_image = self.load_view(left)
+        right_image = self.load_view(right)
+
+        if front_image is None:
+            raise ValueError(f"Trellis2SelectImagesForMultiView: could not find front image '{front}'")
+
+        if preprocess:
+            t2preprocess = Trellis2PreProcessImage()
+
+            # process() is a ComfyUI node function: it returns a 1-tuple, so unwrap it.
+            if front_image is not None:
+                front_image = t2preprocess.process(front_image, padding, remove_background, max_size)[0]
+            if back_image is not None:
+                back_image = t2preprocess.process(back_image, padding, remove_background, max_size)[0]
+            if left_image is not None:
+                left_image = t2preprocess.process(left_image, padding, remove_background, max_size)[0]
+            if right_image is not None:
+                right_image = t2preprocess.process(right_image, padding, remove_background, max_size)[0]
+
+        return (front_image, back_image, left_image, right_image, )
+        
         
 NODE_CLASS_MAPPINGS = {
     "Trellis2LoadModel": Trellis2LoadModel,
@@ -7369,6 +7513,9 @@ NODE_CLASS_MAPPINGS = {
     "Trellis2ExtractViewConfigDetails": Trellis2ExtractViewConfigDetails,
     "Trellis2LoadImagesFromFolder": Trellis2LoadImagesFromFolder,
     "Trellis2RenderMultiViewNvdiffrast": Trellis2RenderMultiViewNvdiffrast,
+    "Trellis2SelectImagesForMultiView": Trellis2SelectImagesForMultiView,
+    "Trellis2SmoothMeshWithPyMeshlab": Trellis2SmoothMeshWithPyMeshlab,
+    "Trellis2SmoothTrimeshWithPyMeshlab": Trellis2SmoothTrimeshWithPyMeshlab,
     }
     
 
@@ -7444,4 +7591,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2ExtractViewConfigDetails": "Trellis2 - Extract ViewConfig Details",
     "Trellis2LoadImagesFromFolder": "Trellis2 - Load Images From Folder",
     "Trellis2RenderMultiViewNvdiffrast": "Trellis2 - Render MultiView (Nvdiffrast)",
+    "Trellis2SelectImagesForMultiView": "Trellis2 - Select Images For MultiView",
+    "Trellis2SmoothMeshWithPyMeshlab": "Trellis2 - Smooth Mesh With PyMeshlab",
+    "Trellis2SmoothTrimeshWithPyMeshlab": "Trellis2 - Smooth Trimesh With PyMeshlab",
     }

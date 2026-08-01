@@ -1,0 +1,281 @@
+{
+  "version": 2,
+  "selected_modules": {
+    "api/route_handlers.py": {
+      "coverage": "all_broad_catches",
+      "broad_catches": [
+        {
+          "scope": "health_response",
+          "expected_count": 6,
+          "classification": "allowed_boundary_guard",
+          "reason": "Health diagnostics degrade to partial snapshots when optional probes fail.",
+          "regression_owner": "tests/contract/test_api_contract.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "logs_tail_response",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Log-tail diagnostics return a bounded failure instead of crashing route handling.",
+          "regression_owner": "tests/test_r117_observability_redaction_endpoints.py",
+          "review_after": "2027-01-11"
+        }
+      ]
+    },
+    "api/route_orchestration.py": {
+      "coverage": "all_broad_catches",
+      "broad_catches": [
+        {
+          "scope": "register_dual_route._deprecated_handler",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Legacy-route telemetry must not break compatibility routing.",
+          "regression_owner": "tests/test_r180_exception_boundary_governance.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "register_dual_route",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Fallback registration retains compatibility when optional router integration fails.",
+          "regression_owner": "tests/test_r180_exception_boundary_governance.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "run_mae_startup_gate",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "MAE import availability is an optional startup diagnostic boundary.",
+          "regression_owner": "tests/test_r219_exception_boundary_phase2.py",
+          "review_after": "2027-01-11"
+        }
+      ]
+    },
+    "connector/router_admin_handlers.py": {
+      "coverage": "all_broad_catches",
+      "broad_catches": [
+        {
+          "scope": "<module>",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Standalone connector tests may stub the sanitizer import graph.",
+          "regression_owner": "tests/connector/test_router_hotspot_r181.py",
+          "review_after": "2027-01-11"
+        }
+      ]
+    },
+    "connector/router_dispatch.py": {
+      "coverage": "all_broad_catches",
+      "broad_catches": [
+        {
+          "scope": "RouterDispatchMixin.handle",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "External command dispatch translates handler failures to a fixed operator response.",
+          "regression_owner": "tests/connector/test_router_hotspot_r181.py",
+          "review_after": "2027-01-11"
+        }
+      ]
+    },
+    "connector/router_execution_handlers.py": {
+      "coverage": "all_broad_catches",
+      "broad_catches": [
+        {
+          "scope": "RouterExecutionMixin._get_template_meta",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Template metadata lookup is best-effort and has an explicit prompt-name fallback.",
+          "regression_owner": "tests/connector/test_router_hotspot_r181.py",
+          "review_after": "2027-01-11"
+        }
+      ]
+    },
+    "services/bootstrap/registration.py": {
+      "coverage": "all_broad_catches",
+      "broad_catches": [
+        {
+          "scope": "_mark_startup_ready_and_start_warmups",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Optional warmup diagnostics must not undo successful route startup.",
+          "regression_owner": "tests/test_r188_startup_lifecycle.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "_mark_startup_fatal",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Fatal-state diagnostics must not mask the original bootstrap exception.",
+          "regression_owner": "tests/test_r188_startup_lifecycle.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "_register_plugins_and_shutdown_hooks",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Independent optional registrars log content-free failure classifications while startup continues.",
+          "regression_owner": "tests/test_r219_exception_boundary_phase2.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "_initialize_registries_and_security_gate",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Bootstrap initialization logs context and re-raises fail-closed.",
+          "regression_owner": "tests/test_r180_exception_boundary_governance.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "_run_registration_retry_loop",
+          "expected_count": 2,
+          "classification": "allowed_boundary_guard",
+          "reason": "The bounded retry owner classifies PromptServer resolution and route registration failures without exposing exception content.",
+          "regression_owner": "tests/test_bootstrap_lifecycle_outcome.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "register_routes_once",
+          "expected_count": 5,
+          "classification": "allowed_boundary_guard",
+          "reason": "Required, host-resolution, retry-owner-start, and route failures are classified and replayed fail-closed, while BaseException cleanup re-raises cancellation unchanged.",
+          "regression_owner": "tests/test_bootstrap_lifecycle_outcome.py",
+          "review_after": "2027-01-11"
+        }
+      ]
+    },
+    "api/config_projection_handlers.py": {
+      "coverage": "selected_scopes",
+      "selected_scopes": [
+        "config_get_response"
+      ],
+      "broad_catches": [
+        {
+          "scope": "config_get_response",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "The admin read boundary returns a fixed content-free 500 code after tenant-specific failures.",
+          "regression_owner": "tests/test_r219_exception_boundary_phase2.py",
+          "review_after": "2027-01-11"
+        }
+      ]
+    },
+    "api/config_llm_handlers.py": {
+      "coverage": "selected_scopes",
+      "selected_scopes": [
+        "llm_test_response",
+        "llm_chat_response"
+      ],
+      "broad_catches": [
+        {
+          "scope": "llm_test_response",
+          "expected_count": 2,
+          "classification": "allowed_boundary_guard",
+          "reason": "Request decoding and final LLM test translation retain existing response shape with fixed errors.",
+          "regression_owner": "tests/test_r219_exception_boundary_phase2.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "llm_chat_response",
+          "expected_count": 2,
+          "classification": "allowed_boundary_guard",
+          "reason": "Chat request decoding and final server-error translation are public route boundaries.",
+          "regression_owner": "tests/test_r219_exception_boundary_phase2.py",
+          "review_after": "2027-01-11"
+        }
+      ]
+    },
+    "connector/platforms/slack_installation_handlers.py": {
+      "coverage": "selected_scopes",
+      "selected_scopes": [
+        "SlackInstallationMixin.handle_oauth_callback"
+      ],
+      "broad_catches": [
+        {
+          "scope": "SlackInstallationMixin.handle_oauth_callback",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "OAuth callback failures translate to a constant external response.",
+          "regression_owner": "tests/test_f58_slack_oauth_installations.py",
+          "review_after": "2027-01-11"
+        }
+      ]
+    },
+    "connector/platforms/slack_ingress_handlers.py": {
+      "coverage": "selected_scopes",
+      "selected_scopes": [
+        "SlackIngressMixin.handle_event",
+        "SlackIngressMixin.handle_interaction",
+        "SlackIngressMixin.process_event_payload",
+        "SlackIngressMixin.process_interaction_payload"
+      ],
+      "broad_catches": [
+        {
+          "scope": "SlackIngressMixin.handle_event",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Request-read failures translate to the existing fixed 400 response.",
+          "regression_owner": "tests/test_f57_slack_transport_parity.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "SlackIngressMixin.handle_interaction",
+          "expected_count": 2,
+          "classification": "allowed_boundary_guard",
+          "reason": "Request-read and routed interaction failures retain fixed acknowledgement responses.",
+          "regression_owner": "tests/test_f59_slack_interactions.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "SlackIngressMixin.process_event_payload",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Slack event dispatch is acknowledged while failures log only a safe type classification.",
+          "regression_owner": "tests/test_f57_slack_transport_parity.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "SlackIngressMixin.process_interaction_payload",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Pre-commit router failures release replay claims and re-raise for fixed outer translation.",
+          "regression_owner": "tests/test_f59_slack_interactions.py",
+          "review_after": "2027-01-11"
+        }
+      ]
+    },
+    "connector/platforms/feishu_ingress_handlers.py": {
+      "coverage": "selected_scopes",
+      "selected_scopes": [
+        "FeishuIngressMixin.handle_event",
+        "FeishuIngressMixin.handle_callback",
+        "FeishuIngressMixin.process_callback_payload"
+      ],
+      "broad_catches": [
+        {
+          "scope": "FeishuIngressMixin.handle_event",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Request-read failures translate to the existing fixed 400 response.",
+          "regression_owner": "tests/test_f68_feishu_installations.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "FeishuIngressMixin.handle_callback",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Callback request-read failures translate to the existing fixed 400 response.",
+          "regression_owner": "tests/test_f69_feishu_callbacks.py",
+          "review_after": "2027-01-11"
+        },
+        {
+          "scope": "FeishuIngressMixin.process_callback_payload",
+          "expected_count": 1,
+          "classification": "allowed_boundary_guard",
+          "reason": "Pre-completion router failures release the callback request for retry and re-raise.",
+          "regression_owner": "tests/test_f69_feishu_callbacks.py",
+          "review_after": "2027-01-11"
+        }
+      ]
+    }
+  }
+}

@@ -21,6 +21,7 @@ In general, the functions in this file operate on the "prompt" structure.
 
 """
 import nodes
+from typing  import Any
 from .system import logger
 
 
@@ -29,6 +30,24 @@ def get_class_type(node: dict) -> str:
     class_type = node.get("class_type", "") if isinstance(node ,dict) else ""
     class_type = class_type.partition(" //")[0]  #< Z-Image Power Nodes has a special format for class names.
     return class_type
+
+
+def get_input_value(node: dict, input_name: str, /, *, default: Any = None) -> Any:
+    """Returns the value of a node's input."""
+    inputs = node.get("inputs")     if isinstance(node  , dict) else None
+    value  = inputs.get(input_name) if isinstance(inputs, dict) else None
+    return value
+
+
+def get_input_bool(node: dict, input_name: str, /, *, default: bool = False) -> bool:
+    value = get_input_value(node, input_name, default=default)
+    if isinstance(value, bool):
+        return value
+    elif isinstance(value, (int,float)):
+        return bool(value)
+    elif isinstance(value, str):
+        return str(value).lower() in ['true', 'yes', '1', 'on']
+    return bool(default) if isinstance(default, bool) else False
 
 
 def get_input_int(node: dict, input_name: str, /, *, default: int = 0) -> int:
@@ -48,9 +67,7 @@ def get_input_int(node: dict, input_name: str, /, *, default: int = 0) -> int:
         The integer representation of the input value
         or the provided default integer value if it cannot be converted.
     """
-    inputs = node.get("inputs")     if isinstance(node  , dict) else None
-    value  = inputs.get(input_name) if isinstance(inputs, dict) else None
-
+    value = get_input_value(node, input_name, default=default)
     if isinstance(value, (int,float)):
         return int(value)
     elif isinstance(value, str):
@@ -76,9 +93,7 @@ def get_input_float(node: dict, input_name: str, /, *, default: float = 0.0) -> 
         The floating-point representation of the input value
         or the provided default float value if it cannot be converted.
     """
-    inputs = node.get("inputs")     if isinstance(node  , dict) else None
-    value  = inputs.get(input_name) if isinstance(inputs, dict) else None
-
+    value = get_input_value(node, input_name, default=default)
     if isinstance(value, (float, int)):
         return float(value)
     elif isinstance(value, str):
@@ -103,8 +118,7 @@ def get_input_string(node: dict, input_name: str, *, default: str = "") -> str:
     Returns:
         The string representation of the input value or the provided default string value.
     """
-    inputs = node  .get("inputs"  ) if isinstance(node  ,dict) else None
-    value  = inputs.get(input_name) if isinstance(inputs,dict) else None
+    value = get_input_value(node, input_name, default=default)
     if isinstance(value, (float,int)):
         return str(value)
     if isinstance(value, str):
@@ -112,24 +126,32 @@ def get_input_string(node: dict, input_name: str, *, default: str = "") -> str:
     return default
 
 
-def get_input_node(node: dict, input_name: str, *, nodes: dict) -> dict:
+def get_input_node(node: dict, input_name: str | list[str] | tuple[str], *, nodes: dict) -> dict:
     """
-    Retrieves the connected node for a given input connection.
+    Returns the connected node for a given input connection identifier.
 
     Args:
-        node      (dict): The base node from which to retrieve the connected node.
-        input_name (str): Name of the connection to look up.
-        nodes     (dict): Dictionary containing all nodes (prompt structure)
+        node       : The base node from which to retrieve the connected input node.
+        input_name : Name or list of names of the input connections to look up.
+        nodes      : Dictionary containing the entire 'prompt' structure (all nodes).
 
     Returns:
-        A dictionary representing the connected node,
-        or an empty dictionary if no such connection exists.
+        A dictionary representing the connected node found,
+        or an empty dictionary if no valid connection is found.
     """
-    inputs        = node.get("inputs")          if isinstance(node  , dict)              else None
-    wire          = inputs.get(input_name)      if isinstance(inputs, dict)              else None
-    input_node_id = wire[0]                     if isinstance(wire,list) and len(wire)>0 else None
-    input_node    = nodes.get(input_node_id)    if isinstance(input_node_id , str)       else None
-    return input_node if isinstance(input_node,dict) else {}
+    inputs = node.get("inputs") if isinstance(node, dict) else None
+    if inputs:
+        names_to_check = [input_name] if isinstance(input_name, str) else input_name
+        for name in names_to_check:
+            wire          = inputs.get(name)         if isinstance(inputs, dict)              else None
+            input_node_id = wire[0]                  if isinstance(wire,list) and len(wire)>0 else None
+            input_node    = nodes.get(input_node_id) if isinstance(input_node_id , str)       else None
+            if isinstance(input_node,dict):
+                # found it!
+                return input_node
+
+    return {}
+
 
 
 def find_prompt(node: dict, type: str, *, nodes: dict, depth: int = 0) -> str:
@@ -168,7 +190,7 @@ def find_prompt(node: dict, type: str, *, nodes: dict, depth: int = 0) -> str:
         return find_prompt(text_node, type, nodes=nodes, depth=depth+1)
 
     # finally check if we are in a node that contains prompt
-    TEXT_NAMES = ("text", "text_g", f"text_{type}", "populated_text")
+    TEXT_NAMES = ("prompt", "text", "text_g", f"text_{type}", "populated_text")
     for name in TEXT_NAMES:
         prompt: str = get_input_string(node, name)
         if prompt:

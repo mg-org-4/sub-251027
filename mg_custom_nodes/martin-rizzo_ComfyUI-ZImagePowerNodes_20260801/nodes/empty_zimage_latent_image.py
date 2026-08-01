@@ -89,21 +89,13 @@ class EmptyZImageLatentImage(io.ComfyNode):
     #__ FUNCTION __________________________________________
     @classmethod
     def execute(cls, orientation: bool, ratio: str, size: str, batch_size: int) -> io.NodeOutput:
-        GRID_SIZE         = 32
         LATENT_CHANNELS   = 16  #< z-image latent has 16 channels
         LATENT_BLOCK_SIZE =  8  #< 8x8 pixels per latent block
-        vertical = (orientation == False)
 
-        scale                         = SCALES_BY_NAME.get(size, 1.0)
-        desired_width, desired_height = LANDSCAPE_SIZES_BY_ASPECT_RATIO.get(ratio, (1024, 1024))
-        desired_width, desired_height = desired_width * scale, desired_height * scale
-        if vertical:
-            desired_width, desired_height = desired_height, desired_width
-
-        # fix image size to be divisible by the grid
-        image_width  = int( (desired_width  // GRID_SIZE) * GRID_SIZE )
-        image_height = int( (desired_height // GRID_SIZE) * GRID_SIZE )
-
+        # calculate the image dimensions
+        image_width, image_height = cls.calculate_image_size(orientation = orientation,
+                                                             ratio       = ratio,
+                                                             size        = size)
         # calculate the latent dimensions
         latent_width    = int( image_width  // LATENT_BLOCK_SIZE )
         latent_height   = int( image_height // LATENT_BLOCK_SIZE )
@@ -116,12 +108,39 @@ class EmptyZImageLatentImage(io.ComfyNode):
 
     #__ internal functions ________________________________
 
-    @classmethod
-    def ratios(cls) -> list[str]:
+    @staticmethod
+    def ratios() -> list[str]:
         return list( LANDSCAPE_SIZES_BY_ASPECT_RATIO.keys() )
 
-    @classmethod
-    def sizes(cls) -> list[str]:
+    @staticmethod
+    def sizes() -> list[str]:
         return list( SCALES_BY_NAME.keys() )
+
+    @staticmethod
+    def calculate_image_size(*, orientation: bool, ratio: str, size: str) -> tuple[int,int]:
+        """
+        Calculate the final image dimensions based on aspect ratio and scale.
+        Args:
+            orientation : If True, landscape orientation is used; if False, portrait.
+            ratio       : A string specifying the aspect ratio to use; this should
+                          correspond to a key defined in `LANDSCAPE_SIZES_BY_ASPECT_RATIO`.
+            size        : A string specifying the scale factor to apply; this should
+                          correspond to a key defined in `SCALES_BY_NAME`.
+        Returns:
+            A tuple of (width, height) integers, aligned to the 32-pixel grid.
+        """
+        GRID_SIZE = 32
+        is_vertical                   = (orientation == False)
+        scale                         = SCALES_BY_NAME.get(size, 1.0)
+        desired_width, desired_height = LANDSCAPE_SIZES_BY_ASPECT_RATIO.get(ratio, (1024, 1024))
+        desired_width, desired_height = desired_width * scale, desired_height * scale
+        if is_vertical:
+            desired_width, desired_height = desired_height, desired_width
+
+        # fix image size to be divisible by the grid
+        image_width  = int( (desired_width  // GRID_SIZE) * GRID_SIZE )
+        image_height = int( (desired_height // GRID_SIZE) * GRID_SIZE )
+        return  image_width, image_height
+
 
 

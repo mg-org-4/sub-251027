@@ -27,8 +27,9 @@ from comfy_api.latest    import io
 from typing              import Any
 from .core.system        import logger
 from .core.helpers       import expand_date_and_vars, normalize_images
-from .core.helpers_node  import get_input_int, get_input_float, get_input_string, \
+from .core.helpers_node  import get_input_bool, get_input_int, get_input_float, get_input_string, \
                                 get_input_node, get_class_type, find_prompt
+from .empty_zimage_latent_image import EmptyZImageLatentImage
 
 
 class SaveImage(io.ComfyNode):
@@ -416,6 +417,7 @@ class SaveImage(io.ComfyNode):
                 latent_node = get_input_node(node,"latent_image", nodes=nodes)
                 if cls.is_empty_latent_node(latent_node):
                     initial_sampler_node = node
+                    image_size             = cls.find_image_size(node, nodes=nodes)
                     params["positive"]     = find_prompt(node, type="positive", nodes=nodes)
                     params["negative"]     = find_prompt(node, type="negative", nodes=nodes)
                     params["seed"]         = get_input_int   (node, "seed"        , default=-1  )
@@ -423,17 +425,24 @@ class SaveImage(io.ComfyNode):
                     params["cfg"]          = get_input_float (node, "cfg"         , default=-1.0)
                     params["sampler_name"] = get_input_string(node, "sampler_name", default=""  )
                     params["scheduler"]    = get_input_string(node, "scheduler"   , default=""  )
+                    if image_size:
+                        params["width" ] = image_size[0]
+                        params["height"] = image_size[1]
                     break
 
             if class_type.startswith("ZSamplerTurbo"):
                 latent_node = get_input_node(node,"latent_input", nodes=nodes)
                 if cls.is_empty_latent_node(latent_node):
                     initial_sampler_node = node
+                    image_size             = cls.find_image_size(node, nodes=nodes)
                     params["positive"]     = find_prompt(node, type="positive", nodes=nodes)
                     params["seed"]         = get_input_int(node, "seed" , default=-1)
                     params["steps"]        = get_input_int(node, "steps", default=-1)
-                    params["cfg"]          = 1.0      # this node always uses cfg = 1.0
-                    params["sampler_name"] = "euler"  # internally, this node always uses "euler"
+                    params["cfg"]          = 1.0              # this node always uses cfg = 1.0
+                    params["sampler_name"] = "zsampler_turbo" # internally, this node always uses "euler"
+                    if image_size:
+                        params["width" ] = image_size[0]
+                        params["height"] = image_size[1]
                     # no scheduler, this node uses a fixed custom scheduler
                     break
 
@@ -446,6 +455,62 @@ class SaveImage(io.ComfyNode):
         if params.get("steps",-1) < 1    : params.pop("steps"       , None)
         if params.get("cfg"  ,-1) < 0    : params.pop("cfg"         , None)
         return initial_sampler_node, params
+
+
+    @classmethod
+    def find_image_size(cls, node: dict, *, nodes: dict, depth: int = 0) -> tuple[int, int] | None:
+        """
+        Recursively traverse the node graph to find the dimensions of the initial latent image.
+
+        This function follows the input connections (latent images) backwards
+        until it reaches a node capable of defining image dimensions, such as
+        'EmptyLatentImage' or 'EmptyZImageLatentImage'.
+
+        Args:
+            node  : The current node dictionary being inspected.
+            nodes : The full dictionary containing all nodes in the workflow.
+            depth : Current recursion depth to prevent infinite loops or excessive
+                    stack usage. Defaults to 0.
+
+        Returns:
+            A tuple of (width, height) integers if the image size is found,
+            or `None` if no latent image node could be found.
+        """
+        if depth>5:
+            return None
+
+        # check if the node has an input connection that provides a
+        # latent image and follow that path recursively.
+        latent_node = get_input_node( node,["latent_image","latent_input"], nodes=nodes )
+        if latent_node:
+            return cls.find_image_size(latent_node, nodes=nodes, depth=depth+1)
+
+        # identify the node class and extract information accordingly
+        class_type = node.get("class_type", "")
+        if not isinstance(class_type, str):
+            return None
+
+        # handle custom "Empty Z-Image Latent Image" node
+        if class_type.startswith("EmptyZImageLatentImage"):
+            orientation = get_input_bool(node, "orientation", default=False)
+            ratio       = get_input_string(node, "ratio", default="")
+            size        = get_input_string(node, "size" , default="")
+            if not ratio or not size:
+                return None
+            return EmptyZImageLatentImage.calculate_image_size(
+                                            orientation = orientation,
+                                            ratio       = ratio,
+                                            size        = size)
+
+        # handle native comfyui "Empty Latent Image" node
+        if class_type == "EmptyLatentImage":
+            width  = get_input_int(node, "width" , default=0)
+            height = get_input_int(node, "height", default=0)
+            if not width or not height:
+                return None
+            return width, height
+
+        return None
 
 
     @classmethod

@@ -1,0 +1,13 @@
+[project]
+name = "comfyui-unirig"
+description = "Warning, uses experimental package `comfy-env` to attempt a one click isolated install. Will download and use pixi package manager. Automatic skeleton extraction for ComfyUI using UniRig (SIGGRAPH 2025)"
+version = "1.6.7"
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/PozzettiAndrea/ComfyUI-UniRig"
+
+[tool.comfy]
+PublisherId = "pznodes"
+DisplayName = "UniRig"
+Icon = "https://raw.githubusercontent.com/PozzettiAndrea/ComfyUI-UniRig/main/assets/icon.png"

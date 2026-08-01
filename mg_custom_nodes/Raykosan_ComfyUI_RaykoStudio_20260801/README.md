@@ -1092,7 +1092,7 @@ is three tags.
 # 🦊 RS Prompts  
 **Node that provides enhanced prompt management with visual controls, pause-for-edit mode, and external input toggling**  
 
-<img width="1008" height="774" alt="Screenshot_1" src="https://github.com/user-attachments/assets/1b912d1f-ccea-41b7-9f13-c63e0a2ca2bd" />
+<img width="1088" height="562" alt="Screenshot_1" src="https://github.com/user-attachments/assets/78c189d6-35ca-4989-8f6e-485ad8e01bf7" />
 
 ### 🔥 Features  
 - **Dual prompt sources** - Use internal textarea or external text input

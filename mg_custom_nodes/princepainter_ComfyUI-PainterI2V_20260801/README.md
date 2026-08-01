@@ -1,6 +1,6 @@
 # ComfyUI-PainterI2V  此节点由抖音博主：绘画小子 制作。
 
-Wan2.2 图生视频增强节点，专门针对4步LoRA（如 lightx2v）的慢动作问题进行优化。
+Wan2.2 图生视频增强节点，专门针对4步LoRA（如 lightx2v）的慢动作问题 进行优化。
 
 2026-7-25，为方便节点升级更新，我所有节点包括PainterI2V，都集成到一个节点包内，项目地址：[https://github.com/princepainter/ComfyUI-PainterNodes](https://github.com/princepainter/ComfyUI-PainterNodes)
 

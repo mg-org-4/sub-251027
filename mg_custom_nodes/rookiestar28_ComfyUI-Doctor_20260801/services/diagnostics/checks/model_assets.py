@@ -80,12 +80,28 @@ THREE_D_EXTENSIONS: Set[str] = {
 
 FOLDER_ASSET_CATEGORIES: Set[str] = {"diffusers"}
 
+DATASET_WIDGET_CATEGORIES = {
+    ("LoadImageDataSetFromFolder", "folder"): "input",
+    ("LoadImageTextDataSetFromFolder", "folder"): "input",
+    ("LoadVideoDataSetFromFolder", "folder"): "input",
+    ("LoadVideoTextDataSetFromFolder", "folder"): "input",
+    ("LoadTrainingDataset", "folder_name"): "datasets",
+}
+
 INPUT_3D_PREFIX = "3d/"
 INVALID_ASSET_DISPLAY_NAME = "[invalid asset path]"
 DEFAULT_MAX_PATHS = 50
 MAX_PATH_BUDGET = 500
 MAX_WORKFLOW_NODES = 1000
 MAX_SUBGRAPH_DEPTH = 8
+MAX_NAMED_WIDGET_ENTRIES = 256
+MAX_NAMED_WIDGET_KEY_LENGTH = 128
+MAX_NAMED_WIDGET_VALUE_LENGTH = 4096
+RESERVED_NAMED_WIDGET_KEYS = frozenset({
+    "__proto__",
+    "constructor",
+    "prototype",
+})
 
 
 # ============================================================================
@@ -436,6 +452,122 @@ def _is_folder_asset_category(category: str) -> bool:
     )
 
 
+def _dataset_widget_category(
+    node_type: str,
+    node: dict[str, Any],
+    widget_index: int,
+) -> str | None:
+    """Return the authoritative root category for an exact dataset widget."""
+    widget_names = _node_widget_names(node)
+    if widget_index < 0 or widget_index >= len(widget_names):
+        return None
+    widget_name = widget_names[widget_index]
+    if widget_name is None:
+        return None
+    return DATASET_WIDGET_CATEGORIES.get((node_type, widget_name))
+
+
+def _find_dataset_folder(
+    folder_name: str,
+    category: str,
+) -> tuple[bool, bool, _ContainedAssetPath | None, bool]:
+    """Find one exact contained dataset directory without enumerating it."""
+    roots = _get_comfy_model_paths().get(category, [])
+    if not roots:
+        return False, False, None, False
+
+    normalized = folder_name.replace("\\", "/")
+    if (
+        len(folder_name) > MAX_NAMED_WIDGET_VALUE_LENGTH
+        or "\x00" in folder_name
+        or ".." in normalized.split("/")
+    ):
+        return True, False, None, True
+
+    candidate_was_contained = False
+    for root in roots:
+        contained = _resolve_contained_asset_path(root, folder_name)
+        if contained is None:
+            continue
+        if os.path.normcase(os.fspath(contained.candidate)) == os.path.normcase(
+            os.fspath(contained.root)
+        ):
+            continue
+        candidate_was_contained = True
+        # CRITICAL: this directory probe must remain after realpath containment;
+        # dataset widget values are untrusted and never authorize enumeration.
+        if contained.candidate.is_dir():
+            return True, True, contained, False
+
+    try:
+        is_absolute = Path(folder_name).is_absolute()
+    except (OSError, ValueError):
+        is_absolute = True
+    return (
+        True,
+        False,
+        None,
+        is_absolute or not candidate_was_contained,
+    )
+
+
+def _dataset_folder_issue(
+    context: "_WorkflowAssetNode",
+    node_type: str,
+    widget_index: int,
+    folder_name: str,
+    category: str,
+    *,
+    invalid_candidate: bool = False,
+    unreadable: bool = False,
+) -> HealthIssue:
+    """Build a bounded dataset-folder finding without exposing private roots."""
+    node_id = context.visible_node_id
+    node_title = context.visible_node_title
+    safe_name = (
+        INVALID_ASSET_DISPLAY_NAME
+        if invalid_candidate
+        else _sanitize_path_for_display(folder_name)
+    )
+    problem = "not readable" if unreadable else "not found"
+    title = (
+        "Dataset Folder Not Readable"
+        if unreadable
+        else "Dataset Folder Not Found"
+    )
+    return HealthIssue(
+        issue_id=HealthIssue.generate_issue_id(
+            "dataset_folder_access" if unreadable else "missing_dataset_folder",
+            IssueTarget(node_id=node_id),
+            f"{folder_name[:32]}:{context.source_execution_id}",
+        ),
+        category=IssueCategory.MODEL,
+        severity=IssueSeverity.WARNING,
+        title=title,
+        summary=(
+            f"Node '{node_title}' (#{node_id}) references dataset folder "
+            f"'{safe_name}' which is {problem}"
+        ),
+        evidence=[
+            f"Folder: {safe_name}",
+            f"Node type: {node_type}",
+            f"Searched in: {category} folders",
+        ],
+        recommendation=[
+            f"Ensure dataset folder '{safe_name}' exists in the configured "
+            f"ComfyUI {category} root",
+            "Check whether the folder was moved, renamed, or removed",
+            "Verify that ComfyUI can read and enter the folder",
+        ],
+        target=IssueTarget(node_id=node_id),
+        metadata=_asset_provenance_metadata(
+            context,
+            node_type,
+            widget_index,
+        ),
+    )
+
+
 def _registered_asset_category(
     node_type: str,
     filename: str,
@@ -551,9 +683,113 @@ def _widget_index_for_input(
     return None
 
 
+def _safe_named_widget_values(node: dict[str, Any]) -> dict[str, str]:
+    """Return a bounded node-local named widget map with supported values."""
+    raw_values = node.get("widgets_values_named")
+    if (
+        not isinstance(raw_values, dict)
+        or len(raw_values) > MAX_NAMED_WIDGET_ENTRIES
+    ):
+        return {}
+
+    safe_values: dict[str, str] = {}
+    for key, value in raw_values.items():
+        if (
+            not isinstance(key, str)
+            or not key
+            or len(key) > MAX_NAMED_WIDGET_KEY_LENGTH
+            or key.casefold() in RESERVED_NAMED_WIDGET_KEYS
+            or "\x00" in key
+            or not isinstance(value, str)
+            or len(value) > MAX_NAMED_WIDGET_VALUE_LENGTH
+        ):
+            continue
+        safe_values[key] = value
+    return safe_values
+
+
+def _node_widget_names(node: dict[str, Any]) -> tuple[str | None, ...]:
+    """Return widget names in their serialized positional order."""
+    inputs = node.get("inputs", [])
+    if (
+        not isinstance(inputs, list)
+        or len(inputs) > MAX_NAMED_WIDGET_ENTRIES
+    ):
+        return ()
+
+    names: list[str | None] = []
+    for input_slot in inputs:
+        if not isinstance(input_slot, dict):
+            continue
+        widget = input_slot.get("widget")
+        if not isinstance(widget, dict):
+            continue
+        name = widget.get("name")
+        if (
+            isinstance(name, str)
+            and name
+            and len(name) <= MAX_NAMED_WIDGET_KEY_LENGTH
+            and name.casefold() not in RESERVED_NAMED_WIDGET_KEYS
+            and "\x00" not in name
+        ):
+            names.append(name)
+        else:
+            # Preserve the positional slot so malformed schema cannot shift a
+            # later named fallback onto the wrong serialized widget.
+            names.append(None)
+    return tuple(names)
+
+
+def _effective_widget_values(node: dict[str, Any]) -> tuple[Any, ...]:
+    """Resolve one positional-first value per schema-linked widget."""
+    raw_positional = node.get("widgets_values", [])
+    values = list(raw_positional) if isinstance(raw_positional, list) else []
+    named_values = _safe_named_widget_values(node)
+    if not named_values:
+        return tuple(values)
+
+    widget_names = _node_widget_names(node)
+    widget_name_counts: dict[str, int] = {}
+    for widget_name in widget_names:
+        if widget_name is None:
+            continue
+        widget_name_counts[widget_name] = (
+            widget_name_counts.get(widget_name, 0) + 1
+        )
+    for widget_index, widget_name in enumerate(widget_names):
+        if widget_name is None:
+            continue
+        if widget_name_counts[widget_name] != 1:
+            continue
+        named_value = named_values.get(widget_name)
+        if named_value is None:
+            continue
+        while len(values) <= widget_index:
+            values.append(None)
+        # IMPORTANT: current positional serialization stays authoritative;
+        # named workflow data is untrusted fallback-only input.
+        if values[widget_index] is None:
+            values[widget_index] = named_value
+
+    if (
+        not widget_names
+        and ("inputs" not in node or node.get("inputs") == [])
+        and not any(isinstance(value, str) for value in values)
+    ):
+        # Older/minimal nodes may omit input schema. Restrict fallback to the
+        # established path-widget allow-list instead of trusting arbitrary keys.
+        values.extend(
+            named_value
+            for widget_name, named_value in named_values.items()
+            if widget_name in PATH_WIDGET_NAMES
+        )
+
+    return tuple(values)
+
+
 def _apply_promoted_widget_values(
     definition: dict[str, Any],
-    host_values: tuple[Any, ...],
+    host_node: dict[str, Any],
 ) -> list[tuple[dict[str, Any], frozenset[int]]]:
     """Apply host-owned promoted values to direct definition children."""
     raw_nodes = definition.get("nodes", [])
@@ -577,6 +813,13 @@ def _apply_promoted_widget_values(
         raw_inputs = []
         raw_links = []
 
+    raw_host_values = host_node.get("widgets_values", [])
+    host_values = (
+        tuple(raw_host_values)
+        if isinstance(raw_host_values, list)
+        else ()
+    )
+    host_named_values = _safe_named_widget_values(host_node)
     host_widget_index = 0
     input_node = definition.get("inputNode", {})
     input_node_id = (
@@ -621,10 +864,24 @@ def _apply_promoted_widget_values(
 
         if not widget_targets:
             continue
-        if host_widget_index >= len(host_values):
-            break
-        host_value = host_values[host_widget_index]
+        has_positional_value = (
+            host_widget_index < len(host_values)
+            and host_values[host_widget_index] is not None
+        )
+        definition_input_name = definition_input.get("name")
+        named_host_value = (
+            host_named_values.get(definition_input_name)
+            if isinstance(definition_input_name, str)
+            else None
+        )
+        host_value = (
+            host_values[host_widget_index]
+            if has_positional_value
+            else named_host_value
+        )
         host_widget_index += 1
+        if host_value is None:
+            continue
         for target_id, widget_index in widget_targets:
             _source_node, values, promoted_indexes = effective[target_id]
             while len(values) <= widget_index:
@@ -699,11 +956,9 @@ def _collect_workflow_asset_nodes(
             and node_type not in definition_stack
             and depth < MAX_SUBGRAPH_DEPTH
         ):
-            values = node.get("widgets_values", [])
-            host_values = tuple(values) if isinstance(values, list) else ()
             children = _apply_promoted_widget_values(
                 definition,
-                host_values,
+                node,
             )
             next_stack = definition_stack | {node_type}
             for child, child_promoted_indexes in children:
@@ -719,10 +974,9 @@ def _collect_workflow_asset_nodes(
                 )
             return
 
-        values = node.get("widgets_values", [])
         contexts.append(_WorkflowAssetNode(
             source_node=node,
-            widget_values=tuple(values) if isinstance(values, list) else (),
+            widget_values=_effective_widget_values(node),
             visible_node_id=visible_node_id,
             visible_node_title=visible_node_title,
             source_execution_id=source_execution_id,
@@ -835,21 +1089,85 @@ async def check_model_assets(
             if checked_key in checked_paths:
                 continue
 
-            # Determine if this looks like a file path
-            category = _determine_asset_category(node_type, value)
+            # Determine if this looks like a file path.
+            dataset_category = _dataset_widget_category(
+                node_type,
+                node,
+                idx,
+            )
+            category = (
+                dataset_category
+                or _determine_asset_category(node_type, value)
+            )
             if (
                 value.strip().lower() in {"none", "null"}
                 or (
                     not _is_path_like(value)
                     and not _is_folder_asset_category(category)
+                    and dataset_category is None
                 )
             ):
+                continue
+
+            if (
+                dataset_category is not None
+                and not _get_comfy_model_paths().get(dataset_category)
+            ):
+                # Older hosts without the authoritative category fail open;
+                # never substitute checkpoints or another filesystem root.
                 continue
 
             if scanned_paths >= path_budget:
                 return issues
             scanned_paths += 1
             checked_paths.add(checked_key)
+
+            if dataset_category is not None:
+                (
+                    category_available,
+                    found,
+                    contained_folder,
+                    invalid_candidate,
+                ) = _find_dataset_folder(value, dataset_category)
+                if not category_available:
+                    continue
+                if not found or contained_folder is None:
+                    issues.append(_dataset_folder_issue(
+                        context,
+                        node_type,
+                        idx,
+                        value,
+                        dataset_category,
+                        invalid_candidate=invalid_candidate,
+                    ))
+                    continue
+
+                final_folder = _resolve_contained_asset_path(
+                    contained_folder.root,
+                    contained_folder.candidate,
+                )
+                if final_folder is None:
+                    issues.append(_dataset_folder_issue(
+                        context,
+                        node_type,
+                        idx,
+                        value,
+                        dataset_category,
+                        invalid_candidate=True,
+                    ))
+                elif not os.access(
+                    final_folder.candidate,
+                    os.R_OK | os.X_OK,
+                ):
+                    issues.append(_dataset_folder_issue(
+                        context,
+                        node_type,
+                        idx,
+                        value,
+                        dataset_category,
+                        unreadable=True,
+                    ))
+                continue
 
             # Try to find the file
             (

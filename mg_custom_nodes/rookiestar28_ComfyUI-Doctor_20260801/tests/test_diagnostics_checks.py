@@ -297,6 +297,527 @@ class TestModelAssetsChecks(unittest.IsolatedAsyncioTestCase):
             "output": [],
         }
 
+    @staticmethod
+    def _dataset_paths(input_root, dataset_roots=()):
+        return {
+            "checkpoints": [],
+            "input": [input_root],
+            "input_3d": [],
+            "output": [],
+            "datasets": list(dataset_roots),
+        }
+
+    @staticmethod
+    def _dataset_workflow(
+        node_type,
+        widget_name,
+        value,
+        *,
+        node_id=1500,
+        named=False,
+    ):
+        node = {
+            "id": node_id,
+            "type": node_type,
+            "title": "Synthetic Dataset Loader",
+            "inputs": [
+                {
+                    "name": widget_name,
+                    "widget": {"name": widget_name},
+                }
+            ],
+        }
+        if named:
+            node["widgets_values_named"] = {widget_name: value}
+        else:
+            node["widgets_values"] = [value]
+        return {"nodes": [node]}
+
+    async def test_dataset_input_loaders_report_only_missing_contained_folders(self):
+        loader_types = (
+            "LoadImageDataSetFromFolder",
+            "LoadImageTextDataSetFromFolder",
+            "LoadVideoDataSetFromFolder",
+            "LoadVideoTextDataSetFromFolder",
+        )
+        with tempfile.TemporaryDirectory() as temp_root:
+            input_root = Path(temp_root) / "input"
+            input_root.mkdir()
+            (input_root / "existing_dataset").mkdir()
+            paths = self._dataset_paths(input_root)
+
+            for index, node_type in enumerate(loader_types):
+                with self.subTest(node_type=node_type, state="existing"):
+                    workflow = self._dataset_workflow(
+                        node_type,
+                        "folder",
+                        "existing_dataset",
+                        node_id=1500 + index,
+                    )
+                    with patch(
+                        "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                        return_value=paths,
+                    ):
+                        issues = await model_assets.check_model_assets(
+                            workflow,
+                            HealthCheckRequest(
+                                workflow=workflow,
+                                scope=DiagnosticsScope.MANUAL,
+                            ),
+                        )
+                    self.assertEqual(issues, [])
+
+                with self.subTest(node_type=node_type, state="missing"):
+                    workflow = self._dataset_workflow(
+                        node_type,
+                        "folder",
+                        f"missing_dataset_{index}",
+                        node_id=1510 + index,
+                    )
+                    with patch(
+                        "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                        return_value=paths,
+                    ):
+                        issues = await model_assets.check_model_assets(
+                            workflow,
+                            HealthCheckRequest(
+                                workflow=workflow,
+                                scope=DiagnosticsScope.MANUAL,
+                            ),
+                        )
+
+                    self.assertEqual(len(issues), 1)
+                    serialized = repr(issues[0].to_dict())
+                    self.assertIn(f"missing_dataset_{index}", serialized)
+                    self.assertIn("input", serialized)
+                    self.assertNotIn(temp_root, serialized)
+
+    async def test_training_dataset_named_value_uses_only_registered_dataset_roots(self):
+        with tempfile.TemporaryDirectory() as temp_root:
+            base = Path(temp_root)
+            input_root = base / "input"
+            dataset_root = base / "datasets"
+            input_root.mkdir()
+            dataset_root.mkdir()
+            (dataset_root / "existing_training").mkdir()
+            (input_root / "wrong_root_only").mkdir()
+            paths = self._dataset_paths(input_root, [dataset_root])
+
+            existing_workflow = self._dataset_workflow(
+                "LoadTrainingDataset",
+                "folder_name",
+                "existing_training",
+                named=True,
+            )
+            wrong_root_workflow = self._dataset_workflow(
+                "LoadTrainingDataset",
+                "folder_name",
+                "wrong_root_only",
+                node_id=1521,
+                named=True,
+            )
+
+            with patch(
+                "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                return_value=paths,
+            ):
+                existing_issues = await model_assets.check_model_assets(
+                    existing_workflow,
+                    HealthCheckRequest(
+                        workflow=existing_workflow,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+                wrong_root_issues = await model_assets.check_model_assets(
+                    wrong_root_workflow,
+                    HealthCheckRequest(
+                        workflow=wrong_root_workflow,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+
+        self.assertEqual(existing_issues, [])
+        self.assertEqual(len(wrong_root_issues), 1)
+        serialized = repr(wrong_root_issues[0].to_dict())
+        self.assertIn("wrong_root_only", serialized)
+        self.assertIn("datasets", serialized)
+        self.assertNotIn(temp_root, serialized)
+
+    async def test_training_dataset_uses_empty_extension_host_registry_category(self):
+        with tempfile.TemporaryDirectory() as temp_root:
+            base = Path(temp_root)
+            dataset_root = base / "datasets"
+            dataset_root.mkdir()
+            folder_paths = SimpleNamespace(
+                folder_names_and_paths={
+                    "datasets": ([str(dataset_root)], set()),
+                },
+                get_input_directory=lambda: str(base / "input"),
+                get_output_directory=lambda: str(base / "output"),
+            )
+            workflow = self._dataset_workflow(
+                "LoadTrainingDataset",
+                "folder_name",
+                "missing_registered_training",
+            )
+
+            with patch.dict(sys.modules, {"folder_paths": folder_paths}):
+                issues = await model_assets.check_model_assets(
+                    workflow,
+                    HealthCheckRequest(
+                        workflow=workflow,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+
+        self.assertEqual(len(issues), 1)
+        serialized = repr(issues[0].to_dict())
+        self.assertIn("missing_registered_training", serialized)
+        self.assertIn("datasets", serialized)
+        self.assertNotIn(temp_root, serialized)
+
+    async def test_input_dataset_loader_does_not_fall_back_to_dataset_root(self):
+        with tempfile.TemporaryDirectory() as temp_root:
+            base = Path(temp_root)
+            input_root = base / "input"
+            dataset_root = base / "datasets"
+            input_root.mkdir()
+            dataset_root.mkdir()
+            (dataset_root / "wrong_root_only").mkdir()
+            paths = self._dataset_paths(input_root, [dataset_root])
+            workflow = self._dataset_workflow(
+                "LoadImageDataSetFromFolder",
+                "folder",
+                "wrong_root_only",
+                named=True,
+            )
+
+            with patch(
+                "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                return_value=paths,
+            ):
+                issues = await model_assets.check_model_assets(
+                    workflow,
+                    HealthCheckRequest(
+                        workflow=workflow,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+
+        self.assertEqual(len(issues), 1)
+        self.assertIn("input", repr(issues[0].to_dict()))
+
+    async def test_dataset_mapping_ignores_unrelated_folder_widgets_and_old_registry(self):
+        with tempfile.TemporaryDirectory() as temp_root:
+            input_root = Path(temp_root) / "input"
+            input_root.mkdir()
+            paths = self._dataset_paths(input_root)
+            unrelated = self._dataset_workflow(
+                "CustomFolderLoader",
+                "folder",
+                "missing_custom_folder",
+            )
+            old_host = self._dataset_workflow(
+                "LoadTrainingDataset",
+                "folder_name",
+                "missing_training",
+                node_id=1531,
+            )
+            wrong_widget = self._dataset_workflow(
+                "LoadImageDataSetFromFolder",
+                "unrelated_folder",
+                "missing_wrong_widget",
+                node_id=1532,
+            )
+
+            with patch(
+                "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                return_value=paths,
+            ):
+                unrelated_issues = await model_assets.check_model_assets(
+                    unrelated,
+                    HealthCheckRequest(
+                        workflow=unrelated,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+                old_host_issues = await model_assets.check_model_assets(
+                    old_host,
+                    HealthCheckRequest(
+                        workflow=old_host,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+                wrong_widget_issues = await model_assets.check_model_assets(
+                    wrong_widget,
+                    HealthCheckRequest(
+                        workflow=wrong_widget,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+
+        self.assertEqual(unrelated_issues, [])
+        self.assertEqual(old_host_issues, [])
+        self.assertEqual(wrong_widget_issues, [])
+
+    async def test_dataset_rejects_external_candidates_before_directory_probes(self):
+        with tempfile.TemporaryDirectory() as temp_root:
+            base = Path(temp_root)
+            input_root = base / "input"
+            input_root.mkdir()
+            outside = base / "outside_dataset"
+            outside.mkdir()
+            paths = self._dataset_paths(input_root)
+            candidates = (
+                "../outside_dataset",
+                str(outside),
+                "nul\x00dataset",
+                "x" * (model_assets.MAX_NAMED_WIDGET_VALUE_LENGTH + 1),
+            )
+
+            for index, candidate in enumerate(candidates):
+                with self.subTest(index=index):
+                    workflow = self._dataset_workflow(
+                        "LoadImageDataSetFromFolder",
+                        "folder",
+                        candidate,
+                        node_id=1540 + index,
+                    )
+                    with (
+                        patch(
+                            "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                            return_value=paths,
+                        ),
+                        patch.object(
+                            Path,
+                            "is_dir",
+                            side_effect=AssertionError(
+                                "directory probe must follow containment"
+                            ),
+                        ) as is_dir_mock,
+                        patch.object(
+                            Path,
+                            "iterdir",
+                            side_effect=AssertionError(
+                                "dataset lookup must not enumerate directories"
+                            ),
+                        ) as iterdir_mock,
+                        patch(
+                            "services.diagnostics.checks.model_assets.os.access",
+                            side_effect=AssertionError(
+                                "readability probe must follow containment"
+                            ),
+                        ) as access_mock,
+                        patch("os.listdir") as listdir_mock,
+                        patch("builtins.open", mock_open()) as open_mock,
+                    ):
+                        issues = await model_assets.check_model_assets(
+                            workflow,
+                            HealthCheckRequest(
+                                workflow=workflow,
+                                scope=DiagnosticsScope.MANUAL,
+                            ),
+                        )
+
+                    self.assertEqual(len(issues), 1)
+                    serialized = repr(issues[0].to_dict())
+                    self.assertIn(
+                        model_assets.INVALID_ASSET_DISPLAY_NAME,
+                        serialized,
+                    )
+                    self.assertNotIn("outside_dataset", serialized)
+                    self.assertNotIn(temp_root, serialized)
+                    self.assertLess(len(serialized), 2000)
+                    is_dir_mock.assert_not_called()
+                    iterdir_mock.assert_not_called()
+                    access_mock.assert_not_called()
+                    listdir_mock.assert_not_called()
+                    open_mock.assert_not_called()
+
+    async def test_dataset_rejects_symlink_escape_before_directory_probes(self):
+        with tempfile.TemporaryDirectory() as temp_root:
+            base = Path(temp_root)
+            input_root = base / "input"
+            input_root.mkdir()
+            outside = base / "outside_dataset"
+            outside.mkdir()
+            linked = input_root / "linked_dataset"
+            try:
+                linked.symlink_to(outside, target_is_directory=True)
+            except OSError as exc:
+                self.skipTest(
+                    f"symlink creation unavailable: {type(exc).__name__}"
+                )
+
+            workflow = self._dataset_workflow(
+                "LoadVideoDataSetFromFolder",
+                "folder",
+                linked.name,
+            )
+            with (
+                patch(
+                    "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                    return_value=self._dataset_paths(input_root),
+                ),
+                patch.object(Path, "is_dir") as is_dir_mock,
+                patch(
+                    "services.diagnostics.checks.model_assets.os.access"
+                ) as access_mock,
+                patch("os.listdir") as listdir_mock,
+                patch("builtins.open", mock_open()) as open_mock,
+            ):
+                issues = await model_assets.check_model_assets(
+                    workflow,
+                    HealthCheckRequest(
+                        workflow=workflow,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+
+            self.assertEqual(len(issues), 1)
+            self.assertIn(
+                model_assets.INVALID_ASSET_DISPLAY_NAME,
+                repr(issues[0].to_dict()),
+            )
+            is_dir_mock.assert_not_called()
+            access_mock.assert_not_called()
+            listdir_mock.assert_not_called()
+            open_mock.assert_not_called()
+
+    async def test_dataset_rejects_simulated_symlink_escape_before_probes(self):
+        with tempfile.TemporaryDirectory() as temp_root:
+            base = Path(temp_root)
+            input_root = base / "input"
+            input_root.mkdir()
+            linked = input_root / "simulated_link"
+            linked.mkdir()
+            outside = base / "simulated_outside"
+            outside.mkdir()
+            original_realpath = os.path.realpath
+
+            def realpath_spy(path):
+                normalized = os.path.normcase(
+                    os.path.abspath(os.fspath(path))
+                )
+                if normalized == os.path.normcase(
+                    os.path.abspath(os.fspath(linked))
+                ):
+                    return os.fspath(outside)
+                return original_realpath(path)
+
+            workflow = self._dataset_workflow(
+                "LoadVideoTextDataSetFromFolder",
+                "folder",
+                linked.name,
+            )
+            with (
+                patch(
+                    "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                    return_value=self._dataset_paths(input_root),
+                ),
+                patch(
+                    "services.diagnostics.checks.model_assets.os.path.realpath",
+                    side_effect=realpath_spy,
+                ) as realpath_mock,
+                patch.object(Path, "is_dir") as is_dir_mock,
+                patch(
+                    "services.diagnostics.checks.model_assets.os.access"
+                ) as access_mock,
+                patch("os.listdir") as listdir_mock,
+                patch("builtins.open", mock_open()) as open_mock,
+            ):
+                issues = await model_assets.check_model_assets(
+                    workflow,
+                    HealthCheckRequest(
+                        workflow=workflow,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+
+            self.assertEqual(len(issues), 1)
+            self.assertIn(
+                model_assets.INVALID_ASSET_DISPLAY_NAME,
+                repr(issues[0].to_dict()),
+            )
+            realpath_mock.assert_called()
+            is_dir_mock.assert_not_called()
+            access_mock.assert_not_called()
+            listdir_mock.assert_not_called()
+            open_mock.assert_not_called()
+
+    async def test_dataset_unreadable_folder_is_reported_without_enumeration(self):
+        with tempfile.TemporaryDirectory() as temp_root:
+            input_root = Path(temp_root) / "input"
+            input_root.mkdir()
+            (input_root / "unreadable_dataset").mkdir()
+            workflow = self._dataset_workflow(
+                "LoadImageTextDataSetFromFolder",
+                "folder",
+                "unreadable_dataset",
+            )
+
+            with (
+                patch(
+                    "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                    return_value=self._dataset_paths(input_root),
+                ),
+                patch(
+                    "services.diagnostics.checks.model_assets.os.access",
+                    return_value=False,
+                ) as access_mock,
+                patch.object(Path, "iterdir") as iterdir_mock,
+                patch("os.listdir") as listdir_mock,
+                patch("builtins.open", mock_open()) as open_mock,
+            ):
+                issues = await model_assets.check_model_assets(
+                    workflow,
+                    HealthCheckRequest(
+                        workflow=workflow,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+
+            self.assertEqual(len(issues), 1)
+            self.assertEqual(issues[0].title, "Dataset Folder Not Readable")
+            self.assertNotIn(temp_root, repr(issues[0].to_dict()))
+            access_mock.assert_called_once()
+            iterdir_mock.assert_not_called()
+            listdir_mock.assert_not_called()
+            open_mock.assert_not_called()
+
+    async def test_dataset_values_obey_path_budget(self):
+        with tempfile.TemporaryDirectory() as temp_root:
+            input_root = Path(temp_root) / "input"
+            input_root.mkdir()
+            workflow = {
+                "nodes": [
+                    self._dataset_workflow(
+                        "LoadImageDataSetFromFolder",
+                        "folder",
+                        f"missing_dataset_{index}",
+                        node_id=1560 + index,
+                        named=index % 2 == 1,
+                    )["nodes"][0]
+                    for index in range(3)
+                ]
+            }
+
+            with patch(
+                "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                return_value=self._dataset_paths(input_root),
+            ):
+                issues = await model_assets.check_model_assets(
+                    workflow,
+                    HealthCheckRequest(
+                        workflow=workflow,
+                        scope=DiagnosticsScope.MANUAL,
+                        max_paths=1,
+                    ),
+                )
+
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].target.node_id, 1560)
+
     async def test_model_assets_rejects_traversal_before_exists_or_open(self):
         with tempfile.TemporaryDirectory() as temp_root:
             base = Path(temp_root)
@@ -1005,6 +1526,365 @@ class TestModelAssetsChecks(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn(temp_root, serialized)
             open_mock.assert_not_called()
 
+    async def test_named_widget_root_value_is_diagnosed_without_raw_map_evidence(self):
+        workflow = {
+            "nodes": [
+                {
+                    "id": 132,
+                    "type": "CheckpointLoaderSimple",
+                    "inputs": [
+                        {
+                            "name": "ckpt_name",
+                            "widget": {"name": "ckpt_name"},
+                        }
+                    ],
+                    "widgets_values_named": {
+                        "ckpt_name": "named_root_missing.safetensors",
+                    },
+                }
+            ]
+        }
+        request = HealthCheckRequest(
+            workflow=workflow,
+            scope=DiagnosticsScope.MANUAL,
+        )
+
+        with patch(
+            "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+            return_value=self._checkpoint_paths(Path("synthetic-empty-root")),
+        ):
+            issues = await model_assets.check_model_assets(workflow, request)
+
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].target.node_id, 132)
+        serialized = repr(issues[0].to_dict())
+        self.assertIn("named_root_missing.safetensors", serialized)
+        self.assertNotIn("widgets_values_named", serialized)
+        self.assertNotIn("ckpt_name", serialized)
+
+    async def test_named_widget_dual_and_conflict_keep_positional_precedence(self):
+        with tempfile.TemporaryDirectory() as temp_root:
+            checkpoint_root = Path(temp_root) / "checkpoints"
+            checkpoint_root.mkdir()
+            (checkpoint_root / "positional_present.safetensors").write_bytes(
+                b"x"
+            )
+            paths = self._checkpoint_paths(checkpoint_root)
+            node_input = {
+                "name": "ckpt_name",
+                "widget": {"name": "ckpt_name"},
+            }
+            dual_workflow = {
+                "nodes": [
+                    {
+                        "id": 133,
+                        "type": "CheckpointLoaderSimple",
+                        "inputs": [node_input],
+                        "widgets_values": ["dual_missing.safetensors"],
+                        "widgets_values_named": {
+                            "ckpt_name": "dual_missing.safetensors",
+                        },
+                    }
+                ]
+            }
+            conflict_workflow = {
+                "nodes": [
+                    {
+                        "id": 134,
+                        "type": "CheckpointLoaderSimple",
+                        "inputs": [node_input],
+                        "widgets_values": ["positional_present.safetensors"],
+                        "widgets_values_named": {
+                            "ckpt_name": "named_conflict_missing.safetensors",
+                        },
+                    }
+                ]
+            }
+
+            with patch(
+                "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                return_value=paths,
+            ):
+                dual_issues = await model_assets.check_model_assets(
+                    dual_workflow,
+                    HealthCheckRequest(
+                        workflow=dual_workflow,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+                conflict_issues = await model_assets.check_model_assets(
+                    conflict_workflow,
+                    HealthCheckRequest(
+                        workflow=conflict_workflow,
+                        scope=DiagnosticsScope.MANUAL,
+                    ),
+                )
+
+        self.assertEqual(len(dual_issues), 1)
+        self.assertIn(
+            "dual_missing.safetensors",
+            repr(dual_issues[0].to_dict()),
+        )
+        self.assertEqual(conflict_issues, [])
+
+    async def test_named_widget_malformed_maps_preserve_positional_behavior(self):
+        malformed_values = (
+            None,
+            [],
+            {"__proto__": "reserved_missing.safetensors"},
+            {"k" * 129: "oversized_key_missing.safetensors"},
+            {"ckpt_name": 42},
+            {
+                f"unknown_{index}": f"ignored_{index}.safetensors"
+                for index in range(300)
+            },
+        )
+        empty_paths = self._checkpoint_paths(Path("synthetic-empty-root"))
+
+        for index, named_values in enumerate(malformed_values, start=1):
+            with self.subTest(index=index):
+                workflow = {
+                    "nodes": [
+                        {
+                            "id": 135 + index,
+                            "type": "CheckpointLoaderSimple",
+                            "widgets_values": [
+                                f"positional_{index}_missing.safetensors"
+                            ],
+                            "widgets_values_named": named_values,
+                        }
+                    ]
+                }
+                with patch(
+                    "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                    return_value=empty_paths,
+                ):
+                    issues = await model_assets.check_model_assets(
+                        workflow,
+                        HealthCheckRequest(
+                            workflow=workflow,
+                            scope=DiagnosticsScope.MANUAL,
+                        ),
+                    )
+
+                self.assertEqual(len(issues), 1)
+                serialized = repr(issues[0].to_dict())
+                self.assertIn(
+                    f"positional_{index}_missing.safetensors",
+                    serialized,
+                )
+                self.assertNotIn("reserved_missing", serialized)
+                self.assertNotIn("oversized_key_missing", serialized)
+
+    def test_named_widget_resolution_rejects_ambiguous_and_oversized_shapes(self):
+        self.assertEqual(
+            model_assets._safe_named_widget_values(
+                {
+                    "widgets_values_named": {
+                        "ckpt_name": "bounded_missing.safetensors",
+                    }
+                }
+            ),
+            {"ckpt_name": "bounded_missing.safetensors"},
+        )
+        self.assertEqual(
+            model_assets._safe_named_widget_values(
+                {
+                    "widgets_values_named": {
+                        f"key_{index}": "ignored.safetensors"
+                        for index in range(
+                            model_assets.MAX_NAMED_WIDGET_ENTRIES + 1
+                        )
+                    }
+                }
+            ),
+            {},
+        )
+        self.assertEqual(
+            model_assets._effective_widget_values(
+                {
+                    "inputs": [
+                        {
+                            "name": "first",
+                            "widget": {"name": "ckpt_name"},
+                        },
+                        {
+                            "name": "second",
+                            "widget": {"name": "ckpt_name"},
+                        },
+                    ],
+                    "widgets_values_named": {
+                        "ckpt_name": "ambiguous_missing.safetensors",
+                    },
+                }
+            ),
+            (),
+        )
+        self.assertEqual(
+            model_assets._effective_widget_values(
+                {
+                    "inputs": [
+                        {
+                            "name": "malformed",
+                            "widget": {"name": ["not", "a", "string"]},
+                        },
+                        {
+                            "name": "ckpt_name",
+                            "widget": {"name": "ckpt_name"},
+                        },
+                    ],
+                    "widgets_values": [None],
+                    "widgets_values_named": {
+                        "ckpt_name": "correct_slot_missing.safetensors",
+                    },
+                }
+            ),
+            (None, "correct_slot_missing.safetensors"),
+        )
+        self.assertEqual(
+            model_assets._effective_widget_values(
+                {
+                    "inputs": [
+                        {
+                            "name": "ckpt_name",
+                            "widget": {"name": "ckpt_name"},
+                        }
+                    ],
+                    "widgets_values": [7],
+                    "widgets_values_named": {
+                        "ckpt_name": "must_not_override.safetensors",
+                    },
+                }
+            ),
+            (7,),
+        )
+        self.assertEqual(
+            model_assets._effective_widget_values(
+                {
+                    "inputs": [
+                        {
+                            "name": f"input_{index}",
+                            "widget": {"name": f"widget_{index}"},
+                        }
+                        for index in range(
+                            model_assets.MAX_NAMED_WIDGET_ENTRIES + 1
+                        )
+                    ],
+                    "widgets_values_named": {
+                        "ckpt_name": "must_not_bypass_schema_limit.safetensors",
+                    },
+                }
+            ),
+            (),
+        )
+
+    def test_named_widget_malformed_promoted_input_name_fails_open(self):
+        definition = self._subgraph_definition(
+            "malformed-named-input",
+            [
+                {
+                    "id": 9,
+                    "type": "CheckpointLoaderSimple",
+                    "inputs": [
+                        {
+                            "name": "ckpt_name",
+                            "widget": {"name": "ckpt_name"},
+                        }
+                    ],
+                    "widgets_values": ["interior_positional.safetensors"],
+                }
+            ],
+            inputs=[
+                {
+                    "name": ["not", "hashable"],
+                    "linkIds": [1],
+                }
+            ],
+            links=[
+                {
+                    "id": 1,
+                    "origin_id": -10,
+                    "origin_slot": 0,
+                    "target_id": 9,
+                    "target_slot": 0,
+                }
+            ],
+        )
+        children = model_assets._apply_promoted_widget_values(
+            definition,
+            {
+                "widgets_values_named": {
+                    "ckpt_name": "named_must_not_apply.safetensors",
+                }
+            },
+        )
+
+        self.assertEqual(len(children), 1)
+        child, promoted_indexes = children[0]
+        self.assertEqual(
+            child["widgets_values"],
+            ["interior_positional.safetensors"],
+        )
+        self.assertEqual(promoted_indexes, frozenset())
+
+    async def test_named_widget_traversal_is_rejected_before_file_probes(self):
+        workflow = {
+            "nodes": [
+                {
+                    "id": 1420,
+                    "type": "CheckpointLoaderSimple",
+                    "inputs": [
+                        {
+                            "name": "ckpt_name",
+                            "widget": {"name": "ckpt_name"},
+                        }
+                    ],
+                    "widgets_values_named": {
+                        "ckpt_name": "../external_named.safetensors",
+                    },
+                }
+            ]
+        }
+
+        with (
+            patch(
+                "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                return_value=self._checkpoint_paths(
+                    Path("synthetic-contained-root")
+                ),
+            ),
+            patch.object(
+                Path,
+                "exists",
+                side_effect=AssertionError(
+                    "existence probe must not run before containment"
+                ),
+            ) as exists_mock,
+            patch.object(
+                Path,
+                "is_file",
+                side_effect=AssertionError(
+                    "file probe must not run before containment"
+                ),
+            ) as is_file_mock,
+            patch("builtins.open", mock_open()) as open_mock,
+        ):
+            issues = await model_assets.check_model_assets(
+                workflow,
+                HealthCheckRequest(
+                    workflow=workflow,
+                    scope=DiagnosticsScope.MANUAL,
+                ),
+            )
+
+        self.assertEqual(len(issues), 1)
+        serialized = repr(issues[0].to_dict())
+        self.assertIn(model_assets.INVALID_ASSET_DISPLAY_NAME, serialized)
+        self.assertNotIn("external_named.safetensors", serialized)
+        exists_mock.assert_not_called()
+        is_file_mock.assert_not_called()
+        open_mock.assert_not_called()
+
     @staticmethod
     def _nested_asset_workflow(
         root_nodes,
@@ -1208,6 +2088,126 @@ class TestModelAssetsChecks(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(
             issues[0].metadata["asset_provenance"]["promoted"]
         )
+
+    async def test_named_widget_promoted_nested_value_preserves_provenance(self):
+        definition = self._subgraph_definition(
+            "named-promoted-subgraph",
+            [
+                {
+                    "id": 9,
+                    "type": "CheckpointLoaderSimple",
+                    "title": "Interior Named Loader",
+                    "inputs": [
+                        {
+                            "name": "ckpt_name",
+                            "type": "COMBO",
+                            "widget": {"name": "ckpt_name"},
+                            "link": 1,
+                        }
+                    ],
+                    "widgets_values": ["stale_interior.safetensors"],
+                }
+            ],
+            inputs=[
+                {
+                    "id": "named-ckpt-input",
+                    "name": "ckpt_name",
+                    "type": "COMBO",
+                    "linkIds": [1],
+                }
+            ],
+            links=[
+                {
+                    "id": 1,
+                    "origin_id": -10,
+                    "origin_slot": 0,
+                    "target_id": 9,
+                    "target_slot": 0,
+                    "type": "COMBO",
+                }
+            ],
+        )
+        workflow = self._nested_asset_workflow(
+            [
+                {
+                    "id": 142,
+                    "type": "named-promoted-subgraph",
+                    "title": "Visible Named Host",
+                    "widgets_values_named": {
+                        "ckpt_name": "named_promoted_missing.safetensors",
+                    },
+                }
+            ],
+            [definition],
+        )
+
+        with patch(
+            "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+            return_value=self._checkpoint_paths(Path("synthetic-empty-root")),
+        ):
+            issues = await model_assets.check_model_assets(
+                workflow,
+                HealthCheckRequest(
+                    workflow=workflow,
+                    scope=DiagnosticsScope.MANUAL,
+                ),
+            )
+
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].target.node_id, 142)
+        serialized = repr(issues[0].to_dict())
+        self.assertIn("named_promoted_missing.safetensors", serialized)
+        self.assertNotIn("stale_interior.safetensors", serialized)
+        self.assertEqual(
+            issues[0].metadata["asset_provenance"],
+            {
+                "visible_node_id": 142,
+                "source_execution_id": "142:9",
+                "source_node_id": 9,
+                "source_node_type": "CheckpointLoaderSimple",
+                "promoted": True,
+            },
+        )
+
+    async def test_named_widget_values_obey_path_and_node_budgets(self):
+        workflow = {
+            "nodes": [
+                {
+                    "id": index,
+                    "type": "CheckpointLoaderSimple",
+                    "inputs": [
+                        {
+                            "name": "ckpt_name",
+                            "widget": {"name": "ckpt_name"},
+                        }
+                    ],
+                    "widgets_values_named": {
+                        "ckpt_name": f"named_budget_{index}.safetensors",
+                    },
+                }
+                for index in range(4)
+            ]
+        }
+        empty_paths = self._checkpoint_paths(Path("synthetic-empty-root"))
+
+        with (
+            patch(
+                "services.diagnostics.checks.model_assets._get_comfy_model_paths",
+                return_value=empty_paths,
+            ),
+            patch.object(model_assets, "MAX_WORKFLOW_NODES", 2),
+        ):
+            issues = await model_assets.check_model_assets(
+                workflow,
+                HealthCheckRequest(
+                    workflow=workflow,
+                    scope=DiagnosticsScope.MANUAL,
+                    max_paths=1,
+                ),
+            )
+
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].target.node_id, 0)
 
     async def test_shared_subgraph_hosts_keep_instance_specific_findings(self):
         definition = self._subgraph_definition(

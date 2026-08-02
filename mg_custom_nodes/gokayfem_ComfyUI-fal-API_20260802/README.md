@@ -2,7 +2,7 @@
 
 **Every fal model in ComfyUI, one API key.**
 
-Custom nodes that bring the entire [fal.ai](https://fal.ai) catalog into ComfyUI: ~90 curated hand-written nodes for the most popular models, plus ~1,391 auto-generated nodes covering every live public model on fal — image, video, audio, 3D, LLMs and more. One `FAL_KEY` unlocks all of them. With a persistent result cache (never pay for the same call twice), spend guards, async fan-out, and zero-I/O fal→fal chaining. The full model catalog lives in [MODELS.md](MODELS.md).
+Custom nodes that bring the entire [fal.ai](https://fal.ai) catalog into ComfyUI: ~90 curated hand-written nodes for the most popular models, plus ~1,400 auto-generated nodes covering every live public model on fal — image, video, audio, 3D, LLMs and more. One `FAL_KEY` unlocks all of them. With a persistent result cache (never pay for the same call twice), spend guards, async fan-out, and zero-I/O fal→fal chaining. The exact current catalog lives in [MODELS.md](MODELS.md).
 
 ## Table of Contents
 
@@ -26,7 +26,8 @@ Custom nodes that bring the entire [fal.ai](https://fal.ai) catalog into ComfyUI
 - **Typed builder nodes** — build LoRA lists and reference-element configs with dedicated, connectable nodes instead of hand-typed JSON.
 - **Featured tier** — hand-picked models surface under **FAL/Featured** in the node menu, and models superseded by newer versions are flagged.
 - **Registry freshness** — the pack warns when the committed model registry snapshot is stale, and you can refresh it from the fal sidebar without leaving ComfyUI.
-- **MODELS.md** — the full ~1,391-model catalog moved out of this README into [MODELS.md](MODELS.md).
+- **Automatic daily catalog updates** — a guarded GitHub workflow validates and commits new fal endpoints without waiting for a manual PR merge. Missing historical endpoints remain registered under **FAL/Compatibility** so saved workflows still load.
+- **MODELS.md** — the full ~1,400-model catalog moved out of this README into [MODELS.md](MODELS.md).
 
 ### 2.4
 
@@ -46,23 +47,32 @@ Platform utilities under `FAL/Platform`: **Fal Submit + Fal Collect** for parall
 
 ### 2.0
 
-Every live public model on fal became a node: ~1,391 auto-generated nodes built at startup from the committed `data/fal_registry.json`, with native `IMAGE`/`VIDEO`/`AUDIO` sockets, schema-derived tooltips, and pricing in the help panel. Plus the generic **Fal Any Endpoint** node, visible errors (failed calls raise fal's actual error message instead of silently returning blanks), progress + cancellation, and full backward compatibility for all ~90 curated nodes.
+Every live public model on fal became a node: ~1,400 auto-generated nodes built at startup from the committed `data/fal_registry.json`, with native `IMAGE`/`VIDEO`/`AUDIO` sockets, schema-derived tooltips, and pricing in the help panel. Plus the generic **Fal Any Endpoint** node, visible errors (failed calls raise fal's actual error message instead of silently returning blanks), progress + cancellation, and full backward compatibility for all ~90 curated nodes.
 
 ## Installation
 
-1. Navigate to your ComfyUI custom nodes directory:
+The recommended installation method is **ComfyUI Manager**: search for
+`ComfyUI-fal-API`, install it, and restart ComfyUI. Manager installs the
+dependencies into the same Python environment ComfyUI uses.
+
+For a manual installation:
+
+1. Navigate to your ComfyUI custom-nodes directory and clone this repository:
    ```
    cd custom_nodes
-   ```
-2. Clone this repository:
-   ```
    git clone https://github.com/gokayfem/ComfyUI-fal-API.git
+   cd ComfyUI-fal-API
    ```
-3. Install the required dependencies:
+2. Install the dependencies with **ComfyUI's Python**, not an unrelated system
+   `pip`:
    ```
-   pip install -r requirements.txt
+   python -m pip install -r requirements.txt
    ```
-4. Configure your API key (below) and restart ComfyUI. Curated nodes appear under the **FAL** category, auto-generated nodes under **FAL/Models/&lt;category&gt;** (e.g. `FAL/Models/text-to-image`), and hand-picked models under **FAL/Featured** — or just search for any model by name.
+   From the root of **ComfyUI Windows Portable**, use its embedded interpreter:
+   ```powershell
+   .\python_embeded\python.exe -m pip install -r .\ComfyUI\custom_nodes\ComfyUI-fal-API\requirements.txt
+   ```
+3. Configure your API key (below) and restart ComfyUI. Curated nodes appear under the **FAL** category, auto-generated nodes under **FAL/Models/&lt;category&gt;** (e.g. `FAL/Models/text-to-image`), and hand-picked models under **FAL/Featured** — or just search for any model by name.
 
 ## Configuration
 
@@ -122,7 +132,7 @@ Find them in the node browser under `FAL/Models/<category>`, or search by model 
 
 **Fal Any Endpoint (fal)** is the escape hatch: one generic node that calls *any* fal endpoint by id with free-form JSON arguments plus optional image/video/audio inputs (uploaded and merged into the matching keys). Outputs are extracted as `IMAGE`/`VIDEO`/`AUDIO`, with the raw result always available as `result_json`. Even brand-new models work the day they launch.
 
-**Keeping the catalog fresh:** a weekly GitHub Action refreshes `data/fal_registry.json` and opens a PR; you can also run `python scripts/build_registry.py` yourself (then `python scripts/build_readme.py` to regenerate MODELS.md), or use the refresh button in the fal sidebar. If ~1,391 extra nodes is more than you want, the `[dynamic_nodes]` config section disables or filters them — see [Configuration](#configuration).
+**Keeping the catalog fresh:** a daily GitHub Action builds a candidate registry, validates its structure and endpoint changes, regenerates [MODELS.md](MODELS.md), and commits the result when it is safe. Large unexpected catalog changes are blocked rather than published. Endpoints missing from a refresh are retained under **FAL/Compatibility** instead of deleting their node keys and breaking saved workflows. You can also run `python scripts/build_registry.py` yourself (then `python scripts/build_readme.py`), or use the refresh button in the fal sidebar. Install updates through ComfyUI Manager to receive the latest committed snapshot; locally refreshed nodes appear after restarting ComfyUI. If ~1,400 extra nodes is more than you want, the `[dynamic_nodes]` config section disables or filters them — see [Configuration](#configuration).
 
 ## Platform Utilities
 
@@ -168,12 +178,23 @@ The full LoRA-training pipeline needs nothing else: Load Image Folder → Batch 
    ```
    cd custom_nodes/ComfyUI-fal-API
    git pull
-   pip install -r requirements.txt
+   python -m pip install -r requirements.txt
    ```
-3. If you're using ComfyUI Windows Portable, you may need to install fal-client manually:
+3. **Windows Portable Python is blocked or no longer starts after installing a node?**
+   Do not keep rerunning `pip`. From the portable root, first check the exact
+   interpreter and dependency state:
+   ```powershell
+   .\python_embeded\python.exe -c "import sys; print(sys.executable); print(sys.version)"
+   .\python_embeded\python.exe -m pip check
    ```
-   ComfyUI_windows_portable>.\python_embeded\python.exe -m pip install fal-client
-   ```
+   This project installs Python packages only; it does not replace or modify
+   `python.exe`. If the first command itself is blocked or the executable was
+   quarantined, review Windows Security **Protection history**. Restore a file
+   only when the portable archive came from the official ComfyUI release, or
+   re-extract a clean official portable build and move your `models`, `input`,
+   `output`, and `user` data across. Avoid disabling antivirus globally. Then
+   reinstall this node through ComfyUI Manager, or use the exact embedded-
+   interpreter requirements command from the Installation section.
 4. **Dynamic nodes not appearing?** Check the ComfyUI console for a line like `Registered N dynamic fal nodes` at startup. If it says the nodes are disabled, remove `enabled = false` from the `[dynamic_nodes]` section of your `config.ini` (and check the `categories` filter isn't excluding what you're looking for). Any registry loading error is also printed there.
 5. **`VIDEO` output is `None` or video sockets are missing?** Update ComfyUI — native `VIDEO`/`AUDIO` types require a recent ComfyUI version.
 6. **API calls failing?** Failed fal requests raise visible errors that include fal's actual error message (validation issues, content policy, quota). Read the error text in ComfyUI — it usually tells you exactly which parameter to fix.

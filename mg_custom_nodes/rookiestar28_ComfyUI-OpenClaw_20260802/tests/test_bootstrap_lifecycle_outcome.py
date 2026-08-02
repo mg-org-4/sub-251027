@@ -89,7 +89,7 @@ class TestStartupOutcomeContract(unittest.TestCase):
             self.assertLessEqual(diagnostics[field], MAX_DIAGNOSTIC_MS)
 
     def test_invalid_and_post_fatal_transitions_do_not_mutate_state(self):
-        lifecycle = StartupLifecycle()
+        lifecycle = StartupLifecycle(monotonic_fn=_Clock())
         before = lifecycle.snapshot()
 
         with self.assertRaises(StartupTransitionError) as invalid:
@@ -108,7 +108,7 @@ class TestStartupOutcomeContract(unittest.TestCase):
         self.assertEqual(lifecycle.snapshot(), fatal)
 
     def test_retry_attempt_must_increase_and_stay_within_bound(self):
-        lifecycle = StartupLifecycle()
+        lifecycle = StartupLifecycle(monotonic_fn=_Clock())
         lifecycle.mark_required_initialization_started()
         lifecycle.mark_host_waiting(attempt=0, max_attempts=2)
 
@@ -134,7 +134,7 @@ class TestStartupOutcomeContract(unittest.TestCase):
         )
 
     def test_fatal_reason_must_match_its_phase(self):
-        lifecycle = StartupLifecycle()
+        lifecycle = StartupLifecycle(monotonic_fn=_Clock())
         before = lifecycle.snapshot()
 
         with self.assertRaises(StartupTransitionError) as mismatch:

@@ -2,13 +2,15 @@ import { test, expect } from '@playwright/test';
 import { mockComfyUiCore, waitForOpenClawReady, clickTab } from '../utils/helpers.js';
 
 async function routeTransientOpenClawEntryFailures(page, failureCount) {
-  let remainingFailures = failureCount;
-  let abortedEntryRequests = 0;
+  let remainingLogicalFailures = failureCount;
+  let activeAttempt = null;
+  let failActiveAttempt = false;
+  let failedLogicalAttempts = 0;
 
   // IMPORTANT: keep this query-agnostic; Windows CI must intercept the harness
   // retry seam even when the dynamic import URL carries cache-busting params.
-  // IMPORTANT: assert logical harness attempts, not raw request counts; Chromium
-  // may duplicate a module transport request on Windows without a new attempt.
+  // IMPORTANT: fail by logical attempt, not raw request count; Chromium may retry
+  // one module transport internally without advancing the harness retry loop.
   await page.route('**/web/openclaw.js**', async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname !== '/web/openclaw.js') {
@@ -16,10 +18,30 @@ async function routeTransientOpenClawEntryFailures(page, failureCount) {
       return;
     }
 
-    if (remainingFailures > 0) {
-      remainingFailures -= 1;
-      abortedEntryRequests += 1;
-      await route.abort('failed');
+    const attempt = Number.parseInt(
+      url.searchParams.get('openclaw_harness_attempt') || '',
+      10,
+    );
+    if (!Number.isInteger(attempt) || attempt < 1) {
+      await route.fallback();
+      return;
+    }
+
+    if (attempt !== activeAttempt) {
+      activeAttempt = attempt;
+      failActiveAttempt = remainingLogicalFailures > 0;
+      if (failActiveAttempt) {
+        remainingLogicalFailures -= 1;
+        failedLogicalAttempts += 1;
+      }
+    }
+
+    if (failActiveAttempt) {
+      await route.fulfill({
+        status: 503,
+        contentType: 'text/javascript',
+        body: '// Injected transient module-fetch failure.',
+      });
       return;
     }
 
@@ -27,7 +49,7 @@ async function routeTransientOpenClawEntryFailures(page, failureCount) {
   });
 
   return {
-    abortedEntryRequests: () => abortedEntryRequests,
+    failedLogicalAttempts: () => failedLogicalAttempts,
   };
 }
 
@@ -123,7 +145,7 @@ test.describe('OpenClaw Sidebar', () => {
     await page.reload();
     await waitForOpenClawReady(page);
     await expect(page.locator('.openclaw-title')).toHaveText('OpenClaw');
-    expect(entryRetry.abortedEntryRequests()).toBe(1);
+    expect(entryRetry.failedLogicalAttempts()).toBe(1);
     await expect
       .poll(() => page.evaluate(() => window.__openclawTestLoadAttempts))
       .toBe(2);
@@ -135,7 +157,7 @@ test.describe('OpenClaw Sidebar', () => {
     await page.reload();
     await waitForOpenClawReady(page);
     await expect(page.locator('.openclaw-title')).toHaveText('OpenClaw');
-    expect(entryRetry.abortedEntryRequests()).toBe(2);
+    expect(entryRetry.failedLogicalAttempts()).toBe(2);
     await expect
       .poll(() => page.evaluate(() => window.__openclawTestLoadAttempts))
       .toBe(3);
@@ -147,12 +169,7 @@ test.describe('OpenClaw Sidebar', () => {
     await page.reload();
     await waitForOpenClawReady(page);
     await expect(page.locator('.openclaw-title')).toHaveText('OpenClaw');
-    // Reproduce Chromium's Windows-only duplicate transport request without
-    // advancing the harness's logical retry attempt.
-    await page.evaluate(() => fetch(
-      '../../web/openclaw.js?openclaw_harness_attempt=4',
-    ).then((response) => response.text()));
-    expect(entryRetry.abortedEntryRequests()).toBe(3);
+    expect(entryRetry.failedLogicalAttempts()).toBe(3);
     await expect
       .poll(() => page.evaluate(() => window.__openclawTestLoadAttempts))
       .toBe(4);
@@ -164,7 +181,7 @@ test.describe('OpenClaw Sidebar', () => {
     await page.reload();
     await waitForOpenClawReady(page);
     await expect(page.locator('.openclaw-title')).toHaveText('OpenClaw');
-    expect(entryRetry.abortedEntryRequests()).toBe(4);
+    expect(entryRetry.failedLogicalAttempts()).toBe(4);
     await expect
       .poll(() => page.evaluate(() => window.__openclawTestLoadAttempts))
       .toBe(1);

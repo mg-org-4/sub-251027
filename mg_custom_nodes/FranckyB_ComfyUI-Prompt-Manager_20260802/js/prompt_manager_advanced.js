@@ -1,6 +1,20 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { PM_UI_PALETTE as UI } from "./ui_palette.js";
+import {
+    configurePromptBrowserDeps,
+    showThumbnailBrowser,
+    openPromptBrowserForSave,
+    getHideNSFW,
+    setHideNSFW,
+    getViewMode,
+    setViewMode,
+    getThumbnailPreviewEnabled,
+    getBrowserContentFilter,
+    setBrowserContentFilter,
+    getPromptNamesForCategory,
+    getVisibleCategories,
+} from "./prompt_browser.js";
 
 const PMA_THEME = {
     panel: UI.panel || "hsl(216 11% 15%)",
@@ -154,15 +168,6 @@ function attachPromptInputMaskShim() {
     };
 }
 
-// ========================
-// Session State for NSFW & View Mode & Thumbnail Preview
-// ========================
-// These persist during a working session but reset to preferences on ComfyUI restart
-let sessionHideNSFW = null;   // null = use preference default
-let sessionViewMode = null;   // null = use localStorage default
-let sessionEnableThumbnailPreview = null;  // null = use localStorage default
-let sessionBrowserContentFilter = null; // null = use preference default
-
 // Shared thumbnail queue state for right-click single generations.
 let _thumbQueueTotal = 0;
 let _thumbQueueDone = 0;
@@ -170,37 +175,6 @@ let _thumbQueueFailed = 0;
 let _thumbQueueCancelled = false;
 let _thumbQueueProgress = null;
 let _thumbQueuePromiseChain = Promise.resolve();
-
-function getHideNSFW() {
-    if (sessionHideNSFW !== null) return sessionHideNSFW;
-    return app.ui.settings.getSettingValue("PromptManager.DefaultHideNSFW");
-}
-
-function getViewMode(compactBrowser = false) {
-    if (sessionViewMode !== null) {
-        if (compactBrowser && sessionViewMode === "icon") return "grid";
-        return sessionViewMode;
-    }
-    const stored = localStorage.getItem("PromptManager.BrowserViewMode");
-    const mode = stored === "list" || stored === "icon" ? stored : "grid";
-    if (compactBrowser && mode === "icon") return "grid";
-    return mode;
-}
-
-function getThumbnailPreviewEnabled() {
-    if (sessionEnableThumbnailPreview !== null) return sessionEnableThumbnailPreview;
-    // Try settings API first, fall back to localStorage for backward compatibility
-    const settingValue = app.ui.settings.getSettingValue("PromptManager.EnableThumbnailPreview");
-    if (settingValue !== undefined) return settingValue;
-    const stored = localStorage.getItem("PromptManager.EnableThumbnailPreview");
-    return stored !== null ? stored === "true" : true; // Default to true
-}
-
-function getBrowserContentFilter() {
-    if (sessionBrowserContentFilter !== null) return sessionBrowserContentFilter;
-    const saved = String(app.ui.settings.getSettingValue("PromptManager.BrowserContentFilter") || "all").toLowerCase();
-    return (saved === "prompt" || saved === "recipe" || saved === "all") ? saved : "all";
-}
 
 /**
  * Attempt to initialize the LoRA Manager preview tooltip integration
@@ -1248,24 +1222,6 @@ function collectAllLorasFromChain(node, inputName, visited = new Set()) {
     return allLoras;
 }
 
-function hasWorkflowDataPayload(rawWorkflowData) {
-    return (
-        (typeof rawWorkflowData === "string" && rawWorkflowData.trim().length > 0) ||
-        (rawWorkflowData && typeof rawWorkflowData === "object" && Object.keys(rawWorkflowData).length > 0)
-    );
-}
-
-function hasPromptPresetPayload(promptData) {
-    if (!promptData || typeof promptData !== "object") return false;
-    const promptText = String(promptData.prompt || "").trim();
-    const negativeText = String(promptData.negative_prompt || "").trim();
-    const hasLorasA = Array.isArray(promptData.loras_a) && promptData.loras_a.some((lora) => String(lora?.name || "").trim().length > 0);
-    const hasLorasB = Array.isArray(promptData.loras_b) && promptData.loras_b.some((lora) => String(lora?.name || "").trim().length > 0);
-    const hasLorasC = Array.isArray(promptData.loras_c) && promptData.loras_c.some((lora) => String(lora?.name || "").trim().length > 0);
-    const hasLorasD = Array.isArray(promptData.loras_d) && promptData.loras_d.some((lora) => String(lora?.name || "").trim().length > 0);
-    return promptText.length > 0 || negativeText.length > 0 || hasLorasA || hasLorasB || hasLorasC || hasLorasD;
-}
-
 function hasMeaningfulWorkflowData(rawWorkflowData) {
     const wf = parseJsonObjectSafe(rawWorkflowData, null);
     if (!wf || typeof wf !== "object") return false;
@@ -1321,71 +1277,19 @@ function hasMeaningfulWorkflowData(rawWorkflowData) {
     return hasRuntimeCarrier || positivePrompt.length > 0 || modelA.length > 0 || modelB.length > 0 || hasLorasA || hasLorasB || hasLorasC || hasLorasD || hasSubstantiveRootField;
 }
 
+// Backward-compatible alias used by save/live workflow resolution paths.
+function hasWorkflowDataPayload(rawWorkflowData) {
+    return hasMeaningfulWorkflowData(rawWorkflowData);
+}
+
 function hasConnectedWorkflowInput(node) {
     const wfInput = node?.inputs?.find((inp) => inp?.name === "recipe_data");
     return wfInput?.link != null;
 }
 
-function getPromptNamesForCategory(node, category, options = {}) {
-    const hideNSFW = options.hideNSFW === true;
-    const workflowOnly = options.workflowOnly === true;
-    const contentFilter = String(options.contentFilter || "all").toLowerCase();
-    const categoryPrompts = node?.prompts?.[category];
-    if (!categoryPrompts || typeof categoryPrompts !== "object") return [];
-
-    let promptNames = Object.keys(categoryPrompts)
-        .filter((k) => k !== "__meta__")
-        .sort((a, b) => a.localeCompare(b));
-
-    if (hideNSFW) {
-        promptNames = promptNames.filter((name) => categoryPrompts?.[name]?.nsfw !== true);
-    }
-
-    if (workflowOnly || contentFilter !== "all") {
-        promptNames = promptNames.filter((name) => {
-            const entry = categoryPrompts?.[name];
-            const hasRecipeData = hasWorkflowDataPayload(entry?.workflow_data);
-            const hasPromptData = hasPromptPresetPayload(entry);
-
-            if (workflowOnly && !(hasRecipeData || hasPromptData)) {
-                return false;
-            }
-            if (contentFilter === "prompt") {
-                return hasPromptData;
-            }
-            if (contentFilter === "recipe") {
-                return hasRecipeData;
-            }
-            return true;
-        });
-    }
-
-    return promptNames;
-}
-
-function getVisibleCategories(node, options = {}) {
-    const hideNSFW = options.hideNSFW === true;
-    const workflowOnly = options.workflowOnly === true;
-    const contentFilter = String(options.contentFilter || "all").toLowerCase();
-    const filterEmptyCategories = options.filterEmptyCategories === true;
-    const keepCategory = String(options.keepCategory || "");
-
-    const categories = Object.keys(node?.prompts || {})
-        .filter((c) => c !== "__meta__")
-        .sort((a, b) => a.localeCompare(b));
-
-    if (!filterEmptyCategories) {
-        // Keep empty categories visible so users can still save prompts/workflows into them.
-        return categories;
-    }
-
-    const filtered = categories.filter((category) => {
-        if (keepCategory && category === keepCategory) return true;
-        const names = getPromptNamesForCategory(node, category, { hideNSFW, workflowOnly, contentFilter });
-        return names.length > 0;
-    });
-
-    return filtered;
+function isHiddenCategoryEntryKey(key) {
+    const normalized = String(key || "").toLowerCase();
+    return normalized === "__meta__" || normalized === "_base_prompt_" || normalized === "_prompt_prefix_";
 }
 
 function filterPromptDropdown(node, options = {}) {
@@ -1484,7 +1388,10 @@ function updateWorkflowManagerPreview(node) {
         return "";
     };
 
-    const liveThumbnail = pickThumbnail(liveWorkflow) || (typeof node.connectedThumbnail === "string" ? node.connectedThumbnail : "");
+    // Keep preview scoped to workflow/prompt data only.
+    // Do not fall back to connected execution thumbnails here, or unrelated
+    // generation runs can overwrite the visible composer preview.
+    const liveThumbnail = pickThumbnail(liveWorkflow);
     const savedThumbnail = pickThumbnail(promptData);
 
     // In input-connected mode, never fall back to saved prompt thumbnails.
@@ -3732,7 +3639,7 @@ function addButtonBar(node) {
                     const categoryPrompts = node.prompts?.[targetCategory];
                     if (categoryPrompts && typeof categoryPrompts === "object") {
                         const existingName = Object.keys(categoryPrompts)
-                            .filter((k) => k !== "__meta__")
+                            .filter((k) => !isHiddenCategoryEntryKey(k))
                             .find((k) => k.toLowerCase() === promptName.toLowerCase());
                         if (existingName && categoryPrompts[existingName]?.nsfw === true) {
                             preservedNsfw = true;
@@ -4023,7 +3930,7 @@ function setupCategoryChangeHandler(node) {
 
         const category = value;
         if (node.prompts && node.prompts[category]) {
-            const promptNames = Object.keys(node.prompts[category]).filter(k => k !== '__meta__');
+            const promptNames = Object.keys(node.prompts[category]).filter(k => !isHiddenCategoryEntryKey(k));
             promptWidget.options.values = promptNames;
 
             if (promptNames.length > 0) {
@@ -4139,7 +4046,7 @@ function setupCategoryChangeHandler(node) {
 
         // Update prompt dropdown options in case prompts were deleted/added in another tab
         if (node.prompts && node.prompts[category]) {
-            const promptNames = Object.keys(node.prompts[category]).filter(k => k !== '__meta__').sort((a, b) => a.localeCompare(b));
+            const promptNames = Object.keys(node.prompts[category]).filter(k => !isHiddenCategoryEntryKey(k)).sort((a, b) => a.localeCompare(b));
             promptWidget.options.values = promptNames.length > 0 ? promptNames : [""];
 
             // Check if selected prompt still exists after reload
@@ -4176,7 +4083,7 @@ function setupCategoryChangeHandler(node) {
             if (node.prompts && categoryWidget && newValues && newValues.length > 0) {
                 const currentCategory = categoryWidget.value;
                 if (node.prompts[currentCategory]) {
-                    const categoryPrompts = Object.keys(node.prompts[currentCategory]).filter(k => k !== '__meta__');
+                    const categoryPrompts = Object.keys(node.prompts[currentCategory]).filter(k => !isHiddenCategoryEntryKey(k));
                     const hasOtherCategoryPrompts = newValues.some(val =>
                         val !== "" && !categoryPrompts.includes(val)
                     );
@@ -4257,33 +4164,6 @@ function getWorkflowPromptText(workflowData) {
         return String(modelA.positive_prompt || "");
     }
     return String(workflowData?.positive_prompt || "");
-}
-
-/**
- * Patch an existing saved workflow_data so Expression thumbnails prepend the
- * configured character description to the prompt text.
- */
-function patchExpressionPromptInWorkflowData(workflowData, category) {
-    if (!workflowData || typeof workflowData !== "object") {
-        return workflowData;
-    }
-    const isExpression = typeof category === "string" && category.toLowerCase() === "expressions";
-    if (!isExpression) {
-        return workflowData;
-    }
-
-    const newText = prepareExpressionPromptText(getWorkflowPromptText(workflowData), category);
-
-    if (Number(workflowData.version || 0) >= 2 && workflowData.models && typeof workflowData.models === "object") {
-        const modelA = workflowData.models.model_a;
-        if (modelA && typeof modelA === "object") {
-            modelA.positive_prompt = newText;
-        }
-    } else {
-        workflowData.positive_prompt = newText;
-    }
-
-    return workflowData;
 }
 
 function getWorkflowLorasBySlot(workflowData, slot = "model_a") {
@@ -5881,9 +5761,9 @@ async function deleteCategory(node, category) {
     }
 }
 
-async function deletePrompt(node, category, name) {
+async function deletePrompt(node, category, name, endpointPrefix = "/prompt-manager-advanced") {
     try {
-        const response = await fetch("/prompt-manager-advanced/delete-prompt", {
+        const response = await fetch(`${endpointPrefix}/delete-prompt`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -5969,7 +5849,7 @@ function updateDropdowns(node) {
     // Update prompt dropdown for current category (sorted alphabetically)
     const currentCategory = categoryWidget.value;
     if (node.prompts[currentCategory]) {
-        const promptNames = Object.keys(node.prompts[currentCategory]).filter(k => k !== '__meta__').sort((a, b) => a.localeCompare(b));
+        const promptNames = Object.keys(node.prompts[currentCategory]).filter(k => !isHiddenCategoryEntryKey(k)).sort((a, b) => a.localeCompare(b));
 
         if (promptNames.length === 0) {
             promptNames.push("");
@@ -6183,109 +6063,6 @@ function showRenameCategoryDialog(title, message, categories, defaultCategory) {
 
         const handleOk = () => {
             resolve({ oldCategory: selectEl.value, newCategory: input.value });
-            cleanup();
-        };
-
-        const handleCancel = () => {
-            resolve(null);
-            cleanup();
-        };
-
-        okBtn.onclick = handleOk;
-        cancelBtn.onclick = handleCancel;
-        overlay.onclick = handleCancel;
-
-        input.onkeydown = (e) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                e.stopPropagation();
-                handleOk();
-            } else if (e.key === "Escape") {
-                e.preventDefault();
-                e.stopPropagation();
-                handleCancel();
-            }
-        };
-
-        document.body.appendChild(overlay);
-        document.body.appendChild(dialog);
-        input.focus();
-        input.select();
-    });
-}
-
-function showPromptWithCategory(title, message, defaultName, categories, defaultCategory, defaultNsfw = false) {
-    return new Promise((resolve) => {
-        const dialog = document.createElement("div");
-        dialog.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #222;
-            border: 2px solid #444;
-            border-radius: 8px;
-            padding: 20px;
-            z-index: 10000;
-            min-width: 320px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        `;
-
-        const overlay = document.createElement("div");
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.7);
-            z-index: 9999;
-        `;
-
-        // Build category options — sanitize for safe HTML
-        const categoryOptions = categories.map(cat => {
-            const opt = document.createElement("option");
-            opt.value = cat;
-            opt.textContent = cat;
-            return opt.outerHTML;
-        }).join('');
-
-        dialog.innerHTML = `
-            <div style="margin-bottom: 15px; font-size: 16px; font-weight: bold; color: #fff;">${title}</div>
-            <div style="margin-bottom: 6px; color: #aaa; font-size: 12px;">Category:</div>
-            <select style="width: 100%; padding: 8px; margin-bottom: 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 14px;">
-                ${categoryOptions}
-            </select>
-            <div style="margin-bottom: 6px; color: #aaa; font-size: 12px;">${message}</div>
-            <input type="text" style="width: 100%; padding: 8px; margin-bottom: 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 14px; box-sizing: border-box;" />
-            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; color: #aaa; font-size: 13px; cursor: pointer; user-select: none;">
-                <input type="checkbox" class="nsfw-cb" style="cursor: pointer; accent-color: #c44;" />
-                Mark as NSFW
-            </label>
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button class="cancel-btn" style="padding: 8px 16px; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
-                <button class="ok-btn" style="padding: 8px 16px; background: #0a0; color: #fff; border: none; border-radius: 4px; cursor: pointer;">OK</button>
-            </div>
-        `;
-
-        const selectEl = dialog.querySelector("select");
-        const input = dialog.querySelector("input[type='text']");
-        const nsfwCb = dialog.querySelector(".nsfw-cb");
-        const okBtn = dialog.querySelector(".ok-btn");
-        const cancelBtn = dialog.querySelector(".cancel-btn");
-
-        // Set defaults after DOM is built
-        selectEl.value = defaultCategory;
-        input.value = defaultName;
-        nsfwCb.checked = defaultNsfw;
-
-        const cleanup = () => {
-            document.body.removeChild(overlay);
-            document.body.removeChild(dialog);
-        };
-
-        const handleOk = () => {
-            resolve({ name: input.value, category: selectEl.value, nsfw: nsfwCb.checked });
             cleanup();
         };
 
@@ -6848,2039 +6625,7 @@ const DEFAULT_THUMBNAIL = new URL("./placeholder.png", import.meta.url).href;
  * Resize an image to fit within maxSize while maintaining aspect ratio
  * Returns a base64 data URL
  */
-function resizeImageToThumbnail(file, minSize = 200) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                // Calculate new dimensions maintaining aspect ratio
-                // Smallest dimension should be minSize (200px)
-                let width = img.width;
-                let height = img.height;
-                const minDim = Math.min(width, height);
-
-                if (minDim > minSize) {
-                    // Scale down so smallest dimension = minSize
-                    const scale = minSize / minDim;
-                    width = Math.round(width * scale);
-                    height = Math.round(height * scale);
-                }
-                // Note: We don't scale UP if image is smaller than minSize
-
-                // Create canvas and draw resized image
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-
-                // Convert to JPEG for smaller file size
-                resolve(canvas.toDataURL('image/jpeg', 0.85));
-            };
-            img.onerror = reject;
-            img.src = e.target.result;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-}
-
-/**
- * Show thumbnail browser popup for selecting prompts
- * Returns { category, prompt } or null if cancelled
- */
-async function showThumbnailBrowser(node, currentCategory, currentPrompt, options = {}) {
-    // Reload prompts to ensure we have the latest data
-    await loadPrompts(node);
-
-    const mode = options?.mode === "save" ? "save" : "select";
-    const onSave = typeof options?.onSave === "function" ? options.onSave : null;
-    const saveButtonText = options?.saveButtonText || "Save";
-    const saveTitle = options?.title || "Save Workflow";
-    const saveNamePlaceholder = options?.namePlaceholder || "Prompt name";
-    const initialSaveName = typeof options?.initialName === "string" ? options.initialName : "";
-    const workflowOnly = options?.workflowOnly === true || node?._isWorkflowManager === true;
-    const allowedCategories = Array.isArray(options?.allowedCategories)
-        ? options.allowedCategories.map((c) => String(c))
-        : null;
-    const allowedCategorySet = allowedCategories
-        ? new Set(allowedCategories.map((c) => c.toLowerCase()))
-        : null;
-    const selectTitle = typeof options?.title === "string" ? options.title : null;
-
-    const filterAllowedCategories = (categories) => {
-        if (!allowedCategorySet || !Array.isArray(categories)) return categories;
-        return categories.filter((cat) => allowedCategorySet.has(String(cat).toLowerCase()));
-    };
-
-    // Check if thumbnail preview is enabled from user preferences
-    const previewEnabled = getThumbnailPreviewEnabled();
-    
-    return new Promise((resolve) => {
-        // Clean up any stale preview elements from previous modal openings
-        const stalePreviews = document.querySelectorAll('[data-pm-thumbnail-preview]');
-        stalePreviews.forEach(preview => {
-            if (preview.parentNode) {
-                preview.parentNode.removeChild(preview);
-            }
-        });
-        
-        let selectedCategory = currentCategory;
-
-        const overlay = document.createElement("div");
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: ${UI.overlay};
-            z-index: 9999;
-        `;
-
-        const compactBrowser = Boolean(app.ui.settings.getSettingValue("PromptManager.CompactPromptBrowser"));
-        const browserLayout = compactBrowser
-            ? { width: 654, height: 680, cols: 5, itemWidth: 120, gap: 4, thumbWidth: 100, thumbHeight: 132 }
-            : {
-                width: 1304, height: 985, iconHeight: 1185,
-                cols: 5, itemWidth: 240, gap: 16, thumbWidth: 200, thumbHeight: 264,
-                iconCols: 10, iconItemWidth: 120, iconGap: 7, iconThumbWidth: 100, iconThumbHeight: 132,
-            };
-
-        const dialog = document.createElement("div");
-        dialog.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: ${UI.panel};
-            border: 1px solid ${UI.panelBorder};
-            border-radius: 12px;
-            padding: 16px;
-            z-index: 10000;
-            width: ${browserLayout.width}px;
-            max-height: 80vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-        `;
-
-        // Prevent default context menu on dialog (thumbnail cards have their own)
-        dialog.addEventListener("contextmenu", (e) => e.preventDefault());
-
-        // Header with close button
-        const header = document.createElement("div");
-        header.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid ${UI.sectionBorder};
-        `;
-
-        const title = document.createElement("div");
-        title.textContent = mode === "save"
-            ? saveTitle
-            : (selectTitle || (workflowOnly ? "Select Recipe" : "Select Prompt"));
-        title.style.cssText = `
-            font-size: 18px;
-            font-weight: bold;
-            color: #fff;
-        `;
-
-        const closeBtn = document.createElement("button");
-        closeBtn.textContent = "✕";
-        closeBtn.style.cssText = `
-            background: transparent;
-            border: none;
-            color: #888;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 4px;
-        `;
-        closeBtn.onmouseover = () => closeBtn.style.color = "#fff";
-        closeBtn.onmouseout = () => closeBtn.style.color = "#888";
-
-        header.appendChild(title);
-        header.appendChild(closeBtn);
-
-        // Controls bar: Search + NSFW button + View Mode button
-        const controlsBar = document.createElement("div");
-        controlsBar.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid ${UI.sectionBorder};
-        `;
-
-        // Search input (fills remaining space)
-        const searchInput = document.createElement("input");
-        searchInput.type = "text";
-        searchInput.placeholder = workflowOnly ? "Search recipes and prompts..." : "Search prompts...";
-        searchInput.style.cssText = `
-            flex: 1;
-            min-width: 0;
-            padding: 6px 10px;
-            background: ${UI.inputBg};
-            border: 1px solid ${UI.inputBorder};
-            border-radius: 4px;
-            color: #fff;
-            font-size: 13px;
-            box-sizing: border-box;
-            outline: none;
-        `;
-        searchInput.onfocus = () => searchInput.style.borderColor = UI.accent;
-        searchInput.onblur = () => searchInput.style.borderColor = UI.inputBorder;
-
-        // Wrap search input in a container with clear button
-        const searchWrapper = document.createElement("div");
-        searchWrapper.style.cssText = `
-            flex: 1;
-            min-width: 0;
-            position: relative;
-            display: flex;
-            align-items: center;
-        `;
-        searchInput.style.flex = "1";
-        searchInput.style.paddingRight = "28px";
-        const clearBtn = document.createElement("span");
-        clearBtn.textContent = "\u00d7";
-        clearBtn.title = "Clear search";
-        clearBtn.style.cssText = `
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #666;
-            font-size: 16px;
-            cursor: pointer;
-            line-height: 1;
-            display: none;
-            user-select: none;
-        `;
-        clearBtn.onmouseover = () => clearBtn.style.color = "#fff";
-        clearBtn.onmouseout = () => clearBtn.style.color = "#666";
-        clearBtn.onclick = () => {
-            searchInput.value = "";
-            clearBtn.style.display = "none";
-            searchInput.focus();
-            renderContent("");
-        };
-        const origOninput = searchInput.oninput;
-        searchInput.addEventListener("input", () => {
-            clearBtn.style.display = searchInput.value ? "" : "none";
-        });
-        searchWrapper.appendChild(searchInput);
-        searchWrapper.appendChild(clearBtn);
-
-        // Prompt/Recipe/All filter button
-        let contentFilterState = getBrowserContentFilter();
-        const contentFilterBtn = document.createElement("button");
-
-        // NSFW toggle button
-        let hideNSFWState = getHideNSFW();
-        const nsfwBtn = document.createElement("button");
-        const btnStyle = `
-            background: ${UI.buttonBg};
-            border: 1px solid ${UI.inputBorder};
-            color: #aaa;
-            padding: 4px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            white-space: nowrap;
-        `;
-        const updateNsfwBtn = () => {
-            if (hideNSFWState) {
-                nsfwBtn.textContent = "NSFW: Hidden";
-                nsfwBtn.style.cssText = btnStyle + `background: #453339; border-color: #9b727b; color: #d2a8b0;`;
-            } else {
-                nsfwBtn.textContent = "NSFW: Visible";
-                nsfwBtn.style.cssText = btnStyle;
-            }
-            nsfwBtn.title = hideNSFWState ? "NSFW content is hidden — click to show" : "NSFW content is visible — click to hide";
-        };
-        const updateContentFilterBtn = () => {
-            if (contentFilterState === "prompt") {
-                contentFilterBtn.textContent = "Type: Prompt";
-                contentFilterBtn.style.cssText = btnStyle + `background: rgba(56, 130, 246, 0.18); border-color: rgba(56, 130, 246, 0.75); color: #dbeafe;`;
-                contentFilterBtn.title = "Showing prompt entries only";
-            } else if (contentFilterState === "recipe") {
-                contentFilterBtn.textContent = "Type: Recipe";
-                contentFilterBtn.style.cssText = btnStyle + `background: rgba(235, 140, 35, 0.18); border-color: rgba(235, 140, 35, 0.8); color: #ffe7c2;`;
-                contentFilterBtn.title = "Showing recipe entries only";
-            } else {
-                contentFilterBtn.textContent = "Type: All";
-                contentFilterBtn.style.cssText = btnStyle;
-                contentFilterBtn.title = "Showing prompts and recipes";
-            }
-        };
-        updateContentFilterBtn();
-        updateNsfwBtn();
-        contentFilterBtn.onmouseover = () => {
-            if (contentFilterState === "all") {
-                contentFilterBtn.style.background = "#38414c";
-                contentFilterBtn.style.color = "#fff";
-            }
-        };
-        contentFilterBtn.onmouseout = () => {
-            if (contentFilterState === "all") {
-                contentFilterBtn.style.background = "#313843";
-                contentFilterBtn.style.color = "#aaa";
-            }
-        };
-        nsfwBtn.onmouseover = () => { if (!hideNSFWState) { nsfwBtn.style.background = '#38414c'; nsfwBtn.style.color = '#fff'; } };
-        nsfwBtn.onmouseout = () => { if (!hideNSFWState) { nsfwBtn.style.background = '#313843'; nsfwBtn.style.color = '#aaa'; } };
-
-        // View mode toggle button
-        let currentViewMode = getViewMode(compactBrowser);
-        const viewModeBtn = document.createElement("button");
-        const updateViewModeBtn = () => {
-            const labels = {
-                grid: "⊞ Grid",
-                icon: "⊞ Icon",
-                list: "☰ List",
-            };
-            viewModeBtn.textContent = labels[currentViewMode] || labels.grid;
-            const titles = {
-                grid: "Large thumbnail grid",
-                icon: "Small icon grid",
-                list: "Compact list view",
-            };
-            viewModeBtn.title = titles[currentViewMode] || titles.grid;
-        };
-        viewModeBtn.style.cssText = btnStyle;
-        viewModeBtn.onmouseover = () => { viewModeBtn.style.background = '#38414c'; viewModeBtn.style.color = '#fff'; };
-        viewModeBtn.onmouseout = () => { viewModeBtn.style.background = '#313843'; viewModeBtn.style.color = '#aaa'; };
-        updateViewModeBtn();
-
-        controlsBar.appendChild(searchWrapper);
-        if (!allowedCategories) {
-            controlsBar.appendChild(contentFilterBtn);
-        }
-        controlsBar.appendChild(nsfwBtn);
-        controlsBar.appendChild(viewModeBtn);
-
-        // Category selector
-        const categoryContainer = document.createElement("div");
-        categoryContainer.style.cssText = `
-            display: flex;
-            gap: 6px;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid ${UI.sectionBorder};
-            flex-wrap: wrap;
-        `;
-
-        let categories = filterAllowedCategories(getVisibleCategories(node, {
-            hideNSFW: hideNSFWState,
-            workflowOnly,
-            contentFilter: contentFilterState,
-        }));
-        let selectedSaveName = initialSaveName;
-        let categoryButtons = [];
-
-        const isCategoryNSFW = (cat) => {
-            return node.prompts?.[cat]?.["__meta__"]?.nsfw === true;
-        };
-
-        const ensureSelectedCategory = () => {
-            categories = filterAllowedCategories(getVisibleCategories(node, {
-                hideNSFW: hideNSFWState,
-                workflowOnly,
-                contentFilter: contentFilterState,
-            }));
-
-            if (!Array.isArray(categories) || categories.length === 0) {
-                selectedCategory = "";
-                return "";
-            }
-
-            if (!selectedCategory || !categories.includes(selectedCategory)) {
-                selectedCategory = categories[0];
-            }
-
-            if (hideNSFWState && isCategoryNSFW(selectedCategory)) {
-                const firstVisible = categories.find(c => !isCategoryNSFW(c));
-                if (firstVisible) {
-                    selectedCategory = firstVisible;
-                }
-            }
-
-            return selectedCategory;
-        };
-
-        ensureSelectedCategory();
-
-        const updateCategoryButtons = () => {
-            ensureSelectedCategory();
-
-            categoryButtons.forEach(btn => {
-                const cat = btn.dataset.category;
-                const isSelected = cat === selectedCategory;
-                const isNSFW = isCategoryNSFW(cat);
-
-                // Hide NSFW categories when filter is active
-                if (hideNSFWState && isNSFW) {
-                    btn.style.display = "none";
-                    return;
-                }
-                btn.style.display = "";
-
-                btn.style.background = isSelected ? '#4a8ad4' : '#2a2a2a';
-                btn.style.background = isSelected ? UI.accentSoft : UI.buttonBg;
-                btn.style.color = isSelected ? '#fff' : '#aaa';
-
-                // NSFW categories get a red border, otherwise normal
-                if (isNSFW && !isSelected) {
-                    btn.style.borderColor = '#944';
-                } else {
-                    btn.style.borderColor = isSelected ? '#5a9ae4' : '#444';
-                }
-            });
-
-            // If selected category is now hidden/empty under current filters, switch.
-            ensureSelectedCategory();
-        };
-
-        // Category context menu for NSFW toggle
-        const showCategoryContextMenu = (event, cat) => {
-            const existing = document.querySelector('.category-context-menu');
-            if (existing) existing.remove();
-
-            const menu = document.createElement("div");
-            menu.className = "category-context-menu";
-            menu.style.cssText = `
-                position: fixed;
-                left: ${event.clientX}px;
-                top: ${event.clientY}px;
-                background: #2a2a2a;
-                border: 1px solid #444;
-                border-radius: 6px;
-                padding: 4px 0;
-                z-index: 10001;
-                min-width: 150px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            `;
-
-            const isNSFW = isCategoryNSFW(cat);
-            const item = document.createElement("div");
-            item.textContent = isNSFW ? "✓ NSFW" : "Mark as NSFW";
-            item.style.cssText = `
-                padding: 8px 16px;
-                color: ${isNSFW ? '#f66' : '#ccc'};
-                cursor: pointer;
-                font-size: 13px;
-            `;
-            item.onmouseover = () => item.style.background = '#3a3a3a';
-            item.onmouseout = () => item.style.background = 'transparent';
-            item.onclick = async () => {
-                menu.remove();
-                try {
-                    const resp = await fetch("/prompt-manager-advanced/toggle-nsfw", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ type: "category", category: cat })
-                    });
-                    const result = await resp.json();
-                    if (result.success) {
-                        node.prompts = result.prompts;
-                        updateCategoryButtons();
-                        renderContent(searchInput.value);
-                    }
-                } catch (err) {
-                    console.error("[PromptManagerAdvanced] Error toggling category NSFW:", err);
-                }
-            };
-            menu.appendChild(item);
-
-            // Rename Category
-            const renameDivider = document.createElement("div");
-            renameDivider.style.cssText = `height: 1px; background: #444; margin: 4px 0;`;
-            menu.appendChild(renameDivider);
-
-            const renameItem = document.createElement("div");
-            renameItem.textContent = "✏️ Rename";
-            renameItem.style.cssText = `
-                padding: 8px 16px;
-                color: #ccc;
-                cursor: pointer;
-                font-size: 13px;
-            `;
-            renameItem.onmouseover = () => renameItem.style.background = '#3a3a3a';
-            renameItem.onmouseout = () => renameItem.style.background = 'transparent';
-            renameItem.onclick = async () => {
-                menu.remove();
-                const result = await showRenameCategoryDialog(
-                    "Rename Category",
-                    "Enter new category name:",
-                    [cat],
-                    cat
-                );
-                if (result && result.newCategory && result.newCategory.trim()) {
-                    const newCat = result.newCategory.trim();
-                    if (newCat === cat) return;
-                    try {
-                        const resp = await fetch("/prompt-manager-advanced/rename-category", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ old_category: cat, new_category: newCat })
-                        });
-                        const data = await resp.json();
-                        if (data.success) {
-                            node.prompts = data.prompts;
-                            if (selectedCategory === cat) {
-                                selectedCategory = data.new_category;
-                            }
-                            rebuildCategoryList();
-                            renderContent(searchInput.value);
-                        } else {
-                            await showInfo("Error", data.error);
-                        }
-                    } catch (err) {
-                        console.error("[PromptManagerAdvanced] Error renaming category:", err);
-                    }
-                }
-            };
-            menu.appendChild(renameItem);
-
-            // Delete Category
-            const deleteDivider = document.createElement("div");
-            deleteDivider.style.cssText = `height: 1px; background: #444; margin: 4px 0;`;
-            menu.appendChild(deleteDivider);
-
-            const deleteItem = document.createElement("div");
-            deleteItem.textContent = "🗑️ Delete Category";
-            deleteItem.style.cssText = `
-                padding: 8px 16px;
-                color: #f66;
-                cursor: pointer;
-                font-size: 13px;
-            `;
-            deleteItem.onmouseover = () => deleteItem.style.background = '#3a3a3a';
-            deleteItem.onmouseout = () => deleteItem.style.background = 'transparent';
-            deleteItem.onclick = async () => {
-                menu.remove();
-                if (await showConfirm("Delete Category", `Are you sure you want to delete category "${cat}" and all its prompts?`)) {
-                    try {
-                        const resp = await fetch("/prompt-manager-advanced/delete-category", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ category: cat })
-                        });
-                        const data = await resp.json();
-                        if (data.success) {
-                            node.prompts = data.prompts;
-                            if (selectedCategory === cat) {
-                                const cats = Object.keys(node.prompts).filter(c => c !== "__meta__");
-                                selectedCategory = cats[0] || "";
-                            }
-                            rebuildCategoryList();
-                            renderContent(searchInput.value);
-                        } else {
-                            await showInfo("Error", data.error);
-                        }
-                    } catch (err) {
-                        console.error("[PromptManagerAdvanced] Error deleting category:", err);
-                    }
-                }
-            };
-            menu.appendChild(deleteItem);
-
-            // Generate Missing Thumbnails
-            const thumbDivider = document.createElement("div");
-            thumbDivider.style.cssText = `height: 1px; background: #444; margin: 4px 0;`;
-            menu.appendChild(thumbDivider);
-
-            const thumbItem = document.createElement("div");
-            const buildProgressUI = () => {
-                const progress = document.createElement("div");
-                progress.style.cssText = `
-                    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                    background: #222; border: 2px solid #4CAF50; border-radius: 8px;
-                    padding: 14px 16px; z-index: 10000; color: #fff; font-size: 14px;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.5); min-width: 320px;
-                `;
-
-                const progressRow = document.createElement("div");
-                progressRow.style.cssText = `
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 14px;
-                `;
-
-                const cancelBtn = document.createElement("button");
-                cancelBtn.textContent = "✕";
-                cancelBtn.title = "Cancel remaining thumbnails";
-                cancelBtn.style.cssText = `
-                    width: 24px; height: 24px; line-height: 22px;
-                    border-radius: 6px; border: 1px solid #666;
-                    background: #2f2f2f; color: #eee;
-                    cursor: pointer; font-size: 14px; padding: 0;
-                    display: flex; align-items: center; justify-content: center;
-                    flex-shrink: 0;
-                `;
-
-                const progressText = document.createElement("div");
-                progressText.style.cssText = `display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;`;
-                progressText.innerHTML = `
-                    <div style="width: 18px; height: 18px; border: 3px solid #4CAF50; border-top-color: transparent; border-radius: 50%; animation: thumb-spin 1s linear infinite; flex-shrink: 0;"></div>
-                    <span style="line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
-                `;
-                progressRow.appendChild(progressText);
-                progressRow.appendChild(cancelBtn);
-                progress.appendChild(progressRow);
-                const styleEl = document.createElement("style");
-                styleEl.textContent = `@keyframes thumb-spin { to { transform: rotate(360deg); } }`;
-                progress.appendChild(styleEl);
-                document.body.appendChild(progress);
-                return { progress, progressText, cancelBtn };
-            };
-
-            const runBatchGeneration = async (names, title) => {
-                if (names.length === 0) {
-                    await showInfo("No Thumbnails to Generate", `All prompts in "${cat}" already have thumbnails.`);
-                    return;
-                }
-
-                if (!await showConfirm(title, `Generate thumbnails for ${names.length} prompt(s) in "${cat}"?`, "Generate", "#4CAF50")) {
-                    return;
-                }
-
-                // Ensure renderer selection is ready for prompts without saved workflow_data.
-                const renderSelection = await ensureThumbnailRenderSelection();
-                if (!renderSelection) return;
-
-                // Resolve family-compatible defaults once for the batch.
-                const fallbackBase = await resolveThumbnailFallbackBase(renderSelection);
-
-                for (let i = 0; i < names.length; i++) {
-                    const pName = names[i];
-                    _thumbQueueTotal++;
-                    _ensureThumbQueueProgress();
-                    _updateThumbQueueProgress(pName);
-
-                    _thumbQueuePromiseChain = _thumbQueuePromiseChain.then(async () => {
-                        if (_thumbQueueCancelled) {
-                            _thumbQueueDone++;
-                            if (_thumbQueueDone + _thumbQueueFailed >= _thumbQueueTotal) {
-                                _finishThumbQueueProgress();
-                            }
-                            return;
-                        }
-                        _updateThumbQueueProgress(pName);
-                        try {
-                            await generateThumbnailForPrompt(node, cat, pName, () => {
-                                renderContent(searchInput.value);
-                            }, {
-                                queue: true,
-                                renderSelection,
-                                fallbackBase,
-                            });
-                            _thumbQueueDone++;
-                        } catch (e) {
-                            console.error(`[ThumbnailGen] Failed for "${pName}":`, e);
-                            _thumbQueueFailed++;
-                        } finally {
-                            if (_thumbQueueProgress && _thumbQueueDone + _thumbQueueFailed >= _thumbQueueTotal) {
-                                _finishThumbQueueProgress();
-                            }
-                        }
-                    });
-                }
-            };
-
-            // Generate Missing Thumbnails
-            const missingItem = document.createElement("div");
-            missingItem.textContent = "🎨 Generate Missing Thumbnails";
-            missingItem.style.cssText = `
-                padding: 8px 16px;
-                color: #ccc;
-                cursor: pointer;
-                font-size: 13px;
-            `;
-            missingItem.onmouseover = () => missingItem.style.background = '#3a3a3a';
-            missingItem.onmouseout = () => missingItem.style.background = 'transparent';
-            missingItem.onclick = async () => {
-                menu.remove();
-                const catPrompts = node.prompts[cat];
-                if (!catPrompts) return;
-
-                // Collect prompts without thumbnails
-                const missing = Object.keys(catPrompts).filter(name => {
-                    const data = catPrompts[name];
-                    return data && typeof data === "object" && !data.thumbnail;
-                });
-
-                await runBatchGeneration(missing, "Generate Missing Thumbnails");
-            };
-            menu.appendChild(missingItem);
-
-            // Regenerate All Thumbnails
-            const regenerateItem = document.createElement("div");
-            regenerateItem.textContent = "🔄 Re-Generate All Thumbnails";
-            regenerateItem.style.cssText = `
-                padding: 8px 16px;
-                color: #ccc;
-                cursor: pointer;
-                font-size: 13px;
-            `;
-            regenerateItem.onmouseover = () => regenerateItem.style.background = '#3a3a3a';
-            regenerateItem.onmouseout = () => regenerateItem.style.background = 'transparent';
-            regenerateItem.onclick = async () => {
-                menu.remove();
-                const catPrompts = node.prompts[cat];
-                if (!catPrompts) return;
-
-                const all = Object.keys(catPrompts).filter(name => {
-                    const data = catPrompts[name];
-                    return data && typeof data === "object";
-                });
-
-                await runBatchGeneration(all, "Re-Generate All Thumbnails");
-            };
-            menu.appendChild(regenerateItem);
-
-            // Select Thumbnail Family + Model
-            const modelItem = document.createElement("div");
-            const selectedLorasForLabel = [_thumbnailRenderLora1, _thumbnailRenderLora2].filter(Boolean);
-            const modelLabel = (_thumbnailRenderFamily && _thumbnailRenderModel)
-                ? `🔧 ${_thumbnailRenderFamily} : ${_thumbnailLeafName(_thumbnailRenderModel)}${selectedLorasForLabel.length ? ` + ${selectedLorasForLabel.length} LoRA` + (selectedLorasForLabel.length > 1 ? "s" : "") : ""}`
-                : "🔧 Select Thumbnail Family + Model";
-            modelItem.textContent = modelLabel;
-            modelItem.style.cssText = `
-                padding: 8px 16px;
-                color: #ccc;
-                cursor: pointer;
-                font-size: 13px;
-            `;
-            modelItem.onmouseover = () => modelItem.style.background = '#3a3a3a';
-            modelItem.onmouseout = () => modelItem.style.background = 'transparent';
-            modelItem.onclick = async () => {
-                menu.remove();
-                const picked = await showThumbnailRenderPicker(
-                    _thumbnailRenderFamily,
-                    _thumbnailRenderModel,
-                    _thumbnailRenderLora1,
-                    _thumbnailRenderLora2,
-                );
-                if (picked) {
-                    saveThumbnailRenderSelection(picked);
-                }
-            };
-            menu.appendChild(modelItem);
-
-            document.body.appendChild(menu);
-            const closeMenu = (e) => {
-                if (!menu.contains(e.target)) {
-                    menu.remove();
-                    document.removeEventListener("mousedown", closeMenu, true);
-                    document.removeEventListener("contextmenu", closeMenu, true);
-                }
-            };
-            setTimeout(() => {
-                document.addEventListener("mousedown", closeMenu, true);
-                document.addEventListener("contextmenu", closeMenu, true);
-            }, 0);
-        };
-
-        const rebuildCategoryList = () => {
-            categories = filterAllowedCategories(getVisibleCategories(node, {
-                hideNSFW: hideNSFWState,
-                workflowOnly,
-                contentFilter: contentFilterState,
-            }));
-            ensureSelectedCategory();
-            categoryButtons = [];
-            categoryContainer.innerHTML = "";
-            categories.forEach(cat => {
-                const btn = document.createElement("button");
-                btn.dataset.category = cat;
-                btn.style.cssText = `
-                    padding: 6px 14px;
-                    border-radius: 6px;
-                    border: 1px solid ${UI.inputBorder};
-                    background: ${UI.buttonBg};
-                    color: #aaa;
-                    cursor: pointer;
-                    font-size: 13px;
-                    transition: all 0.15s ease;
-                    position: relative;
-                `;
-
-                btn.textContent = cat;
-
-                btn.onclick = () => {
-                    selectedCategory = cat;
-                    updateCategoryButtons();
-                    renderContent(searchInput.value);
-                };
-                btn.oncontextmenu = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showCategoryContextMenu(e, cat);
-                };
-                categoryButtons.push(btn);
-                categoryContainer.appendChild(btn);
-            });
-
-            // Add "+" button to create a new category
-            const addBtn = document.createElement("button");
-            addBtn.textContent = "+";
-            addBtn.title = "New Category";
-            addBtn.style.cssText = `
-                padding: 6px 14px;
-                border-radius: 6px;
-                border: 1px solid #5f6773;
-                background: #313843;
-                color: #aaa;
-                cursor: pointer;
-                font-size: 13px;
-                transition: all 0.15s ease;
-            `;
-            addBtn.onmouseover = () => { addBtn.style.background = '#38414c'; addBtn.style.color = '#fff'; };
-            addBtn.onmouseout = () => { addBtn.style.background = '#313843'; addBtn.style.color = '#aaa'; };
-            addBtn.onclick = async () => {
-                const result = await showNewCategoryDialog();
-                if (result && result.name && result.name.trim()) {
-                    const categoryName = result.name.trim();
-                    const existingCategories = Object.keys(node.prompts || {});
-                    const existingCategoryName = existingCategories.find(cat => cat.toLowerCase() === categoryName.toLowerCase());
-                    if (existingCategoryName) {
-                        await showInfo("Category Exists", `Category already exists as "${existingCategoryName}".`);
-                        return;
-                    }
-                    try {
-                        const resp = await fetch("/prompt-manager-advanced/save-category", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ category_name: categoryName, nsfw: result.nsfw })
-                        });
-                        const data = await resp.json();
-                        if (data.success) {
-                            node.prompts = data.prompts;
-                            selectedCategory = categoryName;
-                            rebuildCategoryList();
-                            renderContent(searchInput.value);
-                        } else {
-                            await showInfo("Error", data.error);
-                        }
-                    } catch (err) {
-                        console.error("[PromptManagerAdvanced] Error creating category:", err);
-                    }
-                }
-            };
-            categoryContainer.appendChild(addBtn);
-
-            updateCategoryButtons();
-        };
-        rebuildCategoryList();
-
-        // When the caller locks the browser to a single category, hide the tabs.
-        if (allowedCategories && allowedCategories.length === 1) {
-            categoryContainer.style.display = "none";
-        }
-
-        // Content container - fixed size
-        const gridContainer = document.createElement("div");
-        gridContainer.className = "thumbnail-grid-container";
-        gridContainer.style.cssText = `
-            overflow-y: auto;
-            height: ${currentViewMode === "icon" ? browserLayout.iconHeight : browserLayout.height}px;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-        `;
-        // Hide scrollbar for webkit browsers
-        const style = document.createElement("style");
-        style.textContent = `.thumbnail-grid-container::-webkit-scrollbar { display: none; }`;
-        document.head.appendChild(style);
-
-        const grid = document.createElement("div");
-
-        // Helper: get filtered prompt names for the selected category
-        const getFilteredPrompts = (filter = "") => {
-            let promptNames = getPromptNamesForCategory(node, selectedCategory, {
-                hideNSFW: hideNSFWState,
-                workflowOnly,
-                contentFilter: contentFilterState,
-            });
-
-            // Filter by search
-            if (filter) {
-                promptNames = promptNames.filter(name => name.toLowerCase().includes(filter.toLowerCase()));
-            }
-            return promptNames;
-        };
-
-        // Shared right-click handler for prompt items (works in both grid and list view)
-        const promptContextMenu = (e, promptName) => {
-            e.preventDefault();
-            showThumbnailContextMenu(e, node, selectedCategory, promptName, () => {
-                renderContent(searchInput.value);
-            });
-        };
-
-        // ---- Grid (Large Thumbnail) View ----
-        const renderGridView = (filter = "") => {
-            grid.style.cssText = `
-                display: grid;
-                grid-template-columns: repeat(${browserLayout.cols}, ${browserLayout.itemWidth}px);
-                gap: ${browserLayout.gap}px;
-                padding: 4px 0;
-            `;
-            grid.innerHTML = "";
-
-            const categoryPrompts = node.prompts[selectedCategory] || {};
-            const filteredPrompts = getFilteredPrompts(filter);
-
-            if (filteredPrompts.length === 0) {
-                const emptyMsg = document.createElement("div");
-                emptyMsg.textContent = filter ? "No matching prompts found" : "No prompts in this category";
-                emptyMsg.style.cssText = `
-                    grid-column: 1 / -1;
-                    text-align: center;
-                    color: #666;
-                    padding: 40px;
-                    font-style: italic;
-                `;
-                grid.appendChild(emptyMsg);
-                return;
-            }
-
-            filteredPrompts.forEach(promptName => {
-                const promptData = categoryPrompts[promptName];
-                const thumbnail = promptData?.thumbnail || DEFAULT_THUMBNAIL;
-                const isSelected = promptName === currentPrompt;
-                const isNSFW = promptData?.nsfw === true || isCategoryNSFW(selectedCategory);
-                const rawWorkflowData = promptData?.workflow_data;
-                const hasWorkflowData = (
-                    (typeof rawWorkflowData === "string" && rawWorkflowData.trim().length > 0) ||
-                    (rawWorkflowData && typeof rawWorkflowData === "object" && Object.keys(rawWorkflowData).length > 0)
-                );
-                const hasPromptPayload = hasPromptPresetPayload(promptData);
-
-                const card = document.createElement("div");
-                if (isSelected) {
-                    card.dataset.selectedPrompt = "true";
-                }
-                card.style.cssText = `
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    padding: 8px;
-                    background: ${isSelected ? UI.accentSoft : UI.cardBg};
-                    border: 2px solid ${isSelected ? UI.accentBorder : UI.cardBorder};
-                    border-radius: 8px;
-                    cursor: pointer;
-                    transition: all 0.15s ease;
-                    position: relative;
-                `;
-
-                card.onmouseenter = () => {
-                    if (!isSelected) {
-                        card.style.background = UI.accentSoft;
-                        card.style.borderColor = UI.accentBorder;
-                    }
-                };
-                card.onmouseleave = () => {
-                    if (!isSelected) {
-                        card.style.background = UI.cardBg;
-                        card.style.borderColor = UI.cardBorder;
-                    }
-                };
-
-                // Top-right badge stack: NSFW first, workflow badge under it.
-                const showWorkflowBadge = !workflowOnly && hasWorkflowData;
-                const showPromptBadge = workflowOnly && !hasWorkflowData && hasPromptPayload;
-                if (isNSFW || showWorkflowBadge || showPromptBadge) {
-                    const badgeStack = document.createElement("div");
-                    badgeStack.style.cssText = `
-                        position: absolute;
-                        top: 4px;
-                        right: 4px;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: flex-end;
-                        gap: 2px;
-                        z-index: 1;
-                    `;
-
-                    if (isNSFW) {
-                        const badge = document.createElement("div");
-                        badge.textContent = "NSFW";
-                        badge.style.cssText = `
-                            background: rgba(204, 0, 0, 0.85);
-                            color: #fff;
-                            font-size: 8px;
-                            font-weight: bold;
-                            padding: 1px 4px;
-                            border-radius: 3px;
-                            line-height: 1.2;
-                        `;
-                        badgeStack.appendChild(badge);
-                    }
-
-                    if (showWorkflowBadge) {
-                        const workflowBadge = document.createElement("div");
-                        workflowBadge.textContent = "R";
-                        workflowBadge.title = "Has Recipe Data";
-                        workflowBadge.style.cssText = `
-                            width: 14px;
-                            height: 14px;
-                            border-radius: 50%;
-                            background: rgba(235, 140, 35, 0.95);
-                            color: #fff;
-                            font-size: 9px;
-                            font-weight: bold;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            line-height: 1;
-                        `;
-                        badgeStack.appendChild(workflowBadge);
-                    }
-
-                    if (showPromptBadge) {
-                        const promptBadge = document.createElement("div");
-                        promptBadge.textContent = "P";
-                        promptBadge.title = "Prompt Data (Converted to Recipe)";
-                        promptBadge.style.cssText = `
-                            width: 14px;
-                            height: 14px;
-                            border-radius: 50%;
-                            background: rgba(56, 130, 246, 0.96);
-                            color: #fff;
-                            font-size: 9px;
-                            font-weight: bold;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            line-height: 1;
-                        `;
-                        badgeStack.appendChild(promptBadge);
-                    }
-
-                    card.appendChild(badgeStack);
-                }
-
-                // Thumbnail (using div with background-image to avoid browser extension interference)
-                const thumbWidth = browserLayout.thumbWidth;
-                const thumbHeight = browserLayout.thumbHeight;
-                const thumbDiv = document.createElement("div");
-                thumbDiv.style.cssText = `
-                    width: ${thumbWidth}px;
-                    height: ${thumbHeight}px;
-                    background-image: url(${thumbnail});
-                    background-size: cover;
-                    background-position: center;
-                    border-radius: 6px;
-                    background-color: #1a1a1a;
-                    flex-shrink: 0;
-                    cursor: pointer;
-                `;
-                _attachThumbnailDropHandlers(thumbDiv, node, selectedCategory, promptName, () => renderContent(searchInput.value));
-
-                // Add hover preview with proper event handling (if enabled and not placeholder)
-                // Hover preview is only useful in compact mode; disabled when thumbnails are already large.
-                if (compactBrowser && previewEnabled && thumbnail !== DEFAULT_THUMBNAIL) {
-                    thumbDiv.addEventListener("mouseenter", (e) => {
-                        e.stopPropagation();
-                        showPreviewWithDelay(thumbnail, thumbDiv);
-                    });
-                    thumbDiv.addEventListener("mouseleave", (e) => {
-                        e.stopPropagation();
-                        scheduleHidePreview();
-                    });
-                }
-
-                // Prompt name
-                const nameLabel = document.createElement("div");
-                nameLabel.textContent = promptName;
-                nameLabel.title = promptName;
-                nameLabel.style.cssText = `
-                    margin-top: 8px;
-                    font-size: 12px;
-                    color: #ccc;
-                    text-align: center;
-                    width: 100%;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                `;
-
-                card.appendChild(thumbDiv);
-                card.appendChild(nameLabel);
-
-                card.onclick = async () => {
-                    if (mode === "save") {
-                        selectedSaveName = promptName;
-                        if (saveNameInput) {
-                            saveNameInput.value = promptName;
-                            saveNameInput.focus();
-                            saveNameInput.select();
-                        }
-                        currentPrompt = promptName;
-                        renderContent(searchInput.value);
-                        return;
-                    }
-
-                    resolve({ category: selectedCategory, prompt: promptName });
-                    cleanup();
-                };
-
-                if (mode === "save") {
-                    card.ondblclick = async () => {
-                        if (!onSave) return;
-                        const overwriteOk = await showConfirm(
-                            "Overwrite Prompt",
-                            `Prompt "${promptName}" already exists in category "${selectedCategory}". Do you want to replace it?`,
-                            "Replace",
-                            "#c44"
-                        );
-                        if (!overwriteOk) return;
-
-                        const saveResult = await onSave({
-                            category: selectedCategory,
-                            name: promptName,
-                            overwrite: true,
-                        });
-
-                        if (saveResult?.success) {
-                            resolve(saveResult);
-                            cleanup();
-                        } else {
-                            await showInfo("Save Failed", saveResult?.error || "Failed to save workflow.");
-                        }
-                    };
-                }
-
-                card.oncontextmenu = (e) => promptContextMenu(e, promptName);
-
-                grid.appendChild(card);
-            });
-        };
-
-        // ---- Icon (Small Thumbnail) Grid View ----
-        const renderCompactGridView = (filter = "") => {
-            grid.style.cssText = `
-                display: grid;
-                grid-template-columns: repeat(${browserLayout.iconCols}, ${browserLayout.iconItemWidth}px);
-                gap: ${browserLayout.iconGap}px;
-                padding: 4px 0;
-            `;
-            grid.innerHTML = "";
-
-            const categoryPrompts = node.prompts[selectedCategory] || {};
-            const filteredPrompts = getFilteredPrompts(filter);
-
-            if (filteredPrompts.length === 0) {
-                const emptyMsg = document.createElement("div");
-                emptyMsg.textContent = filter ? "No matching prompts found" : "No prompts in this category";
-                emptyMsg.style.cssText = `
-                    grid-column: 1 / -1;
-                    text-align: center;
-                    color: #666;
-                    padding: 40px;
-                    font-style: italic;
-                `;
-                grid.appendChild(emptyMsg);
-                return;
-            }
-
-            filteredPrompts.forEach(promptName => {
-                const promptData = categoryPrompts[promptName];
-                const thumbnail = promptData?.thumbnail || DEFAULT_THUMBNAIL;
-                const isSelected = promptName === currentPrompt;
-                const isNSFW = promptData?.nsfw === true || isCategoryNSFW(selectedCategory);
-                const rawWorkflowData = promptData?.workflow_data;
-                const hasWorkflowData = (
-                    (typeof rawWorkflowData === "string" && rawWorkflowData.trim().length > 0) ||
-                    (rawWorkflowData && typeof rawWorkflowData === "object" && Object.keys(rawWorkflowData).length > 0)
-                );
-                const hasPromptPayload = hasPromptPresetPayload(promptData);
-
-                const card = document.createElement("div");
-                if (isSelected) {
-                    card.dataset.selectedPrompt = "true";
-                }
-                card.style.cssText = `
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    padding: 8px;
-                    background: ${isSelected ? UI.accentSoft : UI.cardBg};
-                    border: 2px solid ${isSelected ? UI.accentBorder : UI.cardBorder};
-                    border-radius: 8px;
-                    cursor: pointer;
-                    transition: all 0.15s ease;
-                    position: relative;
-                `;
-
-                card.onmouseenter = () => {
-                    if (!isSelected) {
-                        card.style.background = UI.accentSoft;
-                        card.style.borderColor = UI.accentBorder;
-                    }
-                };
-                card.onmouseleave = () => {
-                    if (!isSelected) {
-                        card.style.background = UI.cardBg;
-                        card.style.borderColor = UI.cardBorder;
-                    }
-                };
-
-                // Top-right badge stack: NSFW first, workflow badge under it.
-                const showWorkflowBadge = !workflowOnly && hasWorkflowData;
-                const showPromptBadge = workflowOnly && !hasWorkflowData && hasPromptPayload;
-                if (isNSFW || showWorkflowBadge || showPromptBadge) {
-                    const badgeStack = document.createElement("div");
-                    badgeStack.style.cssText = `
-                        position: absolute;
-                        top: 4px;
-                        right: 4px;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: flex-end;
-                        gap: 2px;
-                        z-index: 1;
-                    `;
-
-                    if (isNSFW) {
-                        const badge = document.createElement("div");
-                        badge.textContent = "NSFW";
-                        badge.style.cssText = `
-                            background: rgba(204, 0, 0, 0.85);
-                            color: #fff;
-                            font-size: 8px;
-                            font-weight: bold;
-                            padding: 1px 4px;
-                            border-radius: 3px;
-                            line-height: 1.2;
-                        `;
-                        badgeStack.appendChild(badge);
-                    }
-
-                    if (showWorkflowBadge) {
-                        const workflowBadge = document.createElement("div");
-                        workflowBadge.textContent = "R";
-                        workflowBadge.title = "Has Recipe Data";
-                        workflowBadge.style.cssText = `
-                            width: 14px;
-                            height: 14px;
-                            border-radius: 50%;
-                            background: rgba(235, 140, 35, 0.95);
-                            color: #fff;
-                            font-size: 9px;
-                            font-weight: bold;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            line-height: 1;
-                        `;
-                        badgeStack.appendChild(workflowBadge);
-                    }
-
-                    if (showPromptBadge) {
-                        const promptBadge = document.createElement("div");
-                        promptBadge.textContent = "P";
-                        promptBadge.title = "Prompt Data (Converted to Recipe)";
-                        promptBadge.style.cssText = `
-                            width: 14px;
-                            height: 14px;
-                            border-radius: 50%;
-                            background: rgba(56, 130, 246, 0.96);
-                            color: #fff;
-                            font-size: 9px;
-                            font-weight: bold;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            line-height: 1;
-                        `;
-                        badgeStack.appendChild(promptBadge);
-                    }
-
-                    card.appendChild(badgeStack);
-                }
-
-                // Thumbnail (using div with background-image to avoid browser extension interference)
-                const thumbDiv = document.createElement("div");
-                thumbDiv.style.cssText = `
-                    width: ${browserLayout.iconThumbWidth}px;
-                    height: ${browserLayout.iconThumbHeight}px;
-                    background-image: url(${thumbnail});
-                    background-size: cover;
-                    background-position: center;
-                    border-radius: 6px;
-                    background-color: #1a1a1a;
-                    flex-shrink: 0;
-                    cursor: pointer;
-                `;
-                _attachThumbnailDropHandlers(thumbDiv, node, selectedCategory, promptName, () => renderContent(searchInput.value));
-
-                // Hover preview enabled for compact grid thumbnails.
-                if (previewEnabled && thumbnail !== DEFAULT_THUMBNAIL) {
-                    thumbDiv.addEventListener("mouseenter", (e) => {
-                        e.stopPropagation();
-                        showPreviewWithDelay(thumbnail, thumbDiv);
-                    });
-                    thumbDiv.addEventListener("mouseleave", (e) => {
-                        e.stopPropagation();
-                        scheduleHidePreview();
-                    });
-                }
-
-                // Prompt name
-                const nameLabel = document.createElement("div");
-                nameLabel.textContent = promptName;
-                nameLabel.title = promptName;
-                nameLabel.style.cssText = `
-                    margin-top: 8px;
-                    font-size: 12px;
-                    color: #ccc;
-                    text-align: center;
-                    width: 100%;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                `;
-
-                card.appendChild(thumbDiv);
-                card.appendChild(nameLabel);
-
-                card.onclick = async () => {
-                    if (mode === "save") {
-                        selectedSaveName = promptName;
-                        if (saveNameInput) {
-                            saveNameInput.value = promptName;
-                            saveNameInput.focus();
-                            saveNameInput.select();
-                        }
-                        currentPrompt = promptName;
-                        renderContent(searchInput.value);
-                        return;
-                    }
-
-                    resolve({ category: selectedCategory, prompt: promptName });
-                    cleanup();
-                };
-
-                if (mode === "save") {
-                    card.ondblclick = async () => {
-                        if (!onSave) return;
-                        const overwriteOk = await showConfirm(
-                            "Overwrite Prompt",
-                            `Prompt "${promptName}" already exists in category "${selectedCategory}". Do you want to replace it?`,
-                            "Replace",
-                            "#c44"
-                        );
-                        if (!overwriteOk) return;
-
-                        const saveResult = await onSave({
-                            category: selectedCategory,
-                            name: promptName,
-                            overwrite: true,
-                        });
-
-                        if (saveResult?.success) {
-                            resolve(saveResult);
-                            cleanup();
-                        } else {
-                            await showInfo("Save Failed", saveResult?.error || "Failed to save workflow.");
-                        }
-                    };
-                }
-
-                card.oncontextmenu = (e) => promptContextMenu(e, promptName);
-
-                grid.appendChild(card);
-            });
-        };
-
-        // ---- List View ----
-        const renderListView = (filter = "") => {
-            grid.style.cssText = `
-                display: flex;
-                flex-direction: column;
-                gap: 0;
-                padding: 4px 0;
-            `;
-            grid.innerHTML = "";
-
-            const categoryPrompts = node.prompts[selectedCategory] || {};
-            const filteredPrompts = getFilteredPrompts(filter);
-
-            if (filteredPrompts.length === 0) {
-                const emptyMsg = document.createElement("div");
-                emptyMsg.textContent = filter ? "No matching prompts found" : "No prompts in this category";
-                emptyMsg.style.cssText = `
-                    text-align: center;
-                    color: #666;
-                    padding: 40px;
-                    font-style: italic;
-                `;
-                grid.appendChild(emptyMsg);
-                return;
-            }
-
-            // Column headers
-            const headerRow = document.createElement("div");
-            headerRow.style.cssText = `
-                display: grid;
-                grid-template-columns: 44px 1fr 70px 70px 70px;
-                gap: 8px;
-                padding: 4px 8px 6px 8px;
-                    border-bottom: 1px solid rgba(148,163,184,0.2);
-                margin-bottom: 4px;
-                align-items: center;
-            `;
-            const headers = ["", "Name", "LoRAs A", "LoRAs B", "Triggers"];
-            headers.forEach((h, i) => {
-                const hDiv = document.createElement("div");
-                hDiv.textContent = h;
-                hDiv.style.cssText = `
-                    font-size: 10px;
-                    color: #888;
-                    font-weight: bold;
-                    text-transform: uppercase;
-                    text-align: ${i === 0 ? 'center' : i >= 2 ? 'center' : 'left'};
-                `;
-                headerRow.appendChild(hDiv);
-            });
-            grid.appendChild(headerRow);
-
-            filteredPrompts.forEach(promptName => {
-                const promptData = categoryPrompts[promptName];
-                const thumbnail = promptData?.thumbnail || DEFAULT_THUMBNAIL;
-                const isSelected = promptName === currentPrompt;
-                const isNSFW = promptData?.nsfw === true || isCategoryNSFW(selectedCategory);
-                const rawWorkflowData = promptData?.workflow_data;
-                const hasWorkflowData = (
-                    (typeof rawWorkflowData === "string" && rawWorkflowData.trim().length > 0) ||
-                    (rawWorkflowData && typeof rawWorkflowData === "object" && Object.keys(rawWorkflowData).length > 0)
-                );
-                const hasPromptPayload = hasPromptPresetPayload(promptData);
-                const lorasACount = (promptData?.loras_a || []).length;
-                const lorasBCount = (promptData?.loras_b || []).length;
-                const triggerCount = (promptData?.trigger_words || []).length;
-
-                const row = document.createElement("div");
-                if (isSelected) {
-                    row.dataset.selectedPrompt = "true";
-                }
-                row.style.cssText = `
-                    display: grid;
-                    grid-template-columns: 44px 1fr 70px 70px 70px;
-                    gap: 8px;
-                    padding: 4px 8px;
-                    background: ${isSelected ? UI.accentSoft : 'transparent'};
-                    border-radius: 4px;
-                    cursor: pointer;
-                    align-items: center;
-                    transition: background 0.1s ease;
-                `;
-                row.onmouseenter = () => { if (!isSelected) row.style.background = '#2a2a2a'; };
-                row.onmouseleave = () => { if (!isSelected) row.style.background = 'transparent'; };
-
-                // Thumbnail icon (using div with background-image to avoid browser extension interference)
-                const thumbWrap = document.createElement("div");
-                thumbWrap.style.cssText = `
-                    width: 36px;
-                    height: 36px;
-                    position: relative;
-                    flex-shrink: 0;
-                `;
-
-                const thumbDiv = document.createElement("div");
-                thumbDiv.style.cssText = `
-                    width: 36px;
-                    height: 36px;
-                    background-image: url(${thumbnail});
-                    background-size: cover;
-                    background-position: center;
-                    border-radius: 4px;
-                    background-color: #1a1a1a;
-                    cursor: pointer;
-                `;
-                _attachThumbnailDropHandlers(thumbDiv, node, selectedCategory, promptName, () => renderContent(searchInput.value));
-
-                // Add hover preview with proper event handling (if enabled and not placeholder)
-                if (previewEnabled && thumbnail !== DEFAULT_THUMBNAIL) {
-                    thumbDiv.addEventListener("mouseenter", (e) => {
-                        e.stopPropagation();
-                        showPreviewWithDelay(thumbnail, thumbDiv);
-                    });
-                    thumbDiv.addEventListener("mouseleave", (e) => {
-                        e.stopPropagation();
-                        scheduleHidePreview();
-                    });
-                }
-
-                thumbWrap.appendChild(thumbDiv);
-
-                const showWorkflowBadge = !workflowOnly && hasWorkflowData;
-                const showPromptBadge = workflowOnly && !hasWorkflowData && hasPromptPayload;
-                if (showWorkflowBadge) {
-                    const workflowBadge = document.createElement("div");
-                    workflowBadge.textContent = "R";
-                    workflowBadge.title = "Has Recipe Data";
-                    workflowBadge.style.cssText = `
-                        position: absolute;
-                        right: -2px;
-                        bottom: -2px;
-                        width: 12px;
-                        height: 12px;
-                        border-radius: 50%;
-                        background: rgba(235, 140, 35, 0.95);
-                        color: #fff;
-                        font-size: 8px;
-                        font-weight: bold;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        line-height: 1;
-                        border: 1px solid rgba(0, 0, 0, 0.4);
-                        z-index: 1;
-                    `;
-                    thumbWrap.appendChild(workflowBadge);
-                }
-
-                if (showPromptBadge) {
-                    const promptBadge = document.createElement("div");
-                    promptBadge.textContent = "P";
-                    promptBadge.title = "Prompt Data (Converted to Recipe)";
-                    promptBadge.style.cssText = `
-                        position: absolute;
-                        right: -2px;
-                        bottom: -2px;
-                        width: 12px;
-                        height: 12px;
-                        border-radius: 50%;
-                        background: rgba(56, 130, 246, 0.96);
-                        color: #fff;
-                        font-size: 8px;
-                        font-weight: bold;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        line-height: 1;
-                        border: 1px solid rgba(0, 0, 0, 0.4);
-                        z-index: 1;
-                    `;
-                    thumbWrap.appendChild(promptBadge);
-                }
-
-                // Name + optional NSFW badge
-                const nameDiv = document.createElement("div");
-                nameDiv.style.cssText = `
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    overflow: hidden;
-                `;
-                const nameSpan = document.createElement("span");
-                nameSpan.textContent = promptName;
-                nameSpan.title = promptName;
-                nameSpan.style.cssText = `
-                    font-size: 13px;
-                    color: #ddd;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                `;
-                nameDiv.appendChild(nameSpan);
-                if (isNSFW) {
-                    const badge = document.createElement("span");
-                    badge.textContent = "NSFW";
-                    badge.style.cssText = `
-                        background: rgba(204, 0, 0, 0.85);
-                        color: #fff;
-                        font-size: 8px;
-                        font-weight: bold;
-                        padding: 1px 4px;
-                        border-radius: 3px;
-                        flex-shrink: 0;
-                    `;
-                    nameDiv.appendChild(badge);
-                }
-
-                // Counts
-                const makeCount = (n) => {
-                    const d = document.createElement("div");
-                    d.textContent = n > 0 ? n : "—";
-                    d.style.cssText = `
-                        font-size: 12px;
-                        color: ${n > 0 ? '#aaa' : '#555'};
-                        text-align: center;
-                    `;
-                    return d;
-                };
-
-                row.appendChild(thumbWrap);
-                row.appendChild(nameDiv);
-                row.appendChild(makeCount(lorasACount));
-                row.appendChild(makeCount(lorasBCount));
-                row.appendChild(makeCount(triggerCount));
-
-                row.onclick = async () => {
-                    if (mode === "save") {
-                        selectedSaveName = promptName;
-                        if (saveNameInput) {
-                            saveNameInput.value = promptName;
-                            saveNameInput.focus();
-                            saveNameInput.select();
-                        }
-                        currentPrompt = promptName;
-                        renderContent(searchInput.value);
-                        return;
-                    }
-
-                    resolve({ category: selectedCategory, prompt: promptName });
-                    cleanup();
-                };
-
-                if (mode === "save") {
-                    row.ondblclick = async () => {
-                        if (!onSave) return;
-                        const overwriteOk = await showConfirm(
-                            "Overwrite Prompt",
-                            `Prompt "${promptName}" already exists in category "${selectedCategory}". Do you want to replace it?`,
-                            "Replace",
-                            "#c44"
-                        );
-                        if (!overwriteOk) return;
-
-                        const saveResult = await onSave({
-                            category: selectedCategory,
-                            name: promptName,
-                            overwrite: true,
-                        });
-
-                        if (saveResult?.success) {
-                            resolve(saveResult);
-                            cleanup();
-                        } else {
-                            await showInfo("Save Failed", saveResult?.error || "Failed to save workflow.");
-                        }
-                    };
-                }
-
-                row.oncontextmenu = (e) => promptContextMenu(e, promptName);
-
-                grid.appendChild(row);
-            });
-        };
-
-        // Thumbnail hover preview system
-        let hoverPreview = null;
-        let hoverTimer = null;
-        let hideTimer = null;
-        let resetTimer = null;
-        let previewActivated = false;  // Tracks if preview system is "warmed up"
-        let currentMouseX = 0;
-        let currentMouseY = 0;
-        let currentThumbnail = "";
-        let previewWidth = 0;
-        let previewHeight = 0;
-
-        const createHoverPreview = () => {
-            if (!hoverPreview) {
-                hoverPreview = document.createElement("div");
-                hoverPreview.setAttribute('data-pm-thumbnail-preview', 'true');
-                hoverPreview.style.cssText = `
-                    position: fixed;
-                    pointer-events: none;
-                    z-index: 10001;
-                    display: none;
-                    border: 2px solid ${UI.inputBorder};
-                    border-radius: 8px;
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
-                    background-color: #1a1a1a;
-                    background-size: contain;
-                    background-position: center;
-                    background-repeat: no-repeat;
-                `;
-                
-                document.body.appendChild(hoverPreview);
-            }
-            return hoverPreview;
-        };
-
-        const updatePreviewPosition = () => {
-            if (!hoverPreview || !previewWidth || !previewHeight) return;
-            
-            // Center on thumbnail position, keeping on screen
-            let left = currentMouseX - previewWidth / 2;
-            let top = currentMouseY - previewHeight / 2;
-            
-            // Keep on screen with padding
-            left = Math.max(5, Math.min(left, window.innerWidth - previewWidth - 9));
-            top = Math.max(5, Math.min(top, window.innerHeight - previewHeight - 9));
-            
-            hoverPreview.style.left = left + "px";
-            hoverPreview.style.top = top + "px";
-        };
-
-        const showPreviewWithDelay = (thumbnailSrc, thumbnailElement) => {
-            // Cancel any pending hide operation and reset timer
-            clearTimeout(hideTimer);
-            clearTimeout(resetTimer);
-            hideTimer = null;
-            resetTimer = null;
-            
-            const rect = thumbnailElement.getBoundingClientRect();
-            currentMouseX = rect.left + rect.width / 2;
-            currentMouseY = rect.top + rect.height / 2;
-            currentThumbnail = thumbnailSrc;
-            
-            // Intelligent delay: 2000ms initial, 10ms once activated
-            const delay = previewActivated ? 10 : 2000;
-            
-            clearTimeout(hoverTimer);
-            hoverTimer = setTimeout(() => {
-                previewActivated = true;  // Activate fast mode after first preview
-                const preview = createHoverPreview();
-                
-                // Load image in memory (not in DOM) to get dimensions
-                const tempImg = new Image();
-                tempImg.onload = function() {
-                    const naturalWidth = this.naturalWidth;
-                    const naturalHeight = this.naturalHeight;
-                    
-                    // Scale logic:
-                    // - Thumbnails <= 200px in both dimensions: 2x scale (200px -> 400px)
-                    // - Thumbnails > 200px in either dimension: 1x scale (keep original size)
-                    const scale = (naturalWidth > 200 || naturalHeight > 200) ? 1 : 1;
-                    
-                    previewWidth = naturalWidth * scale;
-                    previewHeight = naturalHeight * scale;
-                    
-                    // Update preview div with background image and dimensions
-                    preview.style.width = previewWidth + 'px';
-                    preview.style.height = previewHeight + 'px';
-                    preview.style.backgroundImage = `url(${thumbnailSrc})`;
-                    
-                    updatePreviewPosition();
-                    preview.style.display = "block";
-                };
-                
-                // Load the image
-                tempImg.src = thumbnailSrc;
-            }, delay);
-        };
-
-        const hidePreview = () => {
-            clearTimeout(hoverTimer);
-            clearTimeout(hideTimer);
-            hideTimer = null;
-            
-            if (hoverPreview) {
-                hoverPreview.style.display = "none";
-                previewWidth = 0;
-                previewHeight = 0;
-            }
-        };
-
-        const scheduleHidePreview = () => {
-            clearTimeout(hideTimer);
-            hideTimer = setTimeout(() => {
-                hidePreview();
-                
-                // Start reset timer: after 0.5 seconds of no hovering, reset to slow mode
-                clearTimeout(resetTimer);
-                resetTimer = setTimeout(() => {
-                    previewActivated = false;
-                }, 500);
-            }, 100);
-        };
-
-        // Unified render function: picks grid vs list based on currentViewMode
-        const renderContent = (filter = "") => {
-            if (currentViewMode === "list") {
-                renderListView(filter);
-            } else if (currentViewMode === "icon") {
-                renderCompactGridView(filter);
-            } else {
-                renderGridView(filter);
-            }
-        };
-
-        // Event handlers for controls
-        contentFilterBtn.onclick = () => {
-            if (contentFilterState === "all") {
-                contentFilterState = "prompt";
-            } else if (contentFilterState === "prompt") {
-                contentFilterState = "recipe";
-            } else {
-                contentFilterState = "all";
-            }
-
-            sessionBrowserContentFilter = contentFilterState;
-            app.ui.settings.setSettingValue("PromptManager.BrowserContentFilter", contentFilterState);
-            updateContentFilterBtn();
-            rebuildCategoryList();
-            renderContent(searchInput.value);
-        };
-
-        nsfwBtn.onclick = () => {
-            hideNSFWState = !hideNSFWState;
-            sessionHideNSFW = hideNSFWState;
-            updateNsfwBtn();
-            rebuildCategoryList();
-            renderContent(searchInput.value);
-        };
-
-        viewModeBtn.onclick = () => {
-            if (currentViewMode === "grid") {
-                currentViewMode = "icon";
-            } else if (currentViewMode === "icon") {
-                currentViewMode = "list";
-            } else {
-                currentViewMode = "grid";
-            }
-            sessionViewMode = currentViewMode;
-            localStorage.setItem("PromptManager.BrowserViewMode", currentViewMode);
-            updateViewModeBtn();
-            renderContent(searchInput.value);
-        };
-
-        let saveNameInput = null;
-        let saveActionButton = null;
-        let cancelSaveButton = null;
-
-        const handleSaveAction = async () => {
-            if (mode !== "save" || !onSave || !saveNameInput) {
-                return;
-            }
-
-            const category = ensureSelectedCategory();
-            if (!category) {
-                await showInfo("Missing Category", "Please create or select a category before saving.");
-                return;
-            }
-
-            const name = (saveNameInput.value || "").trim();
-            if (!name) {
-                await showInfo("Missing Name", "Please enter a name before saving.");
-                saveNameInput.focus();
-                return;
-            }
-
-            const existing = node.prompts?.[category]?.[name];
-            let overwrite = false;
-            if (existing) {
-                overwrite = await showConfirm(
-                    "Overwrite Prompt",
-                    `Prompt "${name}" already exists in category "${category}". Do you want to replace it?`,
-                    "Replace",
-                    "#c44",
-                    false
-                );
-                if (!overwrite) {
-                    return;
-                }
-            }
-
-            const saveResult = await onSave({ category, name, overwrite });
-            if (saveResult?.success) {
-                resolve(saveResult);
-                cleanup();
-            } else {
-                await showInfo("Save Failed", saveResult?.error || "Failed to save workflow.");
-            }
-        };
-
-        // Initial render
-        renderContent();
-
-        // Scroll to selected prompt after rendering
-        setTimeout(() => {
-            const selectedElement = gridContainer.querySelector('[data-selected-prompt="true"]');
-            if (selectedElement) {
-                selectedElement.scrollIntoView({ behavior: 'instant', block: 'center' });
-            }
-        }, 50);
-
-        // Search filtering
-        searchInput.oninput = () => {
-            renderContent(searchInput.value);
-        };
-
-        gridContainer.appendChild(grid);
-
-        // Footer with hint
-        const footer = document.createElement("div");
-        footer.style.cssText = `
-            margin-top: 4px;
-            margin-bottom: -8px;
-            padding-top: 6px;
-            border-top: 1px solid ${UI.sectionBorder};
-            font-size: 11px;
-            color: #666;
-            text-align: center;
-        `;
-        footer.textContent = mode === "save"
-            ? "Right-click a prompt or category for more options (thumbnails, NSFW, delete). Single-click fills name; double-click replaces."
-            : "Right-click a prompt or category for more options (thumbnails, NSFW, delete)";
-
-        const saveBar = document.createElement("div");
-        if (mode === "save") {
-            saveBar.style.cssText = `
-                display: flex;
-                gap: 8px;
-                align-items: center;
-                margin-top: 8px;
-                padding-top: 8px;
-                border-top: 1px solid ${UI.sectionBorder};
-            `;
-
-            saveNameInput = document.createElement("input");
-            saveNameInput.type = "text";
-            saveNameInput.value = selectedSaveName;
-            saveNameInput.placeholder = saveNamePlaceholder;
-            saveNameInput.style.cssText = `
-                flex: 1;
-                min-width: 0;
-                padding: 7px 10px;
-                background: ${UI.inputBg};
-                border: 1px solid ${UI.inputBorder};
-                border-radius: 4px;
-                color: #fff;
-                font-size: 13px;
-                box-sizing: border-box;
-                outline: none;
-            `;
-            saveNameInput.onfocus = () => saveNameInput.style.borderColor = UI.accent;
-            saveNameInput.onblur = () => saveNameInput.style.borderColor = UI.inputBorder;
-            saveNameInput.onkeydown = async (e) => {
-                if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    await handleSaveAction();
-                }
-            };
-
-            saveActionButton = document.createElement("button");
-            saveActionButton.textContent = saveButtonText;
-            saveActionButton.style.cssText = `
-                background: #2b6d3a;
-                border: 1px solid #4a9158;
-                color: #fff;
-                padding: 7px 14px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 13px;
-                white-space: nowrap;
-            `;
-            saveActionButton.onclick = async () => {
-                await handleSaveAction();
-            };
-
-            cancelSaveButton = document.createElement("button");
-            cancelSaveButton.textContent = "Cancel";
-            cancelSaveButton.style.cssText = `
-                background: #313843;
-                border: 1px solid #5f6773;
-                color: #ccc;
-                padding: 7px 12px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 13px;
-                white-space: nowrap;
-            `;
-            cancelSaveButton.onclick = () => {
-                resolve(null);
-                cleanup();
-            };
-
-            saveBar.appendChild(saveNameInput);
-            saveBar.appendChild(cancelSaveButton);
-            saveBar.appendChild(saveActionButton);
-        }
-
-        dialog.appendChild(header);
-        dialog.appendChild(controlsBar);
-        dialog.appendChild(categoryContainer);
-        dialog.appendChild(gridContainer);
-        dialog.appendChild(footer);
-        if (mode === "save") {
-            dialog.appendChild(saveBar);
-        }
-
-        const cleanup = () => {
-            clearTimeout(hoverTimer);
-            clearTimeout(hideTimer);
-            clearTimeout(resetTimer);
-            hidePreview();
-            if (hoverPreview && hoverPreview.parentNode) {
-                document.body.removeChild(hoverPreview);
-            }
-            hoverPreview = null;
-            // Clean up any stale preview elements
-            const allPreviews = document.querySelectorAll('[data-pm-thumbnail-preview]');
-            allPreviews.forEach(p => {
-                if (p.parentNode) p.parentNode.removeChild(p);
-            });
-            document.body.removeChild(overlay);
-            document.body.removeChild(dialog);
-        };
-
-        closeBtn.onclick = () => {
-            resolve(null);
-            cleanup();
-        };
-
-        overlay.onclick = () => {
-            resolve(null);
-            cleanup();
-        };
-
-        // Prevent dialog click from closing
-        dialog.onclick = (e) => e.stopPropagation();
-
-        // Keyboard shortcuts
-        dialog.onkeydown = async (e) => {
-            if (e.key === "Escape") {
-                resolve(null);
-                cleanup();
-                return;
-            }
-            if (mode === "save" && e.key === "Enter") {
-                const target = e.target;
-                if (target !== searchInput) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    await handleSaveAction();
-                }
-            }
-        };
-
-        document.body.appendChild(overlay);
-        document.body.appendChild(dialog);
-        searchInput.focus();
-    });
-}
-
-export async function openPromptBrowserForSave(options = {}) {
-    const browserNode = options.node || {};
-    const currentCategory = options.currentCategory || "Default";
-    const currentPrompt = options.currentPrompt || "";
-    return showThumbnailBrowser(browserNode, currentCategory, currentPrompt, {
-        mode: "save",
-        onSave: options.onSave,
-        title: options.title || "Save Workflow",
-        saveButtonText: options.saveButtonText || "Save",
-        namePlaceholder: options.namePlaceholder || "Prompt name",
-        initialName: options.initialName || "",
-        workflowOnly: options.workflowOnly === true || browserNode?._isWorkflowManager === true,
-    });
-}
+// Prompt browser implementation moved to prompt_browser.js.
 
 // ========================
 // Thumbnail Generation System
@@ -8902,6 +6647,15 @@ let _thumbnailFamiliesCache = null;
 let _thumbnailFamiliesPromise = null;
 const _thumbnailModelsCache = new Map();
 const _thumbnailModelsPromises = new Map();
+
+function getThumbnailRenderState() {
+    return {
+        family: _thumbnailRenderFamily,
+        model: _thumbnailRenderModel,
+        lora1: _thumbnailRenderLora1,
+        lora2: _thumbnailRenderLora2,
+    };
+}
 
 try {
     const savedFamily = app.ui.settings.getSettingValue("PromptManager.ThumbnailRenderFamily");
@@ -8941,57 +6695,6 @@ function _thumbnailDisplayName(modelPath, maxLength = 68) {
     const leaf = _thumbnailLeafName(modelPath);
     if (leaf.length <= maxLength) return leaf;
     return `${leaf.slice(0, Math.max(0, maxLength - 1))}…`;
-}
-
-/**
- * Attach drag-and-drop handlers so users can drop an image onto a thumbnail
- * to set it as that prompt's thumbnail.
- */
-function _attachThumbnailDropHandlers(element, node, category, promptName, onUpdate) {
-    element.addEventListener("dragover", (e) => {
-        const hasFiles = Array.from(e.dataTransfer?.types || []).includes("Files");
-        if (!hasFiles) return;
-        e.preventDefault();
-        e.stopPropagation();
-        element.style.outline = "2px dashed #4CAF50";
-        element.style.outlineOffset = "2px";
-    });
-    element.addEventListener("dragleave", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        element.style.outline = "";
-        element.style.outlineOffset = "";
-    });
-    element.addEventListener("drop", async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        element.style.outline = "";
-        element.style.outlineOffset = "";
-
-        const files = Array.from(e.dataTransfer?.files || []);
-        const imageFile = files.find((f) => f.type?.startsWith("image/"));
-        if (!imageFile) return;
-
-        const existing = node.prompts?.[category]?.[promptName]?.thumbnail;
-        if (existing) {
-            const confirmed = await showConfirm(
-                "Replace Thumbnail",
-                `"${promptName}" already has a thumbnail. Do you want to replace it with the dropped image?`,
-                "Replace",
-                "#c00"
-            );
-            if (!confirmed) return;
-        }
-
-        try {
-            const thumbnail = await resizeImageToThumbnail(imageFile, 200);
-            await saveThumbnail(node, category, promptName, thumbnail);
-            onUpdate();
-        } catch (error) {
-            console.error("[PromptManagerAdvanced] Error setting thumbnail from drop:", error);
-            await showInfo("Error", "Failed to set thumbnail from dropped image.");
-        }
-    });
 }
 
 async function fetchAvailableThumbnailLoras() {
@@ -9147,21 +6850,18 @@ function applyThumbnailSelectedLoras(workflowData, renderSelection, selectedSlot
     return wf;
 }
 
-function applyThumbnailSeeds(workflowData, selectedSlot = "model_a", category = null) {
+function applyThumbnailSeeds(workflowData, selectedSlot = "model_a", options = {}) {
     if (!workflowData || typeof workflowData !== "object") {
         return workflowData;
     }
 
     const wf = workflowData;
     const slot = String(selectedSlot || "model_a").trim().toLowerCase();
-
-    const isExpression = typeof category === "string" && category.toLowerCase() === "expressions";
+    const staticSeed = Number(options?.staticSeed);
     let seedA;
     let seedB;
-    if (isExpression) {
-        const rawSeed = app.ui.settings.getSettingValue("PromptManager.ExpressionSeed");
-        const parsed = Number(rawSeed);
-        seedA = Number.isFinite(parsed) ? parsed : 42;
+    if (Number.isFinite(staticSeed) && staticSeed > 0) {
+        seedA = staticSeed;
         seedB = seedA;
     } else {
         seedA = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
@@ -9201,56 +6901,53 @@ function applyThumbnailSeeds(workflowData, selectedSlot = "model_a", category = 
         }
     }
 
-    return wf;
+    return seedA;
+}
+
+function getThumbnailPositivePrompt(workflowData, selectedSlot = "model_a") {
+    if (!workflowData || typeof workflowData !== "object") return "";
+    const wf = workflowData;
+    if (Number(wf.version || 0) >= 2 && wf.models && typeof wf.models === "object") {
+        const block = wf.models[selectedSlot] || wf.models.model_a;
+        if (block && typeof block === "object") {
+            return String(block.positive_prompt || block.prompt || "").trim();
+        }
+    }
+    return String(wf.positive_prompt || wf.prompt || "").trim();
 }
 
 function applyThumbnailRandomSeeds(workflowData, selectedSlot = "model_a") {
-    return applyThumbnailSeeds(workflowData, selectedSlot, null);
+    return applyThumbnailSeeds(workflowData, selectedSlot, {});
 }
 
-/**
- * For Expression-category thumbnails, append the expression prompt after the
- * configured character description. If the expression does not already start
- * with "expression:" (case-insensitive), prefix it with that label.
- * @param {string} promptText - Original prompt text (the expression)
- * @param {string|null} category - Prompt category
- * @returns {string} Character description + labeled expression
- */
-function prepareExpressionPromptText(promptText, category = null) {
-    const isExpression = typeof category === "string" && category.toLowerCase() === "expressions";
-    if (!isExpression) {
-        return String(promptText || "");
-    }
-
-    const rawDesc = app.ui.settings.getSettingValue("PromptManager.ExpressionCharacterDescription");
-    const characterDesc = String(rawDesc || "").trim();
-    let expressionText = String(promptText || "").trim();
-
-    if (!expressionText) {
-        return characterDesc;
-    }
-
-    if (!expressionText.toLowerCase().startsWith("expression:")) {
-        expressionText = `expression: ${expressionText}`;
-    }
-
-    if (!characterDesc) {
-        return expressionText;
-    }
-
-    return `${characterDesc} ${expressionText}`;
+function prependCategoryBasePrompt(promptText, basePrompt) {
+    const base = String(basePrompt || "").trim();
+    const prompt = String(promptText || "").trim();
+    if (!base) return prompt;
+    if (!prompt) return base;
+    return `${base} ${prompt}`;
 }
 
-function applyThumbnailResolution(workflowData, category = null) {
+function getCategoryBasePrompt(node, category) {
+    const raw = node?.prompts?.[category]?._base_prompt_;
+    return typeof raw === "string" ? raw : "";
+}
+
+function getThumbnailComposerSeed() {
+    const rawSeed = app.ui.settings.getSettingValue("PromptManager.ThumbnailComposerSeed");
+    const parsed = Number(rawSeed);
+    return Number.isFinite(parsed) ? parsed : 42;
+}
+
+function applyThumbnailResolution(workflowData) {
     const wfForThumb = JSON.parse(JSON.stringify(workflowData || {}));
     const baseResolution = (wfForThumb.resolution && typeof wfForThumb.resolution === "object")
         ? wfForThumb.resolution
         : {};
-    const isExpression = typeof category === "string" && category.toLowerCase() === "expressions";
     wfForThumb.resolution = {
         ...baseResolution,
-        width: isExpression ? 768 : THUMB_RENDER_WIDTH,
-        height: isExpression ? 1024 : THUMB_RENDER_HEIGHT,
+        width: THUMB_RENDER_WIDTH,
+        height: THUMB_RENDER_HEIGHT,
         batch_size: THUMB_RENDER_BATCH,
         length: THUMB_RENDER_LENGTH,
     };
@@ -9301,7 +6998,7 @@ function getThumbnailFamilySamplerDefaults(familyKey) {
 
 async function buildRendererFallbackWorkflowData(promptText, promptData, renderSelection) {
     const familySamplerDefaults = getThumbnailFamilySamplerDefaults(renderSelection.family);
-    const finalPromptText = prepareExpressionPromptText(promptText, promptData?.category);
+    const finalPromptText = String(promptText || "").trim();
     const baseRaw = {
         model_family: renderSelection.family,
         model_a: renderSelection.model,
@@ -9361,7 +7058,7 @@ async function buildRendererFallbackWorkflowData(promptText, promptData, renderS
             : baseRaw.sampler,
         _source: "PromptManagerAdvancedThumbnail",
     };
-    return applyThumbnailResolution(base, promptData?.category);
+    return applyThumbnailResolution(base);
 }
 
 async function resolveThumbnailFallbackBase(renderSelection) {
@@ -9413,7 +7110,7 @@ async function buildRendererFallbackWorkflowDataWithBase(promptText, promptData,
     }
 
     const normalized = fallbackBase.normalized;
-    const finalPromptText = prepareExpressionPromptText(promptText, promptData?.category);
+    const finalPromptText = String(promptText || "").trim();
     const clipNames = Array.isArray(normalized?.clip?.names)
         ? normalized.clip.names.filter((x) => !!x)
         : [];
@@ -9919,19 +7616,23 @@ function resolveThumbnailModelSlot(workflowData) {
  * Falls back to the basic thumbnail workflow when this path cannot run.
  * @param {Object} workflowData - Saved workflow_data payload
  * @param {Object|null} renderSelection - Selected family/model/loras
- * @param {string|null} category - Prompt category (e.g. "Expression") for category-specific seed handling
+ * @param {Object} options
+ * @param {number|null} options.staticSeed - Optional static seed; <=0 uses random
  * @returns {Promise<string|null>} Base64 thumbnail data URL or null
  */
-async function generateThumbnailWorkflowFromWorkflowData(workflowData, renderSelection = null, category = null) {
+async function generateThumbnailWorkflowFromWorkflowData(workflowData, renderSelection = null, options = {}) {
     if (!workflowData || typeof workflowData !== "object") {
         return null;
     }
 
     // Enforce thumbnail-safe render sizing before queueing.
-    const wfForThumb = applyThumbnailResolution(workflowData, category);
+    const wfForThumb = applyThumbnailResolution(workflowData);
     const modelSlot = resolveThumbnailModelSlot(wfForThumb);
-    applyThumbnailSeeds(wfForThumb, modelSlot, category);
+    const seedUsed = applyThumbnailSeeds(wfForThumb, modelSlot, { staticSeed: options?.staticSeed });
     applyThumbnailSelectedLoras(wfForThumb, renderSelection, modelSlot);
+
+    const thumbPositive = getThumbnailPositivePrompt(wfForThumb, modelSlot);
+    console.log(`[ThumbnailGen] Workflow queued | slot=${modelSlot} | seed=${seedUsed} | prompt=${thumbPositive || "(not resolved)"}`);
 
     const workflow = {};
     let nodeId = 1;
@@ -10164,19 +7865,32 @@ function _finishThumbQueueProgress() {
 }
 
 async function generateThumbnailForPrompt(node, category, promptName, onUpdate, options = {}) {
-    const { silent = false, renderSelection: providedRenderSelection = null, fallbackBase = null, queue = false } = options || {};
+    const {
+        silent = false,
+        renderSelection: providedRenderSelection = null,
+        fallbackBase = null,
+        queue = false,
+        endpointPrefix = "/prompt-manager-advanced",
+    } = options || {};
     const promptData = node.prompts[category]?.[promptName];
     if (!promptData) {
         if (!silent && !queue) await showInfo("Error", "Prompt data not found.");
         return;
     }
 
-    // Pass category through so expression character description and seed are applied.
+    // Keep category available on prompt data for any category-aware downstream logic.
     if (promptData && typeof promptData === "object" && !promptData.category) {
         promptData.category = category;
     }
 
-    const promptText = promptData.prompt || promptName;
+    const isComposerManager = endpointPrefix === "/prompt-manager/mixer";
+    const composerSeed = getThumbnailComposerSeed();
+    const staticSeedForRun = (isComposerManager && Number.isFinite(composerSeed) && composerSeed > 0)
+        ? composerSeed
+        : null;
+
+    const categoryBasePrompt = getCategoryBasePrompt(node, category);
+    const promptText = prependCategoryBasePrompt(promptData.prompt || promptName, categoryBasePrompt);
     const activeRenderSelection = providedRenderSelection || (
         (_thumbnailRenderFamily && _thumbnailRenderModel)
             ? {
@@ -10228,8 +7942,18 @@ async function generateThumbnailForPrompt(node, category, promptName, onUpdate, 
 
         if (parsedWorkflowData) {
             try {
-                patchExpressionPromptInWorkflowData(parsedWorkflowData, category);
-                thumbnail = await generateThumbnailWorkflowFromWorkflowData(parsedWorkflowData, activeRenderSelection, category);
+                const effectivePrompt = String(promptText || "").trim();
+                if (Number(parsedWorkflowData.version || 0) >= 2 && parsedWorkflowData.models && typeof parsedWorkflowData.models === "object") {
+                    const modelA = parsedWorkflowData.models.model_a;
+                    if (modelA && typeof modelA === "object") {
+                        modelA.positive_prompt = effectivePrompt;
+                    }
+                } else {
+                    parsedWorkflowData.positive_prompt = effectivePrompt;
+                }
+                thumbnail = await generateThumbnailWorkflowFromWorkflowData(parsedWorkflowData, activeRenderSelection, {
+                    staticSeed: staticSeedForRun,
+                });
             } catch (e) {
                 console.warn("[ThumbnailGen] RecipeRenderer thumbnail path failed, falling back:", e);
                 thumbnail = null;
@@ -10243,15 +7967,17 @@ async function generateThumbnailForPrompt(node, category, promptName, onUpdate, 
 
             const fallbackWorkflowData = await buildRendererFallbackWorkflowDataWithBase(
                 promptText,
-                promptData,
+                { ...promptData, base_prompt: categoryBasePrompt },
                 renderSelection,
                 fallbackBase
             );
-            thumbnail = await generateThumbnailWorkflowFromWorkflowData(fallbackWorkflowData, renderSelection, category);
+            thumbnail = await generateThumbnailWorkflowFromWorkflowData(fallbackWorkflowData, renderSelection, {
+                staticSeed: staticSeedForRun,
+            });
         }
 
         if (thumbnail) {
-            await saveThumbnail(node, category, promptName, thumbnail);
+            await saveThumbnail(node, category, promptName, thumbnail, endpointPrefix);
             onUpdate();
         } else {
             if (!silent && !queue) await showInfo("Generation Failed", "Could not generate thumbnail. The model may be incompatible or an error occurred.");
@@ -10268,257 +7994,11 @@ async function generateThumbnailForPrompt(node, category, promptName, onUpdate, 
 }
 
 /**
- * Show context menu for thumbnail operations
- */
-function showThumbnailContextMenu(event, node, category, promptName, onUpdate) {
-    // Remove any existing context menu
-    const existing = document.querySelector('.thumbnail-context-menu');
-    if (existing) existing.remove();
-
-    const menu = document.createElement("div");
-    menu.className = "thumbnail-context-menu";
-    menu.style.cssText = `
-        position: fixed;
-        left: ${event.clientX}px;
-        top: ${event.clientY}px;
-        background: #2a2a2a;
-        border: 1px solid #444;
-        border-radius: 6px;
-        padding: 4px 0;
-        z-index: 10001;
-        min-width: 150px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    `;
-
-    const createMenuItem = (label, onClick) => {
-        const item = document.createElement("div");
-        item.textContent = label;
-        item.style.cssText = `
-            padding: 8px 16px;
-            color: #ccc;
-            cursor: pointer;
-            font-size: 13px;
-        `;
-        item.onmouseover = () => item.style.background = '#3a3a3a';
-        item.onmouseout = () => item.style.background = 'transparent';
-        item.onclick = () => {
-            menu.remove();
-            onClick();
-        };
-        return item;
-    };
-
-    // Set thumbnail from file
-    menu.appendChild(createMenuItem("📁 Set Thumbnail from File...", async () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                try {
-                    const thumbnail = await resizeImageToThumbnail(file, 200);
-                    await saveThumbnail(node, category, promptName, thumbnail);
-                    onUpdate();
-                } catch (error) {
-                    console.error("[PromptManagerAdvanced] Error setting thumbnail:", error);
-                    await showInfo("Error", "Failed to set thumbnail");
-                }
-            }
-        };
-        input.click();
-    }));
-
-    // Set thumbnail from clipboard
-    menu.appendChild(createMenuItem("📋 Set Thumbnail from Clipboard", async () => {
-        try {
-            const clipboardItems = await navigator.clipboard.read();
-            for (const item of clipboardItems) {
-                const imageType = item.types.find(type => type.startsWith('image/'));
-                if (imageType) {
-                    const blob = await item.getType(imageType);
-                    const file = new File([blob], 'clipboard.png', { type: imageType });
-                    const thumbnail = await resizeImageToThumbnail(file, 200);
-                    await saveThumbnail(node, category, promptName, thumbnail);
-                    onUpdate();
-                    return;
-                }
-            }
-            await showInfo("No Image", "No image found in clipboard");
-        } catch (error) {
-            console.error("[PromptManagerAdvanced] Error reading clipboard:", error);
-            await showInfo("Error", "Failed to read clipboard. Make sure you have an image copied.");
-        }
-    }));
-
-    // Generate thumbnail divider
-    const genDivider = document.createElement("div");
-    genDivider.style.cssText = `height: 1px; background: #444; margin: 4px 0;`;
-    menu.appendChild(genDivider);
-
-    // Generate Thumbnail
-    menu.appendChild(createMenuItem("🎨 Generate Thumbnail", async () => {
-        const queuedName = promptName;
-        _thumbQueueTotal++;
-        _ensureThumbQueueProgress();
-        _updateThumbQueueProgress(queuedName);
-
-        _thumbQueuePromiseChain = _thumbQueuePromiseChain.then(async () => {
-            if (_thumbQueueCancelled) {
-                _thumbQueueDone++;
-                if (_thumbQueueDone + _thumbQueueFailed >= _thumbQueueTotal) {
-                    _finishThumbQueueProgress();
-                }
-                return;
-            }
-            _updateThumbQueueProgress(queuedName);
-            try {
-                await generateThumbnailForPrompt(node, category, queuedName, onUpdate, { queue: true });
-                _thumbQueueDone++;
-            } catch (e) {
-                console.error(`[ThumbnailGen] Failed for "${queuedName}":`, e);
-                _thumbQueueFailed++;
-            } finally {
-                if (_thumbQueueProgress && _thumbQueueDone + _thumbQueueFailed >= _thumbQueueTotal) {
-                    _finishThumbQueueProgress();
-                }
-            }
-        });
-    }));
-
-    // Change Thumbnail Family/Model
-    const selectedLorasForLabel = [_thumbnailRenderLora1, _thumbnailRenderLora2].filter(Boolean);
-    const modelLabel = (_thumbnailRenderFamily && _thumbnailRenderModel)
-        ? `🔧 ${_thumbnailRenderFamily} : ${_thumbnailLeafName(_thumbnailRenderModel)}${selectedLorasForLabel.length ? ` + ${selectedLorasForLabel.length} LoRA` + (selectedLorasForLabel.length > 1 ? "s" : "") : ""}`
-        : "🔧 Select Thumbnail Family + Model";
-    menu.appendChild(createMenuItem(modelLabel, async () => {
-        const picked = await showThumbnailRenderPicker(
-            _thumbnailRenderFamily,
-            _thumbnailRenderModel,
-            _thumbnailRenderLora1,
-            _thumbnailRenderLora2,
-        );
-        if (picked) {
-            saveThumbnailRenderSelection(picked);
-        }
-    }));
-
-    // Remove thumbnail (only show if there is one)
-    const promptData = node.prompts[category]?.[promptName];
-    if (promptData?.thumbnail) {
-        const divider = document.createElement("div");
-        divider.style.cssText = `
-            height: 1px;
-            background: #444;
-            margin: 4px 0;
-        `;
-        menu.appendChild(divider);
-
-        menu.appendChild(createMenuItem("🗑️ Remove Thumbnail", async () => {
-            await saveThumbnail(node, category, promptName, null);
-            onUpdate();
-        }));
-    }
-
-    // NSFW toggle divider + option
-    const nsfwDivider = document.createElement("div");
-    nsfwDivider.style.cssText = `height: 1px; background: #444; margin: 4px 0;`;
-    menu.appendChild(nsfwDivider);
-
-    const isNSFW = promptData?.nsfw === true;
-    const nsfwItem = createMenuItem(isNSFW ? "✓ NSFW" : "Mark as NSFW", async () => {
-        try {
-            const resp = await fetch("/prompt-manager-advanced/toggle-nsfw", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ type: "prompt", category: category, name: promptName })
-            });
-            const result = await resp.json();
-            if (result.success) {
-                node.prompts = result.prompts;
-                onUpdate();
-            }
-        } catch (err) {
-            console.error("[PromptManagerAdvanced] Error toggling prompt NSFW:", err);
-        }
-    });
-    nsfwItem.style.color = isNSFW ? '#f66' : '#ccc';
-    menu.appendChild(nsfwItem);
-
-    // Rename / Move Prompt
-    const renameDivider = document.createElement("div");
-    renameDivider.style.cssText = `height: 1px; background: #444; margin: 4px 0;`;
-    menu.appendChild(renameDivider);
-
-    menu.appendChild(createMenuItem("✏️ Rename / Move", async () => {
-        const allCategories = Object.keys(node.prompts).filter(c => c !== "__meta__").sort((a, b) => a.localeCompare(b));
-        const result = await showPromptWithCategory(
-            "Rename / Move Prompt",
-            "Prompt name:",
-            promptName,
-            allCategories,
-            category,
-            promptData?.nsfw || false
-        );
-        if (result && result.name && result.name.trim()) {
-            const newName = result.name.trim();
-            const newCat = result.category;
-            if (newName === promptName && newCat === category) return;
-            try {
-                const resp = await fetch("/prompt-manager-advanced/rename-prompt", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ category: category, old_name: promptName, new_name: newName, new_category: newCat })
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    node.prompts = data.prompts;
-                    onUpdate();
-                } else {
-                    await showInfo("Error", data.error);
-                }
-            } catch (err) {
-                console.error("[PromptManagerAdvanced] Error renaming prompt:", err);
-            }
-        }
-    }));
-
-    // Delete Prompt
-    const deleteDivider = document.createElement("div");
-    deleteDivider.style.cssText = `height: 1px; background: #444; margin: 4px 0;`;
-    menu.appendChild(deleteDivider);
-
-    menu.appendChild(createMenuItem("🗑️ Delete Prompt", async () => {
-        if (await showConfirm("Delete Prompt", `Are you sure you want to delete prompt "${promptName}"?`)) {
-            await deletePrompt(node, category, promptName);
-            onUpdate();
-        }
-    }));
-    // Style the delete item red
-    menu.lastChild.style.color = '#f66';
-
-    // Close menu when clicking outside of it
-    const closeMenu = (e) => {
-        // Only close if clicking outside the menu
-        if (!menu.contains(e.target)) {
-            menu.remove();
-            document.removeEventListener('mousedown', closeMenu, true);
-        }
-    };
-    // Use mousedown with capture to catch clicks before they propagate
-    setTimeout(() => {
-        document.addEventListener('mousedown', closeMenu, true);
-    }, 10);
-
-    document.body.appendChild(menu);
-}
-
-/**
  * Save thumbnail to prompt data
  */
-async function saveThumbnail(node, category, promptName, thumbnail) {
+async function saveThumbnail(node, category, promptName, thumbnail, endpointPrefix = "/prompt-manager-advanced") {
     try {
-        const response = await fetch("/prompt-manager-advanced/save-thumbnail", {
+        const response = await fetch(`${endpointPrefix}/save-thumbnail`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -11038,15 +8518,33 @@ function createPromptSelectorWidget(node) {
     return widget;
 }
 
-// Shared helpers for companion nodes (e.g. ExpressionSelector)
+configurePromptBrowserDeps({
+    app,
+    UI,
+    DEFAULT_THUMBNAIL,
+    loadPrompts,
+    showInfo,
+    showConfirm,
+    showRenameCategoryDialog,
+    showNewCategoryDialog,
+    ensureThumbnailRenderSelection,
+    resolveThumbnailFallbackBase,
+    generateThumbnailForPrompt,
+    generateThumbnailWorkflowFromWorkflowData,
+    buildRendererFallbackWorkflowDataWithBase,
+    showThumbnailRenderPicker,
+    saveThumbnailRenderSelection,
+    thumbnailLeafName: _thumbnailLeafName,
+    getThumbnailRenderState,
+});
+
+// Shared helpers for companion nodes
 export {
     PMA_THEME,
     DEFAULT_THUMBNAIL,
     loadPrompts,
-    getPromptNamesForCategory,
-    getVisibleCategories,
-    showThumbnailBrowser,
     forwardWheelToCanvas,
     showInfo,
     showConfirm,
 };
+

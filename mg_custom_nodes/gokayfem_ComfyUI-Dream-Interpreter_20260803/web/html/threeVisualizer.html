@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta
+            name="viewport"
+            content="width=device-width,initial-scale=1,maximum-scale=1"
+        >
+        <title>Dream Viewer</title>
+        <link rel="stylesheet" href="../style/threeStyle.css">
+        <script type="importmap">
+            {
+                "imports": {
+                    "three": "../vendor/three.module.min.mjs"
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <main id="viewer" aria-label="Interactive dream panorama">
+            <div id="canvas-container"></div>
+            <div id="status" role="status" aria-live="polite">Waiting for output…</div>
+            <div id="error" role="alert" hidden></div>
+
+            <aside id="interpretation-panel" hidden>
+                <div class="panel-heading">
+                    <strong>Dream interpretation</strong>
+                    <button id="close-interpretation" type="button" aria-label="Hide interpretation">×</button>
+                </div>
+                <p id="interpretation"></p>
+            </aside>
+
+            <section class="toolbar" aria-label="Dream viewer controls">
+                <label>
+                    Frame
+                    <select id="batch-select" disabled></select>
+                </label>
+                <label>
+                    FOV
+                    <input id="field-of-view" type="range" min="30" max="110" step="1" value="70">
+                    <output id="field-of-view-value">70°</output>
+                </label>
+                <label class="checkbox"><input id="auto-rotate" type="checkbox"> Auto rotate</label>
+                <button id="reset-camera" type="button">Reset view</button>
+                <button id="toggle-interpretation" type="button">Interpretation</button>
+                <button id="screenshot" type="button">Save PNG</button>
+            </section>
+        </main>
+
+        <script type="module" src="../js/threeVisualizer.mjs?v=3.0.0"></script>
+    </body>
+</html>

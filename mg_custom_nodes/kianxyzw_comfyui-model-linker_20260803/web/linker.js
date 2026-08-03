@@ -16,6 +16,11 @@ class LinkerManagerDialog extends ComfyDialog {
         this.currentWorkflow = null;
         this.missingModels = [];
         this.activeDownloads = {};  // Track active downloads
+        this.activeTab = null;      // 'missing' | 'all'; null -> pick default on load
+        this.analyzeData = null;    // Last /model_linker/analyze response
+        this.allModelEntries = [];  // Flattened entries backing the All models tab
+        this.collapsedGroups = {};  // Category collapse state in the All models tab
+        this.allModelsFilter = '';  // Filter text in the All models tab
         this.boundHandleOutsideClick = this.handleOutsideClick.bind(this);
         
         // Inject global styles for the redesigned UI
@@ -44,8 +49,8 @@ class LinkerManagerDialog extends ComfyDialog {
                 top: "50%",
                 left: "50%",
                 transform: "translate(-50%, -50%)",
-                width: "1100px",
-                height: "700px",
+                width: "1400px",
+                height: "750px",
                 maxWidth: "95vw",
                 maxHeight: "95vh",
                 backgroundColor: "var(--comfy-menu-bg, #202020)",
@@ -60,6 +65,7 @@ class LinkerManagerDialog extends ComfyDialog {
             }
         }, [
             this.createHeader(),
+            this.createTabBar(),
             this.createContent(),
             this.createFooter()
         ]);
@@ -109,7 +115,14 @@ class LinkerManagerDialog extends ComfyDialog {
             .ml-card:hover {
                 background: #303030;
             }
-            
+            .ml-card.ml-card-resolved {
+                background: rgba(76, 175, 80, 0.08);
+                border: 1px solid rgba(76, 175, 80, 0.3);
+            }
+            .ml-card.ml-card-resolved:hover {
+                background: rgba(76, 175, 80, 0.12);
+            }
+
             /* Card Header */
             .ml-card-header {
                 display: flex;
@@ -138,6 +151,138 @@ class LinkerManagerDialog extends ComfyDialog {
                 white-space: nowrap;
                 flex-shrink: 0;
             }
+            .ml-node-chip-clickable {
+                cursor: pointer;
+                transition: background 0.15s, color 0.15s;
+            }
+            .ml-node-chip-clickable:hover {
+                background: #4a4a4a;
+                color: var(--ml-text);
+            }
+            .ml-tab-bar {
+                display: flex;
+                gap: 6px;
+                padding: 8px 20px;
+                border-bottom: 1px solid var(--ml-border, #444);
+                background: var(--comfy-menu-bg, #202020);
+            }
+            .ml-tab {
+                background: none;
+                border: none;
+                border-radius: 4px;
+                border-bottom: 2px solid transparent;
+                color: var(--ml-text-muted, #999);
+                padding: 8px 14px;
+                cursor: pointer;
+                font-size: 13px;
+            }
+            .ml-tab:hover {
+                color: var(--ml-text, #ddd);
+                background: #2c2c2c;
+            }
+            .ml-tab-active {
+                color: var(--ml-text, #fff);
+                border-bottom-color: var(--ml-accent, #4a90d9);
+                font-weight: 600;
+            }
+            .ml-all-toolbar {
+                margin-bottom: 12px;
+            }
+            .ml-filter-input {
+                width: 100%;
+                padding: 8px 10px;
+                background: #2a2a2a;
+                border: 1px solid var(--ml-border, #444);
+                border-radius: 4px;
+                color: var(--ml-text, #ddd);
+                font-size: 13px;
+                box-sizing: border-box;
+            }
+            .ml-group-header {
+                padding: 8px 4px;
+                margin-top: 8px;
+                font-size: 12px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: var(--ml-text-muted, #999);
+                cursor: pointer;
+                user-select: none;
+            }
+            .ml-group-header:hover {
+                color: var(--ml-text, #ddd);
+            }
+            .ml-all-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 8px;
+                border-radius: 4px;
+            }
+            .ml-all-row:hover {
+                background: #2c2c2c;
+            }
+            .ml-all-row .ml-match-filename {
+                flex: 1;
+            }
+            .ml-missing-badge {
+                padding: 2px 6px;
+                background: rgba(220, 60, 60, 0.15);
+                border: 1px solid rgba(220, 60, 60, 0.5);
+                border-radius: 3px;
+                font-size: 10px;
+                color: #e06060;
+                white-space: nowrap;
+            }
+            .ml-swap-panel {
+                margin: 4px 8px 8px 8px;
+                padding: 8px;
+                background: #262626;
+                border: 1px solid var(--ml-border, #444);
+                border-radius: 4px;
+            }
+            .ml-swap-search {
+                margin-bottom: 8px;
+            }
+            .ml-swap-results {
+                max-height: 260px;
+                overflow-y: auto;
+            }
+            .ml-swap-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 4px 6px;
+                border-radius: 3px;
+            }
+            .ml-swap-row:hover {
+                background: #303030;
+            }
+            .ml-swap-row .ml-match-filename {
+                flex: 1;
+            }
+            .ml-current-badge {
+                padding: 2px 6px;
+                background: rgba(80, 160, 80, 0.15);
+                border: 1px solid rgba(80, 160, 80, 0.5);
+                border-radius: 3px;
+                font-size: 10px;
+                color: #7cc47c;
+                white-space: nowrap;
+            }
+            .ml-wrong-folder {
+                display: inline-flex;
+                align-items: center;
+                padding: 2px 6px;
+                background: rgba(230, 160, 30, 0.15);
+                border: 1px solid rgba(230, 160, 30, 0.5);
+                border-radius: 3px;
+                font-size: 10px;
+                color: #e6a01e;
+                white-space: nowrap;
+                cursor: help;
+            }
+
             .ml-category-chip {
                 display: inline-flex;
                 padding: 2px 6px;
@@ -239,9 +384,7 @@ class LinkerManagerDialog extends ComfyDialog {
             .ml-match-filename {
                 flex: 1;
                 min-width: 0;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
+                word-break: break-all;
                 font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
                 font-size: 12px;
                 color: var(--ml-text);
@@ -322,6 +465,7 @@ class LinkerManagerDialog extends ComfyDialog {
                 font-size: 12px;
                 color: var(--ml-text-muted);
                 margin-top: 6px;
+                word-break: break-all;
             }
             .ml-download-source {
                 color: var(--ml-accent);
@@ -623,6 +767,45 @@ class LinkerManagerDialog extends ComfyDialog {
         ]);
     }
     
+    createTabBar() {
+        this.missingTabBtn = $el("button.ml-tab.ml-tab-active", {
+            textContent: "Missing",
+            onclick: () => this.switchTab('missing')
+        });
+        this.allTabBtn = $el("button.ml-tab", {
+            textContent: "All models",
+            onclick: () => this.switchTab('all')
+        });
+        return $el("div.ml-tab-bar", {}, [this.missingTabBtn, this.allTabBtn]);
+    }
+
+    switchTab(tab) {
+        if (this.activeTab === tab) return;
+        this.activeTab = tab;
+        this.renderActiveTab();
+    }
+
+    updateTabBar() {
+        if (!this.missingTabBtn || !this.allTabBtn) return;
+        const missing = this.analyzeData?.missing_models?.length ?? 0;
+        const resolved = this.analyzeData?.resolved_models?.length ?? 0;
+        this.missingTabBtn.textContent = `Missing (${missing})`;
+        this.allTabBtn.textContent = `All models (${missing + resolved})`;
+        this.missingTabBtn.classList.toggle('ml-tab-active', this.activeTab !== 'all');
+        this.allTabBtn.classList.toggle('ml-tab-active', this.activeTab === 'all');
+    }
+
+    renderActiveTab() {
+        if (!this.contentElement) return;
+        this.updateTabBar();
+        if (this.activeTab === 'all') {
+            this.renderAllModelsTab(this.contentElement);
+        } else {
+            this.displayMissingModels(this.contentElement, this.analyzeData || {});
+            this.reconnectActiveDownloads();
+        }
+    }
+
     createContent() {
         this.contentElement = $el("div.ml-scrollable", {
             id: "model-linker-content",
@@ -650,12 +833,14 @@ class LinkerManagerDialog extends ComfyDialog {
             $el("span", { textContent: " Download All Missing" })
         ]);
         
-        // Auto-resolve button (secondary style)
-        this.autoResolveButton = $el("button.ml-btn.ml-btn-secondary", {
+        // Auto-resolve button (green - only shown when 100% matches exist)
+        this.autoResolveButton = $el("button.ml-btn.ml-btn-primary", {
             onclick: () => this.autoResolve100Percent(),
             style: {
                 padding: "10px 20px",
-                fontSize: "13px"
+                fontSize: "13px",
+                background: "#4CAF50",
+                color: "white"
             }
         }, [
             $el("span.ml-btn-icon", { textContent: "🔗" }),
@@ -730,10 +915,13 @@ class LinkerManagerDialog extends ComfyDialog {
     async show(workflow = null) {
         this.backdrop.style.display = "block";
         this.element.style.display = "flex";
-        
+
+        // Re-pick the default tab for each dialog session
+        this.activeTab = null;
+
         // Update button state in case there are active downloads
         this.updateDownloadAllButtonState();
-        
+
         // Use provided workflow or fetch from current graph
         await this.loadWorkflowData(workflow);
     }
@@ -741,6 +929,311 @@ class LinkerManagerDialog extends ComfyDialog {
     close() {
         this.backdrop.style.display = "none";
         this.element.style.display = "none";
+    }
+
+    /**
+     * Jump the canvas to a node referencing a missing model (issue #9).
+     * Repeated clicks cycle through all nodes that use the model. Nodes that
+     * live inside a subgraph definition can't be centered directly, so the
+     * jump targets their subgraph instance node instead.
+     */
+    jumpToNode(missing) {
+        if (!app?.graph || !app?.canvas) {
+            this.showNotification('Canvas not available', 'error');
+            return;
+        }
+
+        const refs = missing.all_node_refs || [missing];
+        missing._jumpIndex = ((missing._jumpIndex ?? -1) + 1) % refs.length;
+        const ref = refs[missing._jumpIndex];
+
+        let targetId = ref.node_id;
+        if (ref.is_top_level === false && ref.subgraph_id) {
+            // Node is inside a subgraph definition - jump to the instance
+            const instance = (app.graph._nodes || []).find(n => n.type === ref.subgraph_id);
+            if (!instance) {
+                this.showNotification(`Node is inside subgraph "${ref.subgraph_name || ref.subgraph_id}" - no instance found on canvas`, 'error');
+                return;
+            }
+            targetId = instance.id;
+        }
+
+        const node = app.graph.getNodeById(targetId);
+        if (!node) {
+            this.showNotification(`Node #${targetId} not found on canvas`, 'error');
+            return;
+        }
+
+        // Close the dialog so the canvas is actually visible, then center
+        this.close();
+        app.canvas.centerOnNode(node);
+        if (typeof app.canvas.selectNode === 'function') {
+            app.canvas.selectNode(node);
+        } else if (typeof app.canvas.selectNodes === 'function') {
+            app.canvas.selectNodes([node]);
+        }
+        app.canvas.setDirty(true, true);
+
+        if (ref.is_top_level === false && ref.subgraph_name) {
+            this.showNotification(`Model is used inside subgraph "${ref.subgraph_name}" - jumped to its instance node`, 'info');
+        }
+    }
+
+    /**
+     * Short display label for the node referencing a model
+     */
+    getNodeLabel(ref) {
+        const isSubgraphType = ref.node_type &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref.node_type);
+        if (ref.subgraph_name) return ref.subgraph_name;
+        if (isSubgraphType) return 'Subgraph';
+        return ref.node_type || 'Node';
+    }
+
+    // ==================== ALL MODELS TAB (browse & swap, issue #4) ====================
+
+    /**
+     * Render the All models tab: every model reference in the workflow,
+     * grouped by category, each swappable to another local file.
+     */
+    renderAllModelsTab(container) {
+        // Bulk actions belong to the Missing tab
+        if (this.autoResolveButton) this.autoResolveButton.style.display = 'none';
+        if (this.downloadAllButton) this.downloadAllButton.style.display = 'none';
+
+        const data = this.analyzeData || {};
+        const entries = [
+            ...(data.missing_models || []).map(m => ({ ...m, __missing: true })),
+            ...(data.resolved_models || []).map(m => ({ ...m, __missing: false }))
+        ];
+
+        if (entries.length === 0) {
+            container.innerHTML = this.renderStatusMessage('No model references found in the current workflow.', 'info');
+            return;
+        }
+
+        this.allModelEntries = entries;
+
+        container.innerHTML = `
+            <div class="ml-all-toolbar">
+                <input id="ml-all-filter" class="ml-filter-input" type="text" placeholder="Filter models...">
+            </div>
+            <div id="ml-all-groups"></div>`;
+
+        const filterInput = container.querySelector('#ml-all-filter');
+        filterInput.value = this.allModelsFilter || '';
+        filterInput.addEventListener('input', () => {
+            this.allModelsFilter = filterInput.value;
+            this.renderAllModelGroups();
+        });
+
+        this.renderAllModelGroups();
+    }
+
+    renderAllModelGroups() {
+        const groupsDiv = this.contentElement?.querySelector('#ml-all-groups');
+        if (!groupsDiv) return;
+
+        const entries = this.allModelEntries || [];
+        const filter = (this.allModelsFilter || '').toLowerCase();
+
+        // Group (filtered) entries by category
+        const groups = {};
+        entries.forEach((entry, index) => {
+            if (filter && !(entry.original_path || '').toLowerCase().includes(filter)) return;
+            const cat = entry.category && entry.category !== 'unknown' ? entry.category : 'other';
+            (groups[cat] = groups[cat] || []).push({ entry, index });
+        });
+
+        const categories = Object.keys(groups).sort();
+        if (categories.length === 0) {
+            groupsDiv.innerHTML = '<div class="ml-no-matches">No models match the filter</div>';
+            return;
+        }
+
+        let html = '';
+        for (const cat of categories) {
+            const items = groups[cat];
+            // Filtering expands everything so results are never hidden
+            const collapsed = !filter && this.collapsedGroups[cat] === true;
+            html += `<div class="ml-group-header" data-cat="${cat}">${collapsed ? '▸' : '▾'} ${cat} (${items.length})</div>`;
+            if (collapsed) continue;
+            for (const { entry, index } of items) {
+                html += this.renderAllModelRow(entry, index);
+            }
+        }
+        groupsDiv.innerHTML = html;
+
+        // Listeners
+        groupsDiv.querySelectorAll('.ml-group-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const cat = header.dataset.cat;
+                this.collapsedGroups[cat] = !this.collapsedGroups[cat];
+                this.renderAllModelGroups();
+            });
+        });
+        groupsDiv.querySelectorAll('[data-jump-index]').forEach(el => {
+            el.addEventListener('click', () => this.jumpToNode(this.allModelEntries[Number(el.dataset.jumpIndex)]));
+        });
+        groupsDiv.querySelectorAll('[data-swap-index]').forEach(el => {
+            el.addEventListener('click', () => this.toggleSwapPanel(Number(el.dataset.swapIndex)));
+        });
+        groupsDiv.querySelectorAll('[data-fix-missing]').forEach(el => {
+            el.addEventListener('click', () => this.switchTab('missing'));
+        });
+    }
+
+    renderAllModelRow(entry, index) {
+        const formatted = this.formatFilename(entry.original_path || '', 50);
+        const refs = entry.all_node_refs || [entry];
+        const jumpLabel = refs.length > 1 ? `↗ Jump to node (${refs.length})` : '↗ Jump to node';
+        const nodeLabel = this.getNodeLabel(entry);
+
+        let html = `<div class="ml-all-row">`;
+        html += `<span class="ml-match-filename" title="${formatted.full}">${formatted.display}</span>`;
+        if (entry.__missing) {
+            html += `<span class="ml-missing-badge">missing</span>`;
+        }
+        html += `<span class="ml-node-chip ml-node-chip-clickable" data-jump-index="${index}" title="${nodeLabel} #${entry.node_id}${refs.length > 1 ? ` - ${refs.length} nodes use this model, click again for the next one` : ''}">${jumpLabel}</span>`;
+        if (entry.__missing) {
+            html += `<button class="ml-btn ml-btn-secondary ml-btn-sm" data-fix-missing="1" title="Resolve it in the Missing tab">Fix</button>`;
+        } else {
+            html += `<button class="ml-btn ml-btn-secondary ml-btn-sm" data-swap-index="${index}" title="Swap this model for another local file"><span class="ml-btn-icon">⇄</span> Swap</button>`;
+        }
+        html += `</div>`;
+        html += `<div id="all-swap-panel-${index}" class="ml-swap-panel" style="display: none;"></div>`;
+        return html;
+    }
+
+    /**
+     * Open/close the inline swap picker for an All models entry.
+     * Candidates come from /model_linker/models filtered to the categories
+     * the node can actually load from, similarity-sorted to the current file.
+     */
+    async toggleSwapPanel(index) {
+        const entry = (this.allModelEntries || [])[index];
+        const panel = this.contentElement?.querySelector(`#all-swap-panel-${index}`);
+        if (!entry || !panel) return;
+
+        if (panel.style.display !== 'none') {
+            panel.style.display = 'none';
+            panel.innerHTML = '';
+            return;
+        }
+        panel.style.display = 'block';
+        panel.innerHTML = '<div class="ml-no-matches">Loading available files...</div>';
+
+        try {
+            const cats = (entry.expected_categories?.length ? entry.expected_categories : [entry.category])
+                .filter(c => c && c !== 'unknown');
+            const params = new URLSearchParams();
+            if (cats.length) params.set('category', cats.join(','));
+            if (entry.original_path) params.set('current', entry.original_path);
+
+            const response = await api.fetchApi(`/model_linker/models?${params.toString()}`);
+            if (!response.ok) throw new Error(`API error: ${response.status}`);
+            const files = await response.json();
+            if (!Array.isArray(files)) throw new Error(files?.error || 'Unexpected response');
+
+            this.renderSwapPanel(panel, entry, files, cats.length > 0);
+        } catch (error) {
+            console.error('Model Linker: Error loading swap candidates:', error);
+            panel.innerHTML = `<div class="ml-no-matches">Error loading files: ${error.message}</div>`;
+        }
+    }
+
+    renderSwapPanel(panel, entry, files, categoryFiltered) {
+        panel.innerHTML = `
+            <input class="ml-filter-input ml-swap-search" type="text" placeholder="Search ${files.length} file${files.length !== 1 ? 's' : ''}...">
+            <div class="ml-swap-results"></div>`;
+        const search = panel.querySelector('.ml-swap-search');
+        const results = panel.querySelector('.ml-swap-results');
+        const MAX_SHOWN = 50;
+
+        const renderResults = () => {
+            const query = search.value.toLowerCase();
+            const shown = files.filter(f => !query ||
+                (f.relative_path || f.filename || '').toLowerCase().includes(query) ||
+                (f.category || '').toLowerCase().includes(query));
+
+            if (shown.length === 0) {
+                results.innerHTML = '<div class="ml-no-matches">No files match</div>';
+                return;
+            }
+
+            let html = '';
+            shown.slice(0, MAX_SHOWN).forEach(f => {
+                const isCurrent = entry.full_path && f.path === entry.full_path;
+                const label = f.relative_path || f.filename || '';
+                const catChip = categoryFiltered ? '' : `<span class="ml-category-chip">${f.category || ''}</span>`;
+                html += `<div class="ml-swap-row">`;
+                html += `<span class="ml-match-filename" title="${f.path || ''}">${label}</span>${catChip}`;
+                html += isCurrent
+                    ? `<span class="ml-current-badge">current</span>`
+                    : `<button class="ml-btn ml-btn-primary ml-btn-sm" data-swap-path="${encodeURIComponent(f.path || '')}">Select</button>`;
+                html += `</div>`;
+            });
+            if (shown.length > MAX_SHOWN) {
+                html += `<div class="ml-no-matches">${shown.length - MAX_SHOWN} more - refine the search</div>`;
+            }
+            results.innerHTML = html;
+
+            results.querySelectorAll('[data-swap-path]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const path = decodeURIComponent(btn.dataset.swapPath);
+                    const file = files.find(f => f.path === path);
+                    if (file) this.applySwap(entry, file);
+                });
+            });
+        };
+
+        search.addEventListener('input', renderResults);
+        renderResults();
+    }
+
+    /**
+     * Swap a model for another file across every node that references it.
+     */
+    async applySwap(entry, file) {
+        try {
+            const workflow = this.getCurrentWorkflow();
+            if (!workflow) {
+                this.showNotification('No workflow loaded', 'error');
+                return;
+            }
+
+            const refs = entry.all_node_refs || [entry];
+            const resolutions = refs.map(ref => ({
+                node_id: ref.node_id,
+                widget_index: ref.widget_index,
+                resolved_path: file.path,
+                category: ref.category,
+                resolved_model: file,
+                subgraph_id: ref.subgraph_id,
+                is_top_level: ref.is_top_level
+            }));
+
+            const response = await api.fetchApi('/model_linker/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workflow, resolutions })
+            });
+            if (!response.ok) throw new Error(`API error: ${response.status}`);
+            const data = await response.json();
+            if (!data.success) throw new Error(data.error || 'Unknown error');
+
+            // Apply to the live graph in place (no canvas rebuild)
+            await this.updateWorkflowInComfyUI(data.workflow, resolutions);
+
+            const oldName = this.formatFilename(entry.original_path || '', 40).display;
+            this.showNotification(`✓ Swapped ${oldName} → ${file.filename} (${refs.length} node${refs.length > 1 ? 's' : ''})`, 'success');
+
+            // Refresh with the updated workflow; stays on the All models tab
+            await this.loadWorkflowData(data.workflow);
+        } catch (error) {
+            console.error('Model Linker: Error swapping model:', error);
+            this.showNotification('Error swapping model: ' + error.message, 'error');
+        }
     }
 
     /**
@@ -763,11 +1256,11 @@ class LinkerManagerDialog extends ComfyDialog {
                 return;
             }
 
-            // Call analyze endpoint
+            // Call analyze endpoint (include resolved models for the All models tab)
             const response = await api.fetchApi('/model_linker/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ workflow })
+                body: JSON.stringify({ workflow, include_resolved: true })
             });
 
             if (!response.ok) {
@@ -775,10 +1268,17 @@ class LinkerManagerDialog extends ComfyDialog {
             }
 
             const data = await response.json();
-            this.displayMissingModels(this.contentElement, data);
-            
-            // Reconnect any active downloads to their new progress divs
-            this.reconnectActiveDownloads();
+            this.analyzeData = data;
+
+            // First load of a dialog session: default to the Missing tab when
+            // there's something to fix (or downloads running), else All models
+            if (!this.activeTab) {
+                const hasMissing = (data.missing_models || []).length > 0;
+                const hasDownloads = Object.keys(this.activeDownloads).length > 0;
+                this.activeTab = (hasMissing || hasDownloads) ? 'missing' : 'all';
+            }
+
+            this.renderActiveTab();
 
         } catch (error) {
             console.error('Model Linker: Error loading workflow data:', error);
@@ -863,46 +1363,54 @@ class LinkerManagerDialog extends ComfyDialog {
      */
     displayMissingModels(container, data) {
         const missingModels = data.missing_models || [];
-        const totalMissing = data.total_missing || 0;
-        
+
         // Check if there are active downloads
         const activeCount = Object.keys(this.activeDownloads).length;
-        
-        // Check if any model has a 100% confidence match
-        const hasAny100Match = missingModels.some(m => 
-            (m.matches || []).some(match => match.confidence === 100)
+
+        // Models that are still downloading may no longer be reported
+        // missing by analysis (a file can already be on disk). Keep their
+        // cards on screen anyway so download progress stays visible instead
+        // of collapsing the whole view to a status message.
+        const displayModels = [...missingModels];
+        for (const info of Object.values(this.activeDownloads)) {
+            const downloading = info.missing;
+            if (!downloading) continue;
+            const alreadyListed = displayModels.some(m =>
+                m.node_id === downloading.node_id && m.widget_index === downloading.widget_index);
+            if (!alreadyListed) {
+                displayModels.push(downloading);
+            }
+        }
+        const totalShown = displayModels.length;
+
+        // Check if any model has a usable (right-folder) 100% confidence match
+        const hasAny100Match = missingModels.some(m =>
+            (m.matches || []).some(match => match.confidence === 100 && !match.category_mismatch)
         );
-        
+
         // Show/hide Auto-Link button based on whether 100% matches exist
         if (this.autoResolveButton) {
             this.autoResolveButton.style.display = hasAny100Match ? 'inline-flex' : 'none';
         }
-        
-        // Hide download all button if no missing models
+
+        // Hide download all button if nothing is missing or downloading
+        // (while downloads run it doubles as the Cancel All button)
         if (this.downloadAllButton) {
-            this.downloadAllButton.style.display = totalMissing > 0 ? 'inline-flex' : 'none';
+            this.downloadAllButton.style.display = totalShown > 0 ? 'inline-flex' : 'none';
         }
 
-        if (totalMissing === 0 && activeCount === 0) {
+        if (totalShown === 0) {
             container.innerHTML = this.renderStatusMessage('All models are available! No missing models found.', 'success');
-            return;
-        }
-        
-        // If no missing models but downloads are active, show a waiting message
-        if (totalMissing === 0 && activeCount > 0) {
-            container.innerHTML = this.renderStatusMessage(
-                `${activeCount} download${activeCount > 1 ? 's' : ''} in progress. Models will be auto-linked when complete.`,
-                'info'
-            );
             return;
         }
 
         // Summary header with count
+        const missingCount = missingModels.length;
         let html = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ml-border);">
                 <div>
                     <span style="font-size: 15px; font-weight: 600; color: var(--ml-text);">
-                        ${totalMissing} Missing Model${totalMissing > 1 ? 's' : ''}
+                        ${missingCount} Missing Model${missingCount !== 1 ? 's' : ''}
                     </span>
                     ${activeCount > 0 ? `<span style="margin-left: 12px; color: var(--ml-text-muted); font-size: 12px;">${activeCount} downloading</span>` : ''}
                 </div>
@@ -911,7 +1419,7 @@ class LinkerManagerDialog extends ComfyDialog {
         html += '<div style="display: flex; flex-direction: column; gap: 8px;">';
 
         // Sort missing models: those with 100% confidence matches first, then others
-        const sortedMissingModels = missingModels.sort((a, b) => {
+        const sortedMissingModels = displayModels.sort((a, b) => {
             const aMatches = a.matches || [];
             const bMatches = b.matches || [];
             
@@ -919,9 +1427,9 @@ class LinkerManagerDialog extends ComfyDialog {
             const aFiltered = aMatches.filter(m => m.confidence >= 70);
             const bFiltered = bMatches.filter(m => m.confidence >= 70);
             
-            // Check if they have 100% matches
-            const aHas100 = aFiltered.some(m => m.confidence === 100);
-            const bHas100 = bFiltered.some(m => m.confidence === 100);
+            // Check if they have usable 100% matches
+            const aHas100 = aFiltered.some(m => m.confidence === 100 && !m.category_mismatch);
+            const bHas100 = bFiltered.some(m => m.confidence === 100 && !m.category_mismatch);
             
             // If one has 100% and the other doesn't, prioritize the one with 100%
             if (aHas100 && !bHas100) return -1;
@@ -949,9 +1457,10 @@ class LinkerManagerDialog extends ComfyDialog {
             // Filter out matches below 70% confidence threshold
             const filteredMatches = allMatches.filter(m => m.confidence >= 70);
             
-            // Filter to only 100% matches if available, otherwise use filtered matches (>=70%)
-            const perfectMatches = filteredMatches.filter(m => m.confidence === 100);
-            const otherMatches = filteredMatches.filter(m => m.confidence < 100 && m.confidence >= 70);
+            // Filter to only usable 100% matches if available, otherwise use filtered matches (>=70%)
+            // Wrong-folder matches never count as perfect (the node can't load them)
+            const perfectMatches = filteredMatches.filter(m => m.confidence === 100 && !m.category_mismatch);
+            const otherMatches = filteredMatches.filter(m => !(m.confidence === 100 && !m.category_mismatch));
             
             // Match the same logic as renderMissingModel
             const matchesToShow = perfectMatches.length > 0 
@@ -993,6 +1502,14 @@ class LinkerManagerDialog extends ComfyDialog {
                     this.searchOnline(missing);
                 });
             }
+
+            // Attach jump-to-node listener on the node chip
+            const jumpChip = container.querySelector(`#jump-${missing.node_id}-${missing.widget_index}`);
+            if (jumpChip) {
+                jumpChip.addEventListener('click', () => {
+                    this.jumpToNode(missing);
+                });
+            }
         });
     }
 
@@ -1006,12 +1523,13 @@ class LinkerManagerDialog extends ComfyDialog {
         const filteredMatches = allMatches.filter(m => m.confidence >= 70);
         const hasMatches = filteredMatches.length > 0;
         
-        // Calculate 100% matches upfront (needed for download section)
-        const perfectMatches = filteredMatches.filter(m => m.confidence === 100);
-        const otherMatches = filteredMatches.filter(m => m.confidence < 100 && m.confidence >= 70);
+        // Calculate usable 100% matches upfront (needed for download section)
+        // Wrong-folder matches never count as perfect (the node can't load them)
+        const perfectMatches = filteredMatches.filter(m => m.confidence === 100 && !m.category_mismatch);
+        const otherMatches = filteredMatches.filter(m => !(m.confidence === 100 && !m.category_mismatch));
         
-        // Format the missing filename for display
-        const missingFilename = this.formatFilename(missing.original_path, 60);
+        // Show the missing filename in full (word-break handles long paths)
+        const missingFilename = missing.original_path || 'Unknown';
         
         // Determine node info for the chip
         const isSubgraphNode = missing.node_type && missing.node_type.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
@@ -1024,17 +1542,23 @@ class LinkerManagerDialog extends ComfyDialog {
             nodeLabel = missing.node_type || 'Node';
         }
         
-        // Start card
-        let html = `<div class="ml-card">`;
-        
+        // Start card - green highlight when a usable 100% match exists
+        const hasExactMatch = perfectMatches.length > 0;
+        let html = `<div class="ml-card ${hasExactMatch ? 'ml-card-resolved' : ''}">`;
+
         // Card Header: Filename as headline + node chip
         html += `<div class="ml-card-header">`;
-        html += `<h3 class="ml-card-title" title="${missingFilename.full}">${missingFilename.display}</h3>`;
+        html += `<h3 class="ml-card-title">${missingFilename}</h3>`;
         html += `<div style="display: flex; align-items: center; gap: 6px;">`;
         if (missing.category) {
             html += `<span class="ml-category-chip">${missing.category}</span>`;
         }
-        html += `<span class="ml-node-chip">${nodeLabel} #${missing.node_id}</span>`;
+        const refCount = (missing.all_node_refs || [missing]).length;
+        const jumpLabel = refCount > 1 ? `↗ Jump to node (${refCount})` : '↗ Jump to node';
+        const jumpTitle = refCount > 1
+            ? `${nodeLabel} #${missing.node_id} - ${refCount} nodes use this model, click again for the next one`
+            : `${nodeLabel} #${missing.node_id}`;
+        html += `<span id="jump-${missing.node_id}-${missing.widget_index}" class="ml-node-chip ml-node-chip-clickable" title="${jumpTitle}">${jumpLabel}</span>`;
         html += `</div>`;
         html += `</div>`;
         
@@ -1062,12 +1586,16 @@ class LinkerManagerDialog extends ComfyDialog {
                 const match = sortedMatches[matchIndex];
                 const buttonId = `resolve-${missing.node_id}-${missing.widget_index}-${matchIndex}`;
                 const matchPath = match.model?.relative_path || match.filename || '';
-                const formattedPath = this.formatPath(matchPath, 45);
                 const isBestMatch = matchIndex === 0 && match.confidence >= 95;
                 
                 html += `<div class="ml-match-row ${isBestMatch ? 'ml-best-match' : ''}">`;
                 html += this.getConfidenceBadge(match.confidence);
-                html += `<span class="ml-match-filename" title="${formattedPath.full}">${formattedPath.display}</span>`;
+                if (match.category_mismatch) {
+                    const expected = (match.expected_categories || []).filter(Boolean).join(', ') || 'another folder';
+                    const foundIn = match.model?.category || 'unknown';
+                    html += `<span class="ml-wrong-folder" title="Found in '${foundIn}' but this node loads from '${expected}'. Move the file there, or link it knowing the node may fail to load it.">⚠ wrong folder</span>`;
+                }
+                html += `<span class="ml-match-filename">${matchPath}</span>`;
                 html += `<button id="${buttonId}" class="ml-btn ${isBestMatch ? 'ml-btn-primary' : 'ml-btn-secondary'} ml-btn-sm">`;
                 html += `<span class="ml-btn-icon">🔗</span> Link`;
                 html += `</button>`;
@@ -1076,7 +1604,7 @@ class LinkerManagerDialog extends ComfyDialog {
             
             // Add note if only showing 100% matches
             if (perfectMatches.length > 0 && otherMatches.length > 0) {
-                html += `<div class="ml-no-matches">${otherMatches.length} other match${otherMatches.length > 1 ? 'es' : ''} below 100%</div>`;
+                html += `<div class="ml-no-matches">${otherMatches.length} other match${otherMatches.length > 1 ? 'es' : ''} not shown</div>`;
             }
         } else if (allMatches.length > 0 && filteredMatches.length === 0) {
             html += `<div class="ml-no-matches">No matches above 70% confidence</div>`;
@@ -1109,7 +1637,6 @@ class LinkerManagerDialog extends ComfyDialog {
             };
             const sourceLabel = isFromWorkflow ? 'Workflow' : (sourceLabels[downloadSource.source] || 'Online');
             const downloadFilename = downloadSource.filename || filename;
-            const formattedDownloadName = this.formatFilename(downloadFilename, 45);
             
             // Format file size
             let sizeDisplay = '';
@@ -1129,9 +1656,9 @@ class LinkerManagerDialog extends ComfyDialog {
             html += `<span class="ml-download-source">${isFromWorkflow ? 'URL from workflow' : sourceLabel}</span>`;
             const modelCardUrl = this.getModelCardUrl(downloadSource.url);
             if (modelCardUrl) {
-                html += `<br><a href="${modelCardUrl}" target="_blank" rel="noopener noreferrer" class="ml-link" title="Open model card">${formattedDownloadName.display}</a>`;
+                html += `<br><a href="${modelCardUrl}" target="_blank" rel="noopener noreferrer" class="ml-link" style="word-break: break-all;" title="Open model card">${downloadFilename}</a>`;
             } else {
-                html += `<br><span title="${formattedDownloadName.full}">${formattedDownloadName.display}</span>`;
+                html += `<br><span style="word-break: break-all;">${downloadFilename}</span>`;
             }
             html += `</div>`;
             html += `</div>`;
@@ -1331,7 +1858,7 @@ class LinkerManagerDialog extends ComfyDialog {
             
             if (data.success) {
                 // Update workflow in ComfyUI
-                await this.updateWorkflowInComfyUI(data.workflow);
+                await this.updateWorkflowInComfyUI(data.workflow, resolutions);
                 
                 // Show success notification
                 const modelName = resolvedModel.relative_path || resolvedModel.filename || 'model';
@@ -1378,22 +1905,28 @@ class LinkerManagerDialog extends ComfyDialog {
             const analyzeData = await analyzeResponse.json();
             const missingModels = analyzeData.missing_models || [];
 
-            // Collect all 100% matches
+            // Collect all 100% matches - one resolution per referencing node,
+            // so a model shared by several nodes is fixed everywhere in one pass
             const resolutions = [];
+            let modelCount = 0;
             for (const missing of missingModels) {
                 const matches = missing.matches || [];
-                const perfectMatch = matches.find((m) => m.confidence === 100);
-                
+                const perfectMatch = matches.find((m) => m.confidence === 100 && !m.category_mismatch);
+
                 if (perfectMatch && perfectMatch.model) {
-                    resolutions.push({
-                        node_id: missing.node_id,
-                        widget_index: missing.widget_index,
-                        resolved_path: perfectMatch.model.path,
-                        category: missing.category,
-                        resolved_model: perfectMatch.model,
-                        subgraph_id: missing.subgraph_id,  // Include subgraph_id for subgraph nodes
-                        is_top_level: missing.is_top_level  // True for top-level nodes, False for nodes in subgraph definitions
-                    });
+                    modelCount++;
+                    const nodeRefs = missing.all_node_refs || [missing];
+                    for (const ref of nodeRefs) {
+                        resolutions.push({
+                            node_id: ref.node_id,
+                            widget_index: ref.widget_index,
+                            resolved_path: perfectMatch.model.path,
+                            category: ref.category,
+                            resolved_model: perfectMatch.model,
+                            subgraph_id: ref.subgraph_id,  // Include subgraph_id for subgraph nodes
+                            is_top_level: ref.is_top_level  // True for top-level nodes, False for nodes in subgraph definitions
+                        });
+                    }
                 }
             }
 
@@ -1420,11 +1953,14 @@ class LinkerManagerDialog extends ComfyDialog {
             
             if (resolveData.success) {
                 // Update workflow in ComfyUI
-                await this.updateWorkflowInComfyUI(resolveData.workflow);
-                
+                await this.updateWorkflowInComfyUI(resolveData.workflow, resolutions);
+
                 // Show success notification
+                const refNote = resolutions.length !== modelCount
+                    ? ` (${resolutions.length} node references)`
+                    : '';
                 this.showNotification(
-                    `✓ Successfully linked ${resolutions.length} model${resolutions.length > 1 ? 's' : ''}!`,
+                    `✓ Successfully linked ${modelCount} model${modelCount > 1 ? 's' : ''}${refNote}!`,
                     'success'
                 );
                 
@@ -1479,7 +2015,7 @@ class LinkerManagerDialog extends ComfyDialog {
             // - Do NOT have any 100% confidence local matches
             const toDownload = [];
             for (const missing of missingModels) {
-                const perfectMatches = (missing.matches || []).filter(m => m.confidence === 100);
+                const perfectMatches = (missing.matches || []).filter(m => m.confidence === 100 && !m.category_mismatch);
                 
                 // Skip if has 100% local match or no download source
                 if (perfectMatches.length > 0 || !missing.download_source?.url) {
@@ -1556,9 +2092,11 @@ class LinkerManagerDialog extends ComfyDialog {
             const matches = targetMissing.matches || [];
             const perfectMatch = matches.find(m => {
                 const matchFilename = m.filename || m.model?.filename || '';
-                // Check for exact match or 100% confidence
-                return m.confidence === 100 || 
-                       matchFilename.toLowerCase() === downloadedFilename.toLowerCase();
+                // Check for exact match or 100% confidence - but never
+                // auto-link a file from a folder the node can't load from
+                return !m.category_mismatch &&
+                       (m.confidence === 100 ||
+                        matchFilename.toLowerCase() === downloadedFilename.toLowerCase());
             });
 
             if (perfectMatch && perfectMatch.model) {
@@ -1587,7 +2125,7 @@ class LinkerManagerDialog extends ComfyDialog {
                 if (resolveResponse.ok) {
                     const resolveData = await resolveResponse.json();
                     if (resolveData.success) {
-                        await this.updateWorkflowInComfyUI(resolveData.workflow);
+                        await this.updateWorkflowInComfyUI(resolveData.workflow, resolutions);
                         const count = resolutions.length;
                         this.showNotification(`✓ Auto-resolved: ${downloadedFilename} (${count} reference${count > 1 ? 's' : ''})`, 'success');
                         await this.loadWorkflowData(resolveData.workflow);
@@ -2104,37 +2642,40 @@ class LinkerManagerDialog extends ComfyDialog {
     }
 
     /**
-     * Update workflow in ComfyUI's UI/memory
-     * Updates the current workflow in place instead of creating a new tab
+     * Update workflow in ComfyUI's UI/memory.
+     *
+     * graph.configure() rebuilds the whole graph and fails silently on newer
+     * ComfyUI frontends, leaving an empty canvas (see PR #14, credit: gontz).
+     * When resolution details are available, only the affected widgets are
+     * updated in place; a full graph reload is the last-resort fallback.
      */
-    async updateWorkflowInComfyUI(workflow) {
+    async updateWorkflowInComfyUI(workflow, resolutions = null) {
         if (!app || !app.graph) {
             console.warn('Model Linker: Could not update workflow - app or app.graph not available');
             return;
         }
 
+        if (Array.isArray(resolutions) && resolutions.length > 0) {
+            const failed = resolutions.filter(res => !this.applyWidgetUpdate(workflow, res));
+            if (failed.length === 0) {
+                app.graph.setDirtyCanvas?.(true, true);
+                return;
+            }
+            console.warn(`Model Linker: ${failed.length} node(s) could not be updated in place, falling back to graph reload`);
+        }
+
         try {
-            // Method 1: Try to directly update the current graph using configure
-            // This is the most direct way to update in place
-            if (app.graph && typeof app.graph.configure === 'function') {
-                app.graph.configure(workflow);
-                return;
-            }
-
-            // Method 2: Try deserialize to update the graph in place
-            if (app.graph && typeof app.graph.deserialize === 'function') {
-                app.graph.deserialize(workflow);
-                return;
-            }
-
-            // Method 3: Use loadGraphData with explicit parameters to update current tab
-            // The key is to NOT create a new workflow - pass null or undefined for the workflow parameter
-            // clean=false means don't clear the graph first
-            // restore_view=false means don't restore the viewport
-            // workflow=null means update current workflow instead of creating new one
+            // Full reload fallback: loadGraphData is the supported API.
+            // clean=false: don't clear the graph first; restore_view=false:
+            // keep the viewport; workflow=null: update the current tab
+            // instead of creating a new one.
             if (app.loadGraphData) {
-                // Try with null as 4th parameter first
                 await app.loadGraphData(workflow, false, false, null);
+                return;
+            }
+
+            if (typeof app.graph.configure === 'function') {
+                app.graph.configure(workflow);
                 return;
             }
 
@@ -2144,6 +2685,93 @@ class LinkerManagerDialog extends ComfyDialog {
             // Don't throw - allow the workflow update to continue even if UI update fails
             // The backend has already updated the workflow data
         }
+    }
+
+    /**
+     * Apply a single resolution to the live graph without rebuilding it.
+     * Returns true if a live widget was updated.
+     */
+    applyWidgetUpdate(workflow, res) {
+        const widgetIndex = res.widget_index;
+
+        // The backend wrote ComfyUI's native relative path into the returned
+        // workflow JSON - read it back so the live widget gets the exact
+        // value validation expects (resolved_path is the absolute path).
+        const value = this.getWidgetValueFromWorkflow(workflow, res);
+        if (value === undefined) {
+            return false;
+        }
+
+        let updated = false;
+        for (const node of this.findLiveNodes(res)) {
+            if (node.widgets && node.widgets[widgetIndex]) {
+                const widget = node.widgets[widgetIndex];
+                widget.value = value;
+                widget.callback?.(value, app.canvas, node, null, null);
+                updated = true;
+            } else if (Array.isArray(node.widgets_values) && widgetIndex < node.widgets_values.length) {
+                node.widgets_values[widgetIndex] = value;
+                updated = true;
+            }
+            if (updated) {
+                node.setDirtyCanvas?.(true, true);
+            }
+        }
+        return updated;
+    }
+
+    /**
+     * Read the updated widget value for a resolution back out of the
+     * workflow JSON returned by the resolve API (mirrors the node search in
+     * core/workflow_updater.update_model_path).
+     */
+    getWidgetValueFromWorkflow(workflow, res) {
+        let nodes;
+        if (res.is_top_level === false && res.subgraph_id) {
+            const subgraphs = workflow?.definitions?.subgraphs || [];
+            nodes = subgraphs.find(sg => sg.id === res.subgraph_id)?.nodes || [];
+        } else {
+            nodes = workflow?.nodes || [];
+        }
+        const node = nodes.find(n => n.id === res.node_id);
+        const values = node?.widgets_values;
+        if (!Array.isArray(values) || res.widget_index >= values.length) {
+            return undefined;
+        }
+        return values[res.widget_index];
+    }
+
+    /**
+     * Find the live graph node(s) for a resolution. Top-level nodes come
+     * straight from app.graph; nodes inside a subgraph definition are looked
+     * up in every live (possibly nested) subgraph with that definition id.
+     */
+    findLiveNodes(res) {
+        const results = [];
+
+        if (res.is_top_level === false && res.subgraph_id) {
+            const stack = [app.graph];
+            const seen = new Set();
+            while (stack.length) {
+                const graph = stack.pop();
+                if (!graph || seen.has(graph)) continue;
+                seen.add(graph);
+
+                if (graph.id === res.subgraph_id) {
+                    const node = graph.getNodeById?.(res.node_id);
+                    if (node) results.push(node);
+                }
+
+                for (const n of (graph.nodes || graph._nodes || [])) {
+                    if (n.subgraph) stack.push(n.subgraph);
+                }
+            }
+        } else {
+            const node = app.graph.getNodeById?.(res.node_id);
+            if (node) results.push(node);
+        }
+
+        return results;
     }
 }
 
@@ -2482,57 +3110,6 @@ class ModelLinker {
             }
         }
         return count;
-    }
-
-    /**
-     * Update nodes directly in the graph without triggering a full workflow reload
-     * This prevents the Missing Models popup from closing
-     */
-    updateNodesDirectly(resolutions) {
-        if (!app?.graph) {
-            console.warn('Model Linker: Cannot update nodes - graph not available');
-            return;
-        }
-
-        for (const resolution of resolutions) {
-            const nodeId = resolution.node_id;
-            const widgetIndex = resolution.widget_index;
-            const resolvedPath = resolution.resolved_path;
-
-            // Find the node in the graph
-            const node = app.graph.getNodeById(nodeId);
-            if (!node) {
-                console.warn(`Model Linker: Node ${nodeId} not found in graph`);
-                continue;
-            }
-
-            // Update the widget value
-            if (node.widgets && node.widgets[widgetIndex]) {
-                const widget = node.widgets[widgetIndex];
-                widget.value = resolvedPath;
-                
-                // Trigger widget callback if it exists
-                if (widget.callback) {
-                    widget.callback(resolvedPath, app.graph, node, null, null);
-                }
-                
-                console.log(`Model Linker: Updated node ${nodeId} widget ${widgetIndex} to ${resolvedPath}`);
-            } else if (node.widgets_values) {
-                // Fallback: update widgets_values array directly
-                node.widgets_values[widgetIndex] = resolvedPath;
-                console.log(`Model Linker: Updated node ${nodeId} widgets_values[${widgetIndex}] to ${resolvedPath}`);
-            }
-
-            // Mark node as dirty to trigger redraw
-            if (node.setDirtyCanvas) {
-                node.setDirtyCanvas(true, true);
-            }
-        }
-
-        // Trigger canvas redraw
-        if (app.graph.setDirtyCanvas) {
-            app.graph.setDirtyCanvas(true, true);
-        }
     }
 
     /**

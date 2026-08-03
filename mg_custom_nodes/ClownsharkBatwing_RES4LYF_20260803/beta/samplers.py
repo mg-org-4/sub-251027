@@ -975,12 +975,15 @@ class SharkSampler:
             out["samples"] = samples
 
             if "x0" in x0_output:
-                x0_out = work_model.model.process_latent_out(x0_output["x0"].cpu())
-                if hasattr(samples, 'is_nested') and samples.is_nested:
+                # x0 from the callback is either a flat packed tensor or an already-unpacked NestedTensor
+                x0_raw = x0_output["x0"]
+                if (hasattr(samples, 'is_nested') and samples.is_nested
+                        and not (hasattr(x0_raw, 'is_nested') and x0_raw.is_nested)):
                     latent_shapes = [t.shape for t in samples.unbind()]
-                    x0_out = comfy.nested_tensor.NestedTensor(
-                        comfy.utils.unpack_latents(x0_out, latent_shapes)
+                    x0_raw = comfy.nested_tensor.NestedTensor(
+                        comfy.utils.unpack_latents(x0_raw, latent_shapes)
                     )
+                x0_out = work_model.model.process_latent_out(x0_raw.cpu())
                 if hasattr(x0_out, 'is_nested') and x0_out.is_nested:
                     x0_out = comfy.nested_tensor.NestedTensor([t.to(torch.float32) for t in x0_out.unbind()])
                 else:

@@ -1,0 +1,19 @@
+[project]
+name = "comfyui-depth-visualization"
+description = "Offline depth conditioning, diagnostics, masks, parallax, point clouds, mesh export, and interactive 3D viewing for ComfyUI"
+version = "3.0.0"
+requires-python = ">=3.10"
+license = { file = "LICENSE.txt" }
+dependencies = [
+    "numpy>=1.25.0",
+    "Pillow>=10.1.0",
+]
+
+[project.urls]
+Repository = "https://github.com/gokayfem/ComfyUI-Depth-Visualization"
+Issues = "https://github.com/gokayfem/ComfyUI-Depth-Visualization/issues"
+
+[tool.comfy]
+PublisherId = "gokayfem"
+DisplayName = "ComfyUI-Depth-Visualization"
+Icon = ""

@@ -1,0 +1,19 @@
+[project]
+name = "comfyui-texture-simple"
+description = "Offline PBR texture authoring, analysis, channel packing, tiling, and interactive 3D validation for ComfyUI"
+version = "3.0.0"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+    "numpy>=1.25.0",
+    "Pillow>=10.1.0",
+]
+
+[project.urls]
+Repository = "https://github.com/gokayfem/ComfyUI-Texture-Simple"
+Issues = "https://github.com/gokayfem/ComfyUI-Texture-Simple/issues"
+
+[tool.comfy]
+PublisherId = "gokayfem"
+DisplayName = "ComfyUI-Texture-Simple"
+Icon = ""

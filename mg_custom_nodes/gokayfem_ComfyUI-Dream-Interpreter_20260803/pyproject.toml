@@ -1,0 +1,19 @@
+[project]
+name = "comfyui-dream-interpreter"
+description = "Offline panorama repair, projection, creative reflection, journaling, and interactive 360-degree viewing for ComfyUI"
+version = "3.0.0"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+    "numpy>=1.25.0",
+    "Pillow>=10.1.0",
+]
+
+[project.urls]
+Repository = "https://github.com/gokayfem/ComfyUI-Dream-Interpreter"
+Issues = "https://github.com/gokayfem/ComfyUI-Dream-Interpreter/issues"
+
+[tool.comfy]
+PublisherId = "gokayfem"
+DisplayName = "ComfyUI-Dream-Interpreter"
+Icon = ""

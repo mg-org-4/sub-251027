@@ -161,7 +161,7 @@ def _find_category_case_insensitive(prompts_data, category):
 
 def _is_hidden_category_entry_key(name):
     normalized = str(name or "").strip().lower()
-    return normalized in {"__meta__", "_base_prompt_", "_prompt_prefix_"}
+    return normalized in {"__meta__", "_base_prompt_", "_prompt_prefix_", "_prompt_type_"}
 
 
 def _find_prompt_case_insensitive(category_data, name):
@@ -181,7 +181,7 @@ def _find_prompt_case_insensitive(category_data, name):
     return None, None
 
 
-@server.PromptServer.instance.routes.get("/prompt-manager/mixer/get-prompts")
+@server.PromptServer.instance.routes.get("/prompt-manager/compose/get-prompts")
 async def mixer_get_prompts(request):
     try:
         return server.web.json_response(PromptComposerStore.load_prompts())
@@ -190,7 +190,7 @@ async def mixer_get_prompts(request):
         return server.web.json_response({"error": str(e)}, status=500)
 
 
-@server.PromptServer.instance.routes.post("/prompt-manager/mixer/save-category")
+@server.PromptServer.instance.routes.post("/prompt-manager/compose/save-category")
 async def mixer_save_category(request):
     try:
         data = await request.json()
@@ -217,7 +217,7 @@ async def mixer_save_category(request):
         return server.web.json_response({"success": False, "error": str(e)}, status=500)
 
 
-@server.PromptServer.instance.routes.post("/prompt-manager/mixer/save-category-base-prompt")
+@server.PromptServer.instance.routes.post("/prompt-manager/compose/save-category-base-prompt")
 async def mixer_save_category_base_prompt(request):
     try:
         data = await request.json()
@@ -250,13 +250,11 @@ async def mixer_save_category_base_prompt(request):
         return server.web.json_response({"success": False, "error": str(e)}, status=500)
 
 
-@server.PromptServer.instance.routes.post("/prompt-manager/mixer/save-category-prompt-prefix")
-async def mixer_save_category_prompt_prefix(request):
+@server.PromptServer.instance.routes.post("/prompt-manager/compose/save-category-settings")
+async def mixer_save_category_settings(request):
     try:
         data = await request.json()
         category = str(data.get("category", "")).strip()
-        prompt_prefix = str(data.get("prompt_prefix", ""))
-
         if not category:
             return server.web.json_response({"success": False, "error": "Category name is required"})
 
@@ -269,21 +267,31 @@ async def mixer_save_category_prompt_prefix(request):
         if not isinstance(cat_data, dict):
             cat_data = {}
 
-        trimmed = prompt_prefix.strip()
-        if trimmed:
-            cat_data["_prompt_prefix_"] = prompt_prefix
+        base_prompt = str(data.get("base_prompt", ""))
+        trimmed_base = base_prompt.strip()
+        if trimmed_base:
+            cat_data["_base_prompt_"] = base_prompt
         else:
-            cat_data.pop("_prompt_prefix_", None)
+            cat_data.pop("_base_prompt_", None)
+
+        prompt_type = str(data.get("prompt_type", "")).strip()
+        if prompt_type:
+            cat_data["_prompt_type_"] = prompt_type
+        else:
+            cat_data.pop("_prompt_type_", None)
+
+        # _prompt_prefix_ is replaced by _prompt_type_; remove legacy prefix.
+        cat_data.pop("_prompt_prefix_", None)
 
         prompts[canonical_category] = cat_data
         PromptComposerStore.save_prompts(prompts)
         return server.web.json_response({"success": True, "prompts": prompts})
     except Exception as e:
-        print(f"[PromptComposerStore] Error in save-category-prompt-prefix: {e}")
+        print(f"[PromptComposerStore] Error in save-category-settings: {e}")
         return server.web.json_response({"success": False, "error": str(e)}, status=500)
 
 
-@server.PromptServer.instance.routes.post("/prompt-manager/mixer/rename-category")
+@server.PromptServer.instance.routes.post("/prompt-manager/compose/rename-category")
 async def mixer_rename_category(request):
     try:
         data = await request.json()
@@ -312,7 +320,7 @@ async def mixer_rename_category(request):
         return server.web.json_response({"success": False, "error": str(e)}, status=500)
 
 
-@server.PromptServer.instance.routes.post("/prompt-manager/mixer/delete-category")
+@server.PromptServer.instance.routes.post("/prompt-manager/compose/delete-category")
 async def mixer_delete_category(request):
     try:
         data = await request.json()
@@ -330,7 +338,7 @@ async def mixer_delete_category(request):
         return server.web.json_response({"success": False, "error": str(e)}, status=500)
 
 
-@server.PromptServer.instance.routes.post("/prompt-manager/mixer/save-prompt")
+@server.PromptServer.instance.routes.post("/prompt-manager/compose/save-prompt")
 async def mixer_save_prompt(request):
     try:
         data = await request.json()
@@ -376,7 +384,7 @@ async def mixer_save_prompt(request):
         return server.web.json_response({"success": False, "error": str(e)}, status=500)
 
 
-@server.PromptServer.instance.routes.post("/prompt-manager/mixer/delete-prompt")
+@server.PromptServer.instance.routes.post("/prompt-manager/compose/delete-prompt")
 async def mixer_delete_prompt(request):
     try:
         data = await request.json()
@@ -395,7 +403,7 @@ async def mixer_delete_prompt(request):
         return server.web.json_response({"success": False, "error": str(e)}, status=500)
 
 
-@server.PromptServer.instance.routes.post("/prompt-manager/mixer/rename-prompt")
+@server.PromptServer.instance.routes.post("/prompt-manager/compose/rename-prompt")
 async def mixer_rename_prompt(request):
     try:
         data = await request.json()
@@ -423,7 +431,7 @@ async def mixer_rename_prompt(request):
         return server.web.json_response({"success": False, "error": str(e)}, status=500)
 
 
-@server.PromptServer.instance.routes.post("/prompt-manager/mixer/toggle-nsfw")
+@server.PromptServer.instance.routes.post("/prompt-manager/compose/toggle-nsfw")
 async def mixer_toggle_nsfw(request):
     try:
         data = await request.json()
@@ -452,7 +460,7 @@ async def mixer_toggle_nsfw(request):
         return server.web.json_response({"success": False, "error": str(e)}, status=500)
 
 
-@server.PromptServer.instance.routes.post("/prompt-manager/mixer/save-thumbnail")
+@server.PromptServer.instance.routes.post("/prompt-manager/compose/save-thumbnail")
 async def mixer_save_thumbnail(request):
     try:
         data = await request.json()

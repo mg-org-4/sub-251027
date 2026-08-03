@@ -214,7 +214,7 @@ app.registerExtension({
             name: "Enable thumbnail hover preview",
             tooltip: "When enabled, hovering over thumbnails in the prompt browser shows a larger preview after a short delay.",
             type: "boolean",
-            defaultValue: true
+            defaultValue: false
         },
         {
             id: "PromptManager.CompactPromptBrowser",
@@ -223,6 +223,14 @@ app.registerExtension({
             tooltip: "When enabled, the prompt browser dialog uses the smaller legacy size. When disabled (default), it is enlarged to show more thumbnails.",
             type: "boolean",
             defaultValue: false
+        },
+        {
+            id: "PromptManager.ComposerExtraPromptTypes",
+            category: ["Prompt Manager", "4. Advanced Preferences", "Composer Extra Prompt Types"],
+            name: "Extra Prompt Composer types (comma-separated)",
+            tooltip: "Optional custom prompt types for Prompt Composer. Example: attire, environment, VFX. Each value is added to the Prompt Type dropdown as both value and label.",
+            type: "text",
+            defaultValue: ""
         },
         {
             id: "PromptManager.ThumbnailCheckpoint",

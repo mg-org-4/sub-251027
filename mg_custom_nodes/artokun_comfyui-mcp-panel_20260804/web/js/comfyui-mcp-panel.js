@@ -119,10 +119,13 @@ import {
   reapplyDefsToLiveNodes,
   refreshComboOptionsFromDefs,
   collectMissingNodeTypeReasons,
+  collectUnexplainedRedOutlines,
+  combineNodeErrorMaps,
   graphErrorsResultIsClean,
   nodeRedFlagIsStale,
   collectLinkedNeighborNodeIds,
   findNodeByScopedId,
+  findVisibleNodeByScopedId,
   resolveMissingModelDirectory,
 } from "./lib/asset-staleness.js";
 import { assertAddNodeResolvableRefreshing } from "./lib/node-resolve.js";
@@ -174,7 +177,13 @@ import {
 } from "./lib/control-after-generate.js";
 import { autoMatchSlots, slotDiagnostic } from "./lib/connect-match.js";
 import { isLinkPersisted, removePhantomLink, isWidgetBackedInput } from "./lib/connect-verify.js";
+import { deferChangeTrackerSnapshot } from "./lib/change-tracker-snapshot.js";
 import { coerceMessageText, isDroppedAgentReplay, serializeContext } from "./lib/chat-serialize.js";
+import {
+  missingRequiredWidgetMaterializations,
+  unavailableRequiredCustomWidgetTypes,
+} from "./lib/node-widget-materialization.js";
+import { sameGraphMutationContext } from "./lib/graph-mutation-context.js";
 import { isImeComposing } from "./lib/ime.js";
 import { installGraphToPromptNullSafety } from "./lib/widget-null-safety.js";
 import {
@@ -5873,6 +5882,49 @@ function placementFor(graph, pos) {
   return [100, 100];
 }
 
+// getCustomWidgets is deliberately fire-and-forget in the ComfyUI frontend.
+// An unrecognised required V3 input is therefore unsafe until the *live*
+// widget registry either contains a constructor or the type is proven to be a
+// built-in socket. Do not call extension hooks here: they are registration
+// callbacks, not repeatable queries, and ComfyUI does not expose their promise.
+const CUSTOM_WIDGET_REGISTRATION_TIMEOUT_MS = 5000;
+const CUSTOM_WIDGET_REGISTRATION_POLL_MS = 25;
+
+async function awaitRequiredCustomWidgetRegistration(nodeData, comfyApp) {
+  const deadline = Date.now() + CUSTOM_WIDGET_REGISTRATION_TIMEOUT_MS;
+  let unavailable = unavailableRequiredCustomWidgetTypes(nodeData, comfyApp?.widgets);
+  while (Date.now() < deadline) {
+    if (!unavailable.length) return;
+    await new Promise((resolve) => setTimeout(resolve, CUSTOM_WIDGET_REGISTRATION_POLL_MS));
+    unavailable = unavailableRequiredCustomWidgetTypes(nodeData, comfyApp?.widgets);
+  }
+  if (!unavailable.length) return;
+  throw new Error(
+    `Required custom widget${unavailable.length === 1 ? "" : "s"} ` +
+      `${unavailable.map((type) => `"${type}"`).join(", ")} have not registered. ` +
+      "They may be custom widgets still loading; retry shortly.",
+  );
+}
+
+function captureGraphMutationContext() {
+  const context = getGraphCtx();
+  return { ...context, workflow: activeWorkflowRef() };
+}
+
+function revalidateGraphMutationContext(captured) {
+  const current = { ...getGraphCtx(), workflow: activeWorkflowRef() };
+  if (!sameGraphMutationContext(captured, current, sameWorkflowObject)) {
+    throw new Error(
+      "The active workflow or graph view changed while this node was preparing; nothing was added. Retry on the intended tab.",
+    );
+  }
+  assertGraphBoundToActiveWorkflow(current.graph, current.rootGraph, {
+    includeBaselineReadGuard: false,
+    requireDirtyMutationBinding: true,
+  });
+  return current;
+}
+
 // The currently-mounted panel root (set by buildPanel). Used by canvas "fit" to
 // measure how much of the canvas the open sidebar panel overlays.
 let activePanelRoot = null;
@@ -6747,7 +6799,8 @@ const GRAPH_TOOL_EXECUTORS = {
   },
 
   async graph_add_node({ class_type, pos, title }) {
-    const { graph, LG } = getGraphCtx();
+    const capturedContext = captureGraphMutationContext();
+    const { app: comfyApp, LG } = capturedContext;
     if (!class_type || typeof class_type !== "string") {
       throw new Error("class_type (string) is required");
     }
@@ -6777,12 +6830,32 @@ const GRAPH_TOOL_EXECUTORS = {
       // #458 OBSERVED-BACKEND-HISTORY trust root, identical to graph_set_widget's.
       wasTypeEverDefined: (t) => objectInfoHistory.wasTypeEverDefined(t),
     });
+    // registerNodesFromDefs can expose a newly installed V3 class before its
+    // extension's asynchronous custom-widget registry settles. Resolve the
+    // required constructors before creating anything, or fail retryably before
+    // mutating the graph (#580).
+    await awaitRequiredCustomWidgetRegistration(
+      LG?.registered_node_types?.[class_type]?.nodeData,
+      comfyApp,
+    );
     const node = LG.createNode(class_type);
     if (!node) {
       throw new Error(
         `Unknown node type "${class_type}" — check the exact class_type via get_node_info`,
       );
     }
+    const missingWidgets = missingRequiredWidgetMaterializations(node, comfyApp?.widgets);
+    if (missingWidgets.length) {
+      throw new Error(
+        `Required custom widget${missingWidgets.length === 1 ? "" : "s"} ` +
+          `${missingWidgets.map((name) => `"${name}"`).join(", ")} did not initialize for ` +
+          `"${class_type}". Reload ComfyUI so its node extension can register, then retry.`,
+      );
+    }
+    // No await follows this validation. Re-read the graph/workflow now so a
+    // tab or subgraph switch during the async preflight cannot commit to the
+    // graph captured at command start.
+    const { graph } = revalidateGraphMutationContext(capturedContext);
     graph.beforeChange();
     try {
       node.pos = placementFor(graph, pos);
@@ -8384,15 +8457,21 @@ const GRAPH_TOOL_EXECUTORS = {
     const missingMedia = assets.media.map((m) => ({ ...m, kind: "missing_media" }));
     const missingNodeTypes = assets.nodeTypes;
     const missingNodeCount = assets.nodeCount;
+    // Missing-asset stores identify nested nodes with a scoped locator, while
+    // the currently viewed subgraph indexes its nodes by their local id. Resolve
+    // only to the exact visible node; otherwise retain the locator so a same-id
+    // node in another subgraph can never receive this error by accident.
+    const reasonNodeId = (locator) =>
+      findVisibleNodeByScopedId(rootGraph, nodes, locator)?.id ?? locator;
     for (const m of assets.models) {
       if (m.node_id == null) continue;
       const { node_id, ...rest } = m;
-      addReason(node_id, { kind: "missing_model", ...rest });
+      addReason(reasonNodeId(node_id), { kind: "missing_model", ...rest });
     }
     for (const m of assets.media) {
       if (m.node_id == null) continue;
       const { node_id, ...rest } = m;
-      addReason(node_id, { kind: "missing_media", ...rest });
+      addReason(reasonNodeId(node_id), { kind: "missing_media", ...rest });
     }
 
     // 2) Uninstalled node TYPES, attached PER NODE (#399). collectMissingAssets only
@@ -8422,8 +8501,10 @@ const GRAPH_TOOL_EXECUTORS = {
     } catch {
       /* optional */
     }
-    const rawNodeErrors = comfy?.lastNodeErrors ?? storeNodeErrors ?? null;
-    const nodeErrors = rawNodeErrors && Object.keys(rawNodeErrors).length ? rawNodeErrors : null;
+    // These are independent live stores. The app map can be an empty object
+    // after a reset while the execution store still retains the actual rejected
+    // prompt, so never let nullish selection make an empty app map mask it.
+    const nodeErrors = combineNodeErrorMaps([comfy?.lastNodeErrors ?? null, storeNodeErrors]);
     if (nodeErrors) {
       for (const [id, entry] of Object.entries(nodeErrors)) {
         for (const e of entry?.errors ?? []) {
@@ -8475,7 +8556,19 @@ const GRAPH_TOOL_EXECUTORS = {
 
     // Red-outlined (has_errors) UNIONed with anything a source blamed — a source
     // can name a node LiteGraph never flagged (every runtime failure is one).
-    const flagged = new Set(nodes.filter((n) => n.has_errors).map((n) => String(n.id)));
+    // A source-free red outline can survive workflow loading even though the
+    // execution and validation sources have both cleared (#579). Surface those
+    // separately as stale visual flags instead of calling them errors. When an
+    // execution source exists, retain the conservative legacy behavior: do not
+    // downgrade an unexplained red outline.
+    const staleRedFlags = collectUnexplainedRedOutlines(nodes, reasons, {
+      nodeErrors,
+      lastExecFailure: execFailure,
+    });
+    const staleRedFlagIds = new Set(staleRedFlags.map((n) => String(n.id)));
+    const flagged = new Set(
+      nodes.filter((n) => n.has_errors && !staleRedFlagIds.has(String(n.id))).map((n) => String(n.id)),
+    );
     for (const id of reasons.keys()) if (byId.has(id)) flagged.add(id);
     const erroredNodes = [...flagged]
       .map((id) => byId.get(id))
@@ -8509,6 +8602,17 @@ const GRAPH_TOOL_EXECUTORS = {
       errored_count: erroredNodes.length,
       nodes: erroredNodes.slice(0, MAX_STATE_NODES),
       ...(erroredNodes.length > MAX_STATE_NODES ? { truncated: true } : {}),
+      ...(staleRedFlags.length
+        ? {
+            stale_flags: staleRedFlags.slice(0, MAX_STATE_NODES).map((n) => ({
+              ...summarizeNode(n),
+              red_outline: true,
+              reasons: [],
+              note: "LiteGraph still shows this red outline, but no current execution, validation, or asset source confirms an error.",
+            })),
+            ...(staleRedFlags.length > MAX_STATE_NODES ? { stale_flags_truncated: true } : {}),
+          }
+        : {}),
       ...(missingModels.length ? { missing_models: missingModels } : {}),
       ...(missingMedia.length ? { missing_media: missingMedia } : {}),
       ...(missingNodeTypes.length ? { missing_node_types: missingNodeTypes } : {}),
@@ -11544,6 +11648,11 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onCom
         }
         const settleRid = commandRidLedger.begin(msg.rid, fingerprint, commandEpoch);
         let reply;
+        // #581 — retain the tracker belonging to the command's completed edit.
+        // We schedule its full-graph serialization only after the bridge reply
+        // has been handed to the socket below, so a large nested subgraph cannot
+        // turn an already-applied graph_connect into a false timeout.
+        let changeTrackerToSnapshot = null;
         try {
           let result;
           if (msg.cmd === "ask_user") {
@@ -11766,12 +11875,10 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onCom
             // mutations were invisible to undo (Ctrl+Z did nothing). An explicit
             // checkState() after each successful command pushes the pre-command
             // state onto the undo queue; it diffs first, so read-only commands
-            // (get_state, screenshot, dry_run) are free no-ops.
-            try {
-              app.extensionManager?.workflow?.activeWorkflow?.changeTracker?.checkState?.();
-            } catch {
-              /* tracker unavailable (older frontend) — undo stays best-effort */
-            }
+            // (get_state, screenshot, dry_run) are free no-ops. The snapshot can
+            // serialize a whole nested graph, so capture it now but defer the work
+            // until after the correlated reply is delivered (#581).
+            changeTrackerToSnapshot = app.extensionManager?.workflow?.activeWorkflow?.changeTracker ?? null;
           }
           reply = { rid: msg.rid, ok: true, result };
         } catch (err) {
@@ -11807,6 +11914,7 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onCom
           // becomes a claim about what the caller received — only `applied` is that.
           markOpenReceiptReplySent(openReceipts, msg.rid);
         }
+        deferChangeTrackerSnapshot(changeTrackerToSnapshot);
         if (superseded) return;
         // ask_user / request_secret paint their OWN cards and their replies carry
         // user input (a choice, or a SECRET) — never echo them as an activity card
@@ -19093,6 +19201,21 @@ function buildPanel() {
       // A muted agent intentionally suppresses this (sendFrame also returns false);
       // reconcileKey already marked it delivered, so leave it. Only a genuine
       // transport failure re-pends so the next reconnect/retry re-delivers it.
+      else if (!AGENT_MUTED) runCompletion.markUndelivered(promptId);
+    },
+    // #582: ComfyUI writes a manually stopped run to history with raw
+    // status_str:"error" plus execution_interrupted. Deliver a neutral event,
+    // not run_error: the orchestrator treats run_error as urgent and tells the
+    // agent to diagnose/panel_get_errors. `executed` with a note is the existing
+    // non-urgent event protocol, and does not claim an output was produced.
+    onReconcileInterrupted: ({ promptId }) => {
+      const note =
+        `The workflow run you queued was cancelled while the connection was down (prompt ${promptId}). ` +
+        `It did not crash; no action is required unless the cancellation was unintended.`;
+      const sent = client.sendFrame({ type: "agent_event", kind: "executed", note });
+      if (sent) appendSystem(`Queued render was cancelled while disconnected (prompt ${promptId}).`);
+      // Match terminal-error recovery: only a transport drop re-pends the
+      // cancellation notice; an intentionally muted agent stays silent.
       else if (!AGENT_MUTED) runCompletion.markUndelivered(promptId);
     },
     // #370 (P1 memory-leak): the tracker GAVE UP on a prompt whose outcome it

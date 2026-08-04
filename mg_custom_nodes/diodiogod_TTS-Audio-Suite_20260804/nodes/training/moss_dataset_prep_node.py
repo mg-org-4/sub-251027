@@ -41,9 +41,9 @@ class MossDatasetPrepNode(BaseTTSNode):
                 "dataset_source": ("STRING", {
                     "default": "",
                     "tooltip": (
-                        "Path to the main MOSS manifest JSONL.\n"
-                        "This is your training set manifest: one JSON row per clip.\n"
-                        "In the normal workflow, connect the manifest path produced by MOSS Dataset Rows here."
+                        "Path to a MOSS manifest JSONL or a folder of paired audio and transcript files.\n"
+                        "For folders, use matching names such as clip001.wav + clip001.txt.\n"
+                        "In the node workflow, connect the manifest path produced by MOSS Dataset Rows here."
                     )
                 }),
             },
@@ -103,6 +103,13 @@ class MossDatasetPrepNode(BaseTTSNode):
                 "reuse_existing": ("BOOLEAN", {
                     "default": True,
                     "tooltip": "Reuse a matching prepared dataset cache instead of re-encoding audio codes every run."
+                }),
+                "recursive_folder_scan": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "When dataset_source or validation_source is a folder, also scan its subfolders. "
+                        "Disabled by default; direct files in the selected folder are always scanned."
+                    )
                 }),
             },
         }

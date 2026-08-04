@@ -1,5 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { isUnassignedNode } from "./utils.js";
 
 // ── Vue Reactivity Helpers ───────────────────────────────────────────────
 
@@ -374,7 +375,7 @@ app.registerExtension({
             // Create bound event handler method
             this.handlePromptStashUpdateAll = (event) => {
                 // Skip if node is in invalid state
-                if (this.id === -1) {
+                if (isUnassignedNode(this)) {
                     this.onRemoved?.();
                     return;
                 }

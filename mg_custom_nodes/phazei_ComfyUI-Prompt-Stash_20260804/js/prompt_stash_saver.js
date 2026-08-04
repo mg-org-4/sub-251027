@@ -4,6 +4,7 @@ import {
     nodeMatchesUniqueId,
     getUniqueIdFromNode,
     installComboGetConfig,
+    isUnassignedNode,
     refreshConnectedPrimitives,
     syncValueToConnectedPrimitive,
     walkGraph,
@@ -434,7 +435,7 @@ app.registerExtension({
                 // Create bound event handler methods
                 this.handlePromptStashUpdateAll = (event) => {
                     // Skip if node is in invalid state
-                    if (this.id === -1) {
+                    if (isUnassignedNode(this)) {
                         this.onRemoved?.();
                         return;
                     }
@@ -464,7 +465,7 @@ app.registerExtension({
 
                 this.handlePromptStashUpdatePrompt = (event) => {
                     // Skip if node is in invalid state
-                    if (this.id === -1) {
+                    if (isUnassignedNode(this)) {
                         this.onRemoved?.();
                         return;
                     }

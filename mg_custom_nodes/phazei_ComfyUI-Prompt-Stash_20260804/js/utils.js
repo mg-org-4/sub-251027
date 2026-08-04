@@ -216,35 +216,58 @@ export function walkGraph(graph, callback) {
 }
 
 /**
+ * The id LiteGraph assigns to a node that is not (yet) part of a graph.
+ * ComfyUI frontend >=1.46 brands node ids as strings ("-1"); earlier versions
+ * used the number -1.
+ */
+const UNASSIGNED_NODE_ID = "-1";
+
+/**
+ * Whether a node is detached / not yet assigned a real id by a graph.
+ *
+ * @param {LGraphNode} node - The node to check.
+ * @returns {boolean}
+ */
+export function isUnassignedNode(node) {
+    return String(node?.id) === UNASSIGNED_NODE_ID;
+}
+
+/**
  * Check if a node matches a potentially-prefixed UNIQUE_ID from the backend.
  * Handles subgraph paths like "54:73" or "54:62:174".
- * 
+ *
+ * All comparisons are done on strings. ComfyUI frontend >=1.46 brands
+ * `LGraphNode.id` as a string (`node.id === "5"`); before that it was a number
+ * (`node.id === 5`). Comparing the backend id as a Number therefore silently
+ * failed against every node on the newer frontend. Object property lookup
+ * coerces keys to strings, so passing a string to `getNodeById` works on both.
+ *
  * @param {LGraphNode} node - The node to check
  * @param {string|number} uniqueId - The UNIQUE_ID from backend (e.g., "54:73" or "73")
  * @returns {boolean}
  */
 export function nodeMatchesUniqueId(node, uniqueId) {
-    const parts = String(uniqueId).split(':').map(Number);
+    const parts = String(uniqueId).split(':');
     const localId = parts.pop();
-    
+
     // Quick exit: local ID must match
-    if (localId !== node.id) return false;
-    
+    if (localId !== String(node.id)) return false;
+
     // No prefix means node should be in root graph
     if (parts.length === 0) {
         return node.graph?.isRootGraph ?? true;
     }
-    
+
     // Walk the path from root to find the target subgraph's UUID
     let current = node.graph?.rootGraph;
     if (!current) return false;
-    
+
     for (const subgraphNodeId of parts) {
         const subgraphNode = current.getNodeById(subgraphNodeId);
         if (!subgraphNode?.subgraph) return false;
         current = subgraphNode.subgraph;
     }
-    
+
     // current.id should now be the UUID of the subgraph containing the leaf
     return current.id === node.graph.id;
 }

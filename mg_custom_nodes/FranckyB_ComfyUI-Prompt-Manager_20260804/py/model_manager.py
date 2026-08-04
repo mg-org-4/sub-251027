@@ -2,7 +2,6 @@
 Utility functions for managing llama.cpp models
 """
 import os
-import glob
 import re
 import folder_paths
 import server
@@ -20,6 +19,7 @@ _preferences_cache = {
     "llm_backend": "llama.cpp",        # "llama.cpp" or "ollama"
     "ollama_url": "http://127.0.0.1:11434",
     "ollama_keep_alive": "5m",           # How long Ollama keeps model loaded after request
+    "llama_gpu_device": "",              # GPU device index for llama.cpp (e.g. "0", "1")
 }
 
 # Predefined models - use real filenames as keys
@@ -65,7 +65,8 @@ async def save_preference(request):
                        "custom_llama_port",
                        "llm_backend",
                        "ollama_url",
-                       "ollama_keep_alive"]:
+                       "ollama_keep_alive",
+                       "llama_gpu_device"]:
             return server.web.json_response({"success": False, "error": "Invalid preference key"})
 
         # Update in-memory cache
@@ -131,12 +132,13 @@ def get_local_models():
     all_models = set()  # Use set to avoid duplicates
     for models_dir in all_dirs:
         if os.path.exists(models_dir):
-            gguf_files = glob.glob(os.path.join(models_dir, "*.gguf"))
-            for f in gguf_files:
-                basename = os.path.basename(f)
-                # Filter out mmproj files
-                if 'mmproj' not in basename.lower():
-                    all_models.add(basename)
+            for dirpath, _subdirs, filenames in os.walk(models_dir, followlinks=True):
+                for filename in filenames:
+                    if not filename.lower().endswith(".gguf") or 'mmproj' in filename.lower():
+                        continue
+                    full_path = os.path.join(dirpath, filename)
+                    rel_path = os.path.relpath(full_path, models_dir)
+                    all_models.add(rel_path)
 
     # Return sorted list of unique filenames
     return sorted(list(all_models))
@@ -238,7 +240,8 @@ def get_mmproj_path(model_name):
     """Get the path to the mmproj file for a model, if it exists.
 
     1. Check the explicit QWEN_MODELS mapping first.
-    2. Fall back to heuristic matching by model identity (strips quant parts).
+    2. If the model's own folder contains exactly one mmproj file, use it.
+    3. Fall back to heuristic matching by model identity (strips quant parts).
     """
     # --- 1. Explicit mapping ---
     mmproj_name = get_mmproj_for_model(model_name)
@@ -251,7 +254,19 @@ def get_mmproj_path(model_name):
         # Mapped but file not found on disk
         return None
 
-    # --- 2. Heuristic: keyword-based matching ---
+    # --- 2. Same-folder single-candidate fallback ---
+    # If the model lives in its own subfolder alongside exactly one mmproj
+    # file, assume that's the one to use — no naming convention required.
+    model_dir = os.path.dirname(get_model_path(model_name))
+    if os.path.isdir(model_dir):
+        sibling_mmprojs = [
+            f for f in os.listdir(model_dir)
+            if f.lower().endswith('.gguf') and 'mmproj' in f.lower()
+        ]
+        if len(sibling_mmprojs) == 1:
+            return os.path.join(model_dir, sibling_mmprojs[0])
+
+    # --- 3. Heuristic: keyword-based matching ---
     # Split the model name into normalised keywords (no quant tags, no 'mmproj')
     # and find the mmproj file that shares the most keywords (minimum 4).
     model_keywords = _get_model_keywords(model_name)
@@ -266,14 +281,15 @@ def get_mmproj_path(model_name):
     for models_dir in all_dirs:
         if not os.path.exists(models_dir):
             continue
-        for f in os.listdir(models_dir):
-            if 'mmproj' not in f.lower() or not f.endswith('.gguf'):
-                continue
-            mmproj_keywords = _get_model_keywords(f)
-            common = model_keywords & mmproj_keywords
-            if len(common) >= MIN_KEYWORD_MATCH and len(common) > best_match_count:
-                best_match = os.path.join(models_dir, f)
-                best_match_count = len(common)
+        for dirpath, _subdirs, filenames in os.walk(models_dir, followlinks=True):
+            for f in filenames:
+                if 'mmproj' not in f.lower() or not f.lower().endswith('.gguf'):
+                    continue
+                mmproj_keywords = _get_model_keywords(f)
+                common = model_keywords & mmproj_keywords
+                if len(common) >= MIN_KEYWORD_MATCH and len(common) > best_match_count:
+                    best_match = os.path.join(dirpath, f)
+                    best_match_count = len(common)
 
     return best_match
 

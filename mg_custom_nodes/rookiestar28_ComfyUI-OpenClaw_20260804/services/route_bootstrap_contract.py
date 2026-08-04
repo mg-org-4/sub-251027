@@ -81,7 +81,12 @@ def _validate_symbol(spec: BootstrapSymbolSpec, value: Any) -> None:
         )
 
 
-def load_route_bootstrap_contract(package_name: str | None) -> dict[str, Any]:
+def load_route_bootstrap_contract(
+    package_name: str | None = None,
+) -> dict[str, Any]:
+    # IMPORTANT: default to this owner module. A nested registration caller's package
+    # resolves `..api` as `services.api` and breaks ComfyUI route registration.
+    package_name = __package__ if package_name is None else package_name
     contract: dict[str, Any] = {}
     for spec in ROUTE_BOOTSTRAP_SPECS:
         (value,) = import_attrs_dual(

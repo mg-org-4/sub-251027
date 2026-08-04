@@ -217,7 +217,9 @@ def _do_full_registration(server) -> None:
     from ..scheduler.runner import get_scheduler_runner, start_scheduler
     from ..templates import get_template_service
 
-    contract = load_route_bootstrap_contract(__package__)
+    # IMPORTANT: the contract owns its stable relative-import anchor; forwarding this
+    # nested package resolves `..api` to the nonexistent `services.api` namespace.
+    contract = load_route_bootstrap_contract()
     register_approval_routes = contract["register_approval_routes"]
     BridgeHandlers = contract["BridgeHandlers"]
     register_preset_routes = contract["register_preset_routes"]

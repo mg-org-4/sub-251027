@@ -178,7 +178,7 @@ class TestRouteBootstrapWarmupBoundary(unittest.TestCase):
             patch(
                 "services.route_bootstrap_contract.load_route_bootstrap_contract",
                 return_value=contract,
-            ),
+            ) as contract_loader,
             patch("services.scheduler.runner.get_scheduler_runner") as get_runner,
             patch("services.scheduler.runner.start_scheduler"),
             patch(
@@ -193,6 +193,7 @@ class TestRouteBootstrapWarmupBoundary(unittest.TestCase):
             route_bootstrap._mark_startup_ready_and_start_warmups()
             elapsed = time.monotonic() - started_at
 
+        contract_loader.assert_called_once_with()
         diagnostics = get_startup_diagnostics()
         release.set()
 

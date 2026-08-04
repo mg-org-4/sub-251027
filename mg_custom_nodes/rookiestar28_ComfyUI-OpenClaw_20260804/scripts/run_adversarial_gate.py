@@ -37,6 +37,9 @@ DEFAULT_HIGH_RISK_PATTERNS = [
     "services/access_control.py",
     "services/tenant_context.py",
     "api/routes.py",
+    # CRITICAL: keep route-bootstrap owners exact; broad service globs over-escalate CI.
+    "services/bootstrap/registration.py",
+    "services/route_bootstrap_contract.py",
     "services/security_*.py",
     "services/startup_profile_gate.py",
     "services/control_plane.py",
@@ -52,7 +55,10 @@ EXTENDED_MUTATION_THRESHOLD = 80.0
 
 
 def _normalize_rel_path(path: str) -> str:
-    return pathlib.PurePosixPath(path.replace("\\", "/")).as_posix().lstrip("./")
+    normalized = path.replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return pathlib.PurePosixPath(normalized).as_posix()
 
 
 def _run_git_diff(base: Optional[str], head: Optional[str]) -> List[str]:
@@ -116,10 +122,11 @@ def _collect_changed_files(
 def _filter_high_risk_files(changed_files: List[str], patterns: List[str]) -> List[str]:
     matched: Set[str] = set()
     normalized_patterns = [_normalize_rel_path(p) for p in patterns if p.strip()]
-    for f in changed_files:
+    for file_path in changed_files:
+        normalized_file = _normalize_rel_path(file_path)
         for pattern in normalized_patterns:
-            if fnmatch.fnmatch(f, pattern):
-                matched.add(f)
+            if fnmatch.fnmatch(normalized_file, pattern):
+                matched.add(normalized_file)
                 break
     return sorted(matched)
 

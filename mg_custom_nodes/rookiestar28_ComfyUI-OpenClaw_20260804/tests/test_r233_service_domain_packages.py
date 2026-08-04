@@ -63,6 +63,47 @@ class ServiceDomainPackageContractTests(unittest.TestCase):
                 ):
                     sys.modules.pop(module_name, None)
 
+    def test_packaged_route_contract_defaults_to_owning_services_namespace(self):
+        package_name = "r233_comfyui_route_contract_probe"
+        package = types.ModuleType(package_name)
+        package.__path__ = [str(ROOT)]
+        package.__package__ = package_name
+        package.__spec__ = importlib.machinery.ModuleSpec(
+            package_name,
+            loader=None,
+            is_package=True,
+        )
+        sys.modules[package_name] = package
+        try:
+            contract_module = importlib.import_module(
+                f"{package_name}.services.route_bootstrap_contract"
+            )
+
+            contract = contract_module.load_route_bootstrap_contract()
+
+            self.assertEqual(
+                set(contract),
+                {
+                    "BridgeHandlers",
+                    "register_approval_routes",
+                    "register_preset_routes",
+                    "register_routes",
+                    "register_schedule_routes",
+                    "register_trigger_routes",
+                },
+            )
+            for value in contract.values():
+                self.assertTrue(
+                    value.__module__.startswith(f"{package_name}.api."),
+                    value.__module__,
+                )
+        finally:
+            for module_name in tuple(sys.modules):
+                if module_name == package_name or module_name.startswith(
+                    f"{package_name}."
+                ):
+                    sys.modules.pop(module_name, None)
+
     def test_lifecycle_and_posture_singletons_are_not_duplicated(self):
         legacy_lifecycle = importlib.import_module("services.startup_lifecycle")
         owned_lifecycle = importlib.import_module("services.bootstrap.lifecycle")

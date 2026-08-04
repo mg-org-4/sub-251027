@@ -40,7 +40,7 @@ MODEL_NAME_LIST = [
     f"{model_name} | {file}".strip("_")
     for model_name, ggufs in models.tipo_model_list
     for file in ggufs
-] + [i[0] for i in models.tipo_model_list]
+] + [i[0] for i in models.tipo_model_list] + [file for file in os.listdir(models.model_dir) if file.endswith(".gguf")]
 
 
 attn_syntax = (
@@ -73,11 +73,11 @@ def parse_prompt_attention(text):
       (abc) - increases attention to abc by a multiplier of 1.1
       (abc:3.12) - increases attention to abc by a multiplier of 3.12
       [abc] - decreases attention to abc by a multiplier of 1.1
-      \( - literal character '('
-      \[ - literal character '['
-      \) - literal character ')'
-      \] - literal character ']'
-      \\ - literal character '\'
+      \\( - literal character '('
+      \\[ - literal character '['
+      \\) - literal character ')'
+      \\] - literal character ']'
+      \\\\ - literal character '\\'
       anything else - just text
 
     >>> parse_prompt_attention('normal text')
@@ -86,7 +86,7 @@ def parse_prompt_attention(text):
     [['an ', 1.0], ['important', 1.1], [' word', 1.0]]
     >>> parse_prompt_attention('(unbalanced')
     [['unbalanced', 1.1]]
-    >>> parse_prompt_attention('\(literal\]')
+    >>> parse_prompt_attention('\\(literal\\]')
     [['(literal]', 1.0]]
     >>> parse_prompt_attention('(unnecessary)(parens)')
     [['unnecessaryparens', 1.1]]
@@ -168,8 +168,8 @@ def apply_strength(tag_map, strength_map, strength_map_nl):
                 new_prompt = ""
                 for part, strength in strength_map_nl:
                     before, org_prompt = org_prompt.split(part, 1)
-                    new_prompt += before.replace("(", "\(").replace(")", "\)")
-                    part = part.replace("(", "\(").replace(")", "\)")
+                    new_prompt += before.replace("(", "\\(").replace(")", "\\)")
+                    part = part.replace("(", "\\(").replace(")", "\\)")
                     new_prompt += f"({part}:{strength})"
                 new_prompt += org_prompt
             else:
@@ -178,7 +178,7 @@ def apply_strength(tag_map, strength_map, strength_map_nl):
             continue
 
         for org_tag in tag_map[cate]:
-            tag = org_tag.replace("(", "\(").replace(")", "\)")
+            tag = org_tag.replace("(", "\\(").replace(")", "\\)")
             if org_tag in strength_map:
                 new_list.append(f"({tag}:{strength_map[org_tag]})")
             else:
@@ -271,6 +271,9 @@ class TIPO:
                 if str(models.model_dir / target_file) not in models.list_gguf():
                     models.download_gguf(model_name, gguf_name)
                 target = os.path.join(str(models.model_dir), target_file)
+                gguf = True
+            elif tipo_model.endswith(".gguf"):
+                target = tipo_model
                 gguf = True
             else:
                 target = tipo_model

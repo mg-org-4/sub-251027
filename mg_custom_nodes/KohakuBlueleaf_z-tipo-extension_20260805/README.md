@@ -6,7 +6,10 @@ https://github.com/KohakuBlueleaf/KGen
 It can generate the detail tags/core tags about the character you put in the prompts. It can also add some extra elements into your prompt.
 
 **an extra z is added to repo name to ensure this extension will run `process()` after other extensions**
-![1727597369983](image/README/1727597369983.png)
+
+<img width="1177" height="780" alt="image" src="https://github.com/user-attachments/assets/1a1c4b0d-865c-47d9-b7d1-8972ad46bd98" />
+
+
 ## What is TIPO
 
 TIPO(Text to Image with text presampling for Prompt Optimization) is a LLM model system designed for generating detailed prompt from input tags or caption. Unlike DTG, TIPO can handle both tags and Natural language. In theory, you can also design your own tag in linguistic way. (For example, long blue hair is acceptable tag in TIPO and will not break the model).

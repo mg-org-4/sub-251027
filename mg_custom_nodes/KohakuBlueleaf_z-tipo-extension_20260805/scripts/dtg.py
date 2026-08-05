@@ -1,30 +1,26 @@
-import os
 import itertools
 import json
+import os
 import pathlib
 import random
 from functools import lru_cache
 
-import torch
 import gradio as gr
-
-import modules.scripts as scripts
-from modules import devices
-from modules.scripts import basedir, OnComponent
+import torch
+from kgen import models
+from kgen.executor.dtg import apply_dtg_prompt, tag_gen
+from kgen.formatter import apply_format, seperate_tags
+from kgen.logging import logger
+from kgen.metainfo import TARGET
+from modules import devices, scripts
+from modules.extra_networks import parse_prompt
 from modules.processing import (
-    StableDiffusionProcessingTxt2Img,
     StableDiffusionProcessingImg2Img,
+    StableDiffusionProcessingTxt2Img,
     fix_seed,
 )
 from modules.prompt_parser import parse_prompt_attention
-from modules.extra_networks import parse_prompt
-
-import kgen.models as models
-from kgen.executor.dtg import apply_dtg_prompt, tag_gen
-from kgen.formatter import seperate_tags, apply_format
-from kgen.metainfo import TARGET
-from kgen.logging import logger
-
+from modules.scripts import OnComponent, basedir
 
 ext_dir = basedir()
 models.model_dir = pathlib.Path(ext_dir) / "models"
@@ -157,23 +153,22 @@ class DTGScript(scripts.Script):
                     value=DEFAULT_FORMAT,
                 )
 
-                with gr.Group():
-                    with gr.Row():
-                        seed_num_input = gr.Number(
-                            label="Seed for upsampling tags",
-                            minimum=-1,
-                            step=1,
-                            scale=4,
-                            value=-1,
-                        )
-                        seed_random_btn = gr.Button(value="Randomize")
-                        seed_shuffle_btn = gr.Button(value="Shuffle")
+                with gr.Group(), gr.Row():
+                    seed_num_input = gr.Number(
+                        label="Seed for upsampling tags",
+                        minimum=-1,
+                        step=1,
+                        scale=4,
+                        value=-1,
+                    )
+                    seed_random_btn = gr.Button(value="Randomize")
+                    seed_shuffle_btn = gr.Button(value="Shuffle")
 
-                        seed_random_btn.click(lambda: -1, outputs=[seed_num_input])
-                        seed_shuffle_btn.click(
-                            lambda: random.randint(0, 2**31 - 1),
-                            outputs=[seed_num_input],
-                        )
+                    seed_random_btn.click(lambda: -1, outputs=[seed_num_input])
+                    seed_shuffle_btn.click(
+                        lambda: random.randint(0, 2**31 - 1),
+                        outputs=[seed_num_input],
+                    )
 
                 with gr.Group():
                     process_timing_dropdown = gr.Dropdown(
@@ -472,10 +467,10 @@ class DTGScript(scripts.Script):
         if no_formatting:
             result = prompt + ", " + ", ".join(extra_tokens)
         else:
-            for cate in tag_map.keys():
+            for cate in tag_map:
                 new_list = []
                 for tag in tag_map[cate]:
-                    tag = tag.replace("(", "\(").replace(")", "\)")
+                    tag = tag.replace("(", r"\(").replace(")", r"\)")
                     if tag in strength_map:
                         new_list.append(f"({tag}:{strength_map[tag]})")
                     else:

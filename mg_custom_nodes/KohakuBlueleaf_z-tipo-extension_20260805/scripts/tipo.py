@@ -1,28 +1,22 @@
-import scripts
-
-print(scripts, scripts.__file__, dir(scripts))
-
-import os
+import ast
 import json
+import os
 import pathlib
 import random
-import ast
-from functools import lru_cache
+import re
+import sys
 
-import torch
 import gradio as gr
-
-import modules.ui as ui
-import modules.scripts as scripts
-from modules import devices, shared, options, infotext_utils
-from modules.scripts import basedir, OnComponent
+import torch
+from modules import devices, infotext_utils, options, scripts, shared, ui
+from modules.extra_networks import parse_prompt
 from modules.processing import (
-    StableDiffusionProcessingTxt2Img,
     StableDiffusionProcessingImg2Img,
+    StableDiffusionProcessingTxt2Img,
     fix_seed,
 )
 from modules.prompt_parser import parse_prompt_attention
-from modules.extra_networks import parse_prompt
+from modules.scripts import OnComponent, basedir
 from modules.shared import opts
 from modules.ui_components import ToolButton
 
@@ -32,22 +26,23 @@ try:
 except ImportError:
     InputAccordion = None
 
-import kgen.models as models
-import kgen.executor.tipo as tipo
+from kgen import models
+from kgen.executor import tipo
 from kgen.executor.tipo import (
     parse_tipo_request,
     tipo_runner,
-    apply_tipo_prompt,
-    parse_tipo_result,
 )
-from kgen.formatter import seperate_tags, apply_format
-from kgen.metainfo import TARGET, TIPO_DEFAULT_FORMAT
+from kgen.formatter import apply_format, seperate_tags
 from kgen.logging import logger
-
+from kgen.metainfo import TIPO_DEFAULT_FORMAT
 
 ext_dir = basedir()
 models.model_dir = pathlib.Path(ext_dir) / "models"
 
+if ext_dir not in sys.path:
+    sys.path.insert(0, ext_dir)
+
+from tipo_installer import ensure_runtime
 
 SEED_MAX = 2**31 - 1
 QUOTESWAP = str.maketrans("'\"", "\"'")
@@ -61,6 +56,7 @@ PROCESSING_TIMING = {
     "BEFORE": "Before applying other prompt processings",
     "AFTER": "After applying other prompt processings",
 }
+EXTRA_INPUT_LAYOUT = ["Side by side", "Stacked"]
 DEFAULT_FORMAT = """<|special|>, 
 <|characters|>, <|copyrights|>, 
 <|artist|>, 
@@ -108,7 +104,7 @@ def on_process_timing_dropdown_changed(timing: str):
 
 
 def apply_strength(tag_map, strength_map, strength_map_nl, break_map):
-    for cate in tag_map.keys():
+    for cate in tag_map:
         new_list = []
         # Skip natural language output at first
         if isinstance(tag_map[cate], str):
@@ -137,6 +133,58 @@ def apply_strength(tag_map, strength_map, strength_map_nl, break_map):
     return tag_map
 
 
+COMMENT_LINE = re.compile(r"^[^\S\n]*#[^\n]*(?:\n|$)", re.MULTILINE)
+DANGLING = re.compile(r"(?:^[\s,]+|[\s,]+$)")
+REPEATED_COMMA = re.compile(r",\s*(?=,)")
+
+
+def strip_comments(text: str) -> str:
+    """Drop lines whose first non-space character is '#' (issue #22)."""
+    if not text or "#" not in text:
+        return text
+    cleaned = REPEATED_COMMA.sub("", COMMENT_LINE.sub("", text))
+    return DANGLING.sub("", cleaned)
+
+
+def embedding_names() -> set:
+    try:
+        from modules.sd_hijack import model_hijack
+
+        return {str(name).lower() for name in model_hijack.embedding_db.word_embeddings}
+    except Exception:
+        return set()
+
+
+def embedding_spellings(tags) -> dict:
+    """Map kgen's spaced form back to the original, for embeddings only.
+
+    seperate_tags spaces out underscores for any token no tag list claims. That
+    is correct for general tags, but an embedding name looks exactly like a tag,
+    so ask the webui which names are loaded and protect only those (issue #119).
+    """
+    known = embedding_names()
+    if not known:
+        return {}
+    return {
+        tag.replace("_", " "): tag
+        for tag in tags
+        if len(tag) >= 4 and "_" in tag and tag.lower() in known
+    }
+
+
+def restore_embeddings(tag_map, mapping):
+    if not mapping:
+        return tag_map
+    for cate, value in tag_map.items():
+        if isinstance(value, list):
+            tag_map[cate] = [mapping.get(tag, tag) for tag in value]
+        elif isinstance(value, str):
+            for spaced, original in mapping.items():
+                value = value.replace(spaced, original)
+            tag_map[cate] = value
+    return tag_map
+
+
 class TIPOScript(scripts.Script):
     def __init__(self):
         super().__init__()
@@ -158,20 +206,31 @@ class TIPOScript(scripts.Script):
         ]
 
     def create_new_prompt_area(self, i2i: int, prompt_row: OnComponent):
-        # Create first row: Tag Prompt and Natural Language Prompt in 2 columns
+        stacked = getattr(opts, "tipo_extra_input_layout", EXTRA_INPUT_LAYOUT[0])
+        lines = 2 if stacked == EXTRA_INPUT_LAYOUT[1] else 3
+        tag_kwargs = {
+            "label": "Tag Prompt",
+            "lines": lines,
+            "placeholder": "Tag Prompt for TIPO (Put Tags to Prompt region)",
+        }
+        nl_kwargs = {
+            "label": "Natural Language Prompt",
+            "lines": lines,
+            "placeholder": "Natural Language Prompt for TIPO (Put Tags to Prompt region)",
+        }
+
         with gr.Row(visible=not opts.tipo_no_extra_input):
-            with gr.Column(scale=1):
-                new_tag_prompt_area = gr.Textbox(
-                    label="Tag Prompt",
-                    lines=3,
-                    placeholder="Tag Prompt for TIPO (Put Tags to Prompt region)",
-                )
-            with gr.Column(scale=1):
-                new_prompt_area = gr.Textbox(
-                    label="Natural Language Prompt",
-                    lines=3,
-                    placeholder="Natural Language Prompt for TIPO (Put Tags to Prompt region)",
-                )
+            if stacked == EXTRA_INPUT_LAYOUT[1]:
+                # One full-width column keeps the main prompt at full width
+                # instead of splitting the row in half (issue #47).
+                with gr.Column(scale=1):
+                    new_tag_prompt_area = gr.Textbox(**tag_kwargs)
+                    new_prompt_area = gr.Textbox(**nl_kwargs)
+            else:
+                with gr.Column(scale=1):
+                    new_tag_prompt_area = gr.Textbox(**tag_kwargs)
+                with gr.Column(scale=1):
+                    new_prompt_area = gr.Textbox(**nl_kwargs)
 
         # Create second row: Generate Prompt button (below the two input areas)
         self.prompt_area_row[i2i] = gr.Row()
@@ -189,7 +248,10 @@ class TIPOScript(scripts.Script):
         self.generation_info[i2i] = component.component
 
         # Connect reuse seed button if both components are available
-        if self.seed_reuse_btn[i2i] is not None and self.seed_num_input[i2i] is not None:
+        if (
+            self.seed_reuse_btn[i2i] is not None
+            and self.seed_num_input[i2i] is not None
+        ):
             self.connect_reuse_seed_button(i2i)
 
     def connect_reuse_seed_button(self, i2i: int):
@@ -219,7 +281,7 @@ class TIPOScript(scripts.Script):
                 prompt_gen = gr.Button(value="Generate Prompt")
             with gr.Column(scale=6):
                 # Create accordion with enable checkbox on the label
-                tab_name = 'img2img' if is_img2img else 'txt2img'
+                tab_name = "img2img" if is_img2img else "txt2img"
 
                 if InputAccordion is not None:
                     # WebUI >= 1.7: Use InputAccordion (checkbox on accordion label)
@@ -235,7 +297,7 @@ class TIPOScript(scripts.Script):
                     tipo_acc = gr.Accordion(
                         open=False,
                         label=self.title(),
-                        elem_id=f"{tab_name}_tipo_accordion"
+                        elem_id=f"{tab_name}_tipo_accordion",
                     )
                     enabled_check = None  # Will be created inside
 
@@ -311,7 +373,7 @@ class TIPOScript(scripts.Script):
                                 lambda x: gr.update(
                                     visible=x == "custom",
                                     value=TIPO_DEFAULT_FORMAT.get(
-                                        x, list(TIPO_DEFAULT_FORMAT.values())[0]
+                                        x, next(iter(TIPO_DEFAULT_FORMAT.values()))
                                     ),
                                 ),
                                 inputs=format_dropdown,
@@ -329,7 +391,9 @@ class TIPOScript(scripts.Script):
                                     )
                                     seed_random_btn = ToolButton(value=ui.random_symbol)
                                     seed_reuse_btn = ToolButton(value=ui.reuse_symbol)
-                                    seed_shuffle_btn = gr.Button(value="Shuffle", size="sm", scale=0)
+                                    seed_shuffle_btn = gr.Button(
+                                        value="Shuffle", size="sm", scale=0
+                                    )
 
                                     # Store references for later connection
                                     self.seed_num_input[is_img2img] = seed_num_input
@@ -348,6 +412,16 @@ class TIPOScript(scripts.Script):
                                     # Try to connect now if generation_info is already available
                                     if self.generation_info[is_img2img] is not None:
                                         self.connect_reuse_seed_button(is_img2img)
+
+                                use_generation_seed = gr.Checkbox(
+                                    label="Follow the image generation seed",
+                                    info=(
+                                        "Upsample with the seed of the image being "
+                                        "generated, so the prompt tracks the image "
+                                        "instead of needing its own seed."
+                                    ),
+                                    value=False,
+                                )
 
                             with gr.Group():
                                 process_timing_dropdown = gr.Dropdown(
@@ -468,12 +542,19 @@ class TIPOScript(scripts.Script):
             ),
             (gguf_use_cpu, lambda d: self.get_infotext(d, "gguf_cpu", None)),
             (no_formatting, lambda d: self.get_infotext(d, "no_formatting", None)),
+            (
+                use_generation_seed,
+                lambda d: self.get_infotext(d, "follow_generation_seed", None),
+            ),
         ]
 
+        # use_generation_seed sits right after the seed it overrides, so every
+        # later position keeps the index write_infotext and _process expect.
         return [
             enabled_check,
             process_timing_dropdown,
             seed_num_input,
+            use_generation_seed,
             tag_length_radio,
             nl_length_radio,
             ban_tags_textbox,
@@ -511,29 +592,35 @@ class TIPOScript(scripts.Script):
                 infotext = infotexts[index]
 
                 # Parse generation parameters from infotext
-                gen_parameters = infotext_utils.parse_generation_parameters(infotext, [])
+                gen_parameters = infotext_utils.parse_generation_parameters(
+                    infotext, []
+                )
 
                 # Get TIPO Parameters string from parsed parameters
                 tipo_params_str = gen_parameters.get("TIPO Parameters", "")
 
                 if tipo_params_str:
                     # Convert JavaScript boolean literals to Python
-                    dict_string = tipo_params_str.replace('false', 'False').replace('true', 'True')
+                    dict_string = tipo_params_str.replace("false", "False").replace(
+                        "true", "True"
+                    )
 
                     # Parse as dictionary
                     tipo_params = ast.literal_eval(dict_string)
 
                     # Get seed value
-                    res = int(tipo_params.get('seed', -1))
+                    res = int(tipo_params.get("seed", -1))
             else:
                 # Fallback to extra_generation_params if index is out of range
                 extra_params = gen_info.get("extra_generation_params", {})
                 tipo_params_str = extra_params.get("TIPO Parameters", "")
 
                 if tipo_params_str:
-                    dict_string = tipo_params_str.replace('false', 'False').replace('true', 'True')
+                    dict_string = tipo_params_str.replace("false", "False").replace(
+                        "true", "True"
+                    )
                     tipo_params = ast.literal_eval(dict_string)
-                    res = int(tipo_params.get('seed', -1))
+                    res = int(tipo_params.get("seed", -1))
 
         except Exception as e:
             if gen_info_string:
@@ -550,11 +637,13 @@ class TIPOScript(scripts.Script):
         prompt: str,
         process_timing: str,
         seed: int,
+        follow_generation_seed: bool,
         *args,
     ):
         p.extra_generation_params[INFOTEXT_KEY] = json.dumps(
             {
                 "seed": seed,
+                "follow_generation_seed": follow_generation_seed,
                 "timing": process_timing,
                 "tag_length": args[0],
                 "nl_length": args[1],
@@ -581,6 +670,7 @@ class TIPOScript(scripts.Script):
         is_enabled: bool,
         process_timing: str,
         seed: int,
+        follow_generation_seed: bool,
         *args,
     ):
         """This method will be called after sd-dynamic-prompts and the styles are applied."""
@@ -602,14 +692,17 @@ class TIPOScript(scripts.Script):
         if args[3] != "custom":
             args[4] = TIPO_DEFAULT_FORMAT.get(args[3], args[4])
 
-        self.write_infotext(p, p.prompt, "AFTER", seed, *args)
+        self.write_infotext(p, p.prompt, "AFTER", seed, follow_generation_seed, *args)
 
         args = list(args)
         nl_prompt = args.pop()
         new_all_prompts = []
         for prompt, sub_seed in zip(p.all_prompts, p.all_seeds):
+            # Following the image seed keeps each batch item's prompt tied to the
+            # image it produces (issue #14).
+            tipo_seed = int(sub_seed) if follow_generation_seed else seed + sub_seed
             new_all_prompts.append(
-                self._process(prompt, nl_prompt, aspect_ratio, seed + sub_seed, *args)
+                self._process(prompt, nl_prompt, aspect_ratio, tipo_seed, *args)
             )
 
         hr_fix_enabled = getattr(p, "enable_hr", False)
@@ -633,6 +726,7 @@ class TIPOScript(scripts.Script):
         is_enabled: bool,
         process_timing: str,
         seed: int,
+        follow_generation_seed: bool,
         *args,
     ):
         """This method will be called before sd-dynamic-prompts and the styles are applied."""
@@ -648,9 +742,9 @@ class TIPOScript(scripts.Script):
         aspect_ratio = p.width / p.height
         if seed == -1:
             seed = random.randrange(4294967294)
-        self.write_infotext(p, p.prompt, "BEFORE", seed, *args)
+        self.write_infotext(p, p.prompt, "BEFORE", seed, follow_generation_seed, *args)
         fix_seed(p)
-        seed = int(seed + p.seed)
+        seed = int(p.seed) if follow_generation_seed else int(seed + p.seed)
 
         args = list(args)
         p.prompt = self._process(p.prompt, args.pop(), aspect_ratio, seed, *args)
@@ -685,6 +779,7 @@ class TIPOScript(scripts.Script):
         prompt = prompt.strip() or tag_prompt
         seed = int(seed) % SEED_MAX
         if model != self.current_model:
+            ensure_runtime()
             if " | " in model:
                 model_name, gguf_name = model.split(" | ")
                 target_file = f"{model_name.split('/')[-1]}_{gguf_name}"
@@ -695,8 +790,11 @@ class TIPOScript(scripts.Script):
             else:
                 target = model
                 gguf = False
-            models.load_model(target, gguf, device="cpu" if gguf_use_cpu else "cuda")
+            target_device = "cpu" if gguf_use_cpu else str(devices.device)
+            models.load_model(target, gguf, device=target_device)
             self.current_model = model
+        prompt = strip_comments(prompt)
+        nl_prompt = strip_comments(nl_prompt)
         prompt_preview = prompt.replace("\n", " ")[:40]
         logger.info(f"Processing prompt: {prompt_preview}...")
         logger.info(f"Processing with seed: {seed}")
@@ -736,7 +834,8 @@ class TIPOScript(scripts.Script):
 
         tag_length = tag_length.replace(" ", "_")
         nl_length = nl_length.replace(" ", "_")
-        org_tag_map = seperate_tags(all_tags)
+        embeddings = embedding_spellings(all_tags)
+        org_tag_map = restore_embeddings(seperate_tags(all_tags), embeddings)
 
         meta, operations, general, nl_prompt = parse_tipo_request(
             org_tag_map,
@@ -764,11 +863,12 @@ class TIPOScript(scripts.Script):
             models.text_model.cpu()
             devices.torch_gc()
 
+        tag_map = restore_embeddings(tag_map, embeddings)
         addon = {
             "tags": [],
             "nl": "",
         }
-        for cate in tag_map.keys():
+        for cate in tag_map:
             if cate == "generated" and addon["nl"] == "":
                 addon["nl"] = tag_map[cate]
                 continue
@@ -826,6 +926,12 @@ shared.options_templates.update(
                     ", Natural Language Prompt and Tag Prompt will be hidden."
                     " (UI Reload Needed)"
                 ),
+            ),
+            "tipo_extra_input_layout": shared.OptionInfo(
+                EXTRA_INPUT_LAYOUT[0],
+                "Layout for the TIPO prompt inputs (UI Reload Needed)",
+                gr.Radio,
+                {"choices": EXTRA_INPUT_LAYOUT},
             ),
         },
     )

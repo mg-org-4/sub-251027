@@ -1,7 +1,7 @@
 import math
 
 import comfy.samplers
-
+# update 2.6.1
 
 class StarDistilledOptimizerZIT:
     BGCOLOR = "#3d124d"
@@ -103,7 +103,7 @@ class StarDistilledOptimizerZIT:
             }
         }
 
-    RETURN_TYPES = ("*",)
+    RETURN_TYPES = ("STARNODES_OPTIONS",)
     RETURN_NAMES = ("options",)
     FUNCTION = "create"
     CATEGORY = "⭐StarNodes/Sampler"

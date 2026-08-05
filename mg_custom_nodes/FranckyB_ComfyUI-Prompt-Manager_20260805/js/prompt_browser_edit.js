@@ -180,11 +180,14 @@ export function createPromptBrowserEditPanel(options) {
     const _generateThumbnail = typeof generateThumbnail === "function" ? generateThumbnail : async () => {};
     const _savePrompt = typeof savePrompt === "function" ? savePrompt : async () => ({ success: false });
     const _loadPrompts = typeof loadPrompts === "function" ? loadPrompts : async () => {};
+    const _selectPrompt = typeof options?.selectPrompt === "function" ? options.selectPrompt : null;
     const _onChange = typeof onChange === "function" ? onChange : () => {};
 
     let currentCategory = "";
     let currentPromptName = "";
     let pendingThumbnail = null;
+    let loadedThumbnail = null;
+    let loadedPromptText = "";
 
     const root = el("div", {
         display: "flex",
@@ -257,23 +260,53 @@ export function createPromptBrowserEditPanel(options) {
         overflowY: "auto",
     });
 
+    const toolsHeader = el("div", {
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        padding: "6px 0 8px 0",
+        cursor: "pointer",
+        userSelect: "none",
+        color: STYLE.textPrimary,
+        fontSize: "13px",
+        fontWeight: "bold",
+    }, "Tools");
+
+    const toolsArrow = el("span", {
+        display: "inline-block",
+        width: "12px",
+        transition: "color 0.2s ease",
+    }, "▶");
+    toolsHeader.prepend(toolsArrow);
+
+    const toolsBody = el("div", {
+        display: "none",
+        flexDirection: "column",
+        gap: "10px",
+        paddingBottom: "10px",
+        flexShrink: "0",
+    });
+
     let settingsOpen = false;
     let promptOpen = true;
+    let toolsOpen = false;
 
     const syncSectionVisibility = () => {
         settingsBody.style.display = settingsOpen ? "flex" : "none";
         promptBody.style.display = promptOpen ? "flex" : "none";
+        toolsBody.style.display = toolsOpen ? "flex" : "none";
         settingsArrow.textContent = settingsOpen ? "▼" : "▶";
         promptArrow.textContent = promptOpen ? "▼" : "▶";
+        toolsArrow.textContent = toolsOpen ? "▼" : "▶";
     };
 
     settingsHeader.addEventListener("click", () => {
         if (settingsOpen) {
             settingsOpen = false;
-            promptOpen = true;
         } else {
             settingsOpen = true;
             promptOpen = false;
+            toolsOpen = false;
         }
         syncSectionVisibility();
     });
@@ -281,10 +314,21 @@ export function createPromptBrowserEditPanel(options) {
     promptHeader.addEventListener("click", () => {
         if (promptOpen) {
             promptOpen = false;
-            settingsOpen = true;
         } else {
             promptOpen = true;
             settingsOpen = false;
+            toolsOpen = false;
+        }
+        syncSectionVisibility();
+    });
+
+    toolsHeader.addEventListener("click", () => {
+        if (toolsOpen) {
+            toolsOpen = false;
+        } else {
+            toolsOpen = true;
+            settingsOpen = false;
+            promptOpen = false;
         }
         syncSectionVisibility();
     });
@@ -293,6 +337,8 @@ export function createPromptBrowserEditPanel(options) {
     root.appendChild(settingsBody);
     root.appendChild(promptHeader);
     root.appendChild(promptBody);
+    root.appendChild(toolsHeader);
+    root.appendChild(toolsBody);
     syncSectionVisibility();
 
     const typeLabel = el("label", { color: STYLE.textMuted, fontSize: "12px" }, "Prompt Type");
@@ -380,12 +426,10 @@ export function createPromptBrowserEditPanel(options) {
     });
 
     const clearBtn = createButton("Clear", async () => {
-        promptNameInput.value = "";
-        promptTextArea.value = "";
-        pendingThumbnail = null;
-        updateThumbnailDisplay(null);
-        currentPromptName = "";
-        _onChange();
+        const cleared = await clearPrompt();
+        if (cleared) {
+            _onChange();
+        }
     });
 
     const saveBtn = createButton("Save", async () => {
@@ -452,6 +496,11 @@ export function createPromptBrowserEditPanel(options) {
     });
     promptBody.appendChild(generateBtn);
 
+    const bulkPromptBtn = createButton("Bulk Prompt Builder", () => {
+        openBulkPromptDialog();
+    });
+    toolsBody.appendChild(bulkPromptBtn);
+
     function updateThumbnailDisplay(thumbnail) {
         thumbnailImg.src = thumbnail || DEFAULT_THUMBNAIL;
     }
@@ -505,13 +554,14 @@ export function createPromptBrowserEditPanel(options) {
             if (!overwrite) return { success: false };
         }
 
-        const thumbnail = pendingThumbnail;
+        const thumbnail = pendingThumbnail || loadedThumbnail;
         const result = await _savePrompt({ category, name, text, thumbnail });
         if (result?.success) {
             await _loadPrompts(node);
             currentPromptName = name;
             pendingThumbnail = null;
             const entry = node?.prompts?.[category]?.[name];
+            loadedPromptText = entry?.prompt || "";
             updateThumbnailDisplay(entry?.thumbnail || null);
             _onChange();
         } else {
@@ -522,7 +572,45 @@ export function createPromptBrowserEditPanel(options) {
         return result || { success: false };
     }
 
-    function loadPrompt(category, promptName) {
+    function hasUnsavedChanges() {
+        const currentName = String(promptNameInput.value || "").trim();
+        const currentText = String(promptTextArea.value || "").trim();
+
+        if (!currentCategory) {
+            return false;
+        }
+
+        const entry = node?.prompts?.[currentCategory]?.[currentPromptName];
+        if (currentPromptName && entry && typeof entry === "object") {
+            const originalText = String(entry.prompt || "").trim();
+            const originalThumbnail = entry.thumbnail || null;
+            if (currentName !== currentPromptName) return true;
+            if (currentText !== originalText) return true;
+            if (pendingThumbnail !== null && pendingThumbnail !== originalThumbnail) return true;
+            return false;
+        }
+
+        if (currentName || currentText || pendingThumbnail !== null) {
+            return true;
+        }
+        return false;
+    }
+
+    async function confirmDiscardChanges() {
+        if (!hasUnsavedChanges()) return true;
+        const confirmed = await _showConfirm(
+            "Unsaved Changes",
+            "You have unsaved changes. Discard them?",
+            "Discard",
+            "#c44"
+        );
+        return confirmed;
+    }
+
+    async function loadPrompt(category, promptName) {
+        const canProceed = await confirmDiscardChanges();
+        if (!canProceed) return false;
+
         currentCategory = category || "";
         currentPromptName = promptName || "";
         promptNameInput.value = currentPromptName;
@@ -536,13 +624,18 @@ export function createPromptBrowserEditPanel(options) {
         const entry = node?.prompts?.[category]?.[promptName];
         if (entry && typeof entry === "object") {
             promptTextArea.value = entry.prompt || "";
-            updateThumbnailDisplay(entry.thumbnail || null);
+            loadedPromptText = entry.prompt || "";
+            loadedThumbnail = entry.thumbnail || null;
+            updateThumbnailDisplay(loadedThumbnail);
         } else {
             promptTextArea.value = "";
+            loadedPromptText = "";
+            loadedThumbnail = null;
             updateThumbnailDisplay(null);
         }
 
         loadCategorySettings(category);
+        return true;
     }
 
     function loadCategorySettings(category) {
@@ -570,12 +663,151 @@ export function createPromptBrowserEditPanel(options) {
         syncSectionVisibility();
     }
 
-    function clearPrompt() {
+    async function clearPrompt() {
+        const canProceed = await confirmDiscardChanges();
+        if (!canProceed) return false;
         promptNameInput.value = "";
         promptTextArea.value = "";
+        loadedPromptText = "";
         pendingThumbnail = null;
+        loadedThumbnail = null;
         updateThumbnailDisplay(null);
         currentPromptName = "";
+        return true;
+    }
+
+    function openBulkPromptDialog() {
+        const category = currentCategory;
+        if (!category) {
+            _showInfo("Missing Category", "Please select a category first.");
+            return;
+        }
+
+        const overlay = el("div", {
+            position: "fixed",
+            top: "0",
+            left: "0",
+            right: "0",
+            bottom: "0",
+            background: "rgba(0, 0, 0, 0.65)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: "10005",
+        });
+
+        const dialog = el("div", {
+            background: STYLE.panel,
+            border: `1px solid ${STYLE.panelBorder}`,
+            borderRadius: "6px",
+            padding: "16px",
+            width: "480px",
+            maxWidth: "90vw",
+            maxHeight: "90vh",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.45)",
+        });
+
+        const title = el("h3", {
+            margin: "0",
+            color: STYLE.textPrimary,
+            fontSize: "15px",
+            fontWeight: "bold",
+        }, "Bulk Prompt Builder");
+
+        const subtext = el("p", {
+            margin: "0",
+            color: STYLE.textMuted,
+            fontSize: "12px",
+        }, `Quickly create multiple prompts in "${category}".`);
+
+        const textarea = createTextarea("", "Enter one tag per line...");
+        textarea.style.minHeight = "auto";
+        textarea.style.height = "auto";
+        textarea.style.resize = "vertical";
+        textarea.rows = 20;
+
+        const buttonRow = el("div", {
+            display: "flex",
+            gap: "8px",
+            justifyContent: "flex-end",
+        });
+
+        const cancelBtn = createButton("Cancel", () => {
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        });
+
+        const createBtn = createButton("Create", async () => {
+            const raw = String(textarea.value || "");
+            const lines = raw.split(/\r?\n/).map((s) => s.trim()).filter((s) => s.length > 0);
+            if (lines.length === 0) {
+                await _showInfo("No Prompts", "Please enter at least one line.");
+                return;
+            }
+
+            createBtn.disabled = true;
+            createBtn.textContent = "Creating...";
+            let created = 0;
+            let failed = 0;
+            const seen = new Set();
+
+            for (const line of lines) {
+                const key = line.toLowerCase();
+                if (seen.has(key)) continue;
+                seen.add(key);
+                try {
+                    const result = await _savePrompt({ category, name: line, text: line, thumbnail: null });
+                    if (result?.success) {
+                        created++;
+                    } else {
+                        failed++;
+                    }
+                } catch (err) {
+                    console.error("[PromptBrowserEdit] Batch save failed:", err);
+                    failed++;
+                }
+            }
+
+            await _loadPrompts(node);
+            _onChange();
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            if (created > 0) {
+                const firstName = lines.find((line) => line.length > 0);
+                if (firstName) {
+                    _selectPrompt?.(category, firstName);
+                }
+            }
+            await _showInfo("Prompts Created", `${created} prompt(s) created in "${category}".${failed ? ` ${failed} failed.` : ""}`);
+        }, { background: "#2b6d3a", borderColor: "#4a9158", color: "#fff" });
+
+        buttonRow.appendChild(cancelBtn);
+        buttonRow.appendChild(createBtn);
+
+        dialog.appendChild(title);
+        dialog.appendChild(subtext);
+        dialog.appendChild(textarea);
+        dialog.appendChild(buttonRow);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        textarea.focus();
+
+        const closeOnEscape = (e) => {
+            if (e.key === "Escape") {
+                document.removeEventListener("keydown", closeOnEscape);
+                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            }
+        };
+        document.addEventListener("keydown", closeOnEscape);
+
+        overlay.addEventListener("click", (e) => {
+            if (e.target === overlay) {
+                document.removeEventListener("keydown", closeOnEscape);
+                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            }
+        });
     }
 
     // Initialize the thumbnail area with the placeholder so it never starts empty.

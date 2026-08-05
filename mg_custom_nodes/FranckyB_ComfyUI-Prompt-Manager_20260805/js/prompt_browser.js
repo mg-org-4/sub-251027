@@ -2362,6 +2362,14 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                         return { success: false, error: String(err) };
                     }
                 },
+                selectPrompt: (category, name) => {
+                    if (category) {
+                        selectedCategory = category;
+                        renderCategoryTabs();
+                    }
+                    setCurrentPromptSelection(name);
+                    renderContent(searchInput.value);
+                },
                 generateThumbnail: async (category, promptName) => {
                     return new Promise((resolve, reject) => {
                         const queuedName = promptName;
@@ -2860,15 +2868,7 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                         return;
                     }
 
-                    // Normal click: forget any initial pre-selection and select only this prompt.
-                    selectedNames.clear();
-                    if (multiCategorySelect) {
-                        Object.keys(selectedByCategory).forEach((cat) => {
-                            selectedByCategory[cat].clear();
-                        });
-                    }
-                    currentPrompt = promptName;
-
+                    // In edit mode, ask before discarding unsaved changes.
                     if (editMode && editPanel) {
                         const now = Date.now();
                         if (editModeLastClickPrompt === promptName && (now - editModeLastClickAt) <= 500) {
@@ -2876,9 +2876,17 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                             cleanup();
                             return;
                         }
+                        const loaded = await editPanel.loadPrompt(selectedCategory, promptName);
+                        if (!loaded) return; // user cancelled, keep previous selection
                         editModeLastClickPrompt = promptName;
                         editModeLastClickAt = now;
-                        editPanel.loadPrompt(selectedCategory, promptName);
+                        selectedNames.clear();
+                        if (multiCategorySelect) {
+                            Object.keys(selectedByCategory).forEach((cat) => {
+                                selectedByCategory[cat].clear();
+                            });
+                        }
+                        currentPrompt = promptName;
                         renderContent(searchInput.value);
                         return;
                     }
@@ -2894,6 +2902,15 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                         renderContent(searchInput.value);
                         return;
                     }
+
+                    // Normal click: forget any initial pre-selection and select only this prompt.
+                    selectedNames.clear();
+                    if (multiCategorySelect) {
+                        Object.keys(selectedByCategory).forEach((cat) => {
+                            selectedByCategory[cat].clear();
+                        });
+                    }
+                    currentPrompt = promptName;
 
                     resolve({ category: selectedCategory, prompt: promptName });
                     cleanup();
@@ -3217,15 +3234,6 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                         return;
                     }
 
-                    // Normal click: forget any initial pre-selection and select only this prompt.
-                    selectedNames.clear();
-                    if (multiCategorySelect) {
-                        Object.keys(selectedByCategory).forEach((cat) => {
-                            selectedByCategory[cat].clear();
-                        });
-                    }
-                    setCurrentPromptSelection(promptName);
-
                     if (editMode && editPanel) {
                         const now = Date.now();
                         if (editModeLastClickPrompt === promptName && (now - editModeLastClickAt) <= 500) {
@@ -3233,9 +3241,17 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                             cleanup();
                             return;
                         }
+                        const loaded = await editPanel.loadPrompt(selectedCategory, promptName);
+                        if (!loaded) return; // user cancelled, keep previous selection
                         editModeLastClickPrompt = promptName;
                         editModeLastClickAt = now;
-                        editPanel.loadPrompt(selectedCategory, promptName);
+                        selectedNames.clear();
+                        if (multiCategorySelect) {
+                            Object.keys(selectedByCategory).forEach((cat) => {
+                                selectedByCategory[cat].clear();
+                            });
+                        }
+                        setCurrentPromptSelection(promptName);
                         renderContent(searchInput.value);
                         return;
                     }
@@ -3251,6 +3267,15 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                         renderContent(searchInput.value);
                         return;
                     }
+
+                    // Normal click: forget any initial pre-selection and select only this prompt.
+                    selectedNames.clear();
+                    if (multiCategorySelect) {
+                        Object.keys(selectedByCategory).forEach((cat) => {
+                            selectedByCategory[cat].clear();
+                        });
+                    }
+                    setCurrentPromptSelection(promptName);
 
                     resolve({ category: selectedCategory, prompt: promptName });
                     cleanup();
@@ -3793,15 +3818,6 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                         return;
                     }
 
-                    // Normal click: forget any initial pre-selection and select only this prompt.
-                    selectedNames.clear();
-                    if (multiCategorySelect) {
-                        Object.keys(selectedByCategory).forEach((cat) => {
-                            selectedByCategory[cat].clear();
-                        });
-                    }
-                    setCurrentPromptSelection(promptName);
-
                     if (editMode && editPanel) {
                         const now = Date.now();
                         if (editModeLastClickPrompt === promptName && (now - editModeLastClickAt) <= 1000) {
@@ -3809,9 +3825,17 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                             cleanup();
                             return;
                         }
+                        const loaded = await editPanel.loadPrompt(selectedCategory, promptName);
+                        if (!loaded) return; // user cancelled, keep previous selection
                         editModeLastClickPrompt = promptName;
                         editModeLastClickAt = now;
-                        editPanel.loadPrompt(selectedCategory, promptName);
+                        selectedNames.clear();
+                        if (multiCategorySelect) {
+                            Object.keys(selectedByCategory).forEach((cat) => {
+                                selectedByCategory[cat].clear();
+                            });
+                        }
+                        setCurrentPromptSelection(promptName);
                         renderContent(searchInput.value);
                         return;
                     }
@@ -3827,6 +3851,15 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                         renderContent(searchInput.value);
                         return;
                     }
+
+                    // Normal click: forget any initial pre-selection and select only this prompt.
+                    selectedNames.clear();
+                    if (multiCategorySelect) {
+                        Object.keys(selectedByCategory).forEach((cat) => {
+                            selectedByCategory[cat].clear();
+                        });
+                    }
+                    setCurrentPromptSelection(promptName);
 
                     resolve({ category: selectedCategory, prompt: promptName });
                     cleanup();

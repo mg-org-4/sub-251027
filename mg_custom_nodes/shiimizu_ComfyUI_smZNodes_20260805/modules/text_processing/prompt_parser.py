@@ -2,7 +2,6 @@ from __future__ import annotations
 import re
 import lark
 from typing import List
-from compel import Compel
 from collections import namedtuple
 if __name__ != "__main__":
     import torch
@@ -448,6 +447,7 @@ def parse_prompt_attention(text):
         res = [[text, 1.0]]
         return res
     elif opts.prompt_attention == 'Compel parser':
+        from compel import Compel
         conjunction = Compel.parse_prompt_string(text)
         if conjunction is None or conjunction.prompts is None or conjunction.prompts is None:
             return [["", 1.0]]

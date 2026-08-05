@@ -135,7 +135,7 @@ class smZ_Settings:
 
             create_heading(): create_heading_value("Stable Diffusion"),
             "info_comma_padding_backtrack": ("STRING", {"multiline": True, "placeholder": "Prompt word wrap length limit\nin tokens - for texts shorter than specified, if they don't fit into 75 token limit, move them to the next 75 token chunk"}),
-            "Prompt word wrap length limit": ("INT", {"default": opts.comma_padding_backtrack, "min": 0, "max": 74, "step": 1, "tooltip": "🚧Prompt word wrap length limit\n\nin tokens - for texts shorter than specified, if they don't fit into 75 token limit, move them to the next 75 token chunk"}),
+            "Prompt word wrap length limit": ("INT", {"default": opts.comma_padding_backtrack, "min": 0, "max": 255, "step": 1, "tooltip": "🚧Prompt word wrap length limit\n\nin tokens - for texts shorter than specified, if they don't fit into 75 token limit, move them to the next 75 token chunk"}),
             "enable_emphasis": ("BOOLEAN", {"default": opts.enable_emphasis, "tooltip": "🚧Emphasis mode\n\nmakes it possible to make model to pay (more:1.1) or (less:0.9) attention to text when you use the syntax in prompt;\n\n" + get_options_descriptions_nl()}),
 
             "info_RNG": ("STRING", {"multiline": True, "placeholder": "Random number generator source.\nchanges seeds drastically; use CPU to produce the same picture across different videocard vendors; use NV to produce same picture as on NVidia videocards"}),

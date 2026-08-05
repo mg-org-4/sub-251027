@@ -102,6 +102,39 @@ def prepare_noise(latent_image, seed, noise_inds=None, device='cpu'):
         comfy.k_diffusion.sampling.default_noise_sampler = comfy.k_diffusion.sampling.default_noise_sampler_orig
     # =============================================
 
+    if not opts_found:
+        # No smZ Settings node in this graph, so smZNodes was not opted into.
+        # Defer to the original instead of running a parallel implementation of
+        # core's noise generation. This matches the other register_hooks()
+        # patches, which already call orig_fn when Options.KEY is absent
+        # (smZNodes.py get_area_and_mult / max_denoise / sampling_function).
+        #
+        # Seeds and existing outputs are unaffected: with the default
+        # randn_source='cpu' the code below already reproduces
+        # comfy.sample.prepare_noise bit-for-bit.
+        #
+        # It also keeps smZNodes transparent to latent types core adds later.
+        # NestedTensor is the current example (LTX-AV, MiniMax-H3, TripoSplat):
+        # its size() reports only tensors[0], so the code below would return
+        # noise for the first stream alone and the sampler would fail packing
+        # it against the full latent.
+        from ..smZNodes import store
+        return store.prepare_noise(latent_image, seed, noise_inds)
+
+    # Handle nested tensors (e.g. video models like Wan) by delegating per inner tensor,
+    # mirroring comfy.sample.prepare_noise behavior.
+    if getattr(latent_image, 'is_nested', False):
+        import comfy.nested_tensor
+        tensors = latent_image.unbind()
+        noises = []
+        for t in tensors:
+            noises.append(_generate_noise_tensor(t, generator, opts, device, device_orig, noise_inds))
+        return comfy.nested_tensor.NestedTensor(noises)
+
+    return _generate_noise_tensor(latent_image, generator, opts, device, device_orig, noise_inds)
+
+
+def _generate_noise_tensor(latent_image, generator, opts, device, device_orig, noise_inds):
     if noise_inds is None:
         shape = latent_image.size()
         if opts.randn_source == 'nv':

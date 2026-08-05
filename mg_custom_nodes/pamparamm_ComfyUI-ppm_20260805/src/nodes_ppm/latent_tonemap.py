@@ -13,7 +13,7 @@ class LatentOperationTonemapLuminance(ComfyNodeABC):
             }
         }
 
-    RETURN_TYPES = ("LATENT_OPERATION",)  # type: ignore
+    RETURN_TYPES = ("LATENT_OPERATION",)
     FUNCTION = "op"
 
     CATEGORY = "latent/advanced/operations"

@@ -4,6 +4,9 @@ description = "Attention Couple for SDXL and Anima; NegPiP (negative weights in 
 version = "1.1.10"
 license = { text = "GNU Affero General Public License v3" }
 
+[dependency-groups]
+dev = ["ruff", "ty"]
+
 [project.urls]
 Repository = "https://github.com/pamparamm/ComfyUI-ppm"
 #  Used by Comfy Registry https://comfyregistry.org
@@ -14,6 +17,8 @@ DisplayName = "ComfyUI-ppm"
 Icon = ""
 
 [tool.ruff]
+line-length = 120
+indent-width = 4
 lint.select = ["S307", "S102", "T", "W", "F", "I"]
 
 [tool.ruff.lint.isort]
@@ -25,5 +30,9 @@ known-first-party = [
     "node_helpers",
 ]
 
-[tool.pyright]
-extraPaths = ["../../"]
+[tool.uv]
+package = false
+
+[tool.ty.environment]
+root = ["../../"]
+python = "../../.venv"

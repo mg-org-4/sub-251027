@@ -178,22 +178,22 @@ def cosmos_couple_forward_wrapper(previous_forward: Callable[..., torch.Tensor])
                 cond_or_uncond_couple.extend(itertools.repeat(COND, num_conds))
 
             if has_negpip:
-                n_target = n_chunks[i].repeat(1, lcm_tokens_n // n.shape[1], 1)  # type: ignore
+                n_target = n_chunks[i].repeat(1, lcm_tokens_n // n.shape[1], 1)
                 if cond_type == UNCOND:
                     ns.append(n_target)
                 else:
-                    ns.append(torch.cat([n_target, conds_n_tensor], dim=0))  # type: ignore
+                    ns.append(torch.cat([n_target, conds_n_tensor], dim=0))
 
-        xs = torch.cat(xs, dim=0)
-        cs = torch.cat(cs, dim=0)
+        x_cat = torch.cat(xs, dim=0)
+        c_cat = torch.cat(cs, dim=0)
 
         if has_negpip:
-            ns = torch.cat(ns, dim=0)
-            transformer_options[NEGPIP_MASK_KEY] = ns
+            n_cat = torch.cat(ns, dim=0)
+            transformer_options[NEGPIP_MASK_KEY] = n_cat
 
         transformer_options[COND_UNCOND_COUPLE_KEY] = cond_or_uncond_couple
 
-        return xs, cs, rope_emb, transformer_options
+        return x_cat, c_cat, rope_emb, transformer_options
 
     def _couple_merge_output(out: torch.Tensor, transformer_options: dict):
         cond_or_uncond = transformer_options[COND_UNCOND_COUPLE_KEY]

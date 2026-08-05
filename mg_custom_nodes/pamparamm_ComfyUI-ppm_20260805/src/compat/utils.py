@@ -32,4 +32,4 @@ def v3_schema_stub(module: ModuleType) -> list[type[io.ComfyNode]]:
 
         return cls
 
-    return [inject_schema_stub(m[1], m[0], NODE_DISPLAY_NAME_MAPPINGS.get(m[0])) for m in NODE_CLASS_MAPPINGS.items()]  # type: ignore
+    return [inject_schema_stub(m[1], m[0], NODE_DISPLAY_NAME_MAPPINGS.get(m[0])) for m in NODE_CLASS_MAPPINGS.items()]

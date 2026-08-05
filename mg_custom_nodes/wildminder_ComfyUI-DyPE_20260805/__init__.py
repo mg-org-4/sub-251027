@@ -12,7 +12,7 @@ class DyPE_FLUX(io.ComfyNode):
         return io.Schema(
             node_id="DyPE_FLUX",
             display_name="DyPE",
-            category="model_patches/unet",
+            category="model_patches/position_encoding",
             description="Applies DyPE (Dynamic Position Extrapolation) to a models for ultra-high-resolution generation.",
             inputs=[
                 io.Model.Input(
@@ -31,13 +31,13 @@ class DyPE_FLUX(io.ComfyNode):
                 ),
                 io.Combo.Input(
                     "model_type",
-                    options=["auto", "flux", "nunchaku", "qwen", "zimage"],
+                    options=["auto", "flux", "nunchaku", "qwen", "zimage", "anima"],
                     default="auto",
                     tooltip="Specify the model architecture. 'auto' usually works",
                 ),
                 io.Combo.Input(
                     "method",
-                    options=["vision_yarn", "yarn", "ntk", "base"],
+                    options=["vision_yarn", "yarn", "ntk", "pi", "base"],
                     default="vision_yarn",
                     tooltip="Position encoding extrapolation method.",
                 ),

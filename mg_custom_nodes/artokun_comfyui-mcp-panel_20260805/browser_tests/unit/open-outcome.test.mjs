@@ -467,7 +467,7 @@ test("#721 P1: an already-active workflow requires state even when empty, then p
     "a state-less EMPTY target cannot report opened against the prior canvas",
   );
   const repaintAt = body.indexOf("await app.loadGraphData(repaintState, true, true, target);");
-  const proofAt = body.indexOf("graphRootWorkflowUuidMatches({ rootGraph, activeWorkflowUuid: targetUuid })", repaintAt);
+  const proofAt = body.indexOf("const verdict = resolveOpenRebindVerdict({", repaintAt);
   const openedAt = body.lastIndexOf("applied: true");
   assert.ok(repaintAt !== -1 && proofAt > repaintAt && openedAt > proofAt, "must prove the repaint before success");
   // A failed/missing repaint is an honest unknown after s.openWorkflow may have
@@ -484,9 +484,17 @@ test("#721 P1: dirty rebind success requires the target UUID, never only a read-
   assert.match(repaint, /const targetUuid = workflowStableUuid\(target, \{ embed: true \}\);/);
   assert.match(repaint, /\[WORKFLOW_UUID_FIELD\]: targetUuid/);
   assert.match(repaint, /await app\.loadGraphData\(repaintState, true, true, target\);/);
-  assert.match(repaint, /activeWorkflowRef\(\) !== target/);
+  // The instance check is PROXY-SAFE. A bare `!==` compares a Vue proxy against a raw
+  // lookup result and can report a tab switch that never happened (#558 r2) — a false
+  // negative on the one part that makes every other part meaningless.
+  assert.match(repaint, /const instanceStillTarget = sameWorkflowObject\(activeNow, target\);/);
+  assert.doesNotMatch(repaint, /activeWorkflowRef\(\) !== target/, "the raw-identity comparison must be gone");
   assert.match(repaint, /graphRootWorkflowUuidMatches\(\{ rootGraph, activeWorkflowUuid: targetUuid \}\)/);
   assert.match(repaint, /graphRootMatchesState\(\{ rootGraph, state: repaintState \}\)/);
+  // The ATTEMPT-scoped marker: a workflow uuid can be on the root from a previous load
+  // or a rebind heal, so it cannot say that THIS load landed.
+  assert.match(repaint, /\[OPEN_PROOF_FIELD\]: openProofMarker/, "the payload must carry a single-use marker");
+  assert.match(repaint, /graphRootCarriesOpenProof\(\{ rootGraph, proofMarker: openProofMarker \}\)/);
   assert.doesNotMatch(repaint, /assertGraphBoundToActiveWorkflow\(/, "the read guard is deliberately non-strict for dirty roots");
 });
 
@@ -524,11 +532,11 @@ test("#442 codex P1: the destructive re-read freezes canvas interaction and ALWA
   const body = handlerBody(src, "async workflow_open({");
   // The clean sample authorizes the load, but loadGraphData is awaited — an edit made
   // while it yields would be destroyed by a reload nobody asked for.
-  const lockAt = body.indexOf("canvasView.allow_interaction = false;");
+  const lockAt = body.indexOf("acquireCanvasInteractionLock(canvasView)");
   const firstRebaselineAt = body.indexOf("await clearSpuriousOpenModified(target, {");
   const loadAt = body.indexOf("await app.loadGraphData(diskGraph");
   const rebaselineAt = body.indexOf("await clearSpuriousOpenModified(target, {", loadAt);
-  const restoreAt = body.indexOf("canvasView.allow_interaction = priorInteraction;");
+  const restoreAt = body.indexOf("releaseCanvasInteractionLock(priorInteraction, canvasView);");
   assert.ok(lockAt !== -1 && loadAt !== -1 && restoreAt !== -1, "the load must be bracketed by an interaction lock");
   // clearSpuriousOpenModified awaits a frame and then RE-BASELINES the change tracker, so
   // an edit made during it is absorbed as the new CLEAN baseline — which would make the
@@ -550,8 +558,20 @@ test("#442 codex P1: the destructive re-read freezes canvas interaction and ALWA
   assert.ok(lockAt < dirtySampleAt && dirtySampleAt < restoreAt, "the dirty sample must be taken under the freeze");
   // The restore must live in a `finally`, so a throwing load can never strand a frozen canvas.
   const tail = body.slice(loadAt, restoreAt + 200);
-  assert.match(tail, /\} finally \{[\s\S]*allow_interaction = priorInteraction;/, "the restore must be in a finally");
-  assert.match(body, /typeof canvasView\?\.allow_interaction === "boolean"/);
+  assert.match(
+    tail,
+    /\} finally \{[\s\S]*releaseCanvasInteractionLock\(priorInteraction, canvasView\);/,
+    "the release must be in a finally",
+  );
+  // The boolean probe lives in the lock helper now. What matters HERE is that the
+  // release is OWNER-CHECKED: `allow_interaction` is a bare boolean, so restoring a
+  // saved value unconditionally would let this section unlock the canvas out from
+  // under a concurrent snapshot restore that is still loading (and vice versa).
+  assert.doesNotMatch(
+    body,
+    /canvasView\.allow_interaction = /,
+    "the freeze must go through the owned lock, never a bare assignment",
+  );
   // The local must NOT be named so that it ends in "s": the #268 contract scanner
   // captures `s\.<member>` unanchored, so `canvas.allow_interaction` reads as a new
   // workflow-SERVICE dependency and fails that gate.
@@ -598,7 +618,10 @@ test("#442 codex R9: the switch+reload holds a critical section that REFUSES con
   // Release must be in the SAME finally as the canvas restore — a throw must never leave
   // the tab refusing every command.
   const tail = body.slice(body.indexOf("} finally {", openAt));
-  assert.match(tail, /releaseWorkflowReloadGuard\(reloadGuardToken\);[\s\S]{0,200}allow_interaction = priorInteraction;/);
+  assert.match(
+    tail,
+    /releaseWorkflowReloadGuard\(reloadGuardToken\);[\s\S]{0,300}releaseCanvasInteractionLock\(/,
+  );
   // codex R10 — token-scoped: an expired-then-superseded holder must not release a NEWER
   // holder's section, and must not keep mutating once it has lost it.
   assert.match(src, /if \(workflowReloadGuard && workflowReloadGuard\.token === token\) workflowReloadGuard = null;/);
@@ -780,7 +803,7 @@ test("#442 round-3: a FIRST-TIME open never re-baselines without the freeze (edi
   // allow_interaction — exactly the case where the freeze below is actually applied.
   assert.match(
     body,
-    /const priorInteraction =\s*wasOpen && typeof canvasView\?\.allow_interaction === "boolean"/,
+    /const priorInteraction = wasOpen \? acquireCanvasInteractionLock\(canvasView\) : null;/,
     "priorInteraction !== null ⟺ the freeze is held",
   );
   // clearSpuriousOpenModified awaits a frame, then captures the canvas as the CLEAN

@@ -157,6 +157,17 @@ import {
   fitDetailLine,
   isLineProtected,
   truncationTail,
+  // #809: remedy plumbing — every truncation must name the lever that applies.
+  clipCompactValue,
+  compactClipNote,
+  LIMIT_CEILING,
+  MAX_CHARS_CEILING,
+  OUTLINE_DETAIL_LEVELS,
+  clampOutlineMaxChars,
+  outlineDegradeBanner,
+  outlineFloorRefusal,
+  outlineValueClipNote,
+  clipOutlineTitle,
 } from "./lib/graph-read.js";
 import { classifyManualChangeBaseline } from "./lib/manual-change-gate.js";
 import { safeRemoveNode } from "./lib/safe-remove-node.js";
@@ -218,12 +229,21 @@ import {
   syncNodeArea,
   syncGraphNodeAreas,
   moveGroupMembers,
+  groupBoundsOf,
+  nestedGroupsOf,
+  translateGroupBoxes,
+  reroutesInside,
+  moveReroutePoints,
+  rerouteWriteIsSound,
+  groupBoxIsAt,
+  describeItems,
+  describeThrown,
 } from "./lib/group-geometry.js";
 import {
   activeWorkflowPossiblyStale,
   activeStaleHint,
 } from "./lib/reconnect-staleness.js";
-import { pickRevertSnapshot } from "./lib/graph-revert.js";
+import { pickRevertSnapshot, describeRevertOutcome, revertDidRestore } from "./lib/graph-revert.js";
 import { commandFingerprint, createCommandDedupeLedger } from "./lib/command-dedupe.js";
 import { decideOpenStaleness } from "./lib/workflow-open-staleness.js";
 import {
@@ -259,18 +279,23 @@ import { composeRunCompletionFrame } from "./lib/run-completion-frame.js";
 import { readyAckCanPromoteBackend } from "./lib/pi-readiness.js";
 import { createRunReconcileSweep } from "./lib/run-reconcile-sweep.js";
 import {
-  activeWorkflowNodeCount,
   activeWorkflowProvenEmpty,
-  graphEmptyBindingUnproven,
-  graphReadDesynced,
-  graphRootMismatchesActiveWorkflow,
   graphRootProvenEmpty,
   graphRootWorkflowUuidMismatches,
   graphRootWorkflowUuidMatches,
   graphRootMatchesState,
-  graphCommandMayMutateWorkflow,
+  graphCommandBindingBar,
+  MUTATION_BINDING_BAR,
+  graphBindingRefusalMessage,
+  resolveGraphBindingVerdict,
   graphReadBindingChanged,
   resolveGraphRootUuidRebind,
+  graphRootCarriesOpenProof,
+  describeGraphStateDifference,
+  resolveOpenRebindVerdict,
+  describeOpenRebindOutcome,
+  OPEN_REBIND_STATUS,
+  OPEN_PROOF_FIELD,
 } from "./lib/graph-binding.js";
 import { summarizePromptRejection, buildQueueAcceptResult } from "./lib/queue-rejection.js";
 import { createRunFetchInterceptor, dispatchScopedRun } from "./lib/run-scope-guard.js";
@@ -291,6 +316,17 @@ import {
   buildHelloPayload,
 } from "./lib/session-rebind.js";
 import { createRestartTabIdentity, sendBridgeHello } from "./lib/restart-tab-identity.js";
+import {
+  adoptRebootRuns,
+  decodeRebootMarker,
+  isRealBridgeDrop,
+  encodeRebootMarker,
+  pruneRebootMarkerRaw,
+  rebootMarkerAfterSend,
+  rebootResumeRepeatWarning,
+  stepRebootResume,
+  REBOOT_RESUME_MAX_WAIT_MS,
+} from "./lib/restart-resume.js";
 
 let app = null;
 let api = null;
@@ -685,7 +721,7 @@ const DISCORD_INVITE_URL = "https://discord.gg/cW9arBhzCu";
 // Panel version — surfaced in the "Need help?" diagnostics blob. Bump via
 // `node scripts/set-version.mjs <v>` (updates this AND pyproject together); CI
 // and the publish gate FAIL if the two ever drift, so this can't go stale.
-const PANEL_VERSION = "0.11.38";
+const PANEL_VERSION = "0.11.39";
 
 // The connected orchestrator's console URL/token (captured off the `backends`
 // bridge message — see onBackends). Drives the "API Keys" credentials frame;
@@ -4229,26 +4265,112 @@ function getWorkflowTitle() {
 
 const MAX_STATE_NODES = 100;
 
+// #809 (codex gate): `groups` (and `rails`) ride ALONGSIDE the bounded `text` and are not
+// counted against `max_chars` — that accounting is artokun/comfyui-mcp#807. Until it
+// lands they must at least be BOUNDED, or a heavily-grouped graph makes the reply exceed
+// the budget the tool advertises no matter what the caller sets. Both cuts are marked
+// in-band, because a silently short list reads as the whole list.
+const GROUPS_RIDER_CAP = 200;
+const GROUP_NODE_IDS_CAP = 200;
+
+/**
+ * #809: the MAX_STATE_NODES views used to report only `truncated: true`. A boolean is
+ * the WORST truncation signal there is — it is a field, not prose, so a model reading
+ * the result gets no instruction from it at all, concludes the TOOL cannot do the thing,
+ * and escalates to the human.
+ *
+ * This cap is deliberately FIXED (no parameter raises it), so the honest remedy is to
+ * say exactly that and name the tool that CAN target the rest. Inventing a lever these
+ * views do not have would be the same defect pointing the other way.
+ */
+function fixedCapNote(what, shown, total, targeted) {
+  const of = Number.isFinite(total) ? `${shown} of ${total}` : `${shown}`;
+  return (
+    `Showing ${of} ${what} — this view has a FIXED cap of ${MAX_STATE_NODES} and no parameter raises it. ` +
+    targeted
+  );
+}
+
 function getGraphCtx() {
   // app.canvas.graph is the graph the user is LOOKING at — the root graph or an
   // opened subgraph — so reads and edits target what's on screen. But after a
-  // reconnect/tab-switch the canvas can still point at a subgraph object that the
-  // REBUILT root graph no longer owns; resolveScope detects that STALE reference
-  // and reconciles to root so graph READS and graph WRITES can never diverge
-  // (#220/#308). It is the ONE authoritative viewing-scope source.
+  // reconnect/tab-switch/backend restart the canvas can point at a graph the
+  // REBUILT root no longer owns; resolveScope classifies that, reconciling to root
+  // ONLY when the stranded graph is provably content-free and otherwise reporting
+  // a divergence this function refuses (#220/#308 preserved, #604 fixed). It is the
+  // ONE authoritative viewing-scope source, and therefore the one place that can
+  // decide whether the graph a command is about to touch is knowable at all.
   const LG = window.LiteGraph ?? globalThis.LiteGraph;
   if (!app || !app.graph || !LG) {
     throw new Error("ComfyUI graph is not available (app.graph / LiteGraph missing)");
   }
   const scope = resolveScope(app);
-  // When the scope was stale, rebind the CANVAS to root too, so the physical view
-  // matches the graph reads/edits now target (keeps read + edit in lockstep).
-  if (scope.stale && typeof app.canvas?.setGraph === "function") {
+  // #604 — CANVAS/ROOT DIVERGENCE. The canvas holds a graph the live root neither
+  // owns nor registers, and that graph is NOT provably content-free. Reported after
+  // a backend restart with no page reload: `app.graph` was empty while the canvas
+  // still held the user's unsaved 31-node workflow. This used to be treated as the
+  // #220/#308 stale-SUBGRAPH case and "repaired" by `canvas.setGraph(app.graph)` —
+  // which pointed the user's canvas at the empty root, left the graph they were
+  // actually editing unreferenced ("the memory-only graph was unrecoverable"), and
+  // then handed every downstream guard a self-consistent (app.graph, activeWorkflow)
+  // pair that no longer said anything about the canvas the command was issued for.
+  // The evidence of the divergence was destroyed before anything could report it.
+  //
+  // There is no safe way to pick one: the canvas graph is what the user sees, the
+  // root graph is what the workflow service and every save path use, and nothing
+  // here can prove which one this command names. So REFUSE, before any work and
+  // before touching the view. A destroyed graph cannot be retried; a refusal can.
+  const refuseDivergence = (canvasGraph, detail = "") => {
+    const canvasNodes = canvasGraph?._nodes?.length ?? "unknown";
+    const rootNodes = scope.rootGraph?._nodes?.length ?? "unknown";
+    // The remedy differs by WHERE the canvas is stranded, and only the remedy does.
+    // A canvas left inside a subgraph the rebuilt root no longer owns is escaped by
+    // leaving that subgraph in ComfyUI's own breadcrumb; two different root graphs
+    // can only be reconciled by reloading the page. Both are stated, cheapest first.
+    const remedy =
+      scope.divergedKind === "subgraph"
+        ? `Leave the open subgraph on the ComfyUI canvas (its breadcrumb, or double-click out) ` +
+          `to get back to a graph the panel can identify; if that does not clear it, save or ` +
+          `export anything you need from this view and reload the ComfyUI page.`
+        : `This usually follows a ComfyUI backend restart without a page reload. Save or export ` +
+          `the canvas you want to keep, then reload the ComfyUI page (a panel-only reload does ` +
+          `not rebuild this binding).`;
+    return new Error(
+      `[canvas-root-divergence] The canvas you are looking at (${canvasNodes} node(s)) and the ` +
+        `panel's bound root graph (${rootNodes} node(s)) are two DIFFERENT graphs, so this command ` +
+        `was NOT applied — the panel cannot tell which one it was meant for, and picking either ` +
+        `could edit a graph you are not looking at.${detail} ${remedy}`,
+    );
+  };
+  if (scope.diverged) throw refuseDivergence(scope.graph);
+  // The canvas graph is unreachable from the live root but PROVABLY content-free, so
+  // rebind the CANVAS to root: the physical view then matches the graph reads/edits
+  // target, keeping read + edit in lockstep (#220/#308). This is the ONLY case the
+  // repaint is allowed, and it is allowed because the proof — a present-empty
+  // `_nodes` plus a serialize() with every non-identity surface empty — establishes
+  // that there is nothing in it to lose. It also keeps the binding guard's later
+  // "was NOT applied" claim honest: nothing of the workflow changed here either.
+  //
+  // The repaint must be VERIFIED, not attempted (codex r2 P0). setGraph is optional
+  // on older frontends and can throw during a reconnect; swallowing that and
+  // returning the root anyway resolved commands onto a graph the user is provably
+  // NOT looking at — the same wrong-canvas outcome by a different route, and it
+  // would have made "the physical view matches" a claim about a best-effort call.
+  // An unconfirmed rebind leaves the divergence in place, so it is refused like one.
+  if (scope.stale) {
     try {
-      app.canvas.setGraph(scope.rootGraph);
-      app.canvas.setDirty?.(true, true);
+      if (typeof app.canvas?.setGraph === "function") {
+        app.canvas.setGraph(scope.rootGraph);
+        app.canvas.setDirty?.(true, true);
+      }
     } catch {
-      // best-effort — the resolved `graph` below is still the reconciled root
+      // fall through to the confirmation below — a throw is just one way to fail
+    }
+    if (app.canvas?.graph !== scope.rootGraph) {
+      throw refuseDivergence(
+        app.canvas?.graph,
+        ` The panel tried to move the view back to the graph it is bound to and could not confirm it.`,
+      );
     }
   }
   const graph = scope.graph ?? app.graph;
@@ -4378,65 +4500,25 @@ function assertGraphBoundToActiveWorkflow(
       }
     }
   }
-  const currentStateTrustworthy = activeWorkflow?.isModified !== true;
-  // On a dirty tab, ChangeTracker's activeState can lag the live canvas (#545),
-  // so it cannot prove the root belongs to this workflow. Reads remain
-  // availability-oriented, but mutations need a positive UUID match: otherwise
-  // a stale, untagged root B is indistinguishable from A and could be changed.
-  const dirtyMutationBindingUnproven =
-    requireDirtyMutationBinding &&
-    activeWorkflow?.isModified === true &&
-    !graphRootWorkflowUuidMatches({ rootGraph, activeWorkflowUuid });
-  const rootShapeMismatch = graphRootMismatchesActiveWorkflow({ rootGraph, activeWorkflow });
-  const baselineReadDesync =
-    currentStateTrustworthy &&
-    includeBaselineReadGuard &&
-    graphReadDesynced({ liveNodeCount, activeWorkflow, inSubgraph });
-  if (
-    rootUuidMismatch ||
-    dirtyMutationBindingUnproven ||
-    rootShapeMismatch ||
-    baselineReadDesync
-  ) {
-    // #565 — name the firing predicate. All four branches used to throw the
-    // identical text, so a misfiring guard was undiagnosable and the only
-    // available response was a blind reload/re-open retry loop.
-    const reason = rootUuidMismatch
-      ? "root-workflow-uuid-mismatch"
-      : dirtyMutationBindingUnproven
-        ? "dirty-mutation-binding-unproven"
-        : rootShapeMismatch
-          ? "root-shape-mismatch"
-          : "root-node-count-desync";
-    const expected = activeWorkflowNodeCount(activeWorkflow);
-    throw new Error(
-      `[${reason}] The live graph is out of sync with the active workflow: the workflow reports ${expected} node(s), ` +
-        `but the canvas is bound to a different graph. A load, tab switch, or reconnect left this command ` +
-        `pointed at the wrong canvas, so it was NOT applied. Re-open the active workflow tab ` +
-        `(panel_open_workflow) or reload the panel to rebind the graph, then retry.`,
-    );
-  }
-  // #560 (2nd reopen) — the FALSE-EMPTY read hole. Every predicate above is
-  // inconclusive in the mid-population window (empty root, no root tag,
-  // tracker unreadable/unsettled after a reconnect + tab switch or a failed
-  // repaint), so an empty ROOT read slipped through as an AUTHORITATIVE
-  // node_count 0 for a populated workflow — and the agent built on it (#349-
-  // class). An empty read is now authoritative ONLY when the empty state is
-  // PROVEN (clean, well-formed, all-empty tracker state) or the canvas is
-  // POSITIVELY bound (root tag matches). Otherwise the state is INCONCLUSIVE:
-  // refuse with a retryable error — never a false-empty read, never a build
-  // on one. Reads AND mutations are fenced alike; the legacy verdicts above
-  // stay more specific and keep winning. Gated LAST so it can never mask a
-  // positive desync/mismatch verdict.
-  if (graphEmptyBindingUnproven({ graph, rootGraph, activeWorkflow, activeWorkflowUuid })) {
-    throw new Error(
-      `[empty-binding-unproven] The live root canvas reads EMPTY, but the active workflow's own ` +
-        `state cannot prove it is genuinely empty — the tab may still be loading after a switch, ` +
-        `reconnect, or a failed open, and node_count 0 could be a FALSE-EMPTY reading, so this ` +
-        `command was NOT applied as authoritative. Retry in a moment once the tab settles; if it ` +
-        `persists, re-open the workflow tab (panel_open_workflow) or reload the panel.`,
-    );
-  }
+  // The verdict itself is a PURE function of the resolved evidence, lifted into
+  // lib/graph-binding.js (#604) so the read-vs-mutation evidence bar is observable
+  // in unit tests. It names the firing predicate (#565) — all branches used to
+  // throw the identical text, so a misfiring guard was undiagnosable and the only
+  // available response was a blind reload/re-open retry loop. Every caller runs
+  // this BEFORE doing any work, which is what makes its "was NOT applied" claim
+  // true rather than a fabrication.
+  const verdict = resolveGraphBindingVerdict({
+    graph,
+    rootGraph,
+    activeWorkflow,
+    activeWorkflowUuid,
+    liveNodeCount,
+    inSubgraph,
+    rootUuidMismatch,
+    includeBaselineReadGuard,
+    requireDirtyMutationBinding,
+  });
+  if (verdict) throw new Error(graphBindingRefusalMessage(verdict));
 }
 
 /** Reach a Pinia store by id. Pinia attaches itself as `$pinia` on the Vue app's
@@ -4676,8 +4758,7 @@ function captureGraphSnapshot(mid, label) {
     );
     if (!currentState) return null;
     assertGraphBoundToActiveWorkflow(graph, rootGraph, {
-      includeBaselineReadGuard: false,
-      requireDirtyMutationBinding: true,
+      ...MUTATION_BINDING_BAR,
     });
     const data = rootGraph.serialize();
     graphSnapshots.push({ mid, ts: Date.now(), label: (label || "").slice(0, 80), data, workflowRef });
@@ -4688,55 +4769,469 @@ function captureGraphSnapshot(mid, label) {
   }
 }
 
-// Restore the canvas to a given snapshot. Returns the snapshot, or null on fail.
-function restoreSnapshot(snap) {
-  if (!snap) return null;
+// Restore the canvas to a given snapshot. Returns a REVERT_STATUS outcome, never a
+// bare snapshot-or-null: `null` used to mean all of "no snapshot", "a snapshot
+// exists but loading it was REFUSED", and "the load failed part-way", and every
+// caller rendered it as "nothing to revert". That is the wrong answer at the worst
+// moment — the binding refusal fires exactly when a backend restart has left the
+// canvas unidentifiable, which is when someone reaches for /revert, and the reason
+// it was carrying IS the remedy. Preserve the reason and let the caller show it.
+// ASYNC because `loadGraphData` is async on current frontends and the panel's own
+// creation-boundary wrapper preserves its promise (see graph_load, which awaits it
+// for the same reason). Calling it without awaiting made the "failed" branch below
+// unreachable: a load that STARTED, changed the canvas in part, and then REJECTED
+// returned `restored`, so every consumer reported success — including rewind's
+// "canvas reverted" — over a half-applied load. That is the fabricated-outcome case
+// this whole path exists to prevent, so the promise has to be awaited.
+// ---- the canvas interaction lock, as a fence with an OWNER -----------------
+//
+// `canvas.allow_interaction` is a bare boolean, so "restore the value I saved" is
+// only correct while nobody else has frozen it since. Two overlapping destructive
+// sections break that, and they overlap for a reason already established here:
+// acquireWorkflowReloadGuard OVERWRITES, so a timed-out revert can lose its section
+// to a workflow_open while its own load is still live. If that revert then settles
+// first, restoring its stale `true` UNLOCKS the canvas in the middle of
+// workflow_open's reload — a hand edit lands and the newer load overwrites it. The
+// exact clobber the freeze exists to prevent, reopened by a lock released by
+// someone who no longer owns it.
+//
+// So the lock is reference-counted with per-holder tokens: the value to restore is
+// captured when the FIRST holder freezes, a release by a non-owner is a no-op, and
+// the canvas only reopens when the LAST holder leaves. That is order-independent —
+// whichever of two overlapping sections finishes first, the canvas stays locked
+// until both are done.
+let canvasInteractionHolders = new Set();
+let canvasInteractionPrior = null;
+let canvasInteractionSeq = 0;
+
+/** Freeze `canvasView` and return an ownership token, or null when the freeze did
+ *  NOT happen — this frontend exposes no boolean lock, or the write was refused.
+ *  Callers must treat null as "no user fence available", never as "frozen". */
+function acquireCanvasInteractionLock(canvasView) {
+  if (typeof canvasView?.allow_interaction !== "boolean") return null;
+  const firstHolder = canvasInteractionHolders.size === 0;
+  const prior = firstHolder ? canvasView.allow_interaction : canvasInteractionPrior;
+  // FREEZE FIRST, register second. `allow_interaction` can be a read-only property
+  // or a throwing setter, and registering the holder before the write is a claim
+  // that the freeze happened. If the write then threw, nobody would hold the token
+  // — the caller gets null and never releases — so the orphan would sit in the set
+  // forever, keeping the count nonzero and leaving the NEXT canvas permanently
+  // locked with nothing running. A guard is itself an operation that can fail:
+  // record it only once it has.
   try {
-    const { app, graph, rootGraph } = getGraphCtx();
+    canvasView.allow_interaction = false;
+  } catch {
+    return null; // no freeze, no holder — the caller sees "no user fence available"
+  }
+  if (firstHolder) canvasInteractionPrior = prior;
+  const token = ++canvasInteractionSeq;
+  canvasInteractionHolders.add(token);
+  return token;
+}
+
+/** Drop `token`'s claim. The canvas reopens only when no holder is left, and only
+ *  to the value captured before the FIRST freeze — never to a stale snapshot a
+ *  later holder has since superseded. Returns whether the canvas was reopened. */
+function releaseCanvasInteractionLock(token, canvasView) {
+  if (token == null || !canvasInteractionHolders.delete(token)) return false;
+  if (canvasInteractionHolders.size > 0) return false; // a newer section still holds it
+  try {
+    if (canvasView && typeof canvasInteractionPrior === "boolean") {
+      canvasView.allow_interaction = canvasInteractionPrior;
+    }
+  } catch {
+    // A canvas that refuses the write is already gone. Drop the bookkeeping anyway:
+    // keeping the holder registered would leave the count nonzero forever and lock
+    // out every later canvas, which is strictly worse than a dead canvas staying
+    // frozen. The claim is released either way — only the write is best-effort.
+  }
+  canvasInteractionPrior = null;
+  return true;
+}
+
+/** How long a snapshot restore's `loadGraphData` may run before the panel gives the
+ *  user their canvas back. Generous — a large workflow legitimately takes seconds —
+ *  but finite, because the freeze around this await locks the user out of their own
+ *  graph and a hung load would do so forever, silently. */
+const RESTORE_LOAD_BUDGET_MS = 15000;
+/** Distinguishes "the deadline won" from a resolved load and from a rejection. */
+const RESTORE_LOAD_TIMED_OUT = { timedOut: true };
+
+/** A snapshot load that outran its deadline and is STILL RUNNING. Releasing the
+ *  fences on timeout hands the canvas back, but it does NOT stop that load — so it
+ *  is tracked here and no further restore may start until it settles. Without this
+ *  the deadline would trade a silent lockout for a silent overwrite: a second
+ *  restore could complete and then be clobbered by the first one landing late. It
+ *  cannot fence ordinary graph commands as well — that is precisely the wedge the
+ *  deadline exists to avoid — which is why the timeout message says outright that a
+ *  late completion may overwrite the canvas. */
+let restoreLoadStillRunning = null;
+
+/**
+ * Resolve to `{ outcome, settled }`. `outcome` is `null` (settled), an Error
+ * (rejected), or RESTORE_LOAD_TIMED_OUT. `settled` is the never-rejecting promise
+ * for the load itself, so a caller that gave up on the deadline can still observe
+ * when it finally finishes — and so a rejection arriving after the deadline is
+ * never an unhandled one.
+ * `setTimer`/`clearTimer` are injectable so tests drive the deadline deterministically
+ * instead of sleeping.
+ */
+function raceRestoreLoadDeadline(
+  load,
+  { budgetMs = RESTORE_LOAD_BUDGET_MS, setTimer = setTimeout, clearTimer = clearTimeout } = {},
+) {
+  let timer = null;
+  const settled = Promise.resolve(load).then(
+    () => null,
+    (err) => (err instanceof Error ? err : new Error(coerceMessageText(err))),
+  );
+  const deadline = new Promise((resolve) => {
+    timer = setTimer(() => resolve(RESTORE_LOAD_TIMED_OUT), budgetMs);
+  });
+  return Promise.race([settled, deadline]).then((outcome) => {
+    if (timer !== null) clearTimer(timer);
+    return { outcome, settled };
+  });
+}
+
+/** Remember an abandoned-but-live load, and forget it once it finally settles. */
+function noteRestoreLoadStillRunning(settled) {
+  restoreLoadStillRunning = settled;
+  settled.then(
+    () => {
+      if (restoreLoadStillRunning === settled) restoreLoadStillRunning = null;
+    },
+    () => {
+      if (restoreLoadStillRunning === settled) restoreLoadStillRunning = null;
+    },
+  );
+}
+
+async function restoreSnapshot(snap) {
+  if (!snap) return { status: "none" };
+  // EVERYTHING that can fail before the load starts belongs in this region, because
+  // its verdict is "refused" — nothing applied, safe to retry. Only the awaited
+  // load itself may report "failed" (may be partly applied). Leaving the clone or
+  // the loadGraphData availability check inside the load's try made those failures
+  // claim the action had STARTED, which is fabricated for a call that never
+  // happened.
+  let app;
+  let payload;
+  let token = null;
+  let restoredUuid = null;
+  // Bound to a local whose name does NOT end in "s": the #268 frontend-contract
+  // scanner captures members off the workflow-service alias `s` with an unanchored
+  // `s\.` pattern, so `canvas.<member>` would be misread as a new workflow-SERVICE
+  // dependency. This is a LiteGraph canvas flag, not a workflow-service member.
+  let canvasView = null;
+  let interactionToken = null;
+  // Set when a timed-out load has taken ownership of the fences: they must NOT be
+  // released by the finally below, only by the load settling.
+  let deferredRelease = false;
+  // Release BOTH fences on EVERY path — including the bounded-load timeout, which
+  // exists precisely so a hung load cannot hold them forever. A throw anywhere must
+  // never leave the user with a frozen canvas or a tab refusing every graph command.
+  const releaseSection = () => {
+    if (token !== null) {
+      endWorkflowReloadStep(token);
+      releaseWorkflowReloadGuard(token);
+      token = null;
+    }
+    // OWNER-CHECKED: a release by a section that has since been superseded is a
+    // no-op, so a late-settling revert cannot unlock the canvas out from under a
+    // workflow_open that is still loading.
+    if (interactionToken !== null) {
+      releaseCanvasInteractionLock(interactionToken, canvasView);
+      interactionToken = null;
+    }
+  };
+  try {
+    let graph;
+    let rootGraph;
+    ({ app, graph, rootGraph } = getGraphCtx());
     // Snapshots are workflow-instance scoped. A snapshot captured from tab B
     // must never become a valid load merely because the canvas later rebinds to
     // tab A; missing provenance is rejected too (old in-memory snapshots).
-    if (!snap.workflowRef || snap.workflowRef !== activeWorkflowRef()) return null;
+    if (!snap.workflowRef || snap.workflowRef !== activeWorkflowRef()) {
+      return {
+        status: "refused",
+        reason:
+          "That snapshot was captured from a different workflow tab (or has no recorded " +
+          "workflow), so loading it here would overwrite this canvas with another " +
+          "workflow's graph. Switch back to the tab it came from and retry.",
+      };
+    }
     // Revert is a direct local load, not a bridge command. Do not restore a
     // snapshot into a canvas proven to belong to a different active workflow.
     assertGraphBoundToActiveWorkflow(graph, rootGraph, {
-      includeBaselineReadGuard: false,
-      requireDirtyMutationBinding: true,
+      ...MUTATION_BINDING_BAR,
     });
+    if (typeof app?.loadGraphData !== "function") {
+      return {
+        status: "refused",
+        reason: "This ComfyUI frontend does not expose loadGraphData, so the panel cannot restore a snapshot.",
+      };
+    }
     // Deep-clone so the stored snapshot isn't mutated by the live graph after load.
+    payload = JSON.parse(JSON.stringify(snap.data));
+    // #442's section guard, taken for the SAME reason workflow_open takes it: the
+    // restore is now an ASYNC destructive load, and the bridge refuses graph
+    // commands while the guard is held. Without it an agent command arriving during
+    // the await is accepted and acknowledged, then silently erased when the load
+    // settles — the data-loss shape that guard exists to close. It doubles as the
+    // single-flight lock: a second /revert (or a rewind, or a rollback click)
+    // landing mid-load is refused instead of racing the first to settle out of
+    // order. A guard already held by a workflow switch/reload refuses us likewise.
+    const held = activeWorkflowReloadGuard();
+    if (held) {
+      return {
+        status: "refused",
+        reason:
+          `The panel is switching or reloading "${held.key}" right now, so restoring a snapshot ` +
+          `into that canvas would race it. Retry in a moment.`,
+      };
+    }
+    // …and the section alone is not enough once a load can outrun its deadline: an
+    // abandoned-but-live load still holds no fence, so a second restore could finish
+    // and then be overwritten by the first one landing late.
+    if (restoreLoadStillRunning) {
+      return {
+        status: "refused",
+        reason:
+          "An earlier snapshot restore passed its deadline and is STILL running, so starting " +
+          "another would race it — and the earlier one could land last. Wait for it to finish, " +
+          "or reload the ComfyUI page.",
+      };
+    }
+    token = acquireWorkflowReloadGuard("graph-revert");
+    if (!beginWorkflowReloadStep(token)) {
+      releaseWorkflowReloadGuard(token);
+      token = null;
+      return { status: "refused", reason: "The panel could not take the graph-reload section. Retry in a moment." };
+    }
+    // FREEZE canvas interaction across the destructive await, exactly as
+    // workflow_open does for its own repaint: the section above keeps the BRIDGE
+    // out, and this keeps the USER out. Without it a hand edit landing while
+    // loadGraphData is in flight is silently overwritten when the load settles —
+    // the same unsaved-work loss this whole change exists to stop, arriving through
+    // the window that making the path async opened. Restored on every path by
+    // releaseSection().
+    canvasView = app?.canvas ?? null;
+    interactionToken = acquireCanvasInteractionLock(canvasView);
+    if (interactionToken === null) {
+      // No user-side fence available on this frontend. REFUSE rather than run a
+      // destructive await unfenced and describe it as though the fence were there —
+      // the write would land on whatever the user did in the meantime, which is the
+      // loss this path exists to prevent. workflow_open sets the same precedent: it
+      // gates its destructive re-read on `priorInteraction !== null` and skips it
+      // when the canvas cannot be frozen.
+      return {
+        status: "refused",
+        reason:
+          "This ComfyUI frontend does not expose a canvas interaction lock, so the panel cannot " +
+          "stop you editing while the snapshot loads — and an edit made in that window would be " +
+          "silently overwritten when it lands. Reload the ComfyUI page and retry, or undo with " +
+          "Ctrl+Z on the canvas instead.",
+      };
+    }
+    // STAMP the target workflow's identity into the exact payload about to be
+    // loaded, so the post-load check can demand that marker back — the same
+    // technique, for the same reason, as workflow_open's repaint. Without it the
+    // post-load proof rests on the active-instance pointer plus content, and neither
+    // survives an A->B->A switch across the load: the pointer reads A again, and
+    // graphRootMatchesState deliberately ignores the identity tag, so a same-shaped
+    // B could be certified as a successful revert of A.
+    //
+    // Ask for the identity WITHOUT `{ embed: true }`: that option's job is to write
+    // the uuid (and path) into the workflow's own `extra`, and this needs no such
+    // step — only a value to stamp into its own clone and demand back.
+    //
+    // Being precise, because it is easy to overclaim here: this is NOT a claim that
+    // resolving an identity is side-effect free. `workflowStableUuid`'s UNSAVED
+    // branch persists the id into `extra` by design, so a reload of the same tab
+    // keeps its identity (#570) — and the binding assert above does not necessarily
+    // beat us to it, since it short-circuits on a cached object uuid without calling
+    // the resolver at all. What this does guarantee is narrower and is the part
+    // within this path's gift: no `{embed:true}` step of its own, and the call taken
+    // only after the section, so a refusal never reaches it.
+    //
+    // The stamp does land in the restored graph's `extra.comfyui_mcp`, which is where
+    // the panel already keeps this tag on a live root; it is panel-owned bookkeeping,
+    // excluded from every content comparison, and identical to what a normal binding
+    // stamp would have written.
+    restoredUuid = workflowStableUuid(snap.workflowRef);
+    if (restoredUuid) {
+      const priorExtra =
+        payload.extra && typeof payload.extra === "object" && !Array.isArray(payload.extra)
+          ? payload.extra
+          : {};
+      const priorMeta =
+        priorExtra[WORKFLOW_META_NAMESPACE] &&
+        typeof priorExtra[WORKFLOW_META_NAMESPACE] === "object" &&
+        !Array.isArray(priorExtra[WORKFLOW_META_NAMESPACE])
+          ? priorExtra[WORKFLOW_META_NAMESPACE]
+          : {};
+      payload.extra = {
+        ...priorExtra,
+        [WORKFLOW_META_NAMESPACE]: { ...priorMeta, [WORKFLOW_UUID_FIELD]: restoredUuid },
+      };
+    }
+  } catch (err) {
+    // No graph data has been loaded, so this is a clean REFUSAL: safe to retry once
+    // the binding is sound. Carry the panel's own text — it names the predicate
+    // that fired and the remedy that clears it.
+    releaseSection();
+    return { status: "refused", reason: coerceMessageText(err?.message ?? err) };
+  }
+  try {
     // __cmcpNoFork: this reloads the SAME active workflow (a revert), so the create-
     // boundary fork must NOT re-mint its per-instance identity (#570 P0).
-    app.loadGraphData(JSON.parse(JSON.stringify(snap.data)), true, true, activeWorkflowRef(), {
-      __cmcpNoFork: true,
-    });
-    return snap;
-  } catch {
-    return null;
+    // AWAIT: a rejection after a partial apply must reach the catch below, not
+    // escape as an unhandled rejection while we report success.
+    //
+    // …with a deadline on the REPLY, never on the fences. The panel cannot cancel a
+    // loadGraphData once it is running, so the writer stays live regardless. That
+    // leaves exactly two honest options, and releasing the fences while the writer
+    // is live is not one of them: it would hand the canvas back, let the user (or
+    // any graph_* mutation) edit, and then let the original load land on top — the
+    // silent overwrite this whole change exists to prevent, introduced by the very
+    // deadline that was meant to help.
+    //
+    // So the deadline bounds how long the CALLER waits, not how long the canvas is
+    // protected. On expiry we answer — loudly, saying the canvas stays locked and
+    // why — and the fences come off only when the load actually settles. A load that
+    // never settles therefore wedges the tab, which is the same trade
+    // beginWorkflowReloadStep already documents for the bridge: a loud, recoverable
+    // wedge beats silently eating work the user was never told about. The difference
+    // from the first cut is that it is now LOUD.
+    const { outcome: loadOutcome, settled: loadSettled } = await raceRestoreLoadDeadline(
+      app.loadGraphData(payload, true, true, activeWorkflowRef(), { __cmcpNoFork: true }),
+    );
+    if (loadOutcome === RESTORE_LOAD_TIMED_OUT) {
+      // Hand the fences to the load itself: they drop when it settles, not now.
+      // `deferredRelease` stops the finally below from releasing them early.
+      deferredRelease = true;
+      noteRestoreLoadStillRunning(loadSettled);
+      const handOff = releaseSection;
+      loadSettled.then(handOff, handOff);
+      return {
+        status: "failed",
+        reason:
+          `The graph load did not finish within ${Math.round(RESTORE_LOAD_BUDGET_MS / 1000)}s. It ` +
+          `has NOT been cancelled and the panel cannot cancel it, so the canvas stays locked and ` +
+          `graph commands stay refused until it lands — releasing them now would let an edit be ` +
+          `silently overwritten when it does. They unlock by themselves the moment it finishes; ` +
+          `if it never does, reload the ComfyUI page.`,
+      };
+    }
+    if (loadOutcome instanceof Error) throw loadOutcome;
+    // A RESOLVED PROMISE IS NOT A RECEIPT — the same thing workflow_open's repaint
+    // says about its own load: an old or partial frontend can resolve while leaving
+    // the canvas on the previous root. Treating resolution as proof would report
+    // "canvas reverted" for a canvas that never changed, and the rollback modal
+    // would then rewind the conversation and resend against it.
+    //
+    // The same three-part proof workflow_open demands of its own repaint, because
+    // no one part answers the others' question:
+    //   1. the ACTIVE INSTANCE is still the workflow this snapshot belongs to
+    //      (it was only validated before the await, and a tab switch during the
+    //      load would make everything below describe a different canvas);
+    //   2. the live root carries the identity we STAMPED into this payload — the
+    //      part that survives an A->B->A switch, which the pointer in (1) does not
+    //      and which the content check in (3) deliberately ignores;
+    //   3. the CONTENT matches the exact payload loaded.
+    let liveRoot = null;
+    try {
+      ({ rootGraph: liveRoot } = getGraphCtx());
+    } catch {
+      liveRoot = null; // binding unreadable right after the load — unverifiable
+    }
+    if (activeWorkflowRef() !== snap.workflowRef) {
+      return {
+        status: "failed",
+        reason:
+          "The active workflow changed while the snapshot was loading, so the panel cannot " +
+          "confirm which canvas it landed on. Check both tabs before editing or running them.",
+      };
+    }
+    if (restoredUuid && !graphRootWorkflowUuidMatches({ rootGraph: liveRoot, activeWorkflowUuid: restoredUuid })) {
+      return {
+        status: "failed",
+        reason:
+          "The load reported success, but the canvas is not carrying the identity this snapshot " +
+          "was loaded with, so the panel cannot confirm it landed on the right graph. Check the " +
+          "canvas before editing or running it.",
+      };
+    }
+    // (3) is a SEMANTIC match, not byte equality: graphRootMatchesState normalizes
+    // serializer dialect, node order, counters and viewport (#560), which is what
+    // keeps a faithful repaint from false-failing. It is NOT claimed to be immune:
+    // loadGraphData validates, runs extensions and normalizes widget values before
+    // it resolves, so a frontend transformation could in principle make a genuinely
+    // successful revert unverifiable. That direction is the safe one — the outcome
+    // is "started, cannot confirm", which discloses rather than fabricating and
+    // stops the modal's resend — but it is the thing to watch for in a live session.
+    if (!graphRootMatchesState({ rootGraph: liveRoot, state: payload })) {
+      return {
+        status: "failed",
+        reason:
+          "The load reported success, but the canvas does not match the snapshot that was " +
+          "loaded, so the panel cannot confirm the revert landed. Check the canvas before " +
+          "editing or running it.",
+      };
+    }
+  } catch (err) {
+    // The load was STARTED. It may have applied in part, so this is a disclosure,
+    // not a refusal — reporting "nothing happened" here would invite a retry on
+    // top of a half-changed canvas.
+    return { status: "failed", reason: coerceMessageText(err?.message ?? err) };
+  } finally {
+    // NOT when a timed-out load owns them: the writer is still live, and releasing a
+    // fence while the writer is live is the one combination that cannot be made safe.
+    if (!deferredRelease) releaseSection();
   }
+  return { status: "restored", snapshot: snap };
 }
 
 // Restore the canvas to the most recent pre-turn snapshot that ACTUALLY DIFFERS
 // from the current graph (undo the last turn's edits). Skipping an identical
 // latest snapshot fixes the no-op revert (#327): after a turn replaced/cleared
 // the graph, the next message snapshots the already-changed graph, so the newest
-// snapshot equals the canvas and reverting to it recovers nothing. Returns null
-// when nothing genuinely differs — the caller surfaces "nothing to revert".
-function revertGraphToLastSnapshot() {
+// snapshot equals the canvas and reverting to it recovers nothing. Returns a
+// REVERT_STATUS outcome; "none" only when nothing genuinely differs.
+async function revertGraphToLastSnapshot() {
   const workflowRef = activeWorkflowRef();
-  if (!workflowRef) return null;
+  // NOT "none": there may well be snapshots — the panel just cannot read the active
+  // workflow, so it cannot tell which of them belong to this canvas. Saying "no
+  // snapshot captured" would be the same could-not-determine-becomes-a-verdict
+  // defect this vocabulary exists to remove. Nothing was applied, so it is a
+  // refusal, and a transient null active workflow clears on retry.
+  if (!workflowRef) {
+    return {
+      status: "refused",
+      reason:
+        "The panel cannot read the active workflow right now, so it cannot tell which snapshots " +
+        "belong to this canvas. Retry in a moment.",
+    };
+  }
   // The snapshot ring spans tabs, but a revert belongs only to the CURRENT
   // workflow instance. Filter before choosing the newest differing snapshot:
   // otherwise a newer B snapshot wins selection, is rightly rejected by
   // restoreSnapshot, and hides an older valid A snapshot (#349).
   const scopedSnapshots = graphSnapshots.filter((snap) => snap?.workflowRef === workflowRef);
-  if (!scopedSnapshots.length) return null;
+  // The ONLY truthful "none" on this path: this workflow has no snapshot at all.
+  if (!scopedSnapshots.length) return { status: "none" };
   try {
     const current = getGraphCtx().rootGraph.serialize();
+    // Every snapshot equals the live graph ⇒ genuinely nothing to revert (#327).
     const snap = pickRevertSnapshot(scopedSnapshots, current);
-    return snap ? restoreSnapshot(snap) : null;
+    return snap ? restoreSnapshot(snap) : { status: "none" };
   } catch {
-    // graph unavailable (can't serialize current state) — fall back to the
-    // legacy newest-snapshot behavior rather than silently doing nothing.
+    // The current graph can't be serialized to compare against — which now
+    // includes the canvas/root divergence refusal. Fall back to the legacy
+    // newest-snapshot behavior rather than silently doing nothing: restoreSnapshot
+    // re-checks the binding and returns a REFUSED outcome carrying the reason, so
+    // a divergence surfaces as itself instead of as "nothing to revert".
     return restoreSnapshot(scopedSnapshots[scopedSnapshots.length - 1]);
   }
 }
@@ -5430,16 +5925,27 @@ async function validationBanner() {
 }
 
 // Restore the canvas to the snapshot captured before the message with this mid
-// (the per-message rollback). Returns the snapshot or null.
-function revertGraphSnapshotByMid(mid) {
+// (the per-message rollback). Returns a REVERT_STATUS outcome — "none" ONLY when
+// this message truly has no snapshot for the active workflow, never as a stand-in
+// for a refusal (see restoreSnapshot).
+async function revertGraphSnapshotByMid(mid) {
   const workflowRef = activeWorkflowRef();
-  if (!workflowRef) return null;
+  // Same as revertGraphToLastSnapshot: unreadable active workflow is a refusal, not
+  // a claim that this message has no snapshot.
+  if (!workflowRef) {
+    return {
+      status: "refused",
+      reason:
+        "The panel cannot read the active workflow right now, so it cannot tell which snapshots " +
+        "belong to this canvas. Retry in a moment.",
+    };
+  }
   for (let i = graphSnapshots.length - 1; i >= 0; i--) {
     if (graphSnapshots[i].mid === mid && graphSnapshots[i].workflowRef === workflowRef) {
       return restoreSnapshot(graphSnapshots[i]);
     }
   }
-  return null;
+  return { status: "none" };
 }
 
 /** Summarize one LiteGraph node for the agent — id, type, title, widget
@@ -5728,7 +6234,11 @@ function nextGroupId(graph) {
   return (ids.length ? Math.max(...ids) : 0) + 1;
 }
 
-/** Set a group's box, preferring its _bounding array (most portable). */
+/** Set a group's box, preferring its _bounding array (most portable). Writing
+ *  ALL FOUR components is what makes `length >= 4` a safe test here even for a
+ *  malformed quad — nothing is left half-written, so the quad is repaired rather
+ *  than diverging from the pos/size the read would otherwise fall back to. A
+ *  PARTIAL writer must instead follow groupBoundsTarget (see placeGroupBox). */
 function setGroupBounds(group, [x, y, w, h]) {
   if (group._bounding && group._bounding.length >= 4) {
     group._bounding[0] = x;
@@ -5741,17 +6251,44 @@ function setGroupBounds(group, [x, y, w, h]) {
   }
 }
 
+/** Phrase the outcome of undoing the move pre-flight's rect reconciliation. The
+ *  pre-flight WRITES, so a refusal after it may only claim "NOTHING was moved"
+ *  once those writes are provably back. */
+function describePreflightUndo(unrestored) {
+  if (!unrestored.length) return "NOTHING was moved.";
+  return (
+    `No node was repositioned, but ${unrestored.length} cached rect(s) could NOT be put back ` +
+    `(${describeItems(unrestored.map((n) => ["node", n]))}) — ` +
+    "re-read the graph with panel_query_graph before relying on group membership."
+  );
+}
+
 /** Compact JSON-friendly view of a group box. */
 function summarizeGroup(graph, g) {
   const b = g._bounding ?? [g.pos?.[0] ?? 0, g.pos?.[1] ?? 0, g.size?.[0] ?? 0, g.size?.[1] ?? 0];
   const memberIds = groupMemberNodes(graph, g).map((n) => n.id);
+  // #809 (codex gate): a group TITLE is user-controlled and `node_ids` grows with the
+  // graph, so this summary could be arbitrarily large — and it rides outside the
+  // `max_chars` accounting (#807). Bound both, and MARK each cut: `node_count` is always
+  // the true total, so a clipped `node_ids` can never be read as the whole membership.
+  const clippedTitle = clipOutlineTitle(g.title);
+  const idsFit = memberIds.length <= GROUP_NODE_IDS_CAP;
   return {
     id: g.id != null ? g.id : (graph._groups ?? []).indexOf(g),
-    title: g.title ?? "",
+    title: clippedTitle.text,
+    ...(clippedTitle.clipped ? { title_clipped: true } : {}),
     color: g.color ?? null,
     bounding: [Math.round(b[0]), Math.round(b[1]), Math.round(b[2]), Math.round(b[3])],
     node_count: memberIds.length,
-    node_ids: memberIds,
+    node_ids: idsFit ? memberIds : memberIds.slice(0, GROUP_NODE_IDS_CAP),
+    ...(idsFit
+      ? {}
+      : {
+          // NOT "panel_graph_outline lists every member" flatly (codex gate): its own
+          // budget can degrade it to the group-SUMMARY rung, which emits counts and no
+          // ids at all — and a big group is exactly when that happens. Name the condition.
+          node_ids_truncated: `Showing ${GROUP_NODE_IDS_CAP} of ${memberIds.length} member id(s) — a fixed cap that no parameter raises. panel_graph_outline's GROUPS index lists every member id, but only while its own max_chars affords a node-level rung; if it reports detail_level:"groups" it shows counts, not ids, so raise its max_chars.`,
+        }),
   };
 }
 
@@ -5919,8 +6456,7 @@ function revalidateGraphMutationContext(captured) {
     );
   }
   assertGraphBoundToActiveWorkflow(current.graph, current.rootGraph, {
-    includeBaselineReadGuard: false,
-    requireDirtyMutationBinding: true,
+    ...MUTATION_BINDING_BAR,
   });
   return current;
 }
@@ -6003,7 +6539,17 @@ const GRAPH_TOOL_EXECUTORS = {
       selected_count: picked.length,
       node_count: graph._nodes?.length ?? 0,
       nodes: picked.slice(0, MAX_STATE_NODES).map(summarizeNode),
-      ...(picked.length > MAX_STATE_NODES ? { truncated: true } : {}),
+      ...(picked.length > MAX_STATE_NODES
+        ? {
+            truncated: true,
+            truncation_hint: fixedCapNote(
+              "selected node(s)",
+              MAX_STATE_NODES,
+              picked.length,
+              "Ask the user to select fewer nodes, or read the ones you need by id with panel_query_graph {ids:[…], fields:'detail'}, which DOES take limit and max_chars.",
+            ),
+          }
+        : {}),
       // Groups/reroutes can be selected too — report them so "nothing selected"
       // is never misreported when the user actually has a group highlighted.
       ...(others.length ? { other_selected_items: others } : {}),
@@ -6078,6 +6624,16 @@ const GRAPH_TOOL_EXECUTORS = {
       node_count: all.length,
       in_view_count: visible.length,
       truncated: visible.length > MAX_STATE_NODES,
+      ...(visible.length > MAX_STATE_NODES
+        ? {
+            truncation_hint: fixedCapNote(
+              "visible node(s)",
+              MAX_STATE_NODES,
+              visible.length,
+              "Ask the user to zoom in so fewer nodes are on screen, or read the region with panel_query_graph (which DOES take limit and max_chars) / panel_graph_outline for the whole graph.",
+            ),
+          }
+        : {}),
       nodes: visible.slice(0, MAX_STATE_NODES).map(summarizeNode),
     };
   },
@@ -6089,7 +6645,7 @@ const GRAPH_TOOL_EXECUTORS = {
   //      → outputs as target_node.input_name
   // Far cheaper to read than the full JSON state, and shows the WIRING (which the
   // raw node dump makes you reconstruct). Read-only.
-  graph_outline() {
+  graph_outline({ max_chars } = {}) {
     const { graph, rootGraph } = getGraphCtx();
     // panel#389: refuse a false-clean empty read when the live graph is desynced
     // from the active workflow (empty canvas graph while the workflow reports nodes).
@@ -6106,77 +6662,157 @@ const GRAPH_TOOL_EXECUTORS = {
     // Geometric group membership → node id → group titles, plus a title→ids index.
     const groups = graph._groups ?? [];
     const groupOf = new Map();
-    const groupLines = [];
+    const groupMembers = new Map();
     for (const g of groups) {
       const ids = groupMemberNodes(graph, g).map((n) => n.id);
-      const tag = { 2: " [mute]", 4: " [bypass]" }[g.mode] ?? "";
-      groupLines.push(`  "${g.title ?? ""}"${tag} → ${ids.join(",") || "(empty)"}`);
+      groupMembers.set(g, ids);
       for (const id of ids) {
         if (!groupOf.has(id)) groupOf.set(id, []);
+        // Clipped for display only — MEMBERSHIP is keyed by node id above and is
+        // unaffected, and the GROUPS index still lists ids per group, so nothing
+        // downstream resolves a group by this label (codex gate).
         groupOf.get(id).push(g.title ?? "");
       }
     }
 
+    // #809 (codex gate): even the "full" rung clips each widget value at a FIXED 60
+    // chars, and TITLES (group, subgraph, node) are user-controlled and unbounded. A bare
+    // "…" on either quietly contradicts the outline's own coverage claim, so count both
+    // and raise ONE footer naming the tool that carries fuller values. No parameter
+    // raises these clips, so the footer must not pretend one does.
+    let outlineClipped = 0;
+    let outlineTitlesClipped = 0;
+    /** clipOutlineTitle, counting — every title in the outline goes through here. */
+    const title_ = (t) => {
+      const c = clipOutlineTitle(t);
+      if (c.clipped) outlineTitlesClipped++;
+      return c.text;
+    };
+    // Rebuilt per rung (not hoisted) so its title clips are counted against the rung that
+    // actually emits them — a count carried in from outside would claim clips the
+    // rendered text does not contain.
+    const renderGroupLines = () =>
+      groups.map((g) => {
+        const ids = groupMembers.get(g) ?? [];
+        const tag = { 2: " [mute]", 4: " [bypass]" }[g.mode] ?? "";
+        // A user-controlled group title is unbounded, so an un-clipped one would breach
+        // max_chars at EVERY rung — the ladder can shed detail but cannot shorten a
+        // single title.
+        return `  "${title_(g.title)}"${tag} → ${ids.join(",") || "(empty)"}`;
+      });
     const fmtVal = (v) => {
       const s = String(typeof v === "string" ? v : JSON.stringify(v) ?? "").replace(/\s+/g, " ");
-      return s.length > 60 ? s.slice(0, 57) + "…" : s;
+      if (s.length <= 60) return s;
+      outlineClipped++;
+      return s.slice(0, 57) + "…";
     };
     const modeTag = (n) => ({ 2: " [mute]", 4: " [bypass]" }[n.mode] ?? "");
     const outTag = (n) => (n.constructor?.nodeData?.output_node ? " [OUTPUT]" : "");
 
-    const lines = [];
-    for (const n of topoSortNodes(nodes, links)) {
-      const title = n.title && n.title !== n.type ? ` "${n.title}"` : "";
-      const grps = groupOf.get(n.id);
-      const groupTag = grps?.length ? ` · group:${grps.join("/")}` : "";
-      // #558: MARK the seed/value widget with its control_after_generate mode
-      // (`seed=… [after_gen=randomize]`) — visible like [bypass]/[mute] so a silently-
-      // rewritten value is obvious. The control combo token is NOT hidden (folding could
-      // hide a real combo that merely shares the mode option set), only annotated.
-      const cagMode = new Map(
-        controlAfterGenerateEntries(n)
-          .filter((e) => e.widget !== e.control)
-          .map((e) => [e.widget, e.mode]),
-      );
-      // #607: flag widgets overridden by a link so the stored value isn't read as effective.
-      const driven = drivenWidgetsFor(n, (n.widgets ?? []).map((w) => w?.name).filter(Boolean));
-      const widgets = (n.widgets ?? [])
-        .filter((w) => w && typeof w.name === "string")
-        .map((w) => {
-          const base = `${w.name}=${fmtVal(w.value)}`;
-          const mode = cagMode.get(w.name);
-          const withMode = mode ? `${base} [after_gen=${mode}]` : base;
-          return driven[w.name] ? `${withMode}${drivenTag(driven[w.name])}` : withMode;
-        })
-        .join(" ");
-      lines.push(
-        `${n.id}  ${n.type}${title}${modeTag(n)}${outTag(n)}${groupTag}${widgets ? "  " + widgets : ""}`,
-      );
-      const ins = (n.inputs ?? [])
-        .map((inp) => {
-          if (inp.link == null) return null;
-          const l = links[inp.link];
-          if (!l) return null;
-          const src = byId.get(l.origin_id);
-          return `${l.origin_id}.${src?.outputs?.[l.origin_slot]?.name ?? l.origin_slot}`;
-        })
-        .filter(Boolean);
-      if (ins.length) lines.push(`     ← ${ins.join(", ")}`);
-      const outs = [];
-      for (const out of n.outputs ?? []) {
-        for (const lid of out.links ?? []) {
-          const l = links[lid];
-          if (!l) continue;
-          const tgt = byId.get(l.target_id);
-          outs.push(`${l.target_id}.${tgt?.inputs?.[l.target_slot]?.name ?? l.target_slot}`);
+    // #809: render the node block at ONE rung of the detail ladder. Every rung emits a
+    // row for EVERY node — the ladder trades RESOLUTION, never coverage, because half a
+    // map is not a smaller map: an agent handed the first 200 of 690 nodes cannot tell
+    // what it is missing and will reason confidently about a graph it has barely seen.
+    const sorted = topoSortNodes(nodes, links);
+    const renderNodeLines = (level) => {
+      const out = [];
+      for (const n of sorted) {
+        // #809 (codex gate): NODE titles are user-controlled too — an unbounded one
+        // would breach max_chars at every rung, which the ladder cannot fix by shedding
+        // detail elsewhere.
+        const title = level === "ids_only" || !(n.title && n.title !== n.type) ? "" : ` "${title_(n.title)}"`;
+        const grps = groupOf.get(n.id);
+        // #809 (codex gate): groupOf holds RAW titles (membership must not depend on a
+        // display clip), so the per-node `group:` tag has to clip HERE — otherwise one
+        // long group title rides on every member node's row and blows max_chars at every
+        // rung, forcing needless degradation.
+        const groupTag =
+          level === "ids_only" || !grps?.length ? "" : ` · group:${grps.map(title_).join("/")}`;
+        let widgets = "";
+        if (level === "full" || level === "no_values") {
+          // #558: MARK the seed/value widget with its control_after_generate mode
+          // (`seed=… [after_gen=randomize]`) — visible like [bypass]/[mute] so a silently-
+          // rewritten value is obvious. The control combo token is NOT hidden (folding could
+          // hide a real combo that merely shares the mode option set), only annotated.
+          const cagMode = new Map(
+            controlAfterGenerateEntries(n)
+              .filter((e) => e.widget !== e.control)
+              .map((e) => [e.widget, e.mode]),
+          );
+          // #607: flag widgets overridden by a link so the stored value isn't read as effective.
+          const driven = drivenWidgetsFor(n, (n.widgets ?? []).map((w) => w?.name).filter(Boolean));
+          widgets = (n.widgets ?? [])
+            .filter((w) => w && typeof w.name === "string")
+            .map((w) => {
+              // At "no_values" the widget NAMES still tell an agent what is configurable;
+              // the VALUES are the bulk of the bytes, so they go first.
+              const base = level === "full" ? `${w.name}=${fmtVal(w.value)}` : w.name;
+              const mode = cagMode.get(w.name);
+              const withMode = mode ? `${base} [after_gen=${mode}]` : base;
+              return driven[w.name] ? `${withMode}${drivenTag(driven[w.name])}` : withMode;
+            })
+            .join(" ");
         }
+        const modes = level === "ids_only" ? "" : `${modeTag(n)}${outTag(n)}`;
+        out.push(
+          `${n.id}  ${n.type}${title}${modes}${groupTag}${widgets ? "  " + widgets : ""}`,
+        );
+        if (level === "ids_only") continue;
+        const ins = (n.inputs ?? [])
+          .map((inp) => {
+            if (inp.link == null) return null;
+            const l = links[inp.link];
+            if (!l) return null;
+            const src = byId.get(l.origin_id);
+            return `${l.origin_id}.${src?.outputs?.[l.origin_slot]?.name ?? l.origin_slot}`;
+          })
+          .filter(Boolean);
+        if (ins.length) out.push(`     ← ${ins.join(", ")}`);
+        const outs = [];
+        for (const out2 of n.outputs ?? []) {
+          for (const lid of out2.links ?? []) {
+            const l = links[lid];
+            if (!l) continue;
+            const tgt = byId.get(l.target_id);
+            outs.push(`${l.target_id}.${tgt?.inputs?.[l.target_slot]?.name ?? l.target_slot}`);
+          }
+        }
+        if (outs.length) out.push(`     → ${outs.join(", ")}`);
       }
-      if (outs.length) lines.push(`     → ${outs.join(", ")}`);
-    }
+      return out;
+    };
+
+    // The FLOOR rung: per-group counts + the types that actually occur there, plus the
+    // ungrouped remainder. Still answers "how big is this and what's in it" for the
+    // WHOLE graph, which is the one question the outline must never fail to answer.
+    const renderGroupSummary = () => {
+      const out = [];
+      const counted = new Set();
+      const typeHist = (ns) => {
+        const h = new Map();
+        for (const n of ns) h.set(n.type ?? "?", (h.get(n.type ?? "?") ?? 0) + 1);
+        return [...h.entries()].sort((a, b) => b[1] - a[1]).map(([t, c]) => `${c}× ${t}`);
+      };
+      for (const g of groups) {
+        const members = groupMemberNodes(graph, g);
+        for (const n of members) counted.add(n.id);
+        const tag = { 2: " [mute]", 4: " [bypass]" }[g.mode] ?? "";
+        out.push(`  "${title_(g.title)}"${tag} — ${members.length} node(s): ${typeHist(members).join(", ") || "(empty)"}`);
+      }
+      const rest = sorted.filter((n) => !counted.has(n.id));
+      if (rest.length) out.push(`  (ungrouped) — ${rest.length} node(s): ${typeHist(rest).join(", ")}`);
+      return out;
+    };
 
     const va = describeActiveGraph(graph);
-    const viewingStr = va && va.scope === "subgraph" ? `subgraph "${va.title ?? ""}"` : (va?.scope ?? "root");
-    const header = `${nodes.length} nodes · ${groups.length} group(s) · viewing: ${viewingStr}`;
+    // #809: the subgraph title is user-controlled too, and it rides in the header that
+    // even the REFUSAL path emits — so it must be bounded there as well (codex gate).
+    // Built PER RUNG so its clip is counted against the rung that actually emits it.
+    const renderHeader = () => {
+      const viewingStr =
+        va && va.scope === "subgraph" ? `subgraph "${title_(va.title)}"` : (va?.scope ?? "root");
+      return `${nodes.length} nodes · ${groups.length} group(s) · viewing: ${viewingStr}`;
+    };
     // #433: warn if ComfyUI reconnected recently — `viewing`/`active` may point at a
     // tab the frontend restored rather than the one the user was last looking at.
     const activeMaybeStale = activeWorkflowPossiblyStale({
@@ -6186,17 +6822,103 @@ const GRAPH_TOOL_EXECUTORS = {
       now: monotonicNow(),
     });
     const staleBanner = activeMaybeStale ? `⚠ ${activeStaleHint()}\n\n` : "";
-    const outline =
-      staleBanner +
-      header +
-      (groupLines.length ? `\n\nGROUPS (title → member node ids):\n${groupLines.join("\n")}` : "") +
-      `\n\nNODES (data flows top→down; ← inputs from, → outputs to):\n${lines.join("\n")}`;
+
+    const maxChars = clampOutlineMaxChars(max_chars);
+    // #809 (codex gate): the clip footer is PART of the rung, so it must be inside the
+    // measured string. Appending it after the fit test could tip a rung over budget and
+    // trigger the floor refusal while lower rungs were never tried — which then reported
+    // that oversized full-detail size as the "smallest whole-graph form".
+    const assemble = (level) => {
+      outlineClipped = 0;
+      outlineTitlesClipped = 0;
+      const banner = outlineDegradeBanner({
+        level,
+        nodeCount: nodes.length,
+        groupCount: groups.length,
+        maxChars,
+      });
+      // Render BEFORE building the note: rendering is what increments the counters, and
+      // rungs below "no_values" emit no values at all, so a carried-over count would
+      // claim clips this outline does not contain.
+      const head = renderHeader();
+      let bodyText;
+      if (level === "groups") {
+        bodyText = `\n\nGROUP SUMMARY (every node is counted here; per-node detail did not fit):\n${renderGroupSummary().join("\n")}`;
+      } else {
+        // The GROUPS index is membership, not detail — it stays on every node-level rung
+        // so the reader keeps the graph's structure even at "ids_only".
+        const gl = renderGroupLines();
+        bodyText =
+          (gl.length ? `\n\nGROUPS (title → member node ids):\n${gl.join("\n")}` : "") +
+          `\n\nNODES (data flows top→down; ← inputs from, → outputs to):\n${renderNodeLines(level).join("\n")}`;
+      }
+      return (
+        staleBanner +
+        (banner ? `${banner}\n\n` : "") +
+        head +
+        bodyText +
+        outlineValueClipNote(outlineClipped, outlineTitlesClipped)
+      );
+    };
+
+    // Walk DOWN the ladder until one fits. The floor is emitted even when it overflows —
+    // but then it is replaced by an explicit refusal that still states the true shape,
+    // because a partial outline that reads as complete is the failure we are avoiding.
+    let level = OUTLINE_DETAIL_LEVELS[0];
+    let outline = assemble(level);
+    for (const next of OUTLINE_DETAIL_LEVELS.slice(1)) {
+      if (outline.length <= maxChars) break;
+      level = next;
+      outline = assemble(level);
+    }
+    let refused = false;
+    let floorChars = 0;
+    if (outline.length > maxChars) {
+      refused = true;
+      floorChars = outline.length;
+      const refusal = outlineFloorRefusal({
+        nodeCount: nodes.length,
+        groupCount: groups.length,
+        maxChars,
+        floorChars: outline.length,
+      });
+      // #809 (codex gate): the refusal was assembled AFTER the ladder's fit test, so at a
+      // small budget the stale banner + header pushed it back over the bound it was
+      // explaining. Shed the OPTIONAL parts in order of expendability — the header, then
+      // the reconnect banner (both are also returned as structured fields, so nothing is
+      // lost) — and never the refusal sentence itself: truncating the message that says
+      // "I refused to hand you a partial graph" would be self-defeating. That last
+      // resort is the only text allowed past the budget, and it is bounded and fixed.
+      const candidates = [
+        staleBanner + refusal + `\n\n${renderHeader()}`,
+        staleBanner + refusal,
+        refusal,
+      ];
+      outline = candidates.find((c) => c.length <= maxChars) ?? refusal;
+    }
+    const degraded = refused || level !== OUTLINE_DETAIL_LEVELS[0];
 
     return {
       node_count: nodes.length,
       group_count: groups.length,
       viewing: describeActiveGraph(graph),
       outline,
+      // #809: the budget, the rung, and WHY — a caller that reads fields rather than
+      // prose must still learn that detail was traded away and which lever restores it.
+      max_chars: maxChars,
+      detail_level: refused ? "refused" : level,
+      // #809 (codex gate): the size the smallest whole-graph form would need. The
+      // orchestrator rider cannot otherwise tell "raise max_chars and it will fit" from
+      // "no budget this tool accepts can hold it", and would repeat the dead retry.
+      ...(refused ? { floor_chars: floorChars } : {}),
+      ...(degraded
+        ? {
+            degraded: true,
+            degraded_reason: refused
+              ? `Not even a per-group summary fits max_chars=${maxChars}; a partial outline is deliberately not returned.`
+              : `Per-node detail reduced to "${level}" to fit max_chars=${maxChars}; coverage is complete (all ${nodes.length} node(s) represented).`,
+          }
+        : {}),
       ...(activeMaybeStale
         ? { active_possibly_stale: true, stale_hint: activeStaleHint() }
         : {}),
@@ -6264,7 +6986,12 @@ const GRAPH_TOOL_EXECUTORS = {
     const maxDepth = depth != null && depth >= 0 ? Number(depth) : Infinity;
     // #609: clip caller-supplied values echoed in diagnostics so an oversized seed /
     // predicate can't flood the read.
-    const clipDiag = (s) => { const x = String(s); return x.length > 120 ? x.slice(0, 120) + "…" : x; };
+    // #809: SAY when it was clipped — echoing back a shortened value with a bare "…"
+    // reads as "that is what I looked for", so the caller cannot tell a typo from a clip.
+    const clipDiag = (s) => {
+      const x = String(s);
+      return x.length > 120 ? `${x.slice(0, 120)}… (shown clipped to 120 of ${x.length} chars)` : x;
+    };
     if (upstream_of != null) {
       const seed = String(upstream_of);
       if (!byId.has(seed)) return { total, candidates: 0, matched: 0, shown: 0, truncated: false, text: `upstream_of node ${clipDiag(seed)} not found (${total} nodes in view).` };
@@ -6332,10 +7059,27 @@ const GRAPH_TOOL_EXECUTORS = {
 
     // Groups + rails ride on every result (they replaced graph_get_state's role
     // as the structured source of group membership / subgraph boundary slots).
-    const groups = (graph._groups ?? []).map((g) => summarizeGroup(graph, g));
+    // #809 (codex gate): the `groups` rider rides ALONGSIDE `text` and is not counted
+    // against `max_chars` (that accounting is #807). Until #807 lands it must at least be
+    // BOUNDED, or the reply can exceed the very budget this tool advertises no matter
+    // what the caller sets. Cap it, and say so in-band — a silently short groups list
+    // would be read as "this graph has N groups", which is the defect this issue removes.
+    const allGroups = (graph._groups ?? []).map((g) => summarizeGroup(graph, g));
+    const groupsOverCap = allGroups.length > GROUPS_RIDER_CAP;
+    const groups = groupsOverCap ? allGroups.slice(0, GROUPS_RIDER_CAP) : allGroups;
+    // The marker is a SIBLING field, not an extra element (codex gate): injecting a
+    // {truncated,hint} object into `groups[]` would make the array heterogeneous and
+    // break any client that expects every element to carry id/title.
+    const groupsCut = groupsOverCap
+      ? {
+          groups_truncated: true,
+          groups_truncation_hint: `Showing ${GROUPS_RIDER_CAP} of ${allGroups.length} group(s) — a fixed cap on this rider, which \`max_chars\` does not govern (it bounds \`text\`; see artokun/comfyui-mcp#807). panel_graph_outline's GROUPS index covers every group.`,
+        }
+      : {};
     const inSubgraph = graph !== rootGraph;
     const meta = {
       viewing: describeActiveGraph(graph),
+      ...groupsCut,
       ...(groups.length ? { groups } : {}),
       ...(inSubgraph ? { rails: describeRails(graph) } : {}),
     };
@@ -6357,11 +7101,32 @@ const GRAPH_TOOL_EXECUTORS = {
         kept.push(l);
         used += l.length + 1;
       }
-      const aggTail = aggTruncated ? `\n…(${allLines.length - kept.length} more type(s) omitted; raise max_chars)` : "";
+      // #809: the aggregate can ONLY be cut by the char budget (limit is ignored here),
+      // so name that one lever and its real ceiling. The tail is part of the RESULT, so
+      // it is fitted afterwards — the loop above fills the budget with rows and appending
+      // past that breached the bound on exactly the path the row projection already fixed
+      // (codex gate).
+      const aggAssemble = () => {
+        const aggTail = aggTruncated
+          ? `\n…(${allLines.length - kept.length} more type(s) cut by \`max_chars\`=${maxChars}; ${
+              maxChars >= MAX_CHARS_CEILING
+                ? `\`max_chars\` is already at its ceiling of ${MAX_CHARS_CEILING} — narrow the matched set with \`types\`/\`where\`/\`upstream_of\` instead`
+                : `raise \`max_chars\` up to ${MAX_CHARS_CEILING}`
+            })`
+          : "";
+        return `${head}\n${kept.join("\n")}${aggTail}`;
+      };
+      let aggText = aggAssemble();
+      while (aggText.length > maxChars && kept.length > 0) {
+        kept.pop();
+        aggTruncated = true;
+        aggText = aggAssemble();
+      }
       return {
         ...meta, total, candidates: candidates.length, matched: matched.length,
         shown: matched.length, truncated: aggTruncated,
-        text: `${head}\n${kept.join("\n")}${aggTail}`,
+        truncated_by: aggTruncated ? "max_chars" : null,
+        text: aggText,
       };
     }
 
@@ -6379,9 +7144,23 @@ const GRAPH_TOOL_EXECUTORS = {
     const lines = [];
     let shown = 0;
     let truncated = false;
+    // #809: WHICH cap fired. `limit` and `max_chars` are different levers with opposite
+    // remedies — a tail that names the wrong one costs the caller a retry and then reads
+    // to them as proof the tool cannot do the job.
+    let truncatedBy = null;
+    // #809: compact rows clip widget values at a FIXED 60 chars, which no parameter
+    // raises — so ONE footer points at `fields`:"detail" rather than at a dead lever.
+    //
+    // Counted PER ROW and summed over the rows actually RETURNED (codex gate). A running
+    // total would include rows the budget rejected and rows the post-fit loop popped, so
+    // the footer would claim clips the reader cannot see — a false claim inside the very
+    // note that has to be trustworthy.
+    const lineClips = [];
+    let rowClips = 0;
     let chars = header.length;
     for (const n of matched) {
-      if (shown >= lim) { truncated = true; break; }
+      rowClips = 0;
+      if (shown >= lim) { truncated = true; truncatedBy = "limit"; break; }
       let line;
       if (proj === "ids") {
         line = clipLine(String(n.id), maxChars); // #609: bound even a pathological long id
@@ -6400,7 +7179,11 @@ const GRAPH_TOOL_EXECUTORS = {
         // #607: flag link-driven widgets in the compact line too.
         const driven = drivenWidgetsFor(n, (n.widgets ?? []).map((w) => w?.name).filter(Boolean));
         const w = Object.entries(widgetsOf(n))
-          .map(([k, v]) => `${k}=${clip(v)}${driven[k] ? drivenTag(driven[k]) : ""}`)
+          .map(([k, v]) => {
+            const c = clipCompactValue(v);
+            if (c.clipped) rowClips++;
+            return `${k}=${c.text}${driven[k] ? drivenTag(driven[k]) : ""}`;
+          })
           .join(" ");
         const ins = [...(up.get(String(n.id)) ?? [])].join(",");
         const outs = [...(down.get(String(n.id)) ?? [])].join(",");
@@ -6413,16 +7196,46 @@ const GRAPH_TOOL_EXECUTORS = {
       }
       // #609: protect ONLY the first match from the char budget so a single-id query
       // never returns shown:0. Later lines stay budget-governed (output stays bounded).
-      if (!isLineProtected(shown) && chars + line.length + 1 > maxChars) { truncated = true; break; }
+      if (!isLineProtected(shown) && chars + line.length + 1 > maxChars) {
+        truncated = true;
+        truncatedBy = "max_chars";
+        break;
+      }
       chars += line.length + 1;
       lines.push(line);
+      lineClips.push(rowClips);
       shown++;
     }
-    const tail = truncated ? truncationTail(shown, matched.length, !!(wantIds && wantIds.length)) : "";
-    const body = proj === "ids" ? lines.join(",") : lines.join("\n");
+    // #809 (codex gate): the tail and the clip footer are PART of the result and must fit
+    // inside `max_chars`, not be appended past it. Fit afterwards by dropping only as
+    // many rows as needed — reserving their worst case up front would manufacture a
+    // truncation on a result that fitted, which is the false-truncation defect this
+    // issue also exists to remove. The first row is never dropped (#609 protection).
+    const assemble = () => {
+      const tail = truncated
+        ? truncationTail(shown, matched.length, !!(wantIds && wantIds.length), truncatedBy, {
+            limit: lim,
+            maxChars,
+          })
+        : "";
+      const body = proj === "ids" ? lines.join(",") : lines.join("\n");
+      return `${header}\n${body}${tail}${compactClipNote(lineClips.reduce((x, y) => x + y, 0))}`;
+    };
+    let text = assemble();
+    while (text.length > maxChars && lines.length > 1) {
+      lines.pop();
+      lineClips.pop();
+      shown--;
+      truncated = true;
+      truncatedBy = "max_chars";
+      text = assemble();
+    }
     return {
       ...meta, total, candidates: candidates.length, matched: matched.length, shown, truncated,
-      text: `${header}\n${body}${tail}`,
+      // #809: expose the CAUSE structurally too, so a caller that reads fields rather
+      // than prose still learns which lever applies.
+      truncated_by: truncatedBy,
+      text,
     };
   },
 
@@ -6685,7 +7498,9 @@ const GRAPH_TOOL_EXECUTORS = {
     limit,
   } = {}) {
     const { graph } = getGraphCtx();
-    const cap = Math.min(Math.max(Number(limit ?? 40), 1), 200);
+    // #809: the clamp and the remedy's stated ceiling come from ONE constant, so a hint
+    // can never quote a ceiling the runtime does not enforce.
+    const cap = Math.min(Math.max(Number(limit ?? 40), 1), LIMIT_CEILING);
     const lc = (s) => String(s ?? "").toLowerCase();
     // Safe stringify for widget values — a BigInt or circular/custom value would
     // throw in JSON.stringify and fail the whole find call; fall back to String().
@@ -6702,6 +7517,8 @@ const GRAPH_TOOL_EXECUTORS = {
 
     const nodes = graph._nodes ?? [];
     const matches = [];
+    /** #809: true only when a (cap+1)-th match was actually found — the proof of a cut. */
+    let overCap = false;
     for (const node of nodes) {
       const summary = summarizeNode(node);
       const desc = nodeDescription(node);
@@ -6767,19 +7584,44 @@ const GRAPH_TOOL_EXECUTORS = {
         matchedOn.push(...hits);
       }
 
+      // #809 (codex gate): stopping AT the cap cannot distinguish "exactly `limit`
+      // matches" from "capped", so a graph with exactly 40 hits was told there "may be
+      // MORE" — a false instruction in the other direction. Take ONE past the cap and
+      // drop it: the extra match is the proof, and its absence is proof of completeness.
       matches.push({
         ...summary,
         ...(desc ? { description: desc.slice(0, 240) } : {}),
         ...(matchedOn.length ? { matched_on: matchedOn } : {}),
       });
-      if (matches.length >= cap) break;
+      if (matches.length > cap) {
+        matches.pop();
+        overCap = true;
+        break;
+      }
     }
 
     return {
       viewing: describeActiveGraph(graph),
       total: nodes.length,
       count: matches.length,
-      truncated: matches.length >= cap,
+      truncated: overCap,
+      // #809: the scan STOPS once it knows there is more, so `count` is not a match total
+      // and the absent matches are not "no more matches". Say both, and name the real
+      // lever + ceiling — a bare boolean here is what let panel_find_nodes' description
+      // claim it never truncated in the first place.
+      ...(overCap
+        ? {
+            truncation_hint:
+              `The scan stopped at \`limit\`=${cap} after ${matches.length} match(es); ` +
+              `there may be MORE matches it never reached, so this is not evidence a node is absent. ` +
+              // #809 (codex gate): at the ceiling, "raise limit" is itself a dead retry.
+              `${
+                cap >= LIMIT_CEILING
+                  ? `\`limit\` is already at its ceiling of ${LIMIT_CEILING}, so narrow with \`type\`/\`title\`/\`widget_value\` instead`
+                  : `Raise \`limit\` up to ${LIMIT_CEILING}, or narrow with \`type\`/\`title\`/\`widget_value\``
+              }.`,
+          }
+        : {}),
       matches,
     };
   },
@@ -6794,6 +7636,19 @@ const GRAPH_TOOL_EXECUTORS = {
       subgraph_of: { node_id: node.id, title: node.title },
       node_count: inner.length,
       truncated: inner.length > MAX_STATE_NODES,
+      ...(inner.length > MAX_STATE_NODES
+        ? {
+            truncation_hint: fixedCapNote(
+              "inner node(s)",
+              MAX_STATE_NODES,
+              inner.length,
+              // Honest about the follow-up's OWN ceiling (codex gate): panel_query_graph
+              // clamps limit at 200 and has no cursor, so on a >200-node subgraph it is a
+              // way to read MORE, not a way to read all.
+              "panel_enter_subgraph into it, then panel_query_graph — which takes limit (max 200) and max_chars. It has no cursor, so beyond 200 inner nodes use its types/where filters to work through them.",
+            ),
+          }
+        : {}),
       nodes: inner.slice(0, MAX_STATE_NODES).map(summarizeNode),
     };
   },
@@ -6942,8 +7797,7 @@ const GRAPH_TOOL_EXECUTORS = {
     // bypassing bridge dispatch. Refuse before snapshot/load so that path cannot
     // report a successful load into a stale prior tab (#349).
     assertGraphBoundToActiveWorkflow(graph, rootGraph, {
-      includeBaselineReadGuard: false,
-      requireDirtyMutationBinding: true,
+      ...MUTATION_BINDING_BAR,
     });
     // Accept a JSON string or an object.
     let data = incoming;
@@ -8094,8 +8948,7 @@ const GRAPH_TOOL_EXECUTORS = {
     // mutation occurs, so enforce the same current-state binding before prompt
     // construction or queuePrompt can report success (#349).
     assertGraphBoundToActiveWorkflow(graph, rootGraph, {
-      includeBaselineReadGuard: false,
-      requireDirtyMutationBinding: true,
+      ...MUTATION_BINDING_BAR,
     });
     if (typeof app.queuePrompt !== "function") {
       throw new Error("app.queuePrompt is unavailable on this frontend");
@@ -8601,7 +9454,17 @@ const GRAPH_TOOL_EXECUTORS = {
       node_count: nodes.length,
       errored_count: erroredNodes.length,
       nodes: erroredNodes.slice(0, MAX_STATE_NODES),
-      ...(erroredNodes.length > MAX_STATE_NODES ? { truncated: true } : {}),
+      ...(erroredNodes.length > MAX_STATE_NODES
+        ? {
+            truncated: true,
+            truncation_hint: fixedCapNote(
+              "errored node(s)",
+              MAX_STATE_NODES,
+              erroredNodes.length,
+              "Fix these first and re-check, or inspect specific ids with panel_query_graph {ids:[…], fields:'detail'}.",
+            ),
+          }
+        : {}),
       ...(staleRedFlags.length
         ? {
             stale_flags: staleRedFlags.slice(0, MAX_STATE_NODES).map((n) => ({
@@ -8610,7 +9473,17 @@ const GRAPH_TOOL_EXECUTORS = {
               reasons: [],
               note: "LiteGraph still shows this red outline, but no current execution, validation, or asset source confirms an error.",
             })),
-            ...(staleRedFlags.length > MAX_STATE_NODES ? { stale_flags_truncated: true } : {}),
+            ...(staleRedFlags.length > MAX_STATE_NODES
+              ? {
+                  stale_flags_truncated: true,
+                  stale_flags_truncation_hint: fixedCapNote(
+                    "stale red-outline node(s)",
+                    MAX_STATE_NODES,
+                    staleRedFlags.length,
+                    "These are cosmetic leftovers, not errors; there is no parameter to page them.",
+                  ),
+                }
+              : {}),
           }
         : {}),
       ...(missingModels.length ? { missing_models: missingModels } : {}),
@@ -8961,10 +9834,14 @@ const GRAPH_TOOL_EXECUTORS = {
     // in a window whose dirty signal we are about to overwrite. Scoped to `wasOpen` (the
     // only case that can reload) so a plain first-time open never freezes, and restored in
     // a finally on every path.
-    const priorInteraction =
-      wasOpen && typeof canvasView?.allow_interaction === "boolean"
-        ? canvasView.allow_interaction
-        : null;
+    // Taken through the OWNED lock so this and a concurrent snapshot restore cannot
+    // release each other's freeze: `allow_interaction` is a bare boolean, and a
+    // section that saved `true` before the other one froze would otherwise unlock
+    // the canvas mid-load for whoever is still going. `priorInteraction` keeps its
+    // meaning here — non-null means "the freeze is holding", which the re-baseline
+    // and disk-reload steps below gate on — it is now a token rather than the saved
+    // boolean, and the saved boolean lives inside the lock.
+    const priorInteraction = wasOpen ? acquireCanvasInteractionLock(canvasView) : null;
     let onDiskContent = null;
     let dirtyNow = false;
     let staleInfo = { stale: false, reload: false };
@@ -8972,7 +9849,6 @@ const GRAPH_TOOL_EXECUTORS = {
     let reloadError = null;
     let openFailed = null;
     let rebindFailed = null;
-    if (priorInteraction !== null) canvasView.allow_interaction = false;
     // Hold the switch+reload critical section across the WHOLE mutating sequence. The canvas
     // freeze keeps the USER out; this keeps the BRIDGE out, so a concurrent graph_* command
     // can neither be overwritten by the reload nor be silently re-baselined as clean.
@@ -9057,6 +9933,17 @@ const GRAPH_TOOL_EXECUTORS = {
             // the resulting root. The UUID is panel-owned metadata, not caller input;
             // this is the same workflow identity used by the command fence.
             const targetUuid = workflowStableUuid(target, { embed: true });
+            // ...and a SINGLE-USE marker for THIS attempt. The uuid alone cannot
+            // separate "this load landed" from "the root already carried this
+            // workflow's tag" — a previous load of the same tab leaves it there, and
+            // the guard's own rebind heal (#545/#557/#565) can stamp it onto a root
+            // deliberately. `configure()` replaces `graph.extra` wholesale from the
+            // data it is handed, so a value minted here and written into THIS payload
+            // can only reach the live root by way of this load.
+            const openProofMarker =
+              typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+                ? crypto.randomUUID()
+                : `open-${Date.now()}-${Math.random().toString(36).slice(2)}`;
             const repaintState = JSON.parse(JSON.stringify(st));
             const repaintExtra =
               repaintState.extra && typeof repaintState.extra === "object" && !Array.isArray(repaintState.extra)
@@ -9073,24 +9960,86 @@ const GRAPH_TOOL_EXECUTORS = {
               [WORKFLOW_META_NAMESPACE]: {
                 ...repaintMeta,
                 [WORKFLOW_UUID_FIELD]: targetUuid,
+                [OPEN_PROOF_FIELD]: openProofMarker,
                 ...(target.path ? { [WORKFLOW_PATH_FIELD]: target.path } : {}),
               },
             };
-            await app.loadGraphData(repaintState, true, true, target);
-            // A successful promise alone is not a binding receipt: old/partial frontend
-            // implementations can resolve while leaving app.canvas on the previous root.
-            // Demand the positive, target-specific marker even for dirty workflows —
-            // read-only graph comparisons intentionally cannot prove that case.
-            const { rootGraph } = getGraphCtx();
-            if (
-              activeWorkflowRef() !== target ||
-              !graphRootWorkflowUuidMatches({ rootGraph, activeWorkflowUuid: targetUuid }) ||
-              !graphRootMatchesState({ rootGraph, state: repaintState })
-            ) {
-              rebindFailed = new Error(
-                "workflow_open could not prove that the active canvas was rebound to the requested workflow. " +
-                  "The open may have switched the active workflow; reload the panel before graph edits.",
-              );
+            // The load is INSIDE the try whose finally strips the marker: the payload
+            // carrying the marker is handed over the moment this call starts, so a
+            // REJECTION leaves it on a partially-mutated live graph. A cleanup that
+            // begins after the await never runs for exactly that case.
+            try {
+              await app.loadGraphData(repaintState, true, true, target);
+              // A successful promise alone is not a binding receipt: old/partial frontend
+              // implementations can resolve while leaving app.canvas on the previous root.
+              // Demand the positive, attempt-specific marker even for dirty workflows —
+              // read-only graph comparisons intentionally cannot prove that case.
+              //
+              // Each part is captured SEPARATELY and kept. They answer different
+              // questions, and OR-ing them into one boolean threw away the only thing
+              // that could say why an open failed — which is why #604/#603/#616 could
+              // report "could not prove rebound" on every call with no way to learn
+              // which check fired. Evidence first, verdict second.
+              const { rootGraph } = getGraphCtx();
+              const activeNow = activeWorkflowRef();
+              // Proxy-safe, like every other workflow-object comparison in this file:
+              // the store hands out Vue proxies while lookups can yield raw objects, so
+              // a bare `!==` can report a tab switch that never happened (#558 r2).
+              const instanceStillTarget = sameWorkflowObject(activeNow, target);
+              const markerMatches = graphRootCarriesOpenProof({ rootGraph, proofMarker: openProofMarker });
+              const identityMatches = graphRootWorkflowUuidMatches({ rootGraph, activeWorkflowUuid: targetUuid });
+              const contentMatches = graphRootMatchesState({ rootGraph, state: repaintState });
+              const verdict = resolveOpenRebindVerdict({
+                instanceStillTarget,
+                markerMatches,
+                identityMatches,
+                contentMatches,
+              });
+              if (verdict.status !== OPEN_REBIND_STATUS.PROVEN) {
+                // Only once something has already failed: this re-serializes the root,
+                // which is the expensive part of the whole proof. It feeds the MESSAGE
+                // only — it decides nothing.
+                const contentDiff = contentMatches
+                  ? { comparable: true, surfaces: [] }
+                  : describeGraphStateDifference({ rootGraph, state: repaintState });
+                rebindFailed = new Error(
+                  describeOpenRebindOutcome(verdict, {
+                    targetLabel: target.filename || target.path || "the requested workflow",
+                    activeLabel: activeNow ? activeNow.filename || activeNow.path || "another tab" : "no active tab",
+                    expectedMarker: openProofMarker,
+                    observedMarker: rootGraph?.extra?.[WORKFLOW_META_NAMESPACE]?.[OPEN_PROOF_FIELD] ?? null,
+                    expectedUuid: targetUuid,
+                    observedUuid: rootGraph?.extra?.[WORKFLOW_META_NAMESPACE]?.[WORKFLOW_UUID_FIELD] ?? null,
+                    contentComparable: contentDiff.comparable,
+                    contentSurfaces: contentDiff.surfaces,
+                  }),
+                );
+              }
+            } finally {
+              // Strip the marker so it does not ride the user's next save. In a FINALLY,
+              // because the observations above can throw — `getGraphCtx()` refuses a
+              // canvas/root divergence by design — and a cleanup that only runs when the
+              // proof succeeded leaves the marker behind on exactly the failure paths.
+              // It runs AFTER the verdict, so it never destroys evidence before it is read.
+              //
+              // Resolved from the live app rather than the (possibly unreachable) `rootGraph`
+              // local, and it deletes ONLY a value equal to the marker THIS attempt minted:
+              // an unconditional delete could remove a concurrent open's live evidence.
+              try {
+                // `canvasView` (not `app.canvas`) for the #268 contract scanner's sake: it
+                // captures members off the workflow-service alias `s` with an unanchored
+                // `s\.` pattern, so `canvas.graph` reads to it as a new workflow-SERVICE
+                // dependency. This is a LiteGraph canvas, not the workflow service.
+                for (const graph of [app?.rootGraph, app?.graph, canvasView?.graph]) {
+                  const meta = graph?.extra?.[WORKFLOW_META_NAMESPACE];
+                  if (meta && typeof meta === "object" && meta[OPEN_PROOF_FIELD] === openProofMarker) {
+                    delete meta[OPEN_PROOF_FIELD];
+                  }
+                }
+              } catch {
+                /* cosmetic only — a leftover marker cannot make a later proof pass, because
+                   every attempt mints a fresh one and requires an exact match */
+              }
             }
           }
         } catch (err) {
@@ -9103,6 +10052,7 @@ const GRAPH_TOOL_EXECUTORS = {
         // the target-specific repaint proof above succeeds. In particular, capturing a
         // still-stale root as a clean baseline after a failed repaint would corrupt the
         // target's in-memory state and make a later save/fence believe it was trustworthy.
+        //
         if (!rebindFailed) {
         // Opening alone must not dirty the tab (a spurious post-load change-tracker
         // diff otherwise flips it to modified:true and blocks an unforced close).
@@ -9292,9 +10242,11 @@ const GRAPH_TOOL_EXECUTORS = {
       console.warn("[comfyui-mcp-panel] workflow_open disk re-read failed:", reloadError);
     } finally {
       // Release BOTH on EVERY path — a throw anywhere above must never leave the user with
-      // a frozen graph or the tab refusing every command.
+      // a frozen graph or the tab refusing every command. The canvas lock is owner-checked:
+      // if a concurrent section still holds it, this release leaves it alone and the last
+      // holder reopens the canvas.
       releaseWorkflowReloadGuard(reloadGuardToken);
-      if (priorInteraction !== null) canvasView.allow_interaction = priorInteraction;
+      releaseCanvasInteractionLock(priorInteraction, canvasView);
     }
     if (openFailed) throw failOpen(openFailed);
     if (rebindFailed) throw failOpenRebindUnknown(rebindFailed);
@@ -10026,39 +10978,392 @@ const GRAPH_TOOL_EXECUTORS = {
     return { group: summary };
   },
 
-  // Move a group's box to [x,y]; by default the contained nodes move with it
-  // (move_nodes:false moves only the box).
+  // Move a group's box to [x,y]; by default everything the box encloses moves
+  // with it — nodes, NESTED group boxes and link reroute points, i.e. exactly
+  // what a canvas drag of the group header moves (move_nodes:false moves only
+  // the box, deliberately re-cutting which nodes the group encloses).
   graph_move_group({ group_id, pos, move_nodes }) {
     const { graph } = getGraphCtx();
     const g = resolveGroup(graph, group_id);
-    const b = g._bounding ?? [g.pos?.[0] ?? 0, g.pos?.[1] ?? 0, 0, 0];
-    const dx = Number(pos[0]) - b[0];
-    const dy = Number(pos[1]) - b[1];
-    graph.beforeChange();
+    // Refuse a non-finite target LOUDLY. `Number(undefined)` is NaN, and a NaN
+    // delta silently propagates into every member node's pos and into the group
+    // box itself — an unrecoverable, invisible corruption of the user's layout
+    // reported as a success. Every other geometry writer (graph_edit_node) already
+    // validates; this one used to be the hole.
+    //
+    // Read the target coordinates EXACTLY ONCE, here, before anything is written.
+    // Re-reading `pos[0]` later is a new throwable operation performed after the
+    // first geometry write: an array whose index 0 returns 1000 during validation
+    // and throws on the second read would pass this check, move the members, and
+    // then raise before writeBox with nothing rolled back. Every later use is of
+    // these locals.
+    const badPos = new Error("pos must be [x, y] finite numbers — pass the new top-left corner of the group box");
+    if (!Array.isArray(pos) || pos.length !== 2) throw badPos;
+    let targetX;
+    let targetY;
+    try {
+      targetX = Number(pos[0]);
+      targetY = Number(pos[1]);
+    } catch {
+      throw badPos;
+    }
+    if (!Number.isFinite(targetX) || !Number.isFinite(targetY)) throw badPos;
+    // groupBoundsOf reads _bounding OR pos/size and returns null when neither is
+    // usable. The old fallback invented [0, 0, 0, 0] in that case, which is not the
+    // group's box — it silently relocated the group to the origin with a zero-size
+    // box that encloses nothing. Refuse instead: "could not determine" is not an
+    // answer in either direction.
+    const b = groupBoundsOf(g);
+    if (!b) {
+      throw new Error(`group ${group_id} has no usable bounds on this frontend — re-read it via panel_query_graph, or set its box explicitly with panel_edit_group({bounds})`);
+    }
+    const dx = targetX - b[0];
+    const dy = targetY - b[1];
+    let movedNodes = 0;
+    let movedGroups = 0;
+    let movedReroutes = 0;
+    // Write the box to a top-left and say whether it is REALLY there afterwards.
+    // setGroupBounds can fail two ways — by throwing (a frozen quad rejects the
+    // write outright in a strict-mode module) and by quietly not landing (a
+    // clamping setter or a proxy) — and it writes x, y, w, h one at a time, so a
+    // throw partway leaves the quad half-written. Both branches below route every
+    // box write through here so neither can report a position the box is not at.
+    const writeBox = (x, y) => {
+      try {
+        setGroupBounds(g, [x, y, b[2], b[3]]);
+      } catch (error) {
+        return error;
+      }
+      // Verify the WHOLE quad, not just the corner: setGroupBounds assigns all
+      // four components, so a clamp or a mid-quad throw can land the corner while
+      // corrupting the size. b[2]/b[3] are the size the group had before this call
+      // — a move must not change it.
+      return groupBoxIsAt(g, x, y, b[2], b[3]) ? null : new Error("the write did not land");
+    };
+    // Put the box back at its ORIGINAL box, and report whether it is really there.
+    //
+    // Decided on STATE, never on intent. An earlier version gated this on a
+    // "we attempted a write" flag, but "did we try" is not "did it change": a
+    // setter that REJECTS its first assignment and CLAMPS a later one leaves the
+    // box untouched, sets the flag anyway, and the restore then moves a box no
+    // forward path had moved (0 → clamped to 50) — a refusal-time geometry
+    // mutation, which is the whole family of defect this handler exists to avoid.
+    //
+    // So: read where the box actually IS and write only if it differs from what we
+    // recorded. Same shape as the stranded-member rect — reconcile against reality
+    // rather than replay a classification of what we think happened — and robust
+    // to a setter that partially applied, which no attempt-flag could classify.
+    //
+    // A thrown write is also not by itself a failed restore: a frozen quad rejects
+    // the write but was never displaced, and calling that "could not be put back"
+    // would invent a partial move that never happened. Only the box's actual
+    // position decides.
+    const restoreBox = () => {
+      if (groupBoxIsAt(g, b[0], b[1], b[2], b[3])) return false; // exactly as found
+      writeBox(b[0], b[1]);
+      return !groupBoxIsAt(g, b[0], b[1], b[2], b[3]);
+    };
+    // ---- PRE-FLIGHT (no mutations past this point until it is complete) ------
+    // Everything this move needs to KNOW is established here, before the first
+    // byte is written. After the first write the only permitted actions are
+    // completing the transaction or rolling it back — never discovering something
+    // new that can throw, because a throw from the middle of the mutation phase
+    // escapes past the rollback and leaks a half-moved graph out under an
+    // unrelated TypeError.
+    //
+    // Resyncing cached rects is itself a WRITE (to boundingRect), so it happens
+    // here for BOTH branches, and a rect that will not accept the resync is a
+    // refusal now rather than an exception later. Membership is rect-first, so a
+    // node whose rect cannot be made live cannot be classified honestly at all.
+    // …and the resync is TRANSACTIONAL, because it is a write. Reconciling node A's
+    // rect and then finding node B's rect unwritable used to leave A's cached
+    // geometry changed with no undo, under a reply that said NOTHING was moved.
+    const resync = syncGraphNodeAreas(graph);
+    if (resync.walkFailed || resync.unsynced.length) {
+      // ROLL BACK FIRST, FORMAT SECOND. Naming the offending nodes means reading
+      // `id` — a field that exists only for display and is exactly the kind of
+      // exotic accessor (proxy, getter, reactive store) that throws. Building that
+      // string before the undo would leave the reconciled rects in place and emit a
+      // raw exception instead of the refusal this path promises. Nothing about
+      // restoring geometry requires knowing what a node is called.
+      const unrestored = resync.undo();
+      const cause = resync.walkFailed
+        ? "the graph's node list could not be walked to the end, so group membership cannot be determined"
+        : `${resync.unsynced.length} node(s) have a cached bounding rect that cannot be updated (${describeItems(resync.unsynced.map((n) => ["node", n]))}), so their group membership cannot be determined`;
+      throw new Error(
+        `refusing to move group ${group_id}: ${cause}. ${describePreflightUndo(unrestored)} Reload the ComfyUI tab (panel_reload) and retry.`,
+      );
+    }
+    // What the box encloses is captured against the PRE-move bounds — pure reads,
+    // so they belong out here with the rest of the discovery. We don't rely on
+    // g.move(), which shifts LiteGraph's cached child set: that cache is stale or
+    // empty on affected builds (#287/#311/#312), so it would move the wrong
+    // children or none. The resync above means what we capture is what is ACTUALLY
+    // inside the box now. Reimplementing only the node half moved the outer box and
+    // its nodes but stranded every inner group box over the vacated space, so nodes
+    // that looked grouped silently were not any more (#408).
+    let members = [];
+    let nested = [];
+    let reroutes = [];
     try {
       if (move_nodes !== false) {
-        // Move the box AND the LIVE geometric members together. We don't rely on
-        // g.move(), which shifts LiteGraph's cached g._nodes — that cache is stale
-        // or empty on affected builds (#287/#311/#312), so it would move the wrong
-        // nodes or none. Resync live geometry first so we capture the members that
-        // are ACTUALLY inside the box now (not a stale cache), recompute membership,
-        // then translate each member plus the box by the same delta.
-        syncGraphNodeAreas(graph);
-        const members = groupMemberNodes(graph, g);
-        setGroupBounds(g, [Number(pos[0]), Number(pos[1]), b[2], b[3]]);
-        // Move each member AND refresh its cached boundingRect by the same delta.
-        // Without the rect refresh the box moves but the members "stay behind" for
-        // the immediate summarizeGroup below and any later panel_query_graph read,
-        // which then reports stale node_ids (#408); mirrors the move_node path (#355).
-        moveGroupMembers(members, dx, dy);
+        members = groupMemberNodes(graph, g);
+        nested = nestedGroupsOf(graph, g);
+        reroutes = reroutesInside(graph, b);
+      }
+    } catch (error) {
+      // These are reads, but the resync BEFORE them was a write, so a refusal here
+      // has to take that back before it can claim nothing happened. A throw would
+      // otherwise reach the caller as a bare TypeError from a tool that promises a
+      // stated outcome. (Reachable only by an accessor that misbehaves
+      // inconsistently between the resync and this pass; the individual readers
+      // already return "unknown" rather than raising.)
+      const unrestored = resync.undo(); // rollback first…
+      throw new Error( // …then format, over a graph that is provably back
+        `refusing to move group ${group_id}: the frontend raised "${describeThrown(error)}" while reading what the group encloses, so its contents cannot be determined. ${describePreflightUndo(unrestored)} Reload the ComfyUI tab (panel_reload) and retry.`,
+      );
+    }
+    // A reroute we cannot reposition SOUNDLY is decided here, by INSPECTION, and
+    // never by invoking an API to see what it does. Refusing before beforeChange()
+    // also means this call leaves no empty undo step behind.
+    const unsound = reroutes.filter((r) => !rerouteWriteIsSound(r));
+    if (unsound.length) {
+      const unrestored = resync.undo();
+      throw new Error(
+        `refusing to move group ${group_id}: ${unsound.length} enclosed reroute point(s) (${describeItems(unsound.map((r) => ["reroute", r]))}) expose a move() whose meaning this frontend does not let us determine without calling it, and calling it could persist the wrong coordinate. ${describePreflightUndo(unrestored)} Pass move_nodes:false to move only the box, or move the reroutes by hand.`,
+      );
+    }
+    // Opening the undo envelope is the first thing after the resync WRITE, so its
+    // failure owes the same rollback as any other refusal past that point.
+    try {
+      graph.beforeChange();
+    } catch (error) {
+      const unrestored = resync.undo();
+      throw new Error(
+        `refusing to move group ${group_id}: the frontend raised "${describeThrown(error)}" opening the undo transaction, so this move could not be made undoable. ${describePreflightUndo(unrestored)} Reload the ComfyUI tab (panel_reload) and retry.`,
+      );
+    }
+    try {
+      if (move_nodes !== false) {
+        // Move the CHILDREN first and the box LAST, as one all-or-nothing
+        // transaction. Every child write is verified and reports whether it
+        // landed — a point can be a plain array, a typed-array view, an accessor
+        // pair, or frozen, and a write that quietly did nothing is how "the box
+        // moved but the nodes stayed" happened in the first place (#408). If ANY
+        // child could not be moved we put the moved ones back and refuse, so the
+        // caller never gets a success for a half-applied move; the box has not
+        // been touched at that point, so the rollback is exact.
+        // Member rects are refreshed by the same delta inside moveGroupMembers,
+        // without which the members "stay behind" for the summarizeGroup below and
+        // any later panel_query_graph read (mirrors the move_node path, #355).
+        let memberMove = { moved: [], stuck: [], undo: () => [] };
+        let rerouteMove = { moved: [], stuck: [], undo: () => [] };
+        let nestedMove = { moved: [], stuck: [], undo: () => [] };
+        // Belt and braces on the invariant: the movers are written not to throw
+        // (each contains per item and always RETURNS its undo). If one ever does
+        // throw, this catch can only undo the movers that already ASSIGNED — the
+        // one that raised never handed back its undo, so whatever it had already
+        // written is unreachable from here.
+        //
+        // Which is exactly why this path must NOT claim "NOTHING was moved". A net
+        // that lies when it catches is worse than no net: the honest report is that
+        // restoration is UNKNOWN and the graph may be partially moved.
+        try {
+          memberMove = moveGroupMembers(members, dx, dy);
+          rerouteMove = moveReroutePoints(reroutes, dx, dy);
+          nestedMove = translateGroupBoxes(nested, dx, dy);
+        } catch (error) {
+          // This net used to be an EXCEPTION to two rules the reachable paths
+          // follow, so if it ever fired it would have introduced defects of its
+          // own rather than merely failing to help:
+          //
+          //  - it called restoreBox() even though the box write happens strictly
+          //    AFTER the movers, so nothing had displaced the box yet. On an
+          //    effectful or clamping setter that recovery WRITE could create a
+          //    displacement of its own — a rollback moving something no forward
+          //    path had moved. It is now gated on the box actually having been
+          //    written, which here it never has.
+          //  - it replayed the pre-flight rect snapshot over members whose `pos`
+          //    the unreturned mover may have changed, recreating exactly the
+          //    stale-rect fabrication removed from the stranded-member path: a
+          //    rect claiming a position the node no longer holds. When the state
+          //    is UNKNOWN the truthful rect is the one that matches live geometry,
+          //    so this re-syncs instead of replaying a snapshot.
+          const unrestored = [
+            ...nestedMove.undo(),
+            ...rerouteMove.undo(),
+            ...memberMove.undo(),
+            ...(restoreBox() ? [g] : []),
+          ];
+          syncGraphNodeAreas(graph);
+          throw new Error(
+            `refusing to move group ${group_id}: the frontend raised "${describeThrown(error)}" partway through the move. ` +
+              "The movers that had already completed were rolled back, but the one that raised never returned its undo, " +
+              "so ITS OWN writes cannot be reversed from here: the state of this group is UNKNOWN and it may be PARTIALLY moved. " +
+              (unrestored.length
+                ? `${unrestored.length} further item(s) are known to still be displaced. `
+                : "") +
+              "Press Ctrl+Z on the canvas and re-read the group with panel_query_graph.",
+          );
+        }
+        // Undo ABSOLUTELY, over every ATTEMPTED child — not by the inverse delta
+        // over the ones that landed. A build whose setter clamps or snaps leaves a
+        // child at a third position that counts as stuck; an inverse-delta undo of
+        // only the `moved` list would strand it there while this reply claimed
+        // nothing had moved.
+        // The undo is BEST-EFFORT — a constrained setter can accept the new
+        // coordinates and refuse the old ones — so it reports what it could not put
+        // back, and the refusal says "PARTIALLY moved" with a remedy rather than an
+        // unverified "nothing was moved". The parent box is restored too: it is
+        // written last, but setGroupBounds writes x/y/w/h one at a time, so a clamp
+        // or a mid-quad throw can leave it displaced.
+        // The rollback deals in ITEMS, never in strings. Formatting reaches for
+        // `id` — display-only, and exactly the accessor most likely to be a proxy
+        // or a throwing getter — so a name assembled while the graph is still
+        // dirty can abort the very rollback it is describing.
+        //
+        // There are TWO undos, and this path owns BOTH. The pre-flight's rect
+        // reconciliation happened before any of this, so its undo runs LAST —
+        // after the member restores, whose own rect refresh would otherwise
+        // overwrite it. Rolling back only the mutation phase and then reporting
+        // "NOTHING was moved" left every reconciled rect in place.
+        const rollback = () => {
+          const stillWrong = [
+            ...nestedMove.undo().map((c) => ["group", c]),
+            ...rerouteMove.undo().map((r) => ["reroute", r]),
+          ];
+          const strandedMembers = memberMove.undo();
+          stillWrong.push(...strandedMembers.map((n) => ["node", n]));
+          // Only restore a box some forward path actually WROTE. The stuck-items
+          // refusal fires BEFORE the box write, and restoreBox() is itself a write:
+          // on an effectful or clamping setter it would displace a box nothing had
+          // displaced — a rollback moving something no forward path moved.
+          if (restoreBox()) stillWrong.push(["group", g]);
+          stillWrong.push(...resync.undo().map((n) => ["node", n]));
+          // A member that could NOT be put back is somewhere else now, and the
+          // pre-flight undo has just restored its cached rect to where it used to
+          // be — which would report it as still inside the group it has actually
+          // left. This path already admits the graph is partially moved; the rect
+          // must describe where the node really IS, not resurrect a stale claim.
+          for (const n of strandedMembers) syncNodeArea(n);
+          return stillWrong;
+        };
+        // `describeReason` is a THUNK: it is invoked only after the rollback has
+        // run and the graph is provably back. Roll back first, format second.
+        const refuse = (describeReason) => {
+          const unrestored = rollback();
+          throw new Error(
+            `refusing to move group ${group_id}: ${describeReason()}. ` +
+              (unrestored.length
+                ? `The graph is PARTIALLY moved — ${unrestored.length} item(s) could NOT be put back (${describeItems(unrestored)}). Press Ctrl+Z on the canvas, or reposition them with panel_edit_node.`
+                : "NOTHING was moved."),
+          );
+        };
+        const stuck = [
+          ...memberMove.stuck.map((n) => ["node", n]),
+          ...rerouteMove.stuck.map((r) => ["reroute", r]),
+          ...nestedMove.stuck.map((c) => ["group", c]),
+        ];
+        if (stuck.length) {
+          refuse(
+            () =>
+              `${stuck.length} enclosed item(s) would not accept a new position (${describeItems(stuck)}) — move them out of the group (panel_edit_node) and retry, or pass move_nodes:false to move only the box`,
+          );
+        }
+        // The box write is the LAST thing that can fail. Its failure has to put the
+        // children back too, or the group is left torn apart with an error saying
+        // otherwise.
+        const boxError = writeBox(targetX, targetY);
+        if (boxError) {
+          refuse(() => `the group box did not accept the new position on this frontend (${describeThrown(boxError)})`);
+        }
+        movedNodes = memberMove.moved.length;
+        movedGroups = nestedMove.moved.length;
+        movedReroutes = rerouteMove.moved.length;
       } else {
-        setGroupBounds(g, [Number(pos[0]), Number(pos[1]), b[2], b[3]]);
+        // Even the box-only move must be VERIFIED, not assumed: a clamping setter
+        // or a proxy that ignores the write would otherwise return a confident
+        // "moved the box to [x, y]" for a box that never left.
+        const boxError = writeBox(targetX, targetY);
+        if (boxError) {
+          // Rollback FIRST — and BOTH undos: the box, and the pre-flight's rect
+          // reconciliation, which this branch also performed. restoreBox() decides
+          // for itself whether the box actually needs putting back.
+          const restoreFailed = restoreBox();
+          const unrestoredRects = resync.undo();
+          throw new Error( // …then format
+            `refusing to move group ${group_id}: the group box did not accept the new position on this frontend (${describeThrown(boxError)}). ` +
+              (restoreFailed
+                ? `The box could NOT be put back at [${b[0]}, ${b[1]}] either — press Ctrl+Z on the canvas, or set it explicitly with panel_edit_group({bounds}).`
+                : describePreflightUndo(unrestoredRects)),
+          );
+        }
+        // NOTE: the resync that makes this branch's membership live already ran in
+        // the pre-flight, BEFORE the box write. It used to run here, after it — and
+        // a node with an unwritable cached rect then threw out of syncNodeArea with
+        // the box already sitting at the requested position: not a success, not
+        // "NOTHING was moved", not even a stated partial. The box moved and nothing
+        // else did, so the group now encloses a DIFFERENT set of nodes, and
+        // summarizeGroup below reads that membership from rects that are live as of
+        // the pre-flight. The box is not the membership (#408).
       }
     } finally {
-      graph.afterChange();
+      // Closing the undo envelope must not be able to convert a completed move
+      // into a raw failure — a `finally` that throws REPLACES the outcome, success
+      // or refusal alike.
+      try {
+        graph.afterChange();
+      } catch {
+        /* the geometry is already written; the envelope is bookkeeping */
+      }
     }
-    graph.setDirtyCanvas(true, true);
-    return { group: summarizeGroup(graph, g) };
+    // ---- REPORTING (still inside the transaction) ----------------------------
+    // The transaction ends when the reply is SERIALIZED and returned, not when the
+    // last geometry write completes. If summarizeGroup raises, the move HAS
+    // happened: rolling back is wrong and re-raising is worse, because the caller
+    // would read a completed move as a failed one and retry it.
+    try {
+      graph.setDirtyCanvas(true, true);
+    } catch {
+      /* a repaint failure does not un-move anything */
+    }
+    // `moved` is built only from array lengths — primitives this function owns,
+    // never caller- or graph-supplied — so it survives serialization by
+    // construction and can carry the completion signal on its own.
+    const moved = { nodes: movedNodes, groups: movedGroups, reroutes: movedReroutes };
+    // Prove the reply we RETURN, not a payload inside it: the ENVELOPE is part of
+    // the reply. Round-tripping only an inner field left the outer object free to
+    // carry something the bridge's JSON.stringify chokes on (a BigInt group_id is
+    // enough), which throws AFTER the move, outside every guard — so the caller
+    // gets no completion reply at all and re-issues an already-completed move.
+    const proven = (reply) => JSON.parse(JSON.stringify(reply));
+    try {
+      // summarizeGroup returns the group's own `title`/`color`/`id` and its member
+      // ids UNCOERCED, so a title with a throwing `toJSON` — or a BigInt node id —
+      // gets caught here rather than at the bridge.
+      return proven({ group: summarizeGroup(graph, g), moved });
+    } catch (error) {
+      // The error path OF THE ERROR PATH. `error.message` can itself throw, and
+      // `group_id` is caller-supplied, so this fallback has to be proven too.
+      try {
+        return proven({
+          group_id,
+          moved,
+          summary_unavailable: `the move COMPLETED, but the group could not be summarized afterwards: ${describeThrown(error)}. Re-read it with panel_query_graph — do NOT re-issue the move.`,
+        });
+      } catch {
+        // Even the fallback would not serialize — the caller's own `group_id` is
+        // the likeliest culprit. Degrade to a reply built ONLY from primitives we
+        // control: the verified counts and a literal string. Losing the id is a
+        // far smaller harm than losing the completion signal and being re-issued.
+        return {
+          moved,
+          summary_unavailable:
+            "the move COMPLETED, but neither the group summary nor the group id could be represented in the reply. " +
+            "Re-read the group with panel_query_graph — do NOT re-issue the move.",
+        };
+      }
+    }
   },
 
   // Edit a group's title / color / font_size / bounds — only the fields passed.
@@ -11797,12 +13102,18 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onCom
             // can lag ordinary unsaved canvas edits (#545).  Keep the strict
             // positive-binding requirement for mutations only, so read tools can
             // report the live graph and give the user a recovery path.
+            //
+            // #604 — the bar comes from graphCommandBindingBar so a MUTATION can
+            // never clear a LOWER bar than a READ. This line used to hard-code
+            // `includeBaselineReadGuard: false` for EVERY command, and only the read
+            // executors re-asserted with it on: the very evidence that made
+            // graph_outline refuse ("the workflow reports N>0 nodes but the live root
+            // reads empty") let graph_remove_node through and delete nodes from the
+            // wrong canvas. Reads still get the lower bar HERE — they re-assert with
+            // the full one inside their own executors.
             if (msg.cmd.startsWith("graph_")) {
               const { graph, rootGraph } = getGraphCtx();
-              assertGraphBoundToActiveWorkflow(graph, rootGraph, {
-                includeBaselineReadGuard: false,
-                requireDirtyMutationBinding: graphCommandMayMutateWorkflow(msg.cmd),
-              });
+              assertGraphBoundToActiveWorkflow(graph, rootGraph, graphCommandBindingBar(msg.cmd));
             }
             // PINNED-TARGET GUARD (#349): a `workflow_path` on the command means the
             // agent's session is pinned to a SPECIFIC workflow. But every executor
@@ -13390,8 +14701,21 @@ function describeCommand(cmd, msg, reply) {
         : "";
       return { icon: "pi-clone", text: `Created group “${r.group?.title}” (id ${r.group?.id})${suffix}` };
     }
-    case "graph_move_group":
-      return { icon: "pi-arrows-alt", text: `Moved group ${r.group?.id} (“${r.group?.title}”)` };
+    case "graph_move_group": {
+      // Say what came WITH the box. A move that carried nothing is exactly the
+      // "only the box moved" symptom (#408), so it must be visible on the card
+      // rather than hidden behind an unqualified "Moved group".
+      const m = r.moved;
+      const carried = [
+        ...(m?.nodes ? [`${m.nodes} node${m.nodes === 1 ? "" : "s"}`] : []),
+        ...(m?.groups ? [`${m.groups} nested group${m.groups === 1 ? "" : "s"}`] : []),
+        ...(m?.reroutes ? [`${m.reroutes} reroute${m.reroutes === 1 ? "" : "s"}`] : []),
+      ].join(", ");
+      return {
+        icon: "pi-arrows-alt",
+        text: `Moved group ${r.group?.id} (“${r.group?.title}”)${carried ? ` with ${carried}` : " — box only"}`,
+      };
+    }
     case "graph_edit_group":
       return { icon: "pi-pencil", text: `Edited group ${r.group?.id} (“${r.group?.title}”)` };
     case "graph_remove_group":
@@ -18498,6 +19822,9 @@ function buildPanel() {
         // The drop may have let the backstop hide a still-live turn; repair the
         // indicator on reconnect so the resumed turn stays visible.
         if (agentWorking && !thinkingEl) showThinking();
+        // #585: this mount has now seen a LIVE bridge, so a later non-connected
+        // status is a genuine drop rather than a fresh client's opening `connecting`.
+        rebootSeenConnected = true;
       }
       // A transient drop mid-turn keeps the turn AUTHORITATIVE — the orchestrator
       // still owns it and the bridge will rebind/resume. Clearing the indicator
@@ -18507,6 +19834,18 @@ function buildPanel() {
         piBackendsReadinessReceived = false;
         // Remember the drop so the next "connected" reconciles pending runs (#370).
         bridgeWasDown = true;
+        // #585: only a REAL drop→reconnect may refresh the restart-resume retry
+        // budget — a transition out of connected, not merely "not connected". A
+        // freshly mounted client emits `connecting` before it has ever connected, so
+        // counting that would let a page RELOAD manufacture a drop and refill the
+        // budget, and repeated reloads would mint unlimited nudges: the storm the
+        // budget bounds, reached through the very event it was meant to survive.
+        if (isRealBridgeDrop({ everConnected: rebootSeenConnected, connected })) {
+          rebootBridgeDroppedSinceAttempt = true;
+        }
+        // A new connection re-opens the session question: whatever id we hold was
+        // reported by the connection that just died.
+        rebootSessionFrameSeen = false;
         if (agentWorking) {
           thinkingReconnecting = true;
           // Keep the indicator up with the reconnecting banner, but DON'T re-arm
@@ -18820,8 +20159,66 @@ function buildPanel() {
       // arming resume in those cases would leave the panel waiting for a restart
       // that never happens.
       if (cmd === "comfy_reboot" && reply.ok && reply.result?.rebooting === true) {
-        ssSet(REBOOT_KEY, "1");
+        // #585: record WHICH runs are still owed a completion frame at the moment
+        // the reboot is armed. The post-restart resume is suppressed for exactly
+        // those prompt ids — never for a global "something is pending" count,
+        // which an UNRELATED workflow's render would satisfy, swallowing this
+        // resume. The ids go in sessionStorage with the marker so the correlation
+        // survives the frontend reload a restart can cause (an in-memory ledger
+        // starts empty on the new mount and would report "nothing in flight" for
+        // a render that is still executing).
+        //
+        // DO NOT "improve" this into a per-workflow correlation. It looks like an
+        // approximation of one and it is not — arm-time IS the correct set. A
+        // reboot restarts ComfyUI GLOBALLY, so every render in flight at this
+        // instant is exposed to the same hazard: the generic "continue" nudge that
+        // makes the agent conclude its render was aborted and queue it again.
+        // Resuming while another workflow's render is still exposed to that hazard
+        // would be the wrong semantics, not a tighter one. (The tracker also has no
+        // workflow attribution on prompt ids; inventing one to reach a worse rule
+        // would be a large change to a concept this codebase doesn't have, landing
+        // inside a fix for a STRANDING bug — not a trade worth making.)
+        //
+        // The accepted consequence: two workflows rendering when a reboot fires
+        // means the resume waits for both. That is bounded — the set is fixed at
+        // arm time, drains as each run settles, and the 15-minute backstop resumes
+        // WITH a disclosure rather than holding the session in silence.
+        const armedRuns = (() => {
+          try {
+            return runCompletionRef?.unsettledPromptIds?.() ?? [];
+          } catch {
+            return [];
+          }
+        })();
+        // A NEW reboot is a NEW subject. Every piece of delivery state below belongs
+        // to the PREVIOUS one — most dangerously the outstanding message ids, whose
+        // delayed receipt would otherwise be accepted as proof that THIS reboot's
+        // resume was taken and retire its marker unsent.
+        resetRebootResumeDelivery();
+        const armedMarker = encodeRebootMarker({
+          at: Date.now(),
+          runs: armedRuns,
+          // WHICH conversation asked for the restart. The wait set above is global;
+          // the delivery target is not. Recorded here because this is the only
+          // moment we know it — by the time the ready ack lands the user may have
+          // switched workflows, and the resume must still find its way home.
+          threadId: ssGet(CURRENT_THREAD_KEY),
+          sessionId: ssGet(SESSION_KEY),
+        });
+        ssSet(REBOOT_KEY, armedMarker);
         appendSystem("Restarting ComfyUI to load new nodes — I'll reconnect and pick up automatically when it's back.");
+        // ssSet is best-effort (a full/blocked sessionStorage throws and is
+        // swallowed). Verify the EXACT value landed, not merely that some marker is
+        // present — a refused overwrite would leave a PREVIOUS reboot's marker,
+        // whose run ids don't describe this restart at all, and the resume would be
+        // decided from stale correlation. Either way, say so rather than let the
+        // user wonder why nothing picked up.
+        if (ssGet(REBOOT_KEY) !== armedMarker) {
+          ssSet(REBOOT_KEY, null); // better no marker than a stale one deciding this restart
+          appendSystem(
+            "Heads up: this browser wouldn't let me save the restart marker, so I can't auto-resume after the restart — reconnect manually if the agent goes quiet.",
+          );
+        }
       }
       // #310 — free_vram unloads models and can BOUNCE the ComfyUI connection,
       // which drops the orchestrator's tab mapping (the next graph tool then
@@ -18858,6 +20255,10 @@ function buildPanel() {
       }
     },
     onSession(sessionId) {
+      // #585: the orchestrator has now TOLD us which session this connection is on.
+      // Until this frame lands, "the id we armed with" is merely the id we have not
+      // been corrected about yet — so the restart resume treats it as unknown.
+      rebootSessionFrameSeen = true;
       bindSession(sessionId);
     },
     onTurnAnchor(uuid) {
@@ -18959,11 +20360,18 @@ function buildPanel() {
       // Receipt: orchestrator got it (not dropped) → cancel the failure timer.
       // The bubble stays QUEUED (muted) until the agent actually reads it.
       if (ack?.kind === "working" && typeof ack.mid === "string") {
+        // #585: this is the orchestrator testifying it TOOK the message. If it's the
+        // restart resume, that receipt — not our own send returning true — is what
+        // retires the reboot marker.
+        onRebootResumeReceipt(ack.mid);
         markReceived(ack.mid);
         return;
       }
       // Read: the agent dequeued this message → flip its bubble to read (normal).
       if (ack?.kind === "seen" && typeof ack.mid === "string") {
+        // A "seen" without a preceding "working" (frame coalescing / a dropped
+        // receipt) is still proof the resume was taken — stronger proof, in fact.
+        onRebootResumeReceipt(ack.mid);
         markRead(ack.mid);
         return;
       }
@@ -18992,17 +20400,11 @@ function buildPanel() {
       }
       // Post-restart auto-resume (#3): the "ready" ack is sent after the
       // orchestrator armed hello.resume, so resuming the agent is safe now.
-      // Clear REBOOT_KEY only here (on actual send) so a drop mid-reconnect
-      // retries instead of losing the resume.
-      if (ack?.kind === "ready" && ssGet(REBOOT_KEY)) {
-        ssSet(REBOOT_KEY, null);
-        appendSystem("Reconnected — resuming where we left off.");
-        showThinking();
-        client.sendUserMessage(
-          "✅ ComfyUI just restarted to load newly-installed custom nodes (now available). Continue what you were doing before the restart — if you were mid-build, pick it back up.",
-        );
-        return;
-      }
+      // #585 routes this through the correlated restart-resume flow below, which
+      // owns clearing REBOOT_KEY — it clears the marker ONLY when the resume is
+      // actually sent, so neither a drop mid-reconnect NOR a suppression while a
+      // pre-restart render finishes can lose it.
+      if (ack?.kind === "ready" && ssGet(REBOOT_KEY) && handleRebootResumeAck()) return;
       // Soft-reload resume: the fresh orchestrator is up. Resume silently for a
       // user-triggered reload; nudge to continue for an agent-triggered one
       // (it was mid-task and its tool call died with the old process).
@@ -19176,6 +20578,11 @@ function buildPanel() {
           if (frame == null || framePushed) runCompletion.markDelivered(promptId);
           else if (AGENT_MUTED) runCompletion.markDelivered(promptId);
           else runCompletion.markUndelivered(promptId);
+          // #585: this is the moment "the agent was told" becomes true (or is
+          // re-pended). Refresh the persisted reboot marker now so a reload in the
+          // gap before the next watch tick can't re-adopt an already-delivered run
+          // and have /history deliver its completion a second time.
+          pruneRebootMarker();
         })
         .catch((err) => {
           console.warn("[cmcp] composeRunCompletionFrame failed:", err);
@@ -19184,6 +20591,7 @@ function buildPanel() {
           // (but respect an intentional mute, as above).
           if (framePushed || AGENT_MUTED) runCompletion.markDelivered(promptId);
           else runCompletion.markUndelivered(promptId);
+          pruneRebootMarker(); // #585 — see the .then branch above
         });
     },
     // #370: deliver a reconcile-discovered terminal ERROR. Routed through the
@@ -19202,6 +20610,7 @@ function buildPanel() {
       // reconcileKey already marked it delivered, so leave it. Only a genuine
       // transport failure re-pends so the next reconnect/retry re-delivers it.
       else if (!AGENT_MUTED) runCompletion.markUndelivered(promptId);
+      pruneRebootMarker(); // #585 — a terminal error is also "the agent was told"
     },
     // #582: ComfyUI writes a manually stopped run to history with raw
     // status_str:"error" plus execution_interrupted. Deliver a neutral event,
@@ -19217,13 +20626,14 @@ function buildPanel() {
       // Match terminal-error recovery: only a transport drop re-pends the
       // cancellation notice; an intentionally muted agent stays silent.
       else if (!AGENT_MUTED) runCompletion.markUndelivered(promptId);
+      pruneRebootMarker(); // #585 — a cancellation notice is also "the agent was told"
     },
     // #370 (P1 memory-leak): the tracker GAVE UP on a prompt whose outcome it
     // couldn't confirm after the bounded retries (its /history stayed absent —
     // cancelled/disconnected). It's been evicted from the ledger; surface a
     // one-time "status unknown, safe to requeue" notice so the agent stops waiting.
     onReconcileGiveUp: ({ promptId }) => {
-      client.sendFrame({
+      const sent = client.sendFrame({
         type: "agent_event",
         kind: "run_error",
         error:
@@ -19231,6 +20641,17 @@ function buildPanel() {
           `(no history for it) — it was likely cancelled or interrupted. Safe to requeue.`,
       });
       appendSystem(`Render status unknown for prompt ${promptId} — safe to requeue.`);
+      // #585: give-up EVICTS the run from the recovery ledger, so unlike the
+      // error/interrupted paths there is nothing to re-pend if this notice didn't
+      // land. Flag it so the run still reads as unsettled-in-truth: a
+      // delivery-gated restart-resume must disclose rather than tell the agent its
+      // outcome "was already delivered" when the only frame about it was dropped.
+      if (!sent && !AGENT_MUTED) runCompletion.markDeliveryUnconfirmed(promptId);
+      // #585: the tracker gave up on this run, so no completion frame will ever be
+      // owed for it. Drop it from the reboot marker — otherwise a suppressed
+      // restart-resume would wait on a run that can never settle, which is the
+      // SILENT failure (the user waits forever for a turn that never starts).
+      pruneRebootMarker();
     },
   });
   runCompletionRef = runCompletion;
@@ -19322,6 +20743,624 @@ function buildPanel() {
   const armRunReconcileSweep = () => runReconcileSweep.arm();
   armRunReconcileSweepRef = armRunReconcileSweep;
 
+  // ── #585: correlated restart-resume ───────────────────────────────────────
+  // After a ComfyUI restart the panel nudges the agent to continue. If a render
+  // queued BEFORE the restart is still in flight — or finished but its completion
+  // frame has not reached the agent yet — that nudge makes the agent conclude the
+  // render was aborted and queue it again.
+  //
+  // The guard is CORRELATION, not aggression: the reboot marker carries the
+  // specific prompt ids that were still owed a completion frame when the reboot
+  // was armed (lib/restart-resume.js), and every decision below is about THOSE
+  // ids. Two rules make the two opposite failures unreachable:
+  //   • the marker is NEVER cleared while suppressing — only when a resume is
+  //     actually sent — so a suppressed resume is always reissued once the run it
+  //     waited on settles (the alternative silently strands the user forever);
+  //   • "settled" means no frame is still owed to the agent (isSettled), not
+  //     "the tracker retired it" (which fires before the async send resolves).
+  const REBOOT_WATCH_TICK_MS = 2000;
+  let rebootWatchTimer = null;
+  let rebootWaitNoticeShown = false;
+  let rebootSessionNoticeShown = false;
+  // One resume per armed reboot, latched in memory. ssSet is best-effort: if the
+  // clear-on-send silently fails (full/blocked sessionStorage) the marker would
+  // survive and every later "ready" ack would re-send the nudge — a repeated
+  // "continue" is exactly what makes the agent re-queue. Reset when a NEW reboot
+  // is armed, so a second restart still resumes.
+  let rebootResumeSent = false;
+  // The resume is retired on RECEIPT, not on send. client.sendUserMessage returns
+  // true the moment WebSocket.send() accepts the bytes — the socket can close
+  // before the orchestrator ever reads them, and an abandoned channel cannot
+  // testify that it wasn't. So each attempt carries a message id and the marker is
+  // held until a "working"/"seen" ack for THAT id comes back (the same receipt
+  // protocol every typed message uses). An attempt that isn't acked in time is
+  // retried, bounded, so a silent drop can neither strand the resume nor storm the
+  // agent with repeated nudges.
+  // Longer than the outbox's own 7s DELIVERY_TIMEOUT_MS, so anything the
+  // orchestrator was ever going to acknowledge has had more time than the panel's
+  // own standard for calling a message dropped.
+  const REBOOT_RESUME_ACK_TIMEOUT_MS = 12000;
+  const REBOOT_RESUME_MAX_ATTEMPTS = 3;
+  let rebootResumeMid = null; // outstanding attempt, awaiting receipt
+  let rebootResumeMidAt = 0;
+  // EVERY mid attempted for this reboot, not just the latest. A receipt for an
+  // earlier attempt is still proof the orchestrator took the resume — discarding it
+  // because a retry has since been issued would keep retrying something already
+  // delivered, and each retry is another "continue" turn in front of the agent.
+  const rebootResumeMids = new Set();
+  let rebootResumeStalledNoticeShown = false;
+  let rebootAttemptCountUnreliableNoticeShown = false;
+  // True once the orchestrator's `session` frame has landed on THIS connection. The
+  // frame is not ordered against the "ready" ack, so before it arrives the session
+  // id we hold is simply the one we armed with — not evidence that the session was
+  // resumed rather than replaced.
+  let rebootSessionFrameSeen = false;
+  // Set whenever the bridge is observed DOWN; consumed by the next ready ack. The
+  // retry budget may only be reset by a genuine NEW connection — "ready" repeats on
+  // a live socket (backend readiness frames), and resetting on those would let a
+  // long-lived connection mint unlimited attempts and storm the agent.
+  let rebootBridgeDroppedSinceAttempt = false;
+  // Has THIS mount ever seen a live bridge? Without it, a fresh client's opening
+  // `connecting` reads as a drop and a reload refills the retry budget.
+  let rebootSeenConnected = false;
+  let rebootPruneFailureNoticeShown = false;
+  // Set when ANY verified REBOOT_KEY write fails. Persisted counters are then
+  // untrustworthy in BOTH directions — a stale-high budget refuses forever, a
+  // stale-low one bounds nothing — so the gate falls back to an in-memory
+  // per-episode count, which is still bounded and still recoverable.
+  let rebootStoragePersistBroken = false;
+  let rebootEpisodeSends = 0;
+
+  /** Drop any outstanding attempt — its channel is gone, so it can never be acked. */
+  function forgetRebootResumeAttempt() {
+    rebootResumeMid = null;
+    rebootResumeMidAt = 0;
+  }
+
+  /**
+   * Reset ALL per-reboot delivery state. Called when a new reboot is armed: the
+   * message ids, retry budget and one-shot notices below are scoped to a SPECIFIC
+   * reboot, and carrying them across would let a late receipt for the previous
+   * one retire the new one's marker without its resume ever being sent.
+   */
+  function resetRebootResumeDelivery() {
+    forgetRebootResumeAttempt();
+    rebootResumeMids.clear();
+    rebootResumeSent = false;
+    rebootAttemptCountUnreliableNoticeShown = false;
+    rebootPruneFailureNoticeShown = false;
+    rebootStoragePersistBroken = false;
+    rebootEpisodeSends = 0;
+    rebootResumeStalledNoticeShown = false;
+    rebootWaitNoticeShown = false;
+    rebootSessionNoticeShown = false;
+    rebootBridgeDroppedSinceAttempt = false;
+  }
+
+  // The tracker is the only thing that can answer "is a frame still owed for this
+  // run?". No tracker (pre-mount / post-dispose) ⇒ undefined predicate ⇒
+  // unsettledRebootRuns reports every id as owed, so we wait (and disclose) rather
+  // than nudge on a blind guess.
+  const rebootIsSettled = () => {
+    const tracker = runCompletionRef;
+    return tracker ? (id) => tracker.isSettled(id) : undefined;
+  };
+  // …and whether a watched run's frame was dispatched but never CONFIRMED to have
+  // reached the agent. Such a run no longer blocks the resume (that would strand
+  // the session), but the resume must DISCLOSE it instead of telling the agent its
+  // result was already delivered — a false reassurance would invite the duplicate.
+  const rebootDeliveryUnconfirmed = () => {
+    const tracker = runCompletionRef;
+    return tracker ? (id) => tracker.isDeliveryUnconfirmed(id) : undefined;
+  };
+
+  /** ssSet, then read back. Returns whether the value actually persisted. */
+  function ssSetVerified(key, value) {
+    ssSet(key, value);
+    return ssGet(key) === value;
+  }
+
+  /**
+   * Can sessionStorage be written AT ALL right now?
+   *
+   * A storage failure outlives the mount that discovered it, but the in-memory
+   * fallback does not — so a reload inherits a stale-high persisted budget with no
+   * memory of why it cannot be reset, and would refuse to send forever. Rather
+   * than carry that state, re-establish it on demand with a throwaway key: it
+   * touches nothing the resume depends on and answers the only question that
+   * matters — is the persisted number something we can still manage?
+   */
+  function sessionStorageWritable() {
+    const probeKey = "comfyui-mcp.panel.storageProbe";
+    const ok = ssSetVerified(probeKey, String(Date.now()));
+    ssSet(probeKey, null);
+    return ok;
+  }
+
+  function readRebootMarker() {
+    return decodeRebootMarker(ssGet(REBOOT_KEY));
+  }
+
+  /**
+   * Drop run ids the tracker now reports as settled from the PERSISTED marker.
+   * Keeps the marker an accurate ledger across a reload: a reload that re-adopted
+   * an already-delivered id would have `/history` reconcile it and deliver its
+   * completion a SECOND time.
+   */
+  function pruneRebootMarker() {
+    const raw = ssGet(REBOOT_KEY);
+    if (raw == null) return;
+    const next = pruneRebootMarkerRaw(raw, rebootIsSettled(), rebootDeliveryUnconfirmed());
+    if (next === raw) return;
+    // VERIFIED. A prune that silently fails leaves an already-delivered run id in the
+    // marker; a reload then re-adopts it and `/history` reconciles its completion to
+    // the agent a SECOND time. Nothing further can force the write, so surface it —
+    // this path had no disclosure at all, which is what made it worse than the
+    // best-effort-storage cases that do.
+    if (!ssSetVerified(REBOOT_KEY, next)) noteRebootMarkerWriteFailed();
+  }
+
+  /**
+   * A verified marker write did not persist. Persisted counters are now untrustworthy
+   * in BOTH directions, so the budget switches to its in-memory bound, and the user is
+   * told once — this path previously had no disclosure at all, which is what set it
+   * apart from the storage cases that do.
+   */
+  function noteRebootMarkerWriteFailed() {
+    rebootStoragePersistBroken = true;
+    if (rebootPruneFailureNoticeShown) return;
+    rebootPruneFailureNoticeShown = true;
+    appendSystem(
+      "Note: this browser wouldn't let me update the restart marker. If you reload, a render result that was already delivered may be reported to the agent twice.",
+    );
+  }
+
+  /**
+   * Re-adopt the marker's runs into THIS mount's tracker (reload survival — see
+   * lib/restart-resume.js `adoptRebootRuns`), then let the existing `/history` +
+   * `/queue` reconcile decide each one's fate.
+   */
+  function adoptRebootRunsHere() {
+    const tracker = runCompletionRef;
+    if (!tracker) return;
+    const runs = readRebootMarker()?.runs ?? [];
+    if (!runs.length) return;
+    adoptRebootRuns(runs, tracker);
+    // Only start probing once the bridge is up. Reconcile's give-up path fires a
+    // one-time "safe to requeue" frame and then EVICTS the run — firing that at a
+    // disconnected agent burns the run's only outcome on a dropped frame. That
+    // applies to the periodic SWEEP as much as to the immediate call, so neither is
+    // started here while disconnected; this runs again on every "ready" ack, which
+    // by definition means the agent can receive what we find.
+    if (!client.isConnected()) return;
+    void reconcileRunsAfterReconnect();
+    armRunReconcileSweep();
+  }
+
+  function stopRebootWatch() {
+    if (rebootWatchTimer != null) {
+      clearInterval(rebootWatchTimer);
+      rebootWatchTimer = null;
+    }
+  }
+
+  /**
+   * One evaluation + the marker write it implies. `nextRaw` is null ONLY when a
+   * resume is actually being sent; on wait it is the retained (pruned) marker.
+   */
+  function stepRebootResumeHere() {
+    const step = stepRebootResume({
+      raw: ssGet(REBOOT_KEY),
+      isSettled: rebootIsSettled(),
+      isDeliveryUnconfirmed: rebootDeliveryUnconfirmed(),
+      // Which conversation is on screen right now — compared against the one that
+      // armed the reboot, so the resume can never land on a different workflow.
+      currentThreadId: ssGet(CURRENT_THREAD_KEY),
+      currentSessionId: ssGet(SESSION_KEY),
+      sessionKnown: rebootSessionFrameSeen,
+      nowMs: Date.now(),
+      maxWaitMs: REBOOT_RESUME_MAX_WAIT_MS,
+    });
+    if (step.decision === "wait_for_run" || step.decision === "wait_for_session") {
+      // Same class as the prune write: this rewrite is what drops already-settled run
+      // ids from the marker, so a silent failure leaves a delivered run in it for a
+      // reload to re-adopt and re-deliver. Verified, and disclosed once if it fails.
+      if (!ssSetVerified(REBOOT_KEY, step.nextRaw)) noteRebootMarkerWriteFailed();
+    }
+    return step;
+  }
+
+  /** Human label for the conversation that armed the reboot, for the held notice. */
+  function rebootArmingThreadLabel(marker) {
+    const tid = marker?.threadId;
+    if (!tid) return "another conversation";
+    const t = threads.find((candidate) => candidate.id === tid) || null;
+    return t?.title || t?.workflowKey || "another conversation";
+  }
+
+  /** The arming conversation isn't on screen — hold, and tell the user where it went. */
+  function holdRebootResumeForSession(step) {
+    if (!rebootSessionNoticeShown) {
+      rebootSessionNoticeShown = true;
+      appendSystem(
+        `A restart resume is waiting for ${rebootArmingThreadLabel(step.marker)} — switch back to it to pick that work up. ` +
+          `I won't send it here; it belongs to the conversation that asked for the restart.`,
+      );
+    }
+    armRebootWatch();
+  }
+
+  /** Never came back within the budget: abandon it VISIBLY rather than misdeliver. */
+  function abandonRebootResumeWrongSession(step) {
+    stopRebootWatch();
+    forgetRebootResumeAttempt();
+    rebootSessionNoticeShown = false;
+    ssSet(REBOOT_KEY, null);
+    appendSystem(
+      `The restart resume for ${rebootArmingThreadLabel(step.marker)} expired without being delivered — ` +
+        `it was never re-opened. If that conversation was mid-build, tell it to continue.`,
+    );
+  }
+
+  /**
+   * Send the restart-resume nudge. The marker is NOT retired here: a successful
+   * `sendUserMessage` only means WebSocket.send() accepted the bytes, and a socket
+   * that closes before the orchestrator reads them cannot tell us so. Retiring on
+   * that would strand the resume permanently. Instead the attempt carries a message
+   * id and the marker is held until the orchestrator's own receipt ack for that id
+   * arrives (onRebootResumeReceipt), which is the first point anything can testify
+   * the resume was actually taken.
+   *
+   * @returns {boolean} whether the attempt reached the transport at all.
+   */
+  function sendRebootResume(step) {
+    const marker = step?.marker;
+    const owed = marker?.runs ?? [];
+    const waited = (marker?.armedRunCount ?? 0) > 0;
+    const unconfirmed = step?.decision === "resume_unconfirmed";
+    // A previous attempt already went out for THIS reboot (persisted in the marker,
+    // so it survives a reload). We cannot know whether the orchestrator took it —
+    // an unacknowledged send is exactly the state we can't resolve — so say so
+    // rather than let a possible second identical "continue" arrive unannounced.
+    //
+    // WRITE-AHEAD, and VERIFY. The attempt is recorded BEFORE it can happen, and the
+    // write is read back. `ssSet` returning is not evidence it persisted — quota,
+    // private mode and eviction all fail silently — and an increment that didn't
+    // stick reads back as "no attempt yet", so a retry would go out as a first
+    // attempt with no warning. This is the same shape as sent-vs-received one layer
+    // down: written is not persisted. A failed record therefore ALSO raises the
+    // warning, because if storage cannot count attempts we must assume there may
+    // have been one. A warning wrongly present is harmless; its absence is not.
+    //
+    // SCOPE OF THAT GUARANTEE — it holds for the LIFE OF THIS MOUNT, not forever.
+    // If the record fails, the message nonetheless reaches the orchestrator, storage
+    // then recovers, and the frontend reloads, the new mount reads a real (merely
+    // stale) zero and cannot know a nudge already went out — so its next attempt is
+    // an undisclosed duplicate continuation. Doing better would mean durably
+    // recording "a write failed" at the exact moment storage is refusing to durably
+    // record anything; the only alternative is to warn on every post-reload resume,
+    // which trains the agent to ignore the warning. Accepted and documented in the
+    // PR as a sessionStorage-class residual — the outcome is a duplicate NUDGE, not
+    // a duplicate render.
+    const retained = rebootMarkerAfterSend(step, false);
+    let attemptRecorded = true;
+    if (retained) {
+      const withAttempt = encodeRebootMarker({
+        ...decodeRebootMarker(retained),
+        // An unknown prior count restarts at 1 for the BUDGET (we cannot bound what
+        // we cannot count, and a real number here ends the uncertainty) but must not
+        // pretend the TOTAL was zero — so an unknown total stays unknown, and keeps
+        // forcing the duplicate warning.
+        attempts: (Number.isFinite(marker?.attempts) ? Number(marker.attempts) : 0) + 1,
+        totalAttempts: Number.isFinite(marker?.totalAttempts) ? Number(marker.totalAttempts) + 1 : null,
+      });
+      ssSet(REBOOT_KEY, withAttempt);
+      attemptRecorded = ssGet(REBOOT_KEY) === withAttempt;
+      if (!attemptRecorded) {
+        // The persisted count cannot be trusted to BOUND anything either — without
+        // this the gate would keep reading a stale 0 and re-send after every ack
+        // timeout, which is the storm the budget exists to prevent.
+        rebootStoragePersistBroken = true;
+        ssSet(REBOOT_KEY, retained); // keep the marker itself, just without the count
+        if (!rebootAttemptCountUnreliableNoticeShown) {
+          rebootAttemptCountUnreliableNoticeShown = true;
+          appendSystem(
+            "Note: this browser wouldn't let me record the restart-nudge attempt, so I can't tell whether one already went out. I'll warn the agent about a possible duplicate.",
+          );
+        }
+      }
+    }
+    const repeat = rebootResumeRepeatWarning({
+      totalAttempts: marker?.totalAttempts,
+      attemptRecorded,
+      sentThisMount: rebootResumeMids.size,
+    });
+    const repeatPrefix = repeat
+      ? "⚠️ You may have already received this restart notice — an earlier copy was sent but never acknowledged. If you already acted on it, ignore this one and do NOT re-queue anything. "
+      : "";
+    // The agent session behind this conversation looks REPLACED rather than
+    // resumed, so "continue what you were doing" may be addressed to an instance
+    // with no memory of that work — which is how a fresh session ends up re-reading
+    // the graph and re-queueing. Disclosed, never used to withhold the resume: a
+    // session id legitimately changes across a resume, so refusing on a mismatch
+    // would strand the ordinary restart.
+    const replacedPrefix =
+      step?.sessionState === "replaced"
+        ? "⚠️ Your agent session was replaced (not resumed) across this restart, so you may not have the context you had before. Check the ComfyUI queue/history before starting or re-queueing any render. "
+        : step?.sessionState === "unknown"
+          ? "⚠️ I couldn't confirm whether your agent session was resumed or replaced across this restart. Check the ComfyUI queue/history before starting or re-queueing any render. "
+          : "";
+    const text =
+      repeatPrefix +
+      replacedPrefix +
+      (unconfirmed
+      ? `✅ ComfyUI just restarted to load newly-installed custom nodes (now available). ` +
+        `⚠️ A render was already in flight when the restart was triggered${
+          owed.length ? ` (prompt ${owed.join(", ")})` : ""
+        } and I could NOT confirm whether it finished. Check the ComfyUI queue/history for it BEFORE re-queueing anything — ` +
+        `it may still be running, and re-queueing would duplicate it. Then continue what you were doing before the restart.`
+      : waited
+        ? "✅ ComfyUI just restarted to load newly-installed custom nodes (now available). The render that was already in flight before the restart has since reported back — its result (or its failure) was already delivered to you, so do NOT re-queue it. Continue what you were doing before the restart."
+        : "✅ ComfyUI just restarted to load newly-installed custom nodes (now available). Continue what you were doing before the restart — if you were mid-build, pick it back up.");
+    const mid = newMid();
+    const sent = client.sendUserMessage(text, undefined, undefined, mid);
+    if (!sent) {
+      // Nothing left the panel, so give the budget its attempt back — but only when
+      // we know the increment persisted. If it didn't, the count is already whatever
+      // storage decided and there is nothing to roll back.
+      if (retained && attemptRecorded) ssSet(REBOOT_KEY, retained);
+      return false;
+    }
+    rebootResumeMid = mid;
+    rebootResumeMidAt = Date.now();
+    rebootResumeMids.add(mid);
+    rebootEpisodeSends += 1;
+    // A continuation has now been issued for this drop, so the generic mid-task
+    // "you dropped, pick it back up" fallback must not ALSO fire. `ready` repeats on
+    // a live socket, and once the marker is retired those repeats fall through to
+    // that branch — a second, uncorrelated, undisclosed "continue", which is the
+    // duplicate-render hazard again. The soft-reload path clears this for exactly
+    // the same reason; the reboot path never did.
+    ssSet(MID_TASK_KEY, null);
+    rebootWaitNoticeShown = false;
+    rebootSessionNoticeShown = false;
+    appendSystem(
+      unconfirmed
+        ? `Reconnected — couldn't confirm the render that was in flight before the restart${
+            owed.length ? ` (prompt ${owed.join(", ")})` : ""
+          }. Resuming, and telling the agent to check the queue before re-running.`
+        : "Reconnected — resuming where we left off.",
+    );
+    showThinking();
+    armRebootWatch(); // keep watching until the orchestrator acknowledges receipt
+    return true;
+  }
+
+  /**
+   * The orchestrator acknowledged receipt of the resume ("working" = it took the
+   * message, "seen" = the agent dequeued it). THIS is the evidence that retires the
+   * marker — the first point at which anything other than our own transport can
+   * testify the resume was not dropped.
+   */
+  function onRebootResumeReceipt(mid) {
+    // Any attempt's receipt counts, not just the newest. A `working` ack for an
+    // earlier retry still proves the orchestrator took the resume; ignoring it
+    // because a newer attempt is outstanding would keep retrying an already
+    // delivered nudge, and every retry is another "continue" turn for the agent.
+    if (!mid || !rebootResumeMids.has(mid)) return false;
+    forgetRebootResumeAttempt();
+    rebootResumeMids.clear();
+    rebootResumeStalledNoticeShown = false;
+    rebootResumeSent = true;
+    stopRebootWatch();
+    ssSet(REBOOT_KEY, null); // retired on RECEIPT, the only place it is cleared
+    // A refused CLEAR (best-effort storage) would leave the marker to be re-read
+    // after a reload, where the per-mount latch is gone. Nothing can force the
+    // write, so disclose it rather than pretend the state is clean.
+    if (ssGet(REBOOT_KEY) != null) {
+      appendSystem(
+        "Note: this browser wouldn't let me clear the restart marker. If you reload, I may repeat the restart nudge — ignore the second one.",
+      );
+    }
+    return true;
+  }
+
+  /**
+   * Re-evaluate the suppressed resume on a timer. This is what makes suppression
+   * safe: the marker stays set while we wait, and the resume is reissued the
+   * moment the specific run it is waiting on is confirmed delivered (or the
+   * bounded wait expires and we resume WITH a disclosure).
+   */
+  function armRebootWatch() {
+    if (rebootWatchTimer != null) return;
+    rebootWatchTimer = setInterval(() => {
+      // Same two revocations as the ack path: an explicit Disconnect, and a resume
+      // already sent for this reboot whose marker clear didn't stick.
+      if (rebootResumeSent || lsGet(USER_DISCONNECTED_KEY)) {
+        stopRebootWatch();
+        ssSet(REBOOT_KEY, null);
+        return;
+      }
+      // An attempt is out and not yet acknowledged. Wait for the receipt rather
+      // than firing a second nudge — repeated "continue" messages are themselves
+      // the duplicate-render hazard. Past the window the attempt is presumed
+      // dropped and becomes retryable.
+      if (rebootResumeMid != null) {
+        if (Date.now() - rebootResumeMidAt < REBOOT_RESUME_ACK_TIMEOUT_MS) return;
+        forgetRebootResumeAttempt();
+      }
+      const step = stepRebootResumeHere();
+      if (step.decision === "none") {
+        stopRebootWatch(); // cleared elsewhere (explicit Disconnect) — stand down
+        rebootWaitNoticeShown = false;
+        return;
+      }
+      if (step.decision === "wait_for_run") return;
+      if (step.decision === "wait_for_session") {
+        holdRebootResumeForSession(step);
+        return;
+      }
+      if (step.decision === "expired_wrong_session") {
+        abandonRebootResumeWrongSession(step);
+        return;
+      }
+      tryRebootResume(step); // a refused send keeps the marker AND this watch
+    }, REBOOT_WATCH_TICK_MS);
+  }
+
+  /**
+   * The ONE gate every resume send passes through. Both entry points — the watch
+   * tick and the "ready" ack — must share it: a budget enforced on only one of them
+   * is not a budget, and the ack path is the easier one to trigger repeatedly
+   * (readiness frames repeat on a live socket).
+   *
+   * @returns {boolean} whether a resume was actually handed to the transport.
+   */
+  function tryRebootResume(step) {
+    // The resume is a user message on the agent session — it needs a live bridge.
+    // Not connected yet ⇒ keep the marker and keep watching; the reconnect's own
+    // "ready" ack re-enters this same decision.
+    if (!client.isConnected()) return false;
+    // Bounded retries so an orchestrator that never acks can't be nudged on a loop.
+    // Budget spent ⇒ stop RE-SENDING but KEEP the marker: only an observed drop and
+    // reconnect refreshes it, which is recovery rather than a strand.
+    //
+    // The count comes from the PERSISTED marker, not an in-memory counter. A fresh
+    // mount's counter starts at zero, so a reload would hand back a full budget and
+    // repeated reloads would mint unlimited nudges — the storm the bound exists to
+    // prevent. One source of truth, and it is the one that survives a reload.
+    // An UNKNOWN count cannot say the budget is spent. Allowing the send is the
+    // recoverable side (the unknown total already forces the duplicate warning), and
+    // the write-ahead below replaces the unknown with a real count — so this resolves
+    // after exactly one attempt instead of looping.
+    // When the persisted budget cannot be RESET (a verified-failed write), the
+    // persisted number is stale-high forever and gating on it would refuse every
+    // tick. Bound this episode in memory instead — still bounded, but recoverable.
+    let budgetUsed = step?.marker?.attempts;
+    if (rebootStoragePersistBroken) {
+      budgetUsed = rebootEpisodeSends;
+    } else if (Number.isFinite(budgetUsed) && Number(budgetUsed) >= REBOOT_RESUME_MAX_ATTEMPTS) {
+      // Spent per the marker — but a budget is only meaningful if it can be RESET.
+      // A mount that inherits a spent count from a mount whose storage was broken
+      // would otherwise refuse forever, so establish writability before refusing.
+      if (!sessionStorageWritable()) {
+        rebootStoragePersistBroken = true;
+        budgetUsed = rebootEpisodeSends;
+      }
+    }
+    if (Number.isFinite(budgetUsed) && Number(budgetUsed) >= REBOOT_RESUME_MAX_ATTEMPTS) {
+      if (!rebootResumeStalledNoticeShown) {
+        rebootResumeStalledNoticeShown = true;
+        appendSystem(
+          "Couldn't confirm the restart nudge reached the agent. Keeping it pending — it'll retry when the connection next comes back.",
+        );
+      }
+      return false;
+    }
+    return sendRebootResume(step);
+  }
+
+  /**
+   * Handle a "ready" ack while a reboot marker is set.
+   * @returns {boolean} true when this ack was consumed by the restart-resume flow.
+   */
+  function handleRebootResumeAck() {
+    if (!readRebootMarker()) return false;
+    // An explicit Disconnect revokes the resume. It clears REBOOT_KEY, but ssSet is
+    // best-effort — honour the (localStorage, durable) opt-out latch too so a
+    // marker that survived a failed clear can't resurrect a session the user
+    // deliberately walked away from.
+    if (lsGet(USER_DISCONNECTED_KEY)) {
+      stopRebootWatch();
+      ssSet(REBOOT_KEY, null);
+      return false;
+    }
+    // The resume for THIS reboot already went out; a marker still present means the
+    // clear didn't stick. Re-sending would nudge the agent to "continue" twice.
+    if (rebootResumeSent) {
+      stopRebootWatch();
+      ssSet(REBOOT_KEY, null);
+      return false;
+    }
+    // A reconnect is a FRESH delivery episode: the previous attempt's channel is
+    // gone (it can never be acked now) and the retry budget starts over, mirroring
+    // how the /history reconciler treats a reconnect edge. But ONLY a real drop
+    // counts — "ready" repeats on a live socket, and treating those as reconnects
+    // would refresh the budget indefinitely and let one connection mint unlimited
+    // nudges. Elapsed time is not evidence of a new connection; an observed drop is.
+    if (rebootBridgeDroppedSinceAttempt) {
+      rebootBridgeDroppedSinceAttempt = false;
+      forgetRebootResumeAttempt();
+      rebootResumeStalledNoticeShown = false;
+      // The budget lives in the PERSISTED marker (so a reload can't refill it), so
+      // refreshing it means rewriting the marker — not zeroing a local counter.
+      // Refresh ONLY the episode budget. `totalAttempts` is deliberately untouched:
+      // it is the evidence that a nudge may already be in the agent's queue, and a
+      // resume that reached the orchestrator but lost its receipt in this very drop
+      // is exactly the case a later undisclosed retry would duplicate.
+      const raw = ssGet(REBOOT_KEY);
+      const decoded = raw == null ? null : decodeRebootMarker(raw);
+      // `!== 0` rather than `> 0` so an UNKNOWN budget is also resolved here: after an
+      // observed drop, "this episode has made zero attempts" is a true statement we
+      // can now assert. The total is untouched and stays unknown if it was.
+      if (decoded && decoded.attempts !== 0) {
+        // VERIFIED. If the reset silently fails, the persisted budget stays spent and
+        // the send gate refuses on every tick — a confirmed reconnect turning into a
+        // permanent stall. A budget we cannot reset is a budget we cannot manage, so
+        // fall back to bounding this episode in memory instead of refusing forever.
+        if (ssSetVerified(REBOOT_KEY, encodeRebootMarker({ ...decoded, attempts: 0 }))) {
+          rebootStoragePersistBroken = false; // it wrote — storage is working again
+        } else {
+          noteRebootMarkerWriteFailed();
+        }
+      }
+      rebootEpisodeSends = 0; // the in-memory fallback bound, per delivery episode
+      // Mids from the dead socket can never be acked on the new connection, so drop
+      // them — this also bounds the set across repeated drops.
+      rebootResumeMids.clear();
+    } else if (rebootResumeMid != null) {
+      // Same connection, attempt still outstanding — let the watch and the receipt
+      // ack resolve it rather than firing a second identical "continue".
+      armRebootWatch();
+      return true;
+    }
+    adoptRebootRunsHere(); // reload survival: re-pend persisted ids into this mount
+    const step = stepRebootResumeHere();
+    if (step.decision === "none") return false;
+    if (step.decision === "wait_for_run") {
+      if (!rebootWaitNoticeShown) {
+        rebootWaitNoticeShown = true;
+        appendSystem(
+          "Reconnected — holding the restart nudge until the render that was already in flight reports back.",
+        );
+      }
+      armRebootWatch(); // marker deliberately RETAINED; the watch reissues the resume
+      return true;
+    }
+    if (step.decision === "wait_for_session") {
+      holdRebootResumeForSession(step); // belongs to a different conversation
+      return true;
+    }
+    if (step.decision === "expired_wrong_session") {
+      abandonRebootResumeWrongSession(step);
+      return true;
+    }
+    // Same gate as the watch tick — budget, connectivity, everything. A send that
+    // doesn't happen keeps the marker; arm the watch so the resume is retried rather
+    // than lost to a socket that closed between the ack and the send.
+    if (!tryRebootResume(step)) armRebootWatch();
+    return true;
+  }
+
+  // A restart that reloaded the frontend — or a plain panel remount mid-wait —
+  // lands here with an EMPTY ledger and a surviving marker: adopt its runs now so
+  // `/history` + `/queue` start deciding their fate immediately, and re-arm the
+  // watch so a suppressed resume is still reissued even if this mount never sees
+  // another "ready" ack. Neither can fire the nudge early: the watch only sends
+  // once the specific runs are settled AND the bridge is connected.
+  adoptRebootRunsHere();
+  if (readRebootMarker()?.runs.length) armRebootWatch();
+
   function onExecuted(ev) {
     const d = ev?.detail ?? {};
     const out = d.output || {};
@@ -19398,6 +21437,10 @@ function buildPanel() {
     // this frame (sendFrame also returns false then) — onExecutionFailed already
     // marked it delivered, so leaving it there keeps the mute permanent (codex P1).
     if (!runErrorSent && !AGENT_MUTED) runCompletion.markUndelivered(d.prompt_id);
+    // #585: a live failure is also a terminal outcome the agent has been told
+    // about — retire it from the reboot marker so a reload can't re-adopt it and
+    // have /history deliver the same failure a second time.
+    pruneRebootMarker();
     // 2) Render it immediately as an error widget in the chat, so the user sees it
     //    even before the agent reacts (no waiting on a check-errors call).
     paintCard({
@@ -20245,6 +22288,10 @@ function buildPanel() {
     // Also cancel any pending tool-triggered reboot resume: an explicit Disconnect
     // during a reboot window must not be overridden by a surviving REBOOT_KEY.
     ssSet(REBOOT_KEY, null);
+    // …and stop the #585 watch, or it would keep re-evaluating a marker the user
+    // just revoked (and could still fire the resume after an explicit Disconnect).
+    stopRebootWatch();
+    forgetRebootResumeAttempt();
     client.stop();
     // client.stop() sets closed=true, so the socket onclose suppresses onStatus
     // — end the turn locally so the working indicator can't spin forever against
@@ -20272,6 +22319,20 @@ function buildPanel() {
       appendActivity(cmd, args, { ok: true, result });
     } catch (err) {
       appendActivity(cmd, args, { ok: false, error: coerceMessageText(err?.message ?? err) });
+    }
+  }
+
+  /** Run a slash command from a SYNCHRONOUS UI handler. Most `run()`s are sync, but
+   *  /revert now awaits an async graph load — normalizing through Promise.resolve
+   *  keeps a rejection from escaping as an unhandled promise, and surfaces it in the
+   *  transcript instead of only the console. */
+  function runSlashCommand(entry) {
+    try {
+      Promise.resolve(entry.run()).catch((err) => {
+        appendSystem(`${entry.cmd} failed: ${coerceMessageText(err?.message ?? err)}`);
+      });
+    } catch (err) {
+      appendSystem(`${entry.cmd} failed: ${coerceMessageText(err?.message ?? err)}`);
     }
   }
 
@@ -20306,15 +22367,16 @@ function buildPanel() {
       cmd: "/revert",
       icon: "pi-undo",
       hint: "undo the last turn's graph edits — revert the canvas to before your last message",
-      run: () => {
-        const snap = revertGraphToLastSnapshot();
-        if (snap) {
-          appendSystem(
-            `↩ Reverted the canvas to before${snap.label ? ` “${snap.label}”` : " your last message"}.`,
-          );
-        } else {
-          appendSystem("Nothing to revert — no graph snapshot captured in this session yet.");
-        }
+      run: async () => {
+        const outcome = await revertGraphToLastSnapshot();
+        const label = outcome?.snapshot?.label;
+        appendSystem(
+          describeRevertOutcome(outcome, {
+            action: "revert",
+            restoredText: `↩ Reverted the canvas to before${label ? ` “${label}”` : " your last message"}.`,
+            noneText: "Nothing to revert — no graph snapshot captured in this session yet.",
+          }),
+        );
       },
     },
     {
@@ -20393,7 +22455,9 @@ function buildPanel() {
       input.value = "";
       input.style.height = "auto";
       appendUser(item.ref.cmd);
-      item.ref.run();
+      // Some slash commands (/revert) are async now. Normalize so a rejection can
+      // never surface as an unhandled promise from a sync UI handler.
+      runSlashCommand(item.ref);
       return;
     }
     const { start, end } = menuToken ?? { start: input.value.length, end: input.value.length };
@@ -21096,17 +23160,41 @@ function buildPanel() {
   // before your last message AND bring that message back into the composer to
   // edit & resend. (Graph + edit scope; conversation-fork is a follow-up.)
   let lastEscAt = 0;
-  function rewindLastTurn() {
-    const snap = revertGraphToLastSnapshot();
+  async function rewindLastTurn() {
+    // Recall FIRST and synchronously: the canvas revert now awaits an async
+    // loadGraphData, and the composer must not sit empty for the length of a graph
+    // load. The two halves are independent, so only the summary line below needs
+    // both results.
     const recalled = recallPrev(); // pulls your last message into the composer to edit
-    if (snap || recalled) {
+    if (recalled) input.focus();
+    const outcome = await revertGraphToLastSnapshot();
+    const reverted = revertDidRestore(outcome); // an outcome object is ALWAYS truthy
+    if (reverted || recalled) {
       appendSystem(
-        `↩ Rewound your last turn${snap ? " — canvas reverted" : ""}` +
+        `↩ Rewound your last turn${reverted ? " — canvas reverted" : ""}` +
           `${recalled ? "; your message is back in the composer to edit & resend" : ""}.`,
       );
       input.focus();
-    } else {
-      appendSystem("Nothing to rewind yet — no message/graph snapshot from this session.");
+    }
+    // The canvas half is ALWAYS stated when it did not happen — refused, failed, or
+    // simply no eligible snapshot. "Rewound your last turn; your message is back in
+    // the composer" is otherwise read as a completed rewind, and the user resends
+    // against a graph that still holds the very edits they meant to undo. `none` is
+    // as dangerous as a refusal here: the ring holds 25 and EVICTS, so an old turn's
+    // snapshot is simply gone. Only `restoredText` may be blank, because the line
+    // above already said "canvas reverted".
+    if (!reverted) {
+      appendSystem(
+        describeRevertOutcome(outcome, {
+          action: "rewind the canvas",
+          restoredText: "",
+          noneText: recalled
+            ? "The canvas was NOT reverted — no graph snapshot for that turn (they are kept for the " +
+              "last 25 and then evicted). Your message is back in the composer, but the canvas still " +
+              "holds that turn's edits."
+            : "Nothing to rewind yet — no message or graph snapshot from this session.",
+        }),
+      );
     }
   }
 
@@ -21161,22 +23249,77 @@ function buildPanel() {
     go.type = "button";
     go.className = "cmcp-btn cmcp-btn-primary";
     go.textContent = "Roll back & resend";
+    // The canvas rollback is an ASYNC load, so this modal outlives a single tick and
+    // needs explicit lifecycle state: `settled` makes the primary action single-shot
+    // (a double-click would otherwise start two restores and BOTH continuations
+    // would rewind the conversation and resubmit the message), and `cancelled` marks
+    // an explicit Cancel / backdrop dismissal so the continuation stops instead of
+    // acting on the user's behalf after they backed out.
+    let settled = false;
+    let cancelled = false;
+    // `close` is used BOTH for dismissal and for the handler's own teardown, so it
+    // must not itself set `cancelled` — doing that made every successful path look
+    // cancelled, which is why the gate below had to be written backwards to work at
+    // all. Dismissal is its own function.
     const close = () => overlay.remove();
-    cancel.addEventListener("click", close);
+    const dismiss = () => {
+      cancelled = true;
+      close();
+    };
+    cancel.addEventListener("click", dismiss);
     overlay.addEventListener("mousedown", (e) => {
-      if (e.target === overlay) close();
+      if (e.target === overlay) dismiss();
     });
-    go.addEventListener("click", () => {
+    go.addEventListener("click", async () => {
+      if (settled) return;
+      settled = true;
+      go.disabled = true;
       const edited = ta.value.trim();
       const wantCode = chosen === "code" || chosen === "both";
       const wantConvo = chosen === "conversation" || chosen === "both";
       if (wantCode) {
-        const snap = revertGraphSnapshotByMid(mid);
+        // AWAITED before the conversation rewind and the resend below: resending
+        // against a canvas whose load is still in flight is the race this whole
+        // path is about.
+        const outcome = await revertGraphSnapshotByMid(mid);
         appendSystem(
-          snap
-            ? "↩ Canvas reverted to before this message."
-            : "No graph snapshot for this message — canvas left as-is.",
+          describeRevertOutcome(outcome, {
+            action: "roll back the canvas",
+            restoredText: "↩ Canvas reverted to before this message.",
+            noneText: "No graph snapshot for this message — canvas left as-is.",
+          }),
         );
+        // The user asked to roll the canvas back AND resend against it. Unless the
+        // rollback is PROVEN to have happened, resending aims the next turn at a
+        // graph that is not the one they chose — the destructive retry this whole
+        // cluster is about. STOP and leave the edited text in the composer so the
+        // decision stays theirs.
+        //
+        // "none" is NOT an exemption. It means only that this message has no
+        // snapshot — the ring holds 25 and evicts, so rolling back an old message
+        // reports "canvas left as-is" while the canvas actually carries every later
+        // turn's edits. That is an unknown state being read as permission to
+        // resend, which is the same mistake one level up.
+        if (!revertDidRestore(outcome)) {
+          close();
+          if (edited) setComposerValue(edited);
+          appendSystem(
+            "Not resending — the canvas was not rolled back to the state you asked for. Your edited " +
+              "message is in the composer; send it once the canvas is what you want.",
+          );
+          return;
+        }
+      }
+      // The user hit Cancel (or the backdrop) while the rollback was still in
+      // flight. The canvas work already happened and was reported above — but
+      // rewinding the conversation and RESENDING their message afterwards is acting
+      // on their behalf after they backed out. Stop, and leave the edit with them.
+      if (cancelled) {
+        if (edited) setComposerValue(edited);
+        appendSystem(
+          "Cancelled — not rewinding the conversation or resending. Your edited message is in the composer.",
+        );
+        return;
       }
       if (wantConvo) {
         client.sendFrame?.({ type: "rewind", anchor });
@@ -21360,7 +23503,7 @@ function buildPanel() {
         appendUser(text);
         input.value = "";
         input.style.height = "auto";
-        c.run();
+        runSlashCommand(c);
         return;
       }
     }
@@ -21529,7 +23672,10 @@ function buildPanel() {
       if (now - lastEscAt < 600) {
         lastEscAt = 0;
         ev.preventDefault();
-        rewindLastTurn();
+        // Fire-and-forget from a sync key handler: rewindLastTurn resolves to an
+        // outcome rather than rejecting, but a stray throw must not surface as an
+        // unhandled rejection.
+        rewindLastTurn().catch(() => {});
         return;
       }
       lastEscAt = now;
@@ -22094,6 +24240,11 @@ function buildPanel() {
       // reconcile await (codex P1 unmount-resurrection leak). Only null the shared
       // refs if they still point at THIS instance — a newer mount may already own them.
       runReconcileSweep.dispose();
+      // #585: the restart-resume watch drives client.sendUserMessage — a torn-down
+      // panel must not keep it alive. The marker itself SURVIVES on purpose: a
+      // remount re-reads it and re-arms the watch, so unmounting never loses the
+      // suppressed resume.
+      stopRebootWatch();
       if (armRunReconcileSweepRef === armRunReconcileSweep) armRunReconcileSweepRef = null;
       if (runCompletionRef === runCompletion) runCompletionRef = null;
       // Drop the Settings→panel hooks so the dialog can't drive a torn-down panel

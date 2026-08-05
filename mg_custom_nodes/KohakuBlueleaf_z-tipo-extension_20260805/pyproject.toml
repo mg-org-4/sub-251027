@@ -1,0 +1,38 @@
+[project]
+name = "z-tipo-extension"
+description = "A general extension to utilize TIPO or DanTagGen to do 'text-presampling' based on KGen library: [a/https://github.com/KohakuBlueleaf/KGen](https://github.com/KohakuBlueleaf/KGen)"
+version = "2.0.1"
+license = {file = "LICENSE"}
+dependencies = ["tipo-kgen>=0.3.0", "transformers"]
+
+[project.urls]
+Repository = "https://github.com/KohakuBlueleaf/z-tipo-extension"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "kblueleaf"
+DisplayName = "z-tipo-extension"
+Icon = "https://kblueleaf.net/_astro/tipo-icon.CtiA3WfM.jpg"
+
+[tool.black]
+target-version = ["py313"]
+
+[tool.ruff]
+target-version = "py313"
+
+[tool.ruff.lint]
+ignore = [
+    # Probing for an optional dependency or a package manager must degrade, never
+    # raise into the host app: a broken import should not take ComfyUI down.
+    "BLE001",
+    "S110",
+    "S112",
+    # The module name is the git repository directory. Renaming it would break
+    # every existing checkout and the Comfy registry entry.
+    "N999",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Gradio `with` nesting mirrors the widget tree it builds; flattening it hides
+# the layout. The lru_cache predates this rewrite.
+"scripts/*.py" = ["SIM117", "B019"]

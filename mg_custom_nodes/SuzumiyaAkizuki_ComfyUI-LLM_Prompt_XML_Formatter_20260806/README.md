@@ -39,7 +39,7 @@
 
 - 如果你已经有一组标签，直接在输入框粘贴（逗号分隔），Agent 会识别并跳过搜索，1 轮完成。
 - 混合输入（标签 + 自然语言描述）会只搜索自然语言部分涉及的维度，不会浪费轮次。
-- 控制台会显示 `[Agent]` 前缀的详细日志，可以观察每轮的搜索内容和 Token 消耗。
+- 控制台会显示 `[Agent]` 前缀的详细日志，可以观察每轮的搜索内容和 Token 消耗；开启 `thinking` 后，还会实时流式显示模型返回的思考内容。
 
 </details>
 
@@ -204,7 +204,7 @@ ComfyUI-NewBie-LLM-Formatter 提供三个节点：
 | `api_url` | STRING | API 主机地址。若配置文件中已有有效值，此处输入不生效。 |
 | `model_name` | STRING/下拉框 | 模型名称。若配置文件中的 `model_list` 有效，显示为下拉框；否则显示为文本输入框。 |
 | `mode` | 下拉框 | **NewBie**（默认）或 **Anima**。决定使用哪套 system prompt 以及输出解析方式。 |
-| `thinking` | BOOLEAN | 深度思考模式开关。`true` 时模型进行深度思考，思考过程输出到控制台。**推荐设置为 `false`。** Agent 模式下此开关被强制关闭。 |
+| `thinking` | BOOLEAN | 深度思考模式开关。普通模式和 Agent 模式均生效。`true` 时 Agent 会流式读取并在控制台实时显示模型返回的 `reasoning_content` / `reasoning` / `reasoning_details`，工具调用轮次会原样回传推理字段；这些内容不会混入节点输出。思考模式通常更慢且消耗更多 Token。 |
 | `agent_effort` | 下拉框 | **[v1.2.9 新增]** Agent 努力等级。`Close`（默认）= 关闭 Agent，走普通模式；`Low` = 流水线模式（单轮批量搜索 + LLM 组装，不走 Agent 循环，最快）；`Medium` = Agent 循环模式（`full_scene` 预设，平衡召回质量与收敛速度，最多 8 轮）；`High` = Agent 循环模式（`concept_explore` 宽召回预设 + 默认携带 wiki 释义，最多 10 轮，最深入）。 |
 | `force_full_agent_run` | BOOLEAN | 强制本次 Agent 从头生成，不复用上一轮结果。通常保持关闭；当你觉得上一轮缓存影响了本次修改时，再临时打开。 |
 | `user_text` | STRING | 待转换的自然语言描述或标签集。 |
@@ -251,7 +251,7 @@ ComfyUI-NewBie-LLM-Formatter 提供三个节点：
 | `xiaomi/mimo-v2-flash` | ~0.0004 | 较好 | 一般 | — |
 | `cognitivecomputations/dolphin-mistral-24b-venice-edition:free` | 免费 | 官方宣称无审查 | 较差 | — |
 
-> **思考模式说明：** 目前适配了 OpenRouter、DeepSeek、Google AI、Anthropic 官方、Kimi、小米 MIMO 和 Vercel AI Gateway 平台。其他平台请通过模型名称控制（如用 `deepseek-chat` 代替 `deepseek-reasoner`）。
+> **思考模式说明：** 目前适配了 OpenRouter、DeepSeek、Google AI、Anthropic 官方、Kimi、小米 MIMO 和 Vercel AI Gateway 平台，普通模式和 Agent 模式均可使用。Agent 会优先流式展示平台实际返回的思考内容；若网关不支持流式，则自动回退为非流式并在请求完成后显示。部分模型只返回隐藏/加密推理或不返回可见思考文本，此时不会有可展示的思维链。其他平台请通过模型名称控制（如用 `deepseek-chat` 代替 `deepseek-reasoner`）。
 >
 > **免费额度提示：** 在 [DeepSeek 开放平台](https://platform.deepseek.com) 注册后可获赠 10 元免费额度，大约可使用 1000 次。
 
@@ -451,6 +451,17 @@ Anima 模式下的画师和风格注入逻辑：
 
 <details open>
 <summary>展开/折叠更新历史</summary>
+
+### 2026年08月06日 v1.3.5
+
+> 让 Agent 的思考、搜索和异常恢复更稳定，同时改善 Anima 提示词的构图与多人表现。
+
+- **Agent 深度思考可用**：`thinking` 开关现在同样作用于 Agent 模式；开启后可以在控制台实时查看模型返回的思考内容。
+- **纯文本搜索启动更快**：Medium / High 模式会直接理解文本并规划搜索，减少额外等待和 Token 消耗；Low 模式和带图输入仍会保留完整的画面拆解流程。
+- **Agent 搜索更顺畅**：优化了格式获取、首批搜索和关联探索之间的调度，减少不必要的等待、重复搜索和无效轮次。
+- **已有标签识别更可靠**：标签与中文描述、角色名、括号或冒号混合输入时，也能更准确地识别用户已经给出的标签，避免重复检索和误改。
+- **网络异常更容易恢复**：Agent 请求失败时会自动重试，并尽量根据已经取得的搜索结果完成输出；彻底失败时会明确报错并保存诊断信息，不再静默切换为普通模式。
+- **Anima 示例配置更完善**：使用新版示例配置时，人物占比、背景层级、前景遮挡、主体曝光和多人特征归属更加稳定；同时补充了多组画师与风格预设，方便直接参考和调整。
 
 ### 2026年07月11日 v1.3.4
 

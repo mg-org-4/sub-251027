@@ -1,7 +1,7 @@
 [project]
 name = "ComfyUI-DyPE"
-description = "DyPE. Artifact-free 4K+ image generation. Flux, Nunchaku, Qwen, Z-Image, Anima, Krea-2"
-version = "2.4.0"
+description = "DyPE & SEGA. Artifact-free 4K+ image generation. Flux, Nunchaku, Qwen, Z-Image, Anima, Krea-2"
+version = "2.5.0"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
 dependencies = ["torch"]
@@ -16,7 +16,7 @@ Repository = "https://github.com/wildminder/ComfyUI-DyPE"
 [tool.comfy]
 PublisherId = "wildai"
 DisplayName = "DyPE"
-Icon = ""
+Icon = "https://raw.githubusercontent.com/wildminder/ComfyUI-DyPE/refs/heads/main/dype-icon.png"
 requires-comfyui = ">=0.28.0"
 
 [tool.pytest.ini_options]

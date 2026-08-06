@@ -1,11 +1,11 @@
 <div id="readme-top" align="center">
-  <h1 align="center">ComfyUI-DyPE</h1>
+  <h1 align="center">ComfyUI-DyPE/SEGA</h1>
 
 <img src="https://github.com/user-attachments/assets/4f11966b-86f7-4bdb-acd4-ada6135db2f8" alt="ComfyUI-DyPE Banner" width="70%">
 
   
   <p align="center">
-    A ComfyUI custom node that implements <strong>DyPE (Dynamic Position Extrapolation)</strong>, enabling Diffusion Transformers (like <strong>FLUX</strong>, <strong>Qwen Image</strong>, <strong>Z-Image</strong>, <strong>Anima/Cosmos</strong>, and <strong>Krea-2</strong>) to generate ultra-high-resolution images (4K and beyond) with exceptional coherence and detail.
+    A ComfyUI custom node that implements <strong>DyPE (Dynamic Position Extrapolation)</strong> and <strong>SEGA (Spectral-Energy Guided Attention)</strong>, enabling Diffusion Transformers (like <strong>FLUX</strong>, <strong>Qwen Image</strong>, <strong>Z-Image</strong>, <strong>Anima/Cosmos</strong>, and <strong>Krea-2</strong>) to generate ultra-high-resolution images (4K and beyond) with exceptional coherence and detail.
     <br />
     <br />
     <a href="https://github.com/wildminder/ComfyUI-DyPE/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
@@ -58,6 +58,43 @@ This node provides a seamless, "plug-and-play" integration of DyPE into your wor
 <div align="center">
 <img alt="Example dype" src="https://github.com/user-attachments/assets/f85861fd-4d2f-4b57-8058-26881600b7ca" />
 </div>
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## SEGA Node
+
+<div align="center">
+<img alt="Node" width="70%" src="https://github.com/user-attachments/assets/6420a05b-0702-4fa1-8137-047db5e133ea" />
+</div>
+
+**SEGA** (Spectral-Energy Guided Attention) — content-aware per-dimension RoPE mscale from the latent's FFT spectrum. Use as an alternative to DyPE for FLUX/Qwen. For Anima, use DyPE `vision_yarn` instead.
+
+<div align="center">
+<img alt="Example sega" src="https://github.com/user-attachments/assets/c9d812c8-a88b-4e8d-bb84-0f4bd5ef18ef" />
+</div>
+
+### Usage
+
+1. Add the **SEGA** node after your model loader
+2. Set width/height to match your latent
+3. Use `method: sega` (default) or `method: ntk` (NTK only, no spectral)
+4. Tune `mscale_alpha` (amplitude) and `spread_min`/`spread_max` (spectral gate range)
+
+### Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `method` | sega | `sega` = NTK + spectral mscale, `ntk` = NTK only |
+| `mscale_alpha` | 0.15 | Spectral redistribution amplitude |
+| `mscale_beta` | 1.5 | tanh sharpness |
+| `mscale_min` | 1.0 | Floor for per-frequency mscale |
+| `spread_min` | 0.0 | Min spectral spread (early steps) |
+| `spread_max` | 1.0 | Max spectral spread (late steps) |
+| `spread_alpha` | 1.5 | Spread schedule non-linearity |
+| `base_mscale_formula` | power_res | `power_res`: s^κ, `log_res`: 1+κ·ln(s) |
+| `base_mscale_coefficient` | 0.08 | κ (paper default) |
+
+> **Note:** SEGA uses NTK as its base extrapolation. It refines NTK with per-dimension spectral mscale. If NTK doesn't work for your model (e.g. Anima), SEGA won't either — use DyPE `vision_yarn` instead.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -148,6 +185,11 @@ Using the node is straightforward and designed for minimal workflow disruption.
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Changelog
+
+#### v2.5.0
+*   **SEGA Node:** Added **SEGA** (Spectral-Energy Guided Attention) — a new node that computes per-RoPE-dimension mscale from the latent's Fourier spectrum at each denoising step. Content-aware attention sharpening for FLUX/Qwen. Uses NTK as base extrapolation with per-dim spectral refinement.
+*   **5D Latent Support:** SEGA wrapper handles both 4D `(B,C,H,W)` and 5D `(B,C,T,H,W)` latents for video models.
+*   **Native Patch Grid:** SEGA reads Anima's native `max_img_h`/`patch_spatial` for correct scale computation.
 
 #### v2.4.0
 *   **Anima/Cosmos Support:** Added support for **Anima/Cosmos** models. Reads the model's native per-axis NTK factors and patch grid (`max_img_h/w`, `patch_spatial`) so DyPE only extrapolates beyond native resolution. Recommended method: `vision_yarn`.

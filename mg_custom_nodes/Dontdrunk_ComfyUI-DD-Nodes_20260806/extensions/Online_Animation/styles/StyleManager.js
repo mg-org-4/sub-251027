@@ -135,15 +135,17 @@ export class StyleManager {
         
         // 处理指定的连线
         linksToProcess.forEach(link => {
-            const outNode = link.origin_id === -10 ? this.animationManager.canvas.graph.inputNode : this.animationManager.canvas.graph.getNodeById(link.origin_id);
-            const inNode = link.target_id === -20 ? this.animationManager.canvas.graph.outputNode : this.animationManager.canvas.graph.getNodeById(link.target_id);
+            // ComfyUI toNodeId(): subgraph IO ids are strings "-10"/"-20"
+            const outNode = link.origin_id == -10 ? this.animationManager.canvas.graph.inputNode : this.animationManager.canvas.graph.getNodeById(link.origin_id);
+            const inNode = link.target_id == -20 ? this.animationManager.canvas.graph.outputNode : this.animationManager.canvas.graph.getNodeById(link.target_id);
             if (!outNode || !inNode) return;
             
-            const outPos = link.origin_id === -10 ? outNode.slots[link.origin_slot].pos : this._getOutputPos(outNode, link.origin_slot);
-            const inPos = link.target_id === -20 ? inNode.slots[link.target_slot].pos : this._getInputPos(inNode, link.target_slot);
+            const outPos = link.origin_id == -10 ? outNode.slots?.[link.origin_slot]?.pos : this._getOutputPos(outNode, link.origin_slot);
+            const inPos = link.target_id == -20 ? inNode.slots?.[link.target_slot]?.pos : this._getInputPos(inNode, link.target_slot);
+            if (!outPos || !inPos) return;
             
             // 使用统一的getBaseColor方法获取颜色
-            const baseColor = this.currentStyle.getBaseColor(link.origin_id !== -10 ? outNode : inNode, link);
+            const baseColor = this.currentStyle.getBaseColor(link.origin_id != -10 ? outNode : inNode, link);
             
             // 计算路径点和类型
             const pathInfo = this.currentStyle.calculatePath(outNode, inNode, outPos, inPos, link);

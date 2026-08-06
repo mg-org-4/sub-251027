@@ -304,8 +304,9 @@ export class ConnectionAnimation {
     _shouldShowAnimation(link) {
         if (!link || !this.canvas || !this.canvas.graph) return false;
         
-        const originNode = link.origin_id === -10 ? this.canvas.graph.inputNode : this.canvas.graph._nodes_by_id[link.origin_id];
-        const targetNode = link.target_id === -20 ? this.canvas.graph.outputNode : this.canvas.graph._nodes_by_id[link.target_id];
+        // ComfyUI toNodeId(): subgraph IO ids are strings "-10"/"-20" (also accept legacy numbers)
+        const originNode = link.origin_id == -10 ? this.canvas.graph.inputNode : this.canvas.graph._nodes_by_id[link.origin_id];
+        const targetNode = link.target_id == -20 ? this.canvas.graph.outputNode : this.canvas.graph._nodes_by_id[link.target_id];
         
         if (!originNode || !targetNode) return false;
         
@@ -552,8 +553,8 @@ export class ConnectionAnimation {
             }
 
             // 获取节点和位置信息
-            const outNode = link.origin_id === -10 ? this.canvas.graph.inputNode : this.canvas.graph.getNodeById(link.origin_id);
-            const inNode = link.target_id === -20 ? this.canvas.graph.outputNode : this.canvas.graph.getNodeById(link.target_id);
+            const outNode = link.origin_id == -10 ? this.canvas.graph.inputNode : this.canvas.graph.getNodeById(link.origin_id);
+            const inNode = link.target_id == -20 ? this.canvas.graph.outputNode : this.canvas.graph.getNodeById(link.target_id);
             
             if (!outNode || !inNode) return;
 
@@ -691,8 +692,8 @@ export class ConnectionAnimation {
         const graph = this.canvas.graph;
         if (!graph || !graph._nodes_by_id) return null;
 
-        const outNode = link.origin_id === -10 ? graph.inputNode : graph._nodes_by_id[link.origin_id];
-        const inNode = link.target_id === -20 ? graph.outputNode : graph._nodes_by_id[link.target_id];
+        const outNode = link.origin_id == -10 ? graph.inputNode : graph._nodes_by_id[link.origin_id];
+        const inNode = link.target_id == -20 ? graph.outputNode : graph._nodes_by_id[link.target_id];
 
         if (!outNode || !inNode) return null;
 
@@ -707,7 +708,7 @@ export class ConnectionAnimation {
         if (!pathInfo) return null;
 
         // 获取基础颜色
-        const baseColor = this.staticStyleManager.getCurrentStyle()?.getBaseColor(link.origin_id !== -10 ? outNode : inNode, link) || "#999999";
+        const baseColor = this.staticStyleManager.getCurrentStyle()?.getBaseColor(link.origin_id != -10 ? outNode : inNode, link) || "#999999";
 
         return {
             path: pathInfo.points,

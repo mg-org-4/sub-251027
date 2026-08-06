@@ -911,8 +911,9 @@ class MapLinks {
         const allLinks = Object.values(graph.links || {});
 
         allLinks.forEach(link => {
-            const isSubgraphOrigin = link.origin_id === -10;
-            const isSubgraphTarget = link.target_id === -20;
+            // ComfyUI toNodeId(): subgraph IO ids are strings "-10"/"-20"
+            const isSubgraphOrigin = link.origin_id == -10;
+            const isSubgraphTarget = link.target_id == -20;
             if (!isSubgraphOrigin && !isSubgraphTarget) return;
 
             const outNode = isSubgraphOrigin ? graph.inputNode : graph._nodes_by_id[link.origin_id];

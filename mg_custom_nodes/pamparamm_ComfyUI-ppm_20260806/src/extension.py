@@ -1,11 +1,9 @@
-from typing import TYPE_CHECKING
-
 from typing_extensions import override
 
 from comfy_api.latest import ComfyExtension, io
 
-from .src.compat.utils import v3_schema_stub  # ty: ignore[unresolved-import]
-from .src.nodes_ppm import (  # ty: ignore[unresolved-import]
+from .compat.utils import v3_schema_stub
+from .nodes_ppm import (
     attention_couple_ppm,
     attention_selector,
     cads_ppm,
@@ -19,26 +17,7 @@ from .src.nodes_ppm import (  # ty: ignore[unresolved-import]
     misc,
     samplers,
 )
-from .src.schedulers import inject_schedulers  # ty: ignore[unresolved-import]
-
-# Temporary fix for ty
-if TYPE_CHECKING:
-    from src.compat.utils import v3_schema_stub
-    from src.nodes_ppm import (
-        attention_couple_ppm,
-        attention_selector,
-        cads_ppm,
-        clip_misc,
-        clip_negpip,
-        freeu_adv,
-        guidance,
-        image_misc,
-        latent_misc,
-        latent_tonemap,
-        misc,
-        samplers,
-    )
-    from src.schedulers import inject_schedulers
+from .schedulers import inject_schedulers
 
 WEB_DIRECTORY = "./js"
 
@@ -68,5 +47,5 @@ class PPMExtension(ComfyExtension):
         ]
 
 
-async def comfy_entrypoint():  # ComfyUI calls this to load your extension and its nodes.
+async def comfy_entrypoint() -> ComfyExtension:
     return PPMExtension()

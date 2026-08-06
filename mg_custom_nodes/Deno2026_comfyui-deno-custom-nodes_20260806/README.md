@@ -85,9 +85,9 @@ Main features:
 - common ratio presets
 - megapixel-based size calculation
 - `divisible_by` alignment
-- `Center Crop (Fill)` and `Fit (Letterbox/Pillarbox)` resize modes
+- `Center Crop (Fill)`, aspect-locked zoomable `Crop Position (Fill)`, and `Fit (Letterbox/Pillarbox)` resize modes
 - `lanczos` default interpolation
-- live ratio preview inside the node
+- live ratio preview; `Crop Position (Fill)` shows the full connected source, lets you drag the crop box to reposition it, and lets you drag any corner to zoom while keeping the output ratio and megapixels fixed
 - outputs: `image`, `width`, `height`
 
 ### `(Deno) Multi Image Loader`
@@ -125,9 +125,10 @@ Main features:
 - keeps each decoded image's own dimensions and aspect ratio without resize, crop, pad, or letterbox processing
 - card order maps directly to `<Picture 1>`, `<Picture 2>`, and so on
 - connects to the single `ref_images` input on `(Deno) MiniMax H3 Reference to Video`
+- also exposes the same ordered sources as an `image_list` output that connects directly to `(Deno) Local LLM Loader`'s `image` input
 - the H3 node keeps ComfyUI's native reference-video, paired-video-audio, and standalone-audio Autogrow inputs
 
-The dedicated socket is intentional: a normal ComfyUI `IMAGE` batch requires one shared width and height, so it cannot preserve mixed reference sizes. MiniMax H3 may still downscale references during its normal `ref_image_size` processing while preserving their aspect ratio.
+The dedicated H3 socket is intentional: a normal ComfyUI `IMAGE` batch requires one shared width and height, so it cannot preserve mixed reference sizes. The additional `image_list` is a list output rather than a same-size batch, so the original dimensions, order, and aspect ratios remain separate when reused by list-aware nodes. MiniMax H3 may still downscale references during its normal `ref_image_size` processing while preserving their aspect ratio.
 
 These two MiniMax H3 nodes require ComfyUI 0.30.0 or newer. See the portable [MiniMax H3 multi-reference workflow](docs/workflows/minimax-h3-multi-reference.json) for the complete native H3 pipeline with the two stock `Load Image` nodes replaced by the one-cable DENO loader.
 
@@ -440,6 +441,7 @@ Main features:
 - connect prompt batches through one node run so the local model can stay loaded until the batch finishes
 - optionally attach an IMAGE to a vision-capable local model call
 - preview Thinking and Result text directly on the node
+- keep named System Prompt presets in ComfyUI user data so they survive browser-profile cleanup; existing browser presets can be imported once while the browser copy stays untouched as a backup
 - use `(Deno) Local LLM Reviewer` as a gate before Save nodes
 - pass or block IMAGE and AUDIO outputs from a review text result
 - approve the current reviewed result once, or rerun the path before the reviewer

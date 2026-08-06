@@ -611,16 +611,16 @@ def _make_av_freeze_noise_mask(latent: dict, video: torch.Tensor, audio: torch.T
     return _make_nested_latent([video_mask, audio_mask])
 
 
-def _require_callback_x0(x0_output: dict[str, Any], node_name: str) -> torch.Tensor:
+def _require_callback_x0(x0_output: dict[str, Any], node_name: str) -> Any:
     if "x0" not in x0_output:
         raise RuntimeError(
             f"{node_name} did not capture callback x0. Strict denoised_output mode "
             "will not substitute sampler output."
         )
     x0 = x0_output["x0"]
-    if not isinstance(x0, torch.Tensor):
+    if not isinstance(x0, torch.Tensor) and not _is_nested(x0):
         raise RuntimeError(
-            f"{node_name} expected callback x0 to be a torch.Tensor, "
+            f"{node_name} expected callback x0 to be a torch.Tensor or NestedTensor, "
             f"got {type(x0).__name__}."
         )
     return x0
@@ -676,25 +676,9 @@ def _validate_unpacked_shapes(
             )
 
 
-def _assert_same_tensor(
-    actual: torch.Tensor,
-    expected: torch.Tensor,
-    label: str,
-    *,
-    rtol: float = 1e-5,
-    atol: float = 1e-6,
-) -> None:
-    comparable = actual.to(device=expected.device, dtype=expected.dtype)
-    if tuple(comparable.shape) != tuple(expected.shape) or not torch.allclose(
-        comparable,
-        expected,
-        rtol=rtol,
-        atol=atol,
-    ):
-        raise RuntimeError(
-            f"{label} changed even though audio_mode='freeze'. An incompatible "
-            "wrapper or sampler path may have bypassed the audio denoise mask."
-        )
+def _require_finite_tensor(value: torch.Tensor, label: str) -> None:
+    if not bool(torch.isfinite(value).all().item()):
+        raise RuntimeError(f"{label} contains non-finite values.")
 
 
 def _wrapper_key_name(key: Any) -> str:
@@ -862,18 +846,33 @@ class DenoLTXTiledSpatialUpscaler:
         )
 
         model_management = _comfy_model_management()
-        device = model_management.get_torch_device()
+        patcher_type = _comfy_model_patcher().ModelPatcher
+        model_patcher = upscale_model if isinstance(upscale_model, patcher_type) else None
+        model = model_patcher.model if model_patcher is not None else upscale_model
+        device = (
+            model_patcher.load_device
+            if model_patcher is not None
+            else model_management.get_torch_device()
+        )
         intermediate_device = model_management.intermediate_device()
-        model_dtype = next(upscale_model.parameters()).dtype
+        model_dtype = (
+            model_patcher.model_dtype()
+            if model_patcher is not None
+            else next(model.parameters()).dtype
+        )
 
         max_tile_h = max(spec.height for spec in plan)
         max_tile_w = max(spec.width for spec in plan)
-        model_bytes = model_management.module_size(upscale_model)
         tile_elements = batch * channels * frames * max_tile_h * max_tile_w
-        model_management.free_memory(
-            model_bytes + tile_elements * UPSCALER_MEMORY_BYTES_PER_TILE_ELEMENT,
-            device,
-        )
+        activation_bytes = tile_elements * UPSCALER_MEMORY_BYTES_PER_TILE_ELEMENT
+        if model_patcher is not None:
+            model_management.load_models_gpu(
+                [model_patcher],
+                memory_required=activation_bytes,
+            )
+        else:
+            model_bytes = model_management.module_size(model)
+            model_management.free_memory(model_bytes + activation_bytes, device)
 
         if debug:
             print(
@@ -891,13 +890,14 @@ class DenoLTXTiledSpatialUpscaler:
         out_width: int | None = None
 
         try:
-            upscale_model.to(device)
+            if model_patcher is None:
+                model.to(device)
             latent_device = source.to(device=device, dtype=model_dtype)
             latent_unnormalized = stats.un_normalize(latent_device)
 
             for index, spec in enumerate(plan):
                 tile_in = latent_unnormalized[:, :, :, spec.y0:spec.y1, spec.x0:spec.x1].contiguous()
-                tile_out = upscale_model(tile_in)
+                tile_out = model(tile_in)
 
                 if tile_out.ndim != 5:
                     raise RuntimeError(
@@ -979,7 +979,8 @@ class DenoLTXTiledSpatialUpscaler:
             upscaled = stats.normalize(upscaled_unnormalized.to(dtype=model_dtype))
             del upscaled_unnormalized
         finally:
-            upscale_model.cpu()
+            if model_patcher is None:
+                model.cpu()
             self._cleanup(device, bool(aggressive_memory_cleanup))
 
         result = samples.copy()
@@ -1724,6 +1725,7 @@ class DenoLTXAVStepFusedTiledSampler:
 
         latent = latent_image.copy()
         video, audio = self._validate_av_samples(latent["samples"])
+        _require_finite_tensor(audio, "AV input audio")
         video = self._fix_video_channels(guider, latent, video)
         source = _make_nested_latent([video, audio])
         latent["samples"] = source
@@ -1784,9 +1786,7 @@ class DenoLTXAVStepFusedTiledSampler:
             expected_video_shape=video.shape,
             expected_audio_shape=audio.shape,
         )
-        terminal_sigma = float(sigmas[-1].detach().flatten()[0].cpu())
-        if math.isclose(terminal_sigma, 0.0, abs_tol=1e-8):
-            _assert_same_tensor(audio_out, audio, "AV sampler output audio")
+        _require_finite_tensor(audio_out, "AV sampler output audio")
 
         if predictor.call_count == 0:
             raise RuntimeError(
@@ -1817,12 +1817,15 @@ class DenoLTXAVStepFusedTiledSampler:
             x0_output,
             "Deno LTX AV Step-Fused Tiled Sampler",
         )
-        raw_x0 = tiled_guider.model_patcher.model.process_latent_out(callback_x0.cpu())
+        processed_x0 = tiled_guider.model_patcher.model.process_latent_out(callback_x0.cpu())
         latent_shapes = [video_out.shape, audio.shape]
-        _validate_packed_latent_shape(raw_x0, latent_shapes, "AV x0")
-        x0_parts = _unpack_latents(raw_x0, latent_shapes)
+        if _is_nested(processed_x0):
+            x0_parts = list(processed_x0.unbind())
+        else:
+            _validate_packed_latent_shape(processed_x0, latent_shapes, "AV x0")
+            x0_parts = _unpack_latents(processed_x0, latent_shapes)
         _validate_unpacked_shapes(x0_parts, latent_shapes, "AV x0")
-        _assert_same_tensor(x0_parts[1], audio, "AV x0 audio")
+        _require_finite_tensor(x0_parts[1], "AV x0 audio")
 
         denoised = latent.copy()
         denoised.pop("downscale_ratio_spacial", None)

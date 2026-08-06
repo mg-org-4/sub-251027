@@ -42,6 +42,11 @@ except ImportError:
     from deno_node_metadata import decorate_node_classes
 
 INTERPOLATION_MODES = ["lanczos", "bicubic", "bilinear", "area", "nearest", "nearest-exact"]
+RESIZE_BOX_RESIZE_METHODS = [
+    "Center Crop (Fill)",
+    "Crop Position (Fill)",
+    "Fit (Letterbox/Pillarbox)",
+]
 
 
 def _get_torch():
@@ -189,6 +194,9 @@ def _resize_with_method(
     target_height: int,
     resize_method: str,
     interpolation: str,
+    crop_x: float = 0.5,
+    crop_y: float = 0.5,
+    crop_zoom: float = 1.0,
 ):
     image_nchw = image.movedim(-1, 1)
     _, _, source_height, source_width = image_nchw.shape
@@ -196,7 +204,37 @@ def _resize_with_method(
     source_aspect = source_width / source_height
     target_aspect = target_width / target_height
 
-    if resize_method == "Center Crop (Fill)":
+    try:
+        requested_zoom = float(crop_zoom)
+    except (TypeError, ValueError):
+        requested_zoom = 1.0
+    if math.isnan(requested_zoom):
+        requested_zoom = 1.0
+    normalized_zoom = min(max(requested_zoom, 1.0), 32.0)
+
+    if resize_method == "Crop Position (Fill)" and normalized_zoom > 1.0:
+        normalized_x = min(max(float(crop_x), 0.0), 1.0)
+        normalized_y = min(max(float(crop_y), 0.0), 1.0)
+
+        if source_aspect > target_aspect:
+            crop_height = max(1, int(round(source_height / normalized_zoom)))
+            crop_width = max(1, int(round(crop_height * target_aspect)))
+        else:
+            crop_width = max(1, int(round(source_width / normalized_zoom)))
+            crop_height = max(1, int(round(crop_width / target_aspect)))
+
+        crop_width = min(source_width, crop_width)
+        crop_height = min(source_height, crop_height)
+        crop_left = int((source_width - crop_width) * normalized_x)
+        crop_top = int((source_height - crop_height) * normalized_y)
+        cropped = image_nchw[
+            :,
+            :,
+            crop_top:crop_top + crop_height,
+            crop_left:crop_left + crop_width,
+        ]
+        resized = _interpolate_image(cropped, target_height, target_width, interpolation)
+    elif resize_method in {"Center Crop (Fill)", "Crop Position (Fill)"}:
         if source_aspect > target_aspect:
             scale = target_height / source_height
         else:
@@ -206,9 +244,17 @@ def _resize_with_method(
         intermediate_height = max(1, int(round(source_height * scale)))
         resized = _interpolate_image(image_nchw, intermediate_height, intermediate_width, interpolation)
 
-        crop_x = max(0, (intermediate_width - target_width) // 2)
-        crop_y = max(0, (intermediate_height - target_height) // 2)
-        resized = resized[:, :, crop_y:crop_y + target_height, crop_x:crop_x + target_width]
+        overflow_x = max(0, intermediate_width - target_width)
+        overflow_y = max(0, intermediate_height - target_height)
+        if resize_method == "Center Crop (Fill)":
+            crop_left = overflow_x // 2
+            crop_top = overflow_y // 2
+        else:
+            normalized_x = min(max(float(crop_x), 0.0), 1.0)
+            normalized_y = min(max(float(crop_y), 0.0), 1.0)
+            crop_left = int(overflow_x * normalized_x)
+            crop_top = int(overflow_y * normalized_y)
+        resized = resized[:, :, crop_top:crop_top + target_height, crop_left:crop_left + target_width]
     else:
         if source_aspect > target_aspect:
             scale = target_width / source_width
@@ -260,7 +306,7 @@ class DenoResolutionSetup:
     DESCRIPTION = (
         "Resolution helper and image resize node for ComfyUI.\n"
         "Preset ratio, manual input, or keep-input-ratio auto mode with MP-based sizing, divisible-by alignment, "
-        "crop/fit resize, and realtime ratio preview.\n"
+        "aspect-locked crop positioning and zoom, fit resize, and realtime ratio preview.\n"
         "YouTube: https://www.youtube.com/@Denoise-AI"
     )
 
@@ -274,11 +320,16 @@ class DenoResolutionSetup:
                 "width": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 8}),
                 "height": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 8}),
                 "divisible_by": (DIVISIBLE_BY_VALUES, {"default": "32"}),
-                "resize_method": (RESIZE_METHODS, {"default": "Center Crop (Fill)"}),
+                "resize_method": (RESIZE_BOX_RESIZE_METHODS, {"default": "Center Crop (Fill)"}),
                 "interpolation": (INTERPOLATION_MODES, {"default": "lanczos"}),
             },
             "optional": {
                 "image": ("IMAGE",),
+                # Optional keeps legacy API-format prompts valid while the
+                # frontend still serializes these hidden positioning widgets.
+                "crop_x": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "crop_y": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "crop_zoom": ("FLOAT", {"default": 1.0, "min": 1.0, "max": 32.0, "step": 0.01}),
             },
         }
 
@@ -299,7 +350,7 @@ class DenoResolutionSetup:
         for result in (
             validate_combo_choice("mode", mode, ["Preset Ratio", "Manual Input", "Keep Input Ratio"]),
             validate_combo_choice("divisible_by", divisible_by, DIVISIBLE_BY_VALUES),
-            validate_combo_choice("resize_method", resize_method, RESIZE_METHODS),
+            validate_combo_choice("resize_method", resize_method, RESIZE_BOX_RESIZE_METHODS),
             validate_combo_choice("interpolation", interpolation, INTERPOLATION_MODES),
         ):
             if result is not True:
@@ -351,10 +402,22 @@ class DenoResolutionSetup:
         height: int,
         resize_method: str,
         interpolation: str,
+        crop_x: float = 0.5,
+        crop_y: float = 0.5,
+        crop_zoom: float = 1.0,
     ):
         if image is None:
             return _get_torch().zeros((1, height, width, 3), dtype=_get_torch().float32)
-        return _resize_with_method(image, width, height, resize_method, interpolation)
+        return _resize_with_method(
+            image,
+            width,
+            height,
+            resize_method,
+            interpolation,
+            crop_x,
+            crop_y,
+            crop_zoom,
+        )
 
     def setup_resolution(
         self,
@@ -367,6 +430,9 @@ class DenoResolutionSetup:
         resize_method: str,
         interpolation: str,
         image=None,
+        crop_x: float = 0.5,
+        crop_y: float = 0.5,
+        crop_zoom: float = 1.0,
     ):
         final_width, final_height, final_megapixels, aspect_ratio = self.calculate_dims(
             mode=mode,
@@ -384,6 +450,9 @@ class DenoResolutionSetup:
             height=final_height,
             resize_method=resize_method,
             interpolation=interpolation,
+            crop_x=crop_x,
+            crop_y=crop_y,
+            crop_zoom=crop_zoom,
         )
 
         return (

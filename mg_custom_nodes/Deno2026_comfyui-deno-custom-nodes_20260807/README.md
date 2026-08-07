@@ -123,6 +123,7 @@ Main features:
 - the same upload, paste, drag-and-drop, Input Folder, card reorder, and clear workflow as `(Deno) Multi Image Loader`
 - up to 9 ordered reference images through one dedicated socket
 - keeps each decoded image's own dimensions and aspect ratio without resize, crop, pad, or letterbox processing
+- displays each preview card at the source image's own aspect ratio, so mixed landscape and portrait references stay fully visible without preview cropping
 - card order maps directly to `<Picture 1>`, `<Picture 2>`, and so on
 - connects to the single `ref_images` input on `(Deno) MiniMax H3 Reference to Video`
 - also exposes the same ordered sources as an `image_list` output that connects directly to `(Deno) Local LLM Loader`'s `image` input
@@ -442,6 +443,8 @@ Main features:
 - optionally attach an IMAGE to a vision-capable local model call
 - preview Thinking and Result text directly on the node
 - keep named System Prompt presets in ComfyUI user data so they survive browser-profile cleanup; existing browser presets can be imported once while the browser copy stays untouched as a backup
+- see the actually applied System Prompt preset name on the node and in the editor; edited unmatched text is shown as `Custom`
+- connect a positive FLOAT to `video seconds` to append a sentence such as `This is an 8-second video.` to each LLM user prompt without changing the saved Prompt text
 - use `(Deno) Local LLM Reviewer` as a gate before Save nodes
 - pass or block IMAGE and AUDIO outputs from a review text result
 - approve the current reviewed result once, or rerun the path before the reviewer

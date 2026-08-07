@@ -134,14 +134,23 @@ class RK_NoiseSampler:
         self.av_audio_noise_scale = self.EO("av_audio_noise_scale", 1.0)
 
         shift_audio = getattr(diffusion_model, "sigma_shift_audio", None)
-        if shift_audio is not None:
+        # when model_sampling uses audio_scale skip shifting the audio schedule
+        # todo: remove this shifting code eventually once audio is always pre-scaled properly
+        if hasattr(guider, "model_patcher"):
+            model_sampling = guider.model_patcher.get_model_object("model_sampling")
+        else:
+            model_sampling = getattr(inner_model, "model_sampling", None)
+        is_audio_scale_set = getattr(model_sampling, "audio_scale", 1.0) != 1.0
+        if shift_audio is not None and not is_audio_scale_set:
             model_options       = getattr(guider, "model_options", {})
             transformer_options = model_options.get("transformer_options", {}) if isinstance(model_options, dict) else {}
 
             self.av_shift_video = float(transformer_options.get("minimax_h3_sigma_shift_video", getattr(diffusion_model, "sigma_shift_video", 12.0)))
             self.av_shift_audio = float(transformer_options.get("minimax_h3_sigma_shift_audio", shift_audio))
 
-        RESplain("AV stream split active. shift_video:", self.av_shift_video, "shift_audio:", self.av_shift_audio, "audio_noise_scale:", self.av_audio_noise_scale, debug=True)
+            RESplain("AV stream shifts applied. shift_video:", self.av_shift_video, "shift_audio:", self.av_shift_audio, debug=True)
+        elif is_audio_scale_set:
+            RESplain("AV stream split active, shifts handled by model_sampling.audio_scale", debug=True)
 
     def _av_sigma_audio(self, sigma:float) -> float:
         base = sigma / (self.av_shift_video + sigma * (1.0 - self.av_shift_video))

@@ -294,6 +294,10 @@ import {
   reRegisterExhaustedHint,
 } from "./lib/command-liveness.js";
 import {
+  classifyInteractiveCard,
+  refusedInteractiveCardError,
+} from "./lib/interactive-card-fence.js";
+import {
   saveActiveWorkflow,
   shouldGroundBeforeTurn,
   groundActiveWorkflow,
@@ -832,7 +836,7 @@ const DOCS_URL = "https://comfyui-mcp.artokun.io/docs";
 // Panel version — surfaced in the "Need help?" diagnostics blob. Bump via
 // `node scripts/set-version.mjs <v>` (updates this AND pyproject together); CI
 // and the publish gate FAIL if the two ever drift, so this can't go stale.
-const PANEL_VERSION = "0.11.41";
+const PANEL_VERSION = "0.11.42";
 
 // The connected orchestrator's console URL/token (captured off the `backends`
 // bridge message — see onBackends). Drives the "API Keys" credentials frame;
@@ -7101,7 +7105,7 @@ let activePanelRoot = null;
 
 const GRAPH_TOOL_EXECUTORS = {
   // #608: force a fresh /object_info re-register + combo refresh so an asset that
-  // appeared server-side AFTER page-load — a stage_output_as_input input, a freshly
+  // appeared server-side AFTER page-load — an upload_image action:"stage" input, a freshly
   // downloaded model/LoRA/VAE, a newly installed node pack — becomes selectable in
   // loaders/combos WITHOUT a manual reload (press-R) or restart. Reuses the #396
   // forced re-register (refreshComfyNodeDefs force), the SAME non-destructive path a
@@ -8373,7 +8377,7 @@ const GRAPH_TOOL_EXECUTORS = {
     const node = LG.createNode(class_type);
     if (!node) {
       throw new Error(
-        `Unknown node type "${class_type}" — check the exact class_type via get_node_info`,
+        `Unknown node type "${class_type}" — check the exact class_type via create_workflow (action:"node_info")`,
       );
     }
     const missingWidgets = missingRequiredWidgetMaterializations(
@@ -13889,7 +13893,7 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onCom
   // conversation. Cleared the moment it's consumed.
   let pendingContext = null;
   // Direct call_tool requests, cid-correlated. The CivitAI modal uses these to run
-  // whitelisted backend tools (download_civitai_model, save_workflow) synchronously
+  // whitelisted backend tools (download_model action:"download_civitai", save_workflow) synchronously
   // without an agent turn — mirrors the mobile bridge_client.callTool. The
   // orchestrator's call_tool handler + whitelist already exist server-side.
   const pendingCalls = new Map(); // cid -> { resolve, reject, timer }
@@ -15385,8 +15389,8 @@ function createBridgeClient({ onStatus, onSay, onStream, onLog, onCommand, onCom
     /** Run a whitelisted backend tool directly (no agent turn), cid-correlated.
      *  Resolves { ok, result, error } where result is the MCP content array
      *  ([{type:"text",text}], flatten by joining .text). Rejects on timeout or
-     *  socket close. Used by the CivitAI modal for download_civitai_model /
-     *  save_workflow. */
+     *  socket close. Used by the CivitAI modal for download_model
+     *  (action:"download_civitai") / save_workflow. */
     callTool(tool, args, opts) {
       if (!sock || sock.readyState !== WebSocket.OPEN) {
         return Promise.reject(new Error("bridge not connected"));
@@ -16806,6 +16810,24 @@ function setBackendDisabled(id, off) {
 }
 function backendEnabled(id) { return !disabledBackends().has(id); }
 
+// The conversation THIS TAB MINTED since the live turn began — record()'s mint
+// branch is the sole writer, and onTurn("working") resets it, so a non-null value
+// means exactly "record() created this conversation during the turn now running".
+//
+// The interactive-card fence needs that, and nothing weaker will do. A turn that
+// starts before this view has a conversation captures a null owner and then mints
+// its own; but a conversation can ALSO appear on screen mid-turn without being
+// this turn's — a cross-tab history sync followed by detachInvalidCurrentThread()
+// rebinding, or loadThread()'s blocked cross-workflow branch — and such a
+// conversation can be NEWER than the turn, so "created after the turn started"
+// cannot tell the two apart. Being minted right here can.
+//
+// Module-scoped ON PURPOSE: record() runs from many points inside the panel
+// builder closure, and a `let` declared partway down that 4000-line closure would
+// be in its temporal dead zone for any call that reaches record() earlier. A
+// module binding is initialized before buildPanel() can run at all. Only one
+// panel is mounted at a time (see liveBridgeClient), so a single slot is enough.
+let lastMintedThreadId = null;
 
 function buildPanel() {
   ensureStyles();
@@ -18864,7 +18886,7 @@ function buildPanel() {
     try { localStorage.setItem("cmcp.blindAgents", AGENT_BLIND ? "1" : "0"); } catch {}
     reflectFeedGates();
     // Issue #90: Blind must also gate the comfyui MCP's image tools
-    // (get_image/view_image return pixels straight from /view). Tell the
+    // (get_image action:"get"/"view" return pixels straight from /view). Tell the
     // orchestrator so it respawns this tab's tool server with the blind env —
     // without this the toggle only covered the panel's own image channel.
     // An OLD orchestrator has no handler and never acks — warn so the user
@@ -19467,6 +19489,10 @@ function buildPanel() {
       if (threads.length > MAX_THREADS) threads = capHistoryThreads(threads, thread.id);
       ssSet(CURRENT_THREAD_KEY, thread.id);
       setActiveThread(followsPanel ? "panel:global" : workflowKey, thread.id);
+      // THIS is the only place a conversation is created. Record it so the
+      // interactive-card fence can recognise the conversation an owner-less turn
+      // minted for itself, and only that one (see lastMintedThreadId).
+      lastMintedThreadId = thread.id;
     }
     if (entry.role === "user") {
       const version = workflowVersionSnapshot();
@@ -21635,6 +21661,25 @@ function buildPanel() {
     });
   }
 
+  // An interactive card (`ask_user` / `request_secret`) may only be painted into
+  // the conversation whose turn asked for it — see lib/interactive-card-fence.js
+  // for the whole argument and for why neither half of the pair is sufficient
+  // alone. Throws on refusal, which the bridge's command handler turns into an
+  // honest ok:false reply for the agent; nothing is painted, nothing is collected.
+  function fenceInteractiveCard(cmd) {
+    const verdict = classifyInteractiveCard({
+      agentWorking,
+      turnThreadId: liveTurnThreadId,
+      shownThreadId: thread?.id ?? null,
+      mintedThreadId: lastMintedThreadId,
+    });
+    if (verdict.paint) return;
+    // Safe to log: this runs BEFORE any card exists, so there is no user value
+    // in scope — only the command name and the observed reason.
+    console.warn(`[comfyui-mcp-panel] refused a "${cmd}" card: ${verdict.reason}`);
+    throw new Error(refusedInteractiveCardError(cmd, verdict.reason));
+  }
+
   // In-flight Remote-control pairing request: the open modal registers a handler
   // here; the `pair_url`/`pair_error` reply consumes it (mirrors pendingSetSecret).
   let pendingPair = null;
@@ -21758,6 +21803,9 @@ function buildPanel() {
     // The agent called panel_ask — render a question card and resolve with the
     // user's pick. Keep the working indicator pinned below it while we wait.
     onAsk(msg) {
+      // Fence FIRST: a card from a turn this tab no longer owns must not paint,
+      // and must not revive the working indicator on its way past either.
+      fenceInteractiveCard("ask_user");
       const p = paintQuestion(msg);
       bumpThinking();
       noteActivity(); // a panel_ask frame is real turn activity → reset the clock
@@ -21909,13 +21957,21 @@ function buildPanel() {
     },
     // The agent called panel_request_secret — collect a token securely.
     onSecret(msg) {
-      const p = paintSecret(msg);
-      bumpThinking();
       // If this secure request was kicked off from a Settings "Set … token" button,
       // record a (non-secret) "set at" marker once a non-empty value is submitted so
       // the Settings indicator can show set/not-set. Only the timestamp is stored.
+      // Consumed BEFORE the fence so a REFUSED request also clears the marker —
+      // leaving it armed would attach this button's slot to whatever unrelated
+      // secret the agent collects next. (paintSecret never touches it, so reading
+      // it one step earlier is otherwise behaviour-neutral.)
       const req = pendingSecretRequest;
       pendingSecretRequest = null;
+      // Fence FIRST: this is the card whose payload is a secret. A turn this tab
+      // no longer owns must not get a masked input painted into the conversation
+      // that happens to be on screen — see lib/interactive-card-fence.js.
+      fenceInteractiveCard("request_secret");
+      const p = paintSecret(msg);
+      bumpThinking();
       if (req) {
         p.then((value) => {
           if (value) lsSet(SECRET_SET_AT_PREFIX + req.key, String(Date.now()));
@@ -21970,6 +22026,11 @@ function buildPanel() {
         // Pin the turn's owner so its usage frames persist under THIS
         // conversation even if the user switches history before it ends (#381).
         liveTurnThreadId = thread?.id ?? null;
+        // Nothing has been minted DURING this turn yet. Reset here (not on `done`)
+        // so the marker always describes the turn now running (see
+        // lastMintedThreadId): it is what lets an owner-less turn claim the
+        // conversation it creates, and only that one.
+        lastMintedThreadId = null;
         showThinking();
         noteActivity(); // turn start = real activity → seed the silence clock
         ssSet(MID_TASK_KEY, "1"); // a turn is in flight — arm the resume nudge

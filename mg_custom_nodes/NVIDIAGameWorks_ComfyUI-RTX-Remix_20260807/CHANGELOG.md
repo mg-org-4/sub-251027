@@ -15,6 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [3.0.2] - 2026-08-06
+
+### Fixed
+
+- Fixed RTX Remix workflow export metadata with ComfyUI versions that expose string node IDs
+- Restored RTX Remix icons in ComfyUI context menus after frontend HTML sanitization changes
+
+## [3.0.1] - 2026-08-06
+
+### Fixed
+
+- Raised the minimum Pillow version to 12.3.0 to address security vulnerabilities.
+
 ## [3.0.0] - 2026-02-10
 
 ### Added

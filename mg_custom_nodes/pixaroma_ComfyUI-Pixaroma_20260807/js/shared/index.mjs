@@ -10,7 +10,7 @@
 // a hard refresh (Ctrl+Shift+R). It lives in this existing, widely-imported
 // module on purpose: a brand-new file is never in anyone's cache, so it could
 // never reveal a stale bundle.
-export const PIXAROMA_JS_VERSION = "1.4.96";
+export const PIXAROMA_JS_VERSION = "1.4.99";
 
 export {
   allow_debug,
@@ -46,6 +46,11 @@ export { onRendererChange } from "./renderer_switch.mjs";
 export { installResizeFloor, measureRootContent } from "./resize_floor.mjs";
 
 export { installCanvasZoomPassthrough } from "./canvas_zoom.mjs";
+
+// Call after a DOM control commits a change to SERIALIZED state. Core snapshots
+// the graph on mouseup; a DOM control commits on click, one phase later, so the
+// change is otherwise never recorded and the workflow never looks modified.
+export { notifyGraphChanged } from "./graph_changed.mjs";
 
 // Node UI convention #27 - a document.body popup must track the canvas zoom and
 // grow to fit, or it reads tiny beside a zoomed-in node. Use this for EVERY new

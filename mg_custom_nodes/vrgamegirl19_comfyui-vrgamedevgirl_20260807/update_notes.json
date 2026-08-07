@@ -1,7 +1,136 @@
 {
   "schema_version": 1,
-  "product": "LTX 2.3 Video Builder",
+  "product": "AI Video Builder",
   "releases": [
+    {
+      "id": "2026-08-06-storyboard-gemma-network-reliability",
+      "version": "2026.08.06-storyboard-gemma-reliability",
+      "date": "2026-08-06",
+      "title": "Storyboard Gemma reliability, Manager release, and updated guide",
+      "commit": "84fa509b85c88b7d6a8af9b9ca5eafcadf6b8c11",
+      "restart_required": true,
+      "guide_url": "https://github.com/vrgamegirl19/comfyui-vrgamedevgirl/blob/main/Workflows/LTX-2_Workflows/Video_Builder/readme.md",
+      "sections": [
+        {
+          "title": "Improved",
+          "items": [
+            "Published the current AI Video Builder, MiniMax H3, and Storyboard feature set as ComfyUI Registry version 9.1.0 so ComfyUI Manager installs include the Builder launcher and recent H3 updates.",
+            "Storyboard Gemma image and video prompt requests now allow up to ten minutes per scene, matching the Builder's established long-running Gemma prompt window.",
+            "Browser fetch failures now distinguish a real timeout from a lost ComfyUI backend connection and provide direct guidance for checking the queue, console, GPU layers, and context size.",
+            "Expanded the AI Video Builder guide with the recent MiniMax-H3 Turbo, scene-image inspiration, Face + hair priority, Cut frequency, LLM context/output, LTX-to-MiniMax conversion, silent playback, rendered-scene trim, and Delete ALL Videos workflows."
+          ]
+        },
+        {
+          "title": "Fixed",
+          "items": [
+            "Fixed ComfyUI Manager continuing to install the July 3 version 9.0.0 package, which predated the Video Builder launcher, by advancing the registry package and runtime version to 9.1.0.",
+            "Fixed the MiniMax-H3 Turbo compatibility adapter rejecting extension v1.2.2 because upstream replaced its private _AdalnDelta wrapper with the safer _make_adaln_forward API; pruned Ref2VA models can now use Turbo with reference audio through either supported upstream API shape.",
+            "Fixed Storyboard Gemma All stopping on a slow first scene because its newer Video Builder path still used a four-minute request cutoff.",
+            "Fixed Firefox exposing the opaque 'NetworkError when attempting to fetch resource' message when a Storyboard prompt request timed out or the ComfyUI connection closed."
+          ]
+        },
+        {
+          "title": "Compatibility Notes",
+          "items": [
+            "Manager-installed packages may not contain Git metadata, so update them through ComfyUI Manager rather than running git pull. Git commands and the Builder self-updater apply to installations created with git clone.",
+            "Restart ComfyUI and hard-refresh the browser after updating so both revised JavaScript modules are loaded.",
+            "A connection-lost message before the ten-minute limit usually means ComfyUI stopped or a local GGUF load exhausted memory; inspect the terminal and retry one scene with fewer GPU layers, a smaller context, or a smaller model."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2026-08-06-minimax-turbo-reference-llm-controls",
+      "version": "2026.08.06-minimax-builder-controls",
+      "date": "2026-08-06",
+      "title": "MiniMax Turbo, reference control, and larger LLM output",
+      "commit": "a8779f500033acb06764cd224aa6c889254ac0e5",
+      "restart_required": true,
+      "guide_url": "https://github.com/vrgamegirl19/comfyui-vrgamedevgirl/blob/main/Workflows/LTX-2_Workflows/Video_Builder/readme.md",
+      "sections": [
+        {
+          "title": "New",
+          "items": [
+            "Added optional MiniMax-H3 Turbo LoRA acceleration to MiniMax Video Settings. The hidden workflow injects the required Turbo LoRA and dedicated sampler, defaults to 6 editable steps with a minimum of 4, automatically bypasses EasyCache, and restores the previous normal steps and EasyCache preference when Turbo is turned off.",
+            "Added a scope-aware MiniMax Reference-to-Video Scene image use dropdown. A scene image can be unused, supplied to both the LLM and MiniMax as the exact start frame, or supplied only to the vision LLM as environment inspiration with camera framing either ignored or optionally considered.",
+            "Added Face + hair only exact-start priority. Character references can replace only face identity and hair from the first generated frame while the start image remains authoritative for body, clothing, pose, composition, lighting, environment, and every other visible detail.",
+            "Added a MiniMax-only Cut frequency Scene Default from 0–10. Zero requests one continuous uninterrupted take, while 10 schedules one continuity-preserving CUT TO per second within each segment's exact duration.",
+            "Added separate persistent input-context and maximum-output controls for Gemma Local and LM Studio so longer MiniMax prompts are no longer constrained by the former small hardcoded task limits."
+          ]
+        },
+        {
+          "title": "Improved",
+          "items": [
+            "Prompt-only scene-image inspiration is never sent to MiniMax, never receives an Image N label, and never consumes a renderer reference slot. Character references remain authoritative for character identity and appearance.",
+            "Builder, Storyboard, Wizard, Prompt Creator, and image-reference vision jobs now honor the selected local-runner output ceiling. LM Studio receives both context length and maximum output tokens through its native chat API.",
+            "Project-global MiniMax mode, model, video, scene-image, and character-priority changes now update every eligible unlocked scene while preserving independently locked scene settings.",
+            "The top status bar consistently uses the AI Video Builder product name and includes a persistent live badge showing whether the project is using LTX or MiniMax.",
+            "Existing projects saved with Turbo's old 20-step default migrate to 6 steps, and existing Turbo projects or locked scenes migrate to EasyCache bypass without overwriting later manual experimentation."
+          ]
+        },
+        {
+          "title": "Fixed",
+          "items": [
+            "MiniMax-H3 Turbo now uses a packaged compatibility LoRA adapter for pruned models with reference audio, preventing the SamplerCustomAdvanced 3-versus-2 AdaLN tensor mismatch while automatically delegating to the upstream node once it includes the same fix.",
+            "The Video Wizard button opens again; Project Storage handlers no longer throw an out-of-scope JavaScript error during the Builder-to-Wizard handoff.",
+            "The MiniMax managed subject-count block respects Face + hair only start-frame priority and no longer grants character sheets conflicting authority over clothing or body proportions.",
+            "Runner progress labels correctly report LM Studio for selected-runner vision jobs, while genuinely local-only Gemma work remains labeled as built-in and honors the configured output limit.",
+            "Projects created from the PR #114 development branch migrate its legacy llm_max_tokens setting into the new Gemma and LM Studio limits; commercial LLM API requests continue ignoring local-runner limits."
+          ]
+        },
+        {
+          "title": "Compatibility Notes",
+          "items": [
+            "MiniMax-H3 Turbo requires ComfyUI-MiniMax-H3-Turbo and the selected Turbo LoRA file. Standard MiniMax rendering remains unchanged when Turbo is disabled.",
+            "Existing LTX projects remain on the LTX engine unless MiniMax is explicitly selected. Prompt-only scene-image modes affect newly generated prompts, so regenerate an existing MiniMax prompt after changing that setting."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2026-08-06-timeline-editing-minimax-prompt-reliability",
+      "version": "2026.08.06-builder-workflow-updates",
+      "date": "2026-08-06",
+      "title": "Timeline editing and MiniMax prompt workflow improvements",
+      "commit": "2f678b0ce9e15e4350745fd365f9af438d942462",
+      "restart_required": true,
+      "guide_url": "https://github.com/vrgamegirl19/comfyui-vrgamedevgirl/blob/main/Workflows/LTX-2_Workflows/Video_Builder/readme.md",
+      "sections": [
+        {
+          "title": "New",
+          "items": [
+            "Added a one-button Tools-panel converter that sends every populated LTX video prompt through the selected LLM Runner and saves a separate, more detailed MiniMax H3 prompt without changing the original LTX prompt, global audio, scene timing, or other project data.",
+            "Added silent timeline playback so the playhead, scene selection, seeking, and scrubbing continue to work in short-film projects and other timelines that do not have global audio.",
+            "Added playhead trimming for rendered MiniMax built-in-audio and ID-LoRA scenes. Click or right-click the scissors button and choose whether to remove everything before or after the playhead.",
+            "Added Delete ALL Videos to clear every selected video, video history entry, thumbnail assignment, trim state, and rendered-video continuity assignment from the timeline while preserving the actual files in the project folder as backups."
+          ]
+        },
+        {
+          "title": "Improved",
+          "items": [
+            "Rendered MiniMax H3 built-in-audio clips can now supply scene audio during timeline playback and begin from the rendered clip's local start when no global audio is present.",
+            "Renamed user-facing Music Video Builder and Video Creator labels to AI Video Builder across the main README, Builder guide, Prompt Creator, Storyboard Builder, Wizard, release notes, and package metadata.",
+            "Closing the Builder now stops global audio, scene audio, silent timeline playback, and active video-preview playback."
+          ]
+        },
+        {
+          "title": "Fixed",
+          "items": [
+            "MiniMax Render All now displays and sends the complete saved right-panel prompt exactly as written instead of rewriting voice, B-roll, or continuity text during rendering.",
+            "Replaced an unbounded MiniMax managed-block cleanup pattern that could remove every timestamped shot, Audio section, and Continuity section after a visual-only B-roll block.",
+            "Timeline Play no longer stops with a Load audio first error when the project has no global audio; it automatically uses the silent timeline clock instead.",
+            "MiniMax built-in-audio timeline scrubbing now uses scene timeline time and the correct local media offset."
+          ]
+        },
+        {
+          "title": "Compatibility Notes",
+          "items": [
+            "The LTX-to-MiniMax converter is for music-video projects and continues using the same unchanged global Audio 1 file; it does not enable MiniMax built-in audio.",
+            "Delete ALL Videos changes timeline assignments only. Existing rendered video and thumbnail files remain in the project folder and can still be used as backups."
+          ]
+        }
+      ]
+    },
     {
       "id": "2026-08-05-minimax-h3-model-downloads",
       "version": "2026.08.05-minimax-h3-model-downloads",
@@ -314,7 +443,7 @@
         {
           "title": "New",
           "items": [
-            "Added Review Guide to the Builder menu for direct access to the public LTX 2.3 Video Builder guide.",
+            "Added Review Guide to the Builder menu for direct access to the public AI Video Builder guide.",
             "Added a clear legacy notice before opening the older Prompt Creator workflow.",
             "Added an optional What's New window so users can review release details from the status banner or Builder menu."
           ]

@@ -1,0 +1,465 @@
+import importlib.util
+import math
+import os
+import shutil
+import subprocess
+import sys
+import types
+from pathlib import Path
+
+import torch
+import pytest
+
+
+class _FolderPaths:
+    @staticmethod
+    def get_output_directory():
+        return "/tmp"
+
+    @staticmethod
+    def get_temp_directory():
+        return "/tmp"
+
+    @staticmethod
+    def get_save_image_path(prefix, output_dir, width, height):
+        return output_dir, prefix.replace("/", "_"), 1, "", prefix
+
+
+sys.modules.setdefault("folder_paths", _FolderPaths())
+HELPER_PATH = Path(__file__).parents[1] / "nodes" / "helper_logging.py"
+helper_spec = importlib.util.spec_from_file_location("helper_logging", HELPER_PATH)
+assert helper_spec is not None and helper_spec.loader is not None
+helper_logging = importlib.util.module_from_spec(helper_spec)
+sys.modules["helper_logging"] = helper_logging
+helper_spec.loader.exec_module(helper_logging)
+MODULE_PATH = Path(__file__).parents[1] / "nodes" / "nodes_enhanced_video_combine.py"
+spec = importlib.util.spec_from_file_location("nodes_enhanced_video_combine", MODULE_PATH)
+assert spec is not None and spec.loader is not None
+enhanced_video_combine = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(enhanced_video_combine)
+
+
+def test_node_schema_and_registration():
+    controls = enhanced_video_combine.DaSiWa_EnhancedVideoCombine.INPUT_TYPES()["required"]
+    package_source = (Path(__file__).parents[1] / "__init__.py").read_text(encoding="utf-8")
+    preview_source = (Path(__file__).parents[1] / "js" / "enhanced_video_combine_preview.js").read_text(encoding="utf-8")
+
+    assert {"images", "bit_depth", "pass_frames", "save_first_frame", "save_last_frame", "crop_to_audio", "audio_codec", "audio_bitrate", "filename_prefix", "quality", "pingpong", "save_metadata", "log_level"} <= controls.keys()
+    assert list(controls).index("log_level") == 6
+    assert list(controls).index("crop_to_audio") == 12
+    assert list(controls).index("audio_codec") == 13
+    assert list(controls).index("audio_bitrate") == 14
+    assert list(controls).index("save_first_frame") > list(controls).index("audio_bitrate")
+    assert enhanced_video_combine.DaSiWa_EnhancedVideoCombine.INPUT_TYPES()["optional"]["audio"][0] == "AUDIO"
+    assert controls["codec"][0] == ["Auto", "AV1", "VP9", "H.265 (HEVC)", "H.264"]
+    assert controls["container"][0] == ["Auto", "WebM", "MKV", "MP4", "Animated WebP", "Animated AVIF"]
+    assert controls["quality"][1]["default"] == 20
+    assert controls["pingpong"][1]["default"] is False
+    assert controls["pass_frames"][1]["default"] is False
+    assert controls["filename_prefix"][1]["default"] == "video_%date:hhmmss%"
+    assert enhanced_video_combine._output_filename("video_130405", 1, ".mp4", False) == "video_130405_00001.mp4"
+    assert enhanced_video_combine._output_filename("video_130405", 1, ".mp4", True) == "video_130405_00001-audio.mp4"
+
+    assert controls["audio_codec"][0] == ["Auto", "AAC", "Opus", "MP3"]
+    assert controls["audio_bitrate"][1]["default"] == "192k"
+    assert "hideLegacyLogLevelWidget" in preview_source
+    assert 'widget.name === "log_level"' in preview_source
+    assert "hideFrameExportWidgets(this);" in preview_source
+    assert 'for (const name of ["save_first_frame", "save_last_frame"])' in preview_source
+    assert "DaSiWa_EnhancedVideoCombine" in package_source
+    assert 'name: "DaSiWa.EnhancedVideoCombinePreview"' in preview_source
+    assert "this.addDOMWidget" in preview_source
+    assert "message?.gifs?.[0] ?? message?.videos?.[0]" in preview_source
+    assert "function saveFrame" not in preview_source
+    assert "link.download" not in preview_source
+    assert "download.download" in preview_source
+    assert "previewWidget.aspectRatio = 16 / 9;" in preview_source
+    assert "transcodedVideoUrl" in preview_source
+    assert "function shouldUseTranscodedPreview(video)" in preview_source
+    assert '"AV1|WebM|8"' in preview_source
+    assert '"VP9|WebM|8"' in preview_source
+    assert '"H.264|MP4|8"' in preview_source
+    assert "getHeight: () => previewHeight()," in preview_source
+    assert "node.setSize([node.size[0], node.computeSize([node.size[0], node.size[1]])[1]]);" in preview_source
+    assert "video.fps" in preview_source
+    assert '"Video preview"' not in preview_source
+    assert "preview.controls = true;" in preview_source
+    assert "preview.controls = false;" not in preview_source
+    assert 'preview.controlsList = "nodownload nofullscreen noremoteplayback";' in preview_source
+    assert "preview.disablePictureInPicture = true;" in preview_source
+    assert 'preview.style.cssText = "display:block;width:100%;background:#111;cursor:pointer";' in preview_source
+    assert "const videoFrame = document.createElement" not in preview_source
+    assert "previewWidget.aspectRatio = preview.videoWidth / preview.videoHeight" in preview_source
+    assert "fitPreviewHeight(previewNode)" in preview_source
+    assert "const previewWidth" not in preview_source
+    assert "const previewHeight" in preview_source
+    assert "aspect-ratio:16/9" not in preview_source
+    assert "this.onResize = function (size)" not in preview_source
+    assert "this.setSize([size[0], Math.max(1, size[1] + heightDelta)])" not in preview_source
+    assert "syncBooleanWidget" in preview_source
+    assert 'syncBooleanWidget(this, "save_first_frame", saveFirstFrame.checked)' in preview_source
+    assert 'syncBooleanWidget(this, "save_last_frame", saveLastFrame.checked)' in preview_source
+    assert "actions.append(saveFirstFrameLabel, saveLastFrameLabel, autoPlayLabel, download)" in preview_source
+    assert 'autoPlay.type = "checkbox"' in preview_source
+    assert "autoPlay.checked = true;" in preview_source
+    assert 'autoPlayLabel.append(autoPlay, " Autoplay")' in preview_source
+    assert 'margin-left:auto' in preview_source
+    assert "if (autoPlay.checked) preview.play().catch(() => {});" in preview_source
+    assert 'preview.addEventListener("mouseenter"' in preview_source
+    assert 'preview.addEventListener("mouseleave"' in preview_source
+    assert 'preview.addEventListener("dblclick", (event) => event.preventDefault())' in preview_source
+    assert "const controls = document.createElement" not in preview_source
+    assert "const mute = document.createElement" not in preview_source
+
+    assert 'preview.dataset.filename = video.filename' in preview_source
+    assert "this.dasiwaVideoPreviewWidget = previewWidget;" in preview_source
+    on_executed_source = preview_source.split("nodeType.prototype.onExecuted", 1)[1]
+    assert "this.dasiwaVideoPreviewWidget.aspectRatio" in on_executed_source
+    assert "preview.addEventListener(\"error\"" in preview_source
+    assert "Preview unavailable (FFmpeg or browser decoder missing)" in preview_source
+    assert "const originalUrl = videoUrl(video);" in on_executed_source
+    assert "preview.src = shouldUseTranscodedPreview(video) ? transcodedVideoUrl(video) : originalUrl;" in on_executed_source
+    assert 'download.textContent = "Download"' in preview_source
+    assert "download.download = video.filename;" in on_executed_source
+    assert "function showHelpDialog()" in preview_source
+    assert "Enhanced Video Combine Help" in preview_source
+    assert "Animated WebP and Animated AVIF are manual image-animation outputs" in preview_source
+    assert "onDrawForeground" in preview_source
+    assert "isHelpIconHit" in preview_source
+    assert "ProgressBar(_encoded_frame_count(images, pingpong))" in (Path(__file__).parents[1] / "nodes" / "nodes_enhanced_video_combine.py").read_text(encoding="utf-8")
+    assert '"-progress", "pipe:2", "-nostats"' in (Path(__file__).parents[1] / "nodes" / "nodes_enhanced_video_combine.py").read_text(encoding="utf-8")
+    assert "now - last_report >= 0.5" in (Path(__file__).parents[1] / "nodes" / "nodes_enhanced_video_combine.py").read_text(encoding="utf-8")
+
+
+
+
+def test_auto_bit_depth_distinguishes_8_and_10_bit_quantization():
+    eight_bit = torch.tensor([0, 64, 127, 255], dtype=torch.float32).reshape(1, 2, 2, 1) / 255
+    ten_bit = torch.tensor([0, 256, 511, 1023], dtype=torch.float32).reshape(1, 2, 2, 1) / 1023
+
+    assert enhanced_video_combine.detect_bit_depth(eight_bit) == 8
+    assert enhanced_video_combine.detect_bit_depth(ten_bit) == 10
+
+
+def test_validate_inputs_accepts_comfyui_positional_signature():
+    node = enhanced_video_combine.DaSiWa_EnhancedVideoCombine()
+    assert node.VALIDATE_INPUTS(images=object()) is True
+    assert node.validate_inputs("images", "IMAGE", object(), object()) is True
+    assert enhanced_video_combine.DaSiWa_EnhancedVideoCombine.__dict__["validate_inputs"](
+        node, "images", "IMAGE", object(), object()
+    ) is True
+
+
+def test_output_node_is_changed_for_each_queued_prompt():
+    assert math.isnan(enhanced_video_combine.DaSiWa_EnhancedVideoCombine.IS_CHANGED())
+
+
+def test_10_bit_frame_data_uses_rgb48le_values():
+    images = torch.tensor([[[[0.0, 0.5, 1.0]]]], dtype=torch.float32)
+    payload = enhanced_video_combine._frame_bytes(images, 10)
+
+    assert len(payload) == 6
+    assert torch.frombuffer(bytearray(payload), dtype=torch.uint16).tolist() == [0, 32768, 65472]
+
+
+def test_frame_byte_chunks_are_bounded_and_preserve_frame_order():
+    images = torch.tensor([0, 1, 2, 3], dtype=torch.float32).reshape(4, 1, 1, 1).repeat(1, 1, 1, 3) / 255
+
+    chunks = list(enhanced_video_combine._iter_frame_byte_chunks(images, 8, False, max_chunk_bytes=6))
+
+    assert [len(chunk) for chunk in chunks] == [6, 6]
+    assert torch.frombuffer(bytearray(b"".join(chunks)), dtype=torch.uint8).reshape(-1, 3)[:, 0].tolist() == [0, 1, 2, 3]
+
+
+def test_frame_byte_chunks_emit_pingpong_frames_without_materializing_a_batch():
+    images = torch.tensor([0, 1, 2, 3], dtype=torch.float32).reshape(4, 1, 1, 1).repeat(1, 1, 1, 3) / 255
+
+    chunks = enhanced_video_combine._iter_frame_byte_chunks(images, 8, True, max_chunk_bytes=3)
+
+    assert torch.frombuffer(bytearray(b"".join(chunks)), dtype=torch.uint8).reshape(-1, 3)[:, 0].tolist() == [0, 1, 2, 3, 2, 1]
+
+
+def test_ffmpeg_streaming_encode_writes_all_chunked_frames(tmp_path):
+    ffmpeg = shutil.which("ffmpeg")
+    ffprobe = shutil.which("ffprobe")
+    if not ffmpeg or not ffprobe:
+        pytest.skip("FFmpeg and FFprobe are required")
+    images = torch.tensor([0, 1, 2, 3], dtype=torch.float32).reshape(4, 1, 1, 1).repeat(1, 1, 1, 3) / 255
+    output_path = tmp_path / "chunked.mkv"
+    command = [
+        ffmpeg, "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "1x1", "-framerate", "24", "-i", "-",
+        "-c:v", "ffv1", str(output_path),
+    ]
+
+    result = enhanced_video_combine._run_ffmpeg(
+        command, lambda: enhanced_video_combine._iter_frame_byte_chunks(images, 8, False, max_chunk_bytes=3), lambda _seconds: None,
+    )
+
+    assert result.returncode == 0
+    probe = subprocess.run(
+        [ffprobe, "-v", "error", "-count_frames", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", str(output_path)],
+        capture_output=True, text=True, check=True,
+    )
+    assert probe.stdout.strip() == "4"
+
+
+def test_frame_exports_are_written_as_pngs_beside_the_video(tmp_path):
+    images = torch.tensor([
+        [[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]],
+        [[[0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]],
+    ])
+    output_path = tmp_path / "video_00001-audio.mp4"
+
+    exports = enhanced_video_combine._save_frame_exports(images, str(output_path), True, True)
+
+    assert exports == [
+        str(tmp_path / "video_00001-audio-first-frame.png"),
+        str(tmp_path / "video_00001-audio-last-frame.png"),
+    ]
+    assert all(Path(path).is_file() for path in exports)
+
+
+def test_encoder_priority_prefers_nvenc_then_other_hardware_then_software():
+    assert enhanced_video_combine._ENCODER_NAMES["H.264"][:2] == ("h264_nvenc", "h264_qsv")
+    assert enhanced_video_combine._ENCODER_NAMES["H.265 (HEVC)"][:2] == ("hevc_nvenc", "hevc_qsv")
+    assert enhanced_video_combine._ENCODER_NAMES["AV1"][:2] == ("av1_nvenc", "av1_qsv")
+    assert enhanced_video_combine._ENCODER_NAMES["VP9"] == ("vp9_qsv", "vp9_vaapi", "libvpx-vp9")
+
+
+def test_auto_codec_prioritizes_av1_then_browser_compatible_fallbacks():
+    assert enhanced_video_combine._codec_candidates("Auto") == ("AV1", "VP9", "H.264")
+    assert enhanced_video_combine._codec_candidates("H.264") == ("H.264",)
+
+
+def test_auto_codec_forces_eight_bit_browser_compatible_output():
+    images = torch.tensor([0, 256, 511, 1023], dtype=torch.float32).reshape(1, 2, 2, 1).repeat(1, 1, 1, 3) / 1023
+
+    assert enhanced_video_combine._selected_bit_depth("Auto", "Auto", images) == 8
+    assert enhanced_video_combine._selected_bit_depth("H.264", "Auto", images) == 10
+    assert enhanced_video_combine._selected_bit_depth("Auto", "10-bit", images) == 10
+
+
+def test_auto_container_prioritizes_webm_then_mkv_then_mp4_for_av1_and_vp9():
+    assert enhanced_video_combine._container_candidates("AV1", "Auto") == ("WebM", "MKV", "MP4")
+    assert enhanced_video_combine._container_candidates("VP9", "Auto") == ("WebM", "MKV", "MP4")
+    assert enhanced_video_combine._container_candidates("H.264", "Auto") == ("MP4", "MKV")
+    assert enhanced_video_combine._container_candidates("H.265 (HEVC)", "MKV") == ("MKV",)
+    assert "Animated WebP" not in enhanced_video_combine._container_candidates("AV1", "Auto")
+    assert "Animated AVIF" not in enhanced_video_combine._container_candidates("AV1", "Auto")
+
+
+def test_browser_compatible_auto_containers_exclude_mkv():
+    assert enhanced_video_combine._auto_container_candidates("AV1", "Auto") == ("WebM",)
+    assert enhanced_video_combine._auto_container_candidates("VP9", "Auto") == ("WebM",)
+    assert enhanced_video_combine._auto_container_candidates("H.264", "Auto") == ("MP4",)
+    assert enhanced_video_combine._auto_container_candidates("AV1", "MKV") == ("MKV",)
+
+
+def test_animated_image_outputs_are_manual_only_and_use_dedicated_encoders():
+    assert enhanced_video_combine._animated_image_settings("Animated WebP") == (".webp", "libwebp_anim")
+    assert enhanced_video_combine._animated_image_settings("Animated AVIF") == (".avif", "libaom-av1")
+    assert enhanced_video_combine._animated_image_settings("Auto") is None
+    assert enhanced_video_combine._animated_image_encoder_candidates("Animated AVIF") == (
+        "av1_nvenc", "av1_qsv", "av1_amf", "av1_vaapi", "libsvtav1", "libaom-av1",
+    )
+    assert enhanced_video_combine._animated_image_encoder_candidates("Animated WebP") == ("libwebp_anim",)
+
+
+def test_animated_avif_prefers_nvenc_over_software(monkeypatch):
+    captured = []
+
+    class Result:
+        returncode = 0
+        stderr = b""
+
+    monkeypatch.setattr(enhanced_video_combine, "_available_encoders", lambda _ffmpeg: {"av1_nvenc", "libaom-av1"})
+    monkeypatch.setattr(
+        enhanced_video_combine.subprocess, "run",
+        lambda command, **kwargs: captured.append(command) or Result(),
+    )
+
+    assert enhanced_video_combine._encode_animated_image(
+        "ffmpeg", "Animated AVIF", 8, 1024, 1280, 8, b"frames", "output.avif", 20,
+    ) == "av1_nvenc"
+    assert ["-c:v", "av1_nvenc"] == captured[0][captured[0].index("-c:v"):captured[0].index("-c:v") + 2]
+    assert ["-still-picture", "0", "-f", "avif"] == captured[0][captured[0].index("-still-picture"):captured[0].index("-still-picture") + 4]
+
+
+def test_pingpong_appends_reverse_interior_frames():
+    images = torch.arange(5, dtype=torch.float32).reshape(5, 1, 1, 1)
+
+    assert enhanced_video_combine._pingpong_frames(images, False).flatten().tolist() == [0, 1, 2, 3, 4]
+    assert enhanced_video_combine._pingpong_frames(images, True).flatten().tolist() == [0, 1, 2, 3, 4, 3, 2, 1]
+
+
+def test_filename_prefix_expands_comfyui_date_format(monkeypatch):
+    real_datetime = enhanced_video_combine.datetime.datetime
+
+    class FixedDatetime:
+        @classmethod
+        def now(cls):
+            return real_datetime(2026, 7, 18, 13, 4, 5)
+
+    monkeypatch.setattr(enhanced_video_combine.datetime, "datetime", FixedDatetime)
+
+    assert enhanced_video_combine._format_filename_prefix(
+        "video/%date:yyyy-MM-dd%/%date:hhmmss%"
+    ) == "video/2026-07-18/130405"
+
+
+def test_audio_file_converts_comfyui_audio_to_interleaved_float32():
+    audio_path, duration = enhanced_video_combine._audio_file({
+        "waveform": torch.tensor([[[0.0, 0.5], [-0.5, 1.0]]]),
+        "sample_rate": 2,
+    })
+    try:
+        assert audio_path[1:] == (2, 2)
+        assert duration == 1.0
+        assert torch.frombuffer(bytearray(Path(audio_path[0]).read_bytes()), dtype=torch.float32).tolist() == [0.0, -0.5, 0.5, 1.0]
+    finally:
+        os.unlink(audio_path[0])
+
+
+def test_audio_encode_maps_audio_and_crops_video(monkeypatch):
+    captured = []
+
+    class Result:
+        returncode = 0
+        stderr = b""
+
+    monkeypatch.setattr(enhanced_video_combine, "_available_encoders", lambda _ffmpeg: {"libx264"})
+    monkeypatch.setattr(enhanced_video_combine.subprocess, "run", lambda command, **kwargs: captured.append(command) or Result())
+
+    assert enhanced_video_combine._encode_with_available_encoder(
+        "ffmpeg", "H.264", 8, 2, 2, 24, b"frames", "output.mp4", "MP4", 20, 20,
+        None, ("audio.f32le", 48000, 2), 1.25, True, "MP3", "128k",
+    ) == "libx264"
+    assert "-map" in captured[0]
+    assert "1:a:0" in captured[0]
+    assert ["-c:a", "libmp3lame", "-b:a", "128k"] == captured[0][captured[0].index("-c:a"):captured[0].index("-c:a") + 4]
+    assert ["-t", "1.250000000"] == captured[0][captured[0].index("-t"):captured[0].index("-t") + 2]
+
+
+def test_audio_fallbacks_are_container_compatible():
+    assert enhanced_video_combine._audio_encoder_candidates("AAC", "WebM") == ("aac", "libopus")
+    assert enhanced_video_combine._audio_encoder_candidates("MP3", "MP4") == ("libmp3lame", "aac")
+    assert enhanced_video_combine._audio_encoder_candidates("Auto", "MKV") == ("aac", "libopus", "libmp3lame", "pcm_s16le")
+
+
+def test_legacy_boolean_audio_codec_uses_auto_selection():
+    assert enhanced_video_combine._audio_encoder_candidates(True, "MP4") == ("aac", "libmp3lame")
+    assert enhanced_video_combine._audio_encoder_candidates(False, "WebM") == ("libopus",)
+
+
+def test_audio_encode_falls_back_when_requested_encoder_fails(monkeypatch):
+    captured = []
+
+    class FailedResult:
+        returncode = 1
+        stderr = b"requested audio encoder is unavailable"
+
+    class SuccessResult:
+        returncode = 0
+        stderr = b""
+
+    monkeypatch.setattr(enhanced_video_combine, "_available_encoders", lambda _ffmpeg: {"libx264"})
+    monkeypatch.setattr(
+        enhanced_video_combine.subprocess,
+        "run",
+        lambda command, **kwargs: captured.append(command) or (FailedResult() if len(captured) == 1 else SuccessResult()),
+    )
+
+    assert enhanced_video_combine._encode_with_available_encoder(
+        "ffmpeg", "H.264", 8, 2, 2, 24, b"frames", "output.mp4", "MP4", 20, 20,
+        None, ("audio.f32le", 48000, 2), 1.25, False, "MP3", "128k",
+    ) == "libx264"
+    assert "libmp3lame" in captured[0]
+    assert "aac" in captured[1]
+
+
+def test_encoder_listing_extracts_encoder_names(monkeypatch):
+    class Result:
+        returncode = 0
+        stdout = " V....D h264_nvenc NVIDIA NVENC h264 encoder (codec h264)\n V....D libx264 H.264 encoder (codec h264)\n"
+
+    monkeypatch.setattr(enhanced_video_combine.subprocess, "run", lambda *args, **kwargs: Result())
+
+    assert enhanced_video_combine._available_encoders("ffmpeg") == {"h264_nvenc", "libx264"}
+
+
+def test_basic_encode_log_reports_the_actual_audio_codec(monkeypatch, capsys):
+    class Result:
+        returncode = 0
+        stderr = b""
+
+    monkeypatch.setattr(enhanced_video_combine, "_available_encoders", lambda _ffmpeg: {"libx264"})
+    monkeypatch.setattr(enhanced_video_combine.subprocess, "run", lambda *args, **kwargs: Result())
+
+    enhanced_video_combine._encode_with_available_encoder(
+        "ffmpeg", "H.264", 8, 2, 2, 24, b"frames", "output.mp4", "MP4", 20, 20, None,
+        audio_path=("audio.f32le", 48000, 2), audio_codec="Auto", audio_bitrate="192k",
+    )
+
+    log = capsys.readouterr().out
+    assert "audio=aac/192k" in log
+    assert "missing:" not in log
+
+
+def test_output_and_selected_frame_exports_are_published_to_comfyui_assets(tmp_path, monkeypatch):
+    monkeypatch.setattr(enhanced_video_combine, "find_ffmpeg", lambda: "ffmpeg")
+    monkeypatch.setattr(enhanced_video_combine, "_encode_with_available_encoder", lambda *args, **kwargs: "libx264")
+    monkeypatch.setattr(enhanced_video_combine.folder_paths, "get_output_directory", lambda: str(tmp_path))
+    images = torch.rand((2, 4, 6, 3), dtype=torch.float32)
+
+    result = enhanced_video_combine.DaSiWa_EnhancedVideoCombine().combine(
+        images, 24.0, "H.264", "MP4", "8-bit", 20, False, False, "asset-video", True, False,
+        save_first_frame=True, save_last_frame=True,
+    )
+
+    assert result["ui"]["images"] == [
+        {"filename": "asset-video_00001.mp4", "subfolder": "", "type": "output", "format": "video/mp4", "width": 6, "height": 4, "codec": "H.264", "bit_depth": 8, "container": "MP4"},
+        {"filename": "asset-video_00001-first-frame.png", "subfolder": "", "type": "output", "format": "image/png", "width": 6, "height": 4},
+        {"filename": "asset-video_00001-last-frame.png", "subfolder": "", "type": "output", "format": "image/png", "width": 6, "height": 4},
+    ]
+
+
+def test_hevc_output_uses_original_asset_for_streaming_browser_preview(tmp_path, monkeypatch):
+    encode_calls = []
+    monkeypatch.setattr(enhanced_video_combine, "find_ffmpeg", lambda: "ffmpeg")
+    monkeypatch.setattr(
+        enhanced_video_combine,
+        "_encode_with_available_encoder",
+        lambda *args, **kwargs: encode_calls.append(args) or "mock-encoder",
+    )
+    monkeypatch.setattr(enhanced_video_combine.folder_paths, "get_output_directory", lambda: str(tmp_path))
+    images = torch.rand((2, 4, 6, 3), dtype=torch.float32)
+
+    result = enhanced_video_combine.DaSiWa_EnhancedVideoCombine().combine(
+        images, 24.0, "H.265 (HEVC)", "MP4", "8-bit", 20, False, False,
+        "hevc-video", True, False,
+    )
+
+    assert len(encode_calls) == 1
+    assert result["ui"]["gifs"] == [{
+        "filename": "hevc-video_00001.mp4",
+        "subfolder": "",
+        "type": "output",
+        "format": "video/mp4",
+        "codec": "H.265 (HEVC)",
+        "bit_depth": 8,
+        "container": "MP4",
+        "width": 6,
+        "height": 4,
+        "fps": 24.0,
+    }]
+
+
+def test_missing_ffmpeg_reports_required_mp4_fallback(tmp_path, monkeypatch):
+    monkeypatch.setattr(enhanced_video_combine, "find_ffmpeg", lambda: None)
+    images = torch.rand((2, 4, 6, 3), dtype=torch.float32)
+
+    with pytest.raises(RuntimeError, match="H.264/MP4 fallback"):
+        enhanced_video_combine.DaSiWa_EnhancedVideoCombine().combine(
+            images, 24.0, "H.264", "Auto", "Auto", 10, False, True,
+            "video", True, False,
+        )

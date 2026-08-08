@@ -1,0 +1,2 @@
+# torch is provided by the ComfyUI runtime; listed here for standalone/dev use.
+numpy

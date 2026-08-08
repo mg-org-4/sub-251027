@@ -1,0 +1,16 @@
+[project]
+name = "timeslice-nodes"
+description = "Temporal slit-scan / time-displacement effects for ComfyUI — angled, animated and dual-source slicing on a shared engine."
+version = "1.0.0"
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["numpy"]
+
+[project.urls]
+Repository = "https://github.com/systms-ai/TimeSlice-Nodes"
+
+[tool.comfy]
+PublisherId = "systms-ai"
+DisplayName = "TimeSlice Nodes"
+Icon = ""

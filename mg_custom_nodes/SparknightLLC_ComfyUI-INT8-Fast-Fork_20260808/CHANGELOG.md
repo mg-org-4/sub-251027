@@ -1,6 +1,22 @@
 # Changelog
 
-<details open><summary>2.0.0</summary>
+All notable changes to this project will be documented in this file.
+
+<details open><summary>2.1.0 - 7 August 2026</summary>
+
+### Added
+
+- Added preliminary MiniMax H3 keep-float and INT4-sensitive quantization tiers, including automatic architecture detection.
+- Added native ConvRot metadata regression coverage for heterogeneous group sizes and invalid checkpoint metadata.
+
+### Fixed
+
+- Preserved each native INT8 ConvRot layer's checkpoint-defined group size at runtime, including MiniMax H3 AdaLN projections that use 64-channel groups.
+- Validated ConvRot group divisibility and Hadamard state while loading and saving so malformed checkpoints fail with a clear error instead of crashing later or exporting inconsistent metadata.
+
+</details>
+
+<details><summary>2.0.0 - 4 August 2026</summary>
 
 ### Added
 
@@ -53,9 +69,7 @@
 
 </details>
 
-All notable changes to this project will be documented in this file.
-
-<details open><summary>1.8.1 - 6 July 2026</summary>
+<details><summary>1.8.1 - 6 July 2026</summary>
 
 ### Fixed
 

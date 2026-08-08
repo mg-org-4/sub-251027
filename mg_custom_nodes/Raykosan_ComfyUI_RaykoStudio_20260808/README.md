@@ -94,7 +94,9 @@ git clone https://github.com/Raykosan/ComfyUI_RaykoStudio.git
 - v0.35.1 - Modification of interfaces in some nodes
 - v0.36.0 - Added the RS Decode Save node
 - v0.36.1 - Fix error in the RS Models Loader node
-- v0.36.2 - Security Hardening: Path Traversal Prevention in RS_VAE_Decode_Save  
+- v0.36.2 - Security Hardening: Path Traversal Prevention in RS_VAE_Decode_Save
+- v0.36.3 - Adding batch image processing mode to the RS Image Adjustments node  
+- v0.36.4 - Added drag and drop image loading to the RS Image-Text node  
 
 </details>
 
@@ -1572,7 +1574,9 @@ dark - black background, white text.
 # 🦊 RS Image-Text  
 **Node embeds any hidden text into the image that can be used later**  
 
-![RS Image-Text ](https://github.com/user-attachments/assets/c8b119bb-c695-4500-8cc1-0a3c0d96e299)
+[![YouTube](https://img.shields.io/badge/YouTube-%23FF0000.svg?style=for-the-badge&logo=YouTube&logoColor=white)](https://youtu.be/1s26hUcVXX4)
+
+<img width="507" height="761" alt="Screenshot_1" src="https://github.com/user-attachments/assets/4000d147-6531-4ea0-a9cd-eb14d863c61c" />
 
 ### 🔥 Features  
 The node writes any hidden text to any png and jpeg file (jpeg is converted to png). And outputs text from images recorded in this way. You can use it instead of a Load Image (without a mask) and transfer the recorded text to the promt node. It is useful if there is an image and a prompt to it, but the image does not contain a workflow (often found on the site civitai.com).  
@@ -1581,8 +1585,6 @@ The node writes any hidden text to any png and jpeg file (jpeg is converted to p
 Two modes:  
 Write - writes text to the uploaded image and saves it to the output folder with the prefix you specified.  
 Read - reads the text you wrote earlier in the uploaded image, sends the text and images further according to the scheme.  
-
-Link to the video: https://youtu.be/1s26hUcVXX4  
 
 </details> 
 <details>

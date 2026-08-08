@@ -43,31 +43,71 @@ def convert_to_rgb(images            : torch.Tensor,
         raise ValueError(f"Color space '{input_color_space}' is not supported by convert_to_rgb.")
 
 
-def adjust_hsv_components(images: torch.Tensor,
+def calculate_robust_range(input_tensor : torch.Tensor,
+                           low_quantile : float = 0.001,
+                           high_quantile: float = 0.999,
+                           ) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Calculate the lower and upper bounds of a tensor's distribution
+    based on specified quantiles to facilitate range normalization.
+
+    Args:
+        input_tensor  : The input tensor with shape [B, C, H, W].
+        low_quantile  : The lower percentile boundary (e.g., 0.001).
+        high_quantile : The upper percentile boundary (e.g., 0.999).
+
+    Returns:
+        A tuple containing (low_vals, high_vals) shaped as [B, C, 1, 1].
+    """
+    # flatten spatial dimensions
+    flat_view = input_tensor.flatten(2)  # [B, C, H*W]
+
+    # calculate quantiles along the spatial dimensions
+    low_vals  = torch.quantile(flat_view, low_quantile , dim=2, keepdim=True).unsqueeze(-1) # [B, C, 1, 1]
+    high_vals = torch.quantile(flat_view, high_quantile, dim=2, keepdim=True).unsqueeze(-1) # [B, C, 1, 1]
+    return low_vals, high_vals
+
+
+def adjust_hsv_components(images                  : torch.Tensor,
                           *,
-                          saturation_scurve_factor: float = 0.0,
-                          contrast_scurve_factor  : float = 0.0,
+                          hue_twist_factor        : float =  0.0,
+                          saturation_stretch      : float =  0.0,
+                          saturation_gamma        : float =  1.0,
+                          saturation_factor       : float =  1.0,
                           saturation_target       : float = -1.0,
+                          brightness_stretch      : float =  0.0,
+                          brightness_scurve_factor: float =  0.0,
                           brightness_target       : float = -1.0,
-                          hue_shift_factor        : float = 0.0,
+
                           input_color_space       : str   = "rgb",
                           output_color_space      : str   = "hsv"
                           ) -> torch.Tensor:
     """
-    Adjust HSV color space properties using S-curve mapping and target normalization.
+    Adjust HSV color space properties.
 
     Args:
-        images                  : Input tensor with shape [B, 3, H, W] and range.
-        saturation_scurve_factor: Power factor to apply an S-curve adjustment to saturation.
-        contrast_scurve_factor  : Power factor to apply an S-curve adjustment to value/contrast.
-        saturation_target       : Target mean saturation value (if < 0, the parameter is ignored).
-        brightness_target       : Target mean brightness value (if < 0, the parameter is ignored).
-        hue_shift_factor        : Factor to shift the hue based on the value component.
+        images                  : Input tensor with shape [B, 3, H, W] and range [0,1]
+        hue_twist_factor        : Factor to shift the hue based on the value component.
+        saturation_stretch      : Factor to linearly stretch the saturation histogram.
+                                  - value = 0.0: Keeps original saturation range.
+                                  - value = 1.0: Stretches to the full [0,1] range.
+        saturation_gamma        : Gamma correction for the saturation channel. 
+                                  - values > 1.0 increase saturation (curves upward)
+                                  - values < 1.0 decrease saturation (curves downward)
+        saturation_factor       : Multiplicative factor applied to the saturation channel.
+        saturation_target       : Target mean saturation value.
+        brightness_stretch      : Factor to linearly stretch the brightness histogram.
+        brightness_scurve_factor: Power factor to apply an S-curve adjustment to the
+                                  value/brightness channel around the 0.5 midpoint.
+        brightness_target       : Target mean brightness value.
         input_color_space       : The color space of the input images ('rgb' or 'hsv').
+                                  Defaults to "rgb".
         output_color_space      : The desired color space for the returned images ('rgb' or 'hsv').
+                                  Defaults to "hsv".
 
     Returns:
-        A tensor of processed images converted to the requested output_color_space.
+        A tensor of processed images converted to the requested
+        `output_color_space` with shape [B, 3, H, W] and range [0,1]
     """
     input_color_space  = input_color_space.lower().strip()
     output_color_space = output_color_space.lower().strip()
@@ -80,44 +120,75 @@ def adjust_hsv_components(images: torch.Tensor,
     else:
         raise ValueError(f"Unsupported input_color_space: {input_color_space}")
 
-    # splitting the HSV channels
+    # split the HSV channels
     h = hsv[:, 0:1, :, :]
     s = hsv[:, 1:2, :, :]
     v = hsv[:, 2:3, :, :]
-    #s = torch.clamp(hsv[:, 1:2, :, :], 0.0, 1.0)
-    #v = torch.clamp(hsv[:, 2:3, :, :], 0.0, 1.0)
 
-    # apply s-curve adjustment to saturation
-    if saturation_scurve_factor > 0.0 and saturation_scurve_factor != 1.0:
-        s = torch.sign(s) * torch.pow(torch.abs(s), 1.0 / saturation_scurve_factor)
+    #-- HUE -------------------------------------
 
-    # apply s-curve adjustment to value (contrast)
-    if contrast_scurve_factor > 0.0 and contrast_scurve_factor != 1.0:
-        v = torch.sign(v) * torch.pow(torch.abs(v), 1.0 / contrast_scurve_factor)
-
-    # normalize saturation to a target mean
-    if saturation_target >= 0.0:
-        s_mean = torch.mean(s, dim=(2, 3), keepdim=True) #< result: [B, 1, 1, 1]
-        s_mean = torch.clamp(s_mean, min=1e-5)
-        s = s * (saturation_target / s_mean)
-        s = torch.clamp(s, 0.0, 1.0)
-
-    # normalize brightness to a target mean
-    if brightness_target >= 0.0:
-        v_mean = torch.mean(v, dim=(2, 3), keepdim=True) #< result: [B, 1, 1, 1]
-        v_mean = torch.clamp(v_mean, min=1e-5)
-        v = v * (brightness_target / v_mean)
-        v = torch.clamp(v, 0.0, 1.0)
-
-    # apply hue shift
-    if hue_shift_factor != 0.0:
-        hue_shift = hue_shift_factor * (v - 0.5)
+    # apply hue shift based on the 'value' component
+    if hue_twist_factor != 0.0:
+        hue_shift = hue_twist_factor * (v - 0.5)
         h = torch.remainder(h + hue_shift, 2 * 3.14159)
 
-    # reconstruct HSV and convert back to RGB
-    hsv = torch.cat([h, s, v], dim=1)
+    #-- SATURATION ------------------------------
 
-    # convert back to requested output space
+    # stretch saturation
+    if saturation_stretch != 0.0:
+        low_vals, high_vals = calculate_robust_range(s, 0.001, 0.999)
+        s_stretched = (s - low_vals) / torch.clamp(high_vals - low_vals, min=1e-5)
+        s_stretched.clamp_(min=0.0, max=1.0)
+        # use `saturation_stretch` to calibrate (0.0 = original, 1.0 = fully stretched)
+        s = torch.lerp(s, s_stretched, saturation_stretch)
+
+    # apply power-law adjustment (gamma correction) to saturation
+    # (this creates a curve that bows upward or downward)
+    if saturation_gamma != 1.0 and saturation_gamma > 0.0:
+        s = torch.pow(s, 1.0 / saturation_gamma)
+
+    # linear scaling
+    if saturation_factor != 1.0:
+        s = s * saturation_factor
+
+    # normalize saturation to target mean
+    if saturation_target >= 0.0:
+        s_mean = torch.mean(s, dim=(2, 3), keepdim=True) # [B, 1, 1, 1]
+        s_mean = torch.clamp(s_mean, min=1e-5)
+        s = s * (saturation_target / s_mean)
+
+    # ensure saturation remains within valid HSV bounds
+    s.clamp_(min=0.0, max=1.0)
+
+    #-- VALUE/BRIGHTNESS ------------------------
+
+    # stretch brightness
+    if brightness_stretch != 0.0:
+        low_vals, high_vals = calculate_robust_range(v, 0.001, 0.999)
+        v_stretched = (v - low_vals) / torch.clamp(high_vals - low_vals, min=1e-5)
+        v_stretched = torch.clamp(v_stretched, 0.0, 1.0)
+        # use `brightness_stretch` to calibrate (0.0 = original, 1.0 = fully stretched)
+        v = torch.lerp(v, v_stretched, brightness_stretch)
+
+    # apply s-curve adjustment to value (contrast)
+    if brightness_scurve_factor > 0.0 and brightness_scurve_factor != 1.0:
+        v.sub_(0.5).mul_(2.0)
+        v = torch.sign(v) * torch.pow(torch.abs(v), 1.0 / brightness_scurve_factor)
+        v.div_(2.0).add_(0.5)
+
+    # normalize brightness to target mean
+    if brightness_target >= 0.0:
+        v_mean = torch.mean(v, dim=(2, 3), keepdim=True) # [B, 1, 1, 1]
+        v_mean = torch.clamp(v_mean, min=1e-5)
+        v = v * (brightness_target / v_mean)
+
+    # ensure brighness remains within valid HSV bounds
+    v.clamp_(min=0.0, max=1.0)
+
+    #--------------------------------------------
+
+    # reconstruct HSV and convert back to requested output space
+    hsv = torch.cat([h, s, v], dim=1)
     if output_color_space == "rgb":
         return kornia.color.hsv_to_rgb(hsv)
     elif output_color_space == "hsv":

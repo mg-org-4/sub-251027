@@ -16,6 +16,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
 import torch
 from enum                import Enum
+from math                import pi
 from typing              import Any
 from functools           import cache
 from comfy_api.latest    import io
@@ -26,15 +27,20 @@ class Filter(Enum):
     Attributes:
         NONE            : Represents no filter applied.
         BLACK_AND_WHITE : Grayscale filter.
+        SATURATION      :
+        COLOR_POP       :
         COLOR           : Standard color level filter.
         COLOR_TWIST     : Hue component twist filter.
+        CONTRAST        :
         INTENSITY_1     : Low color intensity filter.
         INTENSITY_2     : High color intensity filter.
     """
     NONE             = "none"
     BLACK_AND_WHITE  = "bw"
     COLOR            = "color"
+    COLOR_POP        = "color_pop"
     COLOR_TWIST      = "color_twist"
+    CONTRAST         = "contrast"
     INTENSITY_1      = "intensity_1"
     INTENSITY_2      = "intensity_2"
    #SATURATION_NOISE = "saturation_noise"
@@ -157,24 +163,41 @@ class BasicImageFilters(io.ComfyNode):
             return images, color_space
 
         elif filter == Filter.BLACK_AND_WHITE:
-            contrast_factor = 1 + (value*1.2 if value<0 else value*0.8)
-            images = adjust_hsv_components(images,
-                                           saturation_target      = 0,
-                                           contrast_scurve_factor = contrast_factor,
-                                           input_color_space      = color_space)
+            if value>=0:
+                images = adjust_hsv_components(images,
+                                               saturation_factor      = 0,
+                                               brightness_scurve_factor = 1-(value*1.33),
+                                               input_color_space      = color_space)
+            else:
+                images = adjust_hsv_components(images,
+                                               saturation_factor      = -value,
+                                               input_color_space      = color_space)
+
             return images, 'hsv'
 
         elif filter == Filter.COLOR:
-            contrast_factor = 1 + (value*1.0 if value<0 else value*1.0)
             images = adjust_hsv_components(images,
-                                           saturation_scurve_factor = contrast_factor,
-                                           contrast_scurve_factor   = (contrast_factor-1)*0.2 + 1,
+                                           saturation_factor        = 1+(value*1.25),
+                                           input_color_space        = color_space)
+            return images, 'hsv'
+
+        elif filter == Filter.COLOR_POP:
+            images = adjust_hsv_components(images,
+                                           saturation_stretch = min(abs(value*3.33), 1.0),
+                                           saturation_gamma         = 1+(value*1.75),
+                                           #contrast_scurve_factor   = (value-1)*0.2 + 1,
                                            input_color_space        = color_space)
             return images, 'hsv'
 
         elif filter == Filter.COLOR_TWIST:
             images = adjust_hsv_components(images,
-                                           hue_shift_factor  = value*2,
+                                           hue_twist_factor  = value*(0.75*pi),
+                                           input_color_space = color_space)
+            return images, 'hsv'
+
+        elif filter == Filter.CONTRAST:
+            images = adjust_hsv_components(images,
+                                           brightness_scurve_factor = 1+(value*0.66),
                                            input_color_space = color_space)
             return images, 'hsv'
 
@@ -182,7 +205,7 @@ class BasicImageFilters(io.ComfyNode):
             contrast_factor = 1 + (value*1.0 if value<0 else value*1.0)
             images = adjust_hsv_components(images,
                                            saturation_target      = 0.35,
-                                           contrast_scurve_factor = contrast_factor,
+                                           brightness_scurve_factor = contrast_factor,
                                            input_color_space      = color_space)
             return images, 'hsv'
 
@@ -190,7 +213,7 @@ class BasicImageFilters(io.ComfyNode):
             contrast_factor = 1 + (value*1.0 if value<0 else value*1.0)
             images = adjust_hsv_components(images,
                                            saturation_target      = 0.40,
-                                           contrast_scurve_factor = contrast_factor,
+                                           brightness_scurve_factor = contrast_factor,
                                            input_color_space      = color_space)
             return images, 'hsv'
 

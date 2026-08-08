@@ -1,0 +1,1104 @@
+{
+  "classes": {
+    "ControlNetLoader": {
+      "inputs": {
+        "control_net_name": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "DiffControlNetLoader": {
+      "inputs": {
+        "control_net_name": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "SetUnionControlNetType": {
+      "inputs": {
+        "control_net": {
+          "optional": false,
+          "type": "CONTROL_NET"
+        },
+        "type": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "comfy_extras/nodes_controlnet.py",
+      "source_sha256": "197972863ab797c8b1e1137db99fbbbdf2c9d6668d57cb6fa4413ed993b6ae59"
+    },
+    "BasicGuider": {
+      "inputs": {
+        "conditioning": {
+          "optional": false,
+          "type": "CONDITIONING"
+        },
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        }
+      },
+      "source_path": "comfy_extras/nodes_custom_sampler.py",
+      "source_sha256": "3fb59bf45aaf19b2f87099b559c789f94716a90088c6c4ac8a85c53b3c99c59b"
+    },
+    "BasicScheduler": {
+      "inputs": {
+        "denoise": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        },
+        "scheduler": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "steps": {
+          "default": 20,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_custom_sampler.py",
+      "source_sha256": "3fb59bf45aaf19b2f87099b559c789f94716a90088c6c4ac8a85c53b3c99c59b"
+    },
+    "CFGGuider": {
+      "inputs": {
+        "cfg": {
+          "default": 8.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        },
+        "negative": {
+          "optional": false,
+          "type": "CONDITIONING"
+        },
+        "positive": {
+          "optional": false,
+          "type": "CONDITIONING"
+        }
+      },
+      "source_path": "comfy_extras/nodes_custom_sampler.py",
+      "source_sha256": "3fb59bf45aaf19b2f87099b559c789f94716a90088c6c4ac8a85c53b3c99c59b"
+    },
+    "CFGNorm": {
+      "inputs": {
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        },
+        "pre_cfg": {
+          "default": false,
+          "optional": true,
+          "type": "BOOLEAN"
+        },
+        "strength": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_cfg.py",
+      "source_sha256": "688a73094509efcc81bf22bf0e77b2cd8c9f1726f455ed55f6f9747dec656e99"
+    },
+    "CFGOverride": {
+      "inputs": {
+        "cfg": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "end_percent": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        },
+        "start_percent": {
+          "default": 0.0,
+          "optional": false,
+          "type": "FLOAT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_custom_sampler.py",
+      "source_sha256": "3fb59bf45aaf19b2f87099b559c789f94716a90088c6c4ac8a85c53b3c99c59b"
+    },
+    "CLIPLoader": {
+      "inputs": {
+        "clip_name": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "device": {
+          "optional": true,
+          "type": "COMBO"
+        },
+        "type": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "Canny": {
+      "inputs": {
+        "high_threshold": {
+          "default": 0.8,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "image": {
+          "optional": false,
+          "type": "IMAGE"
+        },
+        "low_threshold": {
+          "default": 0.4,
+          "optional": false,
+          "type": "FLOAT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_canny.py",
+      "source_sha256": "5efd352d92d7749b7b9734a1676fee18f4431d44a8e9477822a7a8f38ad26051"
+    },
+    "CLIPSetLastLayer": {
+      "inputs": {
+        "clip": {
+          "optional": false,
+          "type": "CLIP"
+        },
+        "stop_at_clip_layer": {
+          "default": -1,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "CheckpointLoaderSimple": {
+      "inputs": {
+        "ckpt_name": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "ConditioningCombine": {
+      "inputs": {
+        "conditioning_1": {
+          "optional": false,
+          "type": "CONDITIONING"
+        },
+        "conditioning_2": {
+          "optional": false,
+          "type": "CONDITIONING"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "ConditioningSetAreaStrength": {
+      "inputs": {
+        "conditioning": {
+          "optional": false,
+          "type": "CONDITIONING"
+        },
+        "strength": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "ConditioningSetTimestepRange": {
+      "inputs": {
+        "conditioning": {
+          "optional": false,
+          "type": "CONDITIONING"
+        },
+        "end": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "start": {
+          "default": 0.0,
+          "optional": false,
+          "type": "FLOAT"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "ComfySwitchNode": {
+      "inputs": {
+        "on_false": {
+          "optional": false,
+          "type": "MATCHTYPE"
+        },
+        "on_true": {
+          "optional": false,
+          "type": "MATCHTYPE"
+        },
+        "switch": {
+          "optional": false,
+          "type": "BOOLEAN"
+        }
+      },
+      "source_path": "comfy_extras/nodes_logic.py",
+      "source_sha256": "2cb1ce149ce616c0b12a67962ed7b799eb398fbcdeb20dcec4c5210eb6af6df1"
+    },
+    "ConditioningZeroOut": {
+      "inputs": {
+        "conditioning": {
+          "optional": false,
+          "type": "CONDITIONING"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "DualCLIPLoader": {
+      "inputs": {
+        "clip_name1": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "clip_name2": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "device": {
+          "optional": true,
+          "type": "COMBO"
+        },
+        "type": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "DualModelGuider": {
+      "inputs": {
+        "cfg": {
+          "default": 4.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        },
+        "model_negative": {
+          "optional": true,
+          "type": "MODEL"
+        },
+        "negative": {
+          "optional": true,
+          "type": "CONDITIONING"
+        },
+        "positive": {
+          "optional": false,
+          "type": "CONDITIONING"
+        }
+      },
+      "source_path": "comfy_extras/nodes_custom_sampler.py",
+      "source_sha256": "3fb59bf45aaf19b2f87099b559c789f94716a90088c6c4ac8a85c53b3c99c59b"
+    },
+    "EmptyFlux2LatentImage": {
+      "inputs": {
+        "batch_size": {
+          "default": 1,
+          "optional": false,
+          "type": "INT"
+        },
+        "height": {
+          "default": 1024,
+          "optional": false,
+          "type": "INT"
+        },
+        "width": {
+          "default": 1024,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_flux.py",
+      "source_sha256": "71c9d804a9acfb7a828fecb8fcc4b93e28f4417f0c4259a68910f4027059741f"
+    },
+    "EmptyLatentImage": {
+      "inputs": {
+        "batch_size": {
+          "default": 1,
+          "optional": false,
+          "type": "INT"
+        },
+        "height": {
+          "default": 512,
+          "optional": false,
+          "type": "INT"
+        },
+        "width": {
+          "default": 512,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "EmptySD3LatentImage": {
+      "inputs": {
+        "batch_size": {
+          "default": 1,
+          "optional": false,
+          "type": "INT"
+        },
+        "height": {
+          "default": 1024,
+          "optional": false,
+          "type": "INT"
+        },
+        "width": {
+          "default": 1024,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_sd3.py",
+      "source_sha256": "90a79847332fed7cc97379abbc7092116e6b1b883a7c9e933ac88167a521f693"
+    },
+    "Flux2Scheduler": {
+      "inputs": {
+        "height": {
+          "default": 1024,
+          "optional": false,
+          "type": "INT"
+        },
+        "steps": {
+          "default": 20,
+          "optional": false,
+          "type": "INT"
+        },
+        "width": {
+          "default": 1024,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_flux.py",
+      "source_sha256": "71c9d804a9acfb7a828fecb8fcc4b93e28f4417f0c4259a68910f4027059741f"
+    },
+    "FluxGuidance": {
+      "inputs": {
+        "conditioning": {
+          "optional": false,
+          "type": "CONDITIONING"
+        },
+        "guidance": {
+          "default": 3.5,
+          "optional": false,
+          "type": "FLOAT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_flux.py",
+      "source_sha256": "71c9d804a9acfb7a828fecb8fcc4b93e28f4417f0c4259a68910f4027059741f"
+    },
+    "FluxKVCache": {
+      "inputs": {
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        }
+      },
+      "source_path": "comfy_extras/nodes_flux.py",
+      "source_sha256": "71c9d804a9acfb7a828fecb8fcc4b93e28f4417f0c4259a68910f4027059741f"
+    },
+    "FluxKontextImageScale": {
+      "inputs": {
+        "image": {
+          "optional": false,
+          "type": "IMAGE"
+        }
+      },
+      "source_path": "comfy_extras/nodes_flux.py",
+      "source_sha256": "71c9d804a9acfb7a828fecb8fcc4b93e28f4417f0c4259a68910f4027059741f"
+    },
+    "FluxKontextMultiReferenceLatentMethod": {
+      "inputs": {
+        "conditioning": {
+          "optional": false,
+          "type": "CONDITIONING"
+        },
+        "reference_latents_method": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "comfy_extras/nodes_flux.py",
+      "source_sha256": "71c9d804a9acfb7a828fecb8fcc4b93e28f4417f0c4259a68910f4027059741f"
+    },
+    "GetImageSize": {
+      "inputs": {
+        "image": {
+          "optional": false,
+          "type": "IMAGE"
+        }
+      },
+      "source_path": "comfy_extras/nodes_images.py",
+      "source_sha256": "579524837b94f5d4d48d4e56a8fded9ea6f988e5f27ed172915eec284ca00af2"
+    },
+    "Ideogram4Scheduler": {
+      "inputs": {
+        "height": {
+          "default": 1024,
+          "optional": false,
+          "type": "INT"
+        },
+        "mu": {
+          "default": 0.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "std": {
+          "default": 1.75,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "steps": {
+          "default": 20,
+          "optional": false,
+          "type": "INT"
+        },
+        "width": {
+          "default": 1024,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_ideogram4.py",
+      "source_sha256": "2ef584e244ecb5614b7284eacfaaab7bbdfa398f0595c32c1562d99150ebe301"
+    },
+    "ImageScale": {
+      "inputs": {
+        "crop": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "height": {
+          "default": 512,
+          "optional": false,
+          "type": "INT"
+        },
+        "image": {
+          "optional": false,
+          "type": "IMAGE"
+        },
+        "upscale_method": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "width": {
+          "default": 512,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "ImageScaleToTotalPixels": {
+      "inputs": {
+        "image": {
+          "optional": false,
+          "type": "IMAGE"
+        },
+        "megapixels": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "resolution_steps": {
+          "default": 1,
+          "optional": false,
+          "type": "INT"
+        },
+        "upscale_method": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "comfy_extras/nodes_post_processing.py",
+      "source_sha256": "96ec39e8d0e9fe9a70b332f97f994d507e1fa223a26699a3c9c9fbeedacf6575"
+    },
+    "ImageStitch": {
+      "inputs": {
+        "direction": {
+          "default": "right",
+          "optional": false,
+          "type": "COMBO"
+        },
+        "image1": {
+          "optional": false,
+          "type": "IMAGE"
+        },
+        "image2": {
+          "optional": true,
+          "type": "IMAGE"
+        },
+        "match_image_size": {
+          "default": true,
+          "optional": false,
+          "type": "BOOLEAN"
+        },
+        "spacing_color": {
+          "default": "white",
+          "optional": false,
+          "type": "COMBO"
+        },
+        "spacing_width": {
+          "default": 0,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_images.py",
+      "source_sha256": "579524837b94f5d4d48d4e56a8fded9ea6f988e5f27ed172915eec284ca00af2"
+    },
+    "KSampler": {
+      "inputs": {
+        "cfg": {
+          "default": 8.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "denoise": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "latent_image": {
+          "optional": false,
+          "type": "LATENT"
+        },
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        },
+        "negative": {
+          "optional": false,
+          "type": "CONDITIONING"
+        },
+        "positive": {
+          "optional": false,
+          "type": "CONDITIONING"
+        },
+        "sampler_name": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "scheduler": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "seed": {
+          "default": 0,
+          "optional": false,
+          "type": "INT"
+        },
+        "steps": {
+          "default": 20,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "KSamplerSelect": {
+      "inputs": {
+        "sampler_name": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "comfy_extras/nodes_custom_sampler.py",
+      "source_sha256": "3fb59bf45aaf19b2f87099b559c789f94716a90088c6c4ac8a85c53b3c99c59b"
+    },
+    "LatentUpscale": {
+      "inputs": {
+        "crop": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "height": {
+          "default": 512,
+          "optional": false,
+          "type": "INT"
+        },
+        "samples": {
+          "optional": false,
+          "type": "LATENT"
+        },
+        "upscale_method": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "width": {
+          "default": 512,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "LatentUpscaleBy": {
+      "inputs": {
+        "samples": {
+          "optional": false,
+          "type": "LATENT"
+        },
+        "scale_by": {
+          "default": 1.5,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "upscale_method": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "LoraLoader": {
+      "inputs": {
+        "clip": {
+          "optional": false,
+          "type": "CLIP"
+        },
+        "lora_name": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        },
+        "strength_clip": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "strength_model": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "LoraLoaderModelOnly": {
+      "inputs": {
+        "lora_name": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        },
+        "strength_model": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "ModelPatchLoader": {
+      "inputs": {
+        "name": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "comfy_extras/nodes_model_patch.py",
+      "source_sha256": "44367a762417d88ddac58d37602f03eafb95c676a1ca3e020e24c18e123fb4e6"
+    },
+    "ModelSamplingAuraFlow": {
+      "inputs": {
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        },
+        "shift": {
+          "default": 1.73,
+          "optional": false,
+          "type": "FLOAT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_model_advanced.py",
+      "source_sha256": "ffa70c4bb3568537ba13b368092d2599b861db7c83b1bcfa41347058b40dcba7"
+    },
+    "ModelSamplingSD3": {
+      "inputs": {
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        },
+        "shift": {
+          "default": 3.0,
+          "optional": false,
+          "type": "FLOAT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_model_advanced.py",
+      "source_sha256": "ffa70c4bb3568537ba13b368092d2599b861db7c83b1bcfa41347058b40dcba7"
+    },
+    "PrimitiveBoolean": {
+      "inputs": {
+        "value": {
+          "optional": false,
+          "type": "BOOLEAN"
+        }
+      },
+      "source_path": "comfy_extras/nodes_primitive.py",
+      "source_sha256": "ee3882214ebdd0d20c8061691075cebb1642c303e162f6d22ae525d75aa59b2d"
+    },
+    "PrimitiveStringMultiline": {
+      "inputs": {
+        "value": {
+          "optional": false,
+          "type": "STRING"
+        }
+      },
+      "source_path": "comfy_extras/nodes_primitive.py",
+      "source_sha256": "ee3882214ebdd0d20c8061691075cebb1642c303e162f6d22ae525d75aa59b2d"
+    },
+    "QuadrupleCLIPLoader": {
+      "inputs": {
+        "clip_name1": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "clip_name2": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "clip_name3": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "clip_name4": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "comfy_extras/nodes_hidream.py",
+      "source_sha256": "727fe71d9afa086a0d2613639f9546019c650449cfa04d1b98d8abf8de611a89"
+    },
+    "QwenImageDiffsynthControlnet": {
+      "inputs": {
+        "image": {
+          "optional": false,
+          "type": "IMAGE"
+        },
+        "mask": {
+          "optional": true,
+          "type": "MASK"
+        },
+        "model": {
+          "optional": false,
+          "type": "MODEL"
+        },
+        "model_patch": {
+          "optional": false,
+          "type": "MODEL_PATCH"
+        },
+        "strength": {
+          "default": 1.0,
+          "optional": false,
+          "type": "FLOAT"
+        },
+        "vae": {
+          "optional": false,
+          "type": "VAE"
+        }
+      },
+      "source_path": "comfy_extras/nodes_model_patch.py",
+      "source_sha256": "44367a762417d88ddac58d37602f03eafb95c676a1ca3e020e24c18e123fb4e6"
+    },
+    "RandomNoise": {
+      "inputs": {
+        "noise_seed": {
+          "default": 0,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_custom_sampler.py",
+      "source_sha256": "3fb59bf45aaf19b2f87099b559c789f94716a90088c6c4ac8a85c53b3c99c59b"
+    },
+    "ReferenceLatent": {
+      "inputs": {
+        "conditioning": {
+          "optional": false,
+          "type": "CONDITIONING"
+        },
+        "latent": {
+          "optional": true,
+          "type": "LATENT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_edit_model.py",
+      "source_sha256": "8fe4edaa13707df052ddf883fade1190f7b68416d54c7026cefefd489a13ee7e"
+    },
+    "SamplerCustomAdvanced": {
+      "inputs": {
+        "guider": {
+          "optional": false,
+          "type": "GUIDER"
+        },
+        "latent_image": {
+          "optional": false,
+          "type": "LATENT"
+        },
+        "noise": {
+          "optional": false,
+          "type": "NOISE"
+        },
+        "sampler": {
+          "optional": false,
+          "type": "SAMPLER"
+        },
+        "sigmas": {
+          "optional": false,
+          "type": "SIGMAS"
+        }
+      },
+      "source_path": "comfy_extras/nodes_custom_sampler.py",
+      "source_sha256": "3fb59bf45aaf19b2f87099b559c789f94716a90088c6c4ac8a85c53b3c99c59b"
+    },
+    "StringReplace": {
+      "inputs": {
+        "find": {
+          "optional": false,
+          "type": "STRING"
+        },
+        "replace": {
+          "optional": false,
+          "type": "STRING"
+        },
+        "string": {
+          "optional": false,
+          "type": "STRING"
+        }
+      },
+      "source_path": "comfy_extras/nodes_string.py",
+      "source_sha256": "bb01963178f28efc6e3a9578aecb89f53f8265e89c0518da92ec21c4955e85f1"
+    },
+    "T5TokenizerOptions": {
+      "inputs": {
+        "clip": {
+          "optional": false,
+          "type": "CLIP"
+        },
+        "min_length": {
+          "default": 0,
+          "optional": false,
+          "type": "INT"
+        },
+        "min_padding": {
+          "default": 0,
+          "optional": false,
+          "type": "INT"
+        }
+      },
+      "source_path": "comfy_extras/nodes_cond.py",
+      "source_sha256": "ee78f3f890c97c20dc4de1f5f4445b0cfbcd4e9e2cc3d61a77f2b55a5682d075"
+    },
+    "TextEncodeQwenImageEdit": {
+      "inputs": {
+        "clip": {
+          "optional": false,
+          "type": "CLIP"
+        },
+        "image": {
+          "optional": true,
+          "type": "IMAGE"
+        },
+        "prompt": {
+          "optional": false,
+          "type": "STRING"
+        },
+        "vae": {
+          "optional": true,
+          "type": "VAE"
+        }
+      },
+      "source_path": "comfy_extras/nodes_qwen.py",
+      "source_sha256": "b8d18d9f897c4bd5a4b2651b30643bed277f1808e033c9c376dc21025fed00a5"
+    },
+    "TextEncodeQwenImageEditPlus": {
+      "inputs": {
+        "clip": {
+          "optional": false,
+          "type": "CLIP"
+        },
+        "image1": {
+          "optional": true,
+          "type": "IMAGE"
+        },
+        "image2": {
+          "optional": true,
+          "type": "IMAGE"
+        },
+        "image3": {
+          "optional": true,
+          "type": "IMAGE"
+        },
+        "prompt": {
+          "optional": false,
+          "type": "STRING"
+        },
+        "vae": {
+          "optional": true,
+          "type": "VAE"
+        }
+      },
+      "source_path": "comfy_extras/nodes_qwen.py",
+      "source_sha256": "b8d18d9f897c4bd5a4b2651b30643bed277f1808e033c9c376dc21025fed00a5"
+    },
+    "TextGenerate": {
+      "inputs": {
+        "audio": {
+          "optional": true,
+          "type": "AUDIO"
+        },
+        "clip": {
+          "optional": false,
+          "type": "CLIP"
+        },
+        "image": {
+          "optional": true,
+          "type": "IMAGE"
+        },
+        "max_length": {
+          "default": 512,
+          "optional": false,
+          "type": "INT"
+        },
+        "prompt": {
+          "default": "",
+          "optional": false,
+          "type": "STRING"
+        },
+        "sampling_mode": {
+          "optional": false,
+          "type": "DYNAMICCOMBO"
+        },
+        "thinking": {
+          "default": false,
+          "optional": true,
+          "type": "BOOLEAN"
+        },
+        "use_default_template": {
+          "default": true,
+          "optional": true,
+          "type": "BOOLEAN"
+        },
+        "video": {
+          "optional": true,
+          "type": "IMAGE"
+        }
+      },
+      "source_path": "comfy_extras/nodes_textgen.py",
+      "source_sha256": "b328e8a2dc89cfd3a93ab49c1be880a3e89ec4521eef506823753617c86c99e9"
+    },
+    "UNETLoader": {
+      "inputs": {
+        "unet_name": {
+          "optional": false,
+          "type": "COMBO"
+        },
+        "weight_dtype": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "VAEDecode": {
+      "inputs": {
+        "samples": {
+          "optional": false,
+          "type": "LATENT"
+        },
+        "vae": {
+          "optional": false,
+          "type": "VAE"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "VAEEncode": {
+      "inputs": {
+        "pixels": {
+          "optional": false,
+          "type": "IMAGE"
+        },
+        "vae": {
+          "optional": false,
+          "type": "VAE"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    },
+    "VAELoader": {
+      "inputs": {
+        "vae_name": {
+          "optional": false,
+          "type": "COMBO"
+        }
+      },
+      "source_path": "nodes.py",
+      "source_sha256": "b422aaadfee12c807815c364bfbd3c56d6aa33f4ccdf4a2423f43e73240dc087"
+    }
+  },
+  "source_revision": "6f7cd7fceaaf60d2669b554936394a7412c6fde5"
+}

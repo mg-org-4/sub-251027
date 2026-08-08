@@ -1,0 +1,120 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, NamedTuple
+
+from comfy import latent_formats
+
+from . import tae_vid as tv
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+class VideoModelInfo(NamedTuple):
+    name: str
+    latent_format: latent_formats.LatentFormat
+    fps: int | float = 24
+    temporal_compression: int = 8
+    temporal_layers: int = 0
+    patch_size: int = 1
+    nested_tensor_index: int = 0
+    tae_model: str | Path | None = None
+    tae_class: tv.TAEVidBase | None = tv.TAEVid
+
+
+VIDEO_FORMATS = {
+    vmi.name: vmi
+    for vmi in (
+        VideoModelInfo(
+            "mochi",
+            latent_formats.Mochi,
+            temporal_compression=6,
+            tae_model="taem1.pth",
+        ),
+        VideoModelInfo(
+            "hunyuanvideo",
+            latent_formats.HunyuanVideo,
+            temporal_compression=4,
+            tae_model="taehv.pth",
+        ),
+        VideoModelInfo(
+            "hunyuanvideo15",
+            latent_formats.HunyuanVideo15,
+            temporal_compression=4,
+            patch_size=2,
+            tae_model="taehv1_5.pth",
+        ),
+        VideoModelInfo(
+            "cosmos1cv8x8x8",
+            latent_formats.Cosmos1CV8x8x8,
+        ),
+        VideoModelInfo(
+            "wan21",
+            latent_formats.Wan21,
+            fps=16,
+            temporal_compression=4,
+            temporal_layers=2,
+            tae_model="taew2_1.pth",
+        ),
+        VideoModelInfo(
+            "wan22",
+            latent_formats.Wan22,
+            fps=24,
+            temporal_compression=4,
+            temporal_layers=2,
+            patch_size=2,
+            tae_model="taew2_2.pth",
+        ),
+        VideoModelInfo(
+            "ltxav",
+            latent_formats.LTXV,
+            fps=24,
+            patch_size=4,
+            temporal_layers=3,
+            tae_model="taeltx_2.pth",
+            tae_class=tv.TAEVidLTX2,
+        ),
+        VideoModelInfo(
+            "ltxav23",
+            latent_formats.LTXV,
+            fps=24,
+            patch_size=4,
+            temporal_layers=3,
+            tae_model="taeltx2_3.pth",
+            tae_class=tv.TAEVidLTX2,
+        ),
+        VideoModelInfo(
+            "ltxav23wide",
+            latent_formats.LTXV,
+            fps=24,
+            patch_size=4,
+            temporal_layers=3,
+            tae_model="taeltx2_3_wide.pth",
+            tae_class=tv.TAEVidLTX23Wide,
+        ),
+        VideoModelInfo(
+            "minimaxh3av",
+            latent_formats.MiniMaxH3Video,
+            fps=24,
+            patch_size=2,
+            temporal_layers=3,
+            temporal_compression=4,
+            tae_model="taeh3.pth",
+            tae_class=tv.TAEVidH3,
+        ),
+    )
+}
+
+VIDEO_FORMATS |= {
+    "ltxv": VIDEO_FORMATS["ltxav"]._replace(name="ltxv"),
+    "ltxv23": VIDEO_FORMATS["ltxav23"]._replace(name="ltxv23"),
+    "ltxv23wide": VIDEO_FORMATS["ltxav23wide"]._replace(name="ltxv23wide"),
+    "minimaxh3video": VIDEO_FORMATS["minimaxh3av"]._replace(name="minimaxh3video"),
+}
+
+AMBIGUOUS_VIDEO_FORMATS = {
+    "ltxv": frozenset(("ltxav", "ltxav23", "ltxav23wide")),
+    "ltxav": frozenset(("ltxv", "ltxav23", "ltxav23wide")),
+}
+
+__all__ = ("AMBIGUOUS_VIDEO_FORMATS", "VIDEO_FORMATS", "VideoModelInfo")

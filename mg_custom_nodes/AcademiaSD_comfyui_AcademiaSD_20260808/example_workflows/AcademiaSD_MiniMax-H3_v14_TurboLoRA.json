@@ -492,7 +492,7 @@
         "collapsed": true
       },
       "order": 8,
-      "mode": 4,
+      "mode": 0,
       "inputs": [],
       "outputs": [
         {
@@ -532,7 +532,7 @@
         "pinned": true
       },
       "order": 36,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "clip",
@@ -709,7 +709,7 @@
       ],
       "size": [
         569.0219214627036,
-        654.1853023542001
+        334
       ],
       "flags": {
         "pinned": true
@@ -781,13 +781,13 @@
           "hidden": false,
           "paused": false,
           "params": {
-            "filename": "MiniMaxH3_00009-audio.mp4",
+            "filename": "MiniMaxH3_00008-audio.mp4",
             "subfolder": "",
             "type": "output",
             "format": "video/h264-mp4",
             "frame_rate": 24,
-            "workflow": "MiniMaxH3_00009.png",
-            "fullpath": "F:\\ComfyUI_windows_portable\\ComfyUI\\output\\MiniMaxH3_00009-audio.mp4"
+            "workflow": "MiniMaxH3_00008.png",
+            "fullpath": "F:\\ComfyUI_windows_portable\\ComfyUI\\output\\MiniMaxH3_00008-audio.mp4"
           }
         }
       },
@@ -994,7 +994,7 @@
         "pinned": true
       },
       "order": 37,
-      "mode": 4,
+      "mode": 0,
       "inputs": [
         {
           "name": "clip",
@@ -1251,7 +1251,7 @@
         ]
       },
       "widgets_values": [
-        "minimax_h3_fl2va_pruned_w4a8_mixed.safetensors",
+        "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
         "default"
       ],
       "color": "#323",
@@ -1412,7 +1412,7 @@
       ],
       "size": [
         335.12059359641535,
-        310
+        501.56795353448797
       ],
       "flags": {
         "pinned": true
@@ -2258,7 +2258,7 @@
       ],
       "size": [
         579.4016751949334,
-        659.9740111664053
+        334
       ],
       "flags": {},
       "order": 54,
@@ -2338,13 +2338,13 @@
           "hidden": false,
           "paused": false,
           "params": {
-            "filename": "MimiMaxH3_interpolated_00009-audio.mp4",
+            "filename": "MimiMaxH3_interpolated_00008-audio.mp4",
             "subfolder": "",
             "type": "output",
             "format": "video/h264-mp4",
             "frame_rate": 48,
-            "workflow": "MimiMaxH3_interpolated_00009.png",
-            "fullpath": "F:\\ComfyUI_windows_portable\\ComfyUI\\output\\MimiMaxH3_interpolated_00009-audio.mp4"
+            "workflow": "MimiMaxH3_interpolated_00008.png",
+            "fullpath": "F:\\ComfyUI_windows_portable\\ComfyUI\\output\\MimiMaxH3_interpolated_00008-audio.mp4"
           }
         }
       },
@@ -2834,6 +2834,7 @@
         "ver": "eadad201b5df04fa8a185784d49829064d806fb8",
         "Node name for S&R": "AcademiaSD_Noise",
         "seed_history": [
+          5894920662727841,
           3760529136890239,
           5958346833550992,
           4450555551274123,
@@ -2842,60 +2843,16 @@
           5855586572432983,
           7354527291918993,
           288574147223760,
-          6628048576723096,
-          7610331828615205
+          6628048576723096
         ]
       },
       "widgets_values": [
-        3760529136890239,
+        5894920662727841,
         "randomize",
         ""
       ],
       "color": "#232",
       "bgcolor": "#353"
-    },
-    {
-      "id": 241,
-      "type": "MiniMaxH3TurboLoRA",
-      "pos": [
-        -2445.768419244539,
-        5480.817084320066
-      ],
-      "size": [
-        527.944358361174,
-        82
-      ],
-      "flags": {},
-      "order": 31,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 457
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            458
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyui-minimax-h3-turbo",
-        "ver": "da13db9d059f188ea0f30795dc8eea7975c2893c",
-        "Node name for S&R": "MiniMaxH3TurboLoRA",
-        "aux_id": "Larryvrh/ComfyUI-MiniMax-H3-Turbo"
-      },
-      "widgets_values": [
-        "minimax_h3_turbo_4step_ckpt500.safetensors",
-        1.1
-      ],
-      "color": "#323",
-      "bgcolor": "#535"
     },
     {
       "id": 146,
@@ -3016,12 +2973,10 @@
         6628.259149719629
       ],
       "size": [
-        2224.706045605926,
-        724.0819164331724
+        2214.614823696997,
+        861.9952825218725
       ],
-      "flags": {
-        "pinned": true
-      },
+      "flags": {},
       "order": 26,
       "mode": 0,
       "inputs": [],
@@ -3135,8 +3090,61 @@
           "filesize": "11.68 GB",
           "folder": "diffusion_models",
           "subfolder": ""
+        },
+        {
+          "enabled": true,
+          "url": "https://huggingface.co/larryvrh/MiniMax-H3-Turbo-Lora/tree/main",
+          "selected_url": "https://huggingface.co/larryvrh/MiniMax-H3-Turbo-Lora/resolve/main/minimax_h3_turbo_4step_ckpt850.safetensors",
+          "filename": "minimax_h3_turbo_4step_ckpt850.safetensors",
+          "filesize": "743.72 MB",
+          "folder": "loras",
+          "subfolder": ""
         }
       ]
+    },
+    {
+      "id": 241,
+      "type": "MiniMaxH3TurboLoRA",
+      "pos": [
+        -2445.768419244539,
+        5480.817084320066
+      ],
+      "size": [
+        527.944358361174,
+        106
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 457
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            458
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-minimax-h3-turbo",
+        "ver": "da13db9d059f188ea0f30795dc8eea7975c2893c",
+        "Node name for S&R": "MiniMaxH3TurboLoRA",
+        "aux_id": "Larryvrh/ComfyUI-MiniMax-H3-Turbo"
+      },
+      "widgets_values": [
+        "minimax_h3_turbo_4step_ckpt850.safetensors",
+        1.1,
+        false
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
     }
   ],
   "links": [
@@ -3874,8 +3882,8 @@
     "ds": {
       "scale": 0.7194371569191201,
       "offset": [
-        3748.33083099959,
-        -4556.517907906629
+        4091.7164229936548,
+        -5918.188819331738
       ]
     },
     "frontendVersion": "1.47.12",
@@ -3892,9 +3900,9 @@
         "hash": "",
         "size": 5207808496
       },
-      "127_minimax_h3_fl2va_pruned_w4a8_mixed.safetensors": {
+      "127_minimax_h3_ref2va_pruned_int8_convrot.safetensors": {
         "hash": "",
-        "size": 12540858008
+        "size": 20970379616
       },
       "241_minimax_h3_turbo_4step_ckpt500.safetensors": {
         "hash": "",

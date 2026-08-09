@@ -46,6 +46,10 @@ class TestFrontendDependencyHardening(unittest.TestCase):
             _version_tuple(packages["node_modules/postcss"]["version"]),
             (8, 5, 18),
         )
+        self.assertGreaterEqual(
+            _version_tuple(packages["node_modules/nanoid"]["version"]),
+            (3, 3, 17),
+        )
 
     def test_root_manifest_does_not_claim_transitive_packages(self):
         root_dependencies = {

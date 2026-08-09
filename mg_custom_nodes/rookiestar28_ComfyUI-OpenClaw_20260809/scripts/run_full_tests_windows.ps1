@@ -54,6 +54,20 @@ function Assert-PreCommitDidNotMutateRepo {
   }
 }
 
+function Assert-CleanPublicWorktree {
+  # CRITICAL: tracked diff snapshots do not include untracked deliverables. A full
+  # acceptance gate must bind to one clean committed candidate, not local-only files.
+  $statusLines = @(& git status --porcelain --untracked-files=all)
+  if ($LASTEXITCODE -ne 0) {
+    throw "[tests] ERROR: unable to inspect Git worktree state"
+  }
+  if ($statusLines.Count -gt 0) {
+    throw "[tests] ERROR: acceptance requires a clean committed candidate. Commit or remove public changes, then rerun.`n$($statusLines -join [Environment]::NewLine)"
+  }
+}
+
+Assert-CleanPublicWorktree
+
 Require-Cmd node
 Require-Cmd npm
 
@@ -363,4 +377,5 @@ $env:OPENCLAW_PLAYWRIGHT_BROWSERS = "chromium"
 # not assume a warmed local browser cache when running on fresh Windows hosts.
 Invoke-Checked "frontend E2E" { npm test }
 
+Assert-CleanPublicWorktree
 Write-Host "[tests] PASS"

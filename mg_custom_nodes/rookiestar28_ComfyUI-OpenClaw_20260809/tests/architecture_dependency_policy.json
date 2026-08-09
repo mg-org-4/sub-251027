@@ -124,6 +124,7 @@
       "scripts/devtools/verify_s30_doctor.py",
       "scripts/generate_openapi_spec.py",
       "scripts/generate_provenance.py",
+      "scripts/high_risk_acceptance.py",
       "scripts/lint_implementation_record.py",
       "scripts/openclaw_smoke_import.py",
       "scripts/operator_doctor.py",

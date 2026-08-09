@@ -80,6 +80,24 @@ report_precommit_repo_drift_and_exit() {
   exit 1
 }
 
+assert_clean_public_worktree() {
+  # CRITICAL: tracked diff snapshots do not include untracked deliverables. A push
+  # gate must validate one clean committed candidate, not local-only files.
+  local status
+  if ! status="$(git status --porcelain --untracked-files=all)"; then
+    echo "[pre-push] ERROR: unable to inspect Git worktree state" >&2
+    exit 1
+  fi
+  if [ -n "$status" ]; then
+    echo "[pre-push] ERROR: validation requires a clean committed candidate." >&2
+    echo "[pre-push] Commit or remove public changes, then retry." >&2
+    printf '%s\n' "$status" >&2
+    exit 1
+  fi
+}
+
+assert_clean_public_worktree
+
 is_wsl() {
   grep -qiE "(microsoft|wsl)" /proc/version 2>/dev/null
 }
@@ -430,4 +448,5 @@ MOLTBOT_STATE_DIR="$ROOT_DIR/moltbot_state/_pre_push_adversarial" \
 echo "[pre-push] 9/9 npm test (Playwright)"
 npm test
 
+assert_clean_public_worktree
 echo "[pre-push] PASS"

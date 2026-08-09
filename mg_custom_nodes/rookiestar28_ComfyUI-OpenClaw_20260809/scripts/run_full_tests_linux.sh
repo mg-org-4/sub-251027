@@ -83,6 +83,24 @@ report_precommit_repo_drift_and_exit() {
   exit 1
 }
 
+assert_clean_public_worktree() {
+  # CRITICAL: tracked diff snapshots do not include untracked deliverables. A full
+  # acceptance gate must bind to one clean committed candidate, not local-only files.
+  local status
+  if ! status="$(git status --porcelain --untracked-files=all)"; then
+    echo "[tests] ERROR: unable to inspect Git worktree state" >&2
+    exit 1
+  fi
+  if [ -n "$status" ]; then
+    echo "[tests] ERROR: acceptance requires a clean committed candidate." >&2
+    echo "[tests] Commit or remove public changes, then rerun." >&2
+    printf '%s\n' "$status" >&2
+    exit 1
+  fi
+}
+
+assert_clean_public_worktree
+
 require_cmd node
 require_cmd npm
 
@@ -265,4 +283,5 @@ echo "[tests] 10/10 frontend E2E"
 # not assume a warmed local browser cache when running on fresh WSL/Linux hosts.
 OPENCLAW_PLAYWRIGHT_INSTALL=1 OPENCLAW_PLAYWRIGHT_BROWSERS=chromium npm test
 
+assert_clean_public_worktree
 echo "[tests] PASS"

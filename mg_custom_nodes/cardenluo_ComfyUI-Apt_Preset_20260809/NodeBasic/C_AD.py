@@ -8,6 +8,7 @@ import random
 import torch.nn.functional as F
 from io import BytesIO
 import hashlib
+import re
 import collections.abc
 from ..main_unit import *
 
@@ -2424,8 +2425,7 @@ except ImportError:
 
 class AD_MiniMax_Ref2V:
  
-
-    CATEGORY = "Apt_Preset/AD"
+    CATEGORY = "Apt_Preset/AD/😺backup"
     FUNCTION = "execute"
 
     RETURN_TYPES = ("CONDITIONING", "LATENT")
@@ -2459,17 +2459,17 @@ class AD_MiniMax_Ref2V:
         }
         optional = {}
         # 9 个参考图片
-        for i in range(1, 10):
-            optional[f"Picture {i}"] = ("IMAGE",)
+        for i in range(9):
+            optional[f"ref_image_{i}"] = ("IMAGE",)
         # 3 个参考视频
-        for i in range(1, 4):
-            optional[f"V_img{i}"] = ("IMAGE",)
+        for i in range(3):
+            optional[f"ref_video_{i}"] = ("IMAGE",)
         # 3 个视频配对音轨
-        for i in range(1, 4):
-            optional[f"V_audio{i}"] = ("AUDIO",)
+        for i in range(3):
+            optional[f"ref_video_audio_{i}"] = ("AUDIO",)
         # 3 个独立参考音频
-        for i in range(1, 4):
-            optional[f"Audio {i}"] = ("AUDIO",)
+        for i in range(3):
+            optional[f"ref_audio_{i}"] = ("AUDIO",)
         return {"required": required, "optional": optional}
 
     # ------------------------------------------------------------------ utils
@@ -2495,22 +2495,22 @@ class AD_MiniMax_Ref2V:
         ref_videos = {}
         ref_video_audios = {}
         ref_audios = {}
-        for i in range(1, 10):
-            v = kwargs.get(f"Picture {i}")
+        for i in range(9):
+            v = kwargs.get(f"ref_image_{i}")
             if v is not None:
-                ref_images[f"Picture {i}"] = v
-        for i in range(1, 4):
-            v = kwargs.get(f"V_img{i}")
+                ref_images[f"ref_image_{i}"] = v
+        for i in range(3):
+            v = kwargs.get(f"ref_video_{i}")
             if v is not None:
-                ref_videos[f"V_img{i}"] = v
-        for i in range(1, 4):
-            v = kwargs.get(f"V_audio{i}")
+                ref_videos[f"ref_video_{i}"] = v
+        for i in range(3):
+            v = kwargs.get(f"ref_video_audio_{i}")
             if v is not None:
-                ref_video_audios[f"V_audio{i}"] = v
-        for i in range(1, 4):
-            v = kwargs.get(f"Audio {i}")
+                ref_video_audios[f"ref_video_audio_{i}"] = v
+        for i in range(3):
+            v = kwargs.get(f"ref_audio_{i}")
             if v is not None:
-                ref_audios[f"Audio {i}"] = v
+                ref_audios[f"ref_audio_{i}"] = v
 
         latent, frame_count = _h3_empty_av_latent(width, height, length)
 
@@ -2533,9 +2533,8 @@ class AD_MiniMax_Ref2V:
 
         # ---- 参考视频（含配对音轨）----
         for name, video_frames in ref_videos.items():
-            # 通过名称后缀配对：V_audioN ↔ V_imgN
-            idx = name.replace("V_img", "")
-            soundtrack = ref_video_audios.get(f"V_audio{idx}")
+            # 通过名称后缀配对：ref_video_audio_N ↔ ref_video_N
+            soundtrack = ref_video_audios.get("ref_video_audio_" + name.rsplit("_", 1)[-1])
             vh, vw = video_frames.shape[1], video_frames.shape[2]
             cw, ch = _h3_adapt_canvas(vw, vh)
             if vw * vh < cw * ch:
@@ -2579,6 +2578,215 @@ class AD_MiniMax_Ref2V:
 
 
 #endregion----------MiniMax H3---------------
+
+
+#region----------MiniMax H3 Guide---------------
+
+_AD_GUIDE_MAX_MEDIA = 15
+_AD_GUIDE_MAX_IMAGES = 9
+_AD_GUIDE_MAX_VIDEOS = 3
+_AD_GUIDE_MAX_AUDIOS = 3
+_AD_GUIDE_PLACEHOLDER_RE = re.compile(r"__AD_MINIMAX_GUIDE_REF_(\d+)__")
+_AD_GUIDE_UNRESOLVED_RE = re.compile(r"__AD_MINIMAX_GUIDE_UNRESOLVED_REF_[^_]+__")
+_AD_GUIDE_MENTION_RE = re.compile(
+    r"[@＠][\t \u3000]*(图片|图像|图|image|picture|img|pic|视频|影片|video|音频|声音|语音|audio|sound)"
+    r"[\t \u3000]*(?:[#＃][\t \u3000]*)?([1-9１-９][0-9０-９]*)(?![0-9０-９A-Za-z_])",
+    re.IGNORECASE,
+)
+
+
+def _ad_guide_media_type(value):
+    if value is None:
+        return ""
+    if isinstance(value, torch.Tensor):
+        return "image"
+    if isinstance(value, collections.abc.Mapping) and "waveform" in value:
+        return "audio"
+    if hasattr(value, "get_components"):
+        return "video"
+    if isinstance(value, collections.abc.Mapping) and ("images" in value or "frames" in value):
+        return "video"
+    return ""
+
+
+def _ad_guide_video_parts(value):
+    if hasattr(value, "get_components"):
+        components = value.get_components()
+        return components.images, components.audio, float(components.frame_rate or _H3_FPS)
+    if isinstance(value, collections.abc.Mapping):
+        frames = value.get("images")
+        if frames is None:
+            frames = value.get("frames")
+        if isinstance(frames, torch.Tensor):
+            return frames, value.get("audio"), float(value.get("fps") or value.get("frame_rate") or _H3_FPS)
+    if isinstance(value, torch.Tensor) and value.ndim == 4:
+        return value, None, float(_H3_FPS)
+    raise ValueError("AD_MiniMax_guide received an unsupported reference video payload")
+
+
+def _ad_guide_resample_video(frames, source_fps):
+    if not source_fps or abs(float(source_fps) - float(_H3_FPS)) < 0.01:
+        return frames
+    count = max(1, round(frames.shape[0] * float(_H3_FPS) / float(source_fps)))
+    indexes = torch.linspace(0, frames.shape[0] - 1, count, device=frames.device).round().long()
+    return frames[indexes]
+
+
+def _ad_guide_resolve_prompt(prompt, tag_by_input, image_count, video_count, audio_count):
+    text = str(prompt or "")
+    if _AD_GUIDE_UNRESOLVED_RE.search(text):
+        raise ValueError("Prompt contains a disconnected media reference")
+    text = _AD_GUIDE_PLACEHOLDER_RE.sub(lambda match: tag_by_input.get(int(match.group(1)), ""), text)
+    aliases = {
+        "图片": "image", "图像": "image", "图": "image", "image": "image", "picture": "image", "img": "image", "pic": "image",
+        "视频": "video", "影片": "video", "video": "video",
+        "音频": "audio", "声音": "audio", "语音": "audio", "audio": "audio", "sound": "audio",
+    }
+    limits = {"image": image_count, "video": video_count, "audio": audio_count}
+    names = {"image": "Picture", "video": "Video", "audio": "Audio"}
+
+    def replace(match):
+        kind = aliases.get(str(match.group(1) or "").lower(), "")
+        ordinal = int(match.group(2))
+        if not kind or ordinal > limits[kind]:
+            raise ValueError(f"Prompt references a missing {kind or 'media'} resource: {match.group(0)}")
+        return f"<{names[kind]} {ordinal}>"
+
+    return _AD_GUIDE_MENTION_RE.sub(replace, text)
+
+
+class AD_MiniMax_guide(AD_MiniMax_Ref2V):
+    """MiniMax H3 reference guide with ordered virtual media inputs."""
+
+    CATEGORY = "Apt_Preset/AD"
+    FUNCTION = "execute"
+    RETURN_TYPES = ("CONDITIONING", "LATENT", "STRING")
+    RETURN_NAMES = ("positive", "latent", "text")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        inherited = super().INPUT_TYPES()
+        required = dict(inherited["required"])
+        media_input = ("IMAGE,VIDEO,AUDIO",)
+        optional = {"media": media_input}
+        for index in range(1, _AD_GUIDE_MAX_MEDIA + 1):
+            optional[f"media_{index}"] = media_input
+            optional[f"media_type_{index}"] = ("STRING", {"default": ""})
+        return {
+            "required": required,
+            "optional": optional,
+        }
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
+
+    @staticmethod
+    def _collect_media(kwargs):
+        items = []
+        direct = kwargs.get("media")
+        if direct is not None:
+            detected = _ad_guide_media_type(direct)
+            if not detected:
+                raise ValueError("Media only accepts image, video or audio inputs")
+            items.append((0, detected, direct))
+        for index in range(1, _AD_GUIDE_MAX_MEDIA + 1):
+            value = kwargs.get(f"media_{index}")
+            if value is None:
+                continue
+            detected = _ad_guide_media_type(value)
+            if not detected:
+                raise ValueError(f"media_{index} only accepts image, video or audio inputs")
+            declared = str(kwargs.get(f"media_type_{index}") or "").strip().lower()
+            media_type = declared if declared in {"image", "video", "audio"} else detected
+            items.append((index, media_type, value))
+        return items
+
+    def execute(self, clip, vae, audio_vae, prompt, width, height, length, ref_image_size="match", **kwargs):
+        if _h3_empty_av_latent is None or _h3_resize is None or _node_helpers is None:
+            raise RuntimeError("This ComfyUI build does not provide MiniMax H3 support")
+        latent, frame_count = _h3_empty_av_latent(width, height, length)
+        items = self._collect_media(kwargs)
+        if not items:
+            raise ValueError("AD_MiniMax_guide needs at least one image or video")
+        if len(items) > _AD_GUIDE_MAX_MEDIA:
+            raise ValueError("AD_MiniMax_guide accepts at most fifteen media resources")
+
+        images = [item for item in items if item[1] == "image"]
+        videos = [item for item in items if item[1] == "video"]
+        audios = [item for item in items if item[1] == "audio"]
+        if len(images) > _AD_GUIDE_MAX_IMAGES or len(videos) > _AD_GUIDE_MAX_VIDEOS or len(audios) > _AD_GUIDE_MAX_AUDIOS:
+            raise ValueError("Reference media limits are 9 images, 3 videos and 3 audio clips")
+        if not images and not videos:
+            raise ValueError("AD_MiniMax_guide needs an image or video in addition to audio")
+
+        ref_items = []
+        ref_blocks = []
+        tag_by_input = {}
+        audio_ordinal = 0
+
+        for ordinal, (input_index, _kind, image) in enumerate(images, start=1):
+            if not isinstance(image, torch.Tensor) or image.ndim != 4:
+                raise ValueError("Image references must be IMAGE tensors")
+            image_h, image_w = image.shape[1], image.shape[2]
+            if str(ref_image_size) == "match":
+                scale = min(1.0, math.sqrt((width * height) / max(1, image_w * image_h)))
+            else:
+                scale = min(1.0, _H3_REF_IMAGE_SHORT_EDGE / max(1, min(image_w, image_h)))
+            target_w = max(_H3_CANVAS_MULTIPLE, round(image_w * scale / _H3_CANVAS_MULTIPLE) * _H3_CANVAS_MULTIPLE)
+            target_h = max(_H3_CANVAS_MULTIPLE, round(image_h * scale / _H3_CANVAS_MULTIPLE) * _H3_CANVAS_MULTIPLE)
+            resized = _h3_resize(image[:1], target_w, target_h, "disabled")
+            ref_items.append({"type": "image", "data": resized})
+            ref_blocks.append({"kind": "image", "latent_h": target_h // 16, "latent_w": target_w // 16, "latent": vae.encode(resized)})
+            tag_by_input[input_index] = f"<Picture {ordinal}>"
+
+        for ordinal, (input_index, _kind, video) in enumerate(videos, start=1):
+            frames, soundtrack, source_fps = _ad_guide_video_parts(video)
+            frames = _ad_guide_resample_video(frames, source_fps)
+            video_h, video_w = frames.shape[1], frames.shape[2]
+            canvas_w, canvas_h = _h3_adapt_canvas(video_w, video_h)
+            if video_w * video_h < canvas_w * canvas_h:
+                canvas_w = max(_H3_CANVAS_MULTIPLE, round(video_w / _H3_CANVAS_MULTIPLE) * _H3_CANVAS_MULTIPLE)
+                canvas_h = max(_H3_CANVAS_MULTIPLE, round(video_h / _H3_CANVAS_MULTIPLE) * _H3_CANVAS_MULTIPLE)
+            frames = _h3_resize(frames, canvas_w, canvas_h, "disabled")[:frame_count]
+            count = frames.shape[0]
+            if count < 5:
+                raise ValueError("Reference videos need at least 5 frames")
+            while count % 17 != 5:
+                count -= 1
+            frames = frames[:count]
+            video_latent = vae.encode(frames)
+            audio_latent, audio_t = None, 0
+            if soundtrack is not None:
+                audio_latent, audio_t = self._encode_ref_audio(audio_vae, soundtrack)
+                audio_ordinal += 1
+                ref_items.append({"type": "audio"})
+            sample_indexes = list(range(0, frames.shape[0], max(1, _H3_FPS // 2)))
+            ref_items.append({"type": "video", "data": frames[sample_indexes], "timestamps": [i / 2.0 for i in range(len(sample_indexes))]})
+            ref_blocks.append({
+                "kind": "video_audio" if audio_t else "video", "latent_t": video_latent.shape[2],
+                "latent_h": canvas_h // 16, "latent_w": canvas_w // 16, "ref_audio_t": audio_t,
+                "latent": video_latent, "audio_latent": audio_latent,
+            })
+            tag_by_input[input_index] = f"<Video {ordinal}>"
+
+        for input_index, _kind, audio in audios:
+            if not isinstance(audio, collections.abc.Mapping) or "waveform" not in audio:
+                raise ValueError("Audio references must be AUDIO payloads")
+            audio_latent, audio_t = self._encode_ref_audio(audio_vae, audio)
+            audio_ordinal += 1
+            ref_items.append({"type": "audio"})
+            ref_blocks.append({"kind": "audio", "ref_audio_t": audio_t, "audio_latent": audio_latent})
+            tag_by_input[input_index] = f"<Audio {audio_ordinal}>"
+
+        resolved_prompt = _ad_guide_resolve_prompt(prompt, tag_by_input, len(images), len(videos), audio_ordinal)
+        tokens = clip.tokenize(resolved_prompt, minimax_ref_items=ref_items)
+        positive = clip.encode_from_tokens_scheduled(tokens)
+        positive = _node_helpers.conditioning_set_values(positive, {"minimax_refs": ref_blocks})
+        return positive, latent, resolved_prompt
+
+
+#endregion----------MiniMax H3 Guide---------------
 
 
 

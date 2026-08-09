@@ -241,6 +241,7 @@ NODE_CLASS_MAPPINGS= {
 "AD_pingpong_vedio":AD_pingpong_vedio,
 "AD_FILM_VFI":AD_FILM_VFI,
 "AD_MiniMax_Ref2V": AD_MiniMax_Ref2V,
+"AD_MiniMax_guide": AD_MiniMax_guide,
 
 
 

@@ -24,6 +24,7 @@ class MultiParamFormula:
             "required": {
                 "expression": ("STRING",{"multiline": True}),
                 "advanced": (["enable", "disable"],{"default": "disable"}), 
+                "errorEnd": (["enable", "disable"],{"default": "disable"}), 
             },
             "optional": {
                 "p0": (AlwaysEqualProxy("*"), ),
@@ -44,7 +45,7 @@ class MultiParamFormula:
     CATEGORY = "lam"
     OUTPUT_NODE = False
 
-    def evaluate(self,advanced,expression,isView=True, **kwargs):
+    def evaluate(self,advanced,expression,errorEnd='disable',isView=True, **kwargs):
         lookup = {'json':json}
         for arg in kwargs:
             lookup[arg] = kwargs[arg]
@@ -52,24 +53,31 @@ class MultiParamFormula:
         msg='完成'
         r=""
         expand=None
+        ui={}
         try:
             if advanced=='enable':
                 exec(expression, lookup)
                 if 'result' not in lookup:
-                    msg('表达式没有返回值')
+                    msg='表达式没有返回值'
                 else:
                     r = lookup['result']
                 if "expand" in lookup:
                     expand = lookup['expand']
+                if "ui" in lookup:
+                    ui=lookup['ui']
             else:
                 r = eval(expression, lookup)
         except Exception as e:
+            if errorEnd=='enable':
+                raise Exception(e)
+            print(e)
             msg='表达式错误'
 
         if not isinstance(r, tuple):
             r = (r,)
-        
-        return {"ui": {"value": [msg]}, "result": r,"expand":expand} if isView else r
+
+        ui['value']=[msg]
+        return {"ui": ui, "result": r,"expand":expand} if isView else r
     
 NODE_CLASS_MAPPINGS = {
     "MultiParamFormula": MultiParamFormula

@@ -35,6 +35,49 @@ def _has_ggml_params(module):
     return False
 
 
+def _backup_ggml_refs(module):
+    """Preserve the ORIGINAL mmap-backed GGMLTensor objects for every GGML
+    parameter in `module`.
+
+    Why a full-reference backup (not just .data): tensor_type / tensor_shape /
+    patches live on the GGMLTensor *object*, and a .to(...) round trip creates
+    a fresh tensor that loses the mmap mapping. We must keep the original object
+    alive so we can point the parameter back at it later.
+    """
+    if getattr(module, "_ggml_mmap_backup", None) is not None:
+        return
+    backup = {}
+    for name, param in module.named_parameters(recurse=True):
+        t = param.data
+        if hasattr(t, "tensor_type"):      # a GGMLTensor
+            backup[name] = t               # keep the object alive, mmap intact
+    module._ggml_mmap_backup = backup
+
+
+def _restore_ggml_refs(module):
+    """Point params back at the original mmap GGMLTensors and drop any GPU
+    copies. This is a *pointer assignment* (p.data = orig), so NO anonymous
+    heap allocation happens -- unlike module.to(offload_device), which would
+    reallocate the dequantized weights as non-reclaimable RAM.
+
+    If a block was never GPU-loaded (no backup), fall back to .to(cpu) which is
+    a no-op for an already-mmap'd CPU tensor.
+    """
+    backup = getattr(module, "_ggml_mmap_backup", None)
+    if not backup:
+        module.to(module.offload_device if hasattr(module, "offload_device") else "cpu")
+        return
+    params = dict(module.named_parameters(recurse=True))
+    for name, orig in backup.items():
+        p = params.get(name)
+        if p is not None:
+            p.data = orig
+    # free the GPU copy of the now-unreferenced tensor
+    if torch.cuda.is_available():
+        gc.collect()
+        torch.cuda.empty_cache()
+
+
 def _free_to_meta(module):
     """Free param data to meta tensor - NO CPU copy created.
     The module structure is preserved. next load() restores from backup."""
@@ -60,14 +103,19 @@ class SwappableModuleList(nn.ModuleList):
         if self._loaded_swap_idx >= 0:
             prev = self._loaded_swap_idx + self.non_swap_count
             try:
+                prev_mod = self._modules[str(prev)]
                 # FREE previous block GPU memory
-                if _has_ggml_params(self._modules[str(prev)]):
-                    # GGUF: move quantized data to CPU (preserves GGMLTensor attributes)
-                    self._modules[str(prev)].to(self.offload_device)
+                if _has_ggml_params(prev_mod):
+                    # GGUF: restore the original mmap-backed GGMLTensor by
+                    # pointer assignment. This drops the GPU copy WITHOUT
+                    # reallocating the weights as anonymous CPU RAM (which
+                    # .to(offload_device) would do after a .to(cuda) round
+                    # trip, blowing RAM from 40G to 60G).
+                    _restore_ggml_refs(prev_mod)
                 else:
                     # Safetensor: set to meta (vbar restores automatically)
-                    _free_to_meta(self._modules[str(prev)])
-                for m in self._modules[str(prev)].modules():
+                    _free_to_meta(prev_mod)
+                for m in prev_mod.modules():
                     for attr in ('_v', '_prefetch', '_v_signature'):
                         if hasattr(m, attr):
                             try:
@@ -77,19 +125,32 @@ class SwappableModuleList(nn.ModuleList):
             except Exception:
                 pass
         # LOAD current block if GGUF
-        if _has_ggml_params(self._modules[str(idx)]):
-            self._modules[str(idx)].to(self.compute_device)
+        cur_mod = self._modules[str(idx)]
+        if _has_ggml_params(cur_mod):
+            # Snapshot the mmap reference so we can later restore it. We do NOT
+            # call cur_mod.to(compute_device) here: GGUF weights are dequantized
+            # per-layer on demand inside GGMLLayer.cast_bias_weight() when each
+            # op runs (self.weight.to(input.device)). Pre-moving the whole block
+            # to GPU would force a full dequantization of every layer at once,
+            # spiking VRAM and -- on the next swap -- a GPU->"CPU" round trip,
+            # both of which defeat the mmap model's whole point.
+            _backup_ggml_refs(cur_mod)
         # else: safetensor - vbar handles restoration
         self._loaded_swap_idx = local_idx
 
     def offload_swap_blocks(self):
         for i in range(self.non_swap_count, self.total_count):
             try:
-                if _has_ggml_params(self._modules[str(i)]):
-                    self._modules[str(i)].to(self.offload_device)
+                blk = self._modules[str(i)]
+                if _has_ggml_params(blk):
+                    # Restore the original mmap-backed GGMLTensor (pointer
+                    # assignment, no anonymous RAM). If a block was never
+                    # GPU-loaded the backup is empty and the helper safely
+                    # falls back to a no-op .to(cpu).
+                    _restore_ggml_refs(blk)
                 else:
-                    _free_to_meta(self._modules[str(i)])
-                for m in self._modules[str(i)].modules():
+                    _free_to_meta(blk)
+                for m in blk.modules():
                     for attr in ('_v', '_prefetch', '_v_signature'):
                         if hasattr(m, attr):
                             try:
@@ -177,12 +238,14 @@ def install_block_swap(diffusion_model, compute_device, offload_device,
         logger.info("UniBlockSwap: '%s' = %d blocks, swapping %d",
                      name, total, n)
 
-        # For GGUF: offload swap blocks to CPU immediately.
+        # For GGUF: the swap blocks already live in the mmap file-backed mapping
+        # on CPU. No copy is needed now; we just record the original references
+        # so a later offload can restore them (pointer assignment, no anon RAM).
         # Safetensor blocks stay on GPU (original behavior).
         for i in range(total - n, total):
             blk = swl._modules[str(i)]
             if _has_ggml_params(blk):
-                blk.to(offload_device)
+                _backup_ggml_refs(blk)
 
     orig_fwd = diffusion_model.forward
 
@@ -270,7 +333,8 @@ def install_te_block_swap(cond_stage_model, compute_device, offload_device,
         for i in range(total - n, total):
             blk = swl._modules[str(i)]
             if _has_ggml_params(blk):
-                blk.to(offload_device)
+                # Record mmap references; the block stays file-backed on CPU.
+                _backup_ggml_refs(blk)
             else:
                 _free_to_meta(blk)
 

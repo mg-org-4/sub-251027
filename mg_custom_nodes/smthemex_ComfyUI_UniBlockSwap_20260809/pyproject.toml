@@ -1,7 +1,7 @@
 [project]
 name = "uniblockswap"
-description = "A universal swap node that supports ComfyUI native workflow, allowing 4_6G users to experience Klein9B or other large models"
-version = "1.0.0"
+description = "A universal swap node that supports ComfyUI native workflow, allowing 4_6G users to experience Minimax Klein9B or other large models"
+version = "1.1.0"
 license = {file = "LICENSE"}
 
 [project.urls]

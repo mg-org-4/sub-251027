@@ -155,6 +155,9 @@ class ZImagePowerNodesExtension(ComfyExtension):
         from .nodes.vae_encode_soft_inpainting import VAEEncodeSoftInpainting
         _register_node( VAEEncodeSoftInpainting, nodes, subcategory )
 
+        from .nodes.palette_selector import PaletteSelector
+        _register_node( PaletteSelector, nodes, subcategory )
+
 
         #--[ __deprecated ]----------------------
         subcategory = "__deprecated"

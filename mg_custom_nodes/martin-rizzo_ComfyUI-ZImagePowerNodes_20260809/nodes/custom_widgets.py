@@ -37,7 +37,7 @@ def _prune_dict(d: dict):
 class PaletteSelector:
     #Type = str
 
-    class Input(io.Input):
+    class Input(io.WidgetInput):
 
         def __init__(self,
                      id              : str, *,
@@ -48,8 +48,10 @@ class PaletteSelector:
                      dialog_icon     : str  | None = None,
                      dialog_size     : str  | None = None,
                      dialog_view_mode: str  | None = None,
-                     allow_variants: bool | None = None,
+                     allow_variants  : bool | None = None,
                      tooltip         : str  | None = None,
+                     force_input     : bool | None = None,
+                     optional        : bool | None = None,
                      ):
             """
             <hr>A color palette selector widget.
@@ -114,12 +116,17 @@ class PaletteSelector:
                 extra_dict["allow_variants"]           = allow_variants
                 extra_dict["dialog"]["allow_variants"] = allow_variants
 
-            super().__init__(id, extra_dict=extra_dict, tooltip=cast(str, tooltip))
+            super().__init__(id,
+                             extra_dict  = extra_dict,
+                             tooltip     = cast(str, tooltip),
+                             force_input = cast(bool,force_input),
+                             optional    = cast(bool,optional),
+                             )
 
 
     class Output(io.Output):
-        def __init__(self, **kwargs):
-            super().__init__(**kwargs)
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
 
 
 

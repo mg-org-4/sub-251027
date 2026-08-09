@@ -1,0 +1,77 @@
+"""
+File    : palette_selector.py
+Purpose : Node to select one of the predefined palettes of colors
+Author  : Martin Rizzo | <martinrizzo@gmail.com>
+Date    : Aug 8, 2026
+Repo    : https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes
+License : MIT
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                          ComfyUI-ZImagePowerNodes
+         ComfyUI nodes designed specifically for the "Z-Image" model.
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+ ComfyUI V3 Schema oficial documentation:
+ - https://docs.comfy.org/custom-nodes/v3_migration
+
+"""
+from typing                    import Final
+from comfy_api.latest          import io
+from .core.palette             import Palette
+from .data.predefined_palettes import PREDEFINED_PALETTES
+from .custom_widgets           import PaletteSelector as zio_Palette
+_PAL_VERSION: Final[str] = "2.0.0" #< the version of palette definitions this node uses
+
+
+class PaletteSelector(io.ComfyNode):
+    xTITLE         = "Palette Selector"
+    xDESCRIPTION   = (
+        "Provides a selection interface to choose from a collection of predefined color palettes."
+        )
+    xCATEGORY      = ""
+    xCOMFY_NODE_ID = ""
+    xDEPRECATED    = False
+
+    #__ INPUT / OUTPUT ____________________________________
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
+            category      = cls.xCATEGORY,
+            node_id       = cls.xCOMFY_NODE_ID,
+            is_deprecated = cls.xDEPRECATED,
+            search_aliases=["palettes", "colors", "predefined palette", "color palettes"],
+            inputs=[
+                zio_Palette.Input("palette",
+                                  version=_PAL_VERSION, allow_variants=False, dialog_title="Color Palettes | ⚗️ experimental",
+                                  dialog_size="small", dialog_view_mode="list", dialog_icon="mdi.mdi-palette-outline",
+                                  tooltip="The specific color palette to select for use in other nodes.",
+                                  height=40,
+                                  ),
+            ],
+            outputs=[
+                zio_Palette.Output("palette", tooltip="The selected color palette."),
+            ]
+        )
+
+    #__ FUNCTION __________________________________________
+    @classmethod
+    def execute(cls,
+                palette: str | Palette | None,
+                ) -> io.NodeOutput:
+
+        # if palette is just a name, get the object from the predefined palettes
+        if isinstance(palette, str):
+            palette = PREDEFINED_PALETTES.by_version(_PAL_VERSION).get(palette)
+
+        return io.NodeOutput( palette )
+
+
+    #__ VALIDATION ________________________________________
+    @classmethod
+    def validate_inputs(cls, **kwargs) -> bool | str:
+        return True
+
+
+    #__ internal functions ________________________________
+

@@ -4,14 +4,10 @@
  */
 
 import { app } from "../../../scripts/app.js";
-import { i18n } from './locales.js';
+import { translate } from './locales.js';
 import { escapeHtml, setSafeRichHtml } from './safe_dom.js';
 
-const t = (key) => {
-    let lang = window.anomalous_browser_lang || 'zh';
-    if (lang.startsWith('en')) lang = 'en';
-    return (i18n[lang] && i18n[lang][key]) ? i18n[lang][key] : (i18n['zh'][key] || key);
-};
+const t = (key, params) => translate(key, params);
 
 
 
@@ -19,6 +15,10 @@ export function showDetail(model) {
         if (this.isPickingModelForNode) {
             const targetNode = this.isPickingModelForNode.node;
             const targetWidget = this.isPickingModelForNode.widget;
+            if (!targetNode || !targetWidget || !model?.filename) {
+                this.isPickingModelForNode = null;
+                return;
+            }
 
             const normVal = (model.filename).replace(/\\/g, '/');
             let foundPath = model.filename;
@@ -26,13 +26,38 @@ export function showDetail(model) {
                 const exactMatch = targetWidget.options.values.find(v => typeof v === 'string' && v.replace(/\\/g, '/').endsWith(normVal));
                 if (exactMatch) foundPath = exactMatch;
             }
-            targetWidget.value = foundPath;
-
-            delete targetNode.color;
-            delete targetNode.bgcolor;
-            targetNode.has_errors = false;
-            if (targetWidget.callback) targetWidget.callback(targetWidget.value, app.canvas, targetNode, app.canvas.graph_mouse, null);
-            app.graph.setDirtyCanvas(true, true);
+            const oldValue = targetWidget.value;
+            const widgetIndex = targetNode.widgets?.indexOf(targetWidget) ?? -1;
+            app.graph?.beforeChange?.(targetNode);
+            try {
+                targetWidget.value = foundPath;
+                if (widgetIndex >= 0) {
+                    targetNode.widgets_values = Array.isArray(targetNode.widgets_values)
+                        ? targetNode.widgets_values
+                        : (targetNode.widgets || []).map((widget) => widget?.value);
+                    targetNode.widgets_values[widgetIndex] = foundPath;
+                }
+                delete targetNode.color;
+                delete targetNode.bgcolor;
+                targetNode.has_errors = false;
+                if (typeof targetWidget.callback === 'function') {
+                    targetWidget.callback.call(targetWidget, targetWidget.value, app.canvas, targetNode, app.canvas?.graph_mouse, null);
+                }
+                if (typeof targetNode.onWidgetChanged === 'function' && widgetIndex >= 0) {
+                    targetNode.onWidgetChanged(widgetIndex, targetWidget.value, oldValue, targetWidget);
+                }
+                app.graph?.afterChange?.(targetNode);
+                app.graph?.change?.();
+                app.graph?.setDirtyCanvas?.(true, true);
+                app.canvas?.setDirty?.(true, true);
+                try { window.dispatchEvent(new CustomEvent('graphChanged')); } catch (error) {}
+            } catch (error) {
+                targetWidget.value = oldValue;
+                if (widgetIndex >= 0 && Array.isArray(targetNode.widgets_values)) targetNode.widgets_values[widgetIndex] = oldValue;
+                app.graph?.afterChange?.(targetNode);
+                console.error('Could not apply selected model to node:', error);
+                return;
+            }
 
             this.isPickingModelForNode = null;
             const banner = document.getElementById('anomalous-picker-banner');
@@ -49,6 +74,15 @@ export function showDetail(model) {
         }
         if (this.detailMouseMoveHandler) window.removeEventListener('mousemove', this.detailMouseMoveHandler);
         if (this.detailMouseUpHandler) window.removeEventListener('mouseup', this.detailMouseUpHandler);
+        if (!this.recipeModelReturn && this.grid && this.grid.style.display !== 'none') {
+            this.gridReturnState = {
+                type: this.currentType,
+                pathIdx: this.currentPathIdx,
+                subfolder: this.currentSubfolder,
+                scrollTop: this.grid.scrollTop,
+                scrollLeft: this.grid.scrollLeft,
+            };
+        }
         this.grid.style.display = 'none';
         this.detailPanel.style.display = 'flex';
         this.stopMediaInContainer(this.detailPanel); this.detailPanel.innerHTML = '';
@@ -75,11 +109,11 @@ export function showDetail(model) {
         }
 
         if (isFromDoctor) {
-            backBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '⬅ 返回医生面板' : '⬅ Back to Doctor';
+            backBtn.textContent = t('detailBackDoctor');
             backBtn.style.background = '#8AB4F8';
             backBtn.style.color = '#000';
         } else if (isFromAssistant) {
-            backBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '⬅ 返回助手面板' : '⬅ Back to Assistant';
+            backBtn.textContent = t('detailBackAssistant');
             backBtn.style.background = '#8AB4F8';
             backBtn.style.color = '#000';
         } else {
@@ -95,6 +129,12 @@ export function showDetail(model) {
             if (this.currentDetailObserver) {
                 this.currentDetailObserver.disconnect();
                 this.currentDetailObserver = null;
+            }
+            if (typeof this.recipeModelReturn === 'function') {
+                const returnToRecipe = this.recipeModelReturn;
+                this.recipeModelReturn = null;
+                returnToRecipe();
+                return;
             }
             if (this.historyStack.length > 0) {
                 const prev = this.historyStack.pop();
@@ -120,6 +160,17 @@ export function showDetail(model) {
                 this.detailPanel.style.display = 'none';
                 this.stopMediaInContainer(this.detailPanel); this.detailPanel.innerHTML = '';
                 this.grid.style.display = 'grid';
+                const gridReturnState = this.gridReturnState;
+                this.gridReturnState = null;
+                if (gridReturnState
+                    && gridReturnState.type === this.currentType
+                    && gridReturnState.pathIdx === this.currentPathIdx
+                    && gridReturnState.subfolder === this.currentSubfolder) {
+                    requestAnimationFrame(() => {
+                        this.grid.scrollTop = gridReturnState.scrollTop || 0;
+                        this.grid.scrollLeft = gridReturnState.scrollLeft || 0;
+                    });
+                }
             }
         };
 
@@ -178,7 +229,7 @@ export function showDetail(model) {
 
         const jumpBtn = document.createElement('button');
         jumpBtn.innerHTML = '⬇️';
-        jumpBtn.title = t('jumpToBottom') || 'Jump to bottom';
+        jumpBtn.title = t('detailJumpToBottom');
         jumpBtn.style.padding = '6px 12px';
         jumpBtn.style.background = '#444';
         jumpBtn.style.color = '#fff';
@@ -198,7 +249,7 @@ export function showDetail(model) {
         header.appendChild(jumpBtn);
 
         const applyDetailBtn = document.createElement('button');
-        applyDetailBtn.innerHTML = t('applyToCanvas') || 'Apply to Canvas';
+        applyDetailBtn.textContent = t('applyToCanvas');
         applyDetailBtn.style.padding = '6px 12px';
         applyDetailBtn.style.background = '#007bff';
         applyDetailBtn.style.color = '#fff';
@@ -345,7 +396,7 @@ export function showDetail(model) {
         }
 
         const editMetaBtn = document.createElement('button');
-        editMetaBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '⚙️ 编辑' : '⚙️ Edit';
+        editMetaBtn.textContent = t('detailEdit');
         editMetaBtn.style.marginLeft = m.civitai_url ? '10px' : 'auto';
         editMetaBtn.style.padding = '4px 8px';
         editMetaBtn.style.background = '#444';
@@ -387,7 +438,7 @@ export function showDetail(model) {
             notesHeader.style.marginBottom = '8px';
 
             const notesTitle = document.createElement('div');
-            notesTitle.innerHTML = window.anomalous_browser_lang === 'zh' ? '📓 专属备注 (Notes)' : '📓 Custom Notes';
+            notesTitle.textContent = t('detailNotesTitle');
             notesTitle.style.color = '#a38d53';
             notesTitle.style.fontWeight = '600';
             notesTitle.style.fontSize = '0.85em';
@@ -395,7 +446,7 @@ export function showDetail(model) {
 
             const notesEditBtn = document.createElement('button');
             notesEditBtn.innerHTML = '✏️';
-            notesEditBtn.title = window.anomalous_browser_lang === 'zh' ? '编辑备注' : 'Edit Notes';
+            notesEditBtn.title = t('detailEditNotes');
             notesEditBtn.style.background = 'transparent';
             notesEditBtn.style.border = 'none';
             notesEditBtn.style.color = '#a38d53';
@@ -446,7 +497,7 @@ export function showDetail(model) {
         galleryBtn.style.padding = '10px';
         galleryBtn.style.background = '#2a2b2f';
         galleryBtn.style.border = '1px solid #3c4043';
-        galleryBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '🖼️ 查看历史生成作品' : '🖼️ View Generated Gallery';
+        galleryBtn.textContent = t('detailGeneratedGallery');
         galleryBtn.onmouseover = () => { galleryBtn.style.background = '#3c4043'; galleryBtn.style.borderColor = '#8ab4f8'; };
         galleryBtn.onmouseout = () => { galleryBtn.style.background = '#2a2b2f'; galleryBtn.style.borderColor = '#3c4043'; };
 
@@ -468,7 +519,7 @@ export function showDetail(model) {
             twHeader.style.marginBottom = '5px';
 
             const twLabel = document.createElement('strong');
-            twLabel.innerText = 'Trained Words:';
+            twLabel.textContent = t('detailTrainedWords');
             twHeader.appendChild(twLabel);
 
             const copyAll = document.createElement('button');
@@ -528,7 +579,7 @@ export function showDetail(model) {
             // important for flex scroll
 
             const descLabel = document.createElement('strong');
-            descLabel.innerText = 'Description:';
+            descLabel.textContent = t('detailDescription');
             descLabel.style.marginBottom = '5px';
             descCont.appendChild(descLabel);
 
@@ -554,7 +605,7 @@ export function showDetail(model) {
             notesCont.style.marginTop = '10px';
 
             const notesLabel = document.createElement('strong');
-            notesLabel.innerText = 'Notes:';
+            notesLabel.textContent = t('detailNotes');
             notesCont.appendChild(notesLabel);
 
             const notesText = document.createElement('div');
@@ -596,7 +647,10 @@ export function showDetail(model) {
                         window.anomalous_update_hash_cache(d.models);
                     }
                     if (!d.models || d.models.length === 0) {
-                        compList.innerHTML = `<span style="color:#888;">No compatible models found.</span>`;
+                        const noCompatible = document.createElement('span');
+                        noCompatible.style.color = '#888';
+                        noCompatible.textContent = t('detailNoCompatibleModels');
+                        compList.replaceChildren(noCompatible);
                         return;
                     }
                     d.models.forEach(m_comp => {
@@ -641,7 +695,10 @@ export function showDetail(model) {
                     });
                 })
                 .catch(e => {
-                    compList.innerHTML = `<span style="color:#ff4444;">Failed to load.</span>`;
+                    const compatibleError = document.createElement('span');
+                    compatibleError.style.color = '#ff4444';
+                    compatibleError.textContent = t('detailCompatibleLoadFailed');
+                    compList.replaceChildren(compatibleError);
                 });
         }
         // ---------------------------------
@@ -729,7 +786,7 @@ export function showEditModal(model) {
                 muteBtn.style.cursor = 'pointer';
                 muteBtn.style.fontSize = '14px';
                 muteBtn.style.zIndex = '10';
-                muteBtn.title = window.anomalous_browser_lang === 'zh' ? '开启/关闭声音' : 'Toggle Sound';
+                muteBtn.title = t('detailToggleSound');
                 muteBtn.onclick = (e) => {
                     e.stopPropagation();
                     video.muted = !video.muted;
@@ -747,7 +804,12 @@ export function showEditModal(model) {
                 previewContainer.appendChild(img);
             }
         } else {
-            previewContainer.innerHTML = `<div style="color:#9aa0a6; font-size:0.9em; text-align:center;">${window.anomalous_browser_lang === 'zh' ? '暂无封面' : 'No Cover'}</div>`;
+            const noCover = document.createElement('div');
+            noCover.style.color = '#9aa0a6';
+            noCover.style.fontSize = '0.9em';
+            noCover.style.textAlign = 'center';
+            noCover.textContent = t('detailNoCover');
+            previewContainer.appendChild(noCover);
         }
 
         const coverRow = document.createElement('div');
@@ -756,7 +818,7 @@ export function showEditModal(model) {
         coverRow.style.gap = '8px';
 
         const galleryBtn = document.createElement('button');
-        galleryBtn.innerHTML = '🖼️ ' + (window.anomalous_browser_lang === 'zh' ? '从历史图库挑选' : 'Pick from Gallery');
+        galleryBtn.textContent = `🖼️ ${t('detailPickGallery')}`;
         galleryBtn.style.padding = '8px';
         galleryBtn.style.background = '#303134';
         galleryBtn.style.color = '#8ab4f8';
@@ -773,7 +835,7 @@ export function showEditModal(model) {
         };
 
         const localBtn = document.createElement('button');
-        localBtn.innerHTML = '📁 ' + (window.anomalous_browser_lang === 'zh' ? '从本地上传' : 'Upload Local');
+        localBtn.textContent = `📁 ${t('detailUploadLocal')}`;
         localBtn.style.padding = '8px';
         localBtn.style.background = '#303134';
         localBtn.style.color = '#8ab4f8';
@@ -808,10 +870,10 @@ export function showEditModal(model) {
                             }
                             document.body.removeChild(modal);
                         } else {
-                            alert((window.anomalous_browser_lang === 'zh' ? '错误: ' : 'Error: ') + data.message);
+                            alert(t('detailUploadError') + data.message);
                         }
                     } catch (err) {
-                        alert((window.anomalous_browser_lang === 'zh' ? '上传失败: ' : 'Upload failed: ') + err);
+                        alert(t('detailUploadFailed') + err);
                     }
                 }
             };
@@ -832,14 +894,17 @@ export function showEditModal(model) {
         rightCol.style.gap = '15px';
 
         const title = document.createElement('h2');
-        title.innerText = window.anomalous_browser_lang === 'zh' ? '编辑模型信息' : 'Edit Model Info';
+        title.textContent = t('detailModelInfo');
         title.style.margin = '0';
         title.style.color = '#e8eaed';
         title.style.fontSize = '1.25em';
         title.style.fontWeight = '500';
 
         const filenameLabel = document.createElement('div');
-        filenameLabel.innerHTML = `<span style="color:#9aa0a6;">${window.anomalous_browser_lang === 'zh' ? '文件:' : 'File:'}</span> ${escapeHtml(model.filename)}`;
+        const filenamePrefix = document.createElement('span');
+        filenamePrefix.style.color = '#9aa0a6';
+        filenamePrefix.textContent = t('detailFile');
+        filenameLabel.append(filenamePrefix, document.createTextNode(` ${model.filename}`));
         filenameLabel.style.color = '#e8eaed';
         filenameLabel.style.fontSize = '0.9em';
         filenameLabel.style.wordBreak = 'break-all';
@@ -858,14 +923,14 @@ export function showEditModal(model) {
         `;
 
         const nameInput = document.createElement('input');
-        nameInput.placeholder = window.anomalous_browser_lang === 'zh' ? '自定义名称 (留空则使用原名)' : 'Custom Name (Leave empty to use original)';
+        nameInput.placeholder = t('detailCustomNamePlaceholder');
         nameInput.value = (model.metadata && model.metadata.custom_name) ? model.metadata.custom_name : '';
         nameInput.style.cssText = inputStyle;
         nameInput.onfocus = () => nameInput.style.borderColor = '#8ab4f8';
         nameInput.onblur = () => nameInput.style.borderColor = '#5f6368';
 
         const notesInput = document.createElement('textarea');
-        notesInput.placeholder = window.anomalous_browser_lang === 'zh' ? '📓 专属备注... (支持多行)' : '📓 Custom Notes...';
+        notesInput.placeholder = t('detailNotesPlaceholder');
         notesInput.value = (model.metadata && model.metadata.custom_notes) ? model.metadata.custom_notes : '';
         notesInput.style.cssText = inputStyle;
         notesInput.style.flex = '1'; // fill remaining space
@@ -909,7 +974,7 @@ export function showEditModal(model) {
 
         const physicalLabel = document.createElement('label');
         physicalLabel.htmlFor = 'anomalous-physical-rename-checkbox';
-        physicalLabel.innerText = window.anomalous_browser_lang === 'zh' ? '同步物理重命名' : 'Physical Rename on Disk';
+        physicalLabel.textContent = t('detailPhysicalRename');
         physicalLabel.style.color = '#e8eaed';
         physicalLabel.style.fontSize = '0.9em';
         physicalLabel.style.cursor = 'pointer';
@@ -921,7 +986,7 @@ export function showEditModal(model) {
         physicalDesc.style.fontSize = '0.8em';
         physicalDesc.style.color = '#9aa0a6';
         physicalDesc.style.marginLeft = '22px';
-        physicalDesc.innerText = window.anomalous_browser_lang === 'zh' ? '若不勾选则仅虚拟重命名，安全不破坏原文件。' : 'Virtual rename only if unchecked. Safe for originals.';
+        physicalDesc.textContent = t('detailPhysicalRenameDesc');
 
         physicalRow.appendChild(physicalCheckboxWrapper);
         physicalRow.appendChild(physicalDesc);
@@ -936,7 +1001,7 @@ export function showEditModal(model) {
         leftActions.style.gap = '10px';
 
         const resetBtn = document.createElement('button');
-        resetBtn.innerText = window.anomalous_browser_lang === 'zh' ? '重置设置' : 'Reset All';
+        resetBtn.textContent = t('detailResetAll');
         resetBtn.style.padding = '8px 16px';
         resetBtn.style.background = 'transparent';
         resetBtn.style.color = '#f28b82';
@@ -945,7 +1010,7 @@ export function showEditModal(model) {
         resetBtn.style.cursor = 'pointer';
         resetBtn.style.fontWeight = '500';
         resetBtn.onclick = async () => {
-            if (!confirm(window.anomalous_browser_lang === 'zh' ? '确定要重置该模型的所有自定义信息（名称、封面、备注）吗？' : 'Reset all custom info for this model?')) return;
+            if (!confirm(t('detailResetConfirm'))) return;
             document.body.removeChild(modal);
             try {
                 const res = await fetch('/anomalous/update_metadata', {
@@ -976,22 +1041,16 @@ export function showEditModal(model) {
                     }
                     if (result.cover_reset === false) {
                         const noSource = result.cover_reset_source === 'preserved_current';
-                        alert(window.anomalous_browser_lang === 'zh'
-                            ? (noSource
-                                ? '未找到可恢复的 C 站备份或原始封面。为避免丢失唯一图片，当前封面已保留；自定义名称和备注仍已重置。'
-                                : '封面恢复未能完整完成，请检查文件权限或占用情况；自定义名称和备注仍已重置。')
-                            : (noSource
-                                ? 'No recoverable Civitai backup or original cover was found. The current cover was kept to avoid losing the only image; the custom name and notes were still reset.'
-                                : 'The cover restore could not be completed. Check file permissions or locks; the custom name and notes were still reset.'));
+                        alert(t(noSource ? 'detailResetCoverPreserved' : 'detailResetCoverFailed'));
                     }
                 } else {
-                    alert(result.message || (window.anomalous_browser_lang === 'zh' ? '重置失败。' : 'Reset failed.'));
+                    alert(result.message || t('detailResetFailed'));
                 }
             } catch (e) { console.error(e); }
         };
 
         const cancelBtn = document.createElement('button');
-        cancelBtn.innerText = window.anomalous_browser_lang === 'zh' ? '取消' : 'Cancel';
+        cancelBtn.textContent = t('detailCancel');
         cancelBtn.style.padding = '8px 16px';
         cancelBtn.style.background = 'transparent';
         cancelBtn.style.color = '#8ab4f8';
@@ -1005,7 +1064,7 @@ export function showEditModal(model) {
         leftActions.appendChild(cancelBtn);
 
         const saveBtn = document.createElement('button');
-        saveBtn.innerText = window.anomalous_browser_lang === 'zh' ? '保存更改' : 'Save Changes';
+        saveBtn.textContent = t('detailSaveChanges');
         saveBtn.style.padding = '8px 24px';
         saveBtn.style.background = '#8ab4f8';
         saveBtn.style.color = '#202124';
@@ -1016,7 +1075,7 @@ export function showEditModal(model) {
         saveBtn.onclick = () => {
             const newName = nameInput.value.trim();
             const newNotes = notesInput.value.trim();
-            saveBtn.innerText = window.anomalous_browser_lang === 'zh' ? '保存中...' : 'Saving...';
+            saveBtn.textContent = t('detailSaving');
             saveBtn.disabled = true;
 
             fetch('/anomalous/update_metadata', {
@@ -1045,11 +1104,11 @@ export function showEditModal(model) {
                         this.showDetail(model);
                     }
                 } else {
-                    alert((window.anomalous_browser_lang === 'zh' ? '错误: ' : 'Error: ') + data.message);
+                    alert(t('detailUploadError') + data.message);
                 }
             }).catch(e => {
                 document.body.removeChild(modal);
-                alert((window.anomalous_browser_lang === 'zh' ? '错误: ' : 'Error: ') + e);
+                alert(t('detailUploadError') + e);
             });
         };
 
@@ -1124,7 +1183,7 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
         titleContainer.style.gap = '12px';
 
         const title = document.createElement('h2');
-        title.innerText = window.anomalous_browser_lang === 'zh' ? '选择模型' : 'Select Models';
+        title.textContent = t('detailSelectModels');
         title.style.margin = '0';
         title.style.color = '#e8eaed';
         title.style.fontSize = '20px';
@@ -1160,7 +1219,7 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
         leftPanel.style.background = '#171717';
         
         const leftTitle = document.createElement('div');
-        leftTitle.innerText = window.anomalous_browser_lang === 'zh' ? '目录列表' : 'Folders';
+        leftTitle.textContent = t('detailFolders');
         leftTitle.style.padding = '16px 24px';
         leftTitle.style.fontWeight = '500';
         leftTitle.style.color = '#9aa0a6';
@@ -1224,11 +1283,18 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
             for (const set of localSelection.values()) total += set.size;
             
             if (total > 0) {
-                summaryText.innerHTML = window.anomalous_browser_lang === 'zh' 
-                    ? `已选 <span style="color: #8ab4f8; font-size: 16px; font-weight: 500;">${total}</span> 项` 
-                    : `Selected <span style="color: #8ab4f8; font-size: 16px; font-weight: 500;">${total}</span> items`;
+                const countLabel = document.createElement('span');
+                countLabel.textContent = total;
+                countLabel.style.color = '#8ab4f8';
+                countLabel.style.fontSize = '16px';
+                countLabel.style.fontWeight = '500';
+                summaryText.replaceChildren(
+                    document.createTextNode(t('detailSelectedItemsPrefix')),
+                    countLabel,
+                    document.createTextNode(t('detailSelectedItemsSuffix')),
+                );
             } else {
-                summaryText.innerHTML = window.anomalous_browser_lang === 'zh' ? '暂未选择' : 'Nothing selected';
+                summaryText.textContent = t('detailNothingSelected');
             }
             
             treeContainer.querySelectorAll('.folder-item').forEach(fBtn => {
@@ -1248,9 +1314,7 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
             // Also update total models text in grid
             const statusDiv = grid.querySelector('.status-text');
             if (statusDiv && !isLoading) {
-                statusDiv.innerText = window.anomalous_browser_lang === 'zh'
-                    ? `已加载 ${currentModels.length} / ${currentTotal} 个模型`
-                    : `Loaded ${currentModels.length} / ${currentTotal} models`;
+                statusDiv.textContent = t('detailLoadedModels', { loaded: currentModels.length, total: currentTotal });
             }
         };
 
@@ -1327,7 +1391,7 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
                 return;
             }
             
-            summaryText.innerHTML = window.anomalous_browser_lang === 'zh' ? '计算中...' : 'Computing...';
+            summaryText.textContent = t('detailComputing');
             try {
                 const res = await fetch(`/anomalous/batch_select?folderKey=${encodeURIComponent(currentFolderKey)}&action=${action}`);
                 if (!res.ok) throw new Error('API failed');
@@ -1347,20 +1411,20 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
                 updateGridCheckboxes();
             } catch (e) {
                 console.error(e);
-                summaryText.innerHTML = '<span style="color:#f28b82">Error</span>';
+                summaryText.textContent = t('detailUploadError') + e.message;
                 setTimeout(() => updateGridCheckboxes(), 2000);
             }
         };
 
-        toolbar.appendChild(createTBtn(window.anomalous_browser_lang === 'zh' ? '选无预览图' : 'Select No Preview', () => handleBatchSelect('no_preview'), true));
-        toolbar.appendChild(createTBtn(window.anomalous_browser_lang === 'zh' ? '选无介绍' : 'Select No Desc', () => handleBatchSelect('no_desc'), true));
+        toolbar.appendChild(createTBtn(t('detailSelectNoPreview'), () => handleBatchSelect('no_preview'), true));
+        toolbar.appendChild(createTBtn(t('detailSelectNoDesc'), () => handleBatchSelect('no_desc'), true));
         
         const divi = document.createElement('div');
         divi.style.width = '1px'; divi.style.height = '24px'; divi.style.background = '#3c4043'; divi.style.margin = '0 8px';
         toolbar.appendChild(divi);
 
-        toolbar.appendChild(createTBtn(window.anomalous_browser_lang === 'zh' ? '全选' : 'Select All', () => handleBatchSelect('all')));
-        toolbar.appendChild(createTBtn(window.anomalous_browser_lang === 'zh' ? '清空' : 'Clear', () => handleBatchSelect('none')));
+        toolbar.appendChild(createTBtn(t('detailSelectAll'), () => handleBatchSelect('all')));
+        toolbar.appendChild(createTBtn(t('detailClear'), () => handleBatchSelect('none')));
 
         const summaryText = document.createElement('div');
         summaryText.style.marginLeft = 'auto';
@@ -1395,7 +1459,7 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
         footer.style.gap = '12px';
         
         const cancelBtn = document.createElement('button');
-        cancelBtn.innerText = window.anomalous_browser_lang === 'zh' ? '取消' : 'Cancel';
+        cancelBtn.textContent = t('detailCancel');
         cancelBtn.style.padding = '8px 24px';
         cancelBtn.style.background = 'transparent';
         cancelBtn.style.color = '#8ab4f8';
@@ -1409,7 +1473,7 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
         cancelBtn.onclick = () => document.body.removeChild(modal);
 
         const confirmBtn = document.createElement('button');
-        confirmBtn.innerText = window.anomalous_browser_lang === 'zh' ? '确定' : 'Confirm';
+        confirmBtn.textContent = t('detailConfirm');
         confirmBtn.style.padding = '8px 24px';
         confirmBtn.style.background = '#8ab4f8';
         confirmBtn.style.color = '#202124'; // dark text on bright accent button
@@ -1606,7 +1670,7 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
             loadingIndicator.style.textAlign = 'center';
             loadingIndicator.style.color = '#9aa0a6';
             loadingIndicator.style.fontSize = '16px';
-            loadingIndicator.innerText = window.anomalous_browser_lang === 'zh' ? '加载中 (Loading)...' : 'Loading...';
+            loadingIndicator.textContent = t('detailLoading');
             grid.appendChild(loadingIndicator);
             
             try {
@@ -1614,7 +1678,16 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
                 const url = `${currentBaseUrl}${sep}page=${currentPage}&limit=50`;
                 const res = await fetch(url);
                 if (!res.ok) {
-                     grid.innerHTML = `<div class="status-text" style="grid-column: 1 / -1; padding: 60px; text-align: center; color: #f28b82; font-size: 16px;">❌ 请求后端 API 失败！<br><br>你必须重启 ComfyUI 进程，刚写入后端的代码才能生效。</div>`;
+                     const apiError = document.createElement('div');
+                     apiError.className = 'status-text';
+                     apiError.style.gridColumn = '1 / -1';
+                     apiError.style.padding = '60px';
+                     apiError.style.textAlign = 'center';
+                     apiError.style.color = '#f28b82';
+                     apiError.style.fontSize = '16px';
+                     apiError.style.whiteSpace = 'pre-line';
+                     apiError.textContent = t('detailApiRestart');
+                     grid.replaceChildren(apiError);
                      isLoading = false;
                      return;
                 }
@@ -1636,7 +1709,15 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
                 grid.removeChild(loadingIndicator);
                 
                 if (currentModels.length === 0 && !isLoadMore) {
-                     grid.innerHTML = `<div class="status-text" style="grid-column: 1 / -1; padding: 60px; text-align: center; color: #9aa0a6; font-size: 16px;">No models found.</div>`;
+                     const emptyModels = document.createElement('div');
+                     emptyModels.className = 'status-text';
+                     emptyModels.style.gridColumn = '1 / -1';
+                     emptyModels.style.padding = '60px';
+                     emptyModels.style.textAlign = 'center';
+                     emptyModels.style.color = '#9aa0a6';
+                     emptyModels.style.fontSize = '16px';
+                     emptyModels.textContent = t('detailNoModels');
+                     grid.replaceChildren(emptyModels);
                 } else {
                      grid.appendChild(renderCards(fetchedModels));
                      updateGridCheckboxes();
@@ -1650,9 +1731,9 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
                      statusText.style.color = '#5f6368';
                      statusText.style.fontSize = '14px';
                      if (currentModels.length >= currentTotal) {
-                         statusText.innerText = window.anomalous_browser_lang === 'zh' ? '✅ 已加载全部' : '✅ All models loaded';
+                         statusText.textContent = t('detailAllLoaded');
                      } else {
-                         statusText.innerText = window.anomalous_browser_lang === 'zh' ? '滑动加载更多...' : 'Scroll for more...';
+                         statusText.textContent = t('detailScrollMore');
                      }
                      grid.appendChild(statusText);
                 }
@@ -1690,7 +1771,7 @@ export function _openAdvancedModelSelector(initialSelectedMap, onConfirm) {
             allBtn.style.display = 'flex';
             allBtn.style.justifyContent = 'space-between';
             allBtn.style.alignItems = 'center';
-            allBtn.innerHTML = `<span>🌟 ${window.anomalous_browser_lang === 'zh' ? '全部模型' : 'All Models'}</span>`;
+            allBtn.textContent = `🌟 ${t('models')}`;
             
             let loadFolder = async (fBtn, folderKey, fetchUrl) => {
                 treeContainer.querySelectorAll('.folder-item').forEach(d => {

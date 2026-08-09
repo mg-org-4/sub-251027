@@ -1,13 +1,12 @@
 import { showDetail, showEditModal, _openAdvancedModelSelector, setWidgetValuePath } from './modules/ui_detail.js';
 import { loadModels, applyModelToCanvas, stopMediaInContainer } from './modules/ui_grid.js';
 import { createDOM, renderSidebar, loadFolders, showHelp, hideAllPanels, openFolderManager } from './modules/ui_sidebar.js';
-import { loadGalleryImages, showGeneratedGallery, showGallerySelectMode, showGalleryViewer } from './modules/ui_gallery.js';
-import { showNotebooks, refreshNotebooks, saveCurrentNotebook, deleteCurrentNotebook, renderNotebookEditor, fillNotebookGalleries, sendNotebookToCanvas } from './modules/ui_notebooks.js';
+import { loadGalleryImages, refreshGalleryImages, showGeneratedGallery, showGallerySelectMode, showGalleryViewer } from './modules/ui_gallery.js';
+import { showNotebooks, closeWorkspace, refreshNotebooks, saveCurrentNotebook, deleteCurrentNotebook, renderNotebookEditor, fillNotebookGalleries, sendNotebookToCanvas } from './modules/ui_notebooks.js';
+import { showRecipes, refreshRecipes, renderRecipeList, handleSaveRecipe } from './modules/ui_recipes.js';
 import { initDoctorPanel, diagnoseNode, renderGlobalDashboard, initAssistantPanel, renderAssistantModelCard, _loadAssistantHistory, _openGalleryReplacer, openLoraInsertionPicker, runGlobalDoctorScan } from './modules/ui_doctor.js';
 import { app } from "../../scripts/app.js";
-
-import { i18n } from './modules/locales.js';
-
+import { normalizeLocale, resolveLocale, translate } from './modules/locales.js';
 // ============================================================================
 // TABLE OF CONTENTS (TOC)
 // 1. App Registration & Entry     (Search for "app.registerExtension")
@@ -17,7 +16,7 @@ import { i18n } from './modules/locales.js';
 // 5. UI - Detail Panel            (Search for "showDetail")
 // 6. UI - Gallery Viewer          (Search for "createGalleryViewer")
 // 7. UI - Doctor Panel            (Search for "createDoctorPanel")
-// 8. Notebooks                    (Search for "Notebook")
+// 8. Notebooks & Workflow Recipes (Search for "Notebook" or "Recipes")
 // ============================================================================
 
 let defaultLang = 'zh';
@@ -56,9 +55,9 @@ try {
         defaultLang = 'en';
     }
 }
-let currentLang = localStorage.getItem('anomalous_lang') || defaultLang;
+let currentLang = resolveLocale(localStorage.getItem('anomalous_lang') || defaultLang);
 window.anomalous_browser_lang = currentLang;
-const t = (key) => i18n[currentLang][key] || key;
+const t = (key, params) => translate(key, params, window.anomalous_browser_lang || currentLang);
 
 class AnomalousBrowser {
     constructor() {
@@ -91,6 +90,7 @@ class AnomalousBrowser {
             clearTimeout(this._idleReleaseTimer);
             this._idleReleaseTimer = null;
         }
+        this.setTriggerVisible(false);
         this.modal.classList.add('visible');
         if (!this.foldersData) {
             this.loadFolders();
@@ -101,6 +101,7 @@ class AnomalousBrowser {
 
     close() {
         this.modal.classList.remove('visible');
+        this.setTriggerVisible(true);
         if (this._modelLoadController) this._modelLoadController.abort();
         if (this._modelMediaObserver) this._modelMediaObserver.disconnect();
         this.modal.querySelectorAll('video, audio').forEach(media => media.pause());
@@ -112,6 +113,11 @@ class AnomalousBrowser {
             this.grid.replaceChildren();
             this.models = [];
         }, 90000);
+    }
+
+    setTriggerVisible(visible) {
+        const trigger = this.triggerButton || document.getElementById('anomalous-trigger-btn');
+        trigger?.classList.toggle('anomalous-trigger-hidden', !visible);
     }
     // [EXTRACTED] showNotebooks
 
@@ -174,13 +180,13 @@ class AnomalousBrowser {
             const header = document.createElement('h2');
             header.style.margin = '0';
             header.style.color = '#fff';
-            header.innerText = window.anomalous_browser_lang === 'zh' ? '📥 导入工作流 (预检海关)' : '📥 Pre-flight Import Workflow';
+            header.textContent = t('mainPreflightTitle');
             modal.appendChild(header);
 
             const desc = document.createElement('div');
             desc.style.color = '#aaa';
             desc.style.fontSize = '14px';
-            desc.innerText = window.anomalous_browser_lang === 'zh' ? '请在此处粘贴工作流的 JSON 代码（未来将支持分享码）。我们将为您提取并校验所有模型依赖。' : 'Paste the workflow JSON here. We will extract and validate all model dependencies before loading.';
+            desc.textContent = t('mainPreflightDesc');
             modal.appendChild(desc);
 
             const textarea = document.createElement('textarea');
@@ -216,7 +222,7 @@ class AnomalousBrowser {
             btnRow.style.gap = '10px';
 
             const closeBtn = document.createElement('button');
-            closeBtn.innerText = window.anomalous_browser_lang === 'zh' ? '取消' : 'Cancel';
+            closeBtn.textContent = t('mainCancel');
             closeBtn.style.padding = '8px 16px';
             closeBtn.style.background = 'transparent';
             closeBtn.style.color = '#ccc';
@@ -227,7 +233,7 @@ class AnomalousBrowser {
 
             const analyzeBtn = document.createElement('button');
             analyzeBtn.id = 'anomalous-import-analyze-btn';
-            analyzeBtn.innerText = window.anomalous_browser_lang === 'zh' ? '🔍 解析并预检' : '🔍 Analyze & Pre-flight';
+            analyzeBtn.textContent = t('mainAnalyzePreflight');
             analyzeBtn.style.padding = '8px 16px';
             analyzeBtn.style.background = '#1a73e8';
             analyzeBtn.style.color = '#fff';
@@ -237,7 +243,7 @@ class AnomalousBrowser {
 
             const loadBtn = document.createElement('button');
             loadBtn.id = 'anomalous-import-load-btn';
-            loadBtn.innerText = window.anomalous_browser_lang === 'zh' ? '🚀 强制载入画布' : '🚀 Force Load to Canvas';
+            loadBtn.textContent = t('mainForceLoad');
             loadBtn.style.padding = '8px 16px';
             loadBtn.style.background = '#28a745';
             loadBtn.style.color = '#fff';
@@ -280,11 +286,19 @@ class AnomalousBrowser {
                     loadBtn.style.display = 'block';
 
                     if (models.length === 0) {
-                        resultArea.innerHTML = `<div style="color:#28a745;">${window.anomalous_browser_lang === 'zh' ? '✅ 未检测到任何模型依赖。' : '✅ No model dependencies detected.'}</div>`;
+                        const noDependencies = document.createElement('div');
+                        noDependencies.style.color = '#28a745';
+                        noDependencies.textContent = t('mainNoDependencies');
+                        resultArea.replaceChildren(noDependencies);
                         return;
                     }
 
-                    resultArea.innerHTML = `<div style="color:#fff; font-weight:bold; margin-bottom:10px;">${window.anomalous_browser_lang === 'zh' ? `扫描到 ${models.length} 个模型资源：` : `Detected ${models.length} model resources:`}</div>`;
+                    const detectedHeader = document.createElement('div');
+                    detectedHeader.style.color = '#fff';
+                    detectedHeader.style.fontWeight = 'bold';
+                    detectedHeader.style.marginBottom = '10px';
+                    detectedHeader.textContent = t('mainDetectedModels', { count: models.length });
+                    resultArea.replaceChildren(detectedHeader);
 
                     for (const m of models) {
                         const val = m.value;
@@ -335,14 +349,14 @@ class AnomalousBrowser {
                             const searchStr = searchHash || basename.replace('.safetensors', '').replace('.ckpt', '').replace('.pt', '').replace('.sft', '');
                             right.href = `https://civitai.com/search/models?sortBy=models_v9&query=${encodeURIComponent(searchStr)}`;
                             right.target = '_blank';
-                            right.innerText = window.anomalous_browser_lang === 'zh' ? '去 C站下载' : 'Download';
+                            right.textContent = t('mainDownloadCivitai');
                             right.style.color = '#1a73e8';
                             right.style.fontSize = '12px';
                             right.style.textDecoration = 'none';
                             item.appendChild(right);
                         } else {
                             const right = document.createElement('span');
-                            right.innerText = window.anomalous_browser_lang === 'zh' ? '已就绪' : 'Ready';
+                            right.textContent = t('mainReady');
                             right.style.color = '#28a745';
                             right.style.fontSize = '12px';
                             item.appendChild(right);
@@ -352,7 +366,7 @@ class AnomalousBrowser {
                     }
 
                 } catch (e) {
-                    alert('Invalid JSON! ' + e.message);
+                    alert(t('mainInvalidJson') + ' ' + e.message);
                 }
             };
 
@@ -407,6 +421,7 @@ AnomalousBrowser.prototype.openLoraInsertionPicker = openLoraInsertionPicker;
 AnomalousBrowser.prototype.runGlobalDoctorScan = runGlobalDoctorScan;
 
 AnomalousBrowser.prototype.showNotebooks = showNotebooks;
+AnomalousBrowser.prototype.closeWorkspace = closeWorkspace;
 AnomalousBrowser.prototype.refreshNotebooks = refreshNotebooks;
 AnomalousBrowser.prototype.saveCurrentNotebook = saveCurrentNotebook;
 AnomalousBrowser.prototype.deleteCurrentNotebook = deleteCurrentNotebook;
@@ -414,7 +429,13 @@ AnomalousBrowser.prototype.renderNotebookEditor = renderNotebookEditor;
 AnomalousBrowser.prototype.fillNotebookGalleries = fillNotebookGalleries;
 AnomalousBrowser.prototype.sendNotebookToCanvas = sendNotebookToCanvas;
 
+AnomalousBrowser.prototype.showRecipes = showRecipes;
+AnomalousBrowser.prototype.refreshRecipes = refreshRecipes;
+AnomalousBrowser.prototype.renderRecipeList = renderRecipeList;
+AnomalousBrowser.prototype.handleSaveRecipe = handleSaveRecipe;
+
 AnomalousBrowser.prototype.loadGalleryImages = loadGalleryImages;
+AnomalousBrowser.prototype.refreshGalleryImages = refreshGalleryImages;
 AnomalousBrowser.prototype.showGeneratedGallery = showGeneratedGallery;
 AnomalousBrowser.prototype.showGallerySelectMode = showGallerySelectMode;
 AnomalousBrowser.prototype.showGalleryViewer = showGalleryViewer;
@@ -451,20 +472,36 @@ app.registerExtension({
                 if (app && app.ui && app.ui.settings) {
                     const locale = app.ui.settings.getSettingValue('Comfy.Locale') || app.ui.settings.getSettingValue('Comfy.Locale.Language');
                     if (locale) {
-                        currentLang = locale.toLowerCase().includes('en') ? 'en' : 'zh';
+                        currentLang = normalizeLocale(locale) || defaultLang;
                         window.anomalous_browser_lang = currentLang;
                     }
                 }
             } catch (e) { }
         }
 
-        const browser = new AnomalousBrowser();
-        window.anomalousBrowserInstance = browser;
+        let browser = null;
         const btn = document.createElement('button');
         btn.id = 'anomalous-trigger-btn';
-        btn.innerHTML = '📦';
-        btn.title = window.anomalous_browser_lang === 'zh' ? '打开 Anomalous 模型浏览器' : 'Open Anomalous Model Browser';
+        btn.textContent = '📦';
+        btn.setAttribute('aria-label', 'Anomalous Model Browser');
 
+        const ensureBrowser = () => {
+            if (browser) return browser;
+            try {
+                browser = new AnomalousBrowser();
+                browser.triggerButton = btn;
+                window.anomalousBrowserInstance = browser;
+                btn.classList.remove('anomalous-trigger-error');
+                return browser;
+            } catch (error) {
+                console.error('[Anomalous Model Browser] UI initialization failed:', error);
+                btn.classList.add('anomalous-trigger-error');
+                btn.title = currentLang === 'zh' ? t('mainRetryInit') : t('mainRetryInitEn');
+                btn.setAttribute('aria-label', btn.title);
+                return null;
+            }
+        };
+        btn.title = t('mainOpenTitle');
         let isDragging = false;
         let startX, startY, initialX, initialY;
 
@@ -494,7 +531,9 @@ app.registerExtension({
                 btn.style.transition = 'transform 0.15s, box-shadow 0.15s';
                 localStorage.setItem('anomalous_btn_x', btn.style.left);
                 localStorage.setItem('anomalous_btn_y', btn.style.top);
-                if (Math.abs(e.clientX - startX) < 5 && Math.abs(e.clientY - startY) < 5) browser.show();
+                if (Math.abs(e.clientX - startX) < 5 && Math.abs(e.clientY - startY) < 5) {
+                    ensureBrowser()?.show();
+                }
             }
         });
 
@@ -530,6 +569,9 @@ app.registerExtension({
         });
 
         document.body.appendChild(btn);
+        // Keep the entry point visible even when a panel regression prevents
+        // the full browser UI from being constructed.
+        ensureBrowser();
 
         // Pre-create a lightweight, translucent, and aesthetic drag ghost image for huge Hires Fix images
         window.anomalousDragGhostImg = new Image();
@@ -771,8 +813,6 @@ const AMB_WorkflowShare = {
     },
 
     showExportModal() {
-        const lang = window.anomalous_browser_lang || 'en';
-        
         const overlay = document.createElement('div');
         overlay.id = 'amb-export-modal';
         overlay.style.cssText = `
@@ -791,17 +831,17 @@ const AMB_WorkflowShare = {
         
         const title = document.createElement('h2');
         title.style.margin = '0';
-        title.textContent = lang === 'zh' ? '📦 导出工作流分享码' : '📦 Export Workflow Share Code';
+        title.textContent = t('mainExportTitle');
         
         const typeSelectContainer = document.createElement('div');
         typeSelectContainer.innerHTML = `
             <label style="display: block; margin-bottom: 8px; cursor: pointer;">
                 <input type="radio" name="amb-share-type" value="skeleton" checked />
-                ${lang === 'zh' ? '精简版 (推荐 B站评论区, 体积小, 丢失坐标)' : 'Skeleton (Compact, best for comments, loses coords)'}
+                ${t('mainSkeletonOption')}
             </label>
             <label style="display: block; cursor: pointer;">
                 <input type="radio" name="amb-share-type" value="full" />
-                ${lang === 'zh' ? '完整版 (保留所有坐标与颜色, 较长)' : 'Full (Keeps coords and colors, longer string)'}
+                ${t('mainFullOption')}
             </label>
         `;
         
@@ -817,15 +857,15 @@ const AMB_WorkflowShare = {
         btnGroup.style.cssText = `display: flex; gap: 10px; justify-content: flex-end;`;
         
         const generateBtn = document.createElement('button');
-        generateBtn.textContent = lang === 'zh' ? '生成分享码' : 'Generate';
+        generateBtn.textContent = t('mainGenerate');
         generateBtn.style.cssText = `padding: 8px 16px; background: #4a90e2; color: #fff; border: none; border-radius: 6px; cursor: pointer;`;
         
         const copyBtn = document.createElement('button');
-        copyBtn.textContent = lang === 'zh' ? '复制到剪贴板' : 'Copy';
+        copyBtn.textContent = t('mainCopyClipboard');
         copyBtn.style.cssText = `padding: 8px 16px; background: #5cb85c; color: #fff; border: none; border-radius: 6px; cursor: pointer; display: none;`;
         
         const closeBtn = document.createElement('button');
-        closeBtn.textContent = lang === 'zh' ? '关闭' : 'Close';
+        closeBtn.textContent = t('mainClose');
         closeBtn.style.cssText = `padding: 8px 16px; background: #555; color: #fff; border: none; border-radius: 6px; cursor: pointer;`;
         
         closeBtn.onclick = () => overlay.remove();
@@ -849,7 +889,7 @@ const AMB_WorkflowShare = {
         copyBtn.onclick = () => {
             textArea.select();
             document.execCommand('copy');
-            AMB_WorkflowShare.showToast(lang === 'zh' ? '✅ 复制成功！' : '✅ Copied successfully!', '#5cb85c');
+            AMB_WorkflowShare.showToast(t('mainCopied'), '#5cb85c');
         };
         
         btnGroup.appendChild(generateBtn);
@@ -866,8 +906,6 @@ const AMB_WorkflowShare = {
     },
     
     showImportModal() {
-        const lang = window.anomalous_browser_lang || 'en';
-        
         const overlay = document.createElement('div');
         overlay.id = 'amb-import-modal';
         overlay.style.cssText = `
@@ -886,10 +924,10 @@ const AMB_WorkflowShare = {
         
         const title = document.createElement('h2');
         title.style.margin = '0';
-        title.textContent = lang === 'zh' ? '📥 导入工作流分享码' : '📥 Import Workflow Share Code';
+        title.textContent = t('mainImportTitle');
         
         const inputArea = document.createElement('textarea');
-        inputArea.placeholder = lang === 'zh' ? '粘贴 AMB0- 或 AMB1- 开头的分享码...' : 'Paste AMB0- or AMB1- share code here...';
+        inputArea.placeholder = t('mainSharePlaceholder');
         inputArea.style.cssText = `
             width: 100%; height: 100px; background: #1e1e1f; color: #eee;
             border: 1px solid #444; border-radius: 6px; padding: 10px;
@@ -900,11 +938,11 @@ const AMB_WorkflowShare = {
         btnGroup.style.cssText = `display: flex; gap: 10px; justify-content: flex-end;`;
         
         const loadBtn = document.createElement('button');
-        loadBtn.textContent = lang === 'zh' ? '导入并加载' : 'Import & Load';
+        loadBtn.textContent = t('mainImportLoad');
         loadBtn.style.cssText = `padding: 8px 16px; background: #e07a5f; color: #fff; border: none; border-radius: 6px; cursor: pointer;`;
         
         const closeBtn = document.createElement('button');
-        closeBtn.textContent = lang === 'zh' ? '取消' : 'Cancel';
+        closeBtn.textContent = t('mainCancel');
         closeBtn.style.cssText = `padding: 8px 16px; background: #555; color: #fff; border: none; border-radius: 6px; cursor: pointer;`;
         
         closeBtn.onclick = () => overlay.remove();
@@ -912,7 +950,7 @@ const AMB_WorkflowShare = {
         loadBtn.onclick = async () => {
             const code = inputArea.value.trim();
             if (!code) {
-                AMB_WorkflowShare.showToast(lang === 'zh' ? '❌ 分享码为空' : '❌ Share code is empty', '#ff6b6b');
+                AMB_WorkflowShare.showToast(t('mainShareEmpty'), '#ff6b6b');
                 return;
             }
             try {
@@ -921,13 +959,13 @@ const AMB_WorkflowShare = {
                 overlay.remove();
                 
                 const nodesCount = pendingWorkflow.nodes ? pendingWorkflow.nodes.length : 0;
-                AMB_WorkflowShare.showToast(lang === 'zh' ? `✅ 成功导入 ${nodesCount} 个节点配置` : `✅ Successfully imported ${nodesCount} nodes`, '#5cb85c');
+                AMB_WorkflowShare.showToast(t('mainImportedNodes', { count: nodesCount }), '#5cb85c');
                 
                 // Auto close the main browser panel
                 const mainCloseBtn = document.getElementById('anomalous-close');
                 if (mainCloseBtn) mainCloseBtn.click();
             } catch (err) {
-                AMB_WorkflowShare.showToast(lang === 'zh' ? `❌ 解析失败: ${err.message}` : `❌ Decode Failed: ${err.message}`, '#ff6b6b');
+                AMB_WorkflowShare.showToast(t('mainDecodeFailed') + err.message, '#ff6b6b');
             }
         };
         
@@ -942,7 +980,6 @@ const AMB_WorkflowShare = {
         document.body.appendChild(overlay);
     },
     showUnifiedModal() {
-        const lang = window.anomalous_browser_lang || 'en';
         const overlay = document.createElement('div');
         overlay.style.cssText = `
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -960,20 +997,20 @@ const AMB_WorkflowShare = {
         
         const title = document.createElement('h2');
         title.style.margin = '0';
-        title.textContent = lang === 'zh' ? '🔄 工作流分享与导入' : '🔄 Workflow Share & Import';
+        title.textContent = t('mainUnifiedTitle');
         
         const exportBtn = document.createElement('button');
-        exportBtn.textContent = lang === 'zh' ? '📤 导出当前工作流为分享码' : '📤 Export Workflow to Share Code';
+        exportBtn.textContent = t('mainExportWorkflow');
         exportBtn.style.cssText = `padding: 12px; background: #4a90e2; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;`;
         exportBtn.onclick = () => { overlay.remove(); this.showExportModal(); };
         
         const importBtn = document.createElement('button');
-        importBtn.textContent = lang === 'zh' ? '📥 从分享码导入工作流' : '📥 Import Workflow from Share Code';
+        importBtn.textContent = t('mainImportWorkflow');
         importBtn.style.cssText = `padding: 12px; background: #e07a5f; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;`;
         importBtn.onclick = () => { overlay.remove(); this.showImportModal(); };
         
         const closeBtn = document.createElement('button');
-        closeBtn.textContent = lang === 'zh' ? '关闭' : 'Close';
+        closeBtn.textContent = t('mainClose');
         closeBtn.style.cssText = `padding: 8px; background: #555; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 10px;`;
         closeBtn.onclick = () => overlay.remove();
         

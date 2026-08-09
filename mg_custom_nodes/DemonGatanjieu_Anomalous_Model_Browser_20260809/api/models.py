@@ -621,14 +621,9 @@ def _resolved_payload(candidate, **details):
 
 def _resolve_from_candidates(candidates, target_hash="", target_size=None, filename_query=""):
     target_hash = str(target_hash or "").strip().upper()
-    if filename_query:
-        normalized_query = str(filename_query).replace('\\', '/').lstrip('./')
-        query_basename = normalized_query.rsplit('/', 1)[-1]
-        for candidate in candidates:
-            if candidate["filename"] == normalized_query or (
-                '/' not in normalized_query and os.path.basename(candidate["filename"]) == query_basename
-            ):
-                return _resolved_payload(candidate, matched_by_filename=True)
+    # A saved filename/path is not identity evidence. It is intentionally
+    # ignored here; exact path lookup for previews lives in the bounded
+    # resolve_paths_to_previews endpoint and does not activate a model match.
 
     has_target_hash = bool(target_hash and target_hash != "UNKNOWN")
     size_matches = [
@@ -646,10 +641,7 @@ def _resolve_from_candidates(candidates, target_hash="", target_size=None, filen
         hash_matches = [candidate for candidate in candidates if target_hash in _candidate_hashes(candidate)]
         if hash_matches:
             return {"found": False, "identity_conflict": True}
-        if len(size_matches) == 1:
-            return _resolved_payload(size_matches[0], matched_by_size=True, stale_hash=True)
-        if len(size_matches) > 1:
-            return {"found": False, "ambiguous": True}
+        return {"found": False, "identity_conflict": True}
 
     if has_target_hash:
         hash_matches = [candidate for candidate in candidates if target_hash in _candidate_hashes(candidate)]
@@ -1029,7 +1021,7 @@ def _allowed_folder_types(requested_types=None):
     ))
 
 
-def _resolve_paths_to_model_info_sync(paths, folder_types=None):
+def _resolve_paths_to_model_info_sync(paths, folder_types=None, exact_only=False):
     requested = [
         (path, path.replace('\\', '/').lower(), path.replace('\\', '/'))
         for path in paths
@@ -1059,7 +1051,7 @@ def _resolve_paths_to_model_info_sync(paths, folder_types=None):
                     exact_results[original] = _model_info_for_path(folder_type, path_idx, base_dir, candidate)
 
     unresolved = [(original, normalized) for original, normalized, _ in requested if original not in exact_results]
-    if not unresolved:
+    if exact_only or not unresolved:
         return exact_results
 
     wanted_relpaths = {normalized for _, normalized in unresolved}
@@ -1097,8 +1089,8 @@ def _resolve_paths_to_model_info_sync(paths, folder_types=None):
     return model_info
 
 
-def _resolve_paths_to_previews_sync(paths, folder_types=None):
-    model_info = _resolve_paths_to_model_info_sync(paths, folder_types)
+def _resolve_paths_to_previews_sync(paths, folder_types=None, exact_only=False):
+    model_info = _resolve_paths_to_model_info_sync(paths, folder_types, exact_only)
     return {path: item.get("preview_url", "") for path, item in model_info.items()}
 
 
@@ -1108,10 +1100,11 @@ async def api_resolve_paths_to_previews(request):
         paths = data.get('paths', [])
         folder_types = data.get('folder_types')
         context_requests = data.get('context_requests', [])
+        exact_only = data.get('exact_only') is True
     except:
         return web.json_response({"previews": {}, "models": {}, "context_models": {}})
 
-    model_info = await asyncio.to_thread(_resolve_paths_to_model_info_sync, paths, folder_types)
+    model_info = await asyncio.to_thread(_resolve_paths_to_model_info_sync, paths, folder_types, exact_only)
     context_models = {}
     if isinstance(context_requests, list):
         for item in context_requests[:16]:
@@ -1124,9 +1117,13 @@ async def api_resolve_paths_to_previews(request):
                 _resolve_paths_to_model_info_sync,
                 [context_path],
                 item.get('folder_types'),
+                item.get('exact_only') is True or exact_only,
             )
             if context_path in resolved:
-                context_models[context_path] = resolved[context_path]
+                context_key = item.get('key')
+                if not isinstance(context_key, str) or not context_key:
+                    context_key = context_path
+                context_models[context_key] = resolved[context_path]
 
     previews = {path: item.get("preview_url", "") for path, item in model_info.items()}
     return web.json_response({

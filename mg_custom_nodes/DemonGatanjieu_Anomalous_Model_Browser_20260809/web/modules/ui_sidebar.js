@@ -4,14 +4,10 @@
  */
 
 import { app } from "../../../scripts/app.js";
-import { i18n } from './locales.js';
+import { translate } from './locales.js';
 import { escapeHtml } from './safe_dom.js';
 
-const t = (key) => {
-    let lang = window.anomalous_browser_lang || 'zh';
-    if (lang.startsWith('en')) lang = 'en';
-    return (i18n[lang] && i18n[lang][key]) ? i18n[lang][key] : (i18n['zh'][key] || key);
-};
+const t = (key, params) => translate(key, params);
 
 
 
@@ -61,7 +57,7 @@ export function createDOM() {
 
         const menuBtn = document.createElement('button');
         menuBtn.innerHTML = '☰';
-        menuBtn.title = window.anomalous_browser_lang === 'zh' ? '收起/展开侧边栏' : 'Toggle Sidebar';
+        menuBtn.title = t('sidebarToggle');
         menuBtn.style.background = 'transparent';
         menuBtn.style.border = 'none';
         menuBtn.style.color = '#ccc';
@@ -214,9 +210,7 @@ export function createDOM() {
             menuBtn.style.opacity = '0.3';
             menuBtn.style.cursor = 'not-allowed';
             this.galleryPanel.style.display = 'flex';
-            if (!this.galleryLoaded) {
-                this.loadGalleryImages(1, true);
-            }
+            void this.refreshGalleryImages();
         };
 
         const dockBtn = document.createElement('button');
@@ -243,17 +237,17 @@ export function createDOM() {
 
         const nbBtn = document.createElement('button');
         nbBtn.id = 'anomalous-notebook-btn';
-        nbBtn.title = t('notebookTitle');
-        nbBtn.innerHTML = `📑 <span class="anomalous-btn-text">${t('notebooks')}</span>`;
+        nbBtn.title = t('workspaceTitle');
+        nbBtn.innerHTML = `📑 <span class="anomalous-btn-text">${t('workspace')}</span>`;
 
         const dBtn = document.getElementById('anomalous-doctor-btn');
-        if (dBtn) dBtn.title = window.anomalous_browser_lang === 'zh' ? '模型医生' : 'Model Doctor';
+        if (dBtn) dBtn.title = t('sidebarDoctor');
         const aBtn = document.getElementById('anomalous-assistant-btn');
-        if (aBtn) aBtn.title = window.anomalous_browser_lang === 'zh' ? '节点助手' : 'Node Assistant';
+        if (aBtn) aBtn.title = t('sidebarAssistant');
         const iBtn = document.getElementById('anomalous-import-btn');
-        if (iBtn) iBtn.title = window.anomalous_browser_lang === 'zh' ? '📥 预检导入工作流' : '📥 Preflight Import';
+        if (iBtn) iBtn.title = t('sidebarPreflight');
         const sBtn = document.getElementById('anomalous-settings-btn');
-        if (sBtn) sBtn.title = window.anomalous_browser_lang === 'zh' ? '设置中心' : 'Settings Hub';
+        if (sBtn) sBtn.title = t('sidebarSettings');
 
         // Reset dynamic panels so they re-render in new language
         if (window.anomalousBrowserInstance) {
@@ -269,6 +263,23 @@ export function createDOM() {
         }
 
         nbBtn.onclick = () => {
+            if (typeof this.recipeModelReturn !== 'function') {
+                this.workspaceReturnState = {
+                    grid: this.grid?.style.display || 'none',
+                    detail: this.detailPanel?.style.display || 'none',
+                    gallery: this.galleryPanel?.style.display || 'none',
+                    doctor: this.doctorPanel?.style.display || 'none',
+                    assistant: this.assistantPanel?.style.display || 'none',
+                };
+            } else if (!this.workspaceReturnState) {
+                this.workspaceReturnState = {
+                    grid: 'grid',
+                    detail: 'none',
+                    gallery: 'none',
+                    doctor: 'none',
+                    assistant: 'none',
+                };
+            }
             this.nbPanel.style.display = 'flex';
             this.showNotebooks();
         };
@@ -276,7 +287,6 @@ export function createDOM() {
         rightGroup.appendChild(modelsBtn);
         rightGroup.appendChild(galleryBtn);
         rightGroup.appendChild(nbBtn);
-
 
         const apiKeyBtn = document.createElement('button');
         apiKeyBtn.id = 'anomalous-api-btn';
@@ -296,7 +306,7 @@ export function createDOM() {
 
         const scanBtn = document.createElement('button');
         scanBtn.id = 'anomalous-scan-btn';
-        scanBtn.title = window.anomalous_browser_lang === 'zh' ? '🔄 扫描向导 (Scan Wizard)' : '🔄 Scan Wizard';
+        scanBtn.title = t('sidebarScanWizard');
         scanBtn.innerHTML = `🔄`;
         scanBtn.style.background = 'transparent';
         scanBtn.style.color = '#ccc';
@@ -333,7 +343,7 @@ export function createDOM() {
                     scanBtn.style.opacity = '1';
                     this.loadModels();
                     if (window.anomalous_reload_hashes) await window.anomalous_reload_hashes();
-                    alert(window.anomalous_browser_lang === 'zh' ? '✅ 扫描/重命名已完成！数据已为您更新。' : '✅ Scan/Rename completed! Data updated.');
+                    alert(t('sidebarScanComplete'));
                 }
             } catch (e) { }
         }, 3000);
@@ -377,13 +387,9 @@ export function createDOM() {
 
             const title = document.createElement('h2');
             if (targetFiles) {
-                title.innerText = window.anomalous_browser_lang === 'zh'
-                    ? `🎯 单模型扫描向导: ${targetFiles}`
-                    : `🎯 Single Model Scan: ${targetFiles}`;
+                title.textContent = t('sidebarSingleModelScan', { files: targetFiles });
             } else {
-                title.innerText = window.anomalous_browser_lang === 'zh'
-                    ? (isGlobal ? '全局扫描向导' : '扫描向导')
-                    : (isGlobal ? 'Global Scan Wizard' : 'Scan Wizard');
+                title.textContent = t(isGlobal ? 'sidebarGlobalScanWizard' : 'sidebarScanWizardTitle');
             }
             title.style.margin = '0';
             title.style.fontSize = '1.6em';
@@ -394,9 +400,9 @@ export function createDOM() {
             topToolbar.style.display = 'flex';
             topToolbar.style.gap = '8px';
 
-            const createGhostBtn = (icon, textZh, textEn, onClick) => {
+            const createGhostBtn = (icon, textKey, onClick) => {
                 const btn = document.createElement('button');
-                btn.innerHTML = `${icon} ${window.anomalous_browser_lang === 'zh' ? textZh : textEn}`;
+                btn.textContent = `${icon} ${t(textKey)}`;
                 btn.style.padding = '6px 12px';
                 btn.style.background = 'transparent';
                 btn.style.color = '#ccc';
@@ -411,8 +417,8 @@ export function createDOM() {
                 return btn;
             };
 
-            const apiKeyBtn = createGhostBtn('🔑', 'API 密钥', 'API Key', () => {
-                const newKey = prompt(window.anomalous_browser_lang === 'zh' ? '请输入 Civitai API Key（留空将清除）:' : 'Enter Civitai API Key (leave blank to clear):', '');
+            const apiKeyBtn = createGhostBtn('🔑', 'sidebarApiKey', () => {
+                const newKey = prompt(t('sidebarApiKeyPrompt'), '');
                 if (newKey !== null) {
                     fetch('/anomalous/save_config', {
                         method: 'POST',
@@ -420,8 +426,8 @@ export function createDOM() {
                         body: JSON.stringify({ api_key: newKey.trim() })
                     }).then(res => res.json()).then(data => {
                         if (data.status !== 'ok') throw new Error(data.message || 'Save failed');
-                        alert(window.anomalous_browser_lang === 'zh' ? '✅ 密钥保存成功' : '✅ Key Saved');
-                    }).catch(error => alert((window.anomalous_browser_lang === 'zh' ? '❌ 保存失败: ' : '❌ Save failed: ') + error.message));
+                        alert(t('sidebarKeySaved'));
+                    }).catch(error => alert(t('sidebarSaveFailed') + error.message));
                 }
             });
 
@@ -442,7 +448,7 @@ export function createDOM() {
             formGroup.style.flexDirection = 'column';
             formGroup.style.gap = '24px';
 
-            const createChoiceCard = (id, icon, titleZh, titleEn, descZh, descEn, isSelected) => {
+            const createChoiceCard = (id, icon, titleKey, descKey, isSelected) => {
                 const card = document.createElement('div');
                 card.style.flex = '1';
                 card.style.background = isSelected ? 'rgba(138, 180, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)';
@@ -473,7 +479,7 @@ export function createDOM() {
                 iconDiv.style.fontSize = '1.6em';
 
                 const tTitle = document.createElement('div');
-                tTitle.innerText = window.anomalous_browser_lang === 'zh' ? titleZh : titleEn;
+                tTitle.textContent = t(titleKey);
                 tTitle.style.fontWeight = '500';
                 tTitle.style.fontSize = '1.05em';
                 tTitle.style.color = isSelected ? '#8AB4F8' : '#fff';
@@ -482,7 +488,7 @@ export function createDOM() {
                 topRow.appendChild(tTitle);
 
                 const tDesc = document.createElement('div');
-                tDesc.innerText = window.anomalous_browser_lang === 'zh' ? descZh : descEn;
+                tDesc.textContent = t(descKey);
                 tDesc.style.fontSize = '0.85em';
                 tDesc.style.color = '#bbb';
                 tDesc.style.lineHeight = '1.5';
@@ -498,7 +504,7 @@ export function createDOM() {
             if (!targetFiles) {
                 const section0 = document.createElement('div');
                 const sec0Title = document.createElement('div');
-                sec0Title.innerText = window.anomalous_browser_lang === 'zh' ? 'Step 0. 扫描目标' : 'Step 0. Scan Target';
+                sec0Title.textContent = t('sidebarStep0');
                 sec0Title.style.fontWeight = '500';
                 sec0Title.style.color = '#8AB4F8';
                 sec0Title.style.marginBottom = '12px';
@@ -516,17 +522,17 @@ export function createDOM() {
                 customActionDiv.style.marginTop = '16px';
                 
                 const openSelectorBtn = document.createElement('button');
-                openSelectorBtn.innerText = window.anomalous_browser_lang === 'zh' ? '📂 打开高级模型选择面板' : '📂 Open Advanced Model Selector';
+                openSelectorBtn.textContent = t('sidebarOpenSelector');
                 openSelectorBtn.style.cssText = 'width:100%;padding:12px;background:#8AB4F8;color:#1E1E1E;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:1.05em;box-shadow:0 2px 4px rgba(0,0,0,0.2);';
                 
                 const selectedCountSpan = document.createElement('div');
                 selectedCountSpan.style.cssText = 'text-align:center;color:#8AB4F8;margin-top:8px;font-size:0.9em;';
-                selectedCountSpan.innerText = window.anomalous_browser_lang === 'zh' ? '已选择 0 个模型' : '0 models selected';
+                selectedCountSpan.textContent = t('sidebarSelectedZero');
                 
                 const updateSelectedCount = () => {
                     let total = 0;
                     for (const set of selectedForScan.values()) total += set.size;
-                    selectedCountSpan.innerText = window.anomalous_browser_lang === 'zh' ? `已选择 ${total} 个模型` : `${total} models selected`;
+                    selectedCountSpan.textContent = t('sidebarSelectedCount', { count: total });
                 };
 
                 openSelectorBtn.onclick = () => {
@@ -545,8 +551,8 @@ export function createDOM() {
                         tContainer.removeChild(tCard1);
                         tContainer.removeChild(tCard2);
                     }
-                    tCard1 = createChoiceCard('all', '📂', '默认全局扫描', 'Default Global Scan', '扫描系统中所有的模型文件，自动匹配封面和信息', 'Scan all models in the system for covers and metadata', targetMode === 'all');
-                    tCard2 = createChoiceCard('custom', '☑️', '高级自定义多选', 'Advanced Selection', '跨目录选择特定模型，启动按序队列扫描', 'Select specific models across folders, launches sequential scan', targetMode === 'custom');
+                    tCard1 = createChoiceCard('all', '📂', 'sidebarTargetGlobal', 'sidebarTargetGlobalDesc', targetMode === 'all');
+                    tCard2 = createChoiceCard('custom', '☑️', 'sidebarTargetCustom', 'sidebarTargetCustomDesc', targetMode === 'custom');
 
                     tCard1.onclick = () => { 
                         targetMode = 'all'; 
@@ -571,7 +577,7 @@ export function createDOM() {
             // === Step 1: Fetch Data ===
             const section1 = document.createElement('div');
             const sec1Title = document.createElement('div');
-            sec1Title.innerText = window.anomalous_browser_lang === 'zh' ? 'Step 1. 获取数据' : 'Step 1. Fetch Data';
+            sec1Title.textContent = t('sidebarStep1');
             sec1Title.style.fontWeight = '500';
             sec1Title.style.color = '#8AB4F8';
             sec1Title.style.marginBottom = '12px';
@@ -591,8 +597,8 @@ export function createDOM() {
                     cardsContainer.removeChild(card1);
                     cardsContainer.removeChild(card2);
                 }
-                card1 = createChoiceCard('civitai', '🌍', '在线完整匹配', 'Online Full Matching', '自动连接 Civitai 平台，深度获取模型封面图、触发词 (Trigger Words)、作者备注及详细标签。推荐日常使用。', 'Connects to Civitai to fetch comprehensive model covers, trigger words, author notes, and tags. Recommended for daily use.', scanMode === 'civitai');
-                card2 = createChoiceCard('offline', '🔌', '离线极速读取', 'Offline Fast Read', '不消耗任何网络。仅通过本地张量计算极速提取模型内的基础元数据，速度极快但信息较基础。', 'No network required. Extremely fast extraction of basic metadata via local tensor computation, but info is limited.', scanMode === 'offline');
+                card1 = createChoiceCard('civitai', '🌍', 'sidebarOnline', 'sidebarOnlineDesc', scanMode === 'civitai');
+                card2 = createChoiceCard('offline', '🔌', 'sidebarOffline', 'sidebarOfflineDesc', scanMode === 'offline');
 
                 card1.onclick = () => { scanMode = 'civitai'; updateCards(); updateSections(); };
                 card2.onclick = () => { scanMode = 'offline'; updateCards(); updateSections(); };
@@ -639,7 +645,7 @@ export function createDOM() {
                 return track;
             };
 
-            const createListRow = (icon, titleZh, titleEn, descZh, descEn, actionEl) => {
+            const createListRow = (icon, titleKey, descKey, actionEl) => {
                 const row = document.createElement('div');
                 row.style.display = 'flex';
                 row.style.alignItems = 'center';
@@ -660,19 +666,19 @@ export function createDOM() {
                 iconEl.style.textAlign = 'center';
 
                 const textDiv = document.createElement('div');
-                const t = document.createElement('div');
-                t.innerText = window.anomalous_browser_lang === 'zh' ? titleZh : titleEn;
-                t.style.fontWeight = '500';
-                t.style.fontSize = '1.0em';
-                t.style.color = '#fff';
+                const titleEl = document.createElement('div');
+                titleEl.textContent = t(titleKey);
+                titleEl.style.fontWeight = '500';
+                titleEl.style.fontSize = '1.0em';
+                titleEl.style.color = '#fff';
 
                 const d = document.createElement('div');
-                d.innerHTML = window.anomalous_browser_lang === 'zh' ? descZh : descEn;
+                d.innerHTML = t(descKey);
                 d.style.fontSize = '0.85em';
                 d.style.color = '#aaa';
                 d.style.marginTop = '4px';
 
-                textDiv.appendChild(t);
+                textDiv.appendChild(titleEl);
                 textDiv.appendChild(d);
                 left.appendChild(iconEl);
                 left.appendChild(textDiv);
@@ -685,7 +691,7 @@ export function createDOM() {
             // === Step 2: Normalize Naming ===
             const section2 = document.createElement('div');
             const sec2Title = document.createElement('div');
-            sec2Title.innerText = window.anomalous_browser_lang === 'zh' ? 'Step 2. 规范命名' : 'Step 2. Normalize Naming';
+            sec2Title.textContent = t('sidebarStep2');
             sec2Title.style.fontWeight = '500';
             sec2Title.style.color = '#8AB4F8';
             sec2Title.style.marginBottom = '8px';
@@ -719,14 +725,14 @@ export function createDOM() {
             vRow.style.display = 'flex';
             vRow.style.alignItems = 'center';
             vRow.style.gap = '8px';
-            vRow.innerHTML = `<span style="font-size:0.9em; color:#ddd;">✨ ${window.anomalous_browser_lang === 'zh' ? '虚拟重命名 (安全推荐)' : 'Virtual Rename (Safe)'}</span>`;
+            vRow.innerHTML = `<span style="font-size:0.9em; color:#ddd;">✨ ${t('sidebarVirtualRename')}</span>`;
             vRow.appendChild(virtualSwitch);
 
             const vDesc = document.createElement('div');
             vDesc.style.fontSize = '0.8em';
             vDesc.style.color = '#888';
             vDesc.style.marginTop = '4px';
-            vDesc.innerHTML = window.anomalous_browser_lang === 'zh' ? '仅将标准名称注入浏览器插件中，不修改硬盘上的真实文件名，随时可无损还原。' : 'Inject standard names into the browser only, without modifying actual files on disk. Safely reversible.';
+            vDesc.textContent = t('sidebarVirtualRenameDesc');
             vContainer.appendChild(vRow);
             vContainer.appendChild(vDesc);
 
@@ -738,21 +744,21 @@ export function createDOM() {
             pRow.style.display = 'flex';
             pRow.style.alignItems = 'center';
             pRow.style.gap = '8px';
-            pRow.innerHTML = `<span style="font-size:0.9em; color:#ddd;">💾 ${window.anomalous_browser_lang === 'zh' ? '物理重命名' : 'Physical Rename'}</span>`;
+            pRow.innerHTML = `<span style="font-size:0.9em; color:#ddd;">💾 ${t('sidebarPhysicalRename')}</span>`;
             pRow.appendChild(physicalSwitch);
 
             const pDesc = document.createElement('div');
             pDesc.style.fontSize = '0.8em';
             pDesc.style.color = '#888';
             pDesc.style.marginTop = '4px';
-            pDesc.innerHTML = window.anomalous_browser_lang === 'zh' ? '真实修改底层的 <code>.safetensors</code> 及其所有附属文件名，彻底告别乱码文件名。' : 'Permanently rename the underlying <code>.safetensors</code> and associated files on disk.';
+            pDesc.innerHTML = t('sidebarPhysicalRenameDesc');
             pContainer.appendChild(pRow);
             pContainer.appendChild(pDesc);
 
             dualChannelRow.appendChild(vContainer);
             dualChannelRow.appendChild(pContainer);
 
-            s2List.appendChild(createListRow('📝', '自动规范命名', 'Auto-Normalize Naming', '强迫症福音。自动将杂乱无章的模型文件名重命名为 <b>模型名_版本名.safetensors</b> 的标准格式。<br><span style="color:#8AB4F8; display:inline-block; margin-top:4px;">例如：</span> <span style="color:#ff6b6b; text-decoration:line-through;">model_final(1).safetensors</span> ➔ <span style="color:#28a745;">Beautiful_Mix_V1.0.safetensors</span>', 'Automatically rename messy model files to the official standard format: <b>ModelName_VersionName.safetensors</b>.<br><span style="color:#8AB4F8; display:inline-block; margin-top:4px;">e.g. </span> <span style="color:#ff6b6b; text-decoration:line-through;">model_final(1).safetensors</span> ➔ <span style="color:#28a745;">Beautiful_Mix_V1.0.safetensors</span>', createMaterialSwitch(enableRename, (s) => { enableRename = s; updateDualChannelUI(); })));
+            s2List.appendChild(createListRow('📝', 'sidebarNormalize', 'sidebarNormalizeDesc', createMaterialSwitch(enableRename, (s) => { enableRename = s; updateDualChannelUI(); })));
             s2List.lastChild.style.borderBottom = 'none';
             s2List.appendChild(dualChannelRow);
             updateDualChannelUI();
@@ -762,7 +768,7 @@ export function createDOM() {
             // === Step 3: Workflow Protection & Fix ===
             const section3 = document.createElement('div');
             const sec3Title = document.createElement('div');
-            sec3Title.innerText = window.anomalous_browser_lang === 'zh' ? 'Step 3. 工作流保障与修复' : 'Step 3. Workflow Protection & Fix';
+            sec3Title.textContent = t('sidebarStep3');
             sec3Title.style.fontWeight = '500';
             sec3Title.style.color = '#8AB4F8';
             sec3Title.style.marginBottom = '8px';
@@ -771,9 +777,9 @@ export function createDOM() {
 
             const s3List = document.createElement('div');
             const isInject = localStorage.getItem('anomalous_inject_hash') !== 'false';
-            s3List.appendChild(createListRow('📦', '模型溯源绑定', 'Model Provenance Binding', '全局生效。每次生成图片或保存工作流时，将模型的精确哈希值隐式写入到图像元数据与工作流 JSON 中，防止未来模型改名或换环境后报错找不到。', 'Global effect. Implicitly embed exact model hashes into generated images and saved workflows, ensuring missing models can always be auto-fixed.', createMaterialSwitch(isInject, (s) => localStorage.setItem('anomalous_inject_hash', s ? 'true' : 'false'))));
-            s3List.appendChild(createListRow('⚠️', '强制覆盖已有配置', 'Force Overwrite Configs', '扫描时忽略本地已存在的 .info 文件，强制重新计算哈希并覆盖下载。用于修复匹配错乱的模型。', 'Ignore existing .info files and force re-scan/overwrite. Useful for fixing mismatched models.', createMaterialSwitch(enableForceOverwrite, (s) => enableForceOverwrite = s)));
-            s3List.appendChild(createListRow('🪄', '智能修复当前工作流', 'Smart Fix Current Workflow', '扫描完成后，自动尝试用最新数据修复当前画布中提示缺失的报错模型节点。', 'After scanning, automatically attempt to fix missing model errors on the current canvas.', createMaterialSwitch(enableAutoCheck, (s) => enableAutoCheck = s)));
+            s3List.appendChild(createListRow('📦', 'sidebarProvenance', 'sidebarProvenanceDesc', createMaterialSwitch(isInject, (s) => localStorage.setItem('anomalous_inject_hash', s ? 'true' : 'false'))));
+            s3List.appendChild(createListRow('⚠️', 'sidebarOverwrite', 'sidebarOverwriteDesc', createMaterialSwitch(enableForceOverwrite, (s) => enableForceOverwrite = s)));
+            s3List.appendChild(createListRow('🪄', 'sidebarSmartFix', 'sidebarSmartFixDesc', createMaterialSwitch(enableAutoCheck, (s) => enableAutoCheck = s)));
             s3List.lastChild.style.borderBottom = 'none';
 
             section3.appendChild(s3List);
@@ -812,7 +818,7 @@ export function createDOM() {
                             if (set.size > 0) hasAny = true;
                         }
                         if (!hasAny) {
-                            alert(window.anomalous_browser_lang === 'zh' ? '未选择任何模型' : 'No models selected');
+                            alert(t('sidebarNoModelsSelected'));
                             return;
                         }
                         
@@ -940,7 +946,7 @@ export function createDOM() {
                         document.body.removeChild(wizard);
                         return; // return early so we don't remove wizard again below
                     } else {
-                        alert(window.anomalous_browser_lang === 'zh' ? '扫描失败: ' + data.message : 'Scan failed: ' + data.message);
+                        alert(t('sidebarScanFailed') + data.message);
                     }
                 } catch (e) { alert("Error: " + e); }
 
@@ -954,7 +960,7 @@ export function createDOM() {
             footer.style.gap = '8px';
 
             const closeBtn = document.createElement('button');
-            closeBtn.innerText = window.anomalous_browser_lang === 'zh' ? '取消' : 'Cancel';
+        closeBtn.textContent = t('sidebarCancel');
             closeBtn.style.padding = '8px 16px';
             closeBtn.style.background = 'transparent';
             closeBtn.style.color = '#8AB4F8';
@@ -970,7 +976,7 @@ export function createDOM() {
             closeBtn.onclick = () => document.body.removeChild(wizard);
 
             const startBtn = document.createElement('button');
-            startBtn.innerText = window.anomalous_browser_lang === 'zh' ? '执行扫描' : 'Execute Scan';
+        startBtn.textContent = t('sidebarExecute');
             startBtn.style.padding = '8px 24px';
             startBtn.style.background = '#8AB4F8'; // Material Primary
             startBtn.style.color = '#1E1E1E';
@@ -1037,29 +1043,29 @@ export function createDOM() {
 
         const langBtn = document.createElement('button');
         langBtn.className = 'anomalous-lang-btn';
-        langBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '🌐 Language: EN' : '🌐 语言: 中文';
+        langBtn.textContent = t(window.anomalous_browser_lang === 'zh' ? 'sidebarSwitchToEnglish' : 'sidebarSwitchToChinese');
         langBtn.onclick = () => {
             let newLang = window.anomalous_browser_lang === 'zh' ? 'en' : 'zh';
             localStorage.setItem('anomalous_lang', newLang);
             window.anomalous_browser_lang = newLang;
-            langBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '🌐 Language: EN' : '🌐 语言: 中文';
+            langBtn.textContent = t(window.anomalous_browser_lang === 'zh' ? 'sidebarSwitchToEnglish' : 'sidebarSwitchToChinese');
             updateLangClass();
             modelsBtn.innerHTML = `🏠 <span class="anomalous-btn-text">${t('models')}</span>`;
             galleryBtn.innerHTML = `🖼️ <span class="anomalous-btn-text">${t('gallery')}</span>`;
             scanBtn.title = t('scanTitle');
             scanBtn.innerHTML = `🔄`;
             helpBtn.innerHTML = `❓ <span class="anomalous-btn-text">${t('help')}</span>`;
-            nbBtn.title = t('notebookTitle');
-            nbBtn.innerHTML = `📑 <span class="anomalous-btn-text">${t('notebooks')}</span>`;
+            nbBtn.title = t('workspaceTitle');
+            nbBtn.innerHTML = `📑 <span class="anomalous-btn-text">${t('workspace')}</span>`;
 
             const dBtn = document.getElementById('anomalous-doctor-btn');
-            if (dBtn) dBtn.title = window.anomalous_browser_lang === 'zh' ? '模型医生' : 'Model Doctor';
+            if (dBtn) dBtn.title = t('sidebarDoctor');
             const aBtn = document.getElementById('anomalous-assistant-btn');
-            if (aBtn) aBtn.title = window.anomalous_browser_lang === 'zh' ? '节点助手' : 'Node Assistant';
+            if (aBtn) aBtn.title = t('sidebarAssistant');
             const iBtn = document.getElementById('anomalous-import-btn');
-            if (iBtn) iBtn.title = window.anomalous_browser_lang === 'zh' ? '📥 导入 / 导出工作流 (分享码)' : '📥 Import / Export Workflow (Share Code)';
+            if (iBtn) iBtn.title = t('sidebarImportExport');
             const sBtn = document.getElementById('anomalous-global-settings-btn');
-            if (sBtn) sBtn.title = window.anomalous_browser_lang === 'zh' ? '设置中心' : 'Settings Hub';
+            if (sBtn) sBtn.title = t('sidebarSettings');
 
             // Reset dynamic panels so they re-render in new language
             if (window.anomalousBrowserInstance) {
@@ -1068,7 +1074,19 @@ export function createDOM() {
                     b.doctorPanel.innerHTML = '';
                     b.doctorPanelInitialized = false;
                 }
+                if (b.assistantPanel && b.assistantPanelInitialized) {
+                    const selectedNode = Object.values(app.canvas?.selected_nodes || {})[0] || null;
+                    b.assistantPanelInitialized = false;
+                    b.initAssistantPanel();
+                    b.diagnoseNode(selectedNode, true);
+                }
+                if (b.notebookNotesTab) b.notebookNotesTab.textContent = t('promptNotes');
+                if (b.notebookRecipesTab) b.notebookRecipesTab.textContent = t('recipeTitle');
             }
+            document.querySelectorAll('[data-anomalous-i18n-key]').forEach((element) => {
+                const key = element.dataset.anomalousI18nKey;
+                if (key) element.textContent = t(key);
+            });
             const impOverlay = document.getElementById('anomalous-import-overlay');
             if (impOverlay && impOverlay.parentNode) {
                 impOverlay.parentNode.removeChild(impOverlay);
@@ -1076,24 +1094,22 @@ export function createDOM() {
 
             apiKeyBtn.innerHTML = `<span class="anomalous-btn-text">${t('apiKeyConfig')}</span>`;
             const globalScanBtnRef = document.getElementById('anomalous-global-scan-btn');
-            if (globalScanBtnRef) globalScanBtnRef.innerHTML = window.anomalous_browser_lang === 'zh' ? '🌍 一键全盘极速扫描 (不下载封面/不改名)' : '🌍 Global Quick Scan (No rename/No media)';
+            if (globalScanBtnRef) globalScanBtnRef.textContent = t('sidebarGlobalQuickScan');
             const checkUnscannedBtnRef = document.getElementById('anomalous-check-unscanned-btn');
-            if (checkUnscannedBtnRef) checkUnscannedBtnRef.innerHTML = window.anomalous_browser_lang === 'zh' ? '🔍 检查并极速录入缺失模型信息' : '🔍 Check & Auto-Scan Missing Info';
+            if (checkUnscannedBtnRef) checkUnscannedBtnRef.textContent = t('sidebarCheckMissing');
             const resetBtnRef = document.getElementById('anomalous-reset-btn');
-            if (resetBtnRef) resetBtnRef.innerHTML = window.anomalous_browser_lang === 'zh' ? '🔄 重置界面布局' : '🔄 Reset Layout';
+            if (resetBtnRef) resetBtnRef.textContent = t('sidebarResetLayout');
             const scaleLabelRef = document.getElementById('anomalous-scale-label');
-            if (scaleLabelRef) scaleLabelRef.innerText = window.anomalous_browser_lang === 'zh' ? 'UI 缩放' : 'UI Scale';
+            if (scaleLabelRef) scaleLabelRef.textContent = t('sidebarUiScale');
             const hashBtnRef = document.getElementById('anomalous-hash-toggle-btn');
             if (hashBtnRef) {
                 const isInject = localStorage.getItem('anomalous_inject_hash') !== 'false';
-                hashBtnRef.innerHTML = window.anomalous_browser_lang === 'zh'
-                    ? (isInject ? '🟢 注入工作流哈希' : '⚪ 不注入工作流哈希')
-                    : (isInject ? '🟢 Inject Workflow Hash' : '⚪ Skip Workflow Hash');
+                hashBtnRef.textContent = t(isInject ? 'sidebarInjectHash' : 'sidebarSkipHash');
             }
             const folderMgrRef = document.getElementById('anomalous-folder-manager-btn');
-            if (folderMgrRef) folderMgrRef.innerHTML = window.anomalous_browser_lang === 'zh' ? '📁 文件夹管理' : '📁 Manage Folders';
+            if (folderMgrRef) folderMgrRef.textContent = t('sidebarManageFolders');
             const feedbackRef = document.getElementById('anomalous-feedback-btn');
-            if (feedbackRef) feedbackRef.innerHTML = window.anomalous_browser_lang === 'zh' ? '💬 提交反馈 / 报告问题' : '💬 Submit Feedback / Report Bug';
+            if (feedbackRef) feedbackRef.textContent = t('sidebarFeedback');
 
             refreshModelSettingsText();
             this.renderSidebar();
@@ -1184,28 +1200,19 @@ export function createDOM() {
         container.appendChild(modelSettingsOverlay);
 
         refreshModelSettingsText = () => {
-            const zh = window.anomalous_browser_lang === 'zh';
-            modelSettingsBtn.textContent = zh ? '🖼️ 模型设置' : '🖼️ Model Settings';
-            modelSettingsTitle.textContent = zh ? '模型卡片设置' : 'Model Card Settings';
-            modelSettingsDescription.textContent = zh
-                ? '只调整模型浏览器里的卡片显示，不会修改模型文件或原始封面。'
-                : 'Only changes cards in the model browser. Model files and original covers remain untouched.';
-            videoSetting.name.textContent = zh ? '视频封面播放' : 'Video cover playback';
-            videoSetting.help.textContent = zh
-                ? '始终播放更有动感；悬停播放更省显存与电量。'
-                : 'Always play is more lively; hover play uses less GPU memory and power.';
-            alwaysPlayOption.textContent = zh ? '始终播放' : 'Always play';
-            hoverPlayOption.textContent = zh ? '悬停播放（推荐）' : 'Play on hover (Recommended)';
-            thumbnailSetting.name.textContent = zh ? '卡片图片清晰度' : 'Card image quality';
-            thumbnailSetting.help.textContent = zh
-                ? '流畅缩略图只用于卡片；打开详情仍显示原始封面。'
-                : 'Optimized thumbnails are card-only; details still show the original cover.';
-            balancedThumbnailOption.textContent = zh ? '流畅缩略图（推荐）' : 'Optimized thumbnail (Recommended)';
-            originalThumbnailOption.textContent = zh ? '原始封面（更占资源）' : 'Original cover (More resource use)';
-            modelSettingsNote.textContent = zh
-                ? '缩略图由插件自动缓存和回收；视频离开视野或关闭浏览器后会自动释放。'
-                : 'The plugin automatically caches and evicts thumbnails, and releases videos offscreen or when closed.';
-            modelSettingsClose.textContent = zh ? '完成' : 'Done';
+            modelSettingsBtn.textContent = t('sidebarModelSettings');
+            modelSettingsTitle.textContent = t('sidebarModelCardSettings');
+            modelSettingsDescription.textContent = t('sidebarModelCardDescription');
+            videoSetting.name.textContent = t('sidebarVideoPlayback');
+            videoSetting.help.textContent = t('sidebarVideoHelp');
+            alwaysPlayOption.textContent = t('sidebarAlwaysPlay');
+            hoverPlayOption.textContent = t('sidebarHoverPlay');
+            thumbnailSetting.name.textContent = t('sidebarCardQuality');
+            thumbnailSetting.help.textContent = t('sidebarCardQualityHelp');
+            balancedThumbnailOption.textContent = t('sidebarOptimizedThumbnail');
+            originalThumbnailOption.textContent = t('sidebarOriginalCover');
+            modelSettingsNote.textContent = t('sidebarModelSettingsNote');
+            modelSettingsClose.textContent = t('sidebarDone');
             videoSetting.select.value = this.energySaving ? 'hover' : 'always';
             thumbnailSetting.select.value = this.cardThumbnailMode;
         };
@@ -1235,12 +1242,12 @@ export function createDOM() {
 
         const globalScanBtn = document.createElement('button');
         globalScanBtn.id = 'anomalous-global-scan-btn';
-        globalScanBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '🌍 一键全盘极速扫描 (不下载封面/不改名)' : '🌍 Global Quick Scan (No rename/No media)';
+        globalScanBtn.textContent = t('sidebarGlobalQuickScan');
         styleHubBtn(globalScanBtn);
 
         globalScanBtn.onclick = async () => {
-            if (!confirm(window.anomalous_browser_lang === 'zh' ? '即将执行极速全盘扫描并同步Hash，此操作不改名也不下载封面，是否继续？' : 'Start global quick scan to sync all hashes?')) return;
-            globalScanBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '⏳ 扫描中...' : '⏳ Scanning...';
+            if (!confirm(t('sidebarGlobalQuickConfirm'))) return;
+            globalScanBtn.textContent = t('sidebarScanning');
             globalScanBtn.disabled = true;
             try {
                 const res = await fetch('/anomalous/scan_all', {
@@ -1254,23 +1261,23 @@ export function createDOM() {
                 });
                 const data = await res.json();
                 if (data.status === 'ok') {
-                    alert(window.anomalous_browser_lang === 'zh' ? '🚀 全局扫描已后台启动！' : '🚀 Global Scan started in background!');
+                    alert(t('sidebarGlobalStarted'));
                     const pollTimer = setInterval(async () => {
                         try {
                             const statusRes = await fetch('/anomalous/global_scan_status');
                             const statusData = await statusRes.json();
                             if (!statusData.scanning) {
                                 clearInterval(pollTimer);
-                                globalScanBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '✅ 扫描完成' : '✅ Scan Complete';
+                                globalScanBtn.textContent = t('sidebarScanDone');
                                 setTimeout(() => {
-                                    globalScanBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '🌍 一键全盘扫描 (不下载封面/不改名)' : '🌍 Global Quick Scan (No rename/No media)';
+                                    globalScanBtn.textContent = t('sidebarGlobalQuickScanShort');
                                     globalScanBtn.disabled = false;
                                 }, 3000);
                             }
                         } catch (e) { }
                     }, 3000);
                 } else {
-                    alert((window.anomalous_browser_lang === 'zh' ? '错误: ' : 'Error: ') + data.message);
+                    alert(t('sidebarError') + data.message);
                     globalScanBtn.disabled = false;
                 }
             } catch (e) {
@@ -1282,9 +1289,7 @@ export function createDOM() {
         localParseToggleBtn.id = 'anomalous-local-parse-toggle-btn';
         const renderLocalParseToggleBtn = () => {
             let isLocalEnabled = localStorage.getItem('anomalous_local_metadata_scan') !== 'false';
-            localParseToggleBtn.innerHTML = window.anomalous_browser_lang === 'zh'
-                ? (isLocalEnabled ? '☑ 开启非C站模型本地扫描 (读取内置参数) [已开启]' : '☐ 开启非C站模型本地扫描 (读取内置参数) [已关闭]')
-                : (isLocalEnabled ? '☑ Local metadata scan for non-Civitai [ON]' : '☐ Local metadata scan for non-Civitai [OFF]');
+            localParseToggleBtn.textContent = t(isLocalEnabled ? 'sidebarLocalScanOn' : 'sidebarLocalScanOff');
         };
         renderLocalParseToggleBtn();
         styleHubBtn(localParseToggleBtn);
@@ -1297,10 +1302,10 @@ export function createDOM() {
 
         const checkUnscannedBtn = document.createElement('button');
         checkUnscannedBtn.id = 'anomalous-check-unscanned-btn';
-        checkUnscannedBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '🔍 检查并极速录入缺失模型信息' : '🔍 Check & Auto-Scan Missing Info';
+        checkUnscannedBtn.textContent = t('sidebarCheckMissing');
         styleHubBtn(checkUnscannedBtn);
         checkUnscannedBtn.onclick = async () => {
-            checkUnscannedBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '⏳ 检查中...' : '⏳ Checking...';
+            checkUnscannedBtn.textContent = t('sidebarChecking');
             checkUnscannedBtn.disabled = true;
             try {
                 const res = await fetch('/anomalous/all_hashes');
@@ -1315,7 +1320,7 @@ export function createDOM() {
                 }
 
                 if (hasUnscanned) {
-                    checkUnscannedBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '⚠️ 发现缺失，正在自动极速扫描...' : '⚠️ Missing info found, Auto-Scanning...';
+                    checkUnscannedBtn.textContent = t('sidebarMissingScanning');
                     const scanRes = await fetch('/anomalous/scan_all', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1331,29 +1336,29 @@ export function createDOM() {
                                 const statusData = await statusRes.json();
                                 if (!statusData.scanning) {
                                     clearInterval(pollTimer);
-                                    checkUnscannedBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '✅ 补全完成' : '✅ Info Complete';
+                                    checkUnscannedBtn.textContent = t('sidebarInfoComplete');
                                     setTimeout(() => {
-                                        checkUnscannedBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '🔍 检查并极速录入缺失模型信息' : '🔍 Check & Auto-Scan Missing Info';
+                                        checkUnscannedBtn.textContent = t('sidebarCheckMissing');
                                         checkUnscannedBtn.disabled = false;
                                     }, 3000);
                                 }
                             } catch (e) { }
                         }, 3000);
                     } else {
-                        alert((window.anomalous_browser_lang === 'zh' ? '错误: ' : 'Error: ') + scanData.message);
+                        alert(t('sidebarError') + scanData.message);
                         checkUnscannedBtn.disabled = false;
-                        checkUnscannedBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '🔍 检查并极速录入缺失模型信息' : '🔍 Check & Auto-Scan Missing Info';
+                        checkUnscannedBtn.textContent = t('sidebarCheckMissing');
                     }
                 } else {
-                    checkUnscannedBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '✨ 所有模型信息已完整' : '✨ All Model Info is Complete';
+                    checkUnscannedBtn.textContent = t('sidebarAllInfoComplete');
                     setTimeout(() => {
-                        checkUnscannedBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '🔍 检查并极速录入缺失模型信息' : '🔍 Check & Auto-Scan Missing Info';
+                        checkUnscannedBtn.textContent = t('sidebarCheckMissing');
                         checkUnscannedBtn.disabled = false;
                     }, 3000);
                 }
             } catch (e) {
                 checkUnscannedBtn.disabled = false;
-                checkUnscannedBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '🔍 检查并极速录入缺失模型信息' : '🔍 Check & Auto-Scan Missing Info';
+                checkUnscannedBtn.textContent = t('sidebarCheckMissing');
             }
         };
 
@@ -1369,7 +1374,7 @@ export function createDOM() {
 
         const scaleLabel = document.createElement('span');
         scaleLabel.id = 'anomalous-scale-label';
-        scaleLabel.innerText = window.anomalous_browser_lang === 'zh' ? 'UI 缩放' : 'UI Scale';
+        scaleLabel.textContent = t('sidebarUiScale');
         scaleLabel.style.color = '#ccc';
         scaleLabel.style.fontSize = '0.9em';
 
@@ -1423,10 +1428,10 @@ export function createDOM() {
 
         const resetBtn = document.createElement('button');
         resetBtn.id = 'anomalous-reset-btn';
-        resetBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '🔄 重置界面布局' : '🔄 Reset Layout';
+        resetBtn.textContent = t('sidebarResetLayout');
         styleHubBtn(resetBtn);
         resetBtn.onclick = () => {
-            if (confirm(window.anomalous_browser_lang === 'zh' ? '确认重置窗口位置、缩放和停靠状态吗？' : 'Reset window position, scale and dock state?')) {
+            if (confirm(t('sidebarResetConfirm'))) {
                 localStorage.removeItem('anomalous_pos_x');
                 localStorage.removeItem('anomalous_pos_y');
                 localStorage.removeItem('anomalous_width');
@@ -1451,9 +1456,7 @@ export function createDOM() {
         styleHubBtn(hashToggleBtn);
         const updateHashToggleBtn = () => {
             const isInject = localStorage.getItem('anomalous_inject_hash') !== 'false';
-            hashToggleBtn.innerHTML = window.anomalous_browser_lang === 'zh'
-                ? (isInject ? '🟢 注入工作流哈希' : '⚪ 不注入工作流哈希')
-                : (isInject ? '🟢 Inject Workflow Hash' : '⚪ Skip Workflow Hash');
+            hashToggleBtn.textContent = t(isInject ? 'sidebarInjectHash' : 'sidebarSkipHash');
         };
         updateHashToggleBtn();
         hashToggleBtn.onclick = () => {
@@ -1464,7 +1467,7 @@ export function createDOM() {
 
         const folderManagerBtn = document.createElement('button');
         folderManagerBtn.id = 'anomalous-folder-manager-btn';
-        folderManagerBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '📁 文件夹管理' : '📁 Manage Folders';
+        folderManagerBtn.textContent = t('sidebarManageFolders');
         styleHubBtn(folderManagerBtn);
         folderManagerBtn.onclick = () => {
             if (settingsHubModal.style.display !== 'none') {
@@ -1478,7 +1481,7 @@ export function createDOM() {
         
         const feedbackBtn = document.createElement('button');
         feedbackBtn.id = 'anomalous-feedback-btn';
-        feedbackBtn.innerHTML = window.anomalous_browser_lang === 'zh' ? '💬 提交反馈 / 报告问题' : '💬 Submit Feedback / Report Bug';
+        feedbackBtn.textContent = t('sidebarFeedback');
         styleHubBtn(feedbackBtn);
         feedbackBtn.onclick = () => {
             window.open('https://github.com/DemonGatanjieu/Anomalous_Model_Browser/issues', '_blank');
@@ -1501,7 +1504,7 @@ export function createDOM() {
         const settingsBtn = document.createElement('button');
         settingsBtn.id = 'anomalous-global-settings-btn';
         settingsBtn.innerHTML = `⚙️`;
-        settingsBtn.title = window.anomalous_browser_lang === 'zh' ? '设置中心' : 'Settings Hub';
+        settingsBtn.title = t('sidebarSettings');
         settingsBtn.style.background = 'transparent';
         settingsBtn.style.color = '#ccc';
         settingsBtn.style.border = 'none';
@@ -1552,14 +1555,14 @@ export function createDOM() {
             if (window.AMB_WorkflowShare) {
                 window.AMB_WorkflowShare.showUnifiedModal();
             } else {
-                alert(window.anomalous_browser_lang === 'zh' ? '模块尚未加载，请稍等或刷新页面！' : 'Module not loaded, please refresh!');
+                alert(t('sidebarModuleNotLoaded'));
             }
         };
 
 
         const doctorBtn = document.createElement('button');
         doctorBtn.id = 'anomalous-doctor-btn';
-        doctorBtn.title = window.anomalous_browser_lang === 'zh' ? '模型医生' : 'Model Doctor';
+        doctorBtn.title = t('sidebarDoctor');
         doctorBtn.innerHTML = `🩺`;
         doctorBtn.style.background = 'transparent';
         doctorBtn.style.color = '#ccc';
@@ -1597,7 +1600,7 @@ export function createDOM() {
 
         const assistantBtn = document.createElement('button');
         assistantBtn.id = 'anomalous-assistant-btn';
-        assistantBtn.title = window.anomalous_browser_lang === 'zh' ? '节点助手' : 'Node Assistant';
+        assistantBtn.title = t('sidebarAssistant');
         assistantBtn.innerHTML = `🤖`;
         assistantBtn.style.background = 'transparent';
         assistantBtn.style.color = '#ccc';
@@ -1678,18 +1681,25 @@ export function createDOM() {
         this.galleryLoading = false;
         this.galleryHasMore = true;
 
-        this.galleryObserver = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting && !this.galleryLoading && this.galleryHasMore) {
-                this.loadGalleryImages(this.galleryCurrentPage + 1);
-            }
-        }, { root: this.galleryGrid, rootMargin: '100px' });
-        this.galleryObserver.observe(this.gallerySentinel);
+        if (typeof IntersectionObserver === 'function') {
+            this.galleryObserver = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && !this.galleryLoading && this.galleryHasMore) {
+                    this.loadGalleryImages(this.galleryCurrentPage + 1);
+                }
+            }, { root: this.galleryGrid, rootMargin: '100px' });
+            this.galleryObserver.observe(this.gallerySentinel);
+        } else {
+            // Some embedded ComfyUI webviews do not expose IntersectionObserver.
+            // The gallery still opens and loads its first page; do not abort the
+            // whole extension setup when infinite scroll is unavailable.
+            this.galleryObserver = null;
+        }
 
         this.nbPanel = document.createElement('div');
         this.nbPanel.className = 'anomalous-nb-modal';
         this.nbPanel.style.display = 'none';
         this.nbPanel.onclick = (e) => {
-            if (e.target === this.nbPanel) this.nbPanel.style.display = 'none';
+            if (e.target === this.nbPanel) this.closeWorkspace();
         };
 
         content.appendChild(header);
@@ -1758,7 +1768,7 @@ export function renderSidebar() {
 
         const isAllCollapsed = this.expandedFolders.size === 0;
         const collapseAllBtn = document.createElement('button');
-        collapseAllBtn.innerHTML = isAllCollapsed ? (window.anomalous_browser_lang === 'zh' ? '➕ 展开全部' : '➕ Expand All') : (window.anomalous_browser_lang === 'zh' ? '➖ 收起全部' : '➖ Collapse All');
+        collapseAllBtn.textContent = t(isAllCollapsed ? 'sidebarExpandAll' : 'sidebarCollapseAll');
         collapseAllBtn.style.padding = '4px 8px';
         collapseAllBtn.style.background = '#444';
         collapseAllBtn.style.color = '#fff';
@@ -1788,7 +1798,7 @@ export function renderSidebar() {
 
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
-        searchInput.placeholder = window.anomalous_browser_lang === 'zh' ? '🔍 搜索模型...' : '🔍 Search models...';
+        searchInput.placeholder = t('sidebarSearchModels');
         searchInput.style.width = '100%';
         searchInput.style.padding = '8px 12px';
         searchInput.style.borderRadius = '8px';
@@ -2035,12 +2045,28 @@ export function showHelp() {
 
 
 export function hideAllPanels() {
+        const abandonedRecipeModel = typeof this.recipeModelReturn === 'function';
+        this.recipeModelReturn = null;
+        if (abandonedRecipeModel) {
+            this.recipeReturnState = null;
+            delete this.recipeDetailPayload;
+            if (this.recipeListContainer) this.recipeListContainer.style.display = '';
+            const actionbar = this.recipeView?.querySelector('.anomalous-recipe-actionbar');
+            if (actionbar) actionbar.style.display = '';
+            if (this.detailPanel) {
+                this.stopMediaInContainer?.(this.detailPanel);
+                this.detailPanel.replaceChildren();
+            }
+            this.currentDetailModel = null;
+            this.historyStack = [];
+        }
         this.grid.style.display = 'none';
         this.detailPanel.style.display = 'none';
         if (this.galleryPanel) this.galleryPanel.style.display = 'none';
         if (this.nbPanel) this.nbPanel.style.display = 'none';
         if (this.doctorPanel) this.doctorPanel.style.display = 'none';
         if (this.assistantPanel) this.assistantPanel.style.display = 'none';
+        if (this.paramPanel) this.paramPanel.style.display = 'none';
         if (this.currentDetailObserver) {
             this.currentDetailObserver.disconnect();
             this.currentDetailObserver = null;
@@ -2077,16 +2103,14 @@ export async function openFolderManager() {
     content.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
 
     const header = document.createElement('h2');
-    header.innerText = window.anomalous_browser_lang === 'zh' ? '📁 侧边栏文件夹管理' : '📁 Manage Folders';
+    header.textContent = t('sidebarFolderManagerTitle');
     header.style.margin = '0 0 16px 0';
     header.style.color = '#fff';
     header.style.fontSize = '1.4em';
     content.appendChild(header);
 
     const desc = document.createElement('div');
-    desc.innerText = window.anomalous_browser_lang === 'zh' 
-        ? '上下拖拽调整侧边栏的显示顺序。点击眼睛图标可隐藏不需要显示的底层文件夹。隐藏的文件夹不会被扫描，完全不占用性能。'
-        : 'Drag and drop to reorder folders. Click the eye icon to hide unneeded folders. Hidden folders are skipped during scanning and consume zero performance.';
+    desc.textContent = t('sidebarFolderManagerDesc');
     desc.style.color = '#aaa';
     desc.style.fontSize = '0.9em';
     desc.style.marginBottom = '20px';
@@ -2112,7 +2136,7 @@ export async function openFolderManager() {
     
     const abstractLabel = document.createElement('label');
     abstractLabel.htmlFor = 'anomalous_mode_abstract';
-    abstractLabel.innerText = window.anomalous_browser_lang === 'zh' ? '分类模式 (ComfyUI)' : 'Category Mode (ComfyUI)';
+    abstractLabel.textContent = t('sidebarCategoryMode');
     abstractLabel.style.cursor = 'pointer';
     abstractLabel.style.color = '#ccc';
 
@@ -2124,7 +2148,7 @@ export async function openFolderManager() {
 
     const physicalLabel = document.createElement('label');
     physicalLabel.htmlFor = 'anomalous_mode_physical';
-    physicalLabel.innerText = window.anomalous_browser_lang === 'zh' ? '物理模式 (本地文件夹)' : 'Physical Mode (Local)';
+    physicalLabel.textContent = t('sidebarPhysicalMode');
     physicalLabel.style.cursor = 'pointer';
     physicalLabel.style.color = '#ccc';
     
@@ -2179,7 +2203,7 @@ export async function openFolderManager() {
             });
             renderList();
         } catch(e) {
-            alert("Failed to load folder types.");
+            alert(t('sidebarFolderLoadFailed'));
         }
     };
     
@@ -2198,7 +2222,7 @@ export async function openFolderManager() {
             this.expandedFolders.clear();
             await this.loadFolders();
         } catch(err) {
-            alert("Error switching mode");
+            alert(t('sidebarFolderModeError'));
         }
     };
     
@@ -2291,7 +2315,7 @@ export async function openFolderManager() {
             visBtn.style.cursor = 'pointer';
             visBtn.style.fontSize = '1.2em';
             visBtn.style.opacity = item.visible ? '1' : '0.5';
-            visBtn.title = item.visible ? 'Visible' : 'Hidden';
+            visBtn.title = t(item.visible ? 'sidebarVisible' : 'sidebarHidden');
             
             visBtn.onclick = (e) => {
                 e.stopPropagation();
@@ -2316,7 +2340,7 @@ export async function openFolderManager() {
     footer.style.marginTop = '20px';
 
     const cancelBtn = document.createElement('button');
-    cancelBtn.innerText = window.anomalous_browser_lang === 'zh' ? '取消' : 'Cancel';
+    cancelBtn.textContent = t('sidebarCancel');
     cancelBtn.style.padding = '8px 16px';
     cancelBtn.style.background = 'transparent';
     cancelBtn.style.color = '#ccc';
@@ -2326,7 +2350,7 @@ export async function openFolderManager() {
     cancelBtn.onclick = () => modal.remove();
 
     const saveBtn = document.createElement('button');
-    saveBtn.innerText = window.anomalous_browser_lang === 'zh' ? '保存并刷新' : 'Save & Reload';
+    saveBtn.textContent = t('sidebarSaveReload');
     saveBtn.style.padding = '8px 16px';
     saveBtn.style.background = '#8AB4F8';
     saveBtn.style.color = '#1e1e1e';
@@ -2355,8 +2379,8 @@ export async function openFolderManager() {
             this.expandedFolders.clear();
             await this.loadFolders();
         } catch(e) {
-            alert("Error saving config: " + e);
-            saveBtn.innerText = window.anomalous_browser_lang === 'zh' ? '保存并刷新' : 'Save & Reload';
+            alert(t('sidebarSaveConfigError') + e);
+            saveBtn.textContent = t('sidebarSaveReload');
             saveBtn.disabled = false;
         }
     };

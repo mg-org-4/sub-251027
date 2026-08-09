@@ -4,19 +4,64 @@
  */
 
 import { app } from "../../../scripts/app.js";
-import { i18n } from './locales.js';
+import { translate } from './locales.js';
 import { escapeHtml } from './safe_dom.js';
 
-const t = (key) => {
-    let lang = window.anomalous_browser_lang || 'zh';
-    if (lang.startsWith('en')) lang = 'en';
-    return (i18n[lang] && i18n[lang][key]) ? i18n[lang][key] : (i18n['zh'][key] || key);
-};
+const t = (key, params) => translate(key, params);
+
+function restoreWorkspaceReturnPanel(owner) {
+    const state = owner.workspaceReturnState;
+    owner.workspaceReturnState = null;
+    const panels = [
+        ['grid', owner.grid],
+        ['detail', owner.detailPanel],
+        ['gallery', owner.galleryPanel],
+        ['doctor', owner.doctorPanel],
+        ['assistant', owner.assistantPanel],
+    ];
+    if (state) {
+        for (const [key, panel] of panels) {
+            if (panel && Object.prototype.hasOwnProperty.call(state, key)) panel.style.display = state[key];
+        }
+    }
+    const hasVisiblePanel = panels.some(([, panel]) => panel && panel.style.display !== 'none');
+    if (!hasVisiblePanel && owner.grid) owner.grid.style.display = 'grid';
+}
+
+export function closeWorkspace() {
+    this.recipeDetailFinish?.('closed');
+    const abandonedRecipeModel = typeof this.recipeModelReturn === 'function';
+    this.recipeModelReturn = null;
+    if (abandonedRecipeModel) {
+        this.recipeReturnState = null;
+        delete this.recipeDetailPayload;
+        if (this.recipeListContainer) this.recipeListContainer.style.display = '';
+        const actionbar = this.recipeView?.querySelector('.anomalous-recipe-actionbar');
+        if (actionbar) actionbar.style.display = '';
+        if (this.detailPanel) {
+            this.stopMediaInContainer?.(this.detailPanel);
+            this.detailPanel.replaceChildren();
+            this.detailPanel.style.display = 'none';
+        }
+        this.currentDetailModel = null;
+        this.historyStack = [];
+    }
+    if (this.paramPanel) this.paramPanel.style.display = 'none';
+    if (this.recipeView) this.recipeView.style.display = 'none';
+    if (this.notebookBody) this.notebookBody.style.display = 'none';
+    if (this.nbPanel) this.nbPanel.style.display = 'none';
+    restoreWorkspaceReturnPanel(this);
+}
 
 
 
 export async function showNotebooks() {
         if (this.nbInitialized) {
+            this.nbPanel.style.display = 'flex';
+            if (this.notebookBody) this.notebookBody.style.display = 'flex';
+            if (this.recipeView) this.recipeView.style.display = 'none';
+            this.notebookNotesTab?.classList.add('active');
+            this.notebookRecipesTab?.classList.remove('active');
             this.refreshNotebooks(true);
             return;
         }
@@ -29,15 +74,44 @@ export async function showNotebooks() {
 
         const nbHeader = document.createElement('div');
         nbHeader.className = 'anomalous-nb-header';
-        nbHeader.innerHTML = `<h2>${t('notebookTitle')}</h2>`;
+        const headerMain = document.createElement('div');
+        headerMain.className = 'anomalous-nb-header-main';
+        const heading = document.createElement('h2');
+        heading.textContent = t('workspaceTitle');
+        const sectionTabs = document.createElement('div');
+        sectionTabs.className = 'anomalous-nb-section-tabs';
+        const notesTab = document.createElement('button');
+        notesTab.type = 'button';
+        notesTab.className = 'anomalous-nb-section-tab active';
+        notesTab.textContent = t('promptNotes');
+        const recipesTab = document.createElement('button');
+        recipesTab.type = 'button';
+        recipesTab.className = 'anomalous-nb-section-tab';
+        recipesTab.textContent = t('recipeTitle');
+        sectionTabs.append(notesTab, recipesTab);
+        headerMain.append(heading, sectionTabs);
+        nbHeader.appendChild(headerMain);
         const closeNb = document.createElement('span');
         closeNb.className = 'anomalous-nb-close';
         closeNb.innerHTML = '&times;';
-        closeNb.onclick = () => { this.nbPanel.style.display = 'none'; };
+        closeNb.onclick = () => this.closeWorkspace();
         nbHeader.appendChild(closeNb);
 
         const body = document.createElement('div');
         body.className = 'anomalous-nb-body';
+        this.notebookBody = body;
+        this.notebookContainer = nbContainer;
+        this.notebookNotesTab = notesTab;
+        this.notebookRecipesTab = recipesTab;
+
+        notesTab.onclick = () => {
+            this.notebookBody.style.display = 'flex';
+            if (this.recipeView) this.recipeView.style.display = 'none';
+            notesTab.classList.add('active');
+            recipesTab.classList.remove('active');
+            this.refreshNotebooks(true);
+        };
+        recipesTab.onclick = () => this.showRecipes();
 
         // Sidebar for notebooks list
         const sidebar = document.createElement('div');
@@ -47,6 +121,7 @@ export async function showNotebooks() {
         nbList.className = 'anomalous-nb-list';
 
         const btnRow = document.createElement('div');
+        btnRow.className = 'anomalous-nb-create-row';
         btnRow.style.padding = '10px';
         btnRow.style.display = 'flex';
         btnRow.style.gap = '5px';
@@ -56,6 +131,7 @@ export async function showNotebooks() {
         createBtn.className = 'anomalous-btn-primary';
 
         const createInput = document.createElement('input');
+        createInput.className = 'anomalous-nb-create-input';
         createInput.type = 'text';
         createInput.placeholder = t('newNotebookName');
         createInput.style.display = 'none';
@@ -639,7 +715,7 @@ export function sendNotebookToCanvas() {
         if (!this.currentNotebook) return;
         const data = this.currentNotebook.data || {};
         if (!data.mainModel) {
-            alert(window.anomalous_browser_lang === 'zh' ? "请先选择一个主模型。" : "Please select a Main Model first.");
+            alert(t('notebookSelectMain'));
             return;
         }
 

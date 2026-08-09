@@ -1,4 +1,5 @@
 import { app } from "../../scripts/app.js";
+import { translate } from './modules/locales.js';
 
 // Global cache for hashes: filename -> hash
 window.anomalous_hash_cache = window.anomalous_hash_cache || {};
@@ -286,16 +287,8 @@ window.anomalous_resolve_all_missing_nodes = async function (is_manual = false, 
     }
 
     if (is_manual && !silent) {
-        // Detect current UI language (Default to 'zh' if not set)
-        // 获取当前界面语言（未设置时默认使用中文）
-        const lang = (window.anomalous_browser_lang === 'en') ? 'en' : 'zh';
-
         if (fixed_count > 0) {
-            if (lang === 'en') {
-                alert(`🪄 Anomalous successfully fixed ${fixed_count} missing model(s)!\n\n💡 Tip: ComfyUI V1 caches errors heavily. Please manually click the [Refresh] button in the "Workflow Overview" side panel, or refresh your browser (F5) to prevent them from turning red again on workflow switch.`);
-            } else {
-                alert(`🪄 Anomalous 成功修复了 ${fixed_count} 个缺失的模型！\n\n💡 提示：ComfyUI V1 对报错的缓存极深。请务必手动点击侧边栏【工作流总览】中的【刷新】按钮，或者直接按 F5 刷新浏览器，否则切换工作流时节点可能会再次变红。`);
-            }
+            alert(translate('hashResolverFixed', { count: fixed_count }));
         }
     }
 };
@@ -323,11 +316,25 @@ app.registerExtension({
         // Pre-fetch all hashes on startup so that dragging generated images (without opening UI) still intercepts
         await window.anomalous_reload_hashes();
 
-        // Intercept graph serialization to inject hashes
-        const origSerialize = LGraph.prototype.serialize;
+        // Intercept graph serialization to inject hashes. ComfyUI 0.27 no
+        // longer guarantees a global LGraph symbol, so prefer the graph's
+        // actual constructor and fail closed if the graph API is unavailable.
+        // This resolver is optional and must never prevent the main browser
+        // extension from registering its visible entry point.
+        const graphClass = [app.graph?.constructor, globalThis.LGraph].find((candidate) => (
+            candidate?.prototype && typeof candidate.prototype.serialize === 'function'
+        ));
+        if (!graphClass) {
+            console.warn('[Anomalous Hash Resolver] Graph serialization API is unavailable; resolver disabled for this session.');
+            return;
+        }
+        if (graphClass.prototype.__anomalousHashResolverPatched) return;
+
+        const origSerialize = graphClass.prototype.serialize;
         window.anomalous_has_warned_unscanned = false;
         window.anomalous_unscanned_models = [];
-        LGraph.prototype.serialize = function () {
+        graphClass.prototype.__anomalousHashResolverPatched = true;
+        graphClass.prototype.serialize = function () {
             const data = origSerialize.apply(this, arguments);
 
             if (localStorage.getItem('anomalous_inject_hash') === 'false') {
@@ -387,12 +394,12 @@ app.registerExtension({
 
 
         // Intercept loadGraphData to resolve missing models
-        const origLoadGraphData = app.loadGraphData;
-        app.loadGraphData = function (graphData) {
-            // Proceed with original loadGraphData synchronously first
-            const ret = origLoadGraphData.apply(this, arguments);
-
-            return ret;
-        };
+        if (typeof app.loadGraphData === 'function') {
+            const origLoadGraphData = app.loadGraphData;
+            app.loadGraphData = function (graphData) {
+                // Proceed with original loadGraphData synchronously first
+                return origLoadGraphData.apply(this, arguments);
+            };
+        }
     }
 });

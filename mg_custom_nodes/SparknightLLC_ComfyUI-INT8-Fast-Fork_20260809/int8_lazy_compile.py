@@ -14,6 +14,7 @@ from torch import nn
 from tqdm.auto import tqdm
 
 from . import int4_compile_compat
+from . import w4a8_compile_compat
 
 
 _LAZY_COMPILE_WRAPPER_KEY = "int8_lazy_torch_compile"
@@ -346,6 +347,24 @@ def _has_native_int4_modules(model_patcher):
 	return any(getattr(module, "_quant_format", None) == "convrot_w4a4" for module in diffusion_model.modules())
 
 
+def _has_w4a8_modules(model_patcher):
+	def is_w4a8(module):
+		return (
+			getattr(module, "_quant_format", None) == "asym_w4a8_int8"
+			or getattr(module, "quant_format", None) == "asym_w4a8_int8"
+		)
+
+	for object_patch_map_name in ("object_patches", "object_patches_backup"):
+		object_patch_map = getattr(model_patcher, object_patch_map_name, None)
+		if isinstance(object_patch_map, dict) and any(is_w4a8(module) for module in object_patch_map.values()):
+			return True
+
+	diffusion_model = getattr(getattr(model_patcher, "model", None), "diffusion_model", None)
+	if diffusion_model is None:
+		return False
+	return any(is_w4a8(module) for module in diffusion_model.modules())
+
+
 def _get_comfy_kitchen_version():
 	try:
 		return importlib.metadata.version("comfy-kitchen")
@@ -375,6 +394,29 @@ def _build_native_int4_compile_info():
 		support_label = "temporary Toolkit custom-op shim"
 	return (
 		"Quantized Lazy Torch Compile: native ConvRot INT4 compile support enabled "
+		f"via {support_label} (comfy-kitchen {_get_comfy_kitchen_version()})."
+	)
+
+
+def _build_w4a8_compile_warning():
+	return (
+		"Quantized Lazy Torch Compile: W4A8 detected; torch.compile was not applied.\n"
+		f"  Installed comfy-kitchen version: {_get_comfy_kitchen_version()}\n"
+		"  Upstream limitation: AsymW4A8Int8Layout does not expose a compiler-safe "
+		"w4a8_int8_linear torch.library custom operator with a FakeTensor implementation.\n"
+		f"  Toolkit compatibility shim: unavailable ({w4a8_compile_compat.get_compile_support_error()})\n"
+		"  Result: this MODEL is returned uncompiled and will use the native eager W4A8 runtime."
+	)
+
+
+def _build_w4a8_compile_info():
+	support_source = w4a8_compile_compat.get_compile_support_source()
+	if support_source == w4a8_compile_compat.SUPPORT_SOURCE_UPSTREAM:
+		support_label = "upstream comfy-kitchen custom operator"
+	else:
+		support_label = "temporary Toolkit custom-op shim"
+	return (
+		"Quantized Lazy Torch Compile: W4A8 compile support enabled "
 		f"via {support_label} (comfy-kitchen {_get_comfy_kitchen_version()})."
 	)
 
@@ -483,6 +525,9 @@ def _cleanup_compile_memory(reset_compile_cache=False):
 
 
 def _dispose_cached_output(model_patcher):
+	model_patcher = _resolve_cached_output(model_patcher)
+	if model_patcher is None:
+		return
 	try:
 		model_patcher.remove_wrappers_with_key(
 			comfy.patcher_extension.WrappersMP.APPLY_MODEL,
@@ -494,6 +539,18 @@ def _dispose_cached_output(model_patcher):
 		model_patcher.model_options.pop(_TORCH_COMPILE_KWARGS, None)
 	except Exception:
 		pass
+
+
+def _resolve_cached_output(cached_output):
+	if isinstance(cached_output, weakref.ReferenceType):
+		return cached_output()
+	return cached_output
+
+
+def _prune_dead_outputs(cache):
+	for cache_key, cached_output in list(cache.items()):
+		if _resolve_cached_output(cached_output) is None:
+			cache.pop(cache_key, None)
 
 
 def _make_model_ref(shared_model):
@@ -513,8 +570,10 @@ def _prepare_model_cache(shared_model):
 		if prior_model is not None:
 			prior_cache = getattr(prior_model, _LAZY_COMPILE_OUTPUT_CACHE_KEY, None)
 			if isinstance(prior_cache, dict):
-				for cached_model_patcher in list(prior_cache.values()):
-					_dispose_cached_output(cached_model_patcher)
+				for cached_output in list(prior_cache.values()):
+					cached_model_patcher = _resolve_cached_output(cached_output)
+					if cached_model_patcher is not None:
+						_dispose_cached_output(cached_model_patcher)
 				prior_cache.clear()
 			prior_structure_cache = getattr(prior_model, _LAZY_COMPILE_STRUCTURE_CACHE_KEY, None)
 			if isinstance(prior_structure_cache, dict):
@@ -531,13 +590,15 @@ def _remember_cached_output(shared_model, cache_key, model_patcher):
 		return
 
 	cache = _get_output_cache(shared_model)
-	cache[cache_key] = model_patcher
+	_prune_dead_outputs(cache)
+	cache[cache_key] = weakref.ref(model_patcher)
 	while len(cache) > _LAZY_COMPILE_OUTPUT_CACHE_LIMIT:
 		old_key = next(iter(cache))
 		if old_key == cache_key and len(cache) > 1:
 			old_key = next(key for key in cache if key != cache_key)
-		evicted_model_patcher = cache.pop(old_key)
-		if evicted_model_patcher is not model_patcher:
+		evicted_output = cache.pop(old_key)
+		evicted_model_patcher = _resolve_cached_output(evicted_output)
+		if evicted_model_patcher is not None and evicted_model_patcher is not model_patcher:
 			_dispose_cached_output(evicted_model_patcher)
 	_cleanup_compile_memory(reset_compile_cache=False)
 
@@ -546,11 +607,13 @@ def _make_output_cache_room(cache):
 	if _LAZY_COMPILE_OUTPUT_CACHE_LIMIT <= 0:
 		return
 
+	_prune_dead_outputs(cache)
 	evicted = False
 	while len(cache) >= _LAZY_COMPILE_OUTPUT_CACHE_LIMIT:
 		old_key = next(iter(cache))
-		evicted_model_patcher = cache.pop(old_key)
-		_dispose_cached_output(evicted_model_patcher)
+		evicted_model_patcher = _resolve_cached_output(cache.pop(old_key))
+		if evicted_model_patcher is not None:
+			_dispose_cached_output(evicted_model_patcher)
 		evicted = True
 	if evicted:
 		_cleanup_compile_memory(reset_compile_cache=False)
@@ -728,6 +791,15 @@ class INT8LazyTorchCompile:
 	):
 		output_cache = _prepare_model_cache(model.model)
 
+		has_w4a8 = _has_w4a8_modules(model)
+		if has_w4a8 and not w4a8_compile_compat.is_compile_supported():
+			model_patcher = _clone_for_lazy_compile(model, disable_dynamic_vram, verbose)
+			_remove_compile_wrappers(model_patcher)
+			logging.warning(_build_w4a8_compile_warning())
+			return (model_patcher,)
+		if has_w4a8 and verbose:
+			logging.info(_build_w4a8_compile_info())
+
 		has_native_int4 = _has_native_int4_modules(model)
 		if has_native_int4 and not int4_compile_compat.is_compile_supported():
 			model_patcher = _clone_for_lazy_compile(model, disable_dynamic_vram, verbose)
@@ -750,9 +822,10 @@ class INT8LazyTorchCompile:
 			verbose,
 		)
 		if _LAZY_COMPILE_OUTPUT_CACHE_LIMIT > 0:
-			cached_model_patcher = output_cache.get(cache_key)
+			cached_model_patcher = _resolve_cached_output(output_cache.get(cache_key))
 			if cached_model_patcher is not None:
 				return (cached_model_patcher,)
+			output_cache.pop(cache_key, None)
 			_make_output_cache_room(output_cache)
 
 		if not disable_dynamic_vram and callable(getattr(model, "is_dynamic", None)) and model.is_dynamic():

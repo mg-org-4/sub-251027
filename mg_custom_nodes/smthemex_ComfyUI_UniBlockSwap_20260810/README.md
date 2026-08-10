@@ -2,6 +2,7 @@
 A universal swap node that supports ComfyUI native workflow, allowing 4_6G users to experience Minimax  or Klein9B or Bernini or other large models
 
 # Update
+* fix lora unuseful's bug  修复lora失效的bug，新增节点清理TE（如果推理完第一次，再次修改提示词会导致显存占用，详看插件工作流）
 * Fix gguf loader cause high ram error,修复gguf加载时内存占用过大的bug，使用时注意避免推理过大分辨率或者时长过长，导致调用共享显存（如果调用了，就变慢了，不划算）
 * Make it for ' low Vram and normal Ram' users to esay running ComfyUI origin workflows.(Support allmot all of comfyUI origin workflows)
 * Support text encoder or diffusion models, is enable text encoder will need more Ram 

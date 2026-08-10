@@ -1,0 +1,880 @@
+{
+  "id": "08988737-a544-4ab1-99fb-22d67b7c36e3",
+  "revision": 0,
+  "last_node_id": 77,
+  "last_link_id": 126,
+  "nodes": [
+    {
+      "id": 29,
+      "type": "SaveImage",
+      "pos": [
+        1473.4353873059638,
+        -523.6290235332405
+      ],
+      "size": [
+        880,
+        1020
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 97
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "Krea2_turbo"
+      ]
+    },
+    {
+      "id": 47,
+      "type": "MarkdownNote",
+      "pos": [
+        -1200,
+        970
+      ],
+      "size": [
+        690,
+        510
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LoRA Trigger Words and Settings",
+      "properties": {},
+      "widgets_values": [
+        "Download the style LoRAs used in this workflow from [Comfy-Org/Krea-2/loras](https://huggingface.co/Comfy-Org/Krea-2/tree/main/loras). Place the `.safetensors` files in `ComfyUI/models/loras/`.\n\n| LoRA                   | Trigger Words                        | Recommended Strength |\n|------------------------|--------------------------------------|-------|\n| `krea2_darkbrush`      | `monochrome ink wash style`          | `1.0` |\n| `krea2_dotmatrix`      | `monochrome stippling style`         | `1.0` |\n| `krea2_kidsdrawing`    | `naive expressive sketch style`      | `1.0` |\n| `krea2_neondrip`       | `textured abstract style`            | `1.0` |\n| `krea2_rainywindow`    | `rainy window style`                 | `1.0` |\n| `krea2_retroanime`     | `purple retro anime style`           | `1.0` |\n| `krea2_softwatercolor` | `art deco watercolor style`          | `1.0` |\n| `krea2_sunsetblur`     | `ethereal motion blur style`         | `1.0` |\n| `krea2_vintagetarot`   | `vintage tarot style`                | `1.0` |"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 48,
+      "type": "MarkdownNote",
+      "pos": [
+        -3333.4137663448546,
+        -205.20380875331898
+      ],
+      "size": [
+        700,
+        990
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Model Links",
+      "properties": {},
+      "widgets_values": [
+        "Guide: [Subgraph](https://docs.comfy.org/interface/features/subgraph)\n\n## Model Links (for Local Users)\n\n**diffusion_models**\n\n- [krea2_turbo_int8_convrot.safetensors](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_int8_convrot.safetensors)\n\n**text_encoders**\n\n- [qwen3vl_4b_fp8_scaled.safetensors](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors)\n\n**vae**\n\n- [qwen_image_vae.safetensors](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors)\n\n**loras**\n\n- [krea2_darkbrush.safetensors](https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_darkbrush.safetensors)\n\n\n## Model Storage Location\n\n```\n📂 ComfyUI/\n├── 📂 models/\n│   ├── 📂 diffusion_models/\n│   │   └── krea2_turbo_int8_convrot.safetensors\n│   ├── 📂 text_encoders/\n│   │   └── qwen3vl_4b_fp8_scaled.safetensors\n│   ├── 📂 vae/\n│   │   └── qwen_image_vae.safetensors\n│   └── 📂 loras/\n│       └── krea2_darkbrush.safetensors\n```\n\n## Report Issue\n\nNote: Please update ComfyUI first ([guide](https://docs.comfy.org/installation/update_comfyui)) and prepare required models. Desktop/Cloud updates follow stable releases, so some nightly-supported models may not be available yet.\n\n- Cannot run / runtime errors: [ComfyUI/issues](https://github.com/comfyanonymous/ComfyUI/issues)\n- UI / frontend issues: [ComfyUI_frontend/issues](https://github.com/Comfy-Org/ComfyUI_frontend/issues)\n- Workflow issues: [workflow_templates/issues](https://github.com/Comfy-Org/workflow_templates/issues)\n"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 50,
+      "type": "MarkdownNote",
+      "pos": [
+        -2348.881987528084,
+        -110.51570957158901
+      ],
+      "size": [
+        700,
+        990
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note: Krea-2",
+      "properties": {},
+      "widgets_values": [
+        "Guide: [krea-2](https://docs.comfy.org/tutorials/image/krea/krea-2)\n\nThis workflow generates images with **Krea-2 Turbo**, a fast distilled text-to-image model. The workflow is organized into a few parts: each handles a different step so you can generate quickly without digging through every node.\n\n## Text to Image (Krea-2 Turbo) Subgraph\n\nDouble-click this node to open the full pipeline. Inside, the canvas is grouped into several areas:\n\n**Models**: Loads the diffusion model, text encoder, VAE, and optional style LoRA (`LoraLoaderModelOnly`).\n\n**Prompt**: Enter your image description in **Text String (User Prompt)**.\n\n**Prompt Enhancement**: Expands your prompt before generation. Enabled by default (`prompt_enhance`). You can turn it off to use your prompt as-is, or replace the built-in module with **OpenAI** or **Gemini** API nodes.\n\n**Feature Switch**: Quick toggles on the left side of the subgraph:\n- `prompt_enhance`: enable or disable prompt expansion\n- `enable_lora?`: enable or disable the style LoRA\n\n**Image Generation**: Handles latent sizing, sampling (8 steps), and VAE decode to produce the final image.\n\nWhen using a LoRA, set `enable_lora?` to true, select the matching file in **LoraLoaderModelOnly**, and adjust `lora_strength` as needed.\n\n## LoRA & Trigger Word (CustomCombo)\n\nOn the main canvas, the **CustomCombo** node is where you choose which style LoRA you are using (e.g. `krea2_coolblue`, `krea2_darkbrush`). The workflow uses your selection to automatically append the correct **trigger word** to your prompt.\n\n- Download LoRA files from [Comfy-Org/Krea-2/loras](https://huggingface.co/Comfy-Org/Krea-2/tree/main/loras) and place them in `ComfyUI/models/loras/`\n- Select the LoRA name that matches the file loaded inside the subgraph\n- The trigger word is applied for you: no need to type it manually\n- For trigger words and recommended strength values, see the **LoRA Trigger Words and Settings** note beside this workflow\n"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 49,
+      "type": "ResolutionSelector",
+      "pos": [
+        -1366.380279341554,
+        544.595335318372
+      ],
+      "size": [
+        270,
+        190
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            98
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            99
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ResolutionSelector",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "16:9 (Widescreen)",
+        1,
+        8
+      ]
+    },
+    {
+      "id": 52,
+      "type": "CLIPTextEncode",
+      "pos": [
+        58.08777311144422,
+        -372.79356487359723
+      ],
+      "size": [
+        480,
+        420
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 73
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            75,
+            80
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "宋玉在房间里面喝酒，古装国漫，近景"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 53,
+      "type": "EmptyLatentImage",
+      "pos": [
+        100,
+        215
+      ],
+      "size": [
+        320,
+        170
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 98
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 99
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            77
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        1
+      ]
+    },
+    {
+      "id": 54,
+      "type": "KSampler",
+      "pos": [
+        778.6788140831162,
+        -186.7429912819632
+      ],
+      "size": [
+        320,
+        590
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 126
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 75
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 76
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 77
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            78
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        433366320754966,
+        "randomize",
+        8,
+        1,
+        "euler",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 55,
+      "type": "VAEDecode",
+      "pos": [
+        1160.4172218853885,
+        -373.69814306048147
+      ],
+      "size": [
+        230,
+        100
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 78
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 79
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            97
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 57,
+      "type": "CLIPLoader",
+      "pos": [
+        -507.2587049788493,
+        -137.0747363866774
+      ],
+      "size": [
+        450,
+        170
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            73
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "models": [
+          {
+            "name": "qwen3vl_4b_fp8_scaled.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors",
+            "directory": "text_encoders"
+          }
+        ]
+      },
+      "widgets_values": [
+        "qwen3vl_4b_fp8_scaled.safetensors",
+        "krea2",
+        "default"
+      ]
+    },
+    {
+      "id": 58,
+      "type": "VAELoader",
+      "pos": [
+        -480,
+        255
+      ],
+      "size": [
+        450,
+        120
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            79
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "models": [
+          {
+            "name": "qwen_image_vae.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors",
+            "directory": "vae"
+          }
+        ]
+      },
+      "widgets_values": [
+        "qwen_image_vae.safetensors"
+      ]
+    },
+    {
+      "id": 59,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        280,
+        85
+      ],
+      "size": [
+        225,
+        0
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 80
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            76
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 60,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        585.0038354449061,
+        -778.9932422996332
+      ],
+      "size": [
+        450,
+        170
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 124
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            121
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "models": [
+          {
+            "name": "krea2_darkbrush.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_darkbrush.safetensors",
+            "directory": "loras"
+          }
+        ]
+      },
+      "widgets_values": [
+        "宋玉K2-songyu.safetensors",
+        0.99
+      ]
+    },
+    {
+      "id": 69,
+      "type": "PrimitiveBoolean",
+      "pos": [
+        -980,
+        705
+      ],
+      "size": [
+        270,
+        110
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "links": []
+        }
+      ],
+      "title": "Boolean (Refine Prompt?)",
+      "properties": {
+        "Node name for S&R": "PrimitiveBoolean",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        false
+      ]
+    },
+    {
+      "id": 75,
+      "type": "UniBlockSwap",
+      "pos": [
+        1134.391716927685,
+        -744.5582091416775
+      ],
+      "size": [
+        270,
+        86
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 121
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            125
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UniBlockSwap"
+      },
+      "widgets_values": [
+        -1
+      ]
+    },
+    {
+      "id": 76,
+      "type": "Dif_GGUF_Loader",
+      "pos": [
+        154.32406510305486,
+        -675.6076506656589
+      ],
+      "size": [
+        270,
+        86
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            124
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Dif_GGUF_Loader"
+      },
+      "widgets_values": [
+        "krea2_turbo-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": 77,
+      "type": "UniBlockSwapCacheControl",
+      "pos": [
+        1448.7332722098088,
+        -712.7869055260675
+      ],
+      "size": [
+        234.171875,
+        58
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 125
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            126
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UniBlockSwapCacheControl"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      73,
+      57,
+      0,
+      52,
+      0,
+      "CLIP"
+    ],
+    [
+      75,
+      52,
+      0,
+      54,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      76,
+      59,
+      0,
+      54,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      77,
+      53,
+      0,
+      54,
+      3,
+      "LATENT"
+    ],
+    [
+      78,
+      54,
+      0,
+      55,
+      0,
+      "LATENT"
+    ],
+    [
+      79,
+      58,
+      0,
+      55,
+      1,
+      "VAE"
+    ],
+    [
+      80,
+      52,
+      0,
+      59,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      97,
+      55,
+      0,
+      29,
+      0,
+      "IMAGE"
+    ],
+    [
+      98,
+      49,
+      0,
+      53,
+      0,
+      "INT"
+    ],
+    [
+      99,
+      49,
+      1,
+      53,
+      1,
+      "INT"
+    ],
+    [
+      121,
+      60,
+      0,
+      75,
+      0,
+      "MODEL"
+    ],
+    [
+      124,
+      76,
+      0,
+      60,
+      0,
+      "MODEL"
+    ],
+    [
+      125,
+      75,
+      0,
+      77,
+      0,
+      "MODEL"
+    ],
+    [
+      126,
+      77,
+      0,
+      54,
+      0,
+      "MODEL"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Models",
+      "bounding": [
+        -500,
+        -455,
+        490,
+        850
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "Prompt Enhancement",
+      "bounding": [
+        -510,
+        445,
+        1940,
+        840
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "Group",
+      "bounding": [
+        -1150,
+        -495,
+        610,
+        910
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "Image Generation",
+      "bounding": [
+        -510,
+        -495,
+        1940,
+        910
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 7,
+      "title": "Prompt",
+      "bounding": [
+        20,
+        -455,
+        500,
+        570
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 8,
+      "title": "Size",
+      "bounding": [
+        20,
+        135,
+        500,
+        260
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 9,
+      "title": "Feature Switch",
+      "bounding": [
+        -1150,
+        445,
+        610,
+        400
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.4189485213581612,
+      "offset": [
+        1631.6276207645342,
+        1124.8597613236825
+      ]
+    },
+    "frontendVersion": "1.48.7",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

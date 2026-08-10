@@ -17,11 +17,10 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
 from typing                        import Any
 from comfy_api.latest              import io
-from .custom_widgets               import Separator
+from .                             import widgets as zp
 from .core.progress_bar            import ProgressPreview
 from .core.zsampler_turbo_core     import zsampler_turbo_core
 from .core.zsampler_turbo_corehelp import EulerAss, DPMPP_SDEss
-from .custom_widgets               import Separator
 
 
 class ZSamplerTurboX21Advanced(io.ComfyNode):
@@ -87,7 +86,7 @@ class ZSamplerTurboX21Advanced(io.ComfyNode):
                                               "until it seems right to you. ",
                                      ),
 
-                Separator.Input("divider1", mode="divider"),#======================================
+                zp.Separator.Input("divider1", mode="divider"),#===================================
 
                 io.Boolean.Input     ("turbo_creativity",
                                       default=False, label_on="yes", label_off="no",
@@ -114,7 +113,7 @@ class ZSamplerTurboX21Advanced(io.ComfyNode):
                                               "may produce better results in specific cases. ",
                                      ),
 
-                Separator.Input("divider2", mode="divider"),#======================================
+                zp.Separator.Input("divider2", mode="divider"),#===================================
 
                 io.Combo.Input       ("spectral_tilt",
                                       options=["no", "stage3", "stages23", "stages123", "stages12X"],

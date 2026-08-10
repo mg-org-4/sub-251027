@@ -1,6 +1,7 @@
 """
-File    : zsampler_turbo_2.py
+File    : zsampler_turbo_2_advanced.py
 Purpose : Node for denoising latent images using "Z-Sampler Turbo" (second generation)
+          (this advanced version allows you to manually configure additional parameters)
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Mar 20, 2026
 Repo    : https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes
@@ -15,11 +16,11 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
-from typing                    import Any
-from comfy_api.latest          import io
-from .custom_widgets           import Separator
-from .core.progress_bar        import ProgressPreview
-from .core.zsampler_turbo_core import zsampler_turbo_core
+from typing                     import Any
+from comfy_api.latest           import io
+from .                          import widgets as zp
+from .core.progress_bar         import ProgressPreview
+from .core.zsampler_turbo_core  import zsampler_turbo_core
 TURBO_CREATIVITY = {
     "off"              : (False, 0),
     "scrambled"        : (True , 0),
@@ -31,8 +32,8 @@ TURBO_CREATIVITY = {
 
 
 
-class ZSamplerTurbo2(io.ComfyNode):
-    xTITLE         = "Z-Sampler Turbo ^G2 (Extended)"
+class ZSamplerTurbo2Advanced(io.ComfyNode):
+    xTITLE         = "Z-Sampler Turbo ^G2 (Advanced)"
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -48,7 +49,8 @@ class ZSamplerTurbo2(io.ComfyNode):
             description   = (
                 'Efficiently denoises the latent image using a process specifically tuned for the "Z-Image Turbo". '
                 'This node takes a Z-Image Turbo model, an initial latent image, and conditioning parameters, and '
-                'produces a denoised latent output ready for decoding into the final image.'
+                'produces a denoised latent output ready for decoding into the final image. This advanced version '
+                'includes extra parameters for more precise control and chaining of samplers.'
             ),
             inputs=[
                 io.Latent.Input      ("latent_input",
@@ -74,22 +76,39 @@ class ZSamplerTurbo2(io.ComfyNode):
                                               "specifying a different prompt/conditioning for the third stage "
                                               "of the denoising process. ",
                                      ),
+                io.Boolean.Input     ("add_noise",
+                                      default=True, label_on="yes", label_off="no",
+                                      tooltip="Determines whether to add initial noise to the latent image. Recommended "
+                                              "for most cases. Disabling this is useful for sampler chaining when the "
+                                              "input latent already contains residual noise from a previous process. ",
+                                     ),
                 io.Int.Input         ("seed",
                                       default=1, min=1, max=0xffffffffffffffff, control_after_generate=True,
-                                      tooltip="The seed used for the random noise generator, ensuring the same "
-                                              "result is produced with the same value. ",
+                                      tooltip="The seed used for the random noise generator, ensuring the same result "
+                                              "is produced with the same value.",
                                      ),
                 io.Int.Input         ("steps",
                                       default=8, min=3, max=20, step=1,
                                       tooltip="Number of iterations to perform during the denoising process.",
                                      ),
-                io.Float.Input       ("denoise",
-                                      default=1.00, min=0.00, max=1.00, step=0.01,
-                                      tooltip="Denoising strength; lower values preserve more of the initial image "
-                                              "structure, suitable for image-to-image sampling. ",
+                io.Int.Input         ("start_at_step", default=0, min=0, max=100, step=1,
+                                      tooltip="The step at which the sampling process should start, allowing for "
+                                              "more precise control over the denoising process and enabling sampler "
+                                              "chaining. ",
+                                      ),
+                io.Int.Input         ("end_at_step", default=100, min=0, max=100, step=1,
+                                      tooltip="The step at which the sampling process should end. allowing for "
+                                              "more precise control over the denoising process and enabling sampler "
+                                              "chaining. ",
+                                     ),
+                io.Boolean.Input     ("force_final_denoising", default=True, label_on="yes", label_off="no",
+                                      tooltip="Determines whether to force a full final denoising step, resulting "
+                                              "in a output latent with no residual noise. Recommended for most cases. "
+                                              "Disabling this is useful when residual noise is required for the next "
+                                              "process in a sampler chain. ",
                                      ),
 
-                Separator.Input("divider", mode="divider"),#=======================================
+                zp.Separator.Input("divider", mode="divider"),#====================================
 
                 io.Combo.Input       ("initial_sample_size",
                                       default="full_size",
@@ -99,8 +118,7 @@ class ZSamplerTurbo2(io.ComfyNode):
                                               "step, they can lead to a less accurate correction",
                                      ),
 
-
-                Separator.Input("divider2", mode="divider"),#======================================
+                zp.Separator.Input("divider2", mode="divider"),#===================================
 
                 io.Float.Input       ("intensity",
                                       default=0.0, min=-1.0, max=1.0, step=0.1,
@@ -128,42 +146,48 @@ class ZSamplerTurbo2(io.ComfyNode):
             ],
             outputs=[
                 io.Latent.Output(display_name="latent_output",
-                                 tooltip="The resulting denoised latent image, ready for decoding "
-                                         "by a VAE or passed to another node for further processing. "
-                                ),
+                                 tooltip="The resulting denoised latent image, ready to be decoded "
+                                         "by a VAE or passed to another node for further processing. ",
+                                )
             ]
         )
 
     #__ FUNCTION __________________________________________
     @classmethod
     def execute(cls,
-                latent_input        : dict[str, Any],
-                model               : Any,
-                positive            : list,
-                seed                : int,
-                steps               : int,
-                denoise             : float,
-                intensity           : float,
-                intensity_bias      : float,
-                initial_sample_size : str,
-                turbo_creativity    : str,
+                latent_input          : dict[str, Any],
+                model                 : Any,
+                positive              : list,
+                add_noise             : bool,
+                seed                  : int,
+                steps                 : int,
+                start_at_step         : int,
+                end_at_step           : int,
+                force_final_denoising : bool,
+                intensity             : float,
+                intensity_bias        : float,
+                initial_sample_size   : str,
+                turbo_creativity      : str,
                 *,
-                positive_stg2       : list | None = None,
-                positive_stg3       : list | None = None,
+                positive_stg2         : list | None = None,
+                positive_stg3         : list | None = None,
                 **kwargs
                 ) -> io.NodeOutput:
 
-        # set sigma limits when denoise is less than 1.0, typically used for inpainting
-        sigma_limits = ( denoise**0.5 , 0 ) if denoise < 0.999 else None
+        # if the start/stop values restrict the number of steps,
+        # apply that start/stop range using the `sigma_step_range` parameter
+        sigma_step_range = None
+        if start_at_step > 0 or end_at_step<steps:
+            sigma_step_range = (start_at_step, end_at_step)
 
         # `intensity` determines the level of noise overdose and noise bias
-        initial_noise_overdose   = intensity * 0.4
-        initial_noise_bias_level = (intensity+1)*4-1
+        initial_noise_overdose   = (intensity-1.0) * 0.4
+        initial_noise_bias_level = intensity*4-1
         initial_noise_bias_level = min(max(initial_noise_bias_level, 0.0), 4.0)
 
         # apply user-defined adjustment to the calculated noise bias level
         initial_noise_bias_level += 10 * intensity_bias
-        initial_noise_bias_level = min(max(initial_noise_bias_level, -6.0), 14.0)
+        initial_noise_bias_level = min(max(initial_noise_bias_level, -5.0), 14.0)
 
         # `turbo_creativity` triggers the scramble of the image in stage2 and
         # it also controls how many sampling steps are taken to achieve coherence
@@ -180,17 +204,6 @@ class ZSamplerTurbo2(io.ComfyNode):
         strong_positive_stg2 = (positive_stg3 is not None)
         positive_stg2_preproc = positive_stg2 if strong_positive_stg2 else positive
 
-        ## by now I didn't find practical use for noise injection, but I did
-        ## some experiments to generate variation and details,
-        ## here are some values ​​used in these tests:
-        ## (32,64,512) : ( 7.5, 3.7, 1.0)
-        ## (32,64,768) : ( 7.5, 3.7, 3.0)
-        ## (20,64,512) : (20.0, 1.0, 1.0)
-        ## (20,40,512) : (18.0, 1.5, 1.0)
-        ## (20,35,512) : (19.0, 1.0, 1.0)
-        inject_noise_freqs  = None # (  32,  64, 768 )
-        inject_noise_scales = None # ( 7.5, 3.7, 3.0 )
-
         # run the Z-Sampler Turbo core method on the latent image
         latent_output = zsampler_turbo_core(latent_input, model, positive,
                                             seed                      = seed,
@@ -199,15 +212,16 @@ class ZSamplerTurbo2(io.ComfyNode):
                                             initial_noise_overdose    = initial_noise_overdose,
                                             noise_est_sample_size     = initial_sample_size,
                                             sigma_preset_name         = "bravo",
-                                            sigma_limits              = sigma_limits,
+                                            sigma_step_range          = sigma_step_range,
+                                            start_with_noise          = add_noise,
+                                            end_with_denoise          = force_final_denoising,
                                             positive_stg2_preproc     = positive_stg2_preproc,
                                             positive_stg2             = positive_stg2,
                                             positive_stg3             = positive_stg3,
                                             stage2_scramble           = stage2_scramble,
                                             stage2_preproc_steps      = stage2_preproc_steps,
-                                            extra_noise_freqs         = inject_noise_freqs,
-                                            extra_noise_scales        = inject_noise_scales,
                                             progress_preview = ProgressPreview.from_model( model ),
                                             )
 
         return io.NodeOutput(latent_output)
+

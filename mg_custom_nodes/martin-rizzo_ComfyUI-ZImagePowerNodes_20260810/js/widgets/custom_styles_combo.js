@@ -99,7 +99,6 @@ class CustomStylesComboController {
 
     /**
      * Updates the combo box options by processing a string or an array of strings.
-     *
      * @param {string|string[]} options - The new options to be set for the combo box.
      *                                    If a string is provided, items should be
      *                                    separated by newline characters.
@@ -117,6 +116,47 @@ class CustomStylesComboController {
         this.comboBoxOptions = optionArray
             .map(style => String(style).trim())
             .filter(style => style.length > 0);
+
+        // ensure the widget value remains valid after updating the option set
+        this.validateAndSyncWidgetValue();
+    }
+
+    /**
+     * Validates the widget value against the current combo options.
+     * If the current value is not present in the options list, it
+     * replace the value with the best matching option.
+     */
+    validateAndSyncWidgetValue() {
+        const options = this.comboBoxOptions;
+        const widget  = this.widget;
+
+        // if the current value is already a valid option, no action is needed
+        if( options.includes(widget.value) ) {
+            return;
+        }
+        // since the current value is missing from the options,
+        // search for the option that shares the longest common prefix with 'value'
+        const value = String(widget.value ?? '').toLowerCase();
+        let bestMatch    = undefined;
+        let maxPrefixLen = 0;
+        for( const option of options ) {
+            const optionLower = option.toLowerCase();
+            let prefixLen = 0;
+            const minLen = Math.min(value.length, optionLower.length);
+            while( prefixLen < minLen && value[prefixLen] === optionLower[prefixLen] ) {
+                prefixLen++;
+            }
+            if( prefixLen > maxPrefixLen ) {
+                maxPrefixLen = prefixLen;
+                bestMatch    = option;
+            }
+        }
+        // update value with best match
+        // NOTE: this dont work for sub-graphs; value updates applied here
+        //       will not reflect on the outer sub-graph's promoted widget.
+        const newValue = bestMatch || (options.length > 0 ? options[0] : "");
+        widget.value = newValue;
+        if( typeof widget.callback === 'function' ) { widget.callback(newValue); }
     }
 
     /**

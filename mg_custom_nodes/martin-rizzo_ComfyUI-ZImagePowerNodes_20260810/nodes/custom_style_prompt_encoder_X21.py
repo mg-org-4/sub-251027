@@ -20,7 +20,7 @@ from .core.style               import StyleSet
 from .core.palette             import Palette
 from .data.predefined_styles   import PREDEFINED_STYLES
 from .data.predefined_palettes import PREDEFINED_PALETTES
-from .custom_widgets           import CustomStyleSelector as zio_CustomStyle, PaletteSelector as zio_Palette
+from .                         import widgets as zp
 _STL_VERSION: Final[str] = "2.0.0" #< the version of style definitions this node uses
 _PAL_VERSION: Final[str] = "2.0.0" #< the version of palette definitions this node uses
 
@@ -50,30 +50,28 @@ class CustomStylePromptEncoderX21(io.ComfyNode):
             search_aliases=["text", "prompt", "text prompt", "positive prompt", "encode text",
                             "text encoder", "encode prompt", "styles", "custom styles"],
             inputs=[
-                io.Clip.Input        ("clip",
-                                      tooltip="The CLIP model used for encoding the text."
-                                     ),
-                io.String.Input      ("custom_styles",
-                                      optional=False, multiline=True, force_input=True,
-                                      tooltip="A multi-line string defining custom styles. Each definition must "
-                                              "start with '>>>' followed by the style name, and then the style "
-                                              "description on the next lines. Include '{$@}' in the description "
-                                              "where the base prompt should be inserted.",
-                                     ),
-                zio_CustomStyle.Input("custom_style",
-                                      options=['Custom 1', 'Custom 2', 'Custom 3', 'Custom 4', 'Custom 5', 'Custom 6'],
-                                      tooltip="The visual style to be applied to the input prompt. "
-                                     ),
-                zio_Palette.Input    ("palette",
-                                      version=_PAL_VERSION, allow_variants=False, dialog_title="Color Palettes | ⚗️ experimental",
-                                      dialog_size="small", dialog_view_mode="list", dialog_icon="mdi.mdi-palette-outline",
-                                      force_input=True, optional=True,
-                                      tooltip="An optional color palette to enhance the prompt's visual description.",
-                                     ),
-                io.String.Input      ("prompt",
-                                      multiline=True, dynamic_prompts=True,
-                                      tooltip="The base text prompt to be encoded and styled. "
-                                     ),
+                io.Clip.Input       ("clip",
+                                     tooltip="The CLIP model used for encoding the text."
+                                    ),
+                io.String.Input     ("custom_styles",
+                                     optional=False, multiline=True, force_input=True,
+                                     tooltip="A multi-line string defining custom styles. Each definition must "
+                                             "start with '>>>' followed by the style name, and then the style "
+                                             "description on the next lines. Include '{$@}' in the description "
+                                             "where the base prompt should be inserted.",
+                                    ),
+                zp.CustomStyle.Input("custom_style",
+                                     options=['Custom 1', 'Custom 2', 'Custom 3', 'Custom 4', 'Custom 5', 'Custom 6'],
+                                     tooltip="The visual style to be applied to the input prompt. "
+                                    ),
+                zp.Palette.Input    ("palette",
+                                     version=_PAL_VERSION, force_input=True, optional=True,
+                                     tooltip="An optional color palette to use to enhance the prompt's visual description.",
+                                    ),
+                io.String.Input     ("prompt",
+                                     multiline=True, dynamic_prompts=True,
+                                     tooltip="The base text prompt to be encoded and styled. "
+                                    ),
             ],
             outputs=[
                 io.Conditioning.Output(tooltip="The final encoded conditioning that will guide the image generation process."),

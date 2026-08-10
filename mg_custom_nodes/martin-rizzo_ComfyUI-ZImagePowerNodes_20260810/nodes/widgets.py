@@ -1,5 +1,5 @@
 """
-File    : custom_widgets.py
+File    : widgets.py
 Purpose : Custom ComfyUI widgets implemented specifically for this project.
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : May 11, 2026
@@ -34,9 +34,8 @@ def _prune_dict(d: dict):
 #========================= PALETTE SELECTOR WIDGET =========================#
 
 @io.comfytype(io_type="ZIPN_PALETTE_SELECTOR")
-class PaletteSelector:
-    #Type = str
-
+class Palette(io.ComfyTypeIO):
+    Type = str
     class Input(io.WidgetInput):
 
         def __init__(self,
@@ -77,8 +76,6 @@ class PaletteSelector:
             """
             if not version and not endpoint:
                 raise ValueError("Either version or endpoint must be specified.")
-            if not dialog_title:
-                dialog_title = "Select Palette"
 
             extra_dict: dict[str,Any] = {
                 "dialog": {}
@@ -125,17 +122,18 @@ class PaletteSelector:
 
 
     class Output(io.Output):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
+        def __init__(self, id: str | None =None, *args, **kwargs):
+            if not id:
+                id = "PALETTE"
+            super().__init__(id, *args, **kwargs)
 
 
 
 #========================== STYLE SELECTOR WIDGET ==========================#
-#Type = str
 
 @io.comfytype(io_type="ZIPN_STYLE_SELECTOR")
-class StyleSelector:
-
+class Style(io.ComfyTypeIO):
+    Type = str
     class Input(io.Input):
 
         def __init__(self,
@@ -228,7 +226,7 @@ class StyleSelector:
 #========================== CUSTOM STYLE SELECTOR ==========================#
 
 @io.comfytype(io_type="ZIPN_CUSTOM_STYLE_SELECTOR")
-class CustomStyleSelector:
+class CustomStyle:
     Type = str
     class Input(io.WidgetInput):
         """Combo input (dropdown) with auto syncronization of Custom Styles"""
@@ -332,7 +330,10 @@ class Separator:
             super().__init__(**kwargs)
 
 
-#==================== STYLE GALLERY BUTTON [DEPRECATED] ====================#
+
+#===========================================================================#
+#//////////////////////////   !! DEPRECATED !!   ///////////////////////////#
+#===========================================================================#
 
 @io.comfytype(io_type="ZIPN_STYLE_GALLERY_BUTTON")
 class StyleGalleryButton:

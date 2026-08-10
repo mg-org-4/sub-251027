@@ -1,4 +1,4 @@
-export { addSeparatorWidget };
+export { SeparatorWidget };
 import { LiteGraph } from "../comfyui_bridge.js";
 const DEFAULT_WIDGET_HEIGHT = 20;
 
@@ -96,31 +96,3 @@ class SeparatorWidget {
         return null;
     }
 }
-
-
-/**
- * Creates a configurable socketless widget used as visual separator in the Node Graph UI.
- *
- * The widget supports different visual modes: solid line, dotted line, bold line,
- * or just spacing. This widget does not create input/output ports (it is socketless).
- * 
- * @param {LGraphNode} node - The node instance where the widget is being created
- * @param {string}     name - Unique identifier for the widget (not used for value serialization)
- * @param {Array}      data - Configuration array where:
- *                                  - [0] = Type name
- *                                  - [1] = Configuration object with these optional properties:
- *                                      - mode: "spacer" | "divider" | "dotted" | "bold"
- *                                      - color: string (CSS color)
- *                                      - height: number
- *                                      - thickness: number
- * @param {object} _app - The ComfyApp instance (not used in this implementation)
- * @returns {{ widget: object }}
- *     Object containing the created widget instance with:
- */
-function addSeparatorWidget(node, name, data) {
-    const type    = data[0];
-    const options = data[1] || {};
-    const widget  = node.addCustomWidget( new SeparatorWidget(type, name, options) );
-    return { widget: widget };
-}
-

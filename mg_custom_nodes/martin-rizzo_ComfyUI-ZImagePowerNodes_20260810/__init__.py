@@ -33,7 +33,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
 import os
 from comfy_api.latest                import ComfyExtension, io
-from .nodes                          import custom_routes
+from .nodes                          import routes
 from .nodes.core.helpers             import get_project_version
 from .nodes.data.predefined_styles   import PREDEFINED_STYLES
 from .nodes.data.predefined_palettes import PREDEFINED_PALETTES

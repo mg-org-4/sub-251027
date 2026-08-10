@@ -18,10 +18,9 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
 from typing                    import Any
 from comfy_api.latest          import io
-from .custom_widgets           import Separator
+from .                         import widgets as zp
 from .core.progress_bar        import ProgressPreview
 from .core.zsampler_turbo_core import zsampler_turbo_core
-from .custom_widgets           import Separator
 
 
 
@@ -87,7 +86,7 @@ class ZSamplerTurbo2Simple(io.ComfyNode):
                                               "until it seems right to you. ",
                                      ),
 
-                Separator.Input("divider", mode="divider"),#=======================================
+                zp.Separator.Input("divider", mode="divider"),#====================================
 
                 io.Boolean.Input     ("turbo_creativity",
                                       default=False, label_on="yes", label_off="no",

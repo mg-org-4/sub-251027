@@ -13,13 +13,13 @@
  *_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  */
 export {
-    fetchColorPaletteArray,
+    PaletteWidgetDelegate,
     requireColorPaletteGalleryDialog,
-    addColorPaletteGalleryWidget,
+    fetchColorPaletteArray,
 };
 import { api } from "../../../scripts/api.js";
+import { GalleryWidgetDelegate }                from "./gallery_widget.js";
 import { GalleryDialog, GalleryDialogDelegate } from "./gallery_dialog.js";
-import { GalleryWidget, GalleryWidgetDelegate } from "./gallery_widget.js";
 
 // Cache of promises to avoid duplicate requests for the same endpoint.
 const _fetchesByEndpoint = new Map();
@@ -402,22 +402,3 @@ class PaletteWidgetDelegate extends GalleryWidgetDelegate {
     // Using the default implementation of drawItemText()
     // drawItemText(ctx, rect, line1, line2, item, value) { }
 }
-
-function addColorPaletteGalleryWidget(node, name, data) {
-    const type           = data[0];
-    const options        = data[1] || {};
-    const endpoint       = options.endpoint || "";
-    const dialog_options = options.dialog || {};
-    let widget = new GalleryWidget(type, node, name, options, new PaletteWidgetDelegate(endpoint), (widget) =>
-    {
-        // launch dialog and update widget value
-        const paletteDialog  = requireColorPaletteGalleryDialog(endpoint);
-        const currentPalette = widget.value;
-        paletteDialog.launch( dialog_options, currentPalette, (selectedPalette) => {
-            widget.forceUpdate( selectedPalette );
-        });
-    });
-    widget = node.addCustomWidget( widget );
-    return { widget: widget };
-}
-

@@ -18,7 +18,7 @@ from typing                   import Final
 from comfy_api.latest         import io
 from .core.style              import append_style_to_text, remove_style_from_text
 from .data.predefined_styles  import PREDEFINED_STYLES
-from .custom_widgets          import Separator
+from .                        import widgets as zp
 _STL_VERSION: Final[str] = "1.0.0" #< the version of style definitions this node uses
 
 
@@ -58,7 +58,7 @@ class MyTop10Styles(io.ComfyNode):
                 io.Boolean.Input( "style_9" , display_name="-", default=False, ),
                 io.Boolean.Input( "style_10", display_name="-", default=False, ),
 
-                Separator.Input("divider", mode="divider"),#=======================================
+                zp.Separator.Input("divider", mode="divider"),#====================================
 
                 io.Combo.Input( "control_after_generate", options=["fixed", "next"], default="fixed", ),
                 io.Combo.Input( "output_to", options=cls.channels(), ),

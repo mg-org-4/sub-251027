@@ -13,13 +13,13 @@
  *_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  */
 export {
-    fetchVisualStyleArray,
+    StyleWidgetDelegate,
     requireVisualStyleGalleryDialog,
-    addVisualStyleGalleryWidget,
+    fetchVisualStyleArray,
 };
 import { api } from "../../../scripts/api.js";
+import { GalleryWidgetDelegate }                from "./gallery_widget.js";
 import { GalleryDialog, GalleryDialogDelegate } from "./gallery_dialog.js";
-import { GalleryWidget, GalleryWidgetDelegate } from "./gallery_widget.js";
 
 // Cache of promises to avoid duplicate requests for the same endpoint.
 const _fetchesByEndpoint = new Map();
@@ -290,25 +290,3 @@ class StyleWidgetDelegate extends GalleryWidgetDelegate {
         return thumbSize;
     }
 }
-
-
-function addVisualStyleGalleryWidget(node, name, data) {
-    const type          = data[0];
-    const options       = data[1] || {};
-    const endpoint      = options.endpoint   || "";
-    const imagesURL     = options.images_url || "";
-    const dialogOptions = options.dialog || {};
-    const widgetDelegate = new StyleWidgetDelegate(endpoint, imagesURL);
-    let widget = new GalleryWidget(type, node, name, options, widgetDelegate, (widget) =>
-    {
-        // launch dialog and update widget value
-        const styleDialog  = requireVisualStyleGalleryDialog(endpoint, imagesURL);
-        const currentStyle = widget.value;
-        styleDialog.launch( dialogOptions, currentStyle, (selectedStyle) => {
-            widget.forceUpdate( selectedStyle );
-        });
-    });
-    widget = node.addCustomWidget( widget );
-    return { widget: widget };
-}
-

@@ -55,8 +55,9 @@ class SaveImage(io.ComfyNode):
             is_deprecated  = cls.xDEPRECATED,
             is_output_node = True,
             description    = (
-                ""
+                "Saves the input images to your ComfyUI output directory with optional CivitAI-compatible metadata support."
             ),
+            search_aliases=["save", "save image", "export image", "output image", "write image", "civitai"],
             inputs=[
                 io.Image.Input  ("images",
                                  tooltip="The images to save.",

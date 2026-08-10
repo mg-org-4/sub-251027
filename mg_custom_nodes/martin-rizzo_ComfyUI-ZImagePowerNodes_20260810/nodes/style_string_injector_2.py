@@ -18,7 +18,7 @@ from typing                   import Final
 from functools                import cache
 from comfy_api.latest         import io
 from .data.predefined_styles  import PREDEFINED_STYLES
-from .custom_widgets          import StyleGalleryButton
+from .                        import widgets as zp
 _STL_VERSION: Final[str] = "1.0.0" #< the version of style definitions this node uses
 
 
@@ -45,7 +45,7 @@ class StyleStringInjector2(io.ComfyNode):
                                          options=cls.style_names(),
                                          tooltip="The visual style you want for your image.",
                                         ),
-                StyleGalleryButton.Input("gallery",
+                zp.StyleGalleryButton.Input("gallery",
                                          version="1.0", dialog_title="Select Style",
                                          tooltip="Open the style gallery to see all available styles."
                                         ),

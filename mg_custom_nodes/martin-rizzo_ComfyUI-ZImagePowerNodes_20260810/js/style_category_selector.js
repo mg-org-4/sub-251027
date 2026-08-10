@@ -13,7 +13,7 @@
  *_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  */
 import { app }                   from "../../../scripts/app.js";
-import { fetchVisualStyleArray } from "./custom_widgets/ui_styles.js";
+import { fetchVisualStyleArray } from "./widgets/ui_styles.js";
 const ENABLED = true;
 /**
  * Object encapsulating the style category selection functionality.

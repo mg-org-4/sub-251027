@@ -18,7 +18,7 @@ from typing                    import Final
 from comfy_api.latest          import io
 from .core.palette             import Palette
 from .data.predefined_palettes import PREDEFINED_PALETTES
-from .custom_widgets           import PaletteSelector as zio_Palette
+from .                         import widgets as zp
 _PAL_VERSION: Final[str] = "2.0.0" #< the version of palette definitions this node uses
 
 
@@ -42,15 +42,13 @@ class PaletteSelector(io.ComfyNode):
             is_deprecated = cls.xDEPRECATED,
             search_aliases=["palettes", "colors", "predefined palette", "color palettes"],
             inputs=[
-                zio_Palette.Input("palette",
-                                  version=_PAL_VERSION, allow_variants=False, dialog_title="Color Palettes | ⚗️ experimental",
-                                  dialog_size="small", dialog_view_mode="list", dialog_icon="mdi.mdi-palette-outline",
-                                  tooltip="The specific color palette to select for use in other nodes.",
-                                  height=40,
-                                  ),
+                zp.Palette.Input("palette",
+                                 version=_PAL_VERSION,
+                                 tooltip="The color palette to use to enhance the prompt's visual description. ",
+                                ),
             ],
             outputs=[
-                zio_Palette.Output("palette", tooltip="The selected color palette."),
+                zp.Palette.Output(tooltip="The selected color palette."),
             ]
         )
 

@@ -17,11 +17,10 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
 from typing                        import Any
 from comfy_api.latest              import io
-from .custom_widgets               import Separator
+from .                             import widgets as zp
 from .core.progress_bar            import ProgressPreview
 from .core.zsampler_turbo_core     import zsampler_turbo_core
 from .core.zsampler_turbo_corehelp import EulerAss, DPMPP_SDEss
-from .custom_widgets               import Separator
 _SPECTRAL_TILTS_BY_NAME = {
     "none"       : (   "", ( 0.0,  0.0), 1.0),
     "stage3_H"   : (  "3", (-0.3, -0.3), 1.0),
@@ -82,7 +81,7 @@ class ZSamplerTurboX21(io.ComfyNode):
                                               "result is produced with the same value. ",
                                      ),
 
-                Separator.Input("divider1", mode="divider"),#======================================
+                zp.Separator.Input("divider1", mode="divider"),#===================================
 
                 io.Int.Input         ("steps",
                                       default=8, min=2, max=14, step=1,

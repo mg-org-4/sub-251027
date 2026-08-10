@@ -17,7 +17,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
 from typing                      import Any
 from comfy_api.latest            import io
-from ..custom_widgets            import Separator
+from ..widgets            import Separator
 from ..core.progress_bar         import ProgressPreview
 from ..core.zsampler_turbo_core  import zsampler_turbo_core
 

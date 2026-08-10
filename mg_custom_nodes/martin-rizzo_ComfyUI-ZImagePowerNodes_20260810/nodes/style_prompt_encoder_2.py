@@ -19,7 +19,7 @@ from functools                import cache
 from comfy_api.latest         import io
 from .core.style              import StyleSet
 from .data.predefined_styles  import PREDEFINED_STYLES
-from .custom_widgets          import StyleGalleryButton, Separator
+from .                        import widgets as zp
 _STL_VERSION: Final[str] = "1.0.0" #< the version of style definitions this node uses
 
 
@@ -59,12 +59,12 @@ class StylePromptEncoder2(io.ComfyNode):
                                          options=cls.style_names(),
                                          tooltip="The style you want for your image.",
                                         ),
-                StyleGalleryButton.Input("gallery",
+                zp.StyleGalleryButton.Input("gallery",
                                          version="1.0", dialog_title="Select Style",
                                          tooltip="Open the style gallery to see all available styles."
                                         ),
 
-                Separator.Input("spacer", mode="spacer"), #----------------------------------------
+                zp.Separator.Input("spacer", mode="spacer"),#======================================
 
                 io.String.Input("text",
                                 multiline=True, dynamic_prompts=True,

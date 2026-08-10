@@ -20,7 +20,7 @@ from math                import pi
 from typing              import Any
 from functools           import cache
 from comfy_api.latest    import io
-from .custom_widgets     import Separator
+from .                   import widgets as zp
 from .core.helpers_image import adjust_hsv_components, stretch_histogram, apply_dithering, convert_to_rgb
 class Filter(Enum):
     """Enum representing available image processing filters.
@@ -64,45 +64,51 @@ class BasicImageFilters(io.ComfyNode):
             ),
             search_aliases=["decode", "decode latent", "latent to image", "render latent"],
             inputs=[
-                io.Image.Input       ("images"),
-                io.Boolean.Input     ("enable_auto_contrast",
-                                      tooltip="When enabled, automatically adjusts the dynamic range of the "
-                                              "image to fix washed-out tones and optimize contrast boundaries."
-                                     ),
-                io.Boolean.Input     ("enable_filters",
-                                      tooltip="When enabled, applies the color correction filters configured below. "
-                                              "If disabled, all filter selections and adjustments are bypassed."
-                                     ),
-                Separator.Input("divider1", mode="divider"),#--------------------------------------
-                io.Combo.Input       ("filter_1",
-                                      options=cls.filters(),
-                                      tooltip="The color correction filter to apply to the resulting image."
-                                     ),
-                io.Float.Input       ("filter_1_control", min=-0.5, max=0.5, default=0.0, step=0.1,
-                                      tooltip="The calibration offset for the selected filter. "
-                                              "This value has a range from -0.5 to 0.5 with 0.0 as the "
-                                              "default ideal baseline balance."
-                                     ),
-                Separator.Input("divider2", mode="spacer"),#--------------------------------------
-                io.Combo.Input       ("filter_2",
-                                      options=cls.filters(),
-                                      tooltip="The color correction filter to apply to the resulting image."
-                                     ),
-                io.Float.Input       ("filter_2_control", min=-0.5, max=0.5, default=0.0, step=0.1,
-                                      tooltip="The calibration offset for the selected filter. "
-                                              "This value has a range from -0.5 to 0.5 with 0.0 as the "
-                                              "default ideal baseline balance."
-                                     ),
-                Separator.Input("divider3", mode="spacer"),#--------------------------------------
-                io.Combo.Input       ("filter_3",
-                                      options=cls.filters(),
-                                      tooltip="The color correction filter to apply to the resulting image."
-                                     ),
-                io.Float.Input       ("filter_3_control", min=-0.5, max=0.5, default=0.0, step=0.1,
-                                      tooltip="The calibration offset for the selected filter. "
-                                              "This value has a range from -0.5 to 0.5 with 0.0 as the "
-                                              "default ideal baseline balance."
-                                     ),
+                io.Image.Input    ("images"),
+                io.Boolean.Input  ("enable_auto_contrast",
+                                   tooltip="When enabled, automatically adjusts the dynamic range of the "
+                                           "image to fix washed-out tones and optimize contrast boundaries."
+                                  ),
+                io.Boolean.Input  ("enable_filters",
+                                   tooltip="When enabled, applies the color correction filters configured below. "
+                                           "If disabled, all filter selections and adjustments are bypassed."
+                                  ),
+
+                zp.Separator.Input("divider1", mode="divider"),#===================================
+
+                io.Combo.Input    ("filter_1",
+                                   options=cls.filters(),
+                                   tooltip="The color correction filter to apply to the resulting image."
+                                  ),
+                io.Float.Input    ("filter_1_control", min=-0.5, max=0.5, default=0.0, step=0.1,
+                                   tooltip="The calibration offset for the selected filter. "
+                                           "This value has a range from -0.5 to 0.5 with 0.0 as the "
+                                           "default ideal baseline balance."
+                                  ),
+
+                zp.Separator.Input("divider2", mode="spacer"),#====================================
+
+                io.Combo.Input    ("filter_2",
+                                   options=cls.filters(),
+                                   tooltip="The color correction filter to apply to the resulting image."
+                                  ),
+                io.Float.Input    ("filter_2_control", min=-0.5, max=0.5, default=0.0, step=0.1,
+                                   tooltip="The calibration offset for the selected filter. "
+                                           "This value has a range from -0.5 to 0.5 with 0.0 as the "
+                                           "default ideal baseline balance."
+                                  ),
+
+                zp.Separator.Input("divider3", mode="spacer"),#====================================
+
+                io.Combo.Input    ("filter_3",
+                                   options=cls.filters(),
+                                   tooltip="The color correction filter to apply to the resulting image."
+                                  ),
+                io.Float.Input    ("filter_3_control", min=-0.5, max=0.5, default=0.0, step=0.1,
+                                   tooltip="The calibration offset for the selected filter. "
+                                           "This value has a range from -0.5 to 0.5 with 0.0 as the "
+                                           "default ideal baseline balance."
+                                  ),
             ],
             outputs=[
                 io.Image.Output(tooltip="The final filtered image."),

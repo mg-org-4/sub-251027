@@ -2066,331 +2066,6 @@ class AD_AutoTileVAEDecode:
 
 
 
-#region----------LTX---------------
-# 导入需要的节点
-
-import folder_paths
-from comfy_extras.nodes_video import CreateVideo
-from nodes import CheckpointLoader, CLIPTextEncode, VAEDecodeTiled,CheckpointLoaderSimple, LoraLoaderModelOnly
-from comfy_extras.nodes_hunyuan import LatentUpscaleModelLoader
-
-
-from comfy_extras.nodes_custom_sampler import (
-    RandomNoise,
-    CFGGuider,
-    SamplerCustomAdvanced
-)
-
-from comfy_extras.nodes_lt_audio import LTXAVTextEncoderLoader, LTXVEmptyLatentAudio,LTXVAudioVAELoader
-from comfy_extras.nodes_lt_upsampler import LTXVLatentUpsampler
-
-
-from comfy_extras.nodes_lt import (
-    EmptyLTXVLatentVideo,
-    LTXVConcatAVLatent,
-    LTXVSeparateAVLatent,
-    LTXVCropGuides,
-    LTXVAddGuide,
-    LTXVConditioning,
-    get_noise_mask,
-    _append_guide_attention_entry
-)
-
-from comfy_extras.nodes_lt_audio import LTXVAudioVAEDecode
-from comfy_api.latest import io
-import torch
-import numpy as np
-from PIL import Image, ImageDraw
-
-
-HISTORY = io.Custom("HISTORY")
-KEYFRAME_TREND = io.Custom("KEYFRAME_TREND")
-LTX_CONFIG = io.Custom("LTX_CONFIG")
-RUN_CONTEXT = io.Custom("RUN_CONTEXT")
-
-
-class AD_Latent_Diffusion_Keyframe(LTXVAddGuide):
-    DESCRIPTION = """
-    多段衔接设置要点：
-    - 适用场景：第一段生成后，把 history 输出接到下一段 history 输入
-    - 第一段建议：num_guides=2，frame_idx_1=0，frame_idx_2 设在本段末尾附近（避免越界）
-    - 第二段建议：num_guides=1，history_strength 先用 0.30~0.45，history_fade_frames 先用 3~6
-    - 为减少跳变：第二段 image_1 的 frame_idx_1 放在 16~32，再按效果微调
-    - 为避免首帧混入：不要把第二段目标图放在 frame 0 且强度过高
-    - 调参顺序：先调 frame_idx_1，再调 history_strength，最后调 history_fade_frames
-    """
-    @classmethod
-    def define_schema(cls):
-        options = []
-        for num_guides in range(1, 11):
-            guide_inputs = []
-            for i in range(1, num_guides + 1):
-                guide_inputs.extend([
-                    io.Image.Input(f"image_{i}"),
-                    io.Int.Input(f"frame_idx_{i}", default=0, min=0, max=9999),
-                    io.Float.Input(f"strength_{i}", default=0.85, min=0.0, max=1.0, step=0.01),
-                ])
-            options.append(io.DynamicCombo.Option(key=str(num_guides), inputs=guide_inputs))
-
-        return io.Schema(
-            node_id="AD_Latent_Diffusion_Keyframe",
-            category= "Apt_Preset/🚫Deprecated/🚫",
-            description="AD video keyframe auto relay",
-            inputs=[
-                io.Conditioning.Input("positive"),
-                io.Conditioning.Input("negative"),
-                io.Latent.Input("img_latent"),
-                io.Vae.Input("img_vae"),
-                HISTORY.Input("history", optional=True),
-                io.Float.Input("history_strength", default=0.5, min=0.0, max=1.0, step=0.01, display_name="History Strength"),
-                io.Int.Input("history_fade_frames", default=16, min=1, max=100, step=1, display_name="Fade Frames"),
-                io.DynamicCombo.Input("num_guides", options=options, display_name="Guides"),
-            ],
-            outputs=[
-                io.Conditioning.Output("positive"),
-                io.Conditioning.Output("negative"),
-                io.Latent.Output("img_latent"),
-                io.Vae.Output(display_name="img_vae"),
-                HISTORY.Output("history"),
-                KEYFRAME_TREND.Output("trend_data"),
-            ],
-        )
-
-    @classmethod
-    def _build_trend_data(cls, points, frame_length):
-        cleaned = []
-        for item in sorted(points, key=lambda x: x["frame"]):
-            frame = int(max(0, item["frame"]))
-            strength = float(max(0.0, min(1.0, item["strength"])))
-            source = str(item.get("source", "guide"))
-            if cleaned and cleaned[-1]["frame"] == frame:
-                cleaned[-1] = {"frame": frame, "strength": strength, "source": source}
-            else:
-                cleaned.append({"frame": frame, "strength": strength, "source": source})
-        if not cleaned:
-            cleaned = [
-                {"frame": 0, "strength": 0.0, "source": "none"},
-                {"frame": max(0, frame_length - 1), "strength": 0.0, "source": "none"},
-            ]
-        frame_length = max(int(frame_length), int(cleaned[-1]["frame"]) + 1)
-        if len(cleaned) == 1:
-            cleaned.append({"frame": max(0, frame_length - 1), "strength": cleaned[0]["strength"], "source": cleaned[0]["source"]})
-        segments = []
-        frame_span = max(1, frame_length - 1)
-        for i in range(len(cleaned) - 1):
-            p0 = cleaned[i]
-            p1 = cleaned[i + 1]
-            span = max(1, p1["frame"] - p0["frame"])
-            delta = abs(p1["strength"] - p0["strength"])
-            span_ratio = min(1.0, span / frame_span)
-            curvature = max(0.05, min(0.95, 0.15 + 0.55 * delta + 0.30 * span_ratio))
-            bend = 1.0 if p1["strength"] >= p0["strength"] else -1.0
-            segments.append({
-                "start_frame": p0["frame"],
-                "end_frame": p1["frame"],
-                "start_strength": p0["strength"],
-                "end_strength": p1["strength"],
-                "curvature": curvature,
-                "bend": bend,
-                "source": "mixed" if p0["source"] != p1["source"] else p1["source"],
-            })
-        return {
-            "frame_length": int(frame_length),
-            "points": cleaned,
-            "segments": segments,
-        }
-
-    @classmethod
-    def execute(cls, positive, negative, img_vae, img_latent, history=None, history_strength=0.5, history_fade_frames=16, **kwargs):
-        vae = img_vae
-        latent = img_latent
-        keep_history_keyframes = True
-        continuity_tail_frames = max(1, history_fade_frames)
-        trend_points = []
-        trend_max_frame = 0
-
-        base_frame_offset = 0
-        history_latent = None
-        if history is not None:
-            base_frame_offset = history.get("base_frame_offset", 0)
-            history_latent = history.get("latent")
-            continuity_tail_frames = max(1, int(history.get("tail_frames", continuity_tail_frames)))
-        trend_max_frame = max(0, base_frame_offset)
-
-        guide_payload = kwargs.get("num_guides", {})
-        scale_factors = vae.downscale_index_formula
-        latent_image = latent["samples"]
-        noise_mask = get_noise_mask(latent)
-        _, _, latent_length, _, _ = latent_image.shape
-
-        def _fade_ratio(step, fade_steps):
-            x = step / fade_steps
-            y = x*x*(3-2*x)
-            return max(0.0, min(1.0, 1-y))
-
-        history_tail_source = None
-        if history_latent is not None and "samples" in history_latent:
-            h_samples = history_latent["samples"]
-            if isinstance(h_samples, torch.Tensor) and h_samples.ndim == 5:
-                frames = min(max(1, continuity_tail_frames), h_samples.shape[2])
-                h_clip = h_samples[:, :, -frames:]
-                if h_clip.shape[0] != latent_image.shape[0]:
-                    h_clip = h_clip[:1].repeat(latent_image.shape[0], 1,1,1,1)
-                h_clip = h_clip.to(device=latent_image.device, dtype=latent_image.dtype)
-                if h_clip.shape[3:] != latent_image.shape[3:]:
-                    n,c,t,h,w = h_clip.shape
-                    resized = torch.nn.functional.interpolate(
-                        h_clip.permute(0,2,1,3,4).reshape(-1,c,h,w),
-                        size=latent_image.shape[3:], mode="bilinear", align_corners=False
-                    )
-                    h_clip = resized.reshape(n,t,c,latent_image.shape[3],latent_image.shape[4]).permute(0,2,1,3,4)
-                history_tail_source = h_clip
-                fade_steps = min(max(1, history_fade_frames), latent_length)
-                src_len = h_clip.shape[2]
-                for step in range(fade_steps):
-                    s = history_strength * _fade_ratio(step, fade_steps)
-                    if s <= 0: continue
-                    src_idx = max(0, src_len - 1 - step)
-                    step_guide = h_clip[:,:,src_idx:src_idx+1]
-                    f_idx, l_idx = cls.get_latent_index(positive, latent_length, 1, step, scale_factors)
-                    if l_idx+1 > latent_length: continue
-                    history_frame = base_frame_offset + int(step)
-                    trend_max_frame = max(trend_max_frame, history_frame)
-                    trend_points.append({"frame": history_frame, "strength": float(s), "source": "history"})
-                    positive, negative, latent_image, noise_mask = cls.append_keyframe(
-                        positive, negative, f_idx, latent_image, noise_mask, step_guide, s, scale_factors
-                    )
-
-        guides = []
-        for k in guide_payload:
-            if not k.startswith("image_"): continue
-            idx = k.split("_",1)[1]
-            img = guide_payload.get(k)
-            if img is None: continue
-            f = int(guide_payload.get(f"frame_idx_{idx}",0))
-            s = float(guide_payload.get(f"strength_{idx}",0.85))
-            guides.append((f, img, max(0.0, min(1.0, s))))
-        guides.sort(key=lambda x:x[0])
-
-        latest_guide_source = None
-        for f_idx, img, s in guides:
-            _, g_latent = cls.encode(vae, latent_image.shape[4], latent_image.shape[3], img, scale_factors)
-            latest_guide_source = g_latent.to(device=latent_image.device, dtype=latent_image.dtype)
-            fi, li = cls.get_latent_index(positive, latent_length, g_latent.shape[2], f_idx, scale_factors)
-            if li + g_latent.shape[2] > latent_length:
-                time_scale_factor = scale_factors[0]
-                max_latent_idx = max(0, latent_length - g_latent.shape[2])
-                if max_latent_idx == 0:
-                    clamped_frame_idx = 0
-                elif g_latent.shape[2] > 1:
-                    clamped_frame_idx = (max_latent_idx - 1) * time_scale_factor + 1
-                else:
-                    clamped_frame_idx = max_latent_idx * time_scale_factor
-                fi, li = cls.get_latent_index(positive, latent_length, g_latent.shape[2], clamped_frame_idx, scale_factors)
-            if li + g_latent.shape[2] > latent_length: continue
-            guide_frame = base_frame_offset + int(f_idx)
-            trend_max_frame = max(trend_max_frame, guide_frame)
-            trend_points.append({"frame": guide_frame, "strength": float(s), "source": "guide"})
-            positive, negative, latent_image, noise_mask = cls.append_keyframe(
-                positive, negative, fi, latent_image, noise_mask, g_latent, s, scale_factors
-            )
-        if latest_guide_source is not None:
-            history_tail_source = latest_guide_source
-
-        source_limit = min(latent_length, latent_image.shape[2])
-        source_samples = latent_image[:, :, :source_limit]
-        source_noise_mask = noise_mask[:, :, :source_limit]
-        if history_tail_source is not None:
-            if history_tail_source.shape[0] != latent_image.shape[0]:
-                history_tail_source = history_tail_source[:1].repeat(latent_image.shape[0], 1,1,1,1)
-            if history_tail_source.shape[3:] != latent_image.shape[3:]:
-                n,c,t,h,w = history_tail_source.shape
-                resized = torch.nn.functional.interpolate(
-                    history_tail_source.permute(0,2,1,3,4).reshape(-1,c,h,w),
-                    size=latent_image.shape[3:], mode="bilinear", align_corners=False
-                )
-                history_tail_source = resized.reshape(n,t,c,latent_image.shape[3],latent_image.shape[4]).permute(0,2,1,3,4)
-            source_samples = history_tail_source
-            source_noise_mask = torch.ones_like(source_samples[:, :1])
-        cont_frames = min(max(1, continuity_tail_frames), source_samples.shape[2])
-        continuity_latent = {
-            "samples": source_samples[:, :, -cont_frames:].clone(),
-            "noise_mask": source_noise_mask[:, :, -cont_frames:].clone()
-        }
-
-        output_history = {
-            "base_frame_offset": base_frame_offset + latent_length,
-            "latent": continuity_latent,
-            "tail_frames": cont_frames
-        }
-        trend_max_frame = max(trend_max_frame, base_frame_offset + latent_length - 1)
-        total_frame_length = max(base_frame_offset + latent_length, trend_max_frame + 1)
-        trend_data = cls._build_trend_data(trend_points, total_frame_length)
-        trend_data["segment_start"] = int(base_frame_offset)
-        trend_data["segment_length"] = int(latent_length)
-        trend_data["total_frame_length"] = int(total_frame_length)
-
-        return io.NodeOutput(positive, negative, {"samples": latent_image, "noise_mask": noise_mask}, vae, output_history, trend_data)
-
-
-
-class AD_latent_history(io.ComfyNode):
-    DESCRIPTION = """
-    将采样后的 LATENT 打包为 HISTORY，用于下一段 AD_扩散关键帧衔接。
-    """
-    @classmethod
-    def define_schema(cls):
-        return io.Schema(
-            node_id="AD_latent_history",
-            category= "Apt_Preset/🚫Deprecated/🚫",
-            description="Pack sampled latent tail to HISTORY",
-            inputs=[
-                io.Latent.Input("latent"),
-            ],
-            outputs=[
-                HISTORY.Output("history"),
-            ],
-        )
-
-    @classmethod
-    def execute(cls, latent):
-        def _safe_copy(x):
-            if hasattr(x, "clone"):
-                return x.clone()
-            if hasattr(x, "_copy"):
-                return x._copy()
-            return x
-
-        latent_image = latent["samples"]
-        _, _, latent_length, _, _ = latent_image.shape
-        keep_frames = latent_length
-        batch_size = latent_image.shape[0]
-        noise_mask = torch.ones(
-            (batch_size, 1, latent_length, 1, 1),
-            dtype=torch.float32,
-            device=latent_image.device,
-        )
-        sample_tail = latent_image[:, :, -keep_frames:]
-        mask_tail = noise_mask[:, :, -keep_frames:]
-        continuity_latent = {
-            "samples": _safe_copy(sample_tail),
-            "noise_mask": _safe_copy(mask_tail),
-        }
-        output_history = {
-            "base_frame_offset": latent_length,
-            "latent": continuity_latent,
-            "tail_frames": keep_frames,
-        }
-        return io.NodeOutput(output_history)
-
-
-
-
-
-
-
-#endregion----------LTX---------------
-
 
 #region----------MiniMax H3---------------
 
@@ -2441,6 +2116,7 @@ class AD_MiniMax_Ref2V:
                 "default": "",
                 "multiline": True,
                 "dynamicPrompts": True,
+                "socketless": True,
             }),
             "width": ("INT", {
                 "default": 1344, "min": 32, "max": 4096, "step": 32,
@@ -2588,11 +2264,27 @@ _AD_GUIDE_MAX_VIDEOS = 3
 _AD_GUIDE_MAX_AUDIOS = 3
 _AD_GUIDE_PLACEHOLDER_RE = re.compile(r"__AD_MINIMAX_GUIDE_REF_(\d+)__")
 _AD_GUIDE_UNRESOLVED_RE = re.compile(r"__AD_MINIMAX_GUIDE_UNRESOLVED_REF_[^_]+__")
-_AD_GUIDE_MENTION_RE = re.compile(
-    r"[@＠][\t \u3000]*(图片|图像|图|image|picture|img|pic|视频|影片|video|音频|声音|语音|audio|sound)"
-    r"[\t \u3000]*(?:[#＃][\t \u3000]*)?([1-9１-９][0-9０-９]*)(?![0-9０-９A-Za-z_])",
-    re.IGNORECASE,
-)
+_AD_GUIDE_TAG_SEPARATOR = r"[\t \u3000#＃_\-－–—?？]*"
+_AD_GUIDE_MEDIA_ALIASES = {
+    "p": "image", "pic": "image", "picture": "image", "image": "image", "img": "image", "refimg": "image", "refpic": "image",
+    "图": "image", "图片": "image", "图像": "image",
+    "v": "video", "vid": "video", "video": "video", "clip": "video", "movie": "video", "refvid": "video", "视频": "video", "影片": "video",
+    "a": "audio", "aud": "audio", "audio": "audio", "sound": "audio", "bgm": "audio", "refaud": "audio", "音频": "audio", "声音": "audio", "语音": "audio",
+}
+
+
+def _ad_guide_marked_tag_re(aliases):
+    keywords = "|".join(re.escape(alias) for alias in sorted(aliases, key=len, reverse=True))
+    return re.compile(
+        rf"(?:(?P<at>[@＠])|(?P<open>[<\[({{]))[\t \u3000]*(?P<kind>{keywords}){_AD_GUIDE_TAG_SEPARATOR}"
+        rf"(?P<number>[0-9０-９]+)(?(at)|[\t \u3000]*(?P<close>[>\])}}]))(?![0-9０-９A-Za-z_])",
+        re.IGNORECASE,
+    )
+
+
+_AD_GUIDE_MEDIA_TAG_RE = _ad_guide_marked_tag_re(_AD_GUIDE_MEDIA_ALIASES)
+_AD_GUIDE_SHOT_TAG_RE = _ad_guide_marked_tag_re({"shot": "shot", "镜头": "shot", "分镜": "shot", "镜": "shot"})
+_AD_GUIDE_SUBJECT_TAG_RE = _ad_guide_marked_tag_re({"subject": "subject", "主体": "subject", "角色": "subject", "人物": "subject"})
 
 
 def _ad_guide_media_type(value):
@@ -2632,27 +2324,47 @@ def _ad_guide_resample_video(frames, source_fps):
     return frames[indexes]
 
 
-def _ad_guide_resolve_prompt(prompt, tag_by_input, image_count, video_count, audio_count):
-    text = str(prompt or "")
-    if _AD_GUIDE_UNRESOLVED_RE.search(text):
-        raise ValueError("Prompt contains a disconnected media reference")
-    text = _AD_GUIDE_PLACEHOLDER_RE.sub(lambda match: tag_by_input.get(int(match.group(1)), ""), text)
-    aliases = {
-        "图片": "image", "图像": "image", "图": "image", "image": "image", "picture": "image", "img": "image", "pic": "image",
-        "视频": "video", "影片": "video", "video": "video",
-        "音频": "audio", "声音": "audio", "语音": "audio", "audio": "audio", "sound": "audio",
-    }
+def _ad_guide_normalize_marked_tags(text, image_count, video_count, audio_count):
+    closing = {"<": ">", "[": "]", "(": ")", "{": "}"}
     limits = {"image": image_count, "video": video_count, "audio": audio_count}
     names = {"image": "Picture", "video": "Video", "audio": "Audio"}
 
-    def replace(match):
-        kind = aliases.get(str(match.group(1) or "").lower(), "")
-        ordinal = int(match.group(2))
-        if not kind or ordinal > limits[kind]:
-            raise ValueError(f"Prompt references a missing {kind or 'media'} resource: {match.group(0)}")
+    def valid_match(match):
+        if match.group("at"):
+            return True
+        opener = match.group("open")
+        closer = match.group("close")
+        return closing.get(opener) == closer
+
+    def replace_media(match):
+        if not valid_match(match):
+            return match.group(0)
+        kind = _AD_GUIDE_MEDIA_ALIASES[match.group("kind").lower()]
+        ordinal = int(match.group("number"))
+        if ordinal <= 0 or ordinal > limits[kind]:
+            return ""
         return f"<{names[kind]} {ordinal}>"
 
-    return _AD_GUIDE_MENTION_RE.sub(replace, text)
+    def replace_shot(match):
+        if not valid_match(match):
+            return match.group(0)
+        return f"[Shot {int(match.group('number'))}]"
+
+    def replace_subject(match):
+        if not valid_match(match):
+            return match.group(0)
+        return f"<Subject {int(match.group('number'))}>"
+
+    text = _AD_GUIDE_MEDIA_TAG_RE.sub(replace_media, text)
+    text = _AD_GUIDE_SHOT_TAG_RE.sub(replace_shot, text)
+    return _AD_GUIDE_SUBJECT_TAG_RE.sub(replace_subject, text)
+
+
+def _ad_guide_resolve_prompt(prompt, tag_by_input, image_count, video_count, audio_count):
+    text = str(prompt or "")
+    text = _AD_GUIDE_UNRESOLVED_RE.sub("", text)
+    text = _AD_GUIDE_PLACEHOLDER_RE.sub(lambda match: tag_by_input.get(int(match.group(1)), ""), text)
+    return _ad_guide_normalize_marked_tags(text, image_count, video_count, audio_count)
 
 
 class AD_MiniMax_guide(AD_MiniMax_Ref2V):
@@ -2668,7 +2380,7 @@ class AD_MiniMax_guide(AD_MiniMax_Ref2V):
         inherited = super().INPUT_TYPES()
         required = dict(inherited["required"])
         media_input = ("IMAGE,VIDEO,AUDIO",)
-        optional = {"media": media_input}
+        optional = {"media": ("IMAGE,VIDEO,AUDIO,STRING",)}
         for index in range(1, _AD_GUIDE_MAX_MEDIA + 1):
             optional[f"media_{index}"] = media_input
             optional[f"media_type_{index}"] = ("STRING", {"default": ""})
@@ -2685,10 +2397,10 @@ class AD_MiniMax_guide(AD_MiniMax_Ref2V):
     def _collect_media(kwargs):
         items = []
         direct = kwargs.get("media")
-        if direct is not None:
+        if direct is not None and not isinstance(direct, str):
             detected = _ad_guide_media_type(direct)
             if not detected:
-                raise ValueError("Media only accepts image, video or audio inputs")
+                raise ValueError("Media only accepts image, video, audio or text inputs")
             items.append((0, detected, direct))
         for index in range(1, _AD_GUIDE_MAX_MEDIA + 1):
             value = kwargs.get(f"media_{index}")
@@ -2779,6 +2491,8 @@ class AD_MiniMax_guide(AD_MiniMax_Ref2V):
             ref_blocks.append({"kind": "audio", "ref_audio_t": audio_t, "audio_latent": audio_latent})
             tag_by_input[input_index] = f"<Audio {audio_ordinal}>"
 
+        if isinstance(kwargs.get("media"), str):
+            prompt = kwargs["media"]
         resolved_prompt = _ad_guide_resolve_prompt(prompt, tag_by_input, len(images), len(videos), audio_ordinal)
         tokens = clip.tokenize(resolved_prompt, minimax_ref_items=ref_items)
         positive = clip.encode_from_tokens_scheduled(tokens)

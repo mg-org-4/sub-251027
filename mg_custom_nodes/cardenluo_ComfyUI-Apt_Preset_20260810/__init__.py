@@ -72,8 +72,7 @@ NODE_CLASS_MAPPINGS= {
 "sum_Ksampler": sum_Ksampler,  
 
 "sum_create_chx": sum_create_chx,  
-"load_Nanchaku":load_Nanchaku,
-"load_GGUF": UnetLoaderGGUF2,
+
 
 #-------------------------------------------------------S
 "chx_input_data": chx_input_data, 
@@ -565,14 +564,12 @@ NODE_CLASS_MAPPINGS= {
 "text_interPrompt":text_interPrompt,
 
 
-"Ai_doubao_seedream":Ai_doubao_seedream,
 "AI_web_tool": AI_web_tool,
 "AI_DoubaoWebPreview": AI_DoubaoWebPreview,
 "AI_PresetSave":AI_PresetSave,
 "AI_Qwen":AI_Qwen,
 "AI_Qwen_text":AI_Qwen_text,
-"AI_GLM_text": AI_GLM_text,
-"AI_GLM_image":AI_GLM_image,
+
 "AI_Ollama_image":AI_Ollama_image,
 "AI_Ollama_text": AI_Ollama_text,
 "Ai_Ollama_RunModel":Ai_Ollama_RunModel,
@@ -585,9 +582,6 @@ NODE_CLASS_MAPPINGS= {
 
 
 
-
-#"AI_Gemini3_Img2T": AI_Gemini3_Img2T,
-#"AI_Gemini3_ImageEdit": AI_Gemini3_ImageEdit,
 
 
 
@@ -627,7 +621,6 @@ NODE_CLASS_MAPPINGS= {
 
 #----------------------外部导入节点-register-----------------------
 
-"Easy_QwenEdit2509": Easy_QwenEdit2509,
 "InputShareNode": InputShareNode,
 "flow_createbatch": flow_createbatch,  #    CATEGORY = "Apt_Preset/stack/register"
 
@@ -639,30 +632,16 @@ NODE_CLASS_MAPPINGS= {
 
 #region------------------------准备废弃-------------------------
 
-"AD_Latent_Diffusion_Keyframe": AD_Latent_Diffusion_Keyframe,
-"AD_latent_history": AD_latent_history,
 
 "flow_QueueTrigger":flow_QueueTrigger,
 
 
 
 
-"create_Mask_visual_tag":create_Mask_visual_tag,   #(Deprecated)
-"flow_auto_pixel":flow_auto_pixel, #(Deprecated)
-
-"pack_Pack": Pack, #wed
-"pack_Unpack": Unpack, #wed
-
-
-"excel_insert_image":excel_insert_image, #(Deprecated)
-"excel_write_data":excel_write_data, #(Deprecated)
-"excel_read":excel_read, #(Deprecated)
-
-
-"type_BasiPIPE": type_BasiPIPE, #(Deprecated) #TITLE = "load_FLUX (Deprecated)"    CATEGORY = "Apt_Preset/🚫Deprecated/🚫"
+ #(Deprecated) #TITLE = "load_FLUX (Deprecated)"    CATEGORY = "Apt_Preset/🚫Deprecated/🚫"
 "Image_Resize2": Image_Resize2,#(Deprecated)
 
-"excel_qwen_font":excel_qwen_font,#(Deprecated)
+
 
 "Data_sampleData": Data_sampleData,#(Deprecated)
 "Data_presetData":Data_presetData,#(Deprecated)
@@ -673,13 +652,13 @@ NODE_CLASS_MAPPINGS= {
 "img_effect_Liquify": img_effect_Liquify,#(Deprecated)
 
 
-"pre_QwenEdit":pre_QwenEdit,   #(Deprecated)
 
-"text_mul_Split":text_mul_Split,#(Deprecated)  
-"text_list_combine ": text_list_combine , 
+
 "Image_solo_crop": Image_solo_crop,  #(Deprecated)   
 
 
+"load_Nanchaku":load_Nanchaku,
+"load_GGUF": UnetLoaderGGUF2,
 #------------------------隐藏节点-------------------------
 
 

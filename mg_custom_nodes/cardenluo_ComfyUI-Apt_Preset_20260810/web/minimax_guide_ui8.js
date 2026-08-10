@@ -2,8 +2,8 @@ import { app } from "../../scripts/app.js";
 
 // AD MiniMax Guide frontend.
 
-const AD_GUIDE_UI_VERSION = "2026.08.08-guide-v10";
-globalThis.__AD_MINIMAX_GUIDE_V10_MODULE__ = true;
+const AD_GUIDE_UI_VERSION = "2026.08.09-guide-v21";
+globalThis.__AD_MINIMAX_GUIDE_V14_MODULE__ = true;
 console.info(`[ADMiniMaxGuide] frontend ${AD_GUIDE_UI_VERSION} loaded`);
 const NODE_CLASS = "AD_MiniMax_guide";
 const LOADER_CLASS = "ADMiniMaxGuideLoader";
@@ -25,7 +25,13 @@ const MAX_SECONDS = 20;
 const PROMPT_HISTORY_LIMIT = 120;
 const PROMPT_UNDO_VERSION = "2026-08-05-editor-undo-shield-v1";
 const CARET_SENTINEL = "\u200B";
-const MATERIAL_MENTION_SOURCE = String.raw`[@＠][\t \u3000]*(图片|图像|图|image|picture|img|pic|视频|影片|video|音频|声音|语音|audio|sound)[\t \u3000]*(?:[#＃][\t \u3000]*)?([1-9１-９][0-9０-９]*)(?![0-9０-９A-Za-z_])`;
+const PROMPT_TAG_SEPARATOR_SOURCE = String.raw`[\t \u3000#＃_\-－–—?？]*`;
+const MATERIAL_ALIASES = {
+    image: ["p", "pic", "picture", "image", "img", "refimg", "refpic", "图", "图片", "图像"],
+    video: ["v", "vid", "video", "clip", "movie", "refvid", "视频", "影片"],
+    audio: ["a", "aud", "audio", "sound", "bgm", "refaud", "音频", "声音", "语音"],
+};
+const MATERIAL_ALIAS_SOURCE = Object.values(MATERIAL_ALIASES).flat().sort((left, right) => right.length - left.length).join("|");
 const AUDIO_ICON_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='0.5' y='10' width='3' height='4' rx='1.5' fill='%2300e2bb'/%3E%3Crect x='5.5' y='7' width='3' height='10' rx='1.5' fill='%2300e2bb'/%3E%3Crect x='10.5' y='4' width='3' height='16' rx='1.5' fill='%2300e2bb'/%3E%3Crect x='15.5' y='7' width='3' height='10' rx='1.5' fill='%2300e2bb'/%3E%3Crect x='20.5' y='10' width='3' height='4' rx='1.5' fill='%2300e2bb'/%3E%3C/svg%3E";
 const PRIMARY_BROWSER_LANGUAGE = String(globalThis.navigator?.language || globalThis.navigator?.languages?.[0] || "");
 const ZH_BROWSER = /^(zh)(?:[-_]|$)/i.test(PRIMARY_BROWSER_LANGUAGE);
@@ -76,6 +82,61 @@ const TEXT = {
     outputContext: "H3 Context",
     inputMedia: "Media",
 };
+const SIX_FRAMEWORK_SNIPPET = `subject_definitions: #源标签定义区
+
+<Picture 1>:
+<Subject 1>:
+<Subject 2>:
+
+summary:任务与参考关系总述
+
+retention_analysis:素材保留 / 复用
+<Subject 1> (appears in full video, speaker:S1): fully_preserved — 
+<Subject 2> (appears in full video): partially_preserved — 
+<Picture 1> ([Shot 1] starting frame): weak_reference — 
+
+detailed_description: 完整版时序画面描述
+overall_soundscape: 全局环境音效总结
+non_diegetic_music: 观众专属背景配乐描述（不配音用 N/A)`;
+const GUIDE_TEMPLATE_SNIPPET = `subject_definitions:
+<Subject 1>: 青年男生，音色清亮有力，对应发声人(S1)。
+<Subject 2>: 青年女生，音色温柔，对应发声人(S2)。
+<Picture 1>: [Shot 1]首帧参考图，定义人物与场景基础画面。
+<Video 1>: 镜头节奏参考素材。
+<Audio 1>: 人声音色参考素材。
+
+summary:
+[Full Reference Generation] 视频参考图、视频、音频素材，呈现双人跨镜头连续对话+双人同步合说，结尾台词被视频截断，画面与人声衔接自然。
+
+retention_analysis:
+<Subject 1> (appears in full video, speaker:S1): fully_preserved — 人物样貌与人声音色完全保留。
+<Video 1> (camera & rhythm reference): partially_preserved — 保留核心运镜，微调节奏适配时长。
+<Audio 1> (voice reference): weak_reference — 仅参考人声风格，语速重新适配。
+
+detailed_description:
+写实日常风格，画面干净流畅。
+[Shot 1] At 00:00.000，画面继承<Picture 1>，<Subject 1> (S1) 目视前方沉稳开口：<d>[Chinese] 这就是我的法天相地<scenetrans></d>
+[Shot 2] At 00:05.000，镜头切换，人声无缝延续<scenetrans>，<Subject 2> (S2) 轻声附和：<d>[Chinese] 世间道法，随心而起<scenetrans></d>
+[Shot 3] At 00:08.000，两人并肩同步开口 (S1,S2)：<d>[Chinese] 万般皆我，我即天地<cutoff></d>
+视频时长结束，台词未说完被强制截断。
+
+overall_soundscape:
+轻微空间气流底噪，环境空旷通透，无杂乱杂音。
+
+non_diegetic_music:
+气势宏大的史诗管弦配乐，鼓点厚重、声场宽阔，烘托霸气氛围，结尾渐弱收束。`;
+const PROMPT_SNIPPETS = [
+    { label: "主体", text: "<Subject X>" },
+    { label: "镜头", text: "[Shot X] At 00:00.000，" },
+    { label: "框架", text: SIX_FRAMEWORK_SNIPPET },
+    { label: "模版", text: GUIDE_TEMPLATE_SNIPPET },
+    { label: "口音", text: "(S1)" },
+    { label: "合音", text: "(S1,S2)" },
+    { label: "中文", text: "<d>[Chinese] 写入台词</d>" },
+    { label: "英文", text: "<d>[English] 写入台词</d>" },
+    { label: "续音", text: "<scenetrans>" },
+    { label: "截音", text: "<cutoff>" },
+];
 const OPTION_DEFS = {
     mode: {
         [MODE_IMAGE]: ZH_BROWSER ? "\u56fe\u751f\u6216\u9996\u5c3e\u5e27" : "I2V or First/Last Frame",
@@ -267,6 +328,9 @@ function localizeNodeInstance(node) {
     }
     if (!isTarget(node)) return;
     node.title = TEXT.mainTitle;
+    for (let index = (node.inputs?.length || 0) - 1; index >= 0; index -= 1) {
+        if (String(node.inputs[index]?.name || "") === "prompt") node.removeInput?.(index);
+    }
     const labels = { mode: TEXT.mode, prompt: TEXT.prompt, resolution: TEXT.resolution, aspect_ratio: TEXT.aspectRatio, width: "width", height: "height", length: "length", seconds: TEXT.seconds, advanced: TEXT.advanced, fps: TEXT.fps, keyframe_role: TEXT.keyframeRole, ref_image_size: "ref_image_size", reference_mention_mode: TEXT.referenceMentionMode };
     for (const widget of node.widgets || []) {
         if (labels[widget.name]) widget.label = labels[widget.name];
@@ -347,7 +411,7 @@ function isSameNode(left, right) {
 }
 
 function resequence(node) {
-    const counts = { image: 0, video: 0, audio: 0 };
+    const counts = { image: 0, video: 0, audio: 0, text: 0 };
     ensureLinks(node).forEach((link) => {
         const mediaType = String(link.media_type || "image").toLowerCase();
         const sequenceType = Object.hasOwn(counts, mediaType) ? mediaType : "image";
@@ -360,11 +424,13 @@ function normalizeLinks(node, removeMissing = false) {
     const links = ensureLinks(node);
     const normalized = [];
     const seen = new Set();
+    let hasText = false;
     for (const link of links) {
         const sourceId = Number(link?.source_id);
         const sourceSlot = Number(link?.source_slot) || 0;
         let mediaType = String(link?.media_type || "image").toLowerCase();
-        if (!Number.isFinite(sourceId) || !["image", "video", "audio"].includes(mediaType)) continue;
+        if (!Number.isFinite(sourceId) || !["image", "video", "audio", "text"].includes(mediaType)) continue;
+        if (mediaType === "text" && hasText) continue;
         if (Number.isFinite(Number(node?.id)) && sourceId === Number(node.id)) continue;
         const key = `${sourceId}:${sourceSlot}:${mediaType}`;
         if (seen.has(key)) continue;
@@ -375,7 +441,9 @@ function normalizeLinks(node, removeMissing = false) {
             const detectedType = getMediaType(getSlotType(source.outputs?.[sourceSlot]), source);
             if (!detectedType) continue;
             mediaType = detectedType;
+            if (mediaType === "text" && hasText) continue;
         }
+        if (mediaType === "text") hasText = true;
         seen.add(key);
         normalized.push({ ...link, source_id: sourceId, source_slot: sourceSlot, media_type: mediaType });
     }
@@ -401,29 +469,31 @@ function getMediaType(sourceType, sourceNode = null) {
     if (type.includes("AUDIO")) return "audio";
     if (type.includes("VIDEO")) return "video";
     if (type.includes("IMAGE")) return "image";
+    if (type.includes("STRING")) return "text";
     return null;
 }
 
 function mediaLimits(node) {
-    return { image: 9, video: 3, audio: 3, total: MAX_MEDIA };
+    return { image: 9, video: 3, audio: 3, text: 1, total: MAX_MEDIA };
 }
 
 function canAccept(node, mediaType) {
     const limits = mediaLimits(node);
     if (!limits[mediaType]) return false;
     const links = ensureLinks(node);
-    if (links.length >= limits.total) return false;
+    if (mediaType !== "text" && links.filter((link) => String(link.media_type || "image") !== "text").length >= limits.total) return false;
     const count = links.filter((link) => String(link.media_type || "image") === mediaType).length;
     return count < limits[mediaType];
 }
 
 function pruneLinksForMode(node) {
     const limits = mediaLimits(node);
-    const counts = { image: 0, video: 0, audio: 0 };
+    const counts = { image: 0, video: 0, audio: 0, text: 0 };
     const kept = [];
     for (const link of ensureLinks(node)) {
         const type = String(link.media_type || "image");
-        if (!limits[type] || counts[type] >= limits[type] || kept.length >= limits.total) continue;
+        const mediaCount = kept.filter((item) => String(item.media_type || "image") !== "text").length;
+        if (!limits[type] || counts[type] >= limits[type] || (type !== "text" && mediaCount >= limits.total)) continue;
         counts[type] += 1;
         kept.push(link);
     }
@@ -1275,19 +1345,28 @@ function drawLinks(canvas, ctx) {
             const markerRadius = 9;
             const markerX = geometry.mid[0];
             const markerY = geometry.mid[1];
+            const textLink = String(link.media_type || "image") === "text";
             ctx.beginPath();
             ctx.arc(markerX, markerY, markerRadius, 0, Math.PI * 2);
             ctx.fillStyle = "#e53935";
             ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(markerX - 3.5, markerY - 3.5);
-            ctx.lineTo(markerX + 3.5, markerY + 3.5);
-            ctx.moveTo(markerX + 3.5, markerY - 3.5);
-            ctx.lineTo(markerX - 3.5, markerY + 3.5);
-            ctx.lineWidth = 2;
-            ctx.lineCap = "round";
-            ctx.strokeStyle = "#ffffff";
-            ctx.stroke();
+            if (textLink) {
+                ctx.beginPath();
+                ctx.moveTo(markerX - 3.5, markerY - 3.5);
+                ctx.lineTo(markerX + 3.5, markerY + 3.5);
+                ctx.moveTo(markerX + 3.5, markerY - 3.5);
+                ctx.lineTo(markerX - 3.5, markerY + 3.5);
+                ctx.lineWidth = 2;
+                ctx.lineCap = "round";
+                ctx.strokeStyle = "#ffffff";
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 11px system-ui, sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(String(Number(link.order) || 1), markerX, markerY + 0.5);
+            }
             ctx.restore();
         }
     }
@@ -1405,14 +1484,17 @@ function patchGraphToPrompt() {
                 delete promptNode.inputs[`media_type_${index}`];
             }
             if (!promptIsLinked && node.__adGuideEditor) syncPromptFromEditor(node, false);
-            const runtimeLinks = normalizeLinks(node).filter((link) => Boolean(output[String(link.source_id)]));
+            const orderedLinks = normalizeLinks(node).filter((link) => Boolean(output[String(link.source_id)]));
+            const textLink = orderedLinks.find((link) => String(link.media_type || "") === "text");
+            const runtimeLinks = orderedLinks.filter((link) => String(link.media_type || "") !== "text");
             runtimeLinks.forEach((link, index) => {
                 const source = output[String(link.source_id)];
                 const slot = Number(link.source_slot) || 0;
                 promptNode.inputs[`media_${index + 1}`] = [String(link.source_id), slot];
                 promptNode.inputs[`media_type_${index + 1}`] = String(link.media_type || "image");
             });
-            if (!promptIsLinked) promptNode.inputs.prompt = buildRuntimePrompt(node, runtimeLinks);
+            if (textLink) promptNode.inputs.prompt = [String(textLink.source_id), Number(textLink.source_slot) || 0];
+            else if (!promptIsLinked) promptNode.inputs.prompt = buildRuntimePrompt(node, runtimeLinks);
             promptNode.inputs.width = Number(getWidgetValue(node, "width", 1344));
             promptNode.inputs.height = Number(getWidgetValue(node, "height", 768));
             promptNode.inputs.length = Number(getWidgetValue(node, "length", 124));
@@ -1490,7 +1572,7 @@ function truncateMentionLabel(value, maxLength = 22) {
 
 function mentionOptions(node) {
     if (!isReferenceMode(node)) return [];
-    const orderedLinks = normalizeLinks(node);
+    const orderedLinks = normalizeLinks(node).filter((link) => String(link.media_type || "image") !== "text");
     const counts = { image: 0, video: 0, audio: 0 };
     const mode = referenceMentionMode(node);
     return orderedLinks.map((link) => {
@@ -1693,6 +1775,7 @@ function repairDetachedPromptEditor(node) {
     node.__adGuideEditorVersion = "";
     node.__adGuideEditorWrap = null;
     node.__adGuideMaterialTray = null;
+    node.__adGuideTextTagTray = null;
     node.__adGuideDomWidget = null;
     node.__adGuidePromptInstallPending = false;
     node.__adGuidePromptInstallRetry = null;
@@ -1985,6 +2068,25 @@ function insertMaterialMentionAtCaret(node, option) {
     pushPromptHistory(node);
 }
 
+function insertPromptSnippetAtCaret(node, text) {
+    const editor = node?.__adGuideEditor;
+    if (!editor || !text) return;
+    editor.focus();
+    const selection = window.getSelection?.();
+    if (!selection) return;
+    if (!selection.rangeCount || !editor.contains(selection.anchorNode)) {
+        const end = document.createRange();
+        end.selectNodeContents(editor);
+        end.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(end);
+    }
+    if (!insertTextWithMentionChips(node, editor, text)) return;
+    syncPromptFromEditor(node);
+    pushPromptHistory(node);
+    syncMentionMenuToCaret(node, editor);
+}
+
 function reorderMaterialLinks(node, sourceKey, targetKey, insertAfter = false) {
     const links = ensureLinks(node);
     const from = links.findIndex((link) => materialLinkKey(link) === sourceKey);
@@ -2018,6 +2120,48 @@ function resizeMaterialTray(node, itemCount) {
     tray.style.height = `${nextHeight}px`;
     tray.style.flexBasis = `${nextHeight}px`;
     if (previousHeight !== nextHeight) adjustNodeHeight(node, nextHeight - previousHeight);
+}
+
+function textTagTrayHeight(node) {
+    const availableWidth = Math.max(54, (Number(node?.size?.[0]) || 320) - 20);
+    const columns = Math.max(1, Math.floor((availableWidth - 8 + 5) / (54 + 5)));
+    const rows = Math.max(1, Math.ceil(PROMPT_SNIPPETS.length / columns));
+    return 8 + rows * 26 + Math.max(0, rows - 1) * 5;
+}
+
+function resizeTextTagTray(node) {
+    const tray = node?.__adGuideTextTagTray;
+    if (!tray) return;
+    const nextHeight = textTagTrayHeight(node);
+    const previousHeight = Number(tray.dataset.trayHeight) || 34;
+    tray.dataset.trayHeight = String(nextHeight);
+    tray.style.height = `${nextHeight}px`;
+    tray.style.flexBasis = `${nextHeight}px`;
+    if (previousHeight !== nextHeight) adjustNodeHeight(node, nextHeight - previousHeight);
+}
+
+function createTextTagTray(node) {
+    const tray = document.createElement("div");
+    tray.className = "ad-guide-text-tag-tray";
+    tray.setAttribute("aria-label", "文字标签");
+    for (const snippet of PROMPT_SNIPPETS) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "ad-guide-text-tag";
+        button.textContent = snippet.label;
+        button.title = `双击插入${snippet.label}`;
+        button.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        button.addEventListener("dblclick", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            insertPromptSnippetAtCaret(node, snippet.text);
+        });
+        tray.append(button);
+    }
+    return tray;
 }
 
 function refreshMaterialTray(node, suppliedOptions = null) {
@@ -2126,13 +2270,18 @@ function dialogueBlockText(block) {
     return editorText(block);
 }
 
+function normalizePromptMarkerEntities(value) {
+    return String(value || "").replace(/&lt;?(scenetrans|cutoff)&gt;?/gi, "<$1>");
+}
+
 function makeDialogueBlock(value = "") {
     const block = document.createElement("span");
     block.className = DIALOGUE_CLASS;
     block.spellcheck = false;
     block.dataset.dialogue = "true";
-    appendTextWithBreaks(block, value);
-    if (!String(value || "")) block.append(makeCaretSentinel());
+    const text = normalizePromptMarkerEntities(value);
+    appendTextWithBreaks(block, text);
+    if (!text) block.append(makeCaretSentinel());
     return block;
 }
 
@@ -2147,17 +2296,17 @@ function appendDialogueBlock(container, value = "") {
     container.append(makeCaretSentinel(), makeDialogueBlock(value), makeCaretSentinel());
 }
 
-function appendPromptTextWithDialogueBlocks(container, value) {
-    const source = String(value || "");
+function appendPromptTextWithDialogueBlocks(container, value, node) {
+    const source = normalizePromptMarkerEntities(value);
     const pattern = /<d>([\s\S]*?)<\/d>/gi;
     let cursor = 0;
     let match;
     while ((match = pattern.exec(source))) {
-        appendTextWithBreaks(container, source.slice(cursor, match.index));
+        appendTextWithMentionChips(node, container, source.slice(cursor, match.index));
         appendDialogueBlock(container, match[1]);
         cursor = match.index + match[0].length;
     }
-    appendTextWithBreaks(container, source.slice(cursor));
+    appendTextWithMentionChips(node, container, source.slice(cursor));
 }
 
 function serializeEditorDoc(editor) {
@@ -2228,7 +2377,7 @@ function renderEditorFromNode(node, force = false) {
     const doc = node.properties?.[PROMPT_DOC_PROP];
     editor.textContent = "";
     if (!Array.isArray(doc?.parts)) {
-        appendPromptTextWithDialogueBlocks(editor, String(widget.value || ""));
+        appendPromptTextWithDialogueBlocks(editor, String(widget.value || ""), node);
         return;
     }
     const live = mentionOptions(node);
@@ -2238,7 +2387,11 @@ function renderEditorFromNode(node, force = false) {
             continue;
         }
         if (part?.type !== "mention") {
-            appendTextWithBreaks(editor, part?.text || "");
+            appendTextWithMentionChips(node, editor, part?.text || "");
+            continue;
+        }
+        if (part.textTag) {
+            appendTextWithBreaks(editor, part.token || part.label || "");
             continue;
         }
         const currentMode = referenceMentionMode(node);
@@ -2948,6 +3101,10 @@ function hideOriginalPromptWidget(widget) {
     setWidgetOption(widget, "canvasOnly", true);
     widget.type = "hidden";
     widget.computeSize = () => [0, -4];
+    if (widget._state) {
+        widget._state.hidden = true;
+        widget._state.type = "hidden";
+    }
 }
 
 function restoreOriginalPromptWidget(widget) {
@@ -2957,6 +3114,10 @@ function restoreOriginalPromptWidget(widget) {
     widget.hidden = widget.__adGuideOriginalHidden ?? false;
     setWidgetOption(widget, "hidden", widget.__adGuideOriginalOptionsHidden);
     setWidgetOption(widget, "canvasOnly", widget.__adGuideOriginalOptionsCanvasOnly);
+    if (widget._state) {
+        widget._state.hidden = widget.hidden;
+        widget._state.type = widget.type;
+    }
     widget.__adGuidePromptHidden = false;
 }
 
@@ -3550,9 +3711,9 @@ function insertPlainText(editor, text) {
 
 function materialTypeFromAlias(value) {
     const alias = String(value || "").toLocaleLowerCase();
-    if (["图片", "图像", "图", "image", "picture", "img", "pic"].includes(alias)) return "image";
-    if (["视频", "影片", "video"].includes(alias)) return "video";
-    if (["音频", "声音", "语音", "audio", "sound"].includes(alias)) return "audio";
+    for (const [type, aliases] of Object.entries(MATERIAL_ALIASES)) {
+        if (aliases.includes(alias)) return type;
+    }
     return "";
 }
 
@@ -3562,26 +3723,35 @@ function materialOrdinal(value) {
     return Number.isFinite(ordinal) && ordinal > 0 ? ordinal : 0;
 }
 
-function materialMentionAt(node, value, cursor = 0) {
+function markedAliasAt(value, cursor, aliasSource) {
     const source = String(value || "").slice(cursor);
-    const match = source.match(new RegExp(`^(?:${MATERIAL_MENTION_SOURCE})`, "iu"));
-    if (!match) return null;
-    const type = materialTypeFromAlias(match[1]);
-    const ordinal = materialOrdinal(match[2]);
-    if (!type || !ordinal) return null;
+    const at = source.match(new RegExp(`^[@＠][\\t \\u3000]*(${aliasSource})${PROMPT_TAG_SEPARATOR_SOURCE}([0-9０-９]+)(?![0-9０-９A-Za-z_>\\]})])`, "iu"));
+    if (at) return { raw: at[0], alias: at[1], ordinal: materialOrdinal(at[2]) };
+    const wrapped = source.match(new RegExp(`^([<\\[({])[\\t \\u3000]*(${aliasSource})${PROMPT_TAG_SEPARATOR_SOURCE}([0-9０-９]+)[\\t \\u3000]*([>\\]})])(?![0-9０-９A-Za-z_])`, "iu"));
+    if (!wrapped) return null;
+    const closing = { "<": ">", "[": "]", "(": ")", "{": "}" };
+    if (closing[wrapped[1]] !== wrapped[4]) return null;
+    return { raw: wrapped[0], alias: wrapped[2], ordinal: materialOrdinal(wrapped[3]) };
+}
+
+function materialMentionAt(node, value, cursor = 0) {
+    const media = markedAliasAt(value, cursor, MATERIAL_ALIAS_SOURCE);
+    if (!media?.ordinal) return null;
+    const type = materialTypeFromAlias(media.alias);
+    if (!type) return null;
     const live = mentionOptions(node);
-    const resolved = live.find((option) => option.type === type && Number(option.ordinal) === ordinal);
-    const label = `${LABELS[type] || type}${ordinal}`;
-    const tag = type === "image" ? `<Picture ${ordinal}>` : type === "video" ? `<Video ${ordinal}>` : `<Audio ${ordinal}>`;
+    const resolved = live.find((option) => option.type === type && Number(option.ordinal) === media.ordinal);
+    const label = `${LABELS[type] || type}${media.ordinal}`;
+    const tag = type === "image" ? `<Picture ${media.ordinal}>` : type === "video" ? `<Video ${media.ordinal}>` : `<Audio ${media.ordinal}>`;
     return {
-        raw: match[0],
+        raw: media.raw,
         option: resolved || {
             type,
             tag,
-            token: `@${label}`,
+            token: tag,
             label,
             fullLabel: label,
-            ordinal,
+            ordinal: media.ordinal,
             referenceMode: "index",
             sourceId: null,
             sourceSlot: 0,
@@ -3598,7 +3768,7 @@ function isMaterialHashContext(editor) {
     const textNode = selection.anchorNode;
     if (textNode?.nodeType !== Node.TEXT_NODE) return false;
     const before = String(textNode.textContent || "").slice(0, Number(selection.anchorOffset) || 0);
-    return new RegExp(String.raw`[@＠][\t \u3000]*(?:图片|图像|图|image|picture|img|pic|视频|影片|video|音频|声音|语音|audio|sound)[\t \u3000]*$`, "iu").test(before);
+    return new RegExp(`[@＠<\\[({][\\t \\u3000]*(?:${MATERIAL_ALIAS_SOURCE})[\\t \\u3000]*$`, "iu").test(before);
 }
 
 function convertTypedMaterialMention(node, editor) {
@@ -3609,19 +3779,18 @@ function convertTypedMaterialMention(node, editor) {
     const offset = Number(selection.anchorOffset) || 0;
     const value = String(textNode.textContent || "");
     let selected = null;
-    for (const match of value.matchAll(new RegExp(MATERIAL_MENTION_SOURCE, "giu"))) {
-        if (Number(match.index) + match[0].length === offset) selected = match;
+    for (let index = 0; index < offset; index += 1) {
+        const parsed = materialMentionAt(node, value, index);
+        if (parsed && index + parsed.raw.length === offset) selected = { index, parsed };
     }
     if (!selected) return false;
-    const parsed = materialMentionAt(node, value, Number(selected.index));
-    if (!parsed || parsed.raw.length !== selected[0].length) return false;
     const range = document.createRange();
-    range.setStart(textNode, Number(selected.index));
+    range.setStart(textNode, selected.index);
     range.setEnd(textNode, offset);
     range.deleteContents();
     const fragment = document.createDocumentFragment();
     fragment.append(document.createTextNode(CARET_SENTINEL));
-    fragment.append(makeMentionChip(parsed.option));
+    fragment.append(makeMentionChip(selected.parsed.option));
     const marker = document.createTextNode(CARET_SENTINEL);
     fragment.append(marker);
     range.insertNode(fragment);
@@ -3661,36 +3830,6 @@ function pastedMentionCandidates(node) {
     return candidates.sort((left, right) => right.raw.length - left.raw.length);
 }
 
-function pastedOfficialMediaTagMatch(node, value, cursor) {
-    if (!isReferenceMode(node)) return null;
-    const match = String(value || "").slice(cursor).match(/^<\s*(picture|video|audio)\s*(\d+)\s*>/i);
-    if (!match) return null;
-    const type = match[1].toLowerCase() === "picture" ? "image" : match[1].toLowerCase();
-    const ordinal = Number(match[2]);
-    if (!Number.isFinite(ordinal) || ordinal <= 0) return null;
-    const live = mentionOptions(node);
-    const resolved = live.find((option) => option.type === type && Number(option.ordinal) === ordinal);
-    const tag = type === "image" ? `<Picture ${ordinal}>` : type === "video" ? `<Video ${ordinal}>` : `<Audio ${ordinal}>`;
-    const fallbackLabel = `${LABELS[type] || type}${ordinal}`;
-    return {
-        raw: match[0],
-        option: resolved || {
-            type,
-            tag,
-            token: `@${fallbackLabel}`,
-            label: fallbackLabel,
-            fullLabel: fallbackLabel,
-            ordinal,
-            referenceMode: referenceMentionMode(node),
-            sourceId: null,
-            sourceSlot: 0,
-            previewUrl: "",
-            unresolved: true,
-            pending: true,
-        },
-    };
-}
-
 function appendPastedText(fragment, text) {
     let last = null;
     String(text || "").split("\n").forEach((part, index) => {
@@ -3706,33 +3845,35 @@ function appendPastedText(fragment, text) {
     return last;
 }
 
+function appendTextWithMentionChips(node, container, text) {
+    const value = normalizePromptMarkerEntities(text);
+    const candidates = pastedMentionCandidates(node);
+    let plainStart = 0;
+    let cursor = 0;
+    while (cursor < value.length) {
+        const match = materialMentionAt(node, value, cursor)
+            || candidates.find((candidate) => value.slice(cursor, cursor + candidate.raw.length).toLocaleLowerCase() === candidate.raw.toLocaleLowerCase());
+        if (!match) {
+            cursor += 1;
+            continue;
+        }
+        if (plainStart < cursor) appendPastedText(container, value.slice(plainStart, cursor));
+        container.append(document.createTextNode(CARET_SENTINEL), makeMentionChip(match.option), document.createTextNode(CARET_SENTINEL));
+        cursor += match.raw.length;
+        plainStart = cursor;
+    }
+    if (plainStart < value.length) appendPastedText(container, value.slice(plainStart));
+}
+
 function insertTextWithMentionChips(node, editor, text) {
     const selection = window.getSelection?.();
     if (!selection || !selection.rangeCount || !editor.contains(selection.anchorNode)) return false;
     const range = selection.getRangeAt(0);
     const value = String(text || "");
     if (!value) return false;
-    const candidates = pastedMentionCandidates(node);
     range.deleteContents();
     const fragment = document.createDocumentFragment();
-    let plainStart = 0;
-    let cursor = 0;
-    while (cursor < value.length) {
-        const match = pastedOfficialMediaTagMatch(node, value, cursor)
-            || materialMentionAt(node, value, cursor)
-            || candidates.find((candidate) => value.slice(cursor, cursor + candidate.raw.length).toLocaleLowerCase() === candidate.raw.toLocaleLowerCase());
-        if (!match) {
-            cursor += 1;
-            continue;
-        }
-        if (plainStart < cursor) appendPastedText(fragment, value.slice(plainStart, cursor));
-        fragment.append(document.createTextNode(CARET_SENTINEL));
-        fragment.append(makeMentionChip(match.option));
-        fragment.append(document.createTextNode(CARET_SENTINEL));
-        cursor += match.raw.length;
-        plainStart = cursor;
-    }
-    if (plainStart < value.length) appendPastedText(fragment, value.slice(plainStart));
+    appendTextWithMentionChips(node, fragment, value);
     const caretMarker = document.createTextNode(CARET_SENTINEL);
     fragment.append(caretMarker);
     range.insertNode(fragment);
@@ -3762,6 +3903,7 @@ function ensurePromptEditor(node) {
     const materialTray = document.createElement("div");
     materialTray.className = "ad-guide-material-tray";
     materialTray.setAttribute("aria-label", ZH_BROWSER ? "\u7d20\u6750\u6392\u5e8f" : "Material order");
+    const textTagTray = createTextTagTray(node);
     const editor = document.createElement("div");
     editor.className = "comfy-multiline-input ad-guide-prompt-editor";
     editor.contentEditable = "true";
@@ -3946,13 +4088,15 @@ function ensurePromptEditor(node) {
     };
     editor.addEventListener("wheel", wheelHandler, { passive: false, capture: true });
     wrap.addEventListener("wheel", wheelHandler, { passive: false });
-    wrap.append(materialTray, editor);
+    wrap.append(materialTray, textTagTray, editor);
     node.__adGuideEditor = editor;
     node.__adGuideEditorVersion = AD_GUIDE_UI_VERSION;
     node.__adGuideEditorWrap = wrap;
     node.__adGuideMaterialTray = materialTray;
+    node.__adGuideTextTagTray = textTagTray;
     renderEditorFromNode(node);
     refreshMaterialTray(node);
+    resizeTextTagTray(node);
     resetPromptHistory(node);
     const domWidget = node.addDOMWidget("h3_prompt_mentions", "h3_prompt_mentions", wrap, {
         getValue: () => String(getWidget(node, "prompt")?.value || ""),
@@ -3963,10 +4107,11 @@ function ensurePromptEditor(node) {
         },
         margin: 10,
         serialize: false,
-        getMinHeight: () => (Number(materialTray.dataset.trayHeight) || 70) + 120,
+        getMinHeight: () => (Number(materialTray.dataset.trayHeight) || 70) + (Number(textTagTray.dataset.trayHeight) || 34) + 124,
         afterResize: () => {
             applyNativeEditorTheme(wrap);
             refreshMaterialTray(node);
+            resizeTextTagTray(node);
             node._widgetSlotsDirty = true;
             node.setDirtyCanvas?.(true, true);
         },
@@ -3979,6 +4124,7 @@ function ensurePromptEditor(node) {
         node.__adGuideEditorVersion = "";
         node.__adGuideEditorWrap = null;
         node.__adGuideMaterialTray = null;
+        node.__adGuideTextTagTray = null;
         return;
     }
     node.__adGuideDomWidget = domWidget;
@@ -4204,6 +4350,7 @@ function installNode(nodeType, nodeData) {
         this.__adGuideEditorVersion = "";
         this.__adGuideEditorWrap = null;
         this.__adGuideMaterialTray = null;
+        this.__adGuideTextTagTray = null;
         this.__adGuideDomWidget = null;
         return originalRemoved?.apply(this, arguments);
     };
@@ -4290,6 +4437,20 @@ function install() {
       .ad-guide-material-preview { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; border-radius: 3px; }
       .ad-guide-material-preview > * { width: 100% !important; height: 42px !important; margin: 0 !important; object-fit: cover; border-radius: 3px; }
       .ad-guide-material-label { overflow: hidden; color: var(--ad-guide-native-widget-text, var(--input-text, #ddd)); font-size: 10px; line-height: 15px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+      .ad-guide-text-tag-tray {
+        display: flex; flex: 0 0 34px; flex-wrap: wrap; gap: 5px; align-content: flex-start; align-items: flex-start; min-width: 0; height: 34px; padding: 4px;
+        box-sizing: border-box; overflow: hidden; border-radius: var(--ad-guide-native-widget-radius, 0);
+        background: color-mix(in srgb, var(--ad-guide-native-widget-bg, var(--comfy-input-bg, #222)) 86%, transparent);
+        box-shadow: inset 0 0 0 1px var(--ad-guide-native-widget-outline, rgba(255,255,255,.12));
+      }
+      .ad-guide-text-tag {
+        flex: 0 0 54px; width: 54px; min-width: 54px; height: 26px; padding: 0 4px; box-sizing: border-box;
+        overflow: hidden; border: 0; border-radius: 4px; background: var(--ad-guide-native-widget-bg, var(--comfy-input-bg, #222));
+        box-shadow: inset 0 0 0 1px var(--ad-guide-native-widget-outline, rgba(255,255,255,.16));
+        color: var(--ad-guide-native-widget-text, var(--input-text, #ddd)); font: 12px/26px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        text-align: center; text-overflow: ellipsis; white-space: nowrap; user-select: none;
+      }
+      .ad-guide-text-tag:hover { color: #ff9c43; box-shadow: inset 0 0 0 1px rgba(255,136,34,.72); }
       .ad-guide-prompt-editor {
         --ad-guide-prompt-text-size: var(--ad-guide-native-widget-text-size, var(--comfy-textarea-font-size, 12px));
         display: block; flex: 1 1 auto; width: 100%; height: auto; min-width: 0; min-height: 104px; max-height: none; box-sizing: border-box;
@@ -4322,7 +4483,7 @@ function install() {
         -webkit-box-decoration-break: clone; box-decoration-break: clone; user-select: text; cursor: default; outline: none;
       }
       .ad-guide-dialogue-block:focus { background: rgba(0,226,187,.19); box-shadow: inset 0 0 0 1px rgba(0,226,187,.26); }
-      .ad-guide-material-tray, .ad-guide-material-tray *, .ad-guide-prompt-editor, .ad-guide-prompt-editor * { cursor: default !important; }
+      .ad-guide-material-tray, .ad-guide-material-tray *, .ad-guide-text-tag-tray, .ad-guide-text-tag-tray *, .ad-guide-prompt-editor, .ad-guide-prompt-editor * { cursor: default !important; }
       .ad-guide-mention-chip-thumb { display: inline-block; width: 16px; height: 16px; margin-right: 2px; object-fit: cover; border-radius: 3px; vertical-align: -2px; background: rgba(255,255,255,.12); user-select: none; }
       .ad-guide-mention-chip-thumb.is-image, .ad-guide-mention-menu-thumb.is-image { background: #5aa9f0; }
       .ad-guide-mention-chip-thumb.is-video, .ad-guide-mention-menu-thumb.is-video { position: relative; background: linear-gradient(135deg, #1557b8, #49b6ff); }
@@ -4349,10 +4510,10 @@ function install() {
     document.head.append(style);
 }
 
-if (!globalThis.__AD_MINIMAX_GUIDE_V10_REGISTERED__) {
-    globalThis.__AD_MINIMAX_GUIDE_V10_REGISTERED__ = true;
+if (!globalThis.__AD_MINIMAX_GUIDE_V14_REGISTERED__) {
+    globalThis.__AD_MINIMAX_GUIDE_V14_REGISTERED__ = true;
     app.registerExtension({
-        name: "ADMiniMaxGuide.v10",
+        name: "ADMiniMaxGuide.v14",
         setup() {
             install();
         },

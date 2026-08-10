@@ -65,9 +65,9 @@ window.showRaykoToast = function(message, type = "error", node = null) {
 };
 
 app.registerExtension({
-    name: "RaykoLoRALoaderWidget",
+    name: "RaykoLoraWidget",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === "RaykoLoRALoader") {
+        if (nodeData.name === "RaykoModelsLoader") {
             const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
             const originalOnConfigure = nodeType.prototype.onConfigure;
             const originalOnSerialize = nodeType.prototype.onSerialize;
@@ -100,9 +100,6 @@ app.registerExtension({
                 
                 if (this.hiddenWidget) {
                     this.hiddenWidget.hidden = true;
-                    if (this.hiddenWidget.element) {
-                        this.hiddenWidget.element.style.display = "none";
-                    }
                     const originalSerializeValue = this.hiddenWidget.serializeValue;
                     this.hiddenWidget.serializeValue = function() {
                         nodeRef.syncData();
@@ -111,85 +108,66 @@ app.registerExtension({
                     };
                 }
 
-                const useClipWidget = this.widgets.find(w => w.name === "use_clip");
-                if (useClipWidget) {
-                    useClipWidget.hidden = true;
-                    if (useClipWidget.element) {
-                        useClipWidget.element.style.display = "none";
+                const useClip2Widget = this.widgets.find(w => w.name === "use_clip2");
+                const clipName2Widget = this.widgets.find(w => w.name === "clip_name2");
+                
+                if (useClip2Widget && clipName2Widget) {
+                    clipName2Widget.disabled = !useClip2Widget.value;
+                    if (clipName2Widget.element) {
+                        clipName2Widget.element.classList.toggle("comfy-disabled", clipName2Widget.disabled);
                     }
-                }
-
-                const updateClipInputState = () => {
-                    if (!useClipWidget) return;
-                    const clipSlotIndex = this.findInputSlot("clip");
-                    if (clipSlotIndex !== -1 && this.inputs && this.inputs[clipSlotIndex]) {
-                        const isEnabled = useClipWidget.value;
-                        this.inputs[clipSlotIndex].disabled = !isEnabled;
-                        if (isEnabled) {
-                            delete this.inputs[clipSlotIndex].color;
-                            this.inputs[clipSlotIndex].tooltip = "CLIP input enabled";
-                        } else {
-                            this.inputs[clipSlotIndex].color = "#555";
-                            this.inputs[clipSlotIndex].tooltip = "CLIP input disabled";
+                    const originalCallback = useClip2Widget.callback;
+                    useClip2Widget.callback = function(value) {
+                        if (originalCallback) originalCallback(value);
+                        clipName2Widget.disabled = !value;
+                        if (clipName2Widget.element) {
+                            clipName2Widget.element.classList.toggle("comfy-disabled", clipName2Widget.disabled);
                         }
-                    }
-                };
+                        nodeRef.graph?.setDirtyCanvas(true, true);
+                    };
+                }
 
                 this.setSize([this.targetWidth, this.size[1]]);
 
-                const clipButtonRoot = document.createElement("div");
-                clipButtonRoot.style.cssText = "display:flex;flex-direction:column;gap:4px;width:100%;margin:0;padding:0;box-sizing:border-box;";
-
-                const clipToggleBtn = document.createElement("button");
-                clipToggleBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border-radius:5px;cursor:pointer;height:26px;margin:0;font-weight:bold;";
-                
-                const updateClipButton = () => {
-                    const isEnabled = useClipWidget ? useClipWidget.value : true;
-                    if (isEnabled) {
-                        clipToggleBtn.textContent = "CLIP ON (model and clip mode)";
-                        clipToggleBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #4CAF50;border-radius:5px;background:#1a3a1a;color:#aaffaa;cursor:pointer;height:26px;margin:0;font-weight:bold;";
-                    } else {
-                        clipToggleBtn.textContent = "CLIP OFF (model only mode)";
-                        clipToggleBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #00B0B0;border-radius:5px;background:#1E5986;color:#ffaaaa;cursor:pointer;height:26px;margin:0;font-weight:bold;";
-                    }
-                };
-
-                clipToggleBtn.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    if (useClipWidget) {
-                        const newValue = !useClipWidget.value;
-                        useClipWidget.value = newValue;
-                        if (useClipWidget.callback) useClipWidget.callback(newValue);
-                        updateClipButton();
-                        updateClipInputState();
-                        nodeRef.graph?.setDirtyCanvas(true, true);
-                    }
+                const collectPresetData = () => ({
+                    unet_name: this.widgets.find(w => w.name === "unet_name")?.value || "",
+                    weight_dtype: this.widgets.find(w => w.name === "weight_dtype")?.value || "default",
+                    use_clip2: this.widgets.find(w => w.name === "use_clip2")?.value || false,
+                    clip_name: this.widgets.find(w => w.name === "clip_name")?.value || "",
+                    clip_name2: this.widgets.find(w => w.name === "clip_name2")?.value || "",
+                    clip_type: this.widgets.find(w => w.name === "clip_type")?.value || "stable_diffusion",
+                    clip_device: this.widgets.find(w => w.name === "clip_device")?.value || "default",
+                    vae_name: this.widgets.find(w => w.name === "vae_name")?.value || ""
                 });
 
-                clipButtonRoot.appendChild(clipToggleBtn);
-
-                const clipButtonWidget = this.addDOMWidget("clip_toggle_ui", "custom", clipButtonRoot);
-                clipButtonWidget.computeSize = function() { return [this.width || 130, 30]; };
-
-                const presetsWrapper = document.createElement("div");
-                presetsWrapper.style.cssText = "display:flex;flex-direction:column;gap:4px;width:100%;margin:0;padding:0;box-sizing:border-box;";
-
-                const loraPresetsRoot = document.createElement("div");
-                loraPresetsRoot.style.cssText = "display:flex;gap:4px;width:100%;align-items:center;height:30px;";
-                
-                const saveLoraPresetBtn = document.createElement("button");
-                saveLoraPresetBtn.textContent = "💾 Save LoRA preset";
-                saveLoraPresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #50cc90;border-radius:5px;background:#1a3a2a;color:#aaffcc;cursor:pointer;height:26px;margin:0;";
-                
-                const selectLoraPresetBtn = document.createElement("button");
-                selectLoraPresetBtn.textContent = "📂 Select LoRA preset";
-                selectLoraPresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:11px;border:1px solid #50cc90;border-radius:5px;background:#1a3a2a;color:#aaffcc;cursor:pointer;height:26px;margin:0;";
-                loraPresetsRoot.append(saveLoraPresetBtn, selectLoraPresetBtn);
-                
-                presetsWrapper.append(loraPresetsRoot);
-
-                const presetsWidget = this.addDOMWidget("presets_ui", "custom", presetsWrapper);
-                presetsWidget.computeSize = function() { return [this.width || 130, 40]; };
+                const applyPresetData = (data) => {
+                    const setWidgetValue = (name, value) => {
+                        const widget = this.widgets.find(w => w.name === name);
+                        if (widget) {
+                            widget.value = value;
+                            if (widget.callback) widget.callback(value);
+                        }
+                    };
+                    ["unet_name", "weight_dtype", "use_clip2", "clip_name", "clip_name2", "clip_type", "clip_device", "vae_name"].forEach(k => setWidgetValue(k, data[k]));
+                    this.loraRows = [];
+                    this.scrollOffset = 0;
+                    this.manual_size = false;
+                    this.syncData();
+                    
+                    requestAnimationFrame(() => {
+                        const startY = this.getLoraListStartY();
+                        const calculatedHeight = startY + this.rowHeight + 10;
+                        this.isAutoResizing = true;
+                        this.setSize([this.size[0], calculatedHeight]);
+                        this.isAutoResizing = false;
+                        if (this.graph) {
+                            this.graph.setDirtyCanvas(true, true);
+                            setTimeout(() => this.graph.setDirtyCanvas(true, true), 50);
+                            setTimeout(() => this.graph.setDirtyCanvas(true, true), 100);
+                            setTimeout(() => this.graph.setDirtyCanvas(true, true), 150);
+                        }
+                    });
+                };
 
                 const collectLoraPresetData = () => ({
                     lora_rows: this.loraRows.map(row => ({
@@ -277,11 +255,47 @@ app.registerExtension({
                 deleteConfirmOverlay.append(deleteText, deleteBtns);
                 document.body.appendChild(deleteConfirmOverlay);
 
+                let pendingSaveType = "model";
+                let pendingSelectType = "model";
+                let pendingDeleteType = "model";
                 let pendingDeleteName = null;
 
-                const openSaveDialog = (btnElement) => {
+                const presetsWrapper = document.createElement("div");
+                presetsWrapper.style.cssText = "display:flex;flex-direction:column;gap:4px;width:100%;margin:0;padding:0;box-sizing:border-box;";
+
+                const presetsRoot = document.createElement("div");
+                presetsRoot.style.cssText = "display:flex;gap:4px;width:100%;align-items:center;height:30px;";
+                
+                const savePresetBtn = document.createElement("button");
+                savePresetBtn.textContent = " 💾 SAVE MODELS PRESET";
+                savePresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:12px;border:1px solid #99c0ee;border-radius:5px;background:#1a3a5a;color:#aadaff;cursor:pointer;height:26px;margin:0;";
+                
+                const selectPresetBtn = document.createElement("button");
+                selectPresetBtn.textContent = " 📂 SELECT MODELS PRESET";
+                selectPresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:12px;border:1px solid #99c0ee;border-radius:5px;background:#1a3a5a;color:#aadaff;cursor:pointer;height:26px;margin:0;";
+                presetsRoot.append(savePresetBtn, selectPresetBtn);
+
+                const loraPresetsRoot = document.createElement("div");
+                loraPresetsRoot.style.cssText = "display:flex;gap:4px;width:100%;align-items:center;height:30px;";
+                
+                const saveLoraPresetBtn = document.createElement("button");
+                saveLoraPresetBtn.textContent = " 💾 SAVE LoRA PRESET";
+                saveLoraPresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:12px;border:1px solid #50cc90;border-radius:5px;background:#1a3a2a;color:#aaffcc;cursor:pointer;height:26px;margin:0;";
+                
+                const selectLoraPresetBtn = document.createElement("button");
+                selectLoraPresetBtn.textContent = " 📂 SELECT LoRA PRESET";
+                selectLoraPresetBtn.style.cssText = "flex:1;padding:4px 2px;font-size:12px;border:1px solid #50cc90;border-radius:5px;background:#1a3a2a;color:#aaffcc;cursor:pointer;height:26px;margin:0;";
+                loraPresetsRoot.append(saveLoraPresetBtn, selectLoraPresetBtn);
+                
+                presetsWrapper.append(presetsRoot, loraPresetsRoot);
+
+                const presetsWidget = this.addDOMWidget("presets_ui", "custom", presetsWrapper);
+                presetsWidget.computeSize = function() { return [this.width || 130, 70]; };
+
+                const openSaveDialog = (type, btnElement) => {
                     presetListOverlay.style.display = "none";
                     deleteConfirmOverlay.style.display = "none";
+                    pendingSaveType = type;
                     const rect = btnElement.getBoundingClientRect();
                     presetNameInput.style.left = rect.left + "px";
                     presetNameInput.style.top = (rect.bottom + 5) + "px";
@@ -290,15 +304,16 @@ app.registerExtension({
                     setTimeout(() => inputField.focus(), 50);
                 };
 
-                saveLoraPresetBtn.addEventListener("click", (e) => { e.stopPropagation(); openSaveDialog(saveLoraPresetBtn); });
+                savePresetBtn.addEventListener("click", (e) => { e.stopPropagation(); openSaveDialog("model", savePresetBtn); });
+                saveLoraPresetBtn.addEventListener("click", (e) => { e.stopPropagation(); openSaveDialog("lora", saveLoraPresetBtn); });
 
                 const performSave = () => {
                     const name = inputField.value.trim();
                     if (!name) return;
                     presetNameInput.style.display = "none";
                     
-                    const endpoint = "/rayko_lora_loader/save_preset";
-                    const payload = { name, ...collectLoraPresetData() };
+                    const endpoint = pendingSaveType === "model" ? "/rayko_models/save_preset" : "/rayko_loras/save_preset";
+                    const payload = pendingSaveType === "model" ? { name, ...collectPresetData() } : { name, ...collectLoraPresetData() };
 
                     fetch(endpoint, {
                         method: "POST",
@@ -330,7 +345,7 @@ app.registerExtension({
                     presetListOverlay.innerHTML = "<div style='padding:8px;color:#999;text-align:center;'>Loading...</div>";
                     presetListOverlay.style.display = "flex";
                     try {
-                        const endpoint = "/rayko_lora_loader/list_presets";
+                        const endpoint = pendingSelectType === "model" ? "/rayko_models/list_presets" : "/rayko_loras/list_presets";
                         const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" } });
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         const list = await res.json();
@@ -351,12 +366,13 @@ app.registerExtension({
                             nameSpan.onclick = async (e) => {
                                 e.stopPropagation();
                                 presetListOverlay.style.display = "none";
-                                const loadEndpoint = "/rayko_lora_loader/load_preset";
+                                const loadEndpoint = pendingSelectType === "model" ? "/rayko_models/load_preset" : "/rayko_loras/load_preset";
                                 try {
                                     const res2 = await fetch(loadEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
                                     if (!res2.ok) throw new Error(`HTTP ${res2.status}`);
                                     const data = await res2.json();
-                                    applyLoraPresetData(data);
+                                    if (pendingSelectType === "model") applyPresetData(data);
+                                    else applyLoraPresetData(data);
                                     showRaykoToast("Preset loaded!", "success", this);
                                 } catch (err) {
                                     showRaykoToast("Failed to load preset: " + err.message, "error", this);
@@ -371,6 +387,7 @@ app.registerExtension({
                             delBtn.onclick = (e) => {
                                 e.stopPropagation();
                                 pendingDeleteName = name;
+                                pendingDeleteType = pendingSelectType;
                                 deleteText.textContent = `Delete "${name}"?`;
                                 const r = btnElement.getBoundingClientRect();
                                 deleteConfirmOverlay.style.left = r.left + "px";
@@ -387,17 +404,27 @@ app.registerExtension({
                     }
                 };
 
+                selectPresetBtn.addEventListener("click", async (e) => {
+                    e.stopPropagation();
+                    presetNameInput.style.display = "none";
+                    deleteConfirmOverlay.style.display = "none";
+                    if (presetListOverlay.style.display === "flex") { presetListOverlay.style.display = "none"; return; }
+                    pendingSelectType = "model";
+                    showPresetList(selectPresetBtn);
+                });
+
                 selectLoraPresetBtn.addEventListener("click", async (e) => {
                     e.stopPropagation();
                     presetNameInput.style.display = "none";
                     deleteConfirmOverlay.style.display = "none";
                     if (presetListOverlay.style.display === "flex") { presetListOverlay.style.display = "none"; return; }
+                    pendingSelectType = "lora";
                     showPresetList(selectLoraPresetBtn);
                 });
 
                 deleteOk.addEventListener("click", async () => {
                     if (pendingDeleteName) {
-                        const endpoint = "/rayko_lora_loader/delete_preset";
+                        const endpoint = pendingDeleteType === "model" ? "/rayko_models/delete_preset" : "/rayko_loras/delete_preset";
                         try {
                             const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: pendingDeleteName }) });
                             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -419,18 +446,15 @@ app.registerExtension({
                     if (!deleteConfirmOverlay?.contains(e.target)) deleteConfirmOverlay.style.display = "none";
                 });
 
-                this.addWidget("button", "✔️ Update LoRA list", "", async () => {
+                this.addWidget("button", "✔️ UPDATE LoRA LIST", "", async () => {
                     await this.loadLoraList();
                     if (this.graph) this.graph.setDirtyCanvas(true, true);
                 });
 
-                this.addWidget("button", "➕ Add LoRA", "", () => {
-                    const btnWidget = this.widgets.find(w => w.name === "➕ Add LoRA");
+                this.addWidget("button", "➕ ADD LoRA", "", () => {
+                    const btnWidget = this.widgets.find(w => w.name === "➕ ADD LoRA");
                     this.showLoraTreeSelector(btnWidget);
                 });
-
-                updateClipButton();
-                updateClipInputState();
 
                 const self = this;
                 
@@ -509,7 +533,7 @@ app.registerExtension({
 
                 setTimeout(() => {
                     if (this.id) {
-                        this.storageKey = `rayko_lora_loader_${this.id}`;
+                        this.storageKey = `rayko_lora_${this.id}`;
                         this.loadLoraList().then(() => {
                             this.restoreData();
                             this.isInitialized = true;
@@ -572,18 +596,12 @@ app.registerExtension({
                     });
                 });
                 
-                const useClipWidget = this.widgets.find(w => w.name === "use_clip");
-                if (useClipWidget) {
-                    const clipSlotIndex = this.findInputSlot("clip");
-                    if (clipSlotIndex !== -1 && this.inputs && this.inputs[clipSlotIndex]) {
-                        this.inputs[clipSlotIndex].disabled = !useClipWidget.value;
-                        if (useClipWidget.value) {
-                            delete this.inputs[clipSlotIndex].color;
-                            this.inputs[clipSlotIndex].tooltip = "CLIP input enabled";
-                        } else {
-                            this.inputs[clipSlotIndex].color = "#555";
-                            this.inputs[clipSlotIndex].tooltip = "CLIP input disabled";
-                        }
+                const useClip2Widget = this.widgets.find(w => w.name === "use_clip2");
+                const clipName2Widget = this.widgets.find(w => w.name === "clip_name2");
+                if (useClip2Widget && clipName2Widget) {
+                    clipName2Widget.disabled = !useClip2Widget.value;
+                    if (clipName2Widget.element) {
+                        clipName2Widget.element.classList.toggle("comfy-disabled", clipName2Widget.disabled);
                     }
                 }
                 return originalOnConfigure ? originalOnConfigure.apply(this, arguments) : undefined;
@@ -631,7 +649,7 @@ app.registerExtension({
 
             nodeType.prototype.loadLoraList = async function() {
                 try {
-                    const response = await api.fetchApi("/rayko_lora_loader/get_loras");
+                    const response = await api.fetchApi("/rayko/get_loras");
                     const data = await response.json();
                     this.loraOptions = data.filter(l => l !== "None" && l !== null && l !== undefined);
                     this.loraTree = this.buildLoraTree(this.loraOptions);
@@ -659,7 +677,7 @@ app.registerExtension({
             };
 
             nodeType.prototype.getLoraListStartY = function() {
-                const addButton = this.widgets.find(w => w.name === "➕ Add LoRA");
+                const addButton = this.widgets.find(w => w.name === "➕ ADD LoRA");
                 if (!addButton) return 40;
                 return addButton.y + addButton.height + 15;
             };
@@ -983,11 +1001,11 @@ app.registerExtension({
                     menuTop = finalTop;
                 }
 
-                const existingMenu = document.getElementById("rayko-lora-loader-selector-menu");
+                const existingMenu = document.getElementById("rayko-lora-selector-menu");
                 if (existingMenu) existingMenu.remove();
 
                 const menu = document.createElement("div");
-                menu.id = "rayko-lora-loader-selector-menu";
+                menu.id = "rayko-lora-selector-menu";
                 menu.style.cssText = `position: fixed; background: #1a1a1a; border: 1px solid #444; border-radius: 6px; height: ${menuHeight}px; width: ${menuWidth}px; overflow-y: auto; overflow-x: hidden; z-index: 10000; left: ${menuLeft}px; top: ${menuTop}px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); display: flex; flex-direction: column;`;
 
                 const headerContainer = document.createElement("div");
@@ -1052,7 +1070,7 @@ app.registerExtension({
                     if (Object.keys(self.loraTree).length === 0) {
                         if (!filterText) {
                             const emptyMsg = document.createElement("div");
-                            emptyMsg.textContent = " List is empty (Click Update LoRA list)";
+                            emptyMsg.textContent = " List is empty (Click UPDATE LoRA LIST)";
                             emptyMsg.style.cssText = `padding: 20px; color: #f44336; text-align: center;`;
                             listContainer.appendChild(emptyMsg);
                         }
@@ -1412,7 +1430,7 @@ app.registerExtension({
                         fetchBtn.style.opacity = "0.5";
                         
                         try {
-                            const res = await fetch("/rayko_lora_loader/fetch_civitai_info", {
+                            const res = await fetch("/rayko/fetch_civitai_info", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ name: loraName })
@@ -1467,7 +1485,7 @@ app.registerExtension({
                         saveBtn.style.opacity = "0.5";
                         
                         try {
-                            const res = await fetch("/rayko_lora_loader/add_tags", {
+                            const res = await fetch("/rayko/add_tags", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ name: loraName, tags: tags })
@@ -1510,7 +1528,7 @@ app.registerExtension({
                     textarea.focus();
                 };
                 
-                fetch("/rayko_lora_loader/get_lora_info", {
+                fetch("/rayko/get_lora_info", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ name: loraName })
@@ -1567,7 +1585,7 @@ document.addEventListener("visibilitychange", () => {
     if (!document.hidden && app && app.graph) {
         setTimeout(() => {
             app.graph._nodes.forEach(node => {
-                if (node.type === "RaykoLoRALoader" && node.restoreData) {
+                if (node.type === "RaykoModelsLoader" && node.restoreData) {
                     node.restoreData();
                     node.updateUI();
                 }
@@ -1580,7 +1598,7 @@ window.addEventListener("focus", () => {
     if (app && app.graph) {
         setTimeout(() => {
             app.graph._nodes.forEach(node => {
-                if (node.type === "RaykoLoRALoader" && node.restoreData) {
+                if (node.type === "RaykoModelsLoader" && node.restoreData) {
                     node.restoreData();
                     node.updateUI();
                 }
@@ -1613,7 +1631,7 @@ function createTreeItems(path, tree, level, container, expandedFolders, self, he
             folderHeader.style.cssText = `padding: 8px 12px; cursor: pointer; color: #ffd700; font-size: 13px; background: #252525; display: flex; align-items: center;`;
             folderHeader.style.paddingLeft = (12 + level * 16) + "px";
             const isExpanded = expandedFolders[itemPath];
-            folderHeader.innerHTML = `<span style="margin-right:8px;">${isExpanded ? "▼" : "▶"}</span>  ${name}`;
+            folderHeader.innerHTML = `<span style="margin-right:8px;">${isExpanded ? "▼" : "▶"}</span> 📁 ${name}`;
             folderHeader.onclick = (e) => {
                 e.stopPropagation();
                 expandedFolders[itemPath] = !expandedFolders[itemPath];

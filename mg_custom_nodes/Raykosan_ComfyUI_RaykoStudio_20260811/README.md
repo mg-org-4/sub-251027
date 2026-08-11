@@ -471,7 +471,8 @@ Upscale Method 3 ──→ input_3
 
 ### 🔥 Features  
 - **Batch Mode** — Select N LoRAs, press Queue once → N separate sessions are created in the ComfyUI queue, each with exactly one LoRA applied  
-- **Strength Testing** — Add the same LoRA multiple times with different strength values to A/B test in a single batch  
+- **Strength Testing** — Add the same LoRA multiple times with different strength values to A/B test in a single batch
+- **Enabling/disabling LoRA** - the disabled LoRA is ignored by the workflow  
 - **CLIP Toggle** — A dedicated, visually distinct button to enable/disable CLIP application per node. When the clip input is turned off, the node operates in the "model only" mode  
 - **Custom Strength Editor** — Adjust LoRA strength using + / - buttons or direct numeric input  
 - **Precision Strength Control** — Arrow buttons for ±0.05 adjustments, direct numeric input  
@@ -499,6 +500,35 @@ Use the ⋮⋮ handle on the left of each row to drag and drop LoRAs into your d
 1. Add the same LoRA multiple times (duplicates allowed)  
 2. Set different strength values using arrows (±0.05) or click the value to type manually  
 3. Arm batch mode and queue — each strength gets its own session    
+
+</details>
+<details>
+  <summary>🦊 RS Save Image LoRA</summary>
+	
+# 🦊 RS Save Image LoRA  
+**A drop-in replacement for `SaveImage` that automatically puts the names and strengths of all LoRAs used in the generation right into the output file name.**  
+No more guessing which LoRA produced which image. Your files name themselves.  
+
+<img width="483" height="573" alt="Screenshot_1" src="https://github.com/user-attachments/assets/ce4604b6-1198-406c-9627-08fe99de16b3" />
+
+### 🔥 Features  
+- **Automatic LoRA detection** — reads the execution payload sent to the ComfyUI server and collects every LoRA participating in the current generation. No extra wiring required  
+- **Multiple LoRAs supported** — listed in chain order, separated by `; `  
+- **Disabled slots are skipped** — LoRAs switched off in the loader (e.g. `on: false`) never appear in the name  
+- **Clean names** — subfolder paths (`QWEN\my_lora.safetensors`) and extensions (`.safetensors`, `.ckpt`, …) are stripped automatically  
+- **Metadata preserved** — just like the stock `SaveImage`, the full prompt and workflow are embedded into the PNG. Drag & drop the image back into ComfyUI to restore everything  
+- **Subfolders still work** — a `/` in the prefix still creates subfolders in `output/` (only the auto-generated LoRA suffix is sanitized)  
+- **Batch-aware** — supports the `%batch_num%` placeholder, same as the original node  
+- **Model-agnostic** — works with any architecture (SD 1.5 / SDXL / Flux / Qwen Image / Z-Image / Wan / Lumina …), because it reads the workflow, not the model
+
+### 🪛 Usage  
+1. Add the node: **Add Node → 🦊 RaykoStudio → 🦊 RS Save Image LoRA**  
+   (or double-click the canvas and search for `RS Save`).  
+2. Connect your `IMAGE` input exactly as you would for a regular `SaveImage`.  
+3. Click the **PREFIX** field on the node to open the popup editor, type your prefix, press **Enter** or **OK**.  
+4. Generate. The LoRA names and strengths are appended automatically.  
+
+✨ **It is convenient to use with the RS LoRA Tester node in batch mode**  
 
 </details>
 <details>
@@ -1155,6 +1185,7 @@ Single frame tensor with shape [1, H, W, C] — ready for VAE encoding, preview,
 ### 🎨 Advanced Custom UI  
 - **Visual Multi-LoRA Management** - Add, remove, and reorder multiple LoRAs with drag-and-drop support.  
 - **Custom CLIP Toggle** - A dedicated, visually distinct button to enable/disable CLIP application per node. When the clip input is turned off, the node operates in the "model only" mode.  
+- **Enabling/disabling LoRA** - the disabled LoRA is ignored by the workflow  
 - **Precision Strength Control** - Adjust LoRA strength using `+` / `-` buttons or direct numeric input.  
 - **Auto-Resizing & Scrollable List** - The node automatically adjusts its height, with smooth scrolling for long lists.  
 - **Quick update** - When adding a new LoRA to the 'loras' folder, you do not need to reload ComfyUI or the browser page. Just click the ✔️ Update LoRA list button.
@@ -1209,7 +1240,8 @@ is three tags.
 - **Unified Loading** - Load UNET, CLIP, VAE, and multiple LoRAs in one node  
 - **Dual CLIP Support** - Toggle between single CLIP mode (CLIPLoader) and dual CLIP mode (DualCLIPLoader) for models like Flux, SD3, Hunyuan DiT, and PixArt  
 - **Visual Multi-LoRA Management** - Add, remove, and reorder multiple LoRAs with drag-and-drop support. 
-- **LoRA Management** - Add, enable/disable, and adjust strengths for multiple LoRAs with an intuitive visual interface  
+- **LoRA Management** - Add, enable/disable, and adjust strengths for multiple LoRAs with an intuitive visual interface
+- **Enabling/disabling LoRA** - the disabled LoRA is ignored by the workflow  
 - **Persistent Storage** - LoRA configurations are saved per node and persist across sessions  
 - **Folder Structure** - Browse LoRAs with folder tree navigation  
 - **Search Functionality** - Quickly find LoRAs by name  

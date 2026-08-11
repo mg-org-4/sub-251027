@@ -218,13 +218,33 @@ def test_reviewer_graph_transform_submit_modes(tmp_path):
                 updatedAt: 1234,
             }});
             assert(savedState.answer === "saved answer", "Loader state setter must return the saved answer");
+            assert(savedState.thinking === "saved thinking", "Loader live preview state may keep current-run Thinking in memory");
             assert(stateNode.properties.deno_local_llm_state.answer === "saved answer", "Loader state must persist into node.properties");
-            const restoredStateNode = {{ id: 45, properties: {{ deno_local_llm_state: stateNode.properties.deno_local_llm_state }} }};
+            assert(stateNode.properties.deno_local_llm_state.thinking === "", "Loader properties must never persist current-run Thinking");
+            const restoredStateNode = {{
+                id: 45,
+                properties: {{
+                    deno_local_llm_state: {{
+                        ...stateNode.properties.deno_local_llm_state,
+                        thinking: "legacy saved thinking",
+                    }},
+                }},
+            }};
             const restoredState = api.restoreLocalLLMStateFromProperties(restoredStateNode);
             assert(restoredState.answer === "saved answer", "Loader state must restore from workflow properties");
-            assert(restoredStateNode.__denoLocalLLMState.thinking === "saved thinking", "Restored Loader state must hydrate the visible node state");
-            const lazyRestoredStateNode = {{ id: 145, properties: {{ deno_local_llm_state: stateNode.properties.deno_local_llm_state }} }};
-            assert(api.getLocalLLMNodeState(lazyRestoredStateNode).thinking === "saved thinking", "Loader preview state must lazily restore Thinking from workflow properties");
+            assert(restoredStateNode.__denoLocalLLMState.thinking === "", "Restoring older Loader state must not hydrate private Thinking");
+            assert(restoredStateNode.properties.deno_local_llm_state.thinking === "", "Restoring older Loader state must scrub private Thinking from properties");
+            const lazyRestoredStateNode = {{
+                id: 145,
+                properties: {{
+                    deno_local_llm_state: {{
+                        ...stateNode.properties.deno_local_llm_state,
+                        thinking: "legacy lazy thinking",
+                    }},
+                }},
+            }};
+            assert(api.getLocalLLMNodeState(lazyRestoredStateNode).thinking === "", "Loader preview state must not lazily restore Thinking from workflow properties");
+            assert(lazyRestoredStateNode.properties.deno_local_llm_state.thinking === "", "Lazy restore must scrub private Thinking from workflow properties");
             const progressStateNode = {{ id: 146, properties: {{}}, setDirtyCanvas() {{}} }};
             api.setLocalLLMNodeState(progressStateNode, {{
                 status: "done",
@@ -240,6 +260,7 @@ def test_reviewer_graph_transform_submit_modes(tmp_path):
                 answer: "kept answer",
             }}));
             assert(api.getLocalLLMNodeState(progressStateNode).thinking === "kept thinking", "Progress updates without Thinking must not wipe the saved Thinking preview");
+            assert(progressStateNode.properties.deno_local_llm_state.thinking === "", "Live progress Thinking must remain absent from Loader properties");
             api.setLocalLLMNodeState(progressStateNode, api.localLLMProgressStatePatch(progressStateNode, {{
                 status: "running",
                 provider: "vLLM",
@@ -357,16 +378,28 @@ def test_reviewer_graph_transform_submit_modes(tmp_path):
             }};
             assert(configuredLoader.configure(configureInfo) === "configured", "Loader configure wrapper must preserve the original configure result");
             assert(configuredLoader.__denoLocalLLMState.answer === "workflow answer", "Loader configure must restore saved result state from properties");
+            assert(configuredLoader.__denoLocalLLMState.thinking === "", "Loader configure must not restore saved private Thinking");
+            assert(configureInfo.properties.deno_local_llm_state.thinking === "", "Loader configure must scrub private Thinking before base restore");
             const sameIdOtherWorkflowNode = {{ id: 46, type: "DenoLocalLLMRefiner", properties: {{}} }};
             assert(
                 api.getLocalLLMNodeState(sameIdOtherWorkflowNode).answer !== "workflow answer",
                 "Loader state must be scoped to the actual node object, not a node id reused by another workflow"
             );
+            api.setLocalLLMNodeState(configuredLoader, {{ thinking: "current run thinking", updatedAt: 3333 }});
+            assert(configuredLoader.__denoLocalLLMState.thinking === "current run thinking", "Current-run Thinking must remain visible in the in-memory Loader preview");
+            assert(configuredLoader.properties.deno_local_llm_state.thinking === "", "Current-run Thinking must not leak into live workflow properties");
             const serializedInfo = {{ widgets_values: [...savedLoaderValues], properties: {{}} }};
             assert(configuredLoader.onSerialize(serializedInfo) === "serialized", "Loader serialize wrapper must preserve the original serialize result");
             assert(serializedInfo.widgets_values.length === 13, "Loader serialize must remove generated buttons and keep canonical widget count");
             assert(serializedInfo.properties.deno_local_llm_state.answer === "workflow answer", "Loader serialize must include saved result state in properties");
+            assert(serializedInfo.properties.deno_local_llm_state.thinking === "", "Loader serialize must never include current-run Thinking");
+            assert(configuredLoader.properties.deno_local_llm_state.thinking === "", "Loader serialize must keep node.properties free of Thinking");
+            assert(configuredLoader.__denoLocalLLMState.thinking === "current run thinking", "Loader serialize must not erase the current in-memory Thinking preview");
+            const serializedReloadNode = {{ id: 246, properties: serializedInfo.properties }};
+            assert(api.restoreLocalLLMStateFromProperties(serializedReloadNode).answer === "workflow answer", "Serialized Loader state must retain the final answer on reload");
+            assert(serializedReloadNode.__denoLocalLLMState.thinking === "", "Serialized Loader state must reload without private Thinking");
             const legacyInputNode = {{
+                id: 146,
                 inputs: [
                     {{ name: "image", label: "image", type: "IMAGE", link: 501 }},
                     {{ name: "prompt", label: "prompt", type: "STRING", link: 502 }},
@@ -374,11 +407,39 @@ def test_reviewer_graph_transform_submit_modes(tmp_path):
                 graph,
                 setDirtyCanvas() {{}},
             }};
+            graph.links[501] = {{ target_id: 146, target_slot: 0 }};
+            graph.links[502] = {{ target_id: 146, target_slot: 1 }};
             assert(api.ensureLoaderVideoSecondsInputSocket(legacyInputNode) === true, "Old Loader workflows must gain the new video seconds socket");
             assert(legacyInputNode.inputs.length === 3, "Adding video seconds must not replace an existing image or prompt socket");
             assert(legacyInputNode.inputs[0].link === 501 && legacyInputNode.inputs[1].link === 502, "Adding video seconds must preserve existing socket links and order");
             assert(legacyInputNode.inputs[2].name === "video_seconds" && legacyInputNode.inputs[2].type === "FLOAT", "Video seconds must be appended as a FLOAT socket on old workflows");
             assert(api.ensureLoaderVideoSecondsInputSocket(legacyInputNode) === false, "Video seconds migration must be idempotent");
+            assert(api.ensureLoaderAudioContextInputSocket(legacyInputNode) === true, "Old Loader workflows must gain the new audio analysis socket");
+            assert(legacyInputNode.inputs.length === 4, "Adding audio analysis must not replace existing image, prompt, or duration sockets");
+            assert(legacyInputNode.inputs[3].name === "audio_context" && legacyInputNode.inputs[3].type === "STRING", "Audio analysis must be appended as a STRING socket");
+            assert(legacyInputNode.inputs[3].label === "audio analysis" && legacyInputNode.inputs[3].localized_name === "audio analysis", "Audio analysis must use the visible beginner-facing label");
+            assert(graph.links[501].target_slot === 0 && graph.links[502].target_slot === 1, "Appending optional sockets must preserve existing linked input slots");
+            assert(api.ensureLoaderAudioContextInputSocket(legacyInputNode) === false, "Audio analysis migration must be idempotent");
+            assert(legacyInputNode.inputs.filter((input) => input.name === "audio_context").length === 1, "Repeated setup must not duplicate the audio analysis socket");
+            const reopenedAudioNode = {{
+                id: 147,
+                inputs: [
+                    {{ name: "image", label: "image", type: "IMAGE", link: 601 }},
+                    {{ name: "prompt", label: "prompt", type: "STRING", link: 602 }},
+                    {{ name: "video_seconds", label: "video seconds", type: "FLOAT", link: 603 }},
+                    {{ name: "audio analysis", localized_name: "audio analysis", label: "audio analysis", type: "*", link: 604 }},
+                ],
+                graph,
+                setDirtyCanvas() {{}},
+            }};
+            graph.links[601] = {{ target_id: 147, target_slot: 0 }};
+            graph.links[602] = {{ target_id: 147, target_slot: 1 }};
+            graph.links[603] = {{ target_id: 147, target_slot: 2 }};
+            graph.links[604] = {{ target_id: 147, target_slot: 3 }};
+            assert(api.ensureLoaderAudioContextInputSocket(reopenedAudioNode) === false, "Save/reopen must reuse the serialized audio analysis socket");
+            assert(reopenedAudioNode.inputs.length === 4, "Save/reopen must not duplicate serialized optional sockets");
+            assert(reopenedAudioNode.inputs[3].name === "audio_context" && reopenedAudioNode.inputs[3].type === "STRING", "Save/reopen must normalize legacy audio analysis socket fields");
+            assert(reopenedAudioNode.inputs[3].link === 604 && graph.links[604].target_slot === 3, "Save/reopen normalization must preserve the audio analysis link and slot");
             const modelChoices = api.modelChoiceValuesWithSavedValue(
                 [{{ id: "google/gemma-4-e4b" }}, {{ id: "google/gemma-4-12b" }}],
                 "codex/missing-saved-lm-studio-model"
@@ -655,7 +716,9 @@ def test_reviewer_graph_transform_submit_modes(tmp_path):
             assert(api.getWidget(copiedLoaderNode, "thinking").value === true, "Loader copy/paste setup must restore Thinking On");
             assert(api.getWidget(copiedLoaderNode, "seed").value === 42, "Loader copy/paste setup must restore the saved seed");
             assert(api.getWidget(copiedLoaderNode, "prompt").value === "Prompt text", "Loader copy/paste setup must restore the saved prompt text");
-            assert(api.getLocalLLMNodeState(copiedLoaderNode).thinking === "copied thinking", "Loader copy/paste setup must restore saved Thinking preview state");
+            assert(api.getLocalLLMNodeState(copiedLoaderNode).thinking === "", "Loader copy/paste setup must not restore saved private Thinking");
+            assert(copiedLoaderNode.properties.deno_local_llm_state.thinking === "", "Loader copy/paste setup must scrub private Thinking from properties");
+            assert(copiedLoaderNode.inputs.filter((input) => input.name === "audio_context").length === 1, "Fresh setup must add one audio analysis socket");
             const copiedPromptWidget = api.getWidget(copiedLoaderNode, "prompt");
             assert(typeof copiedPromptWidget.computeSize === "undefined", "Modern ComfyUI prompt layout must not keep the current node height as a fixed computeSize minimum");
             const compactPromptLayout = copiedPromptWidget.computeLayoutSize(copiedLoaderNode);
@@ -667,6 +730,7 @@ def test_reviewer_graph_transform_submit_modes(tmp_path):
             const restoredPromptLayout = copiedPromptWidget.computeLayoutSize(copiedLoaderNode);
             assert(grownPromptLayout.minHeight === 90 && restoredPromptLayout.minHeight === 90, "Growing a Loader must not ratchet its Prompt minimum and block shrinking back to the saved height");
             api.setupNode(copiedLoaderNode);
+            assert(copiedLoaderNode.inputs.filter((input) => input.name === "audio_context").length === 1, "Repeated setup must keep one audio analysis socket");
             assert(typeof copiedPromptWidget.computeSize === "undefined" && copiedPromptWidget.computeLayoutSize(copiedLoaderNode).minHeight === 90, "Repeated setup must preserve the non-ratcheting native Prompt layout");
             const legacyPromptNode = makeCopiedLoaderNode(149);
             const legacyPromptWidget = api.getWidget(legacyPromptNode, "prompt");

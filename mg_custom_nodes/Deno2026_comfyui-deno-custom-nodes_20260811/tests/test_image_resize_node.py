@@ -406,6 +406,8 @@ def test_node_registration_exports_expected_nodes():
         "DenoMultiImageLoader",
         "DenoMiniMaxH3ReferenceImageLoader",
         "DenoMiniMaxH3ReferenceToVideo",
+        "DenoAudioTranscript",
+        "DenoAudioAnalysisFinalize",
         "DenoAdvancedImageSourceLoader",
         "DenoLTXSequencer",
         "DenoLTX23PresetLoader",
@@ -433,6 +435,10 @@ def test_node_registration_exports_expected_nodes():
     )
     assert package.NODE_DISPLAY_NAME_MAPPINGS["DenoMiniMaxH3ReferenceToVideo"] == (
         "(Deno) MiniMax H3 Reference to Video"
+    )
+    assert package.NODE_DISPLAY_NAME_MAPPINGS["DenoAudioTranscript"] == "(Deno) Audio Transcript"
+    assert package.NODE_DISPLAY_NAME_MAPPINGS["DenoAudioAnalysisFinalize"] == (
+        "(Deno) Audio Analysis Finalizer"
     )
     assert package.NODE_DISPLAY_NAME_MAPPINGS["DenoAdvancedImageSourceLoader"] == "(Deno) Advanced Image Source Loader"
     assert package.NODE_DISPLAY_NAME_MAPPINGS["DenoLTXSequencer"] == "(Deno) LTX Sequencer"
@@ -3717,15 +3723,22 @@ def test_local_llm_refiner_declares_batch_prompt_contract_and_frontend_preview()
     ]
     assert required["comfy_vram_policy"][1]["default"] == "Auto: unload only before first LLM call"
     assert optional["image"][0] == "IMAGE"
-    assert list(optional) == ["image", "video_seconds"]
+    assert list(optional) == ["image", "video_seconds", "audio_context"]
     assert optional["video_seconds"][0] == "FLOAT"
     assert optional["video_seconds"][1]["forceInput"] is True
     assert optional["video_seconds"][1]["default"] == 0.0
     assert "duration sentence" in optional["video_seconds"][1]["tooltip"]
+    assert optional["audio_context"][0] == "STRING"
+    assert optional["audio_context"][1]["forceInput"] is True
+    assert optional["audio_context"][1]["multiline"] is True
     assert "user_prompt" not in optional
     assert "audio" not in optional
-    assert list(hidden) == ["unique_id"]
+    assert list(hidden) == ["unique_id", "extra_pnginfo"]
+    assert hidden["extra_pnginfo"] == "EXTRA_PNGINFO"
     assert "reviewer_state" not in hidden
+    assert node_cls.OUTPUT_TOOLTIPS == (
+        "Final Result returned by the Local LLM node. When the node executes, its latest Result is embedded in saved workflow metadata; Thinking/reasoning is not persisted. Batched prompts return a STRING list.",
+    )
 
     script = (REPO_ROOT / "web" / "js" / "deno_local_llm_refiner.js").read_text(encoding="utf-8")
     assert 'const NODE_NAME = "DenoLocalLLMRefiner";' in script
@@ -3859,6 +3872,7 @@ def test_local_llm_refiner_declares_batch_prompt_contract_and_frontend_preview()
     assert '"video_seconds"' not in loader_socket_block
     assert "normalizeLoaderPromptInputSocket" in script
     assert "ensureLoaderVideoSecondsInputSocket" in script
+    assert "ensureLoaderAudioContextInputSocket" in script
     assert "setPromptInputSocketFields" in script
     assert "const PROMPT_WIDGET_SIDE_INSET = 0;" in script
     assert "removeLoaderWidgetInputSockets" in script

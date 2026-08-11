@@ -27,6 +27,13 @@ _PAL_VERSION: Final[str] = "2.0.0" #< the version of palette definitions this no
 
 class StylePromptEncoderX21(io.ComfyNode):
     xTITLE         = "Style & Prompt Encoder ^G2.1"
+    xDESCRIPTION   = (
+        "Transforms a text prompt into embeddings, automatically adapting the prompt to match "
+        "the selected style and, optionally, a chosen colour palette. This node takes a prompt, "
+        "adjusts its visual style according to the chosen option (applying the palette if "
+        "provided), and then encodes it using the supplied CLIP model to generate an embedding "
+        "that will guide image generation. "
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -36,18 +43,10 @@ class StylePromptEncoderX21(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description   = (
-                "Transforms a text prompt into embeddings, automatically adapting the prompt to match "
-                "the selected style and, optionally, a chosen colour palette. This node takes a prompt, "
-                "adjusts its visual style according to the chosen option (applying the palette if "
-                "provided), and then encodes it using the supplied CLIP model to generate an embedding "
-                "that will guide image generation. "
-                "Because this node is experimental, its parameters, behaviour, or existence "
-                "may change or be removed entirely without prior notice. "
-            ),
             inputs=[
                 io.Clip.Input   ("clip",
                                  tooltip="The CLIP model used for encoding the text."

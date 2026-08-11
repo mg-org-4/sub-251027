@@ -20,6 +20,11 @@ from .core.system  import logger
 
 class LoadQwen34bModel(io.ComfyNode):
     xTITLE         = "Load Qwen3-4B Model (safetensors / gguf)"
+    xDESCRIPTION   = (
+        "Loads the Z-Image Text Encoder (Qwen3-4B) in safetensors or GGUF format. "
+        "Note that the 'ComfyUI-GGUF' custom nodes by city96 must be installed "
+        "for GGUF files to be detected by this node."
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -29,12 +34,10 @@ class LoadQwen34bModel(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name   = cls.xTITLE,
+            description    = cls.xDESCRIPTION,
             category       = cls.xCATEGORY,
             node_id        = cls.xCOMFY_NODE_ID,
             is_deprecated  = cls.xDEPRECATED,
-            description    = (
-                "Load the Z-Image Text Encoder (Qwen3-4B) in safetensor and GGUF format."
-            ),
             search_aliases = [
                 "load clip", "clip loader", "text encoder loader", "qwen", "qwen3", "llm loader", "gguf loader", "z-image"
             ],

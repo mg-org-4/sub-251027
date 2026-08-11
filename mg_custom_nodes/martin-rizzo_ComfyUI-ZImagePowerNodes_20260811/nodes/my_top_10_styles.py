@@ -24,6 +24,10 @@ _STL_VERSION: Final[str] = "1.0.0" #< the version of style definitions this node
 
 class MyTop10Styles(io.ComfyNode):
     xTITLE         = "My Top-10 Styles"
+    xDESCRIPTION   = (
+        "Allows you to select a visual style from your personalized top 10 list. "
+        "This node relies on 'My Top-10 Style Editor' to provide the list of your favorite styles."
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -33,13 +37,10 @@ class MyTop10Styles(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description   = (
-                "Allows you to select a visual style from your personalized top 10 list. "
-                "This node relies on 'My Top-10 Style Editor' to provide the list of your favorite styles."
-            ),
             inputs=[
                 io.String.Input("input" , optional=True, multiline=True, force_input=True, dynamic_prompts=False,
                                 tooltip="Input to chain ther top styles nodes to this one.",

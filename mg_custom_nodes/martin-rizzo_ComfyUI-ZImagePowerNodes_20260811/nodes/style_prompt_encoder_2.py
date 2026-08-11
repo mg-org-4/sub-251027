@@ -25,6 +25,12 @@ _STL_VERSION: Final[str] = "1.0.0" #< the version of style definitions this node
 
 class StylePromptEncoder2(io.ComfyNode):
     xTITLE         = "Style & Prompt Encoder"
+    xDESCRIPTION   = (
+        "Transforms a text prompt into embeddings, automatically adapting the prompt to match "
+        "the selected style. This node takes a prompt, adjusts its visual style according to "
+        "the chosen option, and then encodes it using the provided text encoder (clip) to "
+        "generate an embedding that will guide image generation."
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -34,15 +40,10 @@ class StylePromptEncoder2(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description   = (
-                "Transforms a text prompt into embeddings, automatically adapting the prompt to match "
-                "the selected style. This node takes a prompt, adjusts its visual style according to "
-                "the chosen option, and then encodes it using the provided text encoder (clip) to "
-                "generate an embedding that will guide image generation."
-            ),
             inputs=[
                 io.Clip.Input           ("clip",
                                          tooltip="The CLIP model used for encoding the text."

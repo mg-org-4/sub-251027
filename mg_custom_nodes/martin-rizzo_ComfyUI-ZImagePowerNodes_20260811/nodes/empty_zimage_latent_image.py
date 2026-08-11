@@ -44,6 +44,12 @@ DEFAULT_SCALE        = "medium (recommended)"
 
 class EmptyZImageLatentImage(io.ComfyNode):
     xTITLE         = "Empty Z-Image Latent Image"
+    xDESCRIPTION   = (
+        "Create a new batch of empty latent images optimized for the Z-Image "
+        "and Z-Image-Turbo models. Calculates resolution based on selected "
+        "aspect ratios and scale factors to maintain compatibility with the "
+        "requirements of the models."
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -53,12 +59,11 @@ class EmptyZImageLatentImage(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description   = (
-                "Create a new batch of empty latent images to be used as a starting point for denoising with the Z-Image model."
-            ),
+            search_aliases=["empty", "empty latent", "new latent", "create latent", "blank latent", "blank"],
             inputs=[
                 io.Boolean.Input("orientation",
                                  default=False, label_on="horizontal", label_off="vertical",

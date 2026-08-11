@@ -48,6 +48,12 @@ class Filter(Enum):
 
 class BasicImageFilters(io.ComfyNode):
     xTITLE         = "Basic Image Filters"
+    xDESCRIPTION   = (
+        "Provides a set of image processing filters for post-generation color "
+        "correction and tone adjustment. Supports up to three simultaneous "
+        "filtering layers with individual intensity scaling, along with an "
+        "optional automatic contrast normalization pass."
+    )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -57,11 +63,10 @@ class BasicImageFilters(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description   = (""
-            ),
             search_aliases=["decode", "decode latent", "latent to image", "render latent"],
             inputs=[
                 io.Image.Input    ("images"),
@@ -78,36 +83,36 @@ class BasicImageFilters(io.ComfyNode):
 
                 io.Combo.Input    ("filter_1",
                                    options=cls.filters(),
-                                   tooltip="The color correction filter to apply to the resulting image."
+                                   tooltip="The first color correction filter to apply to the resulting image."
                                   ),
-                io.Float.Input    ("filter_1_control", min=-0.5, max=0.5, default=0.0, step=0.1,
-                                   tooltip="The calibration offset for the selected filter. "
-                                           "This value has a range from -0.5 to 0.5 with 0.0 as the "
-                                           "default ideal baseline balance."
+                io.Float.Input    ("filter_1_adjust",
+                                   default=0.0, min=-0.5, max=0.5, step=0.1, round=0.1,
+                                   tooltip="The fine-tuning control for the filter effect. "
+                                           "Range is -0.5 to 0.5, with 0.0 as the ideal baseline balance. "
                                   ),
 
                 zp.Separator.Input("divider2", mode="spacer"),#====================================
 
                 io.Combo.Input    ("filter_2",
                                    options=cls.filters(),
-                                   tooltip="The color correction filter to apply to the resulting image."
+                                   tooltip="The second color correction filter to apply to the resulting image."
                                   ),
-                io.Float.Input    ("filter_2_control", min=-0.5, max=0.5, default=0.0, step=0.1,
-                                   tooltip="The calibration offset for the selected filter. "
-                                           "This value has a range from -0.5 to 0.5 with 0.0 as the "
-                                           "default ideal baseline balance."
+                io.Float.Input    ("filter_2_adjust",
+                                   default=0.0, min=-0.5, max=0.5, step=0.1, round=0.1,
+                                   tooltip="The fine-tuning control for the filter effect. "
+                                           "Range is -0.5 to 0.5, with 0.0 as the ideal baseline balance. "
                                   ),
 
                 zp.Separator.Input("divider3", mode="spacer"),#====================================
 
                 io.Combo.Input    ("filter_3",
                                    options=cls.filters(),
-                                   tooltip="The color correction filter to apply to the resulting image."
+                                   tooltip="The third color correction filter to apply to the resulting image."
                                   ),
-                io.Float.Input    ("filter_3_control", min=-0.5, max=0.5, default=0.0, step=0.1,
-                                   tooltip="The calibration offset for the selected filter. "
-                                           "This value has a range from -0.5 to 0.5 with 0.0 as the "
-                                           "default ideal baseline balance."
+                io.Float.Input    ("filter_3_adjust",
+                                   default=0.0, min=-0.5, max=0.5, step=0.1, round=0.1,
+                                   tooltip="The fine-tuning control for the filter effect. "
+                                           "Range is -0.5 to 0.5, with 0.0 as the ideal baseline balance. "
                                   ),
             ],
             outputs=[
@@ -122,15 +127,19 @@ class BasicImageFilters(io.ComfyNode):
                 enable_auto_contrast: bool,
                 enable_filters      : bool,
                 filter_1            : str,
-                filter_1_control    : float,
+                filter_1_adjust     : float,
                 filter_2            : str,
-                filter_2_control    : float,
+                filter_2_adjust     : float,
                 filter_3            : str,
-                filter_3_control    : float,
+                filter_3_adjust     : float,
                 divider1: Any = None,
                 divider2: Any = None,
                 divider3: Any = None,
                 ):
+        # round float values to 1 decimal place
+        filter_1_adjust = round(filter_1_adjust, 1)
+        filter_2_adjust = round(filter_2_adjust, 1)
+        filter_3_adjust = round(filter_3_adjust, 1)
 
         # convert images to shape [B, C, H, W] compatible with torchvision & kornia
         images = images.permute(0, 3, 1, 2)
@@ -144,9 +153,9 @@ class BasicImageFilters(io.ComfyNode):
 
         # apply filters, which may modify the color space of the images
         if enable_filters:
-            images, color_space = cls.apply_filter_to_images(images, color_space, filter_1, filter_1_control)
-            images, color_space = cls.apply_filter_to_images(images, color_space, filter_2, filter_2_control)
-            images, color_space = cls.apply_filter_to_images(images, color_space, filter_3, filter_3_control)
+            images, color_space = cls.apply_filter_to_images(images, color_space, filter_1, filter_1_adjust)
+            images, color_space = cls.apply_filter_to_images(images, color_space, filter_2, filter_2_adjust)
+            images, color_space = cls.apply_filter_to_images(images, color_space, filter_3, filter_3_adjust)
 
         # convert back to RGB color space
         # and return to [B, H, W, C] shape, which is compatible with ComfyUI

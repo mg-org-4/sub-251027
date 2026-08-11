@@ -23,6 +23,12 @@ from .core.helpers_node import execute_node
 
 class AdvancedVAEDecoderX21(io.ComfyNode):
     xTITLE         = "Advanced VAE Decoder ^G2.1"
+    xDESCRIPTION   = (
+        "An experimental alternative to the native ComfyUI VAEDecode node. "
+        "It features options to bypass the standard output clamp so pixels "
+        "can fall outside the [0.0, 1.0] range, and force tiled decoding to "
+        "reduce VRAM usage on large images."
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -32,15 +38,10 @@ class AdvancedVAEDecoderX21(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description   = (
-                "An experimental alternative to the native ComfyUI VAEDecode node. "
-                "It features options to bypass the standard output clamp so pixels "
-                "can fall outside the [0.0, 1.0] range, and force tiled decoding to "
-                "reduce VRAM usage on large images."
-            ),
             search_aliases=["decode", "decode latent", "latent to image", "render latent"],
             inputs=[
                 io.Latent.Input      ("samples",

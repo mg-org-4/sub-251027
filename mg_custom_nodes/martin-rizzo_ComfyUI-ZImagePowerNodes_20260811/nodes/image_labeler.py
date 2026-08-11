@@ -24,6 +24,7 @@ from .core.helpers_text  import TextBox, load_font
 
 class ImageLabeler(io.ComfyNode):
     xTITLE         = "Image Labeler"
+    xDESCRIPTION   = "Adds a label with custom text to the image."
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -32,12 +33,10 @@ class ImageLabeler(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description=(
-                "Adds a label with custom text to the image. "
-            ),
             inputs=[
                 io.Image.Input("image",
                     tooltip="Input image to which the label will be added. ",

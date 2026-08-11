@@ -25,6 +25,12 @@ _STL_VERSION: Final[str] = "0.8.0" #< the version of style definitions this node
 
 class PhotoStylePromptEncoder(io.ComfyNode):
     xTITLE         = "Photo-Style Prompt Encoder"
+    xDESCRIPTION   = (
+        "Transforms a text prompt into an embedding, adapted to the selected photographic style. "
+        "This node takes a prompt, adjusts its visual style according to the chosen option, and "
+        "then encodes it using the provided text encoder to generate an embedding that will guide "
+        "image generation."
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -34,15 +40,10 @@ class PhotoStylePromptEncoder(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description   = (
-                "Transforms a text prompt into an embedding, adapted to the selected photographic style. "
-                "This node takes a prompt, adjusts its visual style according to the chosen option, and "
-                "then encodes it using the provided text encoder to generate an embedding that will guide "
-                "image generation."
-            ),
             inputs=[
                 io.Clip.Input  ("clip",
                                 tooltip="The CLIP model used for encoding the text."

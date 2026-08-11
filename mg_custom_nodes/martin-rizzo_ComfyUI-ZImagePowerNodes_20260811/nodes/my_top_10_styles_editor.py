@@ -24,6 +24,12 @@ _STL_VERSION: Final[str] = "1.0.0" #< the version of style definitions this node
 
 class MyTop10StylesEditor(io.ComfyNode):
     xTITLE         = "My Top-10 Styles (Editor)"
+    xDESCRIPTION   = (
+        "Allows you to create a personalized list of your top 10 visual styles, "
+        "selecting from all available options to build your ideal collection. "
+        "This node is designed to work alongside 'My Top-10 Styles' to define "
+        "and utilize your preferred styles."
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -33,15 +39,10 @@ class MyTop10StylesEditor(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description   = (
-                "Allows you to create a personalized list of your top 10 visual styles, "
-                "selecting from all available options to build your ideal collection. "
-                "This node is designed to work alongside 'My Top-10 Styles' to define "
-                "and utilize your preferred styles."
-            ),
             inputs=[
                 io.Combo.Input( "style_1" , options=cls.style_names(), ),
                 zp.StyleGalleryButton.Input("gallery_1", version="1.0", dialog_title="Select Style 1"),

@@ -26,6 +26,7 @@ else:                             LANCZOS = Image.LANCZOS # type: ignore
 
 class ImageGridBuilder(io.ComfyNode):
     xTITLE         = "Image Grid Builder"
+    xDESCRIPTION   = "Generate a grid containing all images passed as input. "
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -35,12 +36,10 @@ class ImageGridBuilder(io.ComfyNode):
         autogrow_template = io.Autogrow.TemplatePrefix(io.Image.Input("image"), prefix="image", min=2, max=50)
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description=(
-                "Generate a grid containing all images passed as input. "
-            ),
             inputs=[
                 io.Autogrow.Input("images", template=autogrow_template
                 ),

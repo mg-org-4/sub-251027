@@ -34,6 +34,12 @@ TURBO_CREATIVITY = {
 
 class ZSamplerTurbo2Advanced(io.ComfyNode):
     xTITLE         = "Z-Sampler Turbo ^G2 (Advanced)"
+    xDESCRIPTION   = (
+        'Efficiently denoises the latent image using a process specifically tuned for the "Z-Image Turbo". '
+        'This node takes a Z-Image Turbo model, an initial latent image, and conditioning parameters, and '
+        'produces a denoised latent output ready for decoding into the final image. This advanced version '
+        'includes extra parameters for more precise control and chaining of samplers.'
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -43,15 +49,10 @@ class ZSamplerTurbo2Advanced(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description   = (
-                'Efficiently denoises the latent image using a process specifically tuned for the "Z-Image Turbo". '
-                'This node takes a Z-Image Turbo model, an initial latent image, and conditioning parameters, and '
-                'produces a denoised latent output ready for decoding into the final image. This advanced version '
-                'includes extra parameters for more precise control and chaining of samplers.'
-            ),
             inputs=[
                 io.Latent.Input      ("latent_input",
                                       tooltip="The initial latent image to be denoised; usually an 'Empty Latent' for "

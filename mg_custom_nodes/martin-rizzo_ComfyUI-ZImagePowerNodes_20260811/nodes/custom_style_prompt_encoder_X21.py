@@ -31,8 +31,6 @@ class CustomStylePromptEncoderX21(io.ComfyNode):
         "Encodes a text prompt into embeddings by automatically adapting it to a selected "
         "custom style (and an optional colour palette), which are then processed by a "
         "CLIP model to generate the conditioning that guides image generation. "
-        "\n⚠️Because this node is experimental, its parameters, behaviour, or existence "
-        "may change or be removed entirely without prior notice. "
         )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""

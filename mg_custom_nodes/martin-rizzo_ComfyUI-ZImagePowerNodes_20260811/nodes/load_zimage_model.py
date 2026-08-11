@@ -19,6 +19,11 @@ from .core.system import logger
 
 class LoadZImageModel(io.ComfyNode):
     xTITLE         = "Load Z-Image Model (safetensors / gguf)"
+    xDESCRIPTION   = (
+        "Load the Z-Image Diffusion Model in safetensors and GGUF format. "
+        "Note that the 'ComfyUI-GGUF' custom nodes by city96 must be installed "
+        "for GGUF files to be detected by this node."
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -28,12 +33,10 @@ class LoadZImageModel(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name   = cls.xTITLE,
+            description    = cls.xDESCRIPTION,
             category       = cls.xCATEGORY,
             node_id        = cls.xCOMFY_NODE_ID,
             is_deprecated  = cls.xDEPRECATED,
-            description    = (
-                "Load the Z-Image Diffusion Model in safetensors and GGUF format."
-            ),
             search_aliases = [
                 "load model", "unet loader", "diffusion model loader", "z-image", "zimage", "gguf loader"
             ],

@@ -24,6 +24,10 @@ _STL_VERSION: Final[str] = "1.0.0" #< the version of style definitions this node
 
 class StyleStringInjector2(io.ComfyNode):
     xTITLE         = "Style String Injector"
+    xDESCRIPTION   = (
+        "Injects a style to your prompt. This node takes a text prompt and modifies it "
+        "according to the selected style"
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -33,13 +37,10 @@ class StyleStringInjector2(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description   = (
-                "Injects a style to your prompt. This node takes a text prompt and modifies it "
-                "according to the selected style"
-            ),
             inputs=[
                 io.Combo.Input          ("style",
                                          options=cls.style_names(),

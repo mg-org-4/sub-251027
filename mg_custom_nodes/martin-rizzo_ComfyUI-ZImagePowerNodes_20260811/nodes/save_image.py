@@ -34,10 +34,13 @@ from .empty_zimage_latent_image import EmptyZImageLatentImage
 
 class SaveImage(io.ComfyNode):
     xTITLE         = "Save Image"
+    xDESCRIPTION   =  (
+        "Saves the input images to your ComfyUI output directory "
+        "with optional CivitAI-compatible metadata support."
+        )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
-
     # these were instance variables
     # but now in V3 schema everything is @classmethod
     xTYPE          = "output"
@@ -50,13 +53,11 @@ class SaveImage(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name   = cls.xTITLE,
+            description    = cls.xDESCRIPTION,
             category       = cls.xCATEGORY,
             node_id        = cls.xCOMFY_NODE_ID,
             is_deprecated  = cls.xDEPRECATED,
             is_output_node = True,
-            description    = (
-                "Saves the input images to your ComfyUI output directory with optional CivitAI-compatible metadata support."
-            ),
             search_aliases=["save", "save image", "export image", "output image", "write image", "civitai"],
             inputs=[
                 io.Image.Input  ("images",

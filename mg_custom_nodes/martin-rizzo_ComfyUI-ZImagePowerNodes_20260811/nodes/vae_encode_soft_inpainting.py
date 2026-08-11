@@ -28,6 +28,7 @@ PIXELS_BY_SIZE = {
 
 class VAEEncodeSoftInpainting(io.ComfyNode):
     xTITLE         = "VAE Encode (for Soft Inpainting)"
+    xDESCRIPTION   = "Encodes the input image and its inpainting mask into latent space using a VAE model."
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -37,12 +38,10 @@ class VAEEncodeSoftInpainting(io.ComfyNode):
     def define_schema(cls) -> io.Schema:
         return io.Schema(
             display_name  = cls.xTITLE,
+            description   = cls.xDESCRIPTION,
             category      = cls.xCATEGORY,
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
-            description   = (
-                'Encodes the input image and its inpainting mask into latent space using a VAE model.'
-            ),
             inputs=[
                 io.Image.Input("pixels",
                                tooltip="The input image to encode",

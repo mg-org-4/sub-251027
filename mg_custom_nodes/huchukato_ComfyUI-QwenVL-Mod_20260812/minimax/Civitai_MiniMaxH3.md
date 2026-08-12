@@ -27,7 +27,7 @@ Version 2.5.1 (2026/08/11) — 🎬 MiniMax H3 Native Video+Audio + Qwen3-VL Aut
 
 ### Software
 
-- **ComfyUI**: v0.30.0+ (required for MiniMax H3 native support)
+- **ComfyUI**: v0.31.0+ (required for MiniMax H3 native support)
 - **Python**: 3.10+
 - **CUDA**: 12.8+ (13.0 recommended)
 - **Storage**: 30-110 GB SSD depending on quantization
@@ -241,16 +241,16 @@ The workflows include built-in NSFW presets for the Qwen3-VL prompt enhancer:
 
 ### Models Required
 
-**T2VA / I2VA / FL2VA** use the uncensored **10Eros-Max** fine-tune for less filtering and better NSFW adherence:
+**T2VA / I2VA / FL2VA** use the official Comfy-Org **FL2VA** model:
 
 - `models/vae/` → `minimax_h3_video_vae_fp16.safetensors` (~5 GB)
 - `models/vae/` → `minimax_h3_audio_vae_fp32.safetensors` (~0.6 GB)
-- `models/diffusion_models/` → `10Eros_Max_h3_fl2va_pruned_int8_convrot.safetensors` (~21 GB) — [QrusherZA/10Eros-Max-int8-convrot](https://huggingface.co/QrusherZA/10Eros-Max-int8-convrot)
+- `models/diffusion_models/` → `minimax_h3_fl2va_pruned_int8_convrot.safetensors` (~20 GB) — [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3)
 - `models/text_encoders/` → `qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors` (~27 GB) — [ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot](https://huggingface.co/ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot)
 
 **R2VA (ref2va)** keeps the official Comfy-Org model:
 
-- `models/diffusion_models/` → `minimax_h3_ref2va_pruned_int8_convrot.safetensors` (~21 GB) — [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3)
+- `models/diffusion_models/` → `minimax_h3_ref2va_pruned_int8_convrot.safetensors` (~20 GB) — [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3)
 
 **Turbo LoRA (optional — all tasks)**
 
@@ -273,7 +273,7 @@ The workflows include built-in NSFW presets for the Qwen3-VL prompt enhancer:
 ### Download Links
 
 - **VAE**: [video_vae_fp16](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors) · [audio_vae_fp32](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors)
-- **Diffusion (fl2va, uncensored)**: [10Eros_Max_h3_fl2va_pruned_int8_convrot.safetensors](https://huggingface.co/QrusherZA/10Eros-Max-int8-convrot/resolve/main/10Eros_Max_h3_fl2va_pruned_int8_convrot.safetensors)
+- **Diffusion (fl2va, official)**: [minimax_h3_fl2va_pruned_int8_convrot.safetensors](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors)
 - **Diffusion (ref2va, official)**: [minimax_h3_ref2va_pruned_int8_convrot.safetensors](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors)
 - **Text encoder (uncensored)**: [qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors](https://huggingface.co/ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot/resolve/main/qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors)
 - **Text encoder (official, alternative)**: [qwen3vl_32b_minimax_h3_int8_convrot.safetensors](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors)
@@ -327,7 +327,7 @@ Prefer a ready-to-go environment? Use the **OneClick - ComfyUI - MiniMax H3 Turb
 - All custom nodes pre-installed
 - All 8 workflows auto-downloaded at boot
 - Models auto-downloaded at first boot (~70 GB with Turbo LoRA, persistent)
-- ComfyUI v0.30.0+ forced at boot
+- ComfyUI v0.31.0+ forced at boot
 - Sage Attention, FP16 accumulation, async offload
 - TensorRT upscaling + RIFE interpolation
 

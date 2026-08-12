@@ -491,11 +491,18 @@ function registerPromptNode(nodeName, defaultFileName) {
                     });
 
                     container.addEventListener("mousedown", (e) => e.stopPropagation());
-                    const domWidget = this.addDOMWidget("UI", "HTML", container);
-                    
-                    domWidget.computeSize = function() {
-                        return [_this.size[0], 50];
-                    };
+					const domWidget = this.addDOMWidget("UI", "HTML", container);
+
+					// IMPORTANTE:
+					// El DOM widget NO debe depender de _this.size[1].
+					// Si lo hacemos, ComfyUI puede entrar en un ciclo de
+					// crecimiento del nodo.
+					//
+					// Le damos un tamaño fijo que corresponde al área interna
+					// del nodo y dejamos que el nodo controle su propio tamaño.
+					domWidget.computeSize = function() {
+						return [0, 0];
+					};
 
                     hideNativeTextWidget(this);
 

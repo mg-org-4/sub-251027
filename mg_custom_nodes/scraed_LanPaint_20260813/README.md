@@ -39,7 +39,7 @@ note={}
 
 [Join our Discord](https://discord.gg/yN5wYDE6W4) to share experiences, discuss features, and explore future development.
 
-`v1.5.0` fixes an important hidden bug that reduced performance and could blur images (especially with `z-image-base`) and also boosts overall LanPaint performance across other models. 
+`v2.1.0` significantly accelerates LanPaint with a new schedule mechanism and fixes MiniMax H3 support on the latest ComfyUI.
 If your inpainting results have wierd (glowing / broken) mask boundary, check this [issue](https://github.com/scraed/LanPaint/issues/80).
 
 **🎬 NEW: LanPaint now supports MiniMax H3 video + audio inpainting!**
@@ -103,10 +103,11 @@ Check our latest [Krea2 Example](#example-krea2-inpaintlanpaint-k-sampler-3-step
 - [Features](#features)
 - [Quickstart](#quickstart)
 - [How to Use Examples](#how-to-use-examples)
-- [Video Examples (Beta)](#video-examples-beta)
+- [Video Examples](#video-examples)
   - [Wan 2.2 Video Inpainting](#wan-22-video-inpainting)
   - [Wan 2.2 5B Video Inpainting](#wan-22-5b-video-inpainting)
   - [Wan 2.2 Video Outpainting](#wan-22-video-outpainting)
+  - [MiniMax H3 Video + Audio Inpainting](#minimax-h3-video--audio-inpainting-av-pipeline)
   - [Resource Consumption](#resource-consumption)
 - [Image Examples](#image-examples)
   - [Flux.2.Dev](#example-flux2dev-inpaintlanpaint-k-sampler-5-steps-of-thinking)
@@ -177,7 +178,7 @@ Once installed, you'll find the LanPaint nodes under the "sampling" category in 
    - **[VAE Encode for Inpainting](https://comfyanonymous.github.io/ComfyUI_examples/inpaint/)**
    - **[Set Latent Noise Mask](https://comfyui-wiki.com/en/tutorial/basic/how-to-inpaint-an-image-in-comfyui)**
 
-## Video Examples (Beta)
+## Video Examples
 
 LanPaint now supports video inpainting with Wan 2.2, enabling you to seamlessly inpaint masked regions across video frames while maintaining temporal consistency.
 
@@ -619,6 +620,9 @@ Submit a PR to add your tutorial/video here, or open an [Issue](https://github.c
 [Working togather with crop&stitch](https://github.com/scraed/LanPaint/issues/46)
 
 ## Updates
+- 2026/08/12
+    - `v2.1.0`: Significantly accelerated LanPaint using a new schedule mechanism.
+    - Fix bugs for MiniMax H3 on the latest ComfyUI.
 - 2026/08/09
     - Add MiniMax H3 video + audio inpainting support (Example_29): paint per-frame video masks and audio intervals in one editor session, encode both streams into a nested AV latent, sample once, and decode back with the source fps and bit depth preserved.
     - The mask editor can export the masks into the video itself (mp4 metadata) - share a single video file and the masks travel with it.

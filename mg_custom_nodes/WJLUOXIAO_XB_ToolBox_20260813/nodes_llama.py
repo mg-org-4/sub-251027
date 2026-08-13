@@ -835,13 +835,17 @@ class XB_llamaParameters:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "max_tokens": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1}),
-                "top_k": ("INT", {"default": 30, "min": 0, "max": 1000, "step": 1}),
+                "max_tokens": ("INT", {"default": 6144, "min": 0, "max": 8192, "step": 1,
+                    "tooltip": "生成 Token 上限\n6144 确保 6-8 镜分镜脚本不会截断"}),
+                "top_k": ("INT", {"default": 40, "min": 0, "max": 1000, "step": 1,
+                    "tooltip": "词汇库检索范围\n40 配合 0.60 温度，兼顾格式严谨与词汇多样"}),
                 "top_p": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "min_p": ("FLOAT", {"default": 0.05, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "typical_p": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "temperature": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 2.0, "step": 0.01}),
-                "repeat_penalty": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "temperature": ("FLOAT", {"default": 0.6, "min": 0.0, "max": 2.0, "step": 0.01,
+                    "tooltip": "温度\n0.60 确保 [SHOT_START] 格式严谨，减少幻觉"}),
+                "repeat_penalty": ("FLOAT", {"default": 1.12, "min": 0.0, "max": 10.0, "step": 0.01,
+                    "tooltip": "重复惩罚\n1.12 避免多镜分镜运镜描述句式复读"}),
                 "frequency_penalty": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "present_penalty": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 2.0, "step": 0.01}),
                 "mirostat_mode": ("INT", {"default": 0, "min": 0, "max": 2, "step": 1}),
@@ -2585,6 +2589,9 @@ class XB_RoleSceneDispatcher:
 
         display_text = text_input or XB_RoleSceneDispatcher._cached_text or ""
         return {"ui": {"text": [display_text]}, "result": (prompts, bg_out, c1_out, c2_out, c3_out, c4_out)}
+
+
+
 
 
 # =============================================================================

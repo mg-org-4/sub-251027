@@ -22,6 +22,7 @@ from .nodes._save_helpers import (
     _safe_prefix,
 )
 from .nodes._prompt_reader_helpers import read_prompt_from_image, resolve_input_image_name
+from .nodes import _video_prompt_helpers as _vp
 from .nodes._cache_bust_helpers import stamp_import_urls
 from .nodes._bg_removal_helpers import (
     get_birefnet_inventory,
@@ -3716,3 +3717,140 @@ async def api_load_audio_list(request):
         # reads as "my files are gone" (same reasoning as the LoRA list above).
         return web.json_response({"files": [], "error": True}, headers=hdrs)
     return web.json_response({"files": names}, headers=hdrs)
+
+
+# ---------------------------------------------------------------------------
+# Video Prompt Pixaroma - the editable formulas
+# ---------------------------------------------------------------------------
+# The formulas are FILES, not settings: 8.7k to 12.3k characters each, times
+# three modes, plus four duration tiers apiece. The shipped copies live in
+# assets/video_prompt_formulas; an edit is written to <ComfyUI user dir>/pixaroma/
+# video_prompt_formulas so a pack update never overwrites it and Reset can always put the
+# original back.
+#
+# CONTAINMENT: the only caller-supplied value that reaches a filename is `mode`,
+# and it is checked against a FIXED tuple before anything touches the disk
+# (_vp.valid_mode). That is stronger than sanitising a free string, because no
+# request can name a file we did not ship. Nothing here builds a path out of
+# user text, so there is no join to get wrong (.claude/patterns/path-containment.md).
+
+_VP_MAX_FORMULA = 400_000      # ~30x the largest shipped formula
+_VP_MAX_TIERS = 24
+_VP_MAX_TIER_VALUE = 40_000
+_VP_MAX_TIER_NAME = 200
+
+
+def _vp_no_store():
+    return {"Cache-Control": "no-store"}
+
+
+@PromptServer.instance.routes.get("/pixaroma/api/video_prompt/formulas")
+async def api_video_prompt_formulas(request):
+    """Everything the settings panel needs, in one request.
+
+    Re-read from disk every time (convention #18): our own route gets nothing
+    from ComfyUI's R refresh, so a cached answer would look permanently stale
+    after an edit made anywhere else.
+    """
+    out = {"modes": {}, "models": []}
+    for mode in _vp.MODES:
+        try:
+            formula = _vp.load_formula(mode)
+            tiers = _vp.load_durations(mode)
+            out["modes"][mode] = {
+                "formula": formula,
+                "chars": len(formula),
+                "edited": _vp.is_edited(mode),
+                "durations": tiers,
+            }
+        except Exception:
+            out["modes"][mode] = {
+                "formula": "", "chars": 0, "edited": False, "durations": [],
+            }
+    try:
+        out["models"] = list(folder_paths.get_filename_list("text_encoders"))
+    except Exception:
+        # A scan failure is not an empty folder - saying [] would make the panel
+        # claim the user has no text encoders at all.
+        out["models"] = []
+        out["models_error"] = True
+    return web.json_response(out, headers=_vp_no_store())
+
+
+@PromptServer.instance.routes.post("/pixaroma/api/video_prompt/formula")
+async def api_video_prompt_save_formula(request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = None
+    # request.json() returns ANY type, so never assume a dict.
+    if not isinstance(data, dict):
+        return web.json_response({"ok": False, "error": "bad body"}, status=400,
+                                 headers=_vp_no_store())
+    mode = data.get("mode")
+    text = data.get("text")
+    if not _vp.valid_mode(mode):
+        return web.json_response({"ok": False, "error": "unknown mode"}, status=400,
+                                 headers=_vp_no_store())
+    if not isinstance(text, str):
+        return web.json_response({"ok": False, "error": "text must be a string"},
+                                 status=400, headers=_vp_no_store())
+    if len(text) > _VP_MAX_FORMULA:
+        return web.json_response({"ok": False, "error": "formula too large"},
+                                 status=413, headers=_vp_no_store())
+    ok = _vp.save_formula(mode, text)
+    return web.json_response({"ok": bool(ok)}, headers=_vp_no_store())
+
+
+@PromptServer.instance.routes.post("/pixaroma/api/video_prompt/durations")
+async def api_video_prompt_save_durations(request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = None
+    if not isinstance(data, dict):
+        return web.json_response({"ok": False, "error": "bad body"}, status=400,
+                                 headers=_vp_no_store())
+    mode = data.get("mode")
+    tiers = data.get("tiers")
+    if not _vp.valid_mode(mode):
+        return web.json_response({"ok": False, "error": "unknown mode"}, status=400,
+                                 headers=_vp_no_store())
+    if not isinstance(tiers, list) or not tiers:
+        return web.json_response({"ok": False, "error": "tiers must be a list"},
+                                 status=400, headers=_vp_no_store())
+    if len(tiers) > _VP_MAX_TIERS:
+        return web.json_response({"ok": False, "error": "too many tiers"},
+                                 status=413, headers=_vp_no_store())
+    for item in tiers:
+        if not isinstance(item, dict):
+            continue
+        # The NAME was uncapped while the value was capped, so one unauthenticated
+        # POST could write ~20 MB of tier names (aiohttp's client_max_size) into
+        # the user dir, repeatably, each then rendering as a chip label.
+        if len(str(item.get("name", ""))) > _VP_MAX_TIER_NAME:
+            return web.json_response({"ok": False, "error": "tier name too long"},
+                                     status=413, headers=_vp_no_store())
+        if len(str(item.get("value", ""))) > _VP_MAX_TIER_VALUE:
+            return web.json_response({"ok": False, "error": "tier too large"},
+                                     status=413, headers=_vp_no_store())
+    ok = _vp.save_durations(mode, tiers)
+    return web.json_response({"ok": bool(ok)}, headers=_vp_no_store())
+
+
+@PromptServer.instance.routes.post("/pixaroma/api/video_prompt/reset")
+async def api_video_prompt_reset(request):
+    """Delete the user's override so the shipped formula is used again."""
+    try:
+        data = await request.json()
+    except Exception:
+        data = None
+    if not isinstance(data, dict):
+        return web.json_response({"ok": False, "error": "bad body"}, status=400,
+                                 headers=_vp_no_store())
+    mode = data.get("mode")
+    if not _vp.valid_mode(mode):
+        return web.json_response({"ok": False, "error": "unknown mode"}, status=400,
+                                 headers=_vp_no_store())
+    ok = _vp.reset_formula(mode)
+    return web.json_response({"ok": bool(ok)}, headers=_vp_no_store())

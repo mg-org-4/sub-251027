@@ -4,7 +4,7 @@ import comfy.model_management as mm
 import comfy.patcher_extension
 import gc
 import uuid
-from .block_swap import install_block_swap, install_te_block_swap, _free_to_meta, _has_ggml_params
+from .block_swap import install_block_swap, install_te_block_swap, _restore_ggml_refs, _restore_param_refs, _is_gguf_block
 
 logger = logging.getLogger(__name__)
 
@@ -36,18 +36,24 @@ def _get_cond_stage_model(clip_obj):
 
 def _free_block_cleanup(swl):
     """Free swap block memory during ON_CLEANUP.
-    Safetensor: _free_to_meta (release to meta, vbar handles restore).
-    GGUF: to(offload_device) (quantized data to CPU, GGMLTensor preserved).
+    Safetensor: _restore_param_refs (point params back at the original
+    CPU/staged data; swap blocks have no vbar _v - they are filtered out of
+    _load_list - so meta would leave them unrestorable).
+    GGUF: _restore_ggml_refs (point params back at the mmap GGMLTensors, no
+    anonymous RAM, no GPU round trip).
+    Covers ALL blocks, resident prefix included: the prefix must be released
+    too once inference ends, and swap state is reset so the next inference
+    re-preloads it.
     """
     for i in range(swl.non_swap_count, swl.total_count):
         try:
             blk = swl._modules.get(str(i))
             if blk is None:
                 continue
-            if _has_ggml_params(blk):
-                blk.to(swl.offload_device)
+            if _is_gguf_block(blk):
+                _restore_ggml_refs(blk)
             else:
-                _free_to_meta(blk)
+                _restore_param_refs(blk)
             for m in blk.modules():
                 for attr in ('ggml_weight', 'ggml_weight_data'):
                     if hasattr(m, attr):
@@ -57,6 +63,8 @@ def _free_block_cleanup(swl):
                             pass
         except Exception:
             pass
+    if hasattr(swl, 'reset_swap_state'):
+        swl.reset_swap_state()
 
 
 def _ensure_lora_functions(patcher, swl):
@@ -115,6 +123,19 @@ def clear_comfyui_cache_except(exclude_patcher=None):
     for pipe in cf_models:
         if exclude_patcher is not None and pipe is exclude_patcher:
             continue
+        # CRITICAL: do NOT unpatch patchers that share the same underlying
+        # model object (e.g. the previous UniBlockSwap output patcher from an
+        # earlier inference). GGUFModelPatcher.unpatch_model() wipes `.patches`
+        # off the SHARED GGMLTensor parameters and clears `_ggml_patches`,
+        # which would silently kill the LoRA on a swap reinstall (num_blocks
+        # changed -> node re-runs -> clear() runs while the old patcher is
+        # still in loaded_models()).
+        if exclude_patcher is not None:
+            try:
+                if pipe.model is exclude_patcher.model:
+                    continue
+            except Exception:
+                pass
         try:
             pipe.unpatch_model(device_to=torch.device("cpu"))
         except Exception:
@@ -123,6 +144,33 @@ def clear_comfyui_cache_except(exclude_patcher=None):
     torch.cuda.empty_cache()
     max_gpu_memory = torch.cuda.max_memory_allocated()
     print(f"After Max GPU memory allocated: {max_gpu_memory / 1000 ** 3:.2f} GB")
+
+
+def _remount_ggml_lora(patcher):
+    """Re-mount quantized GGUF LoRA patches after a swap reinstall.
+
+    Belt-and-braces alongside the shared-model skip in
+    clear_comfyui_cache_except(): if the shared GGMLTensor `.patches` were ever
+    wiped (e.g. by some other unpatch path), the patch *data* still lives in
+    `patcher._ggml_patches` (copied onto every clone), so re-mount it via the
+    un-wrapped class method, bypassing the `_skip_swap_patch` instance wrapper
+    that would otherwise swallow the call.
+
+    Idempotent: re-mounting the same patches over themselves is a no-op in
+    effect. Safe on first install too (no-op when _ggml_patches is absent, and
+    harmless when present). Works for DIT and TE patchers alike.
+    """
+    ggml_patches = getattr(patcher, "_ggml_patches", None)
+    if not ggml_patches:
+        return
+    raw_patch = getattr(type(patcher), "patch_weight_to_device", None)
+    if raw_patch is None:
+        return
+    for key in list(ggml_patches.keys()):
+        try:
+            raw_patch(patcher, key)
+        except Exception as e:
+            logger.warning("UniBlockSwap: failed to re-mount LoRA on %s: %s", key, e)
 
 
 class UniBlockSwap:
@@ -137,7 +185,10 @@ class UniBlockSwap:
             "optional": {
                 "num_blocks": ("INT", {
                     "default": -1, "min": -1, "max": 10000, "step": 1,
-                    "tooltip": "Blocks from end to swap. -1 = all, 0 = disable",
+                    "tooltip": ("前缀常驻块数: 一次性把 block 0..N-1 推送进 CUDA, "
+                                "常驻到本次推理结束才释放; 其余块按需逐块懒加载。"
+                                "-1 = 单块前缀常驻(最省显存); N = N 块前缀常驻; "
+                                ">= 总块数 = 不 swap 全部驻留"),
                 }),
             },
         }
@@ -146,7 +197,7 @@ class UniBlockSwap:
     RETURN_NAMES = ("model",)
     FUNCTION = "apply_swap"
     CATEGORY = "model/loaders"
-    DESCRIPTION = "Swap blocks one-at-a-time between GPU/CPU to reduce VRAM."
+    DESCRIPTION = "前缀常驻 swap: 前 num_blocks 个 block 一次性推入 CUDA 常驻到推理结束, 其余块逐块懒加载, 降低显存。"
 
     # NOTE: no IS_CHANGED on purpose. apply_swap() is a one-time install step
     # (wraps the shared model object in SwappableModuleList + attaches LoRA
@@ -176,9 +227,24 @@ class UniBlockSwap:
         prev_cleanup = getattr(diffusion_model, "_uniblockswap_cleanup", None)
         if prev_cleanup is not None:
             try:
+                # Offload the OLD swap blocks first (point params back at their
+                # mmap GGMLTensors) so the re-mount below lands on the mmap
+                # objects, not on stale CUDA copies from an interrupted run.
+                for m in diffusion_model.modules():
+                    if hasattr(m, "offload_swap_blocks"):
+                        m.offload_swap_blocks()
+            except Exception:
+                pass
+            try:
                 prev_cleanup()
             except Exception:
                 logger.warning("UniBlockSwap: failed to restore previous swap before reinstall", exc_info=True)
+
+        # Re-mount quantized LoRA patches (idempotent). After a num_blocks
+        # change the node re-runs and clear_comfyui_cache_except() above may
+        # have wiped the shared GGMLTensor `.patches` via unpatch_model(); the
+        # patch data still lives in patcher._ggml_patches, so re-attach it.
+        _remount_ggml_lora(patcher)
 
         compute = mm.get_torch_device()
         offload = mm.unet_offload_device()
@@ -275,7 +341,10 @@ class UniBlockSwapTE:
             "optional": {
                 "num_blocks": ("INT", {
                     "default": -1, "min": -1, "max": 10000, "step": 1,
-                    "tooltip": "Blocks from end to swap. -1 = all, 0 = disable",
+                    "tooltip": ("前缀常驻块数: 一次性把 block 0..N-1 推送进 CUDA, "
+                                "常驻到本次推理结束才释放; 其余块按需逐块懒加载。"
+                                "-1 = 单块前缀常驻(最省显存); N = N 块前缀常驻; "
+                                ">= 总块数 = 不 swap 全部驻留"),
                 }),
             },
         }
@@ -284,7 +353,7 @@ class UniBlockSwapTE:
     RETURN_NAMES = ("clip",)
     FUNCTION = "apply_swap"
     CATEGORY = "model/loaders"
-    DESCRIPTION = "Swap text encoder blocks one-at-a-time between GPU/CPU to reduce VRAM."
+    DESCRIPTION = "前缀常驻 swap 文本编码器 block: 前 num_blocks 个 block 常驻 CUDA 到本次推理结束, 其余块逐块懒加载。"
 
     # NOTE: no IS_CHANGED on purpose (see UniBlockSwap comment). Per-inference
     # VRAM cleanup of the text encoder is handled by UniBlockSwapCacheControl.
@@ -304,9 +373,19 @@ class UniBlockSwapTE:
         prev_cleanup = getattr(new_clip.patcher.model, "_uniblockswap_te_cleanup", None)
         if prev_cleanup is not None:
             try:
+                for m in cond_stage.modules():
+                    if hasattr(m, "offload_swap_blocks"):
+                        m.offload_swap_blocks()
+            except Exception:
+                pass
+            try:
                 prev_cleanup()
             except Exception:
                 logger.warning("UniBlockSwapTE: failed to restore previous swap before reinstall", exc_info=True)
+
+        # Re-mount quantized LoRA patches after a TE reinstall (idempotent);
+        # see _remount_ggml_lora docstring. No-op for non-GGUF TE patchers.
+        _remount_ggml_lora(new_clip.patcher)
 
         new_clip.patcher.backup = {}
         mm.soft_empty_cache()

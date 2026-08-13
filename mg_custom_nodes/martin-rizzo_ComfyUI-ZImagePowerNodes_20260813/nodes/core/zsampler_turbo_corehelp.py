@@ -12,7 +12,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
 import torch
 import torch.nn.functional as F
-from typing         import Callable, cast
+from typing         import Callable, Any
 from torch          import Tensor
 from comfy.samplers import KSAMPLER, ksampler, sampler_object
 
@@ -706,3 +706,41 @@ def _random_tensor_fragment(x                      : Tensor,
     # return = (B, C, H, W)
     return F.interpolate(fragment, size=(H, W), mode='bilinear', align_corners=False)
 
+
+#================================= HELPERS =================================#
+
+def get_latent_size(comfy_latent: dict[str, Any]) -> tuple[int, int] | None:
+    """
+    Retrieve the spatial dimensions of a ComfyUI latent tensor.
+    Args:
+        comfy_latent: A ComfyUI LATENT dictionary containing the "samples" tensor.
+    Returns:
+        A tuple containing (width, height) of the latent tensor,
+        or `None` if some error occurs.
+    """
+    latents: torch.Tensor | None = comfy_latent.get("samples")
+    if latents is None:
+        return None
+    return latents.shape[-1], latents.shape[-2]
+
+
+def adjust_latent_size(comfy_latent: dict[str, Any], size: tuple[int, int]) -> dict[str, Any]:
+    """
+    Resize the ComfyUI latent tensor to the specified dimensions.
+    Args:
+        comfy_latent: A ComfyUI LATENT dictionary containing the "samples" tensor to be resized.
+        size        : A tuple specifying the target (width, height) for the latent tensor.
+    Returns:
+        A new ComfyUI LATENT dictionary with the resized "samples" tensor.
+    """
+    latents: torch.Tensor | None = comfy_latent.get("samples")
+    if latents is None:
+        return comfy_latent
+    current_size = latents.shape[-1], latents.shape[-2]
+    if current_size == size:
+        return comfy_latent
+
+    resized_latents = torch.nn.functional.interpolate(latents, size=(size[1], size[0]), mode='bilinear')
+    comfy_latent = comfy_latent.copy()
+    comfy_latent["samples"] = resized_latents
+    return comfy_latent

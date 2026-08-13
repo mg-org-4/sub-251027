@@ -1,6 +1,6 @@
 """
-File    : image_labeler.py
-Purpose : Node to label an image with text.
+File    : image_labeler_1.py
+Purpose : Node to label an image with text (first version)
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Mar 27, 2026
 Repo    : https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes
@@ -17,13 +17,13 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
 import torch
 import numpy as np
-from PIL                 import Image, ImageDraw, ImageFont
-from comfy_api.latest    import io
-from .core.helpers_text  import TextBox, load_font
+from PIL                  import Image, ImageDraw, ImageFont
+from comfy_api.latest     import io
+from ..core.helpers_text  import TextBox, load_font
 
 
 class ImageLabeler(io.ComfyNode):
-    xTITLE         = "Image Labeler"
+    xTITLE         = "Image Labeler (old version)"
     xDESCRIPTION   = "Adds a label with custom text to the image."
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""

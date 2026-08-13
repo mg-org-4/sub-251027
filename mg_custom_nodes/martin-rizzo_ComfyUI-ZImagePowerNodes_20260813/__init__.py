@@ -194,6 +194,9 @@ class ZImagePowerNodesExtension(ComfyExtension):
         from .nodes.deprecated_nodes.zsampler_turbo_2_laboratory import ZSamplerTurbo2Laboratory
         _register_node( ZSamplerTurbo2Laboratory, nodes, subcategory )
 
+        from .nodes.deprecated_nodes.image_labeler_1 import ImageLabeler
+        _register_node( ImageLabeler, nodes, subcategory )
+
 
         #--[ __experimental ]--------------------
         subcategory = "__experimental"
@@ -223,11 +226,14 @@ class ZImagePowerNodesExtension(ComfyExtension):
         #--[ utils ]-----------------------------
         subcategory = "utils"
 
-        from .nodes.image_labeler import ImageLabeler
-        _register_node( ImageLabeler, nodes, subcategory )
+        from .nodes.image_labeler_2 import ImageLabeler2
+        _register_node( ImageLabeler2, nodes, subcategory )
 
         from .nodes.image_grid_builder import ImageGridBuilder
         _register_node( ImageGridBuilder, nodes, subcategory )
+
+        from .nodes.comfy_kitchen_attention_enabler import ComfyKitchenAttentionEnabler
+        _register_node( ComfyKitchenAttentionEnabler, nodes, subcategory )
 
 
         # report version and the number of nodes added by this extension

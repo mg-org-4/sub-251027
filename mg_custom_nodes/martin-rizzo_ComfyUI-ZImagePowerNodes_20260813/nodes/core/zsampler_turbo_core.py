@@ -19,15 +19,16 @@ import comfy.sampler_helpers
 from comfy.samplers import KSAMPLER
 from typing         import Any, TypeAlias, cast
 from .progress_bar  import ProgressPreview
-from .zsampler_turbo_corehelp import EulerAss, \
-                                     sampler_from_name, \
+from .zsampler_turbo_corehelp import sampler_from_name, \
                                      generate_noise, \
                                      inject_freq_noise, \
                                      truncate_sigmas_by_step_range, \
                                      truncate_sigmas_by_value_range, \
                                      refine_sigma_sequence, \
                                      merge_sigmas, \
-                                     scramble_tensor
+                                     scramble_tensor, \
+                                     get_latent_size, \
+                                     adjust_latent_size
 ComfyLatent      : TypeAlias = dict[str, Any]
 ComfyModel       : TypeAlias = Any
 ComfyConditioning: TypeAlias = list[ tuple[torch.Tensor,dict] ]
@@ -49,6 +50,7 @@ def zsampler_turbo_core(latent_input             : ComfyLatent,
                         initial_noise_bias_level : float                                   = 0.0,
                         initial_noise_overdose   : float                                   = 0.0,
                         noise_est_sample_size    : str | int | None                        = None,
+                        latent_sample_scales     : tuple[float,float,float] | None         = None,
                         sigma_preset_name        : str | None                              = None,
                         sigma_offsets            : list[float] | None                      = None,
                         sigma_limits             : tuple[float,float] | list[float] | None = None,
@@ -67,45 +69,44 @@ def zsampler_turbo_core(latent_input             : ComfyLatent,
                         progress_preview         : ProgressPreview
                         ) -> dict[str, Any]:
     """
-    Perform the three-stage denoising process on a latent input.
+    Perform a three-stage denoising process on a latent input.
 
     Args:
-        latent_input            : ComfyUI LATENT dict containing the initial latent tensor to be denoised.
-                                   Includes keys like "samples" and optional "noise_mask", "batch_index".
-        model                   : ComfyUI MODEL obj representing the model to use for denoising.
-        positive                : Positive conditioning for the denoising process.
-        seed                    : Seed for the deterministic RNG used throughout the sampler.
-        steps                   : The total number of denoising steps. This value will
-                                   be used internally to determine the sigmas values.
-        initial_noise_bias_level: The proportion of the estimated noise bias to apply before the first
-                                   denoising step.
-                                   0.0 = no noise bias applied
-                                   1.0 = using 100% of the estimated noise bias
+        latent_input            : ComfyUI LATENT dictionary containing the initial latent tensor to be denoised.
+                                   Includes keys such as "samples", and optional "noise_mask" or "batch_index".
+        model                   : The ComfyUI MODEL object used for the denoising process.
+        positive                : Positive conditioning applied during denoising.
+        seed                    : Seed for the deterministic random number generator used throughout sampling.
+        steps                   : Total number of denoising steps; used internally to calculate sigma values.
+        initial_noise_bias_level: The proportion of the estimated noise bias to apply before the first step.
+                                   0.0 = no bias applied; 1.0 = 100% of the estimated noise bias applied.
         initial_noise_overdose  : The level of over-amplitude in the initial noise scale.
-                                   0.0 = default noise scale;
-                                   positive values will increase the noise scale, e.g: 0.1 = 10% increment;
-                                   negative values will reduce the noise scale, e.g: -0.1 = 10% decrement.
-        noise_est_sample_size   : Size in pixels of the sample for initial noise estimation.
-                                   A string can be used to specify the size in pixels, e.g: "512px".
-                                   If `None`, the size of the latent input will be used.
+                                   0.0 = default scale; positive values increase scale (e.g., 0.1 = 10% increase);
+                                   negative values decrease scale (e.g., -0.1 = 10% decrease).
+        noise_est_sample_size   : The size in pixels for initial noise estimation.
+                                   Accepts string input (e.g., "512px"). If `None`, the size is derived from
+                                   `latent_sample_scales[0]` will be used.
+        latent_sample_scales    : A tuple of scale factors for the latent sample across stages:
+                                    - [0] = scale for initial (and optional) noise estimation.
+                                    - [1] = scale for the first stage.
+                                    - [2] = scale for the second stage.
         sigma_preset_name       : Name of a predefined sigma schedule (e.g. "alpha", "bravo").
-                                  If `None` the default schedule is used.
-        sigma_offsets           : Optional list of offsets to be added to the calculated sigma values.
-        sigma_limits            : Optional tuple with minimum and maximum limits for sigma values.
+                                   Defaults to `None` (uses the standard schedule).
+        sigma_offsets           : Optional list of offsets to apply to the calculated sigma values.
+        sigma_limits            : Optional tuple defining the minimum and maximum limits for sigma values.
         sigma_step_range        : Optional tuple with the range of steps that will actually be performed.
-        start_with_noise        : If `True` (default), begins the denoising process by injecting noise.
-                                   Set to `False` to preserve noise from a previous process (chaining samplers).
-        end_with_denoise        : If `True` (default), ends the denoising process by zeroing out residual noise.
-                                   Set to `False` to preserve noise for a next process (chaining samplers).
-        positive_stg2_preproc   : Optional positive conditioning to be used in the second stage pre-processing.
-                                   If `None` (default), the main positive conditioning will be used.
-        positive_stg2           : Optional positive conditioning to be used in the second stage.
-                                   If `None` (default), the main positive conditioning will be used.
-        positive_stg3           : Optional positive conditioning to be used in the third stage.
-                                   If `None` (default), the second stage positive conditioning will be used.
-        stage2_scramble         : Optional boolean to enable scrambling the latent image at the start of stage2.
-                                   This increases the model's creativity, generating images with more varied
-                                   compositions without altering the style.
+        start_with_noise        : If `True` (default), injects noise at the start. Set to `False` to preserve
+                                   existing noise from previous processes.
+        end_with_denoise        : If `True` (default), zeros out residual noise at the end. Set to `False` to
+                                   maintain noise for subsequent processes.
+        positive_stg2_preproc   : Optional positive conditioning for stage two preprocessing.
+                                   Defaults to `None` (uses main positive conditioning).
+        positive_stg2           : Optional positive conditioning for stage two.
+                                   Defaults to `None` (uses main positive conditioning).
+        positive_stg3           : Optional positive conditioning for stage three.
+                                   Defaults to `None` (uses stage two conditioning).
+        stage2_scramble         : If `True`, enables latent image scrambling at the start of stage two to
+                                   increase compositional variety without altering style.
         stage2_scramble_counts  : Optional tuple of four signed integers (left, top, right, bottom) that determine
                                    the amount of steps for the latent scrambling. Zero values mean "skip that side",
                                    positive values add normal fragments from that side, while negative values add
@@ -113,9 +114,8 @@ def zsampler_turbo_core(latent_input             : ComfyLatent,
                                    If this parameter is (0,0,0,0), no scrambling is performed even if `stage2_scramble=True`.
                                    If this parameter is None (default), the amount of steps is pseudo-randomly
                                    determined when `stage2_scramble=True`.
-        stage2_preproc_steps    : Optional number of steps to be performed as preprocessing in the second stage.
-                                   This can improve coherence and reduce hallucinations.
-                                   If zero (default), no preprocessing is performed.
+        stage2_preproc_steps    : Number of preprocessing steps in stage two to improve coherence and reduce
+                                   hallucinations. Defaults to 0.
         extra_noise_freqs       : Optional frequencies at which additional noise is injected into the latent image
                                    during each stage. The first two values correspond to stage1 and stage2, while all
                                    following values correspond to stage3. If `None` (default), no extra noise is injected.
@@ -127,17 +127,19 @@ def zsampler_turbo_core(latent_input             : ComfyLatent,
         extra_noise_scales      : Optional scales for extra noise injected into the latent image in each stage.
                                    The first two values correspond to stage1 and stage2, while all following
                                    values correspond to stage3. If `None` (default), no extra noise is injected.
-        samplers                : Optional tuple of KSAMPLERs (or strings with the names of the samplers) to be
-                                  used in each stage. If `None` (default) then "euler" is used in all stages.
-        progress_preview        : A `ProgressPreview` object for displaying progress during the denoising process.
+        samplers                : Optional tuple of sampler names or KSAMPLER objects for each stage.
+                                   Defaults to `None` (uses "euler" for all stages).
+        progress_preview        : A `ProgressPreview` object to track and display sampling progress.
 
     Returns:
-        A ComfyUI LATENT object with the denoised latent output.
+        A ComfyUI LATENT dictionary containing the denoised output.
     """
-
     # z-image turbo is a cfg-distilled model requiring CFG=1.0, which discard
     # negative conditioning, here we set it to `positive` for simplicity
     negative = positive
+
+    if latent_sample_scales is None:
+        latent_sample_scales = (1.0, 1.0, 1.0)
 
     ## if no sampler was specified, we use "euler" in each stage
     if samplers is None:
@@ -219,13 +221,17 @@ def zsampler_turbo_core(latent_input             : ComfyLatent,
             for i in range(len(sigmas3) - 1):
                 sigmas3[i] += next(offset_iter, 0.0)
 
-    # `sample_size` is noise_est_sample_size converted to integer/pixels
-    # or None if "full_size" option was selected
-    sample_size : int | None = None
+    # NOTE: the following code may soon be deprecated as 'noise_est_sample_size'
+    # is being replaced by 'latent_sample_scales[0]':
+    #   sample_size is noise_est_sample_size converted to (width, height) tuple
+    #   or None if "full_size" option was selected
+    sample_size : tuple[int,int] | None = None
     if isinstance(noise_est_sample_size, str) and noise_est_sample_size.endswith("px"):
-        sample_size = int(noise_est_sample_size[:-2])
+        value = int(noise_est_sample_size[:-2])
+        sample_size = int(value//8), int(value//8)
     elif isinstance(noise_est_sample_size, (int,float)):
-        sample_size = int(noise_est_sample_size)
+        value = int(noise_est_sample_size)
+        sample_size = int(value//8), int(value//8)
 
     # execute the 3-stage denoising process
     return execute_3_stage_denoising(latent_input, model, positive, negative,
@@ -245,6 +251,7 @@ def zsampler_turbo_core(latent_input             : ComfyLatent,
                                      initial_noise_bias_level = initial_noise_bias_level,
                                      initial_noise_overdose   = initial_noise_overdose,
                                      noise_est_sample_size    = sample_size,
+                                     latent_sample_scales     = latent_sample_scales,
                                      extra_noise_scales       = extra_noise_scales,
                                      extra_noise_freqs        = extra_noise_freqs,
                                      stage2_scramble_counts   = stage2_scramble_counts,
@@ -273,7 +280,8 @@ def execute_3_stage_denoising(comfy_latent: ComfyLatent,
                               positive_stg3           : ComfyConditioning | None                = None,
                               initial_noise_bias_level: float                                   = 0.0,
                               initial_noise_overdose  : float                                   = 0.0,
-                              noise_est_sample_size   : tuple[int,int] | int | None             = None,
+                              noise_est_sample_size   : tuple[int,int] | None                   = None,
+                              latent_sample_scales    : tuple[float,float,float]                = ( 1.0, 1.0, 1.0),
                               extra_noise_freqs       : tuple[int  ,...]                        = (  0,   0,   0),
                               extra_noise_scales      : tuple[float,...]                        = (0.0, 0.0, 0.0),
                               stage2_scramble_counts  : tuple[int,int,int,int]                  = (0,0,0,0),
@@ -318,8 +326,8 @@ def execute_3_stage_denoising(comfy_latent: ComfyLatent,
                                    0.0 = default noise amplitud scale;
                                    positive values will increase the noise scale, e.g: 0.1 = 10% increment;
                                    negative values will reduce the noise scale, e.g: -0.1 = 10% decrement.
-        noise_est_sample_size   : Size in pixels of the sample for initial noise estimation.
-                                   Can be a tuple (width, height) or integer for square sizes.
+        noise_est_sample_size   : The size of the latent for initial noise estimation.
+                                   Must be a tuple (width, height) or None.
                                    If `None`, the size of the latent input will be used.
         extra_noise_freqs       : Optional frequencies at which additional noise is injected into the latent image
                                    during each stage. The first two values correspond to stage1 and stage2, while all
@@ -347,6 +355,12 @@ def execute_3_stage_denoising(comfy_latent: ComfyLatent,
     SIGMA_START     = 1.0
     DEFAULT_SAMPLER = samplers[0] #<< should `DEFAULT_SAMPLER` be fixed to euler?
 
+    # calculate the latent size for each stage
+    stage3_latent_size = get_latent_size(comfy_latent) or (1024, 1024)
+    stage2_latent_size = calc_sample_size(stage3_latent_size, scale=latent_sample_scales[2])
+    stage1_latent_size = calc_sample_size(stage3_latent_size, scale=latent_sample_scales[1])
+    stage0_latent_size = calc_sample_size(stage3_latent_size, scale=latent_sample_scales[0])
+
     # force all conditioning to be valid
     #  - if positive cond for stage-2-preprocessing is not provided, it will be the same as main conditioning
     #  - if positive cond for stage-2 is not provided, it will be the same as main conditioning
@@ -371,7 +385,7 @@ def execute_3_stage_denoising(comfy_latent: ComfyLatent,
     # denoising process; however, a full denoise is required between these
     # stages if any "creativity" feature is enabled, as these processes must
     # be applied to a noise-free latent
-    force_denoise_stg1_stg2 = is_stg2_scramble_enabled or is_stg2_preproc_enabled
+    force_denoise_stg1_stg2 = is_stg2_scramble_enabled or is_stg2_preproc_enabled or stage1_latent_size != stage2_latent_size
 
 
     # store the stage1 & stage3 sigmas to later evaluate if it was truncated
@@ -396,11 +410,12 @@ def execute_3_stage_denoising(comfy_latent: ComfyLatent,
     # after truncation,
     # check if stage1 and stage3 still start from the beginning of the sigma table
     stage1_starts_from_beginning = False
-    if (sigmas1 is not None) and (original_sigmas1 is not None):
-        stage1_starts_from_beginning = bool( sigmas1[0] == original_sigmas1[0] )
+    if (sigmas1 is not None) and (original_sigmas1 is not None) and sigmas1[0] == original_sigmas1[0]:
+        stage1_starts_from_beginning = True
+
     stage3_start_from_beginning = False
-    if (sigmas3 is not None) and (original_sigmas3 is not None):
-        stage3_start_from_beginning = bool( sigmas3[0] == original_sigmas3[0] )
+    if (sigmas3 is not None) and (original_sigmas3 is not None) and sigmas3[0] == original_sigmas3[0]:
+        stage3_start_from_beginning = True
 
 
     # verify if inpainting is being performed by checking if the maximum value
@@ -443,7 +458,7 @@ def execute_3_stage_denoising(comfy_latent: ComfyLatent,
                             seed         = seed,
                             sampler      = samplers[0] if len(samplers) > 0 else DEFAULT_SAMPLER,
                             sigmas       = [SIGMA_START, sigmas1[0]],
-                            sample_size  = noise_est_sample_size,
+                            sample_size  = noise_est_sample_size or stage0_latent_size,
                             sample_bias  = 0.0,
                             sample_scale = 1.0,
                             progress_preview = ProgressPreview( 100,
@@ -456,6 +471,7 @@ def execute_3_stage_denoising(comfy_latent: ComfyLatent,
     if sigmas1 is not None:
         is_first_stage = True
         is_last_stage  = (sigmas2 is None and sigmas3 is None)
+        comfy_latent = adjust_latent_size(comfy_latent, stage1_latent_size)
         comfy_latent = _stage1_core(comfy_latent, model, positive, negative,
                         cfg                 = cfg,
                         sigmas              = sigmas1,
@@ -474,6 +490,7 @@ def execute_3_stage_denoising(comfy_latent: ComfyLatent,
     if sigmas2 is not None:
         is_first_stage = (sigmas1 is None)
         is_last_stage  = (sigmas3 is None)
+        comfy_latent = adjust_latent_size(comfy_latent, stage2_latent_size)
         comfy_latent = _stage2_core(comfy_latent, model, positive_stg2, negative,
                         cfg                 = cfg,
                         sigmas              = sigmas2,
@@ -495,6 +512,7 @@ def execute_3_stage_denoising(comfy_latent: ComfyLatent,
     if sigmas3 is not None:
         is_first_stage = (sigmas1 is None and sigmas2 is None)
         is_last_stage  = True
+        comfy_latent = adjust_latent_size(comfy_latent, stage3_latent_size)
         comfy_latent = _stage3_core(comfy_latent, model, positive_stg3, negative,
                         cfg                 = cfg,
                         sigmas              = sigmas3,
@@ -862,7 +880,7 @@ def estimate_initial_noise_features(comfy_latent : ComfyLatent,
                                     sigmas       : list | torch.Tensor,
                                     sample_bias  : float = 0.0,
                                     sample_scale : float = 0.1,
-                                    sample_size  : tuple[int, int] | int | None = None,
+                                    sample_size  : tuple[int, int] | None = None,
                                     progress_preview: ProgressPreview
                                     ) -> tuple[torch.Tensor, torch.Tensor]:
     """
@@ -881,7 +899,7 @@ def estimate_initial_noise_features(comfy_latent : ComfyLatent,
         negative     : Negative prompts or conditioning applied to the model during denoising.
         sampler      : ComfyUI object representing the sampler used for each denoising step.
         sigmas       : Sigma values for each diffusion process step (can be list or torch.Tensor).
-        sample_size  : The size in pixels of the sample. If `None`, the size of the latent image is used.
+        sample_size  : The size of the latent to sample. If `None`, the size of the original latent image is used.
         sample_bias  : The bias of the pure noise sample before denoising.
         sample_scale : The scale of the pure noise sample before denoising.
         progress_preview: An object for reporting progress.
@@ -899,16 +917,12 @@ def estimate_initial_noise_features(comfy_latent : ComfyLatent,
     if isinstance(sigmas, list):
         sigmas = torch.tensor(sigmas, device='cpu')
 
-    # if sample_size is an integer, it is assumed to be a square image
-    if isinstance(sample_size, int):
-        sample_size = (sample_size, sample_size)
-
     # if sample_size is supplied,
     # the 'latents' is replaced by an empty one of the specified size
     if isinstance(sample_size, (tuple,list)) and len(sample_size)>=2:
         width, height = sample_size[0], sample_size[1]
         if width>=8 and height>=8:
-            latents_shape = latents.shape[:-2] + ( int(height//8), int(width//8) )
+            latents_shape = latents.shape[:-2] + ( height, width )
             latents = torch.zeros(latents_shape, dtype=latents.dtype, layout=latents.layout, device="cpu")
 
     # run the sampler on pure noise and calculate the mean of the result
@@ -948,6 +962,11 @@ def _valid_conditioning(conditioning: ComfyConditioning | None, *,
     if isinstance(conditioning,(list,tuple)) and len(conditioning) > 0:
         return conditioning
     return default
+
+def calc_sample_size(original_size: tuple[int,int], scale: float) -> tuple[int,int]:
+    """Calculate the sample size based on the original size and the scale factor."""
+    return (int(original_size[0] * scale), int(original_size[1] * scale))
+
 
 # def _is_empty_conditioning(comfy_conditioning: ComfyConditioning | None) -> bool:
 #     """Returns True if the conditioning tensor is empty or None."""

@@ -75,6 +75,9 @@ MINIMAX_MODELS=(
     "diffusion_models|minimax_h3_ref2va_pruned_int8_convrot.safetensors|https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors|20970379616"
     "text_encoders|qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors|https://huggingface.co/ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot/resolve/main/qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors|26000000000"
     "loras|minimax_h3_turbo_v4_step600_ema.safetensors|https://huggingface.co/larryvrh/MiniMax-H3-Turbo-Lora/resolve/main/minimax_h3_turbo_v4_step600_ema.safetensors|779849816"
+    # 10Eros-Max INT8 ConvRot HQ (~22GB) — only 32 QKV tensors modified, rest bit-identical to H3
+    # Better prompt adherence + audio than beta1, same VRAM as standard H3 int8
+    "diffusion_models|10Eros_Max_H3_FL2VA-INT8-ConvRot-HQ.safetensors|https://huggingface.co/DmitryDB/MiniMax-H3-10Eros-Max-Quants/resolve/main/FL2VA/10Eros_Max_H3_FL2VA-INT8-ConvRot-HQ.safetensors|22000000000"
 )
 
 CONTROLNET_MODELS=(
@@ -119,6 +122,10 @@ function download_minimax_model() {
     repo_id=$(echo "$url" | awk -F/ '{print $4"/"$5}')
     repo_path=$(echo "$url" | sed -E 's#https?://[^/]+/[^/]+/[^/]+/resolve/main/(.+)#\1#')
 
+    # Use 'hf' command (newer huggingface_hub) or fall back to 'huggingface-cli'
+    local hf_cmd="hf"
+    command -v hf >/dev/null 2>&1 || hf_cmd="huggingface-cli"
+
     for attempt in $(seq 1 $max_retries); do
         if [ -f "$dest" ] || [ -L "$dest" ]; then
             local size
@@ -133,21 +140,26 @@ function download_minimax_model() {
             echo "📥 Downloading $name (attempt $attempt/$max_retries)..."
         fi
 
-        mkdir -p "$base_dir"
-        # HF_TOKEN is picked up automatically when set in the environment.
+        # Download to a temp dir to avoid path nesting issues.
+        local tmp_dir="$base_dir/.tmp_download_${name//\//_}"
+        rm -rf "$tmp_dir"
+        mkdir -p "$tmp_dir" "$(dirname "$dest")"
+        export HF_HUB_ENABLE_HF_TRANSFER=1
         export HF_XET_HIGH_PERFORMANCE=1
-        if huggingface-cli download "$repo_id" "$repo_path" \
-                --local-dir "$base_dir" \
-                --local-dir-use-symlinks auto \
-                --resume-download \
-                --cache-dir "$base_dir/.cache/huggingface" 2>&1; then
-            local downloaded_path="$base_dir/$repo_path"
+        # hf: resume is automatic; huggingface-cli: needs --resume-download
+        local resume_flag=""
+        [ "$hf_cmd" = "huggingface-cli" ] && resume_flag="--resume-download"
+        if $hf_cmd download "$repo_id" "$repo_path" \
+                --local-dir "$tmp_dir" \
+                $resume_flag 2>&1; then
+            local downloaded_path="$tmp_dir/$repo_path"
             if [ -f "$downloaded_path" ] || [ -L "$downloaded_path" ]; then
-                # If the downloaded path differs from the expected subdir, symlink it.
-                if [ "$downloaded_path" != "$dest" ]; then
-                    mkdir -p "$(dirname "$dest")"
-                    ln -sf "$downloaded_path" "$dest"
+                if [ -L "$downloaded_path" ]; then
+                    ln -sf "$(readlink -f "$downloaded_path")" "$dest"
+                else
+                    mv -f "$downloaded_path" "$dest"
                 fi
+                rm -rf "$tmp_dir"
                 local size
                 size=$(stat -L -c%s "$dest" 2>/dev/null || stat -L -f%z "$dest" 2>/dev/null || echo 0)
                 if [ "$size" -ge "$min_size" ]; then
@@ -157,10 +169,12 @@ function download_minimax_model() {
                     echo "⚠️  $name downloaded but size $size < $min_size, will retry"
                 fi
             else
-                echo "⚠️  $name not found after download, will retry"
+                echo "⚠️  $name not found at $downloaded_path after download, will retry"
+                rm -rf "$tmp_dir"
             fi
         else
-            echo "⚠️  huggingface-cli failed for $name (attempt $attempt), retrying in $((attempt*10))s..."
+            echo "⚠️  $hf_cmd failed for $name (attempt $attempt), retrying in $((attempt*10))s..."
+            rm -rf "$tmp_dir"
         fi
 
         [ "$attempt" -lt "$max_retries" ] && sleep $((attempt * 10))
@@ -220,12 +234,7 @@ function provisioning_configure_args() {
     if [ ! -f "$args_file" ]; then
         mkdir -p "$(dirname "$args_file")"
         cat > "$args_file" <<'EOF'
---disable-auto-launch
---fast fp16_accumulation
---use-sage-attention
---reserve-vram 2
---cuda-malloc
---async-offload
+--disable-auto-launch --port 18188 --enable-cors-header --fast fp16_accumulation --use-sage-attention --cuda-malloc --async-offload
 EOF
         echo "✅ Created $args_file with MiniMax H3 / QwenVL-Mod optimized args"
     else

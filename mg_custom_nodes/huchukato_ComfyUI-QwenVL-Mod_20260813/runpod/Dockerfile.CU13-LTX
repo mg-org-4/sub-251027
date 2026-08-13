@@ -7,14 +7,12 @@
 FROM runpod/comfyui:cuda13.0
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Ensure ComfyUI core is v0.31.0+ (LTX 2.3 requires ComfyUI 0.30.0+)
+# Ensure ComfyUI core is v0.32.0+ (LTX 2.3 requires ComfyUI 0.30.0+)
 # The base image may ship an older tag, so we force-checkout the release.
-# Use --force on fetch to avoid "would clobber existing tag" errors.
 # ──────────────────────────────────────────────────────────────────────────────
 RUN cd /opt/comfyui-baked && \
     git fetch --tags --force origin && \
-    git status --short && \
-    git -c advice.detachedHead=false checkout -f v0.31.0 && \
+    git -c advice.detachedHead=false checkout -f v0.32.0 && \
     echo "ComfyUI checked out at:" && git rev-parse --short HEAD
 
 # Re-install / verify ComfyUI requirements after the version switch.
@@ -24,27 +22,28 @@ RUN cd /opt/comfyui-baked && \
     pip cache purge
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Custom nodes (excludes 4 already baked: Manager, KJNodes, Civicomfy, RunpodDirect)
+# Custom nodes — ALL repos cloned once (cached)
 # LTX 2.3 core support is built into ComfyUI 0.30.0+; LTXVideo node adds workflow nodes.
 # ──────────────────────────────────────────────────────────────────────────────
 RUN cd /opt/comfyui-baked/custom_nodes && \
-    git clone https://github.com/huchukato/ComfyUI-QwenVL-Mod.git && \
     git clone https://github.com/BobRandomNumber/ComfyUI-Crystools-MonitorOnly.git && \
     git clone https://github.com/Lightricks/ComfyUI-LTXVideo.git && \
-    git clone https://github.com/huchukato/ComfyUI-RIFE-TensorRT-Auto.git && \
-    git clone https://github.com/huchukato/ComfyUI-Upscaler-TensorRT-Auto.git && \
-    git clone https://github.com/huchukato/ComfyUI-HuggingFace.git && \
-    git clone https://github.com/huchukato/comfy-tagcomplete.git && \
     git clone https://github.com/Koishi-Star/Euler-Smea-Dyn-Sampler.git && \
     git clone https://github.com/ltdrdata/was-node-suite-comfyui.git && \
     git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git && \
     git clone https://github.com/rgthree/rgthree-comfy.git && \
     git clone https://github.com/yolain/ComfyUI-Easy-Use.git && \
     git clone https://github.com/Fannovel16/ComfyUI-Frame-Interpolation.git && \
-    git clone https://github.com/ashtar1984/comfyui-find-perfect-resolution.git
+    git clone https://github.com/ashtar1984/comfyui-find-perfect-resolution.git && \
+    git clone https://github.com/huchukato/ComfyUI-QwenVL-Mod.git && \
+    git clone https://github.com/huchukato/ComfyUI-RIFE-TensorRT-Auto.git && \
+    git clone https://github.com/huchukato/ComfyUI-Upscaler-TensorRT-Auto.git && \
+    git clone https://github.com/huchukato/ComfyUI-HuggingFace.git && \
+    git clone https://github.com/huchukato/comfy-tagcomplete.git
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Install requirements for all custom nodes
+# Install requirements (single layer, cached)
+# Also pin kornia<0.8.3 — ComfyUI-LTXVideo breaks on newer kornia (pad import)
 # ──────────────────────────────────────────────────────────────────────────────
 RUN bash -c 'cd /opt/comfyui-baked/custom_nodes && for node_dir in */; do \
         if [ -f "$node_dir/requirements.txt" ]; then \
@@ -52,6 +51,7 @@ RUN bash -c 'cd /opt/comfyui-baked/custom_nodes && for node_dir in */; do \
             pip install --no-cache-dir -r "$node_dir/requirements.txt" || echo "Failed to install requirements for $node_dir"; \
         fi; \
     done' && \
+    pip install --no-cache-dir "kornia==0.8.2" && \
     pip install --no-cache-dir -U "huggingface_hub" "hf-transfer" && \
     pip cache purge
 
@@ -77,6 +77,18 @@ RUN pip install --no-cache-dir \
         tensorrt-cu13-bindings==10.15.1.29 \
         tensorrt-cu13-libs==10.15.1.29 && \
     pip cache purge
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Update huchukato repos to latest (CACHEBUST — fast git pull, no re-clone)
+# ──────────────────────────────────────────────────────────────────────────────
+ARG CACHEBUST=1
+RUN echo "CACHEBUST=$CACHEBUST" && \
+    cd /opt/comfyui-baked/custom_nodes && \
+    for repo in ComfyUI-QwenVL-Mod ComfyUI-HuggingFace comfy-tagcomplete; do \
+        if [ -d "$repo" ]; then \
+            cd "$repo" && git pull --ff-only && cd ..; \
+        fi; \
+    done
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Model directories (models downloaded at boot, not baked due to ~40GB total)
@@ -152,10 +164,10 @@ RUN chmod +x /usr/local/bin/download-ltx-workflows.sh
 # NO models baked-in here — all LTX-2.3 models are huge:
 #   ~40GB total. Instead, a boot script downloads them to /workspace on first run.
 #   Only uncensored/required models are downloaded:
-#     - 10Eros v1 FP8 (checkpoint, ~29GB) — uncensored I2V merge of Sulphur 2
+#     - 10Eros v1.5 FP8 (checkpoint, ~30GB) — uncensored I2V merge of Sulphur 2
 #     - Gemma 3 12B IT FP4 (text encoder, ~9.4GB)
 #     - Gemma 3 12B abliterated LoRA (~628MB) — uncensors text encoder
-#     - LTX 2.3 distilled LoRA cond_safe (~662MB) — required by 10Eros
+#     - LTX 2.3 DMD hybrid v2 LoRA (~662MB) — required by 10Eros v1.5
 #     - LTX 2.3 spatial upscaler (~996MB) — doubles resolution
 #     - LTX 2.3 temporal upscaler (~262MB) — doubles frame count
 # ──────────────────────────────────────────────────────────────────────────────
@@ -171,14 +183,19 @@ BASE_DIR="/workspace/runpod-slim/ComfyUI/models"
 LOG="/var/log/ltx-models.log"
 READY_MARKER="/workspace/runpod-slim/ComfyUI/main.py"   # created by start.sh copy
 
+# Ensure hf-transfer is available (Rust accelerator for HF downloads)
+pip install --no-cache-dir -q "hf-transfer" "huggingface_hub" 2>/dev/null
+export HF_HUB_ENABLE_HF_TRANSFER=1
+export HF_XET_HIGH_PERFORMANCE=1
+
 # Models: subdir|name|repo_id|repo_path|min_size_bytes (min_size = sanity check)
 MODELS=(
-    "checkpoints|10Eros_v1-fp8mixed_learned.safetensors|TenStrip/LTX2.3-10Eros|10Eros_v1-fp8mixed_learned.safetensors|28000000000"
+    "checkpoints|10Eros_v1.5_fp8mixed_experimental_learned.safetensors|LokkenJP/10EROS_1.5_fp8_exp_learned|10Eros_v1.5_fp8mixed_experimental_learned.safetensors|28000000000"
     "text_encoders|gemma_3_12B_it_fp4_mixed.safetensors|Comfy-Org/ltx-2|split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors|9000000000"
     "loras|gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors|Comfy-Org/ltx-2|split_files/loras/gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors|600000000"
-    "loras|ltx23/ltx-2.3-22b-distilled-lora-1.1_fro90_ceil72_condsafe.safetensors|TenStrip/LTX2.3_Distilled_Lora_1.1_Experiments|ltx-2.3-22b-distilled-lora-1.1_fro90_ceil72_condsafe.safetensors|600000000"
-    "upscale_models|ltx-2.3-spatial-upscaler-x2-1.1.safetensors|Lightricks/LTX-2.3|ltx-2.3-spatial-upscaler-x2-1.1.safetensors|900000000"
-    "upscale_models|ltx-2.3-temporal-upscaler-x2-1.0.safetensors|Lightricks/LTX-2.3|ltx-2.3-temporal-upscaler-x2-1.0.safetensors|250000000"
+    "loras|ltx23/LTX2.3_DMD_hybrid_v2.safetensors|TenStrip/LTX2.3_DMD_Lora|LTX2.3_DMD_hybrid_v2.safetensors|600000000"
+    "latent_upscale_models|ltx-2.3-spatial-upscaler-x2-1.1.safetensors|Lightricks/LTX-2.3|ltx-2.3-spatial-upscaler-x2-1.1.safetensors|900000000"
+    "latent_upscale_models|ltx-2.3-temporal-upscaler-x2-1.0.safetensors|Lightricks/LTX-2.3|ltx-2.3-temporal-upscaler-x2-1.0.safetensors|250000000"
 )
 
 log() { echo "$(date): $*" | tee -a "$LOG"; }
@@ -196,12 +213,16 @@ if [ ! -f "$READY_MARKER" ]; then
 fi
 
 log "✅ ComfyUI ready, base dir: $BASE_DIR"
-mkdir -p "$BASE_DIR"/{checkpoints,text_encoders,loras/ltx23,upscale_models}
+mkdir -p "$BASE_DIR"/{checkpoints,text_encoders,loras/ltx23,latent_upscale_models}
 
 download_model() {
     local subdir="$1" name="$2" repo_id="$3" repo_path="$4" min_size="$5"
     local dest="$BASE_DIR/$subdir/$name"
     local max_retries=5
+
+    # Use 'hf' command (newer huggingface_hub) or fall back to 'huggingface-cli'
+    local hf_cmd="hf"
+    command -v hf >/dev/null 2>&1 || hf_cmd="huggingface-cli"
 
     for attempt in $(seq 1 $max_retries); do
         if [ -f "$dest" ] || [ -L "$dest" ]; then
@@ -217,28 +238,29 @@ download_model() {
             log "📥 Downloading $name (attempt $attempt/$max_retries)..."
         fi
 
-        local download_dir="$BASE_DIR/$subdir"
-        mkdir -p "$download_dir"
-        # HF_TOKEN is picked up automatically if set in the RunPod env.
+        # Download to a temp dir to avoid path nesting issues.
+        local tmp_dir="$BASE_DIR/.tmp_download_${name//\//_}"
+        rm -rf "$tmp_dir"
+        mkdir -p "$tmp_dir" "$(dirname "$dest")"
         export HF_HUB_ENABLE_HF_TRANSFER=1
         export HF_XET_HIGH_PERFORMANCE=1
-        if huggingface-cli download "$repo_id" "$repo_path" \
-                --local-dir "$download_dir" \
-                --local-dir-use-symlinks auto \
-                --resume-download \
-                --cache-dir "$BASE_DIR/.cache/huggingface" 2>&1 | tee -a "$LOG"; then
-            # huggingface-cli downloads to $download_dir/$repo_path
-            local downloaded_path="$download_dir/$repo_path"
+        # hf: resume is automatic; huggingface-cli: needs --resume-download
+        local resume_flag=""
+        [ "$hf_cmd" = "huggingface-cli" ] && resume_flag="--resume-download"
+        # Timeout: 15 min per file, prevents infinite stalls
+        if timeout 900 $hf_cmd download "$repo_id" "$repo_path" \
+                --local-dir "$tmp_dir" \
+                $resume_flag 2>&1 | tee -a "$LOG"; then
+            # Find the downloaded file (hf preserves repo_path structure)
+            local downloaded_path="$tmp_dir/$repo_path"
             if [ -f "$downloaded_path" ] || [ -L "$downloaded_path" ]; then
-                # If the downloaded path differs from the expected dest, symlink/move it.
-                if [ "$downloaded_path" != "$dest" ]; then
-                    mkdir -p "$(dirname "$dest")"
-                    if [ -L "$downloaded_path" ]; then
-                        ln -sf "$(readlink -f "$downloaded_path")" "$dest"
-                    else
-                        mv -f "$downloaded_path" "$dest"
-                    fi
+                # Move/symlink to final destination
+                if [ -L "$downloaded_path" ]; then
+                    ln -sf "$(readlink -f "$downloaded_path")" "$dest"
+                else
+                    mv -f "$downloaded_path" "$dest"
                 fi
+                rm -rf "$tmp_dir"
                 local size
                 size=$(stat -L -c%s "$dest" 2>/dev/null || stat -L -f%z "$dest" 2>/dev/null || echo 0)
                 if [ "$size" -ge "$min_size" ]; then
@@ -248,10 +270,12 @@ download_model() {
                     log "⚠️  $name downloaded but size $size < $min_size, will retry"
                 fi
             else
-                log "⚠️  $name not found after download, will retry"
+                log "⚠️  $name not found at $downloaded_path after download, will retry"
+                rm -rf "$tmp_dir"
             fi
         else
-            log "⚠️  huggingface-cli failed for $name (attempt $attempt), retrying in $((attempt*10))s..."
+            log "⚠️  $hf_cmd failed for $name (attempt $attempt), retrying in $((attempt*10))s..."
+            rm -rf "$tmp_dir"
         fi
 
         [ "$attempt" -lt "$max_retries" ] && sleep $((attempt * 10))
@@ -272,13 +296,13 @@ EOF
 RUN chmod +x /usr/local/bin/download-ltx-models.sh
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Custom entrypoint: force ComfyUI v0.31.0, pre-populate args,
+# Custom entrypoint: force ComfyUI v0.32.0, pre-populate args,
 # launch LTX model download in background, then exec /start.sh
 # ──────────────────────────────────────────────────────────────────────────────
 RUN cat > /usr/local/bin/custom-entrypoint.sh << 'EOF'
 #!/bin/bash
 COMFY_LOG="/var/log/comfyui-update.log"
-LTX_TAG="v0.31.0"
+COMFY_TAG="v0.32.0"
 
 force_comfyui_version() {
     local repo_dir="$1"
@@ -288,33 +312,29 @@ force_comfyui_version() {
         return 0
     fi
 
-    # If already on the required tag, just verify and skip the heavy reset/checkout.
     local current_tag
     current_tag=$(git -C "$repo_dir" describe --tags --exact-match HEAD 2>/dev/null || echo "")
-    if [ "$current_tag" = "$LTX_TAG" ]; then
-        echo "$(date): ✅ $label already on $LTX_TAG" | tee -a "$COMFY_LOG"
+    if [ "$current_tag" = "$COMFY_TAG" ]; then
+        echo "$(date): ✅ $label already on $COMFY_TAG" | tee -a "$COMFY_LOG"
         return 0
     fi
 
-    echo "$(date): 🔧 Ensuring $label is on $LTX_TAG (current: ${current_tag:-unknown})..." | tee -a "$COMFY_LOG"
-
-    # Make sure checkout cannot fail on dirty/local files
+    echo "$(date): 🔧 Ensuring $label is on $COMFY_TAG (current: ${current_tag:-unknown})..." | tee -a "$COMFY_LOG"
     git -C "$repo_dir" reset --hard 2>>"$COMFY_LOG" || true
     git -C "$repo_dir" clean -fd 2>>"$COMFY_LOG" || true
 
-    # Fetch tags, then checkout the required tag
     if timeout 60 git -C "$repo_dir" fetch --tags origin 2>>"$COMFY_LOG"; then
         local current_hash target_hash
         current_hash=$(git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        if timeout 30 git -C "$repo_dir" -c advice.detachedHead=false checkout -f "$LTX_TAG" 2>>"$COMFY_LOG"; then
+        if timeout 30 git -C "$repo_dir" -c advice.detachedHead=false checkout -f "$COMFY_TAG" 2>>"$COMFY_LOG"; then
             target_hash=$(git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-            echo "$(date): ✅ $label forced to $LTX_TAG ($current_hash -> $target_hash)" | tee -a "$COMFY_LOG"
+            echo "$(date): ✅ $label forced to $COMFY_TAG ($current_hash -> $target_hash)" | tee -a "$COMFY_LOG"
             if [ -f "$repo_dir/requirements.txt" ]; then
                 echo "$(date): 🔄 Re-installing $label requirements..." | tee -a "$COMFY_LOG"
                 pip install --no-cache-dir -r "$repo_dir/requirements.txt" 2>>"$COMFY_LOG" | tail -n 10 | tee -a "$COMFY_LOG" || true
             fi
         else
-            echo "$(date): ❌ $label checkout $LTX_TAG failed" | tee -a "$COMFY_LOG"
+            echo "$(date): ❌ $label checkout $COMFY_TAG failed" | tee -a "$COMFY_LOG"
         fi
     else
         echo "$(date): ⚠️  $label fetch tags failed/timed out (offline?), leaving at current version" | tee -a "$COMFY_LOG"
@@ -350,7 +370,7 @@ update_custom_nodes() {
     done
 }
 
-# Force baked ComfyUI core to v0.31.0
+# Force baked ComfyUI core to v0.32.0
 force_comfyui_version /opt/comfyui-baked "ComfyUI (baked template)"
 
 # Force active install on /workspace if it already exists (affects restarts)

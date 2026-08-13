@@ -13,6 +13,7 @@ PIP_PACKAGES=(
     "huggingface_hub"
     "hf-transfer"
     "sageattention"
+    "kornia==0.8.2"
     "tensorrt-cu13==10.15.1.29"
     "tensorrt-cu13-bindings==10.15.1.29"
     "tensorrt-cu13-libs==10.15.1.29"
@@ -64,14 +65,14 @@ CONTROLNET_MODELS=(
 )
 
 # LTX 2.3 models: subdir|name|url|min_size_bytes
-# Uncensored setup: 10Eros checkpoint + Gemma abliterated LoRA + distilled cond_safe LoRA
+# Uncensored setup: 10Eros v1.5 checkpoint + Gemma abliterated LoRA + DMD hybrid v2 LoRA
 LTX_MODELS=(
-    "checkpoints|10Eros_v1-fp8mixed_learned.safetensors|https://huggingface.co/TenStrip/LTX2.3-10Eros/resolve/main/10Eros_v1-fp8mixed_learned.safetensors|28000000000"
+    "checkpoints|10Eros_v1.5_fp8mixed_experimental_learned.safetensors|https://huggingface.co/LokkenJP/10EROS_1.5_fp8_exp_learned/resolve/main/10Eros_v1.5_fp8mixed_experimental_learned.safetensors|28000000000"
     "text_encoders|gemma_3_12B_it_fp4_mixed.safetensors|https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors|9000000000"
     "loras|gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors|https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/loras/gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors|600000000"
-    "loras|ltx23/ltx-2.3-22b-distilled-lora-1.1_fro90_ceil72_condsafe.safetensors|https://huggingface.co/TenStrip/LTX2.3_Distilled_Lora_1.1_Experiments/resolve/main/ltx-2.3-22b-distilled-lora-1.1_fro90_ceil72_condsafe.safetensors|600000000"
-    "upscale_models|ltx-2.3-spatial-upscaler-x2-1.1.safetensors|https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors|900000000"
-    "upscale_models|ltx-2.3-temporal-upscaler-x2-1.0.safetensors|https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-temporal-upscaler-x2-1.0.safetensors|250000000"
+    "loras|ltx23/LTX2.3_DMD_hybrid_v2.safetensors|https://huggingface.co/TenStrip/LTX2.3_DMD_Lora/resolve/main/LTX2.3_DMD_hybrid_v2.safetensors|600000000"
+    "latent_upscale_models|ltx-2.3-spatial-upscaler-x2-1.1.safetensors|https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors|900000000"
+    "latent_upscale_models|ltx-2.3-temporal-upscaler-x2-1.0.safetensors|https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-temporal-upscaler-x2-1.0.safetensors|250000000"
 )
 
 function provisioning_force_comfyui_version() {
@@ -113,6 +114,10 @@ function download_ltx_model() {
     repo_id=$(echo "$url" | awk -F/ '{print $4"/"$5}')
     repo_path=$(echo "$url" | sed -E 's#https?://[^/]+/[^/]+/[^/]+/resolve/main/(.+)#\1#')
 
+    # Use 'hf' command (newer huggingface_hub) or fall back to 'huggingface-cli'
+    local hf_cmd="hf"
+    command -v hf >/dev/null 2>&1 || hf_cmd="huggingface-cli"
+
     for attempt in $(seq 1 $max_retries); do
         if [ -f "$dest" ] || [ -L "$dest" ]; then
             local size
@@ -127,27 +132,26 @@ function download_ltx_model() {
             echo "📥 Downloading $name (attempt $attempt/$max_retries)..."
         fi
 
-        local download_dir="$base_dir/$subdir"
-        mkdir -p "$download_dir"
-        # HF_TOKEN is picked up automatically when set in the environment.
+        # Download to a temp dir to avoid path nesting issues.
+        local tmp_dir="$base_dir/.tmp_download_${name//\//_}"
+        rm -rf "$tmp_dir"
+        mkdir -p "$tmp_dir" "$(dirname "$dest")"
         export HF_HUB_ENABLE_HF_TRANSFER=1
         export HF_XET_HIGH_PERFORMANCE=1
-        if huggingface-cli download "$repo_id" "$repo_path" \
-                --local-dir "$download_dir" \
-                --local-dir-use-symlinks auto \
-                --resume-download \
-                --cache-dir "$base_dir/.cache/huggingface" 2>&1; then
-            local downloaded_path="$download_dir/$repo_path"
+        # hf: resume is automatic; huggingface-cli: needs --resume-download
+        local resume_flag=""
+        [ "$hf_cmd" = "huggingface-cli" ] && resume_flag="--resume-download"
+        if $hf_cmd download "$repo_id" "$repo_path" \
+                --local-dir "$tmp_dir" \
+                $resume_flag 2>&1; then
+            local downloaded_path="$tmp_dir/$repo_path"
             if [ -f "$downloaded_path" ] || [ -L "$downloaded_path" ]; then
-                # If the downloaded path differs from the expected dest, symlink/move it.
-                if [ "$downloaded_path" != "$dest" ]; then
-                    mkdir -p "$(dirname "$dest")"
-                    if [ -L "$downloaded_path" ]; then
-                        ln -sf "$(readlink -f "$downloaded_path")" "$dest"
-                    else
-                        mv -f "$downloaded_path" "$dest"
-                    fi
+                if [ -L "$downloaded_path" ]; then
+                    ln -sf "$(readlink -f "$downloaded_path")" "$dest"
+                else
+                    mv -f "$downloaded_path" "$dest"
                 fi
+                rm -rf "$tmp_dir"
                 local size
                 size=$(stat -L -c%s "$dest" 2>/dev/null || stat -L -f%z "$dest" 2>/dev/null || echo 0)
                 if [ "$size" -ge "$min_size" ]; then
@@ -157,10 +161,12 @@ function download_ltx_model() {
                     echo "⚠️  $name downloaded but size $size < $min_size, will retry"
                 fi
             else
-                echo "⚠️  $name not found after download, will retry"
+                echo "⚠️  $name not found at $downloaded_path after download, will retry"
+                rm -rf "$tmp_dir"
             fi
         else
-            echo "⚠️  huggingface-cli failed for $name (attempt $attempt), retrying in $((attempt*10))s..."
+            echo "⚠️  $hf_cmd failed for $name (attempt $attempt), retrying in $((attempt*10))s..."
+            rm -rf "$tmp_dir"
         fi
 
         [ "$attempt" -lt "$max_retries" ] && sleep $((attempt * 10))
@@ -190,7 +196,7 @@ function provisioning_get_ltx_models() {
         return 0
     fi
 
-    mkdir -p "$base_dir"/{checkpoints,text_encoders,loras/ltx23,upscale_models}
+    mkdir -p "$base_dir"/{checkpoints,text_encoders,loras/ltx23,latent_upscale_models}
 
     echo "📥 === LTX 2.3 model download started (PID $$) ==="
     echo "⏳ Waiting for ComfyUI ready marker..."

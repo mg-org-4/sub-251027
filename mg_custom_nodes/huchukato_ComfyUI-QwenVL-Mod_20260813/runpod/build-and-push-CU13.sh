@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# Build and Push Script for ComfyUI-QwenVL-Mod (RunPod, CUDA 13.0, LTX 2.3 edition)
+# Build and Push Script for ComfyUI-QwenVL-Mod (CUDA 13.0)
 # Based on runpod/comfyui:cuda13.0 template
 
 set -e
 
-echo "🐳 Building ComfyUI-QwenVL-Mod Docker image (RunPod, CUDA 13.0, LTX 2.3)..."
+echo "🐳 Building ComfyUI-QwenVL-Mod Docker image (CUDA 13.0)..."
 
 # Build variables
 IMAGE_NAME="huchukato/comfyui-qwenvl-runpod"
-TAG="cu13-ltx"
-DOCKERFILE="Dockerfile.CU13-LTX"
+TAG="cu13"
+DOCKERFILE="Dockerfile.CU13"
 PLATFORM="linux/amd64"
 
 # Check Docker login
@@ -26,10 +26,10 @@ echo "🔧 Using desktop-linux builder globally..."
 docker buildx use --global desktop-linux
 
 # Build the image with platform specification
-# --no-cache: force rebuild all layers
-# --pull: always pull latest base image
+# --pull removed: was invalidating all cache layers on every build
+# Cache enabled: only changed layers are rebuilt (much faster)
 echo "📦 Building image: ${IMAGE_NAME}:${TAG} for platform: ${PLATFORM}"
-docker buildx build --builder desktop-linux --platform ${PLATFORM} --no-cache --pull -f ${DOCKERFILE} -t ${IMAGE_NAME}:${TAG} --load .
+docker buildx build --builder desktop-linux --platform ${PLATFORM} --build-arg CACHEBUST=$(date +%s) -f ${DOCKERFILE} -t ${IMAGE_NAME}:${TAG} --load .
 
 # Push to Docker Hub
 echo "🚀 Pushing to Docker Hub..."

@@ -11,7 +11,9 @@ APT_PACKAGES=(
 PIP_PACKAGES=(
     "--upgrade --force-reinstall --no-cache-dir https://github.com/JamePeng/llama-cpp-python/releases/download/v0.3.45-cu131-linux-20260801/llama_cpp_python-0.3.45+cu131-cp312-cp312-linux_x86_64.whl"
     "huggingface_hub"
+    "hf-transfer"
     "sageattention"
+    "kornia==0.8.2"
     "tensorrt-cu13==10.15.1.29"
     "tensorrt-cu13-bindings==10.15.1.29"
     "tensorrt-cu13-libs==10.15.1.29"
@@ -21,7 +23,7 @@ NODES=(
     "https://github.com/huchukato/comfy-tagcomplete"
     "https://github.com/huchukato/ComfyUI-QwenVL-Mod"
     "https://github.com/BobRandomNumber/ComfyUI-Crystools-MonitorOnly"
-    "https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo"
+    "https://github.com/Lightricks/ComfyUI-LTXVideo"
     "https://github.com/huchukato/ComfyUI-RIFE-TensorRT-Auto"
     "https://github.com/huchukato/ComfyUI-Upscaler-TensorRT-Auto"
     "https://github.com/huchukato/ComfyUI-HuggingFace"
@@ -37,14 +39,7 @@ NODES=(
 )
 
 WORKFLOWS=(
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-I2VA-Qwen3VL.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-FL2VA-Qwen3VL.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-T2VA-Qwen3VL.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-R2VA-Qwen3VL.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-Turbo-I2VA-Qwen3VL.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-Turbo-FL2VA-Qwen3VL.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-Turbo-T2VA-Qwen3VL.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-Turbo-R2VA-Qwen3VL.json"
+    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/ltx/LTX23-I2VA-Qwen3VL.json"
     "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/PMP-LoRaStack-Upscale-Wildcards.json"
 )
 
@@ -52,11 +47,9 @@ CHECKPOINT_MODELS=(
 )
 
 UNET_MODELS=(
-   
 )
 
 LORA_MODELS=(
-            
 )
 
 VAE_MODELS=(
@@ -68,19 +61,29 @@ ESRGAN_MODELS=(
 TEXT_ENCODERS=(
 )
 
-MINIMAX_MODELS=(
-    "vae|minimax_h3_video_vae_fp16.safetensors|https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors|5200000000"
-    "vae|minimax_h3_audio_vae_fp32.safetensors|https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors|600000000"
-    "diffusion_models|minimax_h3_fl2va_pruned_int8_convrot.safetensors|https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors|20970379616"
-    "diffusion_models|minimax_h3_ref2va_pruned_int8_convrot.safetensors|https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors|20970379616"
-    "text_encoders|qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors|https://huggingface.co/ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot/resolve/main/qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors|26000000000"
-    "loras|minimax_h3_turbo_v4_step600_ema.safetensors|https://huggingface.co/larryvrh/MiniMax-H3-Turbo-Lora/resolve/main/minimax_h3_turbo_v4_step600_ema.safetensors|779849816"
-    # 10Eros-Max INT8 ConvRot HQ (~22GB) — only 32 QKV tensors modified, rest bit-identical to H3
-    # Better prompt adherence + audio than beta1, same VRAM as standard H3 int8
-    "diffusion_models|10Eros_Max_H3_FL2VA-INT8-ConvRot-HQ.safetensors|https://huggingface.co/DmitryDB/MiniMax-H3-10Eros-Max-Quants/resolve/main/FL2VA/10Eros_Max_H3_FL2VA-INT8-ConvRot-HQ.safetensors|22000000000"
+CONTROLNET_MODELS=(
 )
 
-CONTROLNET_MODELS=(
+# LTX models: subdir|name|url|min_size_bytes
+# LTX 2.3 (uncensored via 10Eros) + LTX 2.5 (from huchukato/pimp-my-wan mirror)
+LTX_MODELS=(
+    # ── LTX 2.3 (uncensored) ──
+    "checkpoints|10Eros_v1.5_fp8mixed_experimental_learned.safetensors|https://huggingface.co/LokkenJP/10EROS_1.5_fp8_exp_learned/resolve/main/10Eros_v1.5_fp8mixed_experimental_learned.safetensors|28000000000"
+    "text_encoders|gemma_3_12B_it_fp4_mixed.safetensors|https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors|9000000000"
+    "loras|gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors|https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/loras/gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors|600000000"
+    "loras|ltx23/LTX2.3_DMD_hybrid_v2.safetensors|https://huggingface.co/TenStrip/LTX2.3_DMD_Lora/resolve/main/LTX2.3_DMD_hybrid_v2.safetensors|600000000"
+    "latent_upscale_models|ltx-2.3-spatial-upscaler-x2-1.1.safetensors|https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors|900000000"
+    "latent_upscale_models|ltx-2.3-temporal-upscaler-x2-1.0.safetensors|https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-temporal-upscaler-x2-1.0.safetensors|250000000"
+    "vae|pruna_ltx2.3_vae_comfy_bf16.safetensors|https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/pruna_ltx2.3_vae_comfy_bf16.safetensors|500000000"
+    # ── LTX 2.5 (from huchukato/pimp-my-wan mirror, not gated) ──
+    "diffusion_models|ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors|https://huggingface.co/huchukato/pimp-my-wan/resolve/main/LTX/diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors|21000000000"
+    "text_encoders|gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors|https://huggingface.co/huchukato/pimp-my-wan/resolve/main/LTX/text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors|15000000000"
+    "text_encoders|gemma4_e2b_it_bf16.safetensors|https://huggingface.co/TrevorJS/gemma-4-E2B-it-uncensored/resolve/main/model.safetensors|10000000000"
+    "vae|ltx-2.5-video-vae-bf16.safetensors|https://huggingface.co/huchukato/pimp-my-wan/resolve/main/LTX/vae/ltx-2.5-video-vae-bf16.safetensors|1400000000"
+    "vae|ltx-2.5-audio-vae-bf16.safetensors|https://huggingface.co/huchukato/pimp-my-wan/resolve/main/LTX/vae/ltx-2.5-audio-vae-bf16.safetensors|350000000"
+    "latent_upscale_models|ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors|https://huggingface.co/huchukato/pimp-my-wan/resolve/main/LTX/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors|990000000"
+    "latent_upscale_models|ltx-2.5-latent-temporal-upscaler-x2-bf16-1.0.safetensors|https://huggingface.co/huchukato/pimp-my-wan/resolve/main/LTX/latent_upscale_models/ltx-2.5-latent-temporal-upscaler-x2-bf16-1.0.safetensors|250000000"
+    "model_patches|ltx-2.5-duration-head-bf16.safetensors|https://huggingface.co/huchukato/pimp-my-wan/resolve/main/LTX/model_patches/ltx-2.5-duration-head-bf16.safetensors|3800000"
 )
 
 function provisioning_force_comfyui_version() {
@@ -93,7 +96,7 @@ function provisioning_force_comfyui_version() {
         return 0
     fi
 
-    echo "🔧 Ensuring $label is on v0.31.0 (MiniMax H3 requirement)..."
+    echo "🔧 Ensuring $label is on v0.31.0 (LTX 2.3 requirement)..."
     if timeout 60 git -C "$repo_dir" fetch --tags --force origin 2>/dev/null; then
         local current_hash target_hash
         current_hash=$(git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -112,7 +115,7 @@ function provisioning_force_comfyui_version() {
     fi
 }
 
-function download_minimax_model() {
+function download_ltx_model() {
     local base_dir="$1" subdir="$2" name="$3" url="$4" min_size="$5"
     local dest="$base_dir/$subdir/$name"
     local max_retries=5
@@ -184,29 +187,29 @@ function download_minimax_model() {
     return 1
 }
 
-function provisioning_get_minimax_models() {
+function provisioning_get_ltx_models() {
     local base_dir="${WORKSPACE:-/workspace}/ComfyUI/models"
     local ready_marker="${WORKSPACE:-/workspace}/ComfyUI/main.py"
 
     local all_complete=true
-    for entry in "${MINIMAX_MODELS[@]}"; do
+    for entry in "${LTX_MODELS[@]}"; do
         IFS='|' read -r subdir name url min_size <<< "$entry"
         local dest="$base_dir/$subdir/$name"
         local size
-        size=$(stat -c%s "$dest" 2>/dev/null || stat -f%z "$dest" 2>/dev/null || echo 0)
+        size=$(stat -L -c%s "$dest" 2>/dev/null || stat -L -f%z "$dest" 2>/dev/null || echo 0)
         if [ "$size" -lt "$min_size" ]; then
             all_complete=false
             break
         fi
     done
     if [ "$all_complete" = true ]; then
-        echo "✅ All MiniMax H3 models already complete, no download needed"
+        echo "✅ All LTX 2.3 models already complete, no download needed"
         return 0
     fi
 
-    mkdir -p "$base_dir"/{vae,diffusion_models,text_encoders,loras}
+    mkdir -p "$base_dir"/{checkpoints,text_encoders,loras/ltx23,latent_upscale_models,vae,diffusion_models,model_patches}
 
-    echo "� === MiniMax H3 model download started (PID $$) ==="
+    echo "📥 === LTX 2.3 model download started (PID $$) ==="
     echo "⏳ Waiting for ComfyUI ready marker..."
     for i in $(seq 1 120); do
         [ -f "$ready_marker" ] && break
@@ -221,12 +224,12 @@ function provisioning_get_minimax_models() {
     echo "✅ ComfyUI ready, base dir: $base_dir"
 
     local failures=0
-    for entry in "${MINIMAX_MODELS[@]}"; do
+    for entry in "${LTX_MODELS[@]}"; do
         IFS='|' read -r subdir name url min_size <<< "$entry"
-        download_minimax_model "$base_dir" "$subdir" "$name" "$url" "$min_size" || failures=$((failures + 1))
+        download_ltx_model "$base_dir" "$subdir" "$name" "$url" "$min_size" || failures=$((failures + 1))
     done
 
-    echo "📦 === MiniMax H3 model download finished ($failures failures) ==="
+    echo "📦 === LTX 2.3 model download finished ($failures failures) ==="
 }
 
 function provisioning_configure_args() {
@@ -234,9 +237,14 @@ function provisioning_configure_args() {
     if [ ! -f "$args_file" ]; then
         mkdir -p "$(dirname "$args_file")"
         cat > "$args_file" <<'EOF'
---disable-auto-launch --port 18188 --enable-cors-header --fast fp16_accumulation --use-sage-attention --cuda-malloc --async-offload
+--disable-auto-launch
+--fast fp16_accumulation
+--use-sage-attention
+--reserve-vram 2
+--cuda-malloc
+--async-offload
 EOF
-        echo "✅ Created $args_file with MiniMax H3 / QwenVL-Mod optimized args"
+        echo "✅ Created $args_file with LTX 2.3 / QwenVL-Mod optimized args"
     else
         echo "ℹ️  $args_file already exists, leaving untouched"
     fi
@@ -251,7 +259,7 @@ function provisioning_start() {
     echo "📦 Installing APT packages..."
     provisioning_get_apt_packages
     
-    echo "🔧 Ensuring ComfyUI is on v0.30.0 (MiniMax H3 requirement)..."
+    echo "🔧 Ensuring ComfyUI is on v0.31.0 (LTX 2.3 requirement)..."
     provisioning_force_comfyui_version "${COMFYUI_DIR}" "ComfyUI"
     
     echo "🔧 Installing custom nodes..."
@@ -304,8 +312,8 @@ function provisioning_start() {
         "${COMFYUI_DIR}/models/text_encoders" \
         "${TEXT_ENCODERS[@]}"        
     
-    echo "🧬 Starting MiniMax H3 model download in background..."
-    provisioning_get_minimax_models
+    echo "🧬 Starting LTX 2.3 model download in background..."
+    provisioning_get_ltx_models
     
     echo "🎛️ Configuring ComfyUI arguments..."
     provisioning_configure_args

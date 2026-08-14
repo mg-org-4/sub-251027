@@ -1,13 +1,16 @@
-# ComfyUI-QwenVL-Mod RunPod Worker (CUDA 13.0)
-# Based on runpod/comfyui:cuda13.0 template (includes ComfyUI core, Manager legacy UI,
+# ComfyUI-QwenVL-Mod RunPod Worker (CUDA 12.8)
+# Based on runpod/comfyui:cuda12.8 template (includes ComfyUI core, Manager legacy UI,
 # KJNodes, Civicomfy, RunpodDirect, FileBrowser, Jupyter, SSH, persistence on /workspace)
-# Adds: custom nodes, llama-cpp-python, sageattention, essential models, WAN2.2 workflows
+# Adds: custom nodes, llama-cpp-python, sageattention, TensorRT, essential models, WAN2.2 workflows
+# Compatible with RTX 4090 (Ada) and RTX 5090 (Blackwell)
 
-FROM runpod/comfyui:cuda13.0
+FROM runpod/comfyui:cuda12.8
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Custom nodes — ALL repos cloned once (cached)
 # ──────────────────────────────────────────────────────────────────────────────
+# Bump NODES_CACHE_BUSTER to force re-clone of all custom nodes
+ARG NODES_CACHE_BUSTER=2026-08-13-v2
 RUN cd /opt/comfyui-baked/custom_nodes && \
     git clone https://github.com/BobRandomNumber/ComfyUI-Crystools-MonitorOnly.git && \
     git clone https://github.com/city96/ComfyUI-GGUF.git && \
@@ -33,9 +36,11 @@ RUN cd /opt/comfyui-baked/custom_nodes && \
     git clone https://github.com/huchukato/ComfyUI-Selectors.git
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Install requirements (single layer, cached)
+# Install requirements + fix torchvision (single layer, cached)
+# The venv (.venv-cu128) has its own torch; system torchvision conflicts via --system-site-packages
 # ──────────────────────────────────────────────────────────────────────────────
-RUN bash -c 'cd /opt/comfyui-baked/custom_nodes && for node_dir in */; do \
+RUN pip uninstall -y torchvision || true && \
+    bash -c 'cd /opt/comfyui-baked/custom_nodes && for node_dir in */; do \
         if [ -f "$node_dir/requirements.txt" ]; then \
             echo "Installing requirements for $node_dir..." && \
             pip install --no-cache-dir -r "$node_dir/requirements.txt" || echo "Failed to install requirements for $node_dir"; \
@@ -45,10 +50,10 @@ RUN bash -c 'cd /opt/comfyui-baked/custom_nodes && for node_dir in */; do \
     pip cache purge
 
 # ──────────────────────────────────────────────────────────────────────────────
-# llama-cpp-python (CUDA 13.0 wheel for GGUF support)
+# llama-cpp-python (CUDA 12.8 wheel for GGUF support)
 # ──────────────────────────────────────────────────────────────────────────────
 RUN pip install --upgrade --force-reinstall --no-cache-dir \
-    https://github.com/JamePeng/llama-cpp-python/releases/download/v0.3.38-cu130-Basic-linux-20260504/llama_cpp_python-0.3.38+cu130.basic-cp312-cp312-linux_x86_64.whl && \
+    https://github.com/JamePeng/llama-cpp-python/releases/download/v0.3.45-cu128-linux-20260801/llama_cpp_python-0.3.45%2Bcu128-cp312-cp312-linux_x86_64.whl && \
     pip cache purge
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -58,16 +63,16 @@ RUN pip install --no-cache-dir sageattention && \
     pip cache purge
 
 # ──────────────────────────────────────────────────────────────────────────────
-# TensorRT CUDA 13 wheels (pre-baked to avoid slow install.py at boot)
+# TensorRT CUDA 12 wheels (pre-baked to avoid slow install.py at boot)
 # Used by ComfyUI-RIFE-TensorRT-Auto and ComfyUI-Upscaler-TensorRT-Auto.
 # Base deps (einops, colored, polygraphy, cuda-python, requests, tqdm) are already
-# installed by the requirements.txt loop above; only the CUDA-13-specific TRT
+# installed by the requirements.txt loop above; only the CUDA-12-specific TRT
 # packages are added here so the nodes' install.py becomes a no-op at boot.
 # ──────────────────────────────────────────────────────────────────────────────
 RUN pip install --no-cache-dir \
-        tensorrt_cu13==10.15.1.29 \
-        tensorrt_cu13_bindings==10.15.1.29 \
-        tensorrt_cu13_libs==10.15.1.29 && \
+        tensorrt-cu12==10.13.3.9 \
+        tensorrt-cu12-bindings==10.13.3.9 \
+        tensorrt-cu12-libs==10.13.3.9 && \
     pip cache purge
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -109,19 +114,29 @@ RUN wget -q "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve
 # ──────────────────────────────────────────────────────────────────────────────
 RUN mkdir -p /opt/comfyui-baked/user/default/workflows && \
     cd /opt/comfyui-baked/user/default/workflows && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/PMP-LoRaStack-Upscale-Wildcards.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-AutoPrompt-Story.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-I2V-AutoPrompt-Story.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-SVI-AutoPrompt-Story.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-AutoPrompt.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-AutoPrompt-GGUF.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-AutoPrompt.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-AutoPrompt-GGUF.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-SVI-AutoPrompt.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-SVI-AutoPrompt-GGUF.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-Full-AutoPrompt-MMAudio.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-Full-AutoPrompt-MMAudio-GGUF.json" && \
-    wget -q "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-I2V-Full-AutoPrompt-MMAudio-GGUF.json"
+    for url in \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/PMP-LoRaStack-Upscale-Wildcards.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-AutoPrompt-Story.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-I2V-AutoPrompt-Story.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-SVI-AutoPrompt-Story.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-AutoPrompt.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-AutoPrompt-GGUF.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-AutoPrompt.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-AutoPrompt-GGUF.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-SVI-AutoPrompt.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-SVI-AutoPrompt-GGUF.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-Full-AutoPrompt-MMAudio.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-Full-AutoPrompt-MMAudio-GGUF.json" \
+        "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-I2V-Full-AutoPrompt-MMAudio-GGUF.json"; do \
+        name=$(basename "$url"); \
+        echo "Downloading $name..."; \
+        for attempt in 1 2 3; do \
+            curl -fsSL --retry 3 --connect-timeout 30 "$url" -o "$name" && break; \
+            echo "⚠️  $name download failed (attempt $attempt), retrying..."; \
+            sleep 5; \
+        done; \
+        [ -s "$name" ] || { echo "❌ Failed to download $name"; exit 1; }; \
+    done
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Enable Rust-based Hugging Face downloader (hf-transfer) for model downloads
@@ -184,7 +199,7 @@ download_model() {
                 log "✅ $name already present ($size bytes >= $min_size), skipping"
                 return 0
             else
-                log "⚠️  $name incomplete ($size bytes < $min_size), retrying (attempt $attempt/$max_retries)"
+                log "⚠️  $name incomplete ($size bytes < $min_size), resuming (attempt $attempt/$max_retries)"
             fi
         else
             log "📥 Downloading $name (attempt $attempt/$max_retries)..."
@@ -370,7 +385,7 @@ download_workflows() {
     local downloaded=0 failed=0
 
     for wf in "${WORKFLOWS[@]}"; do
-        if wget -q --tries=3 --timeout=30 "$WF_BASE_URL/$wf" -O "$target_dir/$wf"; then
+        if curl -fsSL --retry 3 --connect-timeout 30 "$WF_BASE_URL/$wf" -o "$target_dir/$wf"; then
             wlog "  ✅ $wf"
             downloaded=$((downloaded + 1))
         else
@@ -431,12 +446,7 @@ if [ ! -f "$ARGS_FILE" ]; then
     mkdir -p /workspace/runpod-slim
     cat > "$ARGS_FILE" << 'INNER'
 # Custom ComfyUI arguments (one per line, # = comment)
---disable-auto-launch
---fast fp16_accumulation
---use-sage-attention
---reserve-vram 2
---cuda-malloc
---async-offload
+--disable-auto-launch --fast fp16_accumulation --use-sage-attention --cuda-malloc --async-offload
 INNER
     echo "Created comfyui_args.txt with WAN2.2 optimized args"
 fi

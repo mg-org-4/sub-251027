@@ -11,9 +11,7 @@ APT_PACKAGES=(
 PIP_PACKAGES=(
     "--upgrade --force-reinstall --no-cache-dir https://github.com/JamePeng/llama-cpp-python/releases/download/v0.3.45-cu131-linux-20260801/llama_cpp_python-0.3.45+cu131-cp312-cp312-linux_x86_64.whl"
     "huggingface_hub"
-    "hf-transfer"
     "sageattention"
-    "kornia==0.8.2"
     "tensorrt-cu13==10.15.1.29"
     "tensorrt-cu13-bindings==10.15.1.29"
     "tensorrt-cu13-libs==10.15.1.29"
@@ -23,7 +21,7 @@ NODES=(
     "https://github.com/huchukato/comfy-tagcomplete"
     "https://github.com/huchukato/ComfyUI-QwenVL-Mod"
     "https://github.com/BobRandomNumber/ComfyUI-Crystools-MonitorOnly"
-    "https://github.com/Lightricks/ComfyUI-LTXVideo"
+    "https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo"
     "https://github.com/huchukato/ComfyUI-RIFE-TensorRT-Auto"
     "https://github.com/huchukato/ComfyUI-Upscaler-TensorRT-Auto"
     "https://github.com/huchukato/ComfyUI-HuggingFace"
@@ -36,10 +34,20 @@ NODES=(
     "https://github.com/ashtar1984/comfyui-find-perfect-resolution"
     "https://github.com/kijai/ComfyUI-KJNodes"
     "https://github.com/MoonGoblinDev/Civicomfy"
+    "https://github.com/Saganaki22/ComfyUI-sol-attn"
+    "https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI"
 )
 
 WORKFLOWS=(
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/ltx/LTX23-I2VA-Qwen3VL.json"
+    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-I2VA-Qwen3VL.json"
+    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-FL2VA-Qwen3VL.json"
+    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-T2VA-Qwen3VL.json"
+    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-R2VA-Qwen3VL.json"
+    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-Turbo-I2VA-Qwen3VL.json"
+    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-Turbo-FL2VA-Qwen3VL.json"
+    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-Turbo-T2VA-Qwen3VL.json"
+    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-Turbo-R2VA-Qwen3VL.json"
+    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/minimax/MiniMaxH3-Turbo-FL2VA-Qwen3VL-RTX.json"
     "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/PMP-LoRaStack-Upscale-Wildcards.json"
 )
 
@@ -47,9 +55,11 @@ CHECKPOINT_MODELS=(
 )
 
 UNET_MODELS=(
+   
 )
 
 LORA_MODELS=(
+            
 )
 
 VAE_MODELS=(
@@ -61,18 +71,21 @@ ESRGAN_MODELS=(
 TEXT_ENCODERS=(
 )
 
-CONTROLNET_MODELS=(
+MINIMAX_MODELS=(
+    "vae|minimax_h3_video_vae_fp16.safetensors|https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors|5200000000"
+    "vae|minimax_h3_audio_vae_fp32.safetensors|https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors|600000000"
+    "diffusion_models|minimax_h3_fl2va_pruned_int8_convrot.safetensors|https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors|20970379616"
+    "diffusion_models|minimax_h3_ref2va_pruned_int8_convrot.safetensors|https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors|20970379616"
+    "text_encoders|qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors|https://huggingface.co/ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot/resolve/main/qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors|26000000000"
+    "loras|minimax_h3_turbo_v4_step600_ema.safetensors|https://huggingface.co/larryvrh/MiniMax-H3-Turbo-Lora/resolve/main/minimax_h3_turbo_v4_step600_ema.safetensors|779849816"
+    # 10Eros-Max INT8 ConvRot HQ (~22GB) — only 32 QKV tensors modified, rest bit-identical to H3
+    # Better prompt adherence + audio than beta1, same VRAM as standard H3 int8
+    "diffusion_models|10Eros_Max_H3_FL2VA-INT8-ConvRot-HQ.safetensors|https://huggingface.co/DmitryDB/MiniMax-H3-10Eros-Max-Quants/resolve/main/FL2VA/10Eros_Max_H3_FL2VA-INT8-ConvRot-HQ.safetensors|22000000000"
+    # Turbo LoRA 8-step for 10Eros-Max pruned (1.96GB) — compat full-width
+    "loras|minimax_h3_fl2v_turbo_8step_v1.0_10ErosMax_beta1_pruned_compat_v001_T8.safetensors|https://huggingface.co/t8star/minimax_h3_turbo_4step_10ErosMax_test4_pruned_curveproj1025_T8/resolve/main/minimax_h3_fl2v_turbo_8step_v1.0_10ErosMax_beta1_pruned_compat_v001_T8.safetensors|1950000000"
 )
 
-# LTX 2.3 models: subdir|name|url|min_size_bytes
-# Uncensored setup: 10Eros v1.5 checkpoint + Gemma abliterated LoRA + DMD hybrid v2 LoRA
-LTX_MODELS=(
-    "checkpoints|10Eros_v1.5_fp8mixed_experimental_learned.safetensors|https://huggingface.co/LokkenJP/10EROS_1.5_fp8_exp_learned/resolve/main/10Eros_v1.5_fp8mixed_experimental_learned.safetensors|28000000000"
-    "text_encoders|gemma_3_12B_it_fp4_mixed.safetensors|https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors|9000000000"
-    "loras|gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors|https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/loras/gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors|600000000"
-    "loras|ltx23/LTX2.3_DMD_hybrid_v2.safetensors|https://huggingface.co/TenStrip/LTX2.3_DMD_Lora/resolve/main/LTX2.3_DMD_hybrid_v2.safetensors|600000000"
-    "latent_upscale_models|ltx-2.3-spatial-upscaler-x2-1.1.safetensors|https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors|900000000"
-    "latent_upscale_models|ltx-2.3-temporal-upscaler-x2-1.0.safetensors|https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-temporal-upscaler-x2-1.0.safetensors|250000000"
+CONTROLNET_MODELS=(
 )
 
 function provisioning_force_comfyui_version() {
@@ -85,7 +98,7 @@ function provisioning_force_comfyui_version() {
         return 0
     fi
 
-    echo "🔧 Ensuring $label is on v0.31.0 (LTX 2.3 requirement)..."
+    echo "🔧 Ensuring $label is on v0.31.0 (MiniMax H3 requirement)..."
     if timeout 60 git -C "$repo_dir" fetch --tags --force origin 2>/dev/null; then
         local current_hash target_hash
         current_hash=$(git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -104,7 +117,7 @@ function provisioning_force_comfyui_version() {
     fi
 }
 
-function download_ltx_model() {
+function download_minimax_model() {
     local base_dir="$1" subdir="$2" name="$3" url="$4" min_size="$5"
     local dest="$base_dir/$subdir/$name"
     local max_retries=5
@@ -176,29 +189,29 @@ function download_ltx_model() {
     return 1
 }
 
-function provisioning_get_ltx_models() {
+function provisioning_get_minimax_models() {
     local base_dir="${WORKSPACE:-/workspace}/ComfyUI/models"
     local ready_marker="${WORKSPACE:-/workspace}/ComfyUI/main.py"
 
     local all_complete=true
-    for entry in "${LTX_MODELS[@]}"; do
+    for entry in "${MINIMAX_MODELS[@]}"; do
         IFS='|' read -r subdir name url min_size <<< "$entry"
         local dest="$base_dir/$subdir/$name"
         local size
-        size=$(stat -L -c%s "$dest" 2>/dev/null || stat -L -f%z "$dest" 2>/dev/null || echo 0)
+        size=$(stat -c%s "$dest" 2>/dev/null || stat -f%z "$dest" 2>/dev/null || echo 0)
         if [ "$size" -lt "$min_size" ]; then
             all_complete=false
             break
         fi
     done
     if [ "$all_complete" = true ]; then
-        echo "✅ All LTX 2.3 models already complete, no download needed"
+        echo "✅ All MiniMax H3 models already complete, no download needed"
         return 0
     fi
 
-    mkdir -p "$base_dir"/{checkpoints,text_encoders,loras/ltx23,latent_upscale_models}
+    mkdir -p "$base_dir"/{vae,diffusion_models,text_encoders,loras}
 
-    echo "📥 === LTX 2.3 model download started (PID $$) ==="
+    echo "� === MiniMax H3 model download started (PID $$) ==="
     echo "⏳ Waiting for ComfyUI ready marker..."
     for i in $(seq 1 120); do
         [ -f "$ready_marker" ] && break
@@ -213,12 +226,12 @@ function provisioning_get_ltx_models() {
     echo "✅ ComfyUI ready, base dir: $base_dir"
 
     local failures=0
-    for entry in "${LTX_MODELS[@]}"; do
+    for entry in "${MINIMAX_MODELS[@]}"; do
         IFS='|' read -r subdir name url min_size <<< "$entry"
-        download_ltx_model "$base_dir" "$subdir" "$name" "$url" "$min_size" || failures=$((failures + 1))
+        download_minimax_model "$base_dir" "$subdir" "$name" "$url" "$min_size" || failures=$((failures + 1))
     done
 
-    echo "📦 === LTX 2.3 model download finished ($failures failures) ==="
+    echo "📦 === MiniMax H3 model download finished ($failures failures) ==="
 }
 
 function provisioning_configure_args() {
@@ -226,14 +239,9 @@ function provisioning_configure_args() {
     if [ ! -f "$args_file" ]; then
         mkdir -p "$(dirname "$args_file")"
         cat > "$args_file" <<'EOF'
---disable-auto-launch
---fast fp16_accumulation
---use-sage-attention
---reserve-vram 2
---cuda-malloc
---async-offload
+--disable-auto-launch --port 18188 --enable-cors-header --fast fp16_accumulation --use-sage-attention --cuda-malloc --async-offload
 EOF
-        echo "✅ Created $args_file with LTX 2.3 / QwenVL-Mod optimized args"
+        echo "✅ Created $args_file with MiniMax H3 / QwenVL-Mod optimized args"
     else
         echo "ℹ️  $args_file already exists, leaving untouched"
     fi
@@ -248,7 +256,7 @@ function provisioning_start() {
     echo "📦 Installing APT packages..."
     provisioning_get_apt_packages
     
-    echo "🔧 Ensuring ComfyUI is on v0.31.0 (LTX 2.3 requirement)..."
+    echo "🔧 Ensuring ComfyUI is on v0.30.0 (MiniMax H3 requirement)..."
     provisioning_force_comfyui_version "${COMFYUI_DIR}" "ComfyUI"
     
     echo "🔧 Installing custom nodes..."
@@ -301,8 +309,8 @@ function provisioning_start() {
         "${COMFYUI_DIR}/models/text_encoders" \
         "${TEXT_ENCODERS[@]}"        
     
-    echo "🧬 Starting LTX 2.3 model download in background..."
-    provisioning_get_ltx_models
+    echo "🧬 Starting MiniMax H3 model download in background..."
+    provisioning_get_minimax_models
     
     echo "🎛️ Configuring ComfyUI arguments..."
     provisioning_configure_args

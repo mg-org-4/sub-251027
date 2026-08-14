@@ -2,7 +2,7 @@
   "id": "b25965af-2005-4e6d-b188-e9c5ea0224c8",
   "revision": 0,
   "last_node_id": 162,
-  "last_link_id": 320,
+  "last_link_id": 326,
   "nodes": [
     {
       "id": 118,
@@ -29,51 +29,6 @@
       "bgcolor": "#653"
     },
     {
-      "id": 146,
-      "type": "AutoLoadRifeTensorrtModel",
-      "pos": [
-        -157.7704134076803,
-        4910.610803989202
-      ],
-      "size": [
-        322.5669921875,
-        130
-      ],
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "custom_config",
-          "shape": 7,
-          "type": "RIFE_RESOLUTION_CONFIG",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "rife_trt_model",
-          "type": "RIFE_TRT_MODEL",
-          "links": [
-            269
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "huchukato/ComfyUI-RIFE-TensorRT-Auto",
-        "ver": "51d88c0c0db49308dd3ade9edd4a5c1bcdf4ec72",
-        "Node name for S&R": "AutoLoadRifeTensorrtModel"
-      },
-      "widgets_values": [
-        "rife49_ensemble_True_scale_1_sim",
-        "fp16",
-        "large",
-        1
-      ],
-      "color": "#223",
-      "bgcolor": "#335"
-    },
-    {
       "id": 135,
       "type": "MarkdownNote",
       "pos": [
@@ -85,7 +40,7 @@
         999.520163217875
       ],
       "flags": {},
-      "order": 2,
+      "order": 1,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -96,139 +51,6 @@
       ],
       "color": "#2a363b",
       "bgcolor": "#3f5159"
-    },
-    {
-      "id": 155,
-      "type": "VRAMCleanup",
-      "pos": [
-        -81.34657823430813,
-        5281.379797019999
-      ],
-      "size": [
-        270,
-        58
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "order": 16,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "input",
-          "type": "*",
-          "link": 304
-        }
-      ],
-      "outputs": [
-        {
-          "name": "output",
-          "type": "*",
-          "links": [
-            305
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "huchukato/ComfyUI-QwenVL-Mod",
-        "ver": "ba8b0648b7ea5fcc15c62d535343b275cae5de3e",
-        "Node name for S&R": "VRAMCleanup"
-      },
-      "widgets_values": [
-        "Full Cleanup"
-      ]
-    },
-    {
-      "id": 145,
-      "type": "AutoRifeTensorrt",
-      "pos": [
-        -151.13477869950822,
-        5089.8209998180455
-      ],
-      "size": [
-        311.24876401618576,
-        229.6878304442398
-      ],
-      "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "frames",
-          "type": "IMAGE",
-          "link": 301
-        },
-        {
-          "name": "rife_trt_model",
-          "type": "RIFE_TRT_MODEL",
-          "link": 269
-        },
-        {
-          "name": "interpolation_states",
-          "shape": 7,
-          "type": "INTERPOLATION_STATES",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            304
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "huchukato/ComfyUI-RIFE-TensorRT-Auto",
-        "ver": "51d88c0c0db49308dd3ade9edd4a5c1bcdf4ec72",
-        "Node name for S&R": "AutoRifeTensorrt"
-      },
-      "widgets_values": [
-        100,
-        2,
-        false,
-        1,
-        ""
-      ],
-      "color": "#223",
-      "bgcolor": "#335"
-    },
-    {
-      "id": 128,
-      "type": "LoadUpscalerTensorrtModel",
-      "pos": [
-        -160,
-        5450
-      ],
-      "size": [
-        295.4078125,
-        82
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "upscaler_trt_model",
-          "type": "UPSCALER_TRT_MODEL",
-          "links": [
-            244
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "huchukato/ComfyUI-Upscaler-TensorRT-Auto",
-        "ver": "6b8951d7413b41d9639be91888ef65b63827b930",
-        "Node name for S&R": "LoadUpscalerTensorrtModel"
-      },
-      "widgets_values": [
-        "RealESRGAN_x4",
-        "fp16"
-      ],
-      "color": "#223",
-      "bgcolor": "#335"
     },
     {
       "id": 92,
@@ -284,7 +106,7 @@
         136.18957362986293
       ],
       "flags": {},
-      "order": 4,
+      "order": 2,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -311,8 +133,8 @@
       "id": 160,
       "type": "WidgetToString",
       "pos": [
-        257.1601182789325,
-        4939.753455953506
+        273.0094625412692,
+        4969.8382681976855
       ],
       "size": [
         294.341796875,
@@ -353,95 +175,6 @@
       ]
     },
     {
-      "id": 126,
-      "type": "VHS_VideoCombine",
-      "pos": [
-        219.1398465704154,
-        4862.504721466492
-      ],
-      "size": [
-        1155.5330597730813,
-        986.7373461223583
-      ],
-      "flags": {},
-      "order": 18,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 303
-        },
-        {
-          "name": "audio",
-          "shape": 7,
-          "type": "AUDIO",
-          "link": 242
-        },
-        {
-          "name": "meta_batch",
-          "shape": 7,
-          "type": "VHS_BatchManager",
-          "link": null
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": null
-        },
-        {
-          "name": "filename_prefix",
-          "type": "STRING",
-          "widget": {
-            "name": "filename_prefix"
-          },
-          "link": 313
-        }
-      ],
-      "outputs": [
-        {
-          "name": "Filenames",
-          "type": "VHS_FILENAMES",
-          "links": null
-        }
-      ],
-      "title": "48FPS",
-      "properties": {
-        "cnr_id": "comfyui-videohelpersuite",
-        "ver": "4ee72c065db22c9d96c2427954dc69e7b908444b",
-        "Node name for S&R": "VHS_VideoCombine",
-        "aux_id": "Kosinkadink/ComfyUI-VideoHelperSuite"
-      },
-      "widgets_values": {
-        "frame_rate": 48,
-        "loop_count": 0,
-        "filename_prefix": "video/MiniMax_H3_48FPS",
-        "format": "video/webm",
-        "pix_fmt": "yuv420p",
-        "crf": 20,
-        "save_metadata": true,
-        "trim_to_audio": false,
-        "pingpong": false,
-        "save_output": true,
-        "videopreview": {
-          "hidden": false,
-          "paused": false,
-          "params": {
-            "filename": "enhanced_k2278.jpg_00001-audio.webm",
-            "subfolder": "",
-            "type": "output",
-            "format": "video/webm",
-            "frame_rate": 48,
-            "workflow": "enhanced_k2278.jpg_00001.png",
-            "fullpath": "/workspace/ComfyUI/output/enhanced_k2278.jpg_00001-audio.webm"
-          }
-        }
-      },
-      "color": "#232",
-      "bgcolor": "#353"
-    },
-    {
       "id": 150,
       "type": "MarkdownNote",
       "pos": [
@@ -453,7 +186,7 @@
         687.9279474019359
       ],
       "flags": {},
-      "order": 5,
+      "order": 3,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -477,7 +210,7 @@
         556.5218885027944
       ],
       "flags": {},
-      "order": 6,
+      "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -488,54 +221,6 @@
       ],
       "color": "#432",
       "bgcolor": "#653"
-    },
-    {
-      "id": 127,
-      "type": "UpscalerTensorrt",
-      "pos": [
-        -150,
-        5600
-      ],
-      "size": [
-        294.81271348921337,
-        76
-      ],
-      "flags": {},
-      "order": 17,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 305
-        },
-        {
-          "name": "upscaler_trt_model",
-          "type": "UPSCALER_TRT_MODEL",
-          "link": 244
-        }
-      ],
-      "outputs": [
-        {
-          "name": "upscaled_images",
-          "type": "IMAGE",
-          "links": [
-            303
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "huchukato/ComfyUI-Upscaler-TensorRT-Auto",
-        "ver": "6b8951d7413b41d9639be91888ef65b63827b930",
-        "Node name for S&R": "UpscalerTensorrt"
-      },
-      "widgets_values": [
-        "1080p",
-        2048,
-        2048
-      ],
-      "color": "#223",
-      "bgcolor": "#335"
     },
     {
       "id": 115,
@@ -549,7 +234,7 @@
         170
       ],
       "flags": {},
-      "order": 7,
+      "order": 5,
       "mode": 0,
       "showAdvanced": false,
       "inputs": [],
@@ -636,7 +321,7 @@
         699.6343689418964
       ],
       "flags": {},
-      "order": 8,
+      "order": 6,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -679,7 +364,7 @@
         707.0429930952259
       ],
       "flags": {},
-      "order": 9,
+      "order": 7,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -721,7 +406,7 @@
         707.0429930952259
       ],
       "flags": {},
-      "order": 10,
+      "order": 8,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -831,7 +516,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            301
+            324
           ]
         },
         {
@@ -872,6 +557,322 @@
       ],
       "color": "#2a363b",
       "bgcolor": "#3f5159"
+    },
+    {
+      "id": 126,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        234.5594616616263,
+        4896.862501129217
+      ],
+      "size": [
+        1155.5330597730813,
+        986.7373461223583
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 303
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 242
+        },
+        {
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": 313
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null
+        }
+      ],
+      "title": "48FPS",
+      "properties": {
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "4ee72c065db22c9d96c2427954dc69e7b908444b",
+        "Node name for S&R": "VHS_VideoCombine",
+        "aux_id": "Kosinkadink/ComfyUI-VideoHelperSuite"
+      },
+      "widgets_values": {
+        "frame_rate": 48,
+        "loop_count": 0,
+        "filename_prefix": "video/MiniMax_H3_48FPS",
+        "format": "video/webm",
+        "pix_fmt": "yuv420p",
+        "crf": 20,
+        "save_metadata": false,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "k589.jpg_00001-audio.webm",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/webm",
+            "frame_rate": 48,
+            "workflow": "k589.jpg_00001.png",
+            "fullpath": "/workspace/runpod-slim/ComfyUI/output/k589.jpg_00001-audio.webm"
+          }
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 155,
+      "type": "VRAMCleanup",
+      "pos": [
+        -62.47903519261835,
+        4946.118070663818
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input",
+          "type": "*",
+          "link": 324
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": [
+            325
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "huchukato/ComfyUI-QwenVL-Mod",
+        "ver": "ba8b0648b7ea5fcc15c62d535343b275cae5de3e",
+        "Node name for S&R": "VRAMCleanup"
+      },
+      "widgets_values": [
+        "Full Cleanup"
+      ]
+    },
+    {
+      "id": 145,
+      "type": "AutoRifeTensorrt",
+      "pos": [
+        -143.7037072780606,
+        5079.337229662078
+      ],
+      "size": [
+        311.24876401618576,
+        229.6878304442398
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "frames",
+          "type": "IMAGE",
+          "link": 325
+        },
+        {
+          "name": "rife_trt_model",
+          "type": "RIFE_TRT_MODEL",
+          "link": 269
+        },
+        {
+          "name": "interpolation_states",
+          "shape": 7,
+          "type": "INTERPOLATION_STATES",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            326
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "huchukato/ComfyUI-RIFE-TensorRT-Auto",
+        "ver": "51d88c0c0db49308dd3ade9edd4a5c1bcdf4ec72",
+        "Node name for S&R": "AutoRifeTensorrt"
+      },
+      "widgets_values": [
+        100,
+        2,
+        false,
+        1,
+        ""
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 128,
+      "type": "LoadUpscalerTensorrtModel",
+      "pos": [
+        -146.30273675238934,
+        5450.07919253823
+      ],
+      "size": [
+        295.4078125,
+        82
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "upscaler_trt_model",
+          "type": "UPSCALER_TRT_MODEL",
+          "links": [
+            244
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "huchukato/ComfyUI-Upscaler-TensorRT-Auto",
+        "ver": "6b8951d7413b41d9639be91888ef65b63827b930",
+        "Node name for S&R": "LoadUpscalerTensorrtModel"
+      },
+      "widgets_values": [
+        "RealESRGAN_x2plus",
+        "fp16"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 127,
+      "type": "UpscalerTensorrt",
+      "pos": [
+        -150,
+        5588.977007851211
+      ],
+      "size": [
+        294.81271348921337,
+        94
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 326
+        },
+        {
+          "name": "upscaler_trt_model",
+          "type": "UPSCALER_TRT_MODEL",
+          "link": 244
+        }
+      ],
+      "outputs": [
+        {
+          "name": "upscaled_images",
+          "type": "IMAGE",
+          "links": [
+            303
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "huchukato/ComfyUI-Upscaler-TensorRT-Auto",
+        "ver": "6b8951d7413b41d9639be91888ef65b63827b930",
+        "Node name for S&R": "UpscalerTensorrt"
+      },
+      "widgets_values": [
+        "1080p",
+        "2",
+        2048,
+        2048
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 146,
+      "type": "AutoLoadRifeTensorrtModel",
+      "pos": [
+        -142.33591258643295,
+        4913.161169224357
+      ],
+      "size": [
+        322.5669921875,
+        130
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "custom_config",
+          "shape": 7,
+          "type": "RIFE_RESOLUTION_CONFIG",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "rife_trt_model",
+          "type": "RIFE_TRT_MODEL",
+          "links": [
+            269
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "huchukato/ComfyUI-RIFE-TensorRT-Auto",
+        "ver": "51d88c0c0db49308dd3ade9edd4a5c1bcdf4ec72",
+        "Node name for S&R": "AutoLoadRifeTensorrtModel"
+      },
+      "widgets_values": [
+        "rife49_ensemble_True_scale_1_sim",
+        "fp16",
+        "large",
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
     }
   ],
   "links": [
@@ -948,34 +949,10 @@
       "IMAGE"
     ],
     [
-      301,
-      105,
-      1,
-      145,
-      0,
-      "IMAGE"
-    ],
-    [
       303,
       127,
       0,
       126,
-      0,
-      "IMAGE"
-    ],
-    [
-      304,
-      145,
-      0,
-      155,
-      0,
-      "IMAGE"
-    ],
-    [
-      305,
-      155,
-      0,
-      127,
       0,
       "IMAGE"
     ],
@@ -1002,6 +979,30 @@
       126,
       4,
       "STRING"
+    ],
+    [
+      324,
+      105,
+      1,
+      155,
+      0,
+      "IMAGE"
+    ],
+    [
+      325,
+      155,
+      0,
+      145,
+      0,
+      "IMAGE"
+    ],
+    [
+      326,
+      145,
+      0,
+      127,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [
@@ -1040,6 +1041,18 @@
       ],
       "color": "#a1309b",
       "flags": {}
+    },
+    {
+      "id": 10,
+      "title": "48FPS",
+      "bounding": [
+        224.9891908327524,
+        4822.589533710671,
+        1175.5330597730813,
+        414
+      ],
+      "color": "#a1309b",
+      "flags": {}
     }
   ],
   "definitions": {
@@ -1048,9 +1061,9 @@
         "id": "4c314f31-ecda-4b08-ae98-faaba1bf613f",
         "version": 1,
         "state": {
-          "lastGroupId": 9,
+          "lastGroupId": 10,
           "lastNodeId": 162,
-          "lastLinkId": 320,
+          "lastLinkId": 326,
           "lastRerouteId": 0
         },
         "revision": 0,
@@ -1467,7 +1480,7 @@
                 "localized_name": "model",
                 "name": "model",
                 "type": "MODEL",
-                "link": 319
+                "link": 322
               },
               {
                 "localized_name": "conditioning",
@@ -2105,7 +2118,7 @@
                 "localized_name": "model",
                 "name": "model",
                 "type": "MODEL",
-                "link": 320
+                "link": 323
               },
               {
                 "localized_name": "steps",
@@ -2323,7 +2336,8 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  318
+                  322,
+                  323
                 ]
               }
             ],
@@ -2337,84 +2351,6 @@
               "minimax_h3_turbo_v4_step600_ema.safetensors",
               1,
               false
-            ]
-          },
-          {
-            "id": 161,
-            "type": "Reroute",
-            "pos": [
-              -876.537017046652,
-              4465.2197165106845
-            ],
-            "size": [
-              75,
-              26
-            ],
-            "flags": {},
-            "order": 17,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "",
-                "type": "*",
-                "link": 317
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "MODEL",
-                "links": [
-                  319,
-                  320
-                ]
-              }
-            ],
-            "properties": {
-              "showOutputText": false,
-              "horizontal": false
-            }
-          },
-          {
-            "id": 162,
-            "type": "PathchSageAttentionKJ",
-            "pos": [
-              -867.4287500011892,
-              4337.5235623913795
-            ],
-            "size": [
-              270,
-              82
-            ],
-            "flags": {},
-            "order": 18,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "model",
-                "name": "model",
-                "type": "MODEL",
-                "link": 318
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  317
-                ]
-              }
-            ],
-            "properties": {
-              "cnr_id": "comfyui-kjnodes",
-              "ver": "6ab7e8130e449ed2c0037589bcf84146ceb7fc9c",
-              "Node name for S&R": "PathchSageAttentionKJ"
-            },
-            "widgets_values": [
-              "auto",
-              true
             ]
           }
         ],
@@ -2798,32 +2734,16 @@
             "type": "IMAGE"
           },
           {
-            "id": 317,
-            "origin_id": 162,
-            "origin_slot": 0,
-            "target_id": 161,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 318,
+            "id": 322,
             "origin_id": 157,
-            "origin_slot": 0,
-            "target_id": 162,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 319,
-            "origin_id": 161,
             "origin_slot": 0,
             "target_id": 16,
             "target_slot": 0,
             "type": "MODEL"
           },
           {
-            "id": 320,
-            "origin_id": 161,
+            "id": 323,
+            "origin_id": 157,
             "origin_slot": 0,
             "target_id": 9,
             "target_slot": 0,
@@ -2842,10 +2762,10 @@
     "VHS_MetadataImage": true,
     "VHS_KeepIntermediate": true,
     "ds": {
-      "scale": 0.796316462125923,
+      "scale": 1.0598972110896037,
       "offset": [
-        2778.187355794364,
-        -4446.983629721137
+        1351.5603597854606,
+        -4440.748479024653
       ]
     }
   },

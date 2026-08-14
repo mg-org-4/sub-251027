@@ -22,8 +22,22 @@ RUN cd /opt/comfyui-baked && \
     pip cache purge
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Fix torchvision::nms crash: the base image's /start.sh creates a venv with
+# --system-site-packages, which inherits the system torchvision (built for a
+# different torch version than the venv ends up with). Keep --system-site-packages
+# so other deps (sqlalchemy, alembic, numpy, etc.) remain available from the
+# base image, but force-install matching torchvision into the venv to override
+# the broken system one.
+# ──────────────────────────────────────────────────────────────────────────────
+RUN sed -i '/echo "Base packages (torch, numpy, etc.) available from system site-packages"/i\
+        pip install --no-cache-dir --force-reinstall --no-deps torchvision==0.25.0+cu130 --index-url https://download.pytorch.org/whl/cu130' /start.sh && \
+    echo "Patched /start.sh: torchvision will be force-installed to match venv torch version"
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Custom nodes — ALL repos cloned once (cached)
 # ──────────────────────────────────────────────────────────────────────────────
+# Bump NODES_CACHE_BUSTER to force re-clone of all custom nodes
+ARG NODES_CACHE_BUSTER=2026-08-13-v4
 RUN cd /opt/comfyui-baked/custom_nodes && \
     git clone https://github.com/BobRandomNumber/ComfyUI-Crystools-MonitorOnly.git && \
     git clone https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo.git && \
@@ -38,7 +52,9 @@ RUN cd /opt/comfyui-baked/custom_nodes && \
     git clone https://github.com/huchukato/ComfyUI-RIFE-TensorRT-Auto.git && \
     git clone https://github.com/huchukato/ComfyUI-Upscaler-TensorRT-Auto.git && \
     git clone https://github.com/huchukato/ComfyUI-HuggingFace.git && \
-    git clone https://github.com/huchukato/comfy-tagcomplete.git
+    git clone https://github.com/huchukato/comfy-tagcomplete.git && \
+    git clone https://github.com/Saganaki22/ComfyUI-sol-attn.git && \
+    git clone https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Install requirements (single layer, cached)
@@ -81,7 +97,7 @@ RUN pip install --no-cache-dir \
 ARG CACHEBUST=1
 RUN echo "CACHEBUST=$CACHEBUST" && \
     cd /opt/comfyui-baked/custom_nodes && \
-    for repo in ComfyUI-QwenVL-Mod ComfyUI-HuggingFace comfy-tagcomplete; do \
+    for repo in ComfyUI-QwenVL-Mod; do \
         if [ -d "$repo" ]; then \
             cd "$repo" && git pull --ff-only && cd ..; \
         fi; \
@@ -121,6 +137,7 @@ MINIMAX_WORKFLOWS=(
     "MiniMaxH3-Turbo-FL2VA-Qwen3VL.json"
     "MiniMaxH3-Turbo-T2VA-Qwen3VL.json"
     "MiniMaxH3-Turbo-R2VA-Qwen3VL.json"
+    "MiniMaxH3-Turbo-FL2VA-Qwen3VL-RTX.json"
 )
 EXTRA_WORKFLOWS=(
     "PMP-LoRaStack-Upscale-Wildcards.json"
@@ -209,6 +226,8 @@ MODELS=(
     # 10Eros-Max INT8 ConvRot HQ (~22GB) — only 32 QKV tensors modified, rest bit-identical to H3
     # Better prompt adherence + audio than beta1, same VRAM as standard H3 int8
     "diffusion_models|10Eros_Max_H3_FL2VA-INT8-ConvRot-HQ.safetensors|https://huggingface.co/DmitryDB/MiniMax-H3-10Eros-Max-Quants/resolve/main/FL2VA/10Eros_Max_H3_FL2VA-INT8-ConvRot-HQ.safetensors|22000000000"
+    # Turbo LoRA 8-step for 10Eros-Max pruned (1.96GB) — compat full-width
+    "loras|minimax_h3_fl2v_turbo_8step_v1.0_10ErosMax_beta1_pruned_compat_v001_T8.safetensors|https://huggingface.co/t8star/minimax_h3_turbo_4step_10ErosMax_test4_pruned_curveproj1025_T8/resolve/main/minimax_h3_fl2v_turbo_8step_v1.0_10ErosMax_beta1_pruned_compat_v001_T8.safetensors|1950000000"
 )
 
 log() { echo "$(date): $*" | tee -a "$LOG"; }
@@ -294,7 +313,7 @@ download_model() {
             rm -rf "$tmp_dir"
         fi
 
-        [ "$attempt" -lt "$max_retries" ] && sleep $((attempt * 10))
+        [ "$attempt" -lt "$max_retries" ] && sleep $((attempt * 30))
     done
 
     log "❌ FAILED: $name could not be downloaded after $max_retries attempts"
@@ -305,6 +324,8 @@ failures=0
 for entry in "${MODELS[@]}"; do
     IFS='|' read -r subdir name url min_size <<< "$entry"
     download_model "$subdir" "$name" "$url" "$min_size" || failures=$((failures + 1))
+    # Small delay between downloads to avoid HF rate limiting (429)
+    sleep 5
 done
 
 log "📦 === MiniMax H3 model download finished ($failures failures) ==="
@@ -402,7 +423,7 @@ if [ ! -f "$ARGS_FILE" ]; then
     mkdir -p /workspace/runpod-slim
     cat > "$ARGS_FILE" << 'INNER'
 # Custom ComfyUI arguments (one per line, # = comment)
---disable-auto-launch --port 18188 --enable-cors-header --fast fp16_accumulation --use-sage-attention --cuda-malloc --async-offload
+--disable-auto-launch --fast fp16_accumulation --use-sage-attention --cuda-malloc --async-offload
 INNER
     echo "Created comfyui_args.txt with MiniMax H3 / QwenVL-Mod optimized args"
 fi

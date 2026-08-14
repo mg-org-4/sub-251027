@@ -1,0 +1,9 @@
+torch
+torchvision
+huggingface_hub
+aiohttp
+numpy
+tqdm
+Pillow
+transformers
+kornia

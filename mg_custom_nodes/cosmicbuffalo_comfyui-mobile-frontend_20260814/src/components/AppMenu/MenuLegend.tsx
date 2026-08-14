@@ -1,0 +1,158 @@
+import { MenuSubPageHeader } from './MenuSubPageHeader';
+import { LegendItem, type LegendItemProps } from './LegendItem';
+import { t as globalT, useI18n } from '@/i18n';
+import {
+  ArrowToDownRightIcon,
+  CaretDownIcon,
+  CloseIcon,
+  EyeIcon,
+  EyeOffIcon,
+  NodeConnectionsLegendIcon,
+  PinIconSvg,
+  PinOutlineIcon,
+  QueueStackIcon
+} from '@/components/icons';
+
+interface MenuLegendProps {
+  onBack: () => void;
+}
+
+function getLegendItems(): LegendItemProps[] {
+  return [
+    {
+      icon: (
+        <div className="w-8 h-8 flex items-center justify-center bg-cyan-500 text-slate-950 rounded-lg font-bold text-xs shadow-sm">
+          {globalT('Run')}
+        </div>
+      ),
+      title: globalT('Run'),
+      description: globalT('Execute current workflow')
+    },
+    {
+      icon: (
+        <div className="w-10 h-10 flex items-center justify-center bg-slate-900/95 border border-white/10 rounded-lg text-slate-200 shadow-sm overflow-hidden">
+          <QueueStackIcon className="w-5 h-5" />
+        </div>
+      ),
+      title: globalT('Queue / Follow'),
+      description: globalT('View queue & follow execution')
+    },
+    {
+      icon: (
+        <div className="w-10 h-10 flex items-center justify-center bg-amber-500 text-white rounded-lg shadow-sm">
+          <PinIconSvg className="w-5 h-5" />
+        </div>
+      ),
+      title: globalT('Pinned Widget'),
+      description: globalT('Quick access to pinned parameter')
+    },
+    {
+      icon: (
+        <div className="w-8 h-8 flex items-center justify-center bg-slate-900/95 rounded-full border border-white/10 text-slate-200 font-bold">
+          ←
+        </div>
+      ),
+      title: globalT('Input'),
+      description: globalT('Node input connection point')
+    },
+    {
+      icon: (
+        <div className="w-8 h-8 flex items-center justify-center bg-slate-900/95 rounded-full border border-white/10 text-slate-200 font-bold">
+          →
+        </div>
+      ),
+      title: globalT('Output'),
+      description: globalT('Node output connection point')
+    },
+    {
+      icon: (
+        <div className="w-8 h-8 flex items-center justify-center text-slate-200">
+          <NodeConnectionsLegendIcon className="w-6 h-6 overflow-visible" />
+        </div>
+      ),
+      title: globalT('Trace Connections'),
+      description: globalT('Highlight connected nodes')
+    },
+    {
+      icon: (
+        <div className="w-8 h-8 flex items-center justify-center text-slate-400">
+          <CaretDownIcon className="w-6 h-6" />
+        </div>
+      ),
+      title: globalT('Fold / Unfold'),
+      description: globalT('Collapse or expand node card')
+    },
+    {
+      icon: (
+        <div className="w-8 h-8 flex items-center justify-center text-slate-200">
+          <CloseIcon className="w-5 h-5" />
+        </div>
+      ),
+      title: globalT('Bypass'),
+      description: globalT('Skip node execution')
+    },
+    {
+      icon: (
+        <div className="w-8 h-8 flex items-center justify-center text-slate-200">
+          <EyeOffIcon className="w-5 h-5" />
+        </div>
+      ),
+      title: globalT('Hide'),
+      description: globalT('Hide node from view')
+    },
+    {
+      icon: (
+        <div className="w-8 h-8 flex items-center justify-center text-slate-200">
+          <EyeIcon className="w-5 h-5" />
+        </div>
+      ),
+      title: globalT('Show'),
+      description: globalT('Make node visible again')
+    },
+    {
+      icon: (
+        <div className="w-8 h-8 flex items-center justify-center text-slate-200">
+          <PinOutlineIcon className="w-5 h-5" />
+        </div>
+      ),
+      title: globalT('Pin widget'),
+      description: globalT('Pin widget to bottom bar')
+    },
+    {
+      icon: (
+        <div className="w-8 h-8 flex items-center justify-center text-slate-300">
+          <span className="inline-flex items-center gap-0.5">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="h-3.5 w-3.5">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeDasharray="0.5 6.5" />
+            </svg>
+            <ArrowToDownRightIcon className="w-4 h-4 rotate-90" />
+          </span>
+        </div>
+      ),
+      title: globalT('Pop out widget'),
+      description: globalT('Move a widget value into its own connected input node')
+    }
+  ];
+}
+
+export function MenuLegend({ onBack }: MenuLegendProps) {
+  const { t } = useI18n();
+  const items = getLegendItems();
+
+  return (
+    <div className="flex flex-col h-full">
+      <MenuSubPageHeader title={t('Icon Legend')} onBack={onBack} />
+
+      <div className="space-y-3 overflow-y-auto flex-1 pb-4">
+        {items.map((item) => (
+          <LegendItem
+            key={item.title}
+            icon={item.icon}
+            title={item.title}
+            description={item.description}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}

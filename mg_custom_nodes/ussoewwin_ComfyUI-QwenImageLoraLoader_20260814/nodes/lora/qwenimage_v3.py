@@ -1,8 +1,6 @@
 """
-This module provides the :class:`NunchakuQwenImageLoraStackV1` node
+This module provides the :class:`NunchakuQwenImageLoraStackV3` node
 for applying LoRA weights to Nunchaku Qwen Image models within ComfyUI.
-The interface completely mimics the Power Lora Loader from rgthree-comfy(https://github.com/rgthree/rgthree-comfy ),
-supporting dynamic additions and custom widgets.
 """
 
 import copy
@@ -26,30 +24,60 @@ log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-class any_type(str):
-    def __ne__(self, __value: object) -> bool:
-        return False
 
-class FlexibleOptionalInputType(dict):
-    def __contains__(self, key):
-        return True
-    def __getitem__(self, key):
-        return (any_type, {})
-
-class NunchakuQwenImageLoraStackV1:
+class NunchakuQwenImageLoraStackV2:
     """
     Node for loading and applying multiple LoRAs to a Nunchaku Qwen Image model with dynamic UI.
-    Built upon V3, pays full homage to the clean and minimalist design of the
-    Power Lora Loader from the rgthree-comfy project.
+    V3 adds per-slot enable toggles and an all-toggle for ComfyUI Nodes 2.0 UI.
     """
 
     @classmethod
+    def IS_CHANGED(cls, lora_count, cpu_offload="disable", toggle_all=True, save_precompiled_lora=False, **kwargs):
+        """
+        Detect changes to trigger node re-execution.
+        Returns a hash of relevant parameters to detect changes.
+        Note: model is intentionally excluded — ComfyUI does not pass MODEL-type
+        inputs (which come from other nodes' outputs) to IS_CHANGED.
+        Including it would cause a TypeError, which ComfyUI converts to NaN,
+        making the node always re-execute on every generation.
+        """
+        import hashlib
+
+        m = hashlib.sha256()
+        m.update(str(lora_count).encode())
+        m.update(cpu_offload.encode())
+        m.update(str(toggle_all).encode())
+        m.update(str(save_precompiled_lora).encode())
+        # Hash all LoRA parameters
+        for i in range(1, 11):
+            m.update(kwargs.get(f"lora_name_{i}", "").encode())
+            m.update(str(kwargs.get(f"lora_strength_{i}", 0)).encode())
+            m.update(str(kwargs.get(f"enabled_{i}", True)).encode())
+        return m.digest().hex()
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        return True
+
+    @classmethod
     def INPUT_TYPES(s):
+        loras = ["None"] + folder_paths.get_filename_list("loras")
+
         inputs = {
             "required": {
                 "model": (
                     "MODEL",
                     {"tooltip": "The diffusion model to apply LoRAs to."},
+                ),
+                "lora_count": (
+                    "INT",
+                    {
+                        "default": 3,
+                        "min": 1,
+                        "max": 10,
+                        "step": 1,
+                        "tooltip": "Number of LoRA slots to process.",
+                    },
                 ),
                 "cpu_offload": (
                     ["auto", "enable", "disable"],
@@ -58,22 +86,15 @@ class NunchakuQwenImageLoraStackV1:
                         "tooltip": "CPU offload setting. 'auto' enables offload when VRAM is low, 'enable' forces offload, 'disable' disables offload.",
                     },
                 ),
-                "apply_awq_mod": (
+                "toggle_all": (
                     "BOOLEAN",
                     {
                         "default": True,
-                        "tooltip": "Enable manual planar injection for AWQ modulation layers. Fixes noise issues in quantized models. Default is True.",
-                    },
-                ),
-                "stack_enabled": (
-                    "BOOLEAN",
-                    {
-                        "default": True,
-                        "tooltip": "Master Switch: Enable or disable the entire LoRA stack processing.",
+                        "tooltip": "Enable/disable all LoRAs at once.",
                     },
                 ),
             },
-            "optional": FlexibleOptionalInputType({
+            "optional": {
                 "save_precompiled_lora": (
                     "BOOLEAN",
                     {
@@ -86,49 +107,59 @@ class NunchakuQwenImageLoraStackV1:
                         ),
                     },
                 ),
-            }),
-            # Use 'hidden' here to let JS pass dynamic LoRA data
-            "hidden": {
-                "prompt": "PROMPT",
-                "extra_pnginfo": "EXTRA_PNGINFO",
             },
         }
+
+        # Add all LoRA inputs (up to 10 slots) as optional
+        for i in range(1, 11):
+            inputs["optional"][f"enabled_{i}"] = (
+                "BOOLEAN",
+                {
+                    "default": True,
+                    "tooltip": f"Enable/disable LoRA {i}.",
+                },
+            )
+            inputs["optional"][f"lora_name_{i}"] = (
+                loras,
+                {"tooltip": f"The file name of LoRA {i}. Select 'None' to skip this slot."},
+            )
+            inputs["optional"][f"lora_strength_{i}"] = (
+                "FLOAT",
+                {
+                    "default": 1.0,
+                    "min": -100.0,
+                    "max": 100.0,
+                    "step": 0.01,
+                    "tooltip": f"Strength for LoRA {i}.",
+                },
+            )
 
         return inputs
 
     RETURN_TYPES = ("MODEL",)
     OUTPUT_TOOLTIPS = ("The modified diffusion model with all LoRAs applied.",)
     FUNCTION = "load_lora_stack"
-    TITLE = "Nunchaku Qwen Image LoRA Stack V1"
+    TITLE = "Nunchaku Qwen Image LoRA Stack V3"
     CATEGORY = "Nunchaku"
     DESCRIPTION = "Apply multiple LoRAs to a diffusion model in a single node with dynamic UI control."
 
-    def load_lora_stack(self, model, cpu_offload="disable", apply_awq_mod=True, stack_enabled=True, save_precompiled_lora=False, **kwargs):
-        # Dynamic widgets passed from JS will appear in kwargs
-        # Named lora_1, lora_2... with values as dictionaries: {'enabled': bool, 'lora_name': str, 'lora_strength': float}
-        lora_keys = [key for key in kwargs.keys() if key.startswith("lora_")]
-        lora_keys.sort(key=lambda x: int(x.split('_')[-1])) # Ensure numerical sorting
-
-        lora_count = len(lora_keys)
-
+    def load_lora_stack(self, model, lora_count, cpu_offload="disable", toggle_all=True, save_precompiled_lora=False, **kwargs):
         loras_to_apply = []
 
-        # Log stack_enabled state
-        logger.info(f"[LoRA Stack Status] apply_awq_mod: {apply_awq_mod}")
-        logger.info(f"[LoRA Stack Status] stack_enabled: {stack_enabled}")
+        # Log toggle_all state
+        logger.info(f"[LoRA Stack Status] toggle_all: {toggle_all}")
         logger.info(f"[LoRA Stack Status] Processing {lora_count} LoRA slot(s):")
 
-        for i, key in enumerate(lora_keys):
-            value = kwargs[key]
-            if not isinstance(value, dict):
-                continue
-
-            lora_name = value.get("lora_name", "None")
-            lora_strength = value.get("lora_strength", 1.0)
-            # stack_enabled acts as a Master Switch.
-            # If stack_enabled is False, all LoRAs are disabled.
-            # If stack_enabled is True, we respect the individual 'enabled' state.
-            enabled = stack_enabled and value.get("enabled", True)
+        # Process only the number of LoRAs specified by lora_count
+        for i in range(1, lora_count + 1):
+            lora_name = kwargs.get(f"lora_name_{i}")
+            lora_strength = kwargs.get(f"lora_strength_{i}", 1.0)
+            enabled_individual = kwargs.get(f"enabled_{i}", True)
+            # Check if this LoRA is enabled (considering both toggle_all and individual enabled_<i>)
+            # If toggle_all is False, still respect individual enabled_<i> settings (individual override)
+            # If toggle_all is True, respect individual enabled_<i> settings
+            # Fixed: Allow individual enabled_<i> to work even when toggle_all is False (Issue #42)
+            enabled = enabled_individual
 
             status_parts = []
             status_parts.append(f"Slot {i}:")
@@ -138,8 +169,9 @@ class NunchakuQwenImageLoraStackV1:
             else:
                 status_parts.append("(no LoRA selected)")
 
-            status_parts.append(f"stack_enabled={stack_enabled}")
-            status_parts.append(f"enabled_{i}={enabled}")
+            status_parts.append(f"toggle_all={toggle_all}")
+            status_parts.append(f"enabled_{i}={enabled_individual}")
+            status_parts.append(f"final_enabled={enabled}")
 
             if enabled and lora_name and lora_name != "None" and abs(lora_strength) > 1e-5:
                 status_parts.append("→ APPLIED ✓")
@@ -154,14 +186,44 @@ class NunchakuQwenImageLoraStackV1:
         if not loras_to_apply:
             return (model,)
 
-        model_wrapper = model.model.diffusion_model
-
-        # Dynamic import with explicit path manipulation
+        # ZIT zimageturbo_v4.py lines 201-241: load -> detect -> log -> key inspection (exact same block, logger -> print)
+        # Controlled by nunchaku_log env var (0 = mute)
         import importlib.util
-
         lora_loader_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         if lora_loader_dir not in sys.path:
             sys.path.insert(0, lora_loader_dir)
+        try:
+            from nunchaku_code.lora_qwen import _classify_and_map_key, _load_lora_state_dict, _detect_lora_format, _log_lora_format_detection, NUNCHAKU_LOG_ENABLED
+        except ImportError as e:
+            raise RuntimeError(
+                "nunchaku is required for QwenImage LoRA key mapping, "
+                "but it is not installed or failed to import."
+            ) from e
+        _fn, _fs = loras_to_apply[0]
+        lora_path = folder_paths.get_full_path_or_raise("loras", _fn)
+        lora_state_dict = _load_lora_state_dict(lora_path)
+        if lora_state_dict and NUNCHAKU_LOG_ENABLED:
+            detection = _detect_lora_format(lora_state_dict)
+            _log_lora_format_detection(str(_fn), detection)
+            # First LoRA: Detailed key inspection (same as zimageturbo_v4.py lines 219-240)
+            logger.info(f"--- DEBUG: Inspecting keys for LoRA 1 (Strength: {_fs}) ---")
+            _first_detection = _detect_lora_format(lora_state_dict)
+            if _first_detection["has_standard"]:
+                for key in lora_state_dict.keys():
+                    parsed_res = _classify_and_map_key(key)
+                    if parsed_res:
+                        group, base_key, comp, ab = parsed_res
+                        mapped_name = f"{base_key}.{comp}.{ab}" if comp and ab else (f"{base_key}.{ab}" if ab else base_key)
+                        logger.info(f"Key: {key} -> Mapped to: {mapped_name} (Group: {group})")
+                    else:
+                        logger.warning(f"Key: {key} -> UNMATCHED (Ignored)")
+            else:
+                logger.warning("⚠️  Unsupported LoRA format detected (No standard keys).")
+                logger.warning(f"   Skipping detailed key inspection of {len(lora_state_dict)} keys to prevent console freeze.")
+                logger.warning("   Note: This LoRA will likely have no effect or will be skipped entirely.")
+            logger.info("--- DEBUG: End key inspection ---")
+
+        model_wrapper = model.model.diffusion_model
 
         spec = importlib.util.spec_from_file_location(
             "wrappers.qwenimage",
@@ -171,7 +233,13 @@ class NunchakuQwenImageLoraStackV1:
         spec.loader.exec_module(wrappers_module)
         ComfyQwenImageWrapper = wrappers_module.ComfyQwenImageWrapper
 
-        from nunchaku import NunchakuQwenImageTransformer2DModel
+        try:
+            from nunchaku import NunchakuQwenImageTransformer2DModel
+        except ImportError as e:
+            raise RuntimeError(
+                "nunchaku is required to apply LoRAs to Nunchaku Qwen Image models, "
+                "but it is not installed or failed to import."
+            ) from e
 
         # Debug logging
         model_wrapper_type_name = type(model_wrapper).__name__
@@ -189,18 +257,16 @@ class NunchakuQwenImageLoraStackV1:
             if model_wrapper.cpu_offload_setting != cpu_offload:
                 logger.info(f"🔄 Updating CPU offload setting from '{model_wrapper.cpu_offload_setting}' to '{cpu_offload}'")
                 model_wrapper.cpu_offload_setting = cpu_offload
-
-            # Dynamically update the apply_awq_mod setting.
-            if hasattr(model_wrapper, "apply_awq_mod") and model_wrapper.apply_awq_mod != apply_awq_mod:
-                logger.info(f"🔄 Updating AWQ mod setting from '{model_wrapper.apply_awq_mod}' to '{apply_awq_mod}'")
-                model_wrapper.apply_awq_mod = apply_awq_mod
-
+            # V3: Always ensure apply_awq_mod is True (no switch, always enabled)
+            if hasattr(model_wrapper, "apply_awq_mod") and model_wrapper.apply_awq_mod != True:
+                logger.info(f"🔄 Updating AWQ mod setting from '{model_wrapper.apply_awq_mod}' to 'True' (V3: always enabled)")
+                model_wrapper.apply_awq_mod = True
             transformer = model_wrapper.model
         elif model_wrapper_type_name == "NunchakuQwenImageTransformer2DModel" or model_wrapper_type_name.endswith(
             "NunchakuQwenImageTransformer2DModel"
         ):
             logger.info("🔧 Wrapping NunchakuQwenImageTransformer2DModel with ComfyQwenImageWrapper")
-            logger.info(f"📦 Creating ComfyQwenImageWrapper with cpu_offload='{cpu_offload}', apply_awq_mod={apply_awq_mod}")
+            logger.info(f"📦 Creating ComfyQwenImageWrapper with cpu_offload='{cpu_offload}', apply_awq_mod=True (V3: always enabled)")
             wrapped_model = ComfyQwenImageWrapper(
                 model_wrapper,
                 getattr(model_wrapper, "config", {}),
@@ -208,7 +274,7 @@ class NunchakuQwenImageLoraStackV1:
                 {},  # forward_kwargs
                 cpu_offload,  # cpu_offload_setting
                 4.0,  # vram_margin_gb
-                apply_awq_mod=apply_awq_mod,
+                apply_awq_mod=True,  # V3: Always enable AWQ modulation layer LoRA (no switch needed)
             )
             model.model.diffusion_model = wrapped_model
             model_wrapper = wrapped_model
@@ -249,9 +315,11 @@ class NunchakuQwenImageLoraStackV1:
 
 
 GENERATED_NODES = {
-    "NunchakuQwenImageLoraStackV1": NunchakuQwenImageLoraStackV1,
+    "NunchakuQwenImageLoraStackV3": NunchakuQwenImageLoraStackV2,
 }
 
 GENERATED_DISPLAY_NAMES = {
-    "NunchakuQwenImageLoraStackV1": "Nunchaku Qwen Image LoRA Stack V1",
+    "NunchakuQwenImageLoraStackV3": "Nunchaku Qwen Image LoRA Stack V3",
 }
+
+

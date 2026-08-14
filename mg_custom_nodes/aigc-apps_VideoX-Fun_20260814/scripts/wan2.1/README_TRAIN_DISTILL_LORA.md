@@ -1,8 +1,8 @@
-# Wan2.2 Distillation LoRA Training Guide
+# Wan2.1 Distillation LoRA Training Guide
 
-This document provides a complete workflow for distilling and fine-tuning Wan2.2 with LoRA, including environment setup, data preparation, distributed training, and inference testing.
+This document provides a complete workflow for distilling and fine-tuning Wan2.1 with LoRA, including environment setup, data preparation, distributed training, and inference testing.
 
-> **Note**: Wan2.2 is a video generation model that supports Text-to-Video (T2V), Image-to-Video (I2V), and Text-Image-to-Video (TI2V). Wan2.2 adopts a dual-Transformer architecture (high-noise/low-noise models). This training method combines distillation (reducing inference steps) and LoRA (parameter-efficient fine-tuning) technologies. It can reduce inference steps from 25-50 to 4-8 steps with lower VRAM usage while maintaining or improving video generation quality.
+> **Note**: This training method combines distillation (reducing inference steps) and LoRA (parameter-efficient fine-tuning) technologies. It can reduce inference steps from 25-50 to 4-8 steps with lower VRAM usage while maintaining or improving video generation quality.
 
 ---
 
@@ -21,11 +21,11 @@ This document provides a complete workflow for distilling and fine-tuning Wan2.2
   - [3.5 Training with FSDP](#35-training-with-fsdp)
   - [3.6 Other Backends](#36-other-backends)
   - [3.7 Multi-Node Distributed Training](#37-multi-node-distributed-training)
+  - [3.8 DFD Post-training](#38-dfd-post-training)
 - [4. Inference Testing](#4-inference-testing)
   - [4.1 Inference Parameters Explanation](#41-inference-parameters-explanation)
   - [4.2 Text-to-Video (T2V) Inference](#42-text-to-video-t2v-inference)
   - [4.3 Image-to-Video (I2V) Inference](#43-image-to-video-i2v-inference)
-  - [4.3.1 Text-Image-to-Video (TI2V) Inference](#431-text-image-to-video-ti2v-inference)
   - [4.4 Multi-GPU Parallel Inference](#44-multi-gpu-parallel-inference)
 - [5. More Resources](#5-more-resources)
 
@@ -163,13 +163,11 @@ export DATASET_META_NAME="/mnt/data/metadata_add_width_height.json"
 # Create model directory
 mkdir -p models/Diffusion_Transformer
 
-# Download official Wan2.2 weights
+# Download official Wan2.1 weights
 # T2V model (Text-to-Video)
-modelscope download --model Wan-AI/Wan2.2-T2V-A14B --local_dir models/Diffusion_Transformer/Wan2.2-T2V-A14B
+modelscope download --model Wan-AI/Wan2.1-T2V-1.3B --local_dir models/Diffusion_Transformer/Wan2.1-T2V-1.3B
 # Or I2V model (Image-to-Video)
-# modelscope download --model Wan-AI/Wan2.2-I2V-A14B --local_dir models/Diffusion_Transformer/Wan2.2-I2V-A14B
-# Or TI2V model (Text-Image-to-Video)
-# modelscope download --model Wan-AI/Wan2.2-TI2V-5B --local_dir models/Diffusion_Transformer/Wan2.2-TI2V-5B
+# modelscope download --model Wan-AI/Wan2.1-I2V-14B-480P --local_dir models/Diffusion_Transformer/Wan2.1-I2V-14B-480P
 ```
 
 ### 3.2 Quick Start (DeepSpeed-Zero-2)
@@ -180,20 +178,8 @@ It is recommended to use DeepSpeed-Zero-2 or FSDP for training. Here we use Deep
 
 The difference between DeepSpeed-Zero-2 and FSDP in this repository is whether model weights are sharded. **If VRAM is insufficient when using multiple GPUs with DeepSpeed-Zero-2**, you can switch to FSDP for training.
 
-**Wan2.2 Dual-Transformer Architecture Explanation**:
-
-Wan2.2 adopts an innovative dual-Transformer architecture:
-- **Low Noise Model**: Responsible for processing the low-noise stage (close to final output)
-- **High Noise Model**: Responsible for processing the high-noise stage (initial generation stage)
-- **Boundary Type (boundary_type)**:
-  - `low`: Train the low-noise model, high-noise model uses pretrained weights (recommended for T2V/I2V distillation)
-  - `high`: Train the high-noise model, low-noise model uses pretrained weights
-  - `full`: Single model training (for single-Transformer models like TI2V-5B)
-
-**Wan2.2 T2V Distillation LoRA Training Example**:
-
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 # NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
@@ -201,8 +187,8 @@ export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.j
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_t2v.yaml" \
+accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -220,7 +206,7 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
   --learning_rate=1e-05 \
   --learning_rate_critic=1e-05 \
   --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
+  --output_dir="output_dir_wan2.1_distill_lora" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
   --adam_weight_decay=3e-2 \
@@ -231,62 +217,11 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
   --training_with_video_token_length \
   --enable_bucket \
   --uniform_sampling \
-  --boundary_type="low" \
   --rank=64 \
   --network_alpha=32 \
   --target_name="q,k,v,ffn.0,ffn.2" \
   --use_peft_lora \
   --train_mode="normal" \
-  --low_vram
-```
-
-**Wan2.2 I2V Distillation LoRA Training Example**:
-
-```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-I2V-A14B"
-export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
-export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
-# NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
-# export NCCL_IB_DISABLE=1
-# export NCCL_P2P_DISABLE=1
-NCCL_DEBUG=INFO
-
-accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_i2v.yaml" \
-  --pretrained_model_name_or_path=$MODEL_NAME \
-  --train_data_dir=$DATASET_NAME \
-  --train_data_meta=$DATASET_META_NAME \
-  --image_sample_size=640 \
-  --video_sample_size=640 \
-  --token_sample_size=640 \
-  --video_sample_stride=2 \
-  --video_sample_n_frames=81 \
-  --train_batch_size=1 \
-  --video_repeat=1 \
-  --gradient_accumulation_steps=1 \
-  --dataloader_num_workers=8 \
-  --num_train_epochs=100 \
-  --checkpointing_steps=50 \
-  --learning_rate=1e-05 \
-  --learning_rate_critic=1e-05 \
-  --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
-  --gradient_checkpointing \
-  --mixed_precision="bf16" \
-  --adam_weight_decay=3e-2 \
-  --adam_epsilon=1e-10 \
-  --vae_mini_batch=1 \
-  --max_grad_norm=0.05 \
-  --random_hw_adapt \
-  --training_with_video_token_length \
-  --enable_bucket \
-  --uniform_sampling \
-  --boundary_type="low" \
-  --rank=64 \
-  --network_alpha=32 \
-  --target_name="q,k,v,ffn.0,ffn.2" \
-  --use_peft_lora \
-  --train_mode="i2v" \
   --low_vram
 ```
 
@@ -314,7 +249,7 @@ In addition to distillation training, LoRA training adds the following specific 
 
 | Parameter | Description | Example Value |
 |-----|------|-------|
-| `--pretrained_model_name_or_path` | Pretrained model path | `models/Diffusion_Transformer/Wan2.2-T2V-A14B` |
+| `--pretrained_model_name_or_path` | Pretrained model path | `models/Diffusion_Transformer/Wan2.1-T2V-1.3B/` |
 | `--train_data_dir` | Training data directory | `datasets/X-Fun-Videos-Demo/` |
 | `--train_data_meta` | Training data metadata file | `datasets/X-Fun-Videos-Demo/metadata_add_width_height.json` |
 | `--train_batch_size` | Number of samples per batch | 1 |
@@ -330,7 +265,7 @@ In addition to distillation training, LoRA training adds the following specific 
 | `--learning_rate` | Initial learning rate (generator) | 1e-05 |
 | `--learning_rate_critic` | Initial learning rate (discriminator) | 1e-05 |
 | `--seed` | Random seed | 42 |
-| `--output_dir` | Output directory | `output_dir_wan2.2_distill_lora` |
+| `--output_dir` | Output directory | `output_dir_wan2.1_distill_lora` |
 | `--gradient_checkpointing` | Activation recomputation | - |
 | `--mixed_precision` | Mixed precision: `fp16/bf16` | `bf16` |
 | `--adam_weight_decay` | AdamW weight decay | 3e-2 |
@@ -342,8 +277,7 @@ In addition to distillation training, LoRA training adds the following specific 
 | `--training_with_video_token_length` | Train based on token length, supports any resolution | - |
 | `--uniform_sampling` | Uniform timestep sampling | - |
 | `--low_vram` | Low VRAM mode | - |
-| `--boundary_type` | Wan2.2 dual-Transformer boundary type: `low` (train low-noise model), `high` (train high-noise model), `full` (train single model like TI2V-5B) | `low` |
-| `--train_mode` | Training mode: `normal` (standard T2V) or `i2v` (image-to-video) | `normal` |
+| `--train_mode` | Training mode: `normal` (standard) or `i2v` (image-to-video) | `normal` |
 | `--resume_from_checkpoint` | Resume training path, use `"latest"` to automatically select the latest checkpoint | None |
 | `--validation_steps` | Run validation every N steps | 2000 |
 | `--validation_epochs` | Run validation every N epochs | 5 |
@@ -358,6 +292,7 @@ In addition to distillation training, LoRA training adds the following specific 
 | `--real_guidance_scale` | Real guidance scale for scoring | 6.0 |
 | `--fake_guidance_scale` | Fake guidance scale for scoring | 0.0 |
 | `--gen_update_interval` | Generator update interval | 5 |
+| `--negative_prompt` | Negative prompt for distillation | Chinese negative prompt |
 | `--train_sampling_steps` | Training sampling steps | 1000 |
 
 **Sample Size Configuration Guide**:
@@ -396,7 +331,7 @@ You can configure validation parameters to regularly generate test videos during
 ```bash
   --validation_steps=2000 \
   --validation_epochs=5 \
-  --validation_prompts="A brown dog shaking its head, sitting on a light-colored sofa in a cozy room. Behind the dog, there's a framed painting on a shelf, surrounded by pink flowers. The soft, warm lighting in the room creates a comfortable atmosphere."
+  --validation_prompts="一只棕色的狗摇着头,坐在舒适房间里的浅色沙发上。在狗的后面,架子上有一幅镶框的画,周围是粉红色的花朵。房间里柔和温暖的灯光营造出舒适的氛围。"
 ```
 
 **i2v/inpaint Mode Example** (I2V Validation):
@@ -418,7 +353,7 @@ You can configure validation parameters to regularly generate test videos during
 If VRAM is insufficient when using multiple GPUs with DeepSpeed-Zero-2, you can switch to FSDP for training.
 
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 # NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
@@ -426,8 +361,8 @@ export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.j
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TRANSFORMER_BASED_WRAP --fsdp_transformer_layer_cls_to_wrap=WanAttentionBlock --fsdp_sharding_strategy "FULL_SHARD" --fsdp_state_dict_type=SHARDED_STATE_DICT --fsdp_backward_prefetch "BACKWARD_PRE" --fsdp_cpu_ram_efficient_loading False scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_t2v.yaml" \
+accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TRANSFORMER_BASED_WRAP --fsdp_transformer_layer_cls_to_wrap=WanAttentionBlock --fsdp_sharding_strategy "FULL_SHARD" --fsdp_state_dict_type=SHARDED_STATE_DICT --fsdp_backward_prefetch "BACKWARD_PRE" --fsdp_cpu_ram_efficient_loading False scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -445,7 +380,7 @@ accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TR
   --learning_rate=1e-05 \
   --learning_rate_critic=1e-05 \
   --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
+  --output_dir="output_dir_wan2.1_distill_lora" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
   --adam_weight_decay=3e-2 \
@@ -456,7 +391,6 @@ accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TR
   --training_with_video_token_length \
   --enable_bucket \
   --uniform_sampling \
-  --boundary_type="low" \
   --rank=64 \
   --network_alpha=32 \
   --target_name="q,k,v,ffn.0,ffn.2" \
@@ -480,7 +414,7 @@ python scripts/zero_to_bf16.py output_dir/checkpoint-{your-num-steps} output_dir
 
 The training shell command is as follows:
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 # NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
@@ -488,8 +422,8 @@ export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.j
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag true --use_deepspeed --deepspeed_config_file config/zero_stage3_config.json --deepspeed_multinode_launcher standard scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_t2v.yaml" \
+accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag true --use_deepspeed --deepspeed_config_file config/zero_stage3_config.json --deepspeed_multinode_launcher standard scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -507,7 +441,7 @@ accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag
   --learning_rate=1e-05 \
   --learning_rate_critic=1e-05 \
   --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
+  --output_dir="output_dir_wan2.1_distill_lora" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
   --adam_weight_decay=3e-2 \
@@ -518,7 +452,6 @@ accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag
   --training_with_video_token_length \
   --enable_bucket \
   --uniform_sampling \
-  --boundary_type="low" \
   --train_mode="normal" \
   --low_vram
 ```
@@ -528,7 +461,7 @@ accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag
 **This approach is not recommended because without VRAM-saving backends, it easily causes VRAM shortages**. This is only provided as a reference for training.
 
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 # NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
@@ -536,8 +469,8 @@ export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.j
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --mixed_precision="bf16" scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_t2v.yaml" \
+accelerate launch --mixed_precision="bf16" scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -555,7 +488,7 @@ accelerate launch --mixed_precision="bf16" scripts/wan2.2/train_distill_lora.py 
   --learning_rate=1e-05 \
   --learning_rate_critic=1e-05 \
   --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
+  --output_dir="output_dir_wan2.1_distill_lora" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
   --adam_weight_decay=3e-2 \
@@ -566,7 +499,6 @@ accelerate launch --mixed_precision="bf16" scripts/wan2.2/train_distill_lora.py 
   --training_with_video_token_length \
   --enable_bucket \
   --uniform_sampling \
-  --boundary_type="low" \
   --rank=64 \
   --network_alpha=32 \
   --target_name="q,k,v,ffn.0,ffn.2" \
@@ -585,7 +517,7 @@ Assuming 2 machines, each with 8 GPUs:
 
 **Machine 0 (Master)**:
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 export MASTER_ADDR="192.168.1.100"  # Master machine IP
@@ -598,8 +530,8 @@ export RANK=0                        # Current machine rank (0 or 1)
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --mixed_precision="bf16" --main_process_ip=$MASTER_ADDR --main_process_port=$MASTER_PORT --num_machines=$WORLD_SIZE --num_processes=$NUM_PROCESS --machine_rank=$RANK --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_t2v.yaml" \
+accelerate launch --mixed_precision="bf16" --main_process_ip=$MASTER_ADDR --main_process_port=$MASTER_PORT --num_machines=$WORLD_SIZE --num_processes=$NUM_PROCESS --machine_rank=$RANK --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -617,7 +549,7 @@ accelerate launch --mixed_precision="bf16" --main_process_ip=$MASTER_ADDR --main
   --learning_rate=1e-05 \
   --learning_rate_critic=1e-05 \
   --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
+  --output_dir="output_dir_wan2.1_distill_lora" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
   --adam_weight_decay=3e-2 \
@@ -628,7 +560,6 @@ accelerate launch --mixed_precision="bf16" --main_process_ip=$MASTER_ADDR --main
   --training_with_video_token_length \
   --enable_bucket \
   --uniform_sampling \
-  --boundary_type="low" \
   --rank=64 \
   --network_alpha=32 \
   --target_name="q,k,v,ffn.0,ffn.2" \
@@ -639,7 +570,7 @@ accelerate launch --mixed_precision="bf16" --main_process_ip=$MASTER_ADDR --main
 
 **Machine 1 (Worker)**:
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 export MASTER_ADDR="192.168.1.100"  # Same as Master
@@ -667,6 +598,146 @@ NCCL_DEBUG=INFO
 
 - **Data Synchronization**: All machines must be able to access the same data paths (NFS/shared storage)
 
+### 3.8 DFD Post-training
+
+DFD is a post-training scheme on top of a DMD-pretrained generator. It encodes the paired real videos with the VAE as student anchors: the student denoises the noised real latents at the few-step student timesteps derived from `--denoising_step_indices_list`, and with probability `--dfd_teacher_replace_prob` the input of the teacher (real score) is replaced by the noised real latents, which can further improve the quality of few-step generation.
+
+You can either warm start from a finished DMD checkpoint via `--generator_transformer_path`, or run a single training job that executes plain DMD first and switches on DFD from `--dfd_start_step` onward.
+
+**Usage Constraints**:
+- DFD currently only supports T2V training with `--train_mode normal`.
+- DFD does not support `--enable_text_encoder_in_dataloader`.
+- DFD requires an explicit `--seed` for reproducible post-training.
+- `--dfd_start_step` must be non-negative, `--dfd_teacher_replace_prob` must be in `[0, 1]`, and `--gen_update_interval` must be greater than zero.
+
+**Data Requirements**:
+- DFD needs paired real videos, so the dataset must contain real video files. The dataset structure and metadata.json format are the same as **2.3 metadata.json Format**.
+
+**DFD-Specific Parameters**:
+
+| Parameter | Description | Example Value |
+|-----|------|-------|
+| `--dfd` | Whether to use DFD post-training on a DMD-pretrained generator | - |
+| `--dfd_teacher_replace_prob` | Probability of replacing the teacher-score input with paired real data | 0.5 |
+| `--dfd_start_step` | Switch on DFD from this global_step onward; earlier steps run plain DMD | 0 |
+| `--generator_transformer_path` | Warm start the generator and fake score from a DMD weight | `output_dir_wan2.1_distill/checkpoint-xxx/diffusion_pytorch_model.safetensors` |
+| `--fake_score_transformer_path` | Warm start only the fake score from a weight | None |
+
+**Warm Start Notes**:
+- `--generator_transformer_path` loads the DMD full weight as the base weights of the generator and fake score, and LoRA is trained on top of them.
+- The trained LoRA weight is still saved as `lora_diffusion_pytorch_model.safetensors` inside the checkpoint.
+
+**Usage 1: DFD Post-training from a DMD Checkpoint** (warm start the generator and fake score from a finished DMD weight):
+
+```bash
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
+export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
+export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
+# NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
+# export NCCL_IB_DISABLE=1
+# export NCCL_P2P_DISABLE=1
+NCCL_DEBUG=INFO
+
+accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
+  --pretrained_model_name_or_path=$MODEL_NAME \
+  --train_data_dir=$DATASET_NAME \
+  --train_data_meta=$DATASET_META_NAME \
+  --image_sample_size=640 \
+  --video_sample_size=640 \
+  --token_sample_size=640 \
+  --video_sample_stride=2 \
+  --video_sample_n_frames=81 \
+  --train_batch_size=1 \
+  --video_repeat=1 \
+  --gradient_accumulation_steps=1 \
+  --dataloader_num_workers=8 \
+  --num_train_epochs=100 \
+  --checkpointing_steps=50 \
+  --learning_rate=1e-05 \
+  --learning_rate_critic=1e-05 \
+  --seed=42 \
+  --output_dir="output_dir_wan2.1_distill_lora_dfd" \
+  --gradient_checkpointing \
+  --mixed_precision="bf16" \
+  --adam_weight_decay=3e-2 \
+  --adam_epsilon=1e-10 \
+  --vae_mini_batch=1 \
+  --max_grad_norm=0.05 \
+  --random_hw_adapt \
+  --training_with_video_token_length \
+  --enable_bucket \
+  --uniform_sampling \
+  --rank=64 \
+  --network_alpha=32 \
+  --target_name="q,k,v,ffn.0,ffn.2" \
+  --use_peft_lora \
+  --train_mode="normal" \
+  --low_vram \
+  --generator_transformer_path="output_dir_wan2.1_distill/checkpoint-xxx/diffusion_pytorch_model.safetensors" \
+  --dfd \
+  --dfd_teacher_replace_prob=0.5 \
+  --dfd_start_step=0
+```
+
+**Usage 2: Switch from DMD to DFD in a Single Training Run** (plain DMD before `--dfd_start_step`, DFD afterwards):
+
+```bash
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
+export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
+export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
+# NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
+# export NCCL_IB_DISABLE=1
+# export NCCL_P2P_DISABLE=1
+NCCL_DEBUG=INFO
+
+accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
+  --pretrained_model_name_or_path=$MODEL_NAME \
+  --train_data_dir=$DATASET_NAME \
+  --train_data_meta=$DATASET_META_NAME \
+  --image_sample_size=640 \
+  --video_sample_size=640 \
+  --token_sample_size=640 \
+  --video_sample_stride=2 \
+  --video_sample_n_frames=81 \
+  --train_batch_size=1 \
+  --video_repeat=1 \
+  --gradient_accumulation_steps=1 \
+  --dataloader_num_workers=8 \
+  --num_train_epochs=100 \
+  --checkpointing_steps=50 \
+  --learning_rate=1e-05 \
+  --learning_rate_critic=1e-05 \
+  --seed=42 \
+  --output_dir="output_dir_wan2.1_distill_lora_dfd" \
+  --gradient_checkpointing \
+  --mixed_precision="bf16" \
+  --adam_weight_decay=3e-2 \
+  --adam_epsilon=1e-10 \
+  --vae_mini_batch=1 \
+  --max_grad_norm=0.05 \
+  --random_hw_adapt \
+  --training_with_video_token_length \
+  --enable_bucket \
+  --uniform_sampling \
+  --rank=64 \
+  --network_alpha=32 \
+  --target_name="q,k,v,ffn.0,ffn.2" \
+  --use_peft_lora \
+  --train_mode="normal" \
+  --low_vram \
+  --dfd \
+  --dfd_teacher_replace_prob=0.5 \
+  --dfd_start_step=500
+```
+
+**Training Monitoring**:
+- When DFD is enabled, an additional metric `train_dfd_real_replace` is logged, which counts the steps whose teacher-score input is replaced by paired real data.
+
+**Inference**:
+- The DFD LoRA output is used in the same way as the DMD LoRA output. Please refer to **4. Inference Testing** (typically 4 steps with `guidance_scale=1.0`).
+
 ---
 
 ## 4. Inference Testing
@@ -683,13 +754,11 @@ NCCL_DEBUG=INFO
 | `fsdp_dit` | Use FSDP for Transformer during multi-GPU inference to save VRAM | `False` |
 | `fsdp_text_encoder` | Use FSDP for text encoder during multi-GPU inference | `True` |
 | `compile_dit` | Compile Transformer to accelerate inference (effective at fixed resolution) | `False` |
-| `model_name` | Model path | `models/Diffusion_Transformer/Wan2.2-T2V-A14B` |
+| `model_name` | Model path | `models/Diffusion_Transformer/Wan2.1-T2V-1.3B` |
 | `sampler_name` | Sampler type: `Flow`, `Flow_Unipc`, `Flow_DPM++` | `Flow_Unipc` |
-| `transformer_path` | Path to load trained low-noise Transformer weights | `None` or base model weights |
-| `transformer_high_path` | Path to load trained high-noise Transformer weights (dual-Transformer models only) | `None` |
+| `transformer_path` | Path to load trained Transformer weights | `None` or base model weights |
 | `vae_path` | Path to load trained VAE weights | `None` |
-| `lora_path` | LoRA weights path for low-noise model (distillation LoRA training output) | `output_dir_wan2.2_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors` |
-| `lora_high_path` | LoRA weights path for high-noise model (dual-Transformer models only) | `None` |
+| `lora_path` | LoRA weights path (distillation LoRA training output) | `output_dir_wan2.1_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors` |
 | `sample_size` | Generated video resolution `[height, width]` | `[480, 832]` or `[832, 480]` |
 | `video_length` | Number of generated video frames | `81` |
 | `fps` | Frames per second | `16` |
@@ -700,8 +769,7 @@ NCCL_DEBUG=INFO
 | `guidance_scale` | Guidance strength (distillation models typically use 1.0) | 1.0 |
 | `seed` | Random seed, for reproducing results | 43 |
 | `num_inference_steps` | Number of inference steps (distillation models typically use 4) | 4 |
-| `lora_weight` | LoRA weight strength for low-noise model | 0.55 |
-| `lora_high_weight` | LoRA weight strength for high-noise model (dual-Transformer models only) | 0.55 |
+| `lora_weight` | LoRA weight strength | 0.55 |
 | `save_path` | Path to save generated videos | `samples/wan-videos-i2v` or `samples/wan-videos-t2v` |
 
 **VRAM Management Mode Explanation**:
@@ -720,32 +788,26 @@ NCCL_DEBUG=INFO
 Run the following command for single-GPU inference:
 
 ```bash
-python examples/wan2.2/predict_t2v.py
+python examples/wan2.1/predict_t2v.py
 ```
 
-Edit `examples/wan2.2/predict_t2v.py` according to your needs. For initial inference, focus on the following parameters. If you're interested in other parameters, please refer to the inference parameters explanation above.
+Edit `examples/wan2.1/predict_t2v.py` according to your needs. For initial inference, focus on the following parameters. If you're interested in other parameters, please refer to the inference parameters explanation above.
 
 ```python
 # Select based on GPU VRAM
 GPU_memory_mode = "sequential_cpu_offload"
 # Based on actual model path
-model_name = "models/Diffusion_Transformer/Wan2.2-T2V-A14B"  
+model_name = "models/Diffusion_Transformer/Wan2.1-T2V-1.3B"  
 # Base model weight path (if you have trained full weights)
 transformer_path = None  
-# Trained high-noise weight path (if trained dual-Transformer)
-transformer_high_path = None  
-# LoRA weight path, e.g., "output_dir_wan2.2_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors"
+# LoRA weight path, e.g., "output_dir_wan2.1_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors"
 lora_path = None  
-# LoRA weight path for high-noise model (if trained)
-lora_high_path = None  
 # Distillation models typically use 4 steps
 num_inference_steps = 4
 # Distillation models guidance_scale is usually 1.0
 guidance_scale = 1.0
 # LoRA weight strength
 lora_weight = 0.55
-# LoRA weight strength for high-noise model
-lora_high_weight = 0.55
 # Write based on generated content
 prompt = "A brown dog shaking its head, sitting on a light-colored sofa in a cozy room. Behind the dog, there's a framed picture on a shelf surrounded by pink flowers. The soft, warm lighting in the room creates a comfortable atmosphere."  
 # ...
@@ -756,62 +818,20 @@ prompt = "A brown dog shaking its head, sitting on a light-colored sofa in a coz
 Run the following command for single-GPU inference:
 
 ```bash
-python examples/wan2.2/predict_i2v.py
+python examples/wan2.1/predict_i2v.py
 ```
 
-Edit `examples/wan2.2/predict_i2v.py` according to your needs. For initial inference, focus on the following parameters. If you're interested in other parameters, please refer to the inference parameters explanation above.
+Edit `examples/wan2.1/predict_i2v.py` according to your needs. For initial inference, focus on the following parameters. If you're interested in other parameters, please refer to the inference parameters explanation above.
 
 ```python
 # Select based on GPU VRAM
 GPU_memory_mode = "sequential_cpu_offload"
 # Based on actual model path
-model_name = "models/Diffusion_Transformer/Wan2.2-I2V-A14B"  
+model_name = "models/Diffusion_Transformer/Wan2.1-I2V-14B-480P"  
 # Base model weight path (if you have trained full weights)
 transformer_path = None  
-# Trained high-noise weight path
-transformer_high_path = None  
-# LoRA weight path, e.g., "output_dir_wan2.2_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors"
+# LoRA weight path, e.g., "output_dir_wan2.1_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors"
 lora_path = None  
-# LoRA weight path for high-noise model
-lora_high_path = None  
-# Distillation models typically use 4 steps
-num_inference_steps = 4
-# Distillation models guidance_scale is usually 1.0
-guidance_scale = 1.0
-# LoRA weight strength
-lora_weight = 0.55
-# LoRA weight strength for high-noise model
-lora_high_weight = 0.55
-# Starting image for image-to-video
-validation_image_start = "asset/1.png"
-# Write based on generated content
-prompt = "A brown dog shaking its head, sitting on a light-colored sofa in a cozy room. Behind the dog, there's a framed picture on a shelf surrounded by pink flowers. The soft, warm lighting in the room creates a comfortable atmosphere."  
-# ...
-```
-
-### 4.3.1 Text-Image-to-Video (TI2V) Inference
-
-Run the following command for single-GPU inference:
-
-```bash
-python examples/wan2.2/predict_ti2v.py
-```
-
-Edit `examples/wan2.2/predict_ti2v.py` according to your needs. For initial inference, focus on the following parameters. If you're interested in other parameters, please refer to the inference parameters explanation above.
-
-```python
-# Select based on GPU VRAM
-GPU_memory_mode = "sequential_cpu_offload"
-# Based on actual model path (TI2V single model)
-model_name = "models/Diffusion_Transformer/Wan2.2-TI2V-5B"  
-# Trained weight path, e.g., "output_dir_wan2.2_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors"
-transformer_path = None  
-# TI2V has only one model, transformer_high_path is not used
-transformer_high_path = None  
-# LoRA weight path
-lora_path = None  
-# LoRA weight path for high-noise model (not used for TI2V)
-lora_high_path = None  
 # Distillation models typically use 4 steps
 num_inference_steps = 4
 # Distillation models guidance_scale is usually 1.0
@@ -837,7 +857,7 @@ pip install xfuser==0.4.2 yunchang==0.6.2
 
 #### Configure Parallel Strategy
 
-Edit `examples/wan2.2/predict_t2v.py`, `examples/wan2.2/predict_i2v.py` or `examples/wan2.2/predict_ti2v.py`:
+Edit `examples/wan2.1/predict_t2v.py` or `examples/wan2.1/predict_i2v.py`:
 
 ```python
 # Ensure ulysses_degree × ring_degree = number of GPUs used
@@ -862,7 +882,7 @@ ring_degree = 1     # Sequence dimension parallelism
 #### Run Multi-GPU Inference
 
 ```bash
-torchrun --nproc-per-node=2 examples/wan2.2/predict_t2v.py
+torchrun --nproc-per-node=2 examples/wan2.1/predict_t2v.py
 ```
 
 ---

@@ -1,8 +1,8 @@
-# Wan2.2 蒸馏 LoRA 训练指南
+# Wan2.1 蒸馏 LoRA 训练指南
 
-本文档提供了将 Wan2.2 进行蒸馏 + LoRA 微调的完整工作流,包括环境配置、数据准备、分布式训练和推理测试。
+本文档提供了将 Wan2.1 进行蒸馏 + LoRA 微调的完整工作流,包括环境配置、数据准备、分布式训练和推理测试。
 
-> **说明**:Wan2.2 是一个支持文生视频(T2V)、图生视频(I2V)和文本图生视频(TI2V)的视频生成模型。Wan2.2采用双Transformer架构(高噪声/低噪声模型)。本训练方式结合了蒸馏(减少推理步数)和 LoRA(参数高效微调)两种技术,可以在显存占用较低的情况下,将推理步数从 25-50 步减少到 4-8 步,同时保持或提升视频生成质量。
+> **说明**:本训练方式结合了蒸馏(减少推理步数)和 LoRA(参数高效微调)两种技术,可以在显存占用较低的情况下,将推理步数从 25-50 步减少到 4-8 步,同时保持或提升视频生成质量。
 
 ---
 
@@ -21,11 +21,11 @@
   - [3.5 使用 FSDP 训练](#35-使用-fsdp-训练)
   - [3.6 其他后端](#36-其他后端)
   - [3.7 多机分布式训练](#37-多机分布式训练)
+  - [3.8 DFD 后训练](#38-dfd-后训练)
 - [四、推理测试](#四推理测试)
   - [4.1 推理参数解析](#41-推理参数解析)
   - [4.2 文生视频（T2V）推理](#42-文生视频t2v推理)
   - [4.3 图生视频（I2V）推理](#43-图生视频i2v推理)
-  - [4.3.1 文本图生视频（TI2V）推理](#431-文本图生视频ti2v推理)
   - [4.4 多卡并行推理](#44-多卡并行推理)
 - [五、更多资源](#五更多资源)
 
@@ -163,13 +163,11 @@ export DATASET_META_NAME="/mnt/data/metadata_add_width_height.json"
 # 创建模型目录
 mkdir -p models/Diffusion_Transformer
 
-# 下载 Wan2.2 官方权重
+# 下载 Wan2.1 官方权重
 # T2V 模型(文生视频)
-modelscope download --model Wan-AI/Wan2.2-T2V-A14B --local_dir models/Diffusion_Transformer/Wan2.2-T2V-A14B
+modelscope download --model Wan-AI/Wan2.1-T2V-1.3B --local_dir models/Diffusion_Transformer/Wan2.1-T2V-1.3B
 # 或 I2V 模型(图生视频)
-# modelscope download --model Wan-AI/Wan2.2-I2V-A14B --local_dir models/Diffusion_Transformer/Wan2.2-I2V-A14B
-# 或 TI2V 模型(文本图生视频)
-# modelscope download --model Wan-AI/Wan2.2-TI2V-5B --local_dir models/Diffusion_Transformer/Wan2.2-TI2V-5B
+# modelscope download --model Wan-AI/Wan2.1-I2V-14B-480P --local_dir models/Diffusion_Transformer/Wan2.1-I2V-14B-480P
 ```
 
 ### 3.2 快速开始（DeepSpeed-Zero-2）
@@ -180,20 +178,8 @@ modelscope download --model Wan-AI/Wan2.2-T2V-A14B --local_dir models/Diffusion_
 
 本文中DeepSpeed-Zero-2与FSDP的差别在于是否对模型权重进行分片，**如果使用多卡且使用DeepSpeed-Zero-2的情况下显存不足**，可以切换使用FSDP进行训练。
 
-**Wan2.2 双Transformer架构说明**：
-
-Wan2.2采用了创新的双Transformer架构：
-- **低噪声模型（Low Noise Model）**：负责处理低噪声阶段（接近最终输出）
-- **高噪声模型（High Noise Model）**：负责处理高噪声阶段（初始生成阶段）
-- **边界类型（boundary_type）**：
-  - `low`：训练低噪声模型，高噪声模型使用预训练权重（推荐用于T2V/I2V蒸馏）
-  - `high`：训练高噪声模型，低噪声模型使用预训练权重
-  - `full`：单模型训练（用于TI2V-5B等单Transformer模型）
-
-**Wan2.2 T2V 蒸馏 LoRA 训练示例**：
-
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 # NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
@@ -201,8 +187,8 @@ export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.j
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_t2v.yaml" \
+accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -220,7 +206,7 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
   --learning_rate=1e-05 \
   --learning_rate_critic=1e-05 \
   --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
+  --output_dir="output_dir_wan2.1_distill_lora" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
   --adam_weight_decay=3e-2 \
@@ -231,62 +217,11 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
   --training_with_video_token_length \
   --enable_bucket \
   --uniform_sampling \
-  --boundary_type="low" \
   --rank=64 \
   --network_alpha=32 \
   --target_name="q,k,v,ffn.0,ffn.2" \
   --use_peft_lora \
   --train_mode="normal" \
-  --low_vram
-```
-
-**Wan2.2 I2V 蒸馏 LoRA 训练示例**：
-
-```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-I2V-A14B"
-export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
-export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
-# NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
-# export NCCL_IB_DISABLE=1
-# export NCCL_P2P_DISABLE=1
-NCCL_DEBUG=INFO
-
-accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_i2v.yaml" \
-  --pretrained_model_name_or_path=$MODEL_NAME \
-  --train_data_dir=$DATASET_NAME \
-  --train_data_meta=$DATASET_META_NAME \
-  --image_sample_size=640 \
-  --video_sample_size=640 \
-  --token_sample_size=640 \
-  --video_sample_stride=2 \
-  --video_sample_n_frames=81 \
-  --train_batch_size=1 \
-  --video_repeat=1 \
-  --gradient_accumulation_steps=1 \
-  --dataloader_num_workers=8 \
-  --num_train_epochs=100 \
-  --checkpointing_steps=50 \
-  --learning_rate=1e-05 \
-  --learning_rate_critic=1e-05 \
-  --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
-  --gradient_checkpointing \
-  --mixed_precision="bf16" \
-  --adam_weight_decay=3e-2 \
-  --adam_epsilon=1e-10 \
-  --vae_mini_batch=1 \
-  --max_grad_norm=0.05 \
-  --random_hw_adapt \
-  --training_with_video_token_length \
-  --enable_bucket \
-  --uniform_sampling \
-  --boundary_type="low" \
-  --rank=64 \
-  --network_alpha=32 \
-  --target_name="q,k,v,ffn.0,ffn.2" \
-  --use_peft_lora \
-  --train_mode="i2v" \
   --low_vram
 ```
 
@@ -314,7 +249,7 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
 
 | 参数 | 说明 | 示例值 |
 |-----|------|-------|
-| `--pretrained_model_name_or_path` | 预训练模型路径 | `models/Diffusion_Transformer/Wan2.2-T2V-A14B` |
+| `--pretrained_model_name_or_path` | 预训练模型路径 | `models/Diffusion_Transformer/Wan2.1-T2V-1.3B/` |
 | `--train_data_dir` | 训练数据目录 | `datasets/X-Fun-Videos-Demo/` |
 | `--train_data_meta` | 训练数据元文件 | `datasets/X-Fun-Videos-Demo/metadata_add_width_height.json` |
 | `--train_batch_size` | 每批次样本数 | 1 |
@@ -330,7 +265,7 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
 | `--learning_rate` | 初始学习率(生成器) | 1e-05 |
 | `--learning_rate_critic` | 初始学习率(判别器) | 1e-05 |
 | `--seed` | 随机种子 | 42 |
-| `--output_dir` | 输出目录 | `output_dir_wan2.2_distill_lora` |
+| `--output_dir` | 输出目录 | `output_dir_wan2.1_distill_lora` |
 | `--gradient_checkpointing` | 激活重计算 | - |
 | `--mixed_precision` | 混合精度:`fp16/bf16` | `bf16` |
 | `--adam_weight_decay` | AdamW 权重衰减 | 3e-2 |
@@ -342,8 +277,7 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
 | `--training_with_video_token_length` | 根据 token 长度训练,支持任意分辨率 | - |
 | `--uniform_sampling` | 均匀采样 timestep | - |
 | `--low_vram` | 低显存模式 | - |
-| `--boundary_type` | Wan2.2双Transformer边界类型：`low`（训练低噪声模型）、`high`（训练高噪声模型）、`full`（训练单模型如TI2V-5B） | `low` |
-| `--train_mode` | 训练模式：`normal`（普通T2V）或 `i2v`（图生视频） | `normal` |
+| `--train_mode` | 训练模式:`normal`(普通)或 `i2v`(图生视频) | `normal` |
 | `--resume_from_checkpoint` | 恢复训练路径,使用 `"latest"` 自动选择最新 checkpoint | None |
 | `--validation_steps` | 每 N 步执行一次验证 | 2000 |
 | `--validation_epochs` | 每 N 个 epoch 执行一次验证 | 5 |
@@ -358,6 +292,7 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
 | `--real_guidance_scale` | 用于评分的真实 guidance scale | 6.0 |
 | `--fake_guidance_scale` | 用于评分的虚拟 guidance scale | 0.0 |
 | `--gen_update_interval` | 生成器更新间隔 | 5 |
+| `--negative_prompt` | 用于蒸馏的负向提示词 | 中文负向提示词 |
 | `--train_sampling_steps` | 训练采样步数 | 1000 |
 
 **Sample Size 配置指南**:
@@ -399,7 +334,7 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
   --validation_prompts="A brown dog shaking its head, sitting on a light-colored sofa in a cozy room. Behind the dog, there's a framed painting on a shelf, surrounded by pink flowers. The soft, warm lighting in the room creates a comfortable atmosphere."
 ```
 
-**i2v/inpaint 模式示例**(I2V 验证):
+**i2v/inpaint 模式示例**（I2V 验证）：
 
 ```bash
   --validation_paths "asset/1.png" \
@@ -418,7 +353,7 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
 如果使用多卡且使用DeepSpeed-Zero-2的情况下显存不足，可以切换使用FSDP进行训练。
 
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 # NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
@@ -426,8 +361,8 @@ export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.j
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TRANSFORMER_BASED_WRAP --fsdp_transformer_layer_cls_to_wrap=WanAttentionBlock --fsdp_sharding_strategy "FULL_SHARD" --fsdp_state_dict_type=SHARDED_STATE_DICT --fsdp_backward_prefetch "BACKWARD_PRE" --fsdp_cpu_ram_efficient_loading False scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_t2v.yaml" \
+accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TRANSFORMER_BASED_WRAP --fsdp_transformer_layer_cls_to_wrap=WanAttentionBlock --fsdp_sharding_strategy "FULL_SHARD" --fsdp_state_dict_type=SHARDED_STATE_DICT --fsdp_backward_prefetch "BACKWARD_PRE" --fsdp_cpu_ram_efficient_loading False scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -445,7 +380,7 @@ accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TR
   --learning_rate=1e-05 \
   --learning_rate_critic=1e-05 \
   --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
+  --output_dir="output_dir_wan2.1_distill_lora" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
   --adam_weight_decay=3e-2 \
@@ -456,7 +391,6 @@ accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TR
   --training_with_video_token_length \
   --enable_bucket \
   --uniform_sampling \
-  --boundary_type="low" \
   --rank=64 \
   --network_alpha=32 \
   --target_name="q,k,v,ffn.0,ffn.2" \
@@ -480,7 +414,7 @@ python scripts/zero_to_bf16.py output_dir/checkpoint-{your-num-steps} output_dir
 
 训练 shell 命令如下：
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 # NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
@@ -488,8 +422,8 @@ export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.j
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag true --use_deepspeed --deepspeed_config_file config/zero_stage3_config.json --deepspeed_multinode_launcher standard scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_t2v.yaml" \
+accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag true --use_deepspeed --deepspeed_config_file config/zero_stage3_config.json --deepspeed_multinode_launcher standard scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -507,7 +441,7 @@ accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag
   --learning_rate=1e-05 \
   --learning_rate_critic=1e-05 \
   --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
+  --output_dir="output_dir_wan2.1_distill_lora" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
   --adam_weight_decay=3e-2 \
@@ -518,11 +452,6 @@ accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag
   --training_with_video_token_length \
   --enable_bucket \
   --uniform_sampling \
-  --boundary_type="low" \
-  --rank=64 \
-  --network_alpha=32 \
-  --target_name="q,k,v,ffn.0,ffn.2" \
-  --use_peft_lora \
   --train_mode="normal" \
   --low_vram
 ```
@@ -532,7 +461,7 @@ accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag
 **该方案并不被推荐，因为没有显存节约后端，容易造成显存不足**。这里仅提供训练Shell用于参考训练。
 
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 # NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
@@ -540,8 +469,8 @@ export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.j
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --mixed_precision="bf16" scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_t2v.yaml" \
+accelerate launch --mixed_precision="bf16" scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -559,7 +488,7 @@ accelerate launch --mixed_precision="bf16" scripts/wan2.2/train_distill_lora.py 
   --learning_rate=1e-05 \
   --learning_rate_critic=1e-05 \
   --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
+  --output_dir="output_dir_wan2.1_distill_lora" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
   --adam_weight_decay=3e-2 \
@@ -588,7 +517,7 @@ accelerate launch --mixed_precision="bf16" scripts/wan2.2/train_distill_lora.py 
 
 **机器 0(Master)**:
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 export MASTER_ADDR="192.168.1.100"  # Master 机器 IP
@@ -601,8 +530,8 @@ export RANK=0                        # 当前机器 rank(0 或 1)
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --mixed_precision="bf16" --main_process_ip=$MASTER_ADDR --main_process_port=$MASTER_PORT --num_machines=$WORLD_SIZE --num_processes=$NUM_PROCESS --machine_rank=$RANK --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.2/train_distill_lora.py \
-  --config_path="config/wan2.2/wan_civitai_t2v.yaml" \
+accelerate launch --mixed_precision="bf16" --main_process_ip=$MASTER_ADDR --main_process_port=$MASTER_PORT --num_machines=$WORLD_SIZE --num_processes=$NUM_PROCESS --machine_rank=$RANK --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -620,7 +549,7 @@ accelerate launch --mixed_precision="bf16" --main_process_ip=$MASTER_ADDR --main
   --learning_rate=1e-05 \
   --learning_rate_critic=1e-05 \
   --seed=42 \
-  --output_dir="output_dir_wan2.2_distill_lora" \
+  --output_dir="output_dir_wan2.1_distill_lora" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
   --adam_weight_decay=3e-2 \
@@ -641,7 +570,7 @@ accelerate launch --mixed_precision="bf16" --main_process_ip=$MASTER_ADDR --main
 
 **机器 1(Worker)**:
 ```bash
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.2-T2V-A14B"
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
 export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
 export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
 export MASTER_ADDR="192.168.1.100"  # 与 Master 相同
@@ -669,6 +598,146 @@ NCCL_DEBUG=INFO
 
 - **数据同步**:所有机器必须能够访问相同的数据路径(NFS/共享存储)
 
+### 3.8 DFD 后训练
+
+DFD 是在 DMD 预训练生成器之上的后训练方案. 它使用 VAE 将配对真实视频编码为学生锚点: 学生在由 `--denoising_step_indices_list` 推导出的少步学生时间步上对加噪后的真实潜变量去噪, 并以 `--dfd_teacher_replace_prob` 的概率将教师 (real score) 的输入替换为加噪后的真实潜变量, 从而进一步提升少步生成的质量.
+
+你可以使用 `--generator_transformer_path` 从已完成的 DMD 检查点热启动, 也可以只运行一次训练任务, 先执行标准 DMD, 从 `--dfd_start_step` 起切换为 DFD.
+
+**使用限制**:
+- DFD 目前仅支持 `--train_mode normal` 的 T2V 训练.
+- DFD 不支持 `--enable_text_encoder_in_dataloader`.
+- DFD 要求显式指定 `--seed`, 以保证后训练可复现.
+- `--dfd_start_step` 必须为非负数, `--dfd_teacher_replace_prob` 必须在 `[0, 1]` 区间内, `--gen_update_interval` 必须大于零.
+
+**数据要求**:
+- DFD 需要配对真实视频, 因此数据集必须包含真实视频文件. 数据集结构与 metadata.json 格式和 **2.3 metadata.json 格式** 一致.
+
+**DFD 专属参数**:
+
+| 参数 | 说明 | 示例值 |
+|-----|------|-------|
+| `--dfd` | 是否在 DMD 预训练生成器上使用 DFD 后训练 | - |
+| `--dfd_teacher_replace_prob` | 将教师评分输入替换为配对真实数据的概率 | 0.5 |
+| `--dfd_start_step` | 从该 global_step 起切换为 DFD; 之前的步数执行标准 DMD | 0 |
+| `--generator_transformer_path` | 从 DMD 权重热启动 generator 与 fake score | `output_dir_wan2.1_distill/checkpoint-xxx/diffusion_pytorch_model.safetensors` |
+| `--fake_score_transformer_path` | 仅从权重热启动 fake score | None |
+
+**热启动说明**:
+- `--generator_transformer_path` 将 DMD 全量权重加载为 generator 与 fake score 的底座权重, LoRA 在其之上训练.
+- 训练得到的 LoRA 权重仍保存为检查点内的 `lora_diffusion_pytorch_model.safetensors`.
+
+**用法 1: 从 DMD 检查点进行 DFD 后训练** (从已完成的 DMD 权重热启动 generator 与 fake score):
+
+```bash
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
+export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
+export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
+# NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
+# export NCCL_IB_DISABLE=1
+# export NCCL_P2P_DISABLE=1
+NCCL_DEBUG=INFO
+
+accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
+  --pretrained_model_name_or_path=$MODEL_NAME \
+  --train_data_dir=$DATASET_NAME \
+  --train_data_meta=$DATASET_META_NAME \
+  --image_sample_size=640 \
+  --video_sample_size=640 \
+  --token_sample_size=640 \
+  --video_sample_stride=2 \
+  --video_sample_n_frames=81 \
+  --train_batch_size=1 \
+  --video_repeat=1 \
+  --gradient_accumulation_steps=1 \
+  --dataloader_num_workers=8 \
+  --num_train_epochs=100 \
+  --checkpointing_steps=50 \
+  --learning_rate=1e-05 \
+  --learning_rate_critic=1e-05 \
+  --seed=42 \
+  --output_dir="output_dir_wan2.1_distill_lora_dfd" \
+  --gradient_checkpointing \
+  --mixed_precision="bf16" \
+  --adam_weight_decay=3e-2 \
+  --adam_epsilon=1e-10 \
+  --vae_mini_batch=1 \
+  --max_grad_norm=0.05 \
+  --random_hw_adapt \
+  --training_with_video_token_length \
+  --enable_bucket \
+  --uniform_sampling \
+  --rank=64 \
+  --network_alpha=32 \
+  --target_name="q,k,v,ffn.0,ffn.2" \
+  --use_peft_lora \
+  --train_mode="normal" \
+  --low_vram \
+  --generator_transformer_path="output_dir_wan2.1_distill/checkpoint-xxx/diffusion_pytorch_model.safetensors" \
+  --dfd \
+  --dfd_teacher_replace_prob=0.5 \
+  --dfd_start_step=0
+```
+
+**用法 2: 单次训练中从 DMD 切换为 DFD** (`--dfd_start_step` 之前执行标准 DMD, 之后执行 DFD):
+
+```bash
+export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-T2V-1.3B/"
+export DATASET_NAME="datasets/X-Fun-Videos-Demo/"
+export DATASET_META_NAME="datasets/X-Fun-Videos-Demo/metadata_add_width_height.json"
+# NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
+# export NCCL_IB_DISABLE=1
+# export NCCL_P2P_DISABLE=1
+NCCL_DEBUG=INFO
+
+accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.1/train_distill_lora.py \
+  --config_path="config/wan2.1/wan_civitai.yaml" \
+  --pretrained_model_name_or_path=$MODEL_NAME \
+  --train_data_dir=$DATASET_NAME \
+  --train_data_meta=$DATASET_META_NAME \
+  --image_sample_size=640 \
+  --video_sample_size=640 \
+  --token_sample_size=640 \
+  --video_sample_stride=2 \
+  --video_sample_n_frames=81 \
+  --train_batch_size=1 \
+  --video_repeat=1 \
+  --gradient_accumulation_steps=1 \
+  --dataloader_num_workers=8 \
+  --num_train_epochs=100 \
+  --checkpointing_steps=50 \
+  --learning_rate=1e-05 \
+  --learning_rate_critic=1e-05 \
+  --seed=42 \
+  --output_dir="output_dir_wan2.1_distill_lora_dfd" \
+  --gradient_checkpointing \
+  --mixed_precision="bf16" \
+  --adam_weight_decay=3e-2 \
+  --adam_epsilon=1e-10 \
+  --vae_mini_batch=1 \
+  --max_grad_norm=0.05 \
+  --random_hw_adapt \
+  --training_with_video_token_length \
+  --enable_bucket \
+  --uniform_sampling \
+  --rank=64 \
+  --network_alpha=32 \
+  --target_name="q,k,v,ffn.0,ffn.2" \
+  --use_peft_lora \
+  --train_mode="normal" \
+  --low_vram \
+  --dfd \
+  --dfd_teacher_replace_prob=0.5 \
+  --dfd_start_step=500
+```
+
+**训练监控**:
+- 开启 DFD 后会额外记录 `train_dfd_real_replace` 指标, 用于统计教师评分输入被配对真实数据替换的步数.
+
+**推理**:
+- DFD LoRA 产物的使用方式与 DMD LoRA 产物一致, 请参考 **四、推理测试** (通常为 4 步, `guidance_scale=1.0`).
+
 ---
 
 ## 四、推理测试
@@ -685,13 +754,11 @@ NCCL_DEBUG=INFO
 | `fsdp_dit` | 多卡推理时对 Transformer 使用 FSDP 节省显存 | `False` |
 | `fsdp_text_encoder` | 多卡推理时对文本编码器使用 FSDP | `True` |
 | `compile_dit` | 编译 Transformer 加速推理(固定分辨率下有效) | `False` |
-| `model_name` | 模型路径 | `models/Diffusion_Transformer/Wan2.2-T2V-A14B` |
-| `sampler_name` | 采样器类型：`Flow`、`Flow_Unipc`、`Flow_DPM++` | `Flow_Unipc` |
-| `transformer_path` | 加载训练好的低噪声 Transformer 权重路径 | `None` 或基础模型权重 |
-| `transformer_high_path` | 加载训练好的高噪声 Transformer 权重路径（仅双Transformer模型） | `None` |
+| `model_name` | 模型路径 | `models/Diffusion_Transformer/Wan2.1-T2V-1.3B` |
+| `sampler_name` | 采样器类型:`Flow`、`Flow_Unipc`、`Flow_DPM++` | `Flow_Unipc` |
+| `transformer_path` | 加载训练好的 Transformer 权重路径 | `None` 或基础模型权重 |
 | `vae_path` | 加载训练好的 VAE 权重路径 | `None` |
-| `lora_path` | 低噪声模型 LoRA 权重路径（蒸馏 LoRA 训练产出） | `output_dir_wan2.2_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors` |
-| `lora_high_path` | 高噪声模型 LoRA 权重路径（仅双Transformer模型） | `None` |
+| `lora_path` | LoRA 权重路径(蒸馏 LoRA 训练产出) | `output_dir_wan2.1_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors` |
 | `sample_size` | 生成视频分辨率 `[高度, 宽度]` | `[480, 832]` 或 `[832, 480]` |
 | `video_length` | 生成视频帧数 | `81` |
 | `fps` | 每秒帧数 | `16` |
@@ -701,9 +768,8 @@ NCCL_DEBUG=INFO
 | `negative_prompt` | 负向提示词,避免生成的内容 | `"低分辨率,低画质..."` |
 | `guidance_scale` | 引导强度(蒸馏模型通常使用 1.0) | 1.0 |
 | `seed` | 随机种子,用于复现结果 | 43 |
-| `num_inference_steps` | 推理步数（蒸馏模型通常为 4） | 4 |
-| `lora_weight` | 低噪声模型 LoRA 权重强度 | 0.55 |
-| `lora_high_weight` | 高噪声模型 LoRA 权重强度（仅双Transformer模型） | 0.55 |
+| `num_inference_steps` | 推理步数(蒸馏模型通常为 4) | 4 |
+| `lora_weight` | LoRA 权重强度 | 0.55 |
 | `save_path` | 生成视频保存路径 | `samples/wan-videos-i2v` 或 `samples/wan-videos-t2v` |
 
 **显存管理模式说明**:
@@ -722,32 +788,26 @@ NCCL_DEBUG=INFO
 单卡推理运行如下命令:
 
 ```bash
-python examples/wan2.2/predict_t2v.py
+python examples/wan2.1/predict_t2v.py
 ```
 
-根据需求修改编辑 `examples/wan2.2/predict_t2v.py`,初次推理重点关注如下参数,如果对其他参数感兴趣,请查看上方的推理参数解析。
+根据需求修改编辑 `examples/wan2.1/predict_t2v.py`,初次推理重点关注如下参数,如果对其他参数感兴趣,请查看上方的推理参数解析。
 
 ```python
 # 根据显卡显存选择
 GPU_memory_mode = "sequential_cpu_offload"
 # 根据实际模型路径
-model_name = "models/Diffusion_Transformer/Wan2.2-T2V-A14B"  
+model_name = "models/Diffusion_Transformer/Wan2.1-T2V-1.3B"  
 # 基础模型权重路径(如果有训练过的全量权重)
 transformer_path = None  
-# 训练好的高噪声权重路径（如果训练了双Transformer）
-transformer_high_path = None  
-# LoRA 权重路径,如 "output_dir_wan2.2_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors"
+# LoRA 权重路径,如 "output_dir_wan2.1_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors"
 lora_path = None  
-# 高噪声模型的 LoRA 权重路径（如果训练了）
-lora_high_path = None  
 # 蒸馏模型通常使用 4 步
 num_inference_steps = 4
 # 蒸馏模型 guidance_scale 通常为 1.0
 guidance_scale = 1.0
 # LoRA 权重强度
 lora_weight = 0.55
-# 高噪声模型的 LoRA 权重强度
-lora_high_weight = 0.55
 # 根据生成内容编写
 prompt = "A brown dog shaking its head, sitting on a light-colored sofa in a cozy room. Behind the dog, there's a framed painting on a shelf, surrounded by pink flowers. The soft, warm lighting in the room creates a comfortable atmosphere."  
 # ...
@@ -758,62 +818,20 @@ prompt = "A brown dog shaking its head, sitting on a light-colored sofa in a coz
 单卡推理运行如下命令:
 
 ```bash
-python examples/wan2.2/predict_i2v.py
+python examples/wan2.1/predict_i2v.py
 ```
 
-根据需求修改编辑 `examples/wan2.2/predict_i2v.py`,初次推理重点关注如下参数,如果对其他参数感兴趣,请查看上方的推理参数解析。
+根据需求修改编辑 `examples/wan2.1/predict_i2v.py`,初次推理重点关注如下参数,如果对其他参数感兴趣,请查看上方的推理参数解析。
 
 ```python
 # 根据显卡显存选择
 GPU_memory_mode = "sequential_cpu_offload"
 # 根据实际模型路径
-model_name = "models/Diffusion_Transformer/Wan2.2-I2V-A14B"  
+model_name = "models/Diffusion_Transformer/Wan2.1-I2V-14B-480P"  
 # 基础模型权重路径(如果有训练过的全量权重)
 transformer_path = None  
-# 训练好的高噪声权重路径
-transformer_high_path = None  
-# LoRA 权重路径,如 "output_dir_wan2.2_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors"
+# LoRA 权重路径,如 "output_dir_wan2.1_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors"
 lora_path = None  
-# 高噪声模型的 LoRA 权重路径
-lora_high_path = None  
-# 蒸馏模型通常使用 4 步
-num_inference_steps = 4
-# 蒸馏模型 guidance_scale 通常为 1.0
-guidance_scale = 1.0
-# LoRA 权重强度
-lora_weight = 0.55
-# 高噪声模型的 LoRA 权重强度
-lora_high_weight = 0.55
-# 图生视频的起始图像
-validation_image_start = "asset/1.png"
-# 根据生成内容编写
-prompt = "A brown dog shaking its head, sitting on a light-colored sofa in a cozy room. Behind the dog, there's a framed painting on a shelf, surrounded by pink flowers. The soft, warm lighting in the room creates a comfortable atmosphere."  
-# ...
-```
-
-### 4.3.1 文本图生视频（TI2V）推理
-
-单卡推理运行如下命令:
-
-```bash
-python examples/wan2.2/predict_ti2v.py
-```
-
-根据需求修改编辑 `examples/wan2.2/predict_ti2v.py`,初次推理重点关注如下参数,如果对其他参数感兴趣,请查看上方的推理参数解析。
-
-```python
-# 根据显卡显存选择
-GPU_memory_mode = "sequential_cpu_offload"
-# 根据实际模型路径（TI2V单模型）
-model_name = "models/Diffusion_Transformer/Wan2.2-TI2V-5B"  
-# 训练好的权重路径,如 "output_dir_wan2.2_distill_lora/checkpoint-xxx/pytorch_lora_weights.safetensors"
-transformer_path = None  
-# TI2V只有一个模型,transformer_high_path不使用
-transformer_high_path = None  
-# LoRA 权重路径
-lora_path = None  
-# 高噪声模型的 LoRA 权重路径（TI2V不使用）
-lora_high_path = None  
 # 蒸馏模型通常使用 4 步
 num_inference_steps = 4
 # 蒸馏模型 guidance_scale 通常为 1.0
@@ -839,7 +857,7 @@ pip install xfuser==0.4.2 yunchang==0.6.2
 
 #### 配置并行策略
 
-编辑 `examples/wan2.2/predict_t2v.py`、`examples/wan2.2/predict_i2v.py` 或 `examples/wan2.2/predict_ti2v.py`:
+编辑 `examples/wan2.1/predict_t2v.py` 或 `examples/wan2.1/predict_i2v.py`:
 
 ```python
 # 确保 ulysses_degree × ring_degree = 使用的 GPU 数
@@ -864,7 +882,7 @@ ring_degree = 1     # Sequence 维度并行
 #### 运行多卡推理
 
 ```bash
-torchrun --nproc-per-node=2 examples/wan2.2/predict_t2v.py
+torchrun --nproc-per-node=2 examples/wan2.1/predict_t2v.py
 ```
 
 ---

@@ -799,10 +799,23 @@ class SaveVideoQuick(ComfySaveVideo):
         save_workflow: bool = True, save_prompt_server_prompt: bool = True,
         additional_metadata_json: str = None) -> io.NodeOutput:
 
-        video = InputImpl.VideoFromComponents(
-            Types.VideoComponents(images=images, audio=audio, frame_rate=Fraction(fps)),
-            bit_depth=bit_depth,
-        )
+        try:
+            video = InputImpl.VideoFromComponents(
+                Types.VideoComponents(
+                    images=images,
+                    audio=audio,
+                    frame_rate=Fraction(fps),
+                ),
+                bit_depth=bit_depth,
+            )
+        except TypeError: # For runpod's older version
+            video = InputImpl.VideoFromComponents(
+                Types.VideoComponents(
+                    images=images,
+                    audio=audio,
+                    frame_rate=Fraction(fps),
+                ),
+            )
 
         width, height = video.get_dimensions()
         output_dir = (
@@ -816,6 +829,15 @@ class SaveVideoQuick(ComfySaveVideo):
             width,
             height
         )
+
+        # Apply %date% and %time% token replacement (ported from SaveVideo_WithOptions)
+        locale.setlocale(locale.LC_TIME, '')
+        local_time = datetime.now()
+
+        if "%date%" in filename:
+            filename = filename.replace("%date%", local_time.strftime('%Y-%m-%d'))
+        if "%time%" in filename:
+            filename = filename.replace("%time%", local_time.strftime('%H-%M-%S'))
 
         saved_metadata = None
         if save_metadata and not args.disable_metadata:

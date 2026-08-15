@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+const commonUtilsSource = await readFile(
+  new URL('../src/utils/common_utils.ts', import.meta.url),
+  'utf8',
+);
+const typesSource = await readFile(
+  new URL('../src/shared/types.ts', import.meta.url),
+  'utf8',
+);
+
+test('Point has one canonical definition in shared types', () => {
+  assert.doesNotMatch(commonUtilsSource, /export interface Point/);
+  assert.doesNotMatch(commonUtilsSource, /export type \{ Point \} from ['"]\.\.\/shared\/types['"];?/);
+  assert.match(typesSource, /export interface Point \{\s+x: number;\s+y: number;\s+\}/);
+});

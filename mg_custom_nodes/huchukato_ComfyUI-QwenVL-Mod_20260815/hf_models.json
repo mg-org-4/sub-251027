@@ -1,0 +1,109 @@
+{
+  "hf_vl_models": {
+    "Qwen3.5-4B-heretic-v2": {
+      "repo_id": "tvall43/Qwen3.5-4B-heretic-v2",
+      "default": true,
+      "quantized": false,
+      "vram_requirement": {
+        "full": 9.0
+      }
+    },
+    "Qwen3.5-4B-Deckard-Heretic-Thinking": {
+      "repo_id": "DavidAU/Qwen3.5-4B-Deckard-HERETIC-UNCENSORED-Thinking",
+      "default": false,
+      "quantized": false,
+      "vram_requirement": {
+        "full": 9.0,
+        "8bit": 5.0,
+        "4bit": 3.0
+      }
+    },
+    "Qwen3.5-9B-ultra-uncensored-heretic": {
+      "repo_id": "llmfan46/Qwen3.5-9B-ultra-uncensored-heretic",
+      "default": false,
+      "quantized": false,
+      "vram_requirement": {
+        "full": 19.0,
+        "8bit": 10.0,
+        "4bit": 6.0
+      }
+    },
+    "Qwen3.5-9B-Defiant-Fable-Heretic": {
+      "repo_id": "DavidAU/Qwen3.5-9B-The-Defiant-Fable-DARK-ROAST-Uncensored-Heretic-NEO-IMATRIX-MAX-MTP",
+      "default": false,
+      "quantized": false,
+      "vram_requirement": {
+        "full": 19.0,
+        "8bit": 10.0,
+        "4bit": 6.0
+      }
+    },
+    "Qwen3.5-27B-ultra-uncensored-heretic": {
+      "repo_id": "llmfan46/Qwen3.5-27B-ultra-uncensored-heretic-v1",
+      "default": false,
+      "quantized": false,
+      "vram_requirement": {
+        "full": 54.0,
+        "8bit": 28.0,
+        "4bit": 16.0
+      }
+    },
+    "Qwen3-VL-8B-Heretic-Stable": {
+      "repo_id": "prithivMLmods/Qwen3-VL-8B-Heretic-Stable",
+      "default": false,
+      "quantized": false,
+      "vram_requirement": {
+        "full": 12.0,
+        "8bit": 7.0,
+        "4bit": 4.5
+      }
+    },
+    "Qwen3-VL-4B-Instruct-Unredacted-MAX": {
+      "repo_id": "prithivMLmods/Qwen3-VL-4B-Instruct-Unredacted-MAX",
+      "default": false,
+      "quantized": false,
+      "vram_requirement": {
+        "full": 6.0,
+        "8bit": 3.5,
+        "4bit": 2.0
+      }
+    },
+    "Qwen3-VL-8B-Instruct-Unredacted-MAX": {
+      "repo_id": "prithivMLmods/Qwen3-VL-8B-Instruct-Unredacted-MAX",
+      "default": false,
+      "quantized": false,
+      "vram_requirement": {
+        "full": 12.0,
+        "8bit": 7.0,
+        "4bit": 4.5
+      }
+    }
+  },
+  "hf_text_models": {
+    "qwen3-4b-Z-Image-Engineer": {
+      "repo_id": "BennyDaBall/qwen3-4b-Z-Image-Engineer",
+      "default": false,
+      "quantized": false
+    },
+    "Qwen3.5-4B-Unredacted-MAX": {
+      "repo_id": "prithivMLmods/Qwen3.5-4B-Unredacted-MAX",
+      "default": true,
+      "quantized": false,
+      "vram_requirement": {
+        "full": 6.0,
+        "8bit": 3.5,
+        "4bit": 2.0
+      }
+    },
+    "Qwen3.5-9B-Unredacted-MAX": {
+      "repo_id": "prithivMLmods/Qwen3.5-9B-Unredacted-MAX",
+      "default": false,
+      "quantized": false,
+      "vram_requirement": {
+        "full": 12.0,
+        "8bit": 7.0,
+        "4bit": 4.5
+      }
+    }
+  }
+}

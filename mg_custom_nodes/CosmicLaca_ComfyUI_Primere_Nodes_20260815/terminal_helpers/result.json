@@ -1,0 +1,61 @@
+{
+  "OpenRouter": {
+    "LLM": {
+      "provider": "OpenRouter",
+      "service": "LLM",
+      "response_handler": "OpenRouter_LLM.py",
+      "reference_images_handler": "OpenRouter.py",
+      "import_modules": [
+        "import your_provider_sdk",
+        "from your_provider_sdk import types"
+      ],
+      "possible_parameters": {
+        "Authorization": [
+          "fake_Authorization_value_1",
+          "fake_Authorization_value_2"
+        ],
+        "frequency_penalty": "FLOAT",
+        "max_tokens": "INT",
+        "model": [
+          "example-model-1",
+          "example-model-2"
+        ],
+        "presence_penalty": "FLOAT",
+        "quantizations": [
+          "fake_quantizations_value_1",
+          "fake_quantizations_value_2"
+        ],
+        "temperature": "FLOAT",
+        "top_p": "FLOAT"
+      },
+      "request": {
+        "method": "SDK",
+        "endpoint": "requests.post",
+        "sdk_call": {
+          "args": [
+            "https://openrouter.ai/api/v1/chat/completions"
+          ],
+          "kwargs": {
+            "headers": {
+              "Authorization": "{{Authorization}}",
+              "Content-Type": "application/json"
+            },
+            "json": {
+              "model": "{{model}}",
+              "messages": "{{prompt}}",
+              "temperature": "{{temperature}}",
+              "max_tokens": "{{max_tokens}}",
+              "top_p": "{{top_p}}",
+              "frequency_penalty": "{{frequency_penalty}}",
+              "presence_penalty": "{{presence_penalty}}",
+              "provider": {
+                "data_collection": "deny",
+                "quantizations": "{{quantizations}}"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

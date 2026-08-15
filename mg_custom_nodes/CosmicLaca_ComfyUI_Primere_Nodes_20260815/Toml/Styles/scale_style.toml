@@ -1,0 +1,105 @@
+[Scale]
+
+   [Scale.N_0]
+      MainStyle = "Scale"
+      SubStyle = ""
+      Positive = "Spatial perception is uncertain and unstable, objects lack clear reference points for size, proportions feel ambiguous, the viewer cannot easily determine whether elements are small or massive, depth cues are intentionally weakened or conflicting, creating a surreal but believable uncertainty in spatial interpretation."
+
+   [Scale.N_1]
+      MainStyle = "Scale"
+      SubStyle = "Forced perspective"
+      Positive = "Carefully manipulated perspective creates illusions of size and distance, objects appear larger or smaller depending on their placement relative to the camera, spatial relationships are intentionally distorted, depth cues are misleading, resulting in a convincing but deceptive perception of scale."
+
+   [Scale.N_2]
+      MainStyle = "Scale"
+      SubStyle = "Miniature illusion"
+      Positive = "Scene appears like a small-scale model or diorama, with compressed depth of field, simplified textures, and slightly exaggerated proportions, lighting and detail suggest a reduced physical size, creating the impression that large environments are actually tiny constructed replicas."
+
+   [Scale.N_3]
+      MainStyle = "Scale"
+      SubStyle = "Colossal scale"
+      Positive = "Objects or structures appear overwhelmingly large compared to their surroundings, scale is exaggerated to monumental proportions, fine details become vast surfaces, perspective emphasizes enormity, creating a sense of awe and insignificance in relation to the massive forms."
+
+   [Scale.N_4]
+      MainStyle = "Scale"
+      SubStyle = "Recursive scale"
+      Positive = "Objects contain smaller versions of themselves within their structure, creating a repeating nested hierarchy, scale becomes self-referential, patterns continue inward or outward, producing a fractal-like effect where size is relative and endlessly repeating."
+
+   [Scale.N_5]
+      MainStyle = "Scale"
+      SubStyle = "Indeterminate scale"
+      Positive = "No reliable visual cues exist to determine size, textures, lighting, and perspective do not anchor the scene to any known scale, objects could be microscopic or enormous, ambiguity remains unresolved, creating a surreal yet coherent visual experience."
+
+   [Scale.N_6]
+      MainStyle = "Scale"
+      SubStyle = "Macro exaggeration"
+      Positive = "Extremely close-up perspective magnifies small details to dominate the frame, textures appear large and immersive, depth of field becomes shallow, fine structures gain visual importance, making tiny elements feel monumental and expansive."
+
+   [Scale.N_7]
+      MainStyle = "Scale"
+      SubStyle = "Micro world"
+      Positive = "Scene is perceived as extremely small in scale, with delicate details, fine textures, and subtle lighting, elements feel miniature and fragile, perspective and composition reinforce a tiny, contained environment, suggesting a hidden world at a reduced size."
+
+   [Scale.N_8]
+      MainStyle = "Scale"
+      SubStyle = "Scale conflict"
+      Positive = "Multiple objects in the scene suggest conflicting size relationships, perspective cues do not align, proportions appear inconsistent, the viewer cannot reconcile relative sizes, resulting in a paradoxical spatial interpretation that feels both plausible and incorrect."
+
+   [Scale.N_9]
+      MainStyle = "Scale"
+      SubStyle = "Infinite scale"
+      Positive = "Scene extends without clear boundaries, repeating structures or patterns suggest endless expansion, no fixed reference point defines size, the environment feels boundless, creating a perception of infinite or undefined spatial extent."
+
+   [Scale.N_10]
+      MainStyle = "Scale"
+      SubStyle = "Perspective paradox"
+      Positive = "Spatial logic breaks conventional rules of perspective, angles and depth cues contradict each other, structures appear geometrically impossible yet visually coherent, the viewer perceives a stable image that cannot exist in real three dimensional space."
+
+   [Scale.N_11]
+      MainStyle = "Scale"
+      SubStyle = "Monumental contrast"
+      Positive = "A very small subject is positioned against a vast structure or landscape so proportions are instantly readable and the scene communicates physical magnitude."
+
+   [Scale.N_12]
+      MainStyle = "Scale"
+      SubStyle = "Readable reference"
+      Positive = "Known-size anchors such as people, doors, or tools are placed deliberately to stabilize dimensional understanding across foreground and background distances."
+
+   [Scale.N_13]
+      MainStyle = "Scale"
+      SubStyle = "Layered distance"
+      Positive = "Depth bands are clearly separated with atmospheric and geometric cues, allowing the viewer to perceive progression from intimate scale to expansive context."
+
+[Macro]
+   [Macro.N_0]
+      MainStyle = "Macro"
+      SubStyle = "Micro detail"
+      Positive = "Tiny structures are magnified with shallow depth and precise local texture, making ordinary materials feel unfamiliar, intricate, and physically present."
+   [Macro.N_1]
+      MainStyle = "Macro"
+      SubStyle = "Specimen isolation"
+      Positive = "The subject is isolated from distracting context so micro-features, edge behavior, and surface variation become the primary narrative of the image."
+   [Macro.N_2]
+      MainStyle = "Macro"
+      SubStyle = "Instrumental close-up"
+      Positive = "Framing and focus emulate scientific close observation, emphasizing measurable detail, controlled distance, and repeatable visual inspection."
+
+[Megastructure]
+   [Megastructure.N_0]
+      MainStyle = "Megastructure"
+      SubStyle = "Colossal built form"
+      Positive = "Massive architecture dominates the frame through repeating modules, heavy verticality, and long sightlines that communicate engineered scale beyond human comfort."
+   [Megastructure.N_1]
+      MainStyle = "Megastructure"
+      SubStyle = "Infrastructure giant"
+      Positive = "Large systems such as bridges, reactors, or transit cores are depicted as interconnected superstructures, prioritizing function, load, and material mass."
+
+[Microscale_Context]
+   [Microscale_Context.N_0]
+      MainStyle = "Microscale Context"
+      SubStyle = "World in miniature"
+      Positive = "Small constructed environments are treated as complete worlds, with believable proportion, lighting, and wear that support close narrative reading."
+   [Microscale_Context.N_1]
+      MainStyle = "Microscale Context"
+      SubStyle = "Model realism"
+      Positive = "Miniature forms retain full-scale design logic, using accurate material cues and perspective control to feel coherent at reduced size."

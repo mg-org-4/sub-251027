@@ -23,6 +23,7 @@ from .nodes._save_helpers import (
 )
 from .nodes._prompt_reader_helpers import read_prompt_from_image, resolve_input_image_name
 from .nodes import _video_prompt_helpers as _vp
+from .nodes import _ai_prompt_presets as _aip
 from .nodes._cache_bust_helpers import stamp_import_urls
 from .nodes._bg_removal_helpers import (
     get_birefnet_inventory,
@@ -3854,3 +3855,85 @@ async def api_video_prompt_reset(request):
                                  headers=_vp_no_store())
     ok = _vp.reset_formula(mode)
     return web.json_response({"ok": bool(ok)}, headers=_vp_no_store())
+
+
+# ---------------------------------------------------------------------------
+# AI Prompt Pixaroma
+# ---------------------------------------------------------------------------
+@PromptServer.instance.routes.get("/pixaroma/api/ai_prompt/models")
+async def api_ai_prompt_models(request):
+    """The text encoders on disk, for the node's model picker.
+
+    That is ALL this node needs from the server - its formula lives on the
+    node, not in a file, so there is nothing here to save or reset.
+
+    Re-listed on every panel open (convention #18): a custom picker backed by
+    our own route gets nothing from ComfyUI's R refresh, so a session cache
+    would look permanently stale after a rename. `error` is reported separately
+    so an empty folder and a failed scan cannot be confused - saying [] for a
+    scan failure would tell the user they own no models at all.
+    """
+    try:
+        models = list(folder_paths.get_filename_list("text_encoders"))
+        return web.json_response({"models": models}, headers=_vp_no_store())
+    except Exception as e:
+        return web.json_response(
+            {"models": [], "error": str(e)}, headers=_vp_no_store()
+        )
+
+
+@PromptServer.instance.routes.get("/pixaroma/api/ai_prompt/presets")
+async def api_ai_prompt_presets(request):
+    """The shipped presets and the user's own, re-read every time.
+
+    Split so the UI can show which are yours (deletable) and which ship with
+    the pack (not deletable). Never raises: a corrupt user file returns an
+    empty list rather than taking the picker down.
+
+    userError says that empty list means "could not be read" rather than "you
+    have none" - an empty folder and a broken read must never look identical
+    (convention #18), and here they differ by whether the user has lost
+    anything.
+    """
+    try:
+        return web.json_response(
+            {
+                "shipped": _aip.load_shipped(),
+                "user": _aip.load_user(),
+                "userError": not _aip.user_readable(),
+            },
+            headers=_vp_no_store(),
+        )
+    except Exception as e:
+        return web.json_response(
+            {"shipped": [], "user": [], "error": str(e)}, headers=_vp_no_store()
+        )
+
+
+@PromptServer.instance.routes.post("/pixaroma/api/ai_prompt/presets/save")
+async def api_ai_prompt_preset_save(request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = None
+    if not isinstance(data, dict):
+        return web.json_response({"ok": False, "error": "bad body"}, status=400,
+                                 headers=_vp_no_store())
+    ok, message = _aip.save_user(data)
+    return web.json_response({"ok": bool(ok), "message": message},
+                             headers=_vp_no_store())
+
+
+@PromptServer.instance.routes.post("/pixaroma/api/ai_prompt/presets/delete")
+async def api_ai_prompt_preset_delete(request):
+    """Deletes one of the USER's presets only - the shipped file is read-only."""
+    try:
+        data = await request.json()
+    except Exception:
+        data = None
+    if not isinstance(data, dict):
+        return web.json_response({"ok": False, "error": "bad body"}, status=400,
+                                 headers=_vp_no_store())
+    ok, message = _aip.delete_user(data.get("name"))
+    return web.json_response({"ok": bool(ok), "message": message},
+                             headers=_vp_no_store())

@@ -97,9 +97,53 @@ export function followNode(panel, node, { isCurrent, isUserMoved }) {
     placeBeside(panel, getNodeScreenRect(node));
   };
   raf = requestAnimationFrame(tick);
+
+  // The panel's own HEIGHT is the other thing that can push it off screen, and
+  // it changes without the canvas moving at all: every one of these panels
+  // opens saying "Loading..." and grows when its content arrives, so the
+  // placement made at open time was measured against a panel a fraction of its
+  // final size and nothing re-placed it. Measured: an 871px panel in a 1270px
+  // window, placed at top 684, hanging 285px off the bottom. Reported as "if it
+  // doesn't have enough room it is cut, I have to zoom in and out to readjust"
+  // - zooming appeared to fix it because the loop above then re-placed it.
+  //
+  // A ResizeObserver rather than a per-frame `offsetHeight` read, for two
+  // reasons: reading offsetHeight every animation frame forces layout every
+  // animation frame for the whole time a panel is open, and the rAF version
+  // only corrected on the NEXT tick, which was a visible jump - measured at
+  // about a second in the in-app browser, whose frames are throttled. This
+  // fires the moment the size actually changes (Vue Compat #13).
+  //
+  // It cannot oscillate: placeBeside writes left/top only, never a size.
+  let ro = null;
+  try {
+    ro = new ResizeObserver(() => {
+      // SELF-DISCONNECT on the dead path rather than just returning. Not every
+      // caller keeps the stop function this returns - two of the four did not,
+      // which was harmless while the rAF half was the only resource, since
+      // that self-cancels once the panel leaves the document. An observer does
+      // not, so it would sit watching a detached panel for every open. A
+      // removed element delivers a 0x0 notification, so this path is reached.
+      if (!panel.isConnected || (isCurrent && !isCurrent())) {
+        if (ro) { try { ro.disconnect(); } catch (e2) { /* already gone */ } ro = null; }
+        return;
+      }
+      if (isUserMoved && isUserMoved()) return;
+      placeBeside(panel, getNodeScreenRect(node));
+    });
+    ro.observe(panel);
+  } catch (e) {
+    // No ResizeObserver at all. Nothing then corrects a height change until
+    // the canvas is panned or zoomed, since the tick above compares only the
+    // transform - so this is a real degrade, not a silent equivalence. Every
+    // browser ComfyUI supports has one, and the constructor does not throw;
+    // this exists so a hostile environment loses the polish, never the panel.
+  }
+
   return () => {
     if (raf != null) cancelAnimationFrame(raf);
     raf = null;
+    if (ro) { try { ro.disconnect(); } catch (e) { /* already gone */ } ro = null; }
   };
 }
 

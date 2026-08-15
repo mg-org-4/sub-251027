@@ -209,12 +209,77 @@ export function injectedState(node) {
   return out;
 }
 
-/** What the face should show as the seed: the last rolled one in Random, the
- *  stored one in Fixed. */
+// ---------------------------------------------------------------------------
+// The last run's result
+// ---------------------------------------------------------------------------
+// SERIALIZED on purpose, and a SEPARATE property from videoPromptState.
+//
+// It lived on `node._pixVpLast` until 2026-08-14, on the reading that Vue
+// Compat #18 forbids a run from writing serialized state. Too broad: #18 is
+// about the LOAD window - an untouched workflow must not flag ITSELF modified
+// merely by being opened - and a run is the user asking for something.
+// MEASURED on the AI Prompt sibling: a workflow tab switch DESTROYS and
+// rebuilds every node object, so NO `node._xxx` field survives one, and the
+// written prompt vanished (reported by the user). Preview Image Pixaroma has
+// always persisted its run output this way.
+//
+// Outside videoPromptState deliberately: PROMPT_KEYS is an allow-list, so this
+// could not reach Python either way, but a separate key cannot touch
+// injectedState or IS_CHANGED's fingerprint at all - and on this node a
+// cosmetic key in the injected state would re-run a 10 GB encoder.
+export const LAST_PROP = "videoPromptLast";
+
+/**
+ * The last run AS STORED, or null.
+ *
+ * ⚠️ Deliberately NOT normalised into a fixed shape. The staleness check in
+ * renderFace distinguishes an ABSENT `for*` stamp (`last.forX !== undefined`)
+ * from one that differs, so filling defaults in would make a result saved
+ * before a given stamp existed read as "changed since this ran" forever. Every
+ * stamp is written today, so that guard is inert RIGHT NOW - it earns its keep
+ * the moment a fifth stamp is added, which is exactly how `forLengthBlock`
+ * arrived (video-prompt.md #18). Normalising would quietly disarm it.
+ *
+ * ⚠️ Returned BY REFERENCE, not cloned - renderFace runs on every keystroke,
+ * so a copy per call is not worth it. Do NOT mutate what you get back: route
+ * every write through `writeLast`, or you bypass its whole-object replace and
+ * a failure starts inheriting a success's stamps.
+ */
+export function readLast(node) {
+  const raw = node?.properties?.[LAST_PROP];
+  return raw && typeof raw === "object" ? raw : null;
+}
+
+/** Whole-object write, so a failure cannot inherit a stamp from a success. */
+export function writeLast(node, next) {
+  if (!node) return;
+  node.properties = node.properties || {};
+  if (!next) { delete node.properties[LAST_PROP]; return; }
+  // Drop undefined here, because JSON.stringify drops it on the way into the
+  // saved workflow - so the object behaves identically before and after a tab
+  // switch rather than only after one.
+  const out = {};
+  for (const [k, v] of Object.entries(next)) if (v !== undefined) out[k] = v;
+  node.properties[LAST_PROP] = out;
+}
+
+/**
+ * What the face should show as the seed: the last rolled one in Random, the
+ * stored one in Fixed.
+ *
+ * The runtime field dies with the node object on a workflow tab switch, and
+ * once the PROMPT started surviving one (LAST_PROP) that left the chip naming a
+ * seed which had nothing to do with the text beside it - and a user who copied
+ * that number into Fixed to lock the result in would silently get a different
+ * generation. So fall back to the seed Python reported for the run, which is
+ * already inside the stored result and outlives the node object.
+ */
 export function displaySeed(node) {
   const st = readState(node);
-  if (st.seed_mode === SEED_RANDOM && Number.isFinite(node?._pixVpLastSeed)) {
-    return node._pixVpLastSeed;
+  if (st.seed_mode === SEED_RANDOM) {
+    if (Number.isFinite(node?._pixVpLastSeed)) return node._pixVpLastSeed;
+    const ran = Number(readLast(node)?.seed);
+    if (Number.isFinite(ran)) return ran;
   }
   return st.seed;
 }

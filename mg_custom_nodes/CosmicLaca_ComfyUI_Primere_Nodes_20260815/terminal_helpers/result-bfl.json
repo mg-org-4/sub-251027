@@ -1,0 +1,72 @@
+{
+  "BlackForest": {
+    "BFL_service": {
+      "provider": "BlackForest",
+      "service": "BFL_service",
+      "response_handler": "BlackForest_BFL_service.py",
+      "import_modules": [
+        "import your_provider_sdk",
+        "from your_provider_sdk import types"
+      ],
+      "possible_parameters": {
+        "guidance": "FLOAT",
+        "model_name": [
+          "fake_model_name_value_1",
+          "fake_model_name_value_2"
+        ],
+        "prompt_upsampling": [
+          false,
+          true
+        ],
+        "regions": [
+          "api.bfl.ai",
+          "api.eu.bfl.ai",
+          "api.us.bfl.ai"
+        ],
+        "safety_tolerance": [
+          "fake_safety_tolerance_value_1",
+          "fake_safety_tolerance_value_2"
+        ],
+        "steps": "INT",
+        "version": [
+          "fake_version_value_1",
+          "fake_version_value_2"
+        ]
+      },
+      "request": {
+        "method": "SDK",
+        "endpoint": "requests.post",
+        "sdk_call": {
+          "args": [
+            "https://{{regions}}/{{version}}/{{model_name}}"
+          ],
+          "kwargs": {
+            "headers": {
+              "accept": "application/json",
+              "x-key": {
+                "$call": "os.environ.get",
+                "$args": [
+                  "BFL_API_KEY"
+                ],
+                "$kwargs": {}
+              },
+              "Content-Type": "application/json"
+            },
+            "json": {
+              "output_format": "png",
+              "image_prompt": "{{reference_images}}",
+              "safety_tolerance": "{{safety_tolerance}}",
+              "prompt": "{{prompt}}",
+              "seed": "{{seed}}",
+              "width": "{{width}}",
+              "height": "{{height}}",
+              "prompt_upsampling": "{{prompt_upsampling}}",
+              "guidance": "{{guidance}}",
+              "steps": "{{steps}}"
+            }
+          }
+        }
+      }
+    }
+  }
+}

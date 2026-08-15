@@ -1,0 +1,269 @@
+from __future__ import annotations
+from typing import Any, Callable
+
+def _resolve_key(mapping: dict[str, Any], key: str, canonicalize_key: Callable[[str], str] | None = None) -> str | None:
+    if key in mapping:
+        return key
+    if canonicalize_key is None:
+        return None
+
+    expected = canonicalize_key(key)
+    for existing_key in mapping.keys():
+        if canonicalize_key(str(existing_key)) == expected:
+            return str(existing_key)
+    return None
+
+
+def _walk_dict_path(
+    payload: dict[str, Any],
+    parts: list[str],
+    canonicalize_key: Callable[[str], str] | None = None,
+) -> tuple[bool, Any]:
+    current: Any = payload
+    for part in parts:
+        if not isinstance(current, dict):
+            return False, None
+        resolved = _resolve_key(current, part, canonicalize_key)
+        if resolved is None:
+            return False, None
+        current = current.get(resolved)
+    return True, current
+
+
+def _get_by_path(
+    payload: dict[str, Any],
+    path: str,
+    *,
+    use_kwargs_fallback: bool,
+    canonicalize_key: Callable[[str], str] | None = None,
+) -> Any:
+    parts = [part for part in str(path or "").split(".") if part]
+    if len(parts) == 0:
+        return None
+
+    found, value = _walk_dict_path(payload, parts, canonicalize_key)
+    if found:
+        return value
+
+    if not use_kwargs_fallback:
+        return None
+
+    # Support schema SDK-call shape where real fields are under "$kwargs".
+    expanded_parts: list[str] = []
+    for index, part in enumerate(parts):
+        expanded_parts.append(part)
+        if index < len(parts) - 1:
+            expanded_parts.append("$kwargs")
+
+    found, value = _walk_dict_path(payload, expanded_parts, canonicalize_key)
+    return value if found else None
+
+
+def _remove_by_path(
+    payload: dict[str, Any],
+    path: str,
+    *,
+    use_kwargs_fallback: bool,
+    canonicalize_key: Callable[[str], str] | None = None,
+) -> bool:
+    parts = [part for part in str(path or "").split(".") if part]
+    if len(parts) == 0:
+        return False
+
+    direct_parent_parts = parts[:-1]
+    direct_last = parts[-1]
+
+    found, parent = _walk_dict_path(payload, direct_parent_parts, canonicalize_key)
+    if found and isinstance(parent, dict):
+        resolved_last = _resolve_key(parent, direct_last, canonicalize_key)
+        if resolved_last is not None:
+            del parent[resolved_last]
+            return True
+
+    if not use_kwargs_fallback:
+        if "." not in path:
+            return _remove_key_anywhere(payload, path, canonicalize_key=canonicalize_key)
+        return False
+
+    expanded_parts: list[str] = []
+    for index, part in enumerate(parts):
+        expanded_parts.append(part)
+        if index < len(parts) - 1:
+            expanded_parts.append("$kwargs")
+
+    found, parent = _walk_dict_path(payload, expanded_parts[:-1], canonicalize_key)
+    if found and isinstance(parent, dict):
+        resolved_last = _resolve_key(parent, expanded_parts[-1], canonicalize_key)
+        if resolved_last is not None:
+            del parent[resolved_last]
+            return True
+
+    if "." not in path:
+        return _remove_key_anywhere(payload, path, canonicalize_key=canonicalize_key)
+
+    return False
+
+def _remove_key_anywhere(
+    payload: Any,
+    key: str,
+    *,
+    canonicalize_key: Callable[[str], str] | None = None,
+) -> bool:
+    removed = False
+
+    if isinstance(payload, dict):
+        resolved = _resolve_key(payload, key, canonicalize_key)
+        if resolved is not None:
+            del payload[resolved]
+            removed = True
+
+        for child in payload.values():
+            if isinstance(child, (dict, list, tuple)):
+                if _remove_key_anywhere(child, key, canonicalize_key=canonicalize_key):
+                    removed = True
+        return removed
+
+    if isinstance(payload, list):
+        for item in payload:
+            if isinstance(item, (dict, list, tuple)):
+                if _remove_key_anywhere(item, key, canonicalize_key=canonicalize_key):
+                    removed = True
+        return removed
+
+    if isinstance(payload, tuple):
+        for item in payload:
+            if isinstance(item, (dict, list, tuple)):
+                if _remove_key_anywhere(item, key, canonicalize_key=canonicalize_key):
+                    removed = True
+        return removed
+    return False
+
+def _condition_match(
+    payload: dict[str, Any],
+    condition: dict[str, Any],
+    *,
+    use_kwargs_fallback: bool,
+    canonicalize_key: Callable[[str], str] | None = None,
+    match_context: dict[str, Any] | None = None,
+) -> bool:
+    path = condition.get("path") or condition.get("key")
+    if not isinstance(path, str) or path.strip() == "":
+        return False
+
+    expected = condition.get("equals", condition.get("value"))
+    current = _get_by_path(
+        payload,
+        path,
+        use_kwargs_fallback=use_kwargs_fallback,
+        canonicalize_key=canonicalize_key,
+    )
+    if current is None and isinstance(match_context, dict):
+        direct = match_context.get(path)
+        if direct is not None:
+            current = direct
+        elif canonicalize_key is not None:
+            expected_key = canonicalize_key(path)
+            for mk, mv in match_context.items():
+                if canonicalize_key(str(mk)) == expected_key:
+                    current = mv
+                    break
+    return current == expected
+
+
+def apply_exclusions_to_payload(
+    payload: dict[str, Any],
+    exclusions: list[dict[str, Any]] | None,
+    *,
+    use_kwargs_fallback: bool,
+    canonicalize_key: Callable[[str], str] | None = None,
+    match_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return payload
+
+    remove_paths = collect_matching_remove_paths(
+        payload,
+        exclusions,
+        use_kwargs_fallback=use_kwargs_fallback,
+        canonicalize_key=canonicalize_key,
+        match_context=match_context,
+    )
+    apply_remove_paths(
+        payload,
+        remove_paths,
+        use_kwargs_fallback=use_kwargs_fallback,
+        canonicalize_key=canonicalize_key,
+    )
+
+    return payload
+
+
+def collect_matching_remove_paths(
+    payload: dict[str, Any],
+    exclusions: list[dict[str, Any]] | None,
+    *,
+    use_kwargs_fallback: bool,
+    canonicalize_key: Callable[[str], str] | None = None,
+    match_context: dict[str, Any] | None = None,
+) -> list[str]:
+    paths: list[str] = []
+
+    for rule in exclusions or []:
+        if not isinstance(rule, dict):
+            continue
+
+        condition = rule.get("when") if isinstance(rule.get("when"), dict) else rule.get("if")
+        if isinstance(condition, dict):
+            if not _condition_match(
+                payload,
+                condition,
+                use_kwargs_fallback=use_kwargs_fallback,
+                canonicalize_key=canonicalize_key,
+                match_context=match_context,
+            ):
+                continue
+
+        remove_spec = rule.get("remove")
+        if isinstance(remove_spec, str):
+            paths.append(remove_spec)
+        elif isinstance(remove_spec, list):
+            paths.extend([item for item in remove_spec if isinstance(item, str)])
+
+    return paths
+
+
+def apply_remove_paths(
+    payload: dict[str, Any],
+    remove_paths: list[str],
+    *,
+    use_kwargs_fallback: bool,
+    canonicalize_key: Callable[[str], str] | None = None,
+) -> dict[str, Any]:
+    for remove_path in remove_paths:
+        _remove_by_path(
+            payload,
+            remove_path,
+            use_kwargs_fallback=use_kwargs_fallback,
+            canonicalize_key=canonicalize_key,
+        )
+    return payload
+
+
+def apply_sdk_request_exclusions(
+    args: list[Any],
+    kwargs: dict[str, Any],
+    exclusions: list[dict[str, Any]] | None,
+    match_context: dict[str, Any] | None = None,
+) -> tuple[list[Any], dict[str, Any]]:
+    """Apply schema-driven exclusion rules to SDK kwargs."""
+    if not isinstance(kwargs, dict):
+        return args, kwargs
+
+    filtered_kwargs = apply_exclusions_to_payload(
+        kwargs,
+        exclusions,
+        use_kwargs_fallback=True,
+        canonicalize_key=None,
+        match_context=match_context,
+    )
+    return args, filtered_kwargs

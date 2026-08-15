@@ -1,0 +1,40 @@
+torch>=1.12.0
+numpy>=1.20.0
+scipy>=1.7.0
+librosa>=0.10.0
+soundfile>=0.10.0
+PyYAML>=6.0
+pynini==2.1.6; platform_system!="Windows"
+WeTextProcessing>=1.0.3; platform_system!="Windows"
+omegaconf>=2.3.0
+transformers>=4.50.0
+# transformers==4.52.1 或 4.54.1 是推荐的可用版本
+huggingface_hub>=0.23.0
+safetensors>=0.4.3
+# 如果遇到 SafeTensorFile 没有 get_slice 属性的错误，请升级 safetensors: pip install safetensors --upgrade
+torchaudio>=2.0.0
+modelscope>=1.13.0
+# pandas>=2.0.0
+json5>=0.9.16
+munch>=4.0.0
+git+https://github.com/descriptinc/audiotools@0.7.4#egg=descript-audiotools
+einops
+ffmpy
+docstring-parser
+# WeTextProcessing
+modelscope
+wetext
+# ===== IndexTTS-2.5 新增依赖 =====
+tiktoken>=0.7.0          # 多语言分词器
+openai-whisper>=20231117 # tokenizer 基类
+librosa>=0.10.0
+soundfile>=0.10.0
+omegaconf>=2.3.0
+cn2an>=0.5.22            # 中文数字归一化
+jieba>=0.42.1
+g2p-en>=2.1.0            # 英语 G2P（CMU 音素）
+fugashi>=1.2.0           # 日语分词/G2P
+unidic-lite>=1.0.0
+accelerate>=1.8.0        # Qwen 情感模型 device_map
+matplotlib>=3.8.0        # BigVGAN utils
+descript-audiotools==0.7.2  # DAC 依赖（PyPI 版即可）

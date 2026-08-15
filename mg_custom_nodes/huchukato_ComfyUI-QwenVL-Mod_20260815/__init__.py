@@ -13,6 +13,9 @@ import importlib.util
 import os
 import sys
 
+from aiohttp import web
+from server import PromptServer
+
 # Get the directory of the current script
 current_dir = os.path.dirname(__file__)
 sys.path.insert(0, current_dir)
@@ -20,6 +23,41 @@ sys.path.insert(0, current_dir)
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 WEB_DIRECTORY = "./web"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Download log endpoint: serves last 30 lines of model download log at /dlstatus
+# Works on the same port as ComfyUI (8188), no extra port exposure needed.
+# ──────────────────────────────────────────────────────────────────────────────
+_DL_LOGS = [
+    "/var/log/minimax-h3-models.log",
+    "/var/log/ltx-models.log",
+    "/var/log/wan-models.log",
+]
+
+@PromptServer.instance.routes.get("/dlstatus")
+async def _dlstatus(request):
+    for log_path in _DL_LOGS:
+        if os.path.exists(log_path):
+            try:
+                with open(log_path, "r") as f:
+                    lines = f.readlines()[-30:]
+                return web.Response(text="".join(lines), content_type="text/plain")
+            except Exception:
+                pass
+    return web.Response(text="Download log not yet available...", content_type="text/plain")
+
+@PromptServer.instance.routes.get("/dlstatus.html")
+async def _dlstatus_html(request):
+    for log_path in _DL_LOGS:
+        if os.path.exists(log_path):
+            try:
+                with open(log_path, "r") as f:
+                    lines = f.readlines()[-30:]
+                body = "<!DOCTYPE html><html><head><meta http-equiv='refresh' content='3'></head><body><pre style='font-family:monospace;font-size:12px;white-space:pre-wrap;'>" + "".join(lines).replace("<", "&lt;").replace(">", "&gt;") + "</pre></body></html>"
+                return web.Response(text=body, content_type="text/html")
+            except Exception:
+                pass
+    return web.Response(text="Download log not yet available...", content_type="text/plain")
 
 def load_modules_from_directory(directory):
     for file in os.listdir(directory):

@@ -4,203 +4,158 @@ source /venv/main/bin/activate
 COMFYUI_DIR=${WORKSPACE}/ComfyUI
 
 APT_PACKAGES=(
+    "aria2"
 )
 
 PIP_PACKAGES=(
     "--upgrade --force-reinstall --no-cache-dir https://github.com/JamePeng/llama-cpp-python/releases/download/v0.3.45-cu131-linux-20260801/llama_cpp_python-0.3.45+cu131-cp312-cp312-linux_x86_64.whl"
+    "huggingface_hub"
+    "hf-transfer"
     "sageattention"
-    "tensorrt_cu13==10.15.1.29"
-    "tensorrt_cu13_bindings==10.15.1.29"
-    "tensorrt_cu13_libs==10.15.1.29"
+    "kornia==0.8.2"
+    "tensorrt-cu13==10.15.1.29"
+    "tensorrt-cu13-bindings==10.15.1.29"
+    "tensorrt-cu13-libs==10.15.1.29"
 )
 
 NODES=(
-    "https://github.com/Comfy-Org/ComfyUI-Manager"
     "https://github.com/huchukato/comfy-tagcomplete"
     "https://github.com/huchukato/ComfyUI-QwenVL-Mod"
     "https://github.com/BobRandomNumber/ComfyUI-Crystools-MonitorOnly"
+    "https://github.com/Lightricks/ComfyUI-LTXVideo"
     "https://github.com/huchukato/ComfyUI-RIFE-TensorRT-Auto"
     "https://github.com/huchukato/ComfyUI-Upscaler-TensorRT-Auto"
     "https://github.com/huchukato/ComfyUI-HuggingFace"
-    "https://github.com/MoonGoblinDev/Civicomfy"
     "https://github.com/Koishi-Star/Euler-Smea-Dyn-Sampler"
     "https://github.com/ltdrdata/was-node-suite-comfyui"
     "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite"
     "https://github.com/rgthree/rgthree-comfy"
     "https://github.com/yolain/ComfyUI-Easy-Use"
-    "https://github.com/kijai/ComfyUI-KJNodes"
     "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation"
-    "https://github.com/Smirnov75/ComfyUI-mxToolkit"
-    "https://github.com/princepainter/ComfyUI-PainterI2V"
-    "https://github.com/princepainter/ComfyUI-PainterLongVideo"
     "https://github.com/ashtar1984/comfyui-find-perfect-resolution"
-    "https://github.com/huchukato/ComfyUI-Selectors"
-    "https://github.com/city96/ComfyUI-GGUF"
-    "https://github.com/kijai/ComfyUI-MMAudio"
-    "https://github.com/GACLove/ComfyUI-VFI"
-    "https://github.com/stduhpf/ComfyUI-WanMoeKSampler"
-    "https://github.com/melMass/comfy_mtb"
+    "https://github.com/kijai/ComfyUI-KJNodes"
+    "https://github.com/MoonGoblinDev/Civicomfy"
 )
 
 WORKFLOWS=(
+    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/ltx/LTX23-I2VA-Qwen3VL.json"
     "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/PMP-LoRaStack-Upscale-Wildcards.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-AutoPrompt.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-AutoPrompt-GGUF.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-AutoPrompt-Story.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-Full-AutoPrompt-MMAudio.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-Full-AutoPrompt-MMAudio-GGUF.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-SVI-AutoPrompt.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-SVI-AutoPrompt-GGUF.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-I2V-SVI-AutoPrompt-Story.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-AutoPrompt.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-AutoPrompt-GGUF.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-I2V-AutoPrompt-Story.json"
-    "https://github.com/huchukato/ComfyUI-QwenVL-Mod/raw/main/vastai/workflows/WAN2.2-T2V-I2V-Full-AutoPrompt-MMAudio-GGUF.json"
 )
 
 CHECKPOINT_MODELS=(
 )
 
 UNET_MODELS=(
-   
 )
 
 LORA_MODELS=(
-            
 )
 
 VAE_MODELS=(
-    "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors"
-    "https://huggingface.co/huchukato/favs/resolve/main/VAE/sdxl.vae.safetensors"
 )
 
 ESRGAN_MODELS=(
-    "https://huggingface.co/huchukato/favs/resolve/main/ESRGAN/2xLexicaRRDBNet.pth"
-    "https://huggingface.co/huchukato/favs/resolve/main/ESRGAN/2xLexicaRRDBNet_Sharp.pth"
 )
 
 TEXT_ENCODERS=(
-    "https://huggingface.co/NSFW-API/NSFW-Wan-UMT5-XXL/resolve/main/nsfw_wan_umt5-xxl_fp8_scaled.safetensors"
 )
 
 CONTROLNET_MODELS=(
 )
 
+# LTX 2.3 large models downloaded via hf/huggingface-cli (format: subdir|name|url|min_size_bytes)
+LTX_MODELS=(
+    "checkpoints|10Eros_v1.5_fp8mixed_experimental_learned.safetensors|https://huggingface.co/LokkenJP/10EROS_1.5_fp8_exp_learned/resolve/main/10Eros_v1.5_fp8mixed_experimental_learned.safetensors|28000000000"
+    "checkpoints|sulphur_dev_fp8mixed.safetensors|https://huggingface.co/SulphurAI/Sulphur-2-base/resolve/main/sulphur_dev_fp8mixed.safetensors|28000000000"
+    "loras|sulphur_lora_rank_768.safetensors|https://huggingface.co/SulphurAI/Sulphur-2-base/resolve/main/sulphur_lora_rank_768.safetensors|10000000000"
+    "text_encoders|gemma_3_12B_it_fp4_mixed.safetensors|https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors|9000000000"
+    "loras|gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors|https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/loras/gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors|600000000"
+    "loras|ltx23/LTX2.3_DMD_hybrid_v2.safetensors|https://huggingface.co/TenStrip/LTX2.3_DMD_Lora/resolve/main/LTX2.3_DMD_hybrid_v2.safetensors|600000000"
+    "latent_upscale_models|ltx-2.3-spatial-upscaler-x2-1.1.safetensors|https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors|900000000"
+    "latent_upscale_models|ltx-2.3-temporal-upscaler-x2-1.0.safetensors|https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-temporal-upscaler-x2-1.0.safetensors|250000000"
+    "vae|pruna_ltx2.3_vae_comfy_bf16.safetensors|https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/pruna_ltx2.3_vae_comfy_bf16.safetensors|500000000"
+)
+
 ### DO NOT EDIT BELOW HERE UNLESS YOU KNOW WHAT YOU ARE DOING ###
-
-function provisioning_force_comfyui_version() {
-    local repo_dir="$1"
-    local tag="v0.31.0"
-    if [ ! -d "$repo_dir/.git" ]; then
-        echo "⚠️  ComfyUI has no .git directory, skipping version force"
-        return 0
-    fi
-
-    local current_tag
-    current_tag=$(git -C "$repo_dir" describe --tags --exact-match HEAD 2>/dev/null || echo "")
-    if [ "$current_tag" = "$tag" ]; then
-        echo "✅ ComfyUI already on $tag"
-        return 0
-    fi
-
-    echo "🔧 Ensuring ComfyUI is on $tag (current: ${current_tag:-unknown})..."
-    git -C "$repo_dir" reset --hard 2>/dev/null || true
-    git -C "$repo_dir" clean -fd 2>/dev/null || true
-
-    if timeout 60 git -C "$repo_dir" fetch --tags origin 2>/dev/null; then
-        if timeout 30 git -C "$repo_dir" -c advice.detachedHead=false checkout -f "$tag" 2>/dev/null; then
-            echo "✅ ComfyUI forced to $tag ($(git -C "$repo_dir" rev-parse --short HEAD))"
-            if [ -f "$repo_dir/requirements.txt" ]; then
-                echo "🔄 Re-installing ComfyUI requirements..."
-                pip install --root-user-action=ignore --no-cache-dir -r "$repo_dir/requirements.txt" 2>&1 | tail -n 20
-            fi
-        else
-            echo "❌ ComfyUI checkout $tag failed"
-        fi
-    else
-        echo "⚠️  ComfyUI fetch tags failed/timed out, leaving at current version"
-    fi
-}
 
 function provisioning_start() {
     provisioning_print_header
     echo "🚀 Starting provisioning process..."
-    
+
     echo "📦 Installing APT packages..."
     provisioning_get_apt_packages
 
-    echo "🔧 Ensuring ComfyUI version..."
-    provisioning_force_comfyui_version "${COMFYUI_DIR}"
-    
     echo "🔧 Installing custom nodes..."
     provisioning_get_nodes
-    
+
     echo "📦 Installing PIP packages..."
     provisioning_get_pip_packages
-    
+
     echo "📁 Downloading workflows..."
-    # Create workflows directory
     mkdir -p "${COMFYUI_DIR}/user/default/workflows"
-    
+
     provisioning_get_files \
         "${COMFYUI_DIR}/user/default/workflows" \
         "${WORKFLOWS[@]}"
-        
+
     echo "✅ Workflows downloaded to: ${COMFYUI_DIR}/user/default/workflows"
-        
+
     echo "🎯 Downloading checkpoint models..."
     provisioning_get_files \
         "${COMFYUI_DIR}/models/checkpoints" \
         "${CHECKPOINT_MODELS[@]}"
-        
+
     echo "🧠 Downloading U-NET models..."
     provisioning_get_files \
         "${COMFYUI_DIR}/models/unet" \
         "${UNET_MODELS[@]}"
-        
+
     echo "🎨 Downloading LoRA models..."
     provisioning_get_files \
         "${COMFYUI_DIR}/models/lora" \
         "${LORA_MODELS[@]}"
-        
+
     echo "🎮 Downloading ControlNet models..."
     provisioning_get_files \
         "${COMFYUI_DIR}/models/controlnet" \
         "${CONTROLNET_MODELS[@]}"
-        
+
     echo "🔮 Downloading VAE models..."
     provisioning_get_files \
         "${COMFYUI_DIR}/models/vae" \
         "${VAE_MODELS[@]}"
-        
+
     echo "⚡ Downloading upscale models..."
     provisioning_get_files \
         "${COMFYUI_DIR}/models/upscale_models" \
         "${ESRGAN_MODELS[@]}"
-        
+
     echo "📝 Downloading text encoders..."
     provisioning_get_files \
         "${COMFYUI_DIR}/models/text_encoders" \
-        "${TEXT_ENCODERS[@]}"        
-        
+        "${TEXT_ENCODERS[@]}"
+
+    echo "🎬 Downloading LTX 2.3 models (large files via hf)..."
+    download_ltx_models
+
     provisioning_print_end
 }
 
 function provisioning_get_apt_packages() {
     if [[ -n $APT_PACKAGES ]]; then
-            sudo $APT_INSTALL ${APT_PACKAGES[@]}
+        sudo $APT_INSTALL ${APT_PACKAGES[@]}
     fi
 }
 
 function provisioning_get_pip_packages() {
     if [[ -n $PIP_PACKAGES ]]; then
-           echo "Installing PIP packages..."
-           for package in "${PIP_PACKAGES[@]}"; do
-               echo "Installing: $package"
-               pip install --root-user-action=ignore --no-cache-dir $package
-               echo "✓ Completed: $package"
-           done
-           echo "All PIP packages installed successfully!"
+        echo "Installing PIP packages..."
+        for package in "${PIP_PACKAGES[@]}"; do
+            echo "Installing: $package"
+            pip install --root-user-action=ignore --no-cache-dir $package
+            echo "✓ Completed: $package"
+        done
+        echo "All PIP packages installed successfully!"
     fi
 }
 
@@ -212,9 +167,9 @@ function provisioning_get_nodes() {
         dir="${repo##*/}"
         path="${COMFYUI_DIR}/custom_nodes/${dir}"
         requirements="${path}/requirements.txt"
-        
+
         echo "[$count/${#NODES[@]}] Processing node: $dir"
-        
+
         if [[ -d $path ]]; then
             if [[ ${AUTO_UPDATE,,} != "false" ]]; then
                 echo "  → Updating existing node..."
@@ -229,8 +184,8 @@ function provisioning_get_nodes() {
                         echo "  ⚠️  $dir reset failed, leaving as-is"
                 fi
                 if [[ -e $requirements ]]; then
-                   echo "  → Installing requirements..."
-                   pip install --root-user-action=ignore --no-cache-dir -r "$requirements"
+                    echo "  → Installing requirements..."
+                    pip install --root-user-action=ignore --no-cache-dir -r "$requirements"
                 fi
             else
                 echo "  → Node exists, skipping (AUTO_UPDATE=false)"
@@ -243,14 +198,14 @@ function provisioning_get_nodes() {
                 pip install --root-user-action=ignore --no-cache-dir -r "${requirements}"
             fi
         fi
-        
+
     done
     echo "All nodes processed successfully!"
 }
 
 function provisioning_get_files() {
     if [[ -z $2 ]]; then return 1; fi
-    
+
     dir="$1"
     mkdir -p "$dir"
     shift
@@ -282,7 +237,6 @@ function provisioning_has_valid_hf_token() {
         -H "Authorization: Bearer $HF_TOKEN" \
         -H "Content-Type: application/json")
 
-    # Check if the token is valid
     if [ "$response" -eq 200 ]; then
         return 0
     else
@@ -298,7 +252,6 @@ function provisioning_has_valid_civitai_token() {
         -H "Authorization: Bearer $CIVITAI_TOKEN" \
         -H "Content-Type: application/json")
 
-    # Check if the token is valid
     if [ "$response" -eq 200 ]; then
         return 0
     else
@@ -306,12 +259,11 @@ function provisioning_has_valid_civitai_token() {
     fi
 }
 
-# Download from $1 URL to $2 file path
 function provisioning_download() {
-    if [[ -n $HF_TOKEN && $1 =~ ^https://([a-zA-Z0-9_-]+\\.)?huggingface\\.co(/|$|\\?) ]]; then
+    if [[ -n $HF_TOKEN && $1 =~ ^https://([a-zA-Z0-9_-]+\.)?huggingface\.co(/|$|\?) ]]; then
         auth_token="$HF_TOKEN"
-    elif 
-        [[ -n $CIVITAI_TOKEN && $1 =~ ^https://([a-zA-Z0-9_-]+\\.)?civitai\\.com(/|$|\\?) ]]; then
+    elif
+        [[ -n $CIVITAI_TOKEN && $1 =~ ^https://([a-zA-Z0-9_-]+\.)?civitai\.com(/|$|\?) ]]; then
         auth_token="$CIVITAI_TOKEN"
     fi
     if [[ -n $auth_token ]];then
@@ -321,7 +273,59 @@ function provisioning_download() {
     fi
 }
 
-# Allow user to disable provisioning if they started with a script they didn't want
+function download_ltx_models() {
+    local base_dir="${COMFYUI_DIR}/models"
+    mkdir -p "$base_dir"/{checkpoints,loras,latent_upscale_models,text_encoders,vae}
+
+    local hf_cmd="hf"
+    command -v hf >/dev/null 2>&1 || hf_cmd="huggingface-cli"
+
+    for entry in "${LTX_MODELS[@]}"; do
+        IFS='|' read -r subdir name url min_size <<< "$entry"
+        local dest="$base_dir/$subdir/$name"
+
+        if [ -f "$dest" ] || [ -L "$dest" ]; then
+            local size
+            size=$(stat -L -c%s "$dest" 2>/dev/null || stat -L -f%z "$dest" 2>/dev/null || echo 0)
+            if [ "$size" -ge "$min_size" ]; then
+                echo "✅ $name already present ($size bytes >= $min_size), skipping"
+                continue
+            fi
+        fi
+
+        echo "📥 Downloading $name ..."
+        local repo_id repo_path tmp_dir
+        repo_id=$(echo "$url" | awk -F/ '{print $4"/"$5}')
+        repo_path=$(echo "$url" | sed -E 's#https?://[^/]+/[^/]+/[^/]+/resolve/main/(.+)#\1#')
+        tmp_dir="$base_dir/.tmp_download_${name//\//_}"
+        rm -rf "$tmp_dir"
+        mkdir -p "$tmp_dir"
+
+        export HF_HUB_ENABLE_HF_TRANSFER=1
+        export HF_XET_HIGH_PERFORMANCE=1
+        local resume_flag=""
+        [ "$hf_cmd" = "huggingface-cli" ] && resume_flag="--resume-download"
+
+        if $hf_cmd download "$repo_id" "$repo_path" --local-dir "$tmp_dir" $resume_flag; then
+            local downloaded_path="$tmp_dir/$repo_path"
+            if [ -f "$downloaded_path" ] || [ -L "$downloaded_path" ]; then
+                mkdir -p "$(dirname "$dest")"
+                mv -f "$downloaded_path" "$dest"
+                rm -rf "$tmp_dir"
+                local size
+                size=$(stat -L -c%s "$dest" 2>/dev/null || stat -L -f%z "$dest" 2>/dev/null || echo 0)
+                echo "✅ $name downloaded successfully ($size bytes)"
+            else
+                echo "⚠️  $name not found after download"
+                rm -rf "$tmp_dir"
+            fi
+        else
+            echo "❌ $hf_cmd failed for $name"
+            rm -rf "$tmp_dir"
+        fi
+    done
+}
+
 if [[ ! -f /.noprovisioning ]]; then
     provisioning_start
 fi

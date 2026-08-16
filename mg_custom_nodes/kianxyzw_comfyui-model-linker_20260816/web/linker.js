@@ -10,6 +10,10 @@ import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import { $el, ComfyDialog } from "../../../scripts/ui.js";
 
+// Lucide "locate" crosshair - the same glyph ComfyUI's workflow overview uses
+// on its own locate-node buttons (icon-[lucide--locate]).
+const LOCATE_ICON = `<svg class="ml-locate-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h3m14 0h3M12 2v3m0 14v3"/><circle cx="12" cy="12" r="7"/></svg>`;
+
 class LinkerManagerDialog extends ComfyDialog {
     constructor() {
         super();
@@ -99,6 +103,9 @@ class LinkerManagerDialog extends ComfyDialog {
                 --ml-confidence-medium: #FFC107;
                 --ml-confidence-low: #f44336;
                 --ml-link-color: #8ab4f8;
+                --ml-orange: #FF9800;
+                --ml-orange-hover: #FFA726;
+                --ml-orange-text: #1a1a1a;
             }
             
             /* Card Styles */
@@ -158,6 +165,23 @@ class LinkerManagerDialog extends ComfyDialog {
             .ml-node-chip-clickable:hover {
                 background: #4a4a4a;
                 color: var(--ml-text);
+            }
+            /* Locate-node chip: orange so it reads as the canvas navigation
+               action. Dark text, not white - white on orange only reaches
+               ~2.7:1, near-black clears 8:1. */
+            .ml-node-chip-locate {
+                background: var(--ml-orange);
+                color: var(--ml-orange-text);
+                font-weight: 600;
+            }
+            .ml-node-chip-locate:hover {
+                background: var(--ml-orange-hover);
+                color: var(--ml-orange-text);
+            }
+            .ml-locate-icon {
+                width: 12px;
+                height: 12px;
+                flex-shrink: 0;
             }
             .ml-tab-bar {
                 display: flex;
@@ -933,50 +957,82 @@ class LinkerManagerDialog extends ComfyDialog {
 
     /**
      * Jump the canvas to a node referencing a missing model (issue #9).
-     * Repeated clicks cycle through all nodes that use the model. Nodes that
-     * live inside a subgraph definition can't be centered directly, so the
-     * jump targets their subgraph instance node instead.
+     * Repeated clicks cycle through every live node that uses the model,
+     * including one entry per live instance of a subgraph definition.
      */
-    jumpToNode(missing) {
+    async jumpToNode(missing) {
         if (!app?.graph || !app?.canvas) {
             this.showNotification('Canvas not available', 'error');
             return;
         }
 
         const refs = missing.all_node_refs || [missing];
-        missing._jumpIndex = ((missing._jumpIndex ?? -1) + 1) % refs.length;
-        const ref = refs[missing._jumpIndex];
 
-        let targetId = ref.node_id;
-        if (ref.is_top_level === false && ref.subgraph_id) {
-            // Node is inside a subgraph definition - jump to the instance
-            const instance = (app.graph._nodes || []).find(n => n.type === ref.subgraph_id);
-            if (!instance) {
-                this.showNotification(`Node is inside subgraph "${ref.subgraph_name || ref.subgraph_id}" - no instance found on canvas`, 'error');
-                return;
+        // Flatten to actual canvas nodes. A node inside a subgraph definition
+        // exists once per live instance, so each instance is its own target.
+        const targets = [];
+        for (const ref of refs) {
+            for (const node of this.findLiveNodes(ref)) {
+                targets.push({ ref, node });
             }
-            targetId = instance.id;
         }
 
-        const node = app.graph.getNodeById(targetId);
-        if (!node) {
-            this.showNotification(`Node #${targetId} not found on canvas`, 'error');
+        if (targets.length === 0) {
+            const ref = refs[0];
+            const subgraph = ref.subgraph_name || ref.subgraph_id;
+            this.showNotification(
+                subgraph
+                    ? `Node #${ref.node_id} not found - subgraph "${subgraph}" has no live instance`
+                    : `Node #${ref.node_id} not found on canvas`,
+                'error');
             return;
         }
 
-        // Close the dialog so the canvas is actually visible, then center
+        missing._jumpIndex = ((missing._jumpIndex ?? -1) + 1) % targets.length;
+        const { ref, node } = targets[missing._jumpIndex];
+
+        // Close the dialog so the canvas is actually visible, then focus
         this.close();
-        app.canvas.centerOnNode(node);
-        if (typeof app.canvas.selectNode === 'function') {
-            app.canvas.selectNode(node);
-        } else if (typeof app.canvas.selectNodes === 'function') {
-            app.canvas.selectNodes([node]);
-        }
-        app.canvas.setDirty(true, true);
+        await this.focusNode(node);
 
         if (ref.is_top_level === false && ref.subgraph_name) {
-            this.showNotification(`Model is used inside subgraph "${ref.subgraph_name}" - jumped to its instance node`, 'info');
+            this.showNotification(`Model is used inside subgraph "${ref.subgraph_name}"`, 'info');
         }
+    }
+
+    /**
+     * Move the viewport onto a live graph node, entering its subgraph first if
+     * the canvas is showing a different graph. Ported from the frontend's own
+     * useFocusNode composable (the "locate node" button in ComfyUI's workflow
+     * overview) so the jump animates identically. Older frontends have no
+     * animateToBounds/subgraphs, so both steps degrade to centerOnNode.
+     */
+    async focusNode(node) {
+        const canvas = app.canvas;
+        const graph = node.graph;
+
+        if (graph && canvas.graph !== graph && typeof canvas.setGraph === 'function') {
+            const isRoot = graph.isRootGraph ?? (graph === (app.rootGraph || app.graph));
+            canvas.subgraph = isRoot ? undefined : graph;
+            canvas.setGraph(graph);
+            // Double rAF - LiteGraph needs a full frame in the new graph before
+            // the viewport animation can be measured against it.
+            await new Promise(resolve =>
+                requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        }
+
+        if (typeof canvas.animateToBounds === 'function' && node.boundingRect) {
+            canvas.animateToBounds(node.boundingRect);
+        } else {
+            canvas.centerOnNode(node);
+        }
+
+        if (typeof canvas.selectNode === 'function') {
+            canvas.selectNode(node);
+        } else if (typeof canvas.selectNodes === 'function') {
+            canvas.selectNodes([node]);
+        }
+        canvas.setDirty(true, true);
     }
 
     /**
@@ -1086,7 +1142,7 @@ class LinkerManagerDialog extends ComfyDialog {
     renderAllModelRow(entry, index) {
         const formatted = this.formatFilename(entry.original_path || '', 50);
         const refs = entry.all_node_refs || [entry];
-        const jumpLabel = refs.length > 1 ? `↗ Jump to node (${refs.length})` : '↗ Jump to node';
+        const jumpLabel = refs.length > 1 ? `Locate node (${refs.length})` : 'Locate node';
         const nodeLabel = this.getNodeLabel(entry);
 
         let html = `<div class="ml-all-row">`;
@@ -1094,7 +1150,7 @@ class LinkerManagerDialog extends ComfyDialog {
         if (entry.__missing) {
             html += `<span class="ml-missing-badge">missing</span>`;
         }
-        html += `<span class="ml-node-chip ml-node-chip-clickable" data-jump-index="${index}" title="${nodeLabel} #${entry.node_id}${refs.length > 1 ? ` - ${refs.length} nodes use this model, click again for the next one` : ''}">${jumpLabel}</span>`;
+        html += `<span class="ml-node-chip ml-node-chip-clickable ml-node-chip-locate" data-jump-index="${index}" title="${nodeLabel} #${entry.node_id}${refs.length > 1 ? ` - ${refs.length} nodes use this model, click again for the next one` : ''}">${LOCATE_ICON}${jumpLabel}</span>`;
         if (entry.__missing) {
             html += `<button class="ml-btn ml-btn-secondary ml-btn-sm" data-fix-missing="1" title="Resolve it in the Missing tab">Fix</button>`;
         } else {
@@ -1554,11 +1610,11 @@ class LinkerManagerDialog extends ComfyDialog {
             html += `<span class="ml-category-chip">${missing.category}</span>`;
         }
         const refCount = (missing.all_node_refs || [missing]).length;
-        const jumpLabel = refCount > 1 ? `↗ Jump to node (${refCount})` : '↗ Jump to node';
+        const jumpLabel = refCount > 1 ? `Locate node (${refCount})` : 'Locate node';
         const jumpTitle = refCount > 1
             ? `${nodeLabel} #${missing.node_id} - ${refCount} nodes use this model, click again for the next one`
             : `${nodeLabel} #${missing.node_id}`;
-        html += `<span id="jump-${missing.node_id}-${missing.widget_index}" class="ml-node-chip ml-node-chip-clickable" title="${jumpTitle}">${jumpLabel}</span>`;
+        html += `<span id="jump-${missing.node_id}-${missing.widget_index}" class="ml-node-chip ml-node-chip-clickable ml-node-chip-locate" title="${jumpTitle}">${LOCATE_ICON}${jumpLabel}</span>`;
         html += `</div>`;
         html += `</div>`;
         

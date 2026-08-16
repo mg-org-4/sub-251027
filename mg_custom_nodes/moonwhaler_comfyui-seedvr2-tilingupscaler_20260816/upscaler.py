@@ -71,7 +71,7 @@ class SeedVR2TilingUpscaler:
                     "min": 64,
                     "max": 8192,
                     "step": 8,
-                    "tooltip": "Maximum resolution for upscaling individual tiles. Higher=better quality but more VRAM. Try 1024-2048."
+                    "tooltip": "Ceiling on the resolution used to AI-upscale each tile. Each tile is scaled by the same overall factor as the full image; this only kicks in to cap tiles that would otherwise exceed it. Higher=better quality but more VRAM. Try 1024-2048."
                 }),
                 "tiling_strategy": (["Chess", "Linear"], {
                     "tooltip": "Tile processing order. Chess=checkerboard pattern for better blending, Linear=row-by-row (faster)."
@@ -95,6 +95,16 @@ class SeedVR2TilingUpscaler:
                     "default": "longest",
                     "tooltip": "Which side 'new_resolution' applies to. 'longest'=fit longest side (original behavior), 'shortest'=fit shortest side (larger output for the same value). Aspect ratio is maintained either way."
                 }),
+                # New widgets must be appended here: ComfyUI serializes widget values
+                # positionally, so inserting one mid-list shifts the values of every
+                # widget after it in already-saved workflows.
+                "tile_batch_size": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 21,
+                    "step": 4,
+                    "tooltip": "Tiles sent to SeedVR2 per call. 1 = lowest VRAM (recommended). Higher is faster but VRAM scales with it. Values are snapped down to SeedVR2's required 4n+1 pattern (1, 5, 9, 13, 17, 21)."
+                }),
             },
         }
 
@@ -105,7 +115,7 @@ class SeedVR2TilingUpscaler:
     def upscale(self, image, dit, vae, seed, new_resolution, tile_width, tile_height,
                 mask_blur, tile_padding, tile_upscale_resolution, tiling_strategy,
                 anti_aliasing_strength, blending_method="auto", color_correction="lab",
-                resolution_target="longest"):
+                resolution_target="longest", tile_batch_size=1):
         try:
             # Initialize progress tracking
             progress = Progress(0)  # Will update with actual count later
@@ -140,7 +150,8 @@ class SeedVR2TilingUpscaler:
                 original_image=pil_image,
                 anti_aliasing_strength=anti_aliasing_strength,
                 blending_method=blending_method,
-                color_correction=color_correction
+                color_correction=color_correction,
+                tile_batch_size=tile_batch_size
             )
 
             # Finalize progress

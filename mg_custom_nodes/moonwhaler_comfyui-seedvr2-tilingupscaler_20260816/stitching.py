@@ -19,13 +19,39 @@ from .image_utils import tensor_to_pil, pil_to_tensor
 from .seedvr2_adapter import execute_seedvr2
 
 
-def _get_optimal_batch_size(num_tiles: int) -> int:
-    """Calculate optimal batch size following 4n+1 pattern (1, 5, 9, 13, 17, 21...)"""
-    if num_tiles <= 1:
+def _snap_to_4n_plus_1(value: int) -> int:
+    """Snap a batch size down to the largest 4n+1 value (1, 5, 9, 13, 17, 21...) not exceeding it.
+
+    SeedVR2's temporal VAE requires frame counts following the 4n+1 pattern.
+    """
+    if value <= 1:
         return 1
-    # Find largest 4n+1 that doesn't exceed num_tiles
-    n = (num_tiles - 1) // 4
+    n = (value - 1) // 4
     return 4 * n + 1
+
+
+def _resolve_batch_size(requested: int, remaining: int) -> int:
+    """Resolve the batch size for the next sub-batch.
+
+    Never exceeds the user-requested batch size, and never exceeds the number of
+    tiles left to process. The result is snapped down to the 4n+1 pattern required
+    by SeedVR2.
+    """
+    return _snap_to_4n_plus_1(min(max(requested, 1), remaining))
+
+
+def _resolution_for_tile(tile_width: int, tile_height: int, upscale_factor: float, cap: int) -> int:
+    """Resolution for the tile's shortest edge that reproduces the global
+    upscale factor, capped by the user's VRAM/quality ceiling.
+
+    Without this, every tile is sent to SeedVR2 with the same literal
+    `cap` value regardless of its own aspect ratio, so leftover-remainder
+    edge tiles (much narrower than the main grid) get scaled far more
+    aggressively than the rest of the image.
+    """
+    shortest_edge = min(tile_width, tile_height)
+    target = min(shortest_edge * upscale_factor, cap)
+    return max(min(64, cap), int(round(target)))
 
 
 def _create_base_image(
@@ -59,10 +85,22 @@ def _batch_upscale_tiles(
     vae_config: Dict[str, Any],
     seed: int,
     tile_upscale_resolution: int,
+    upscale_factor: float,
     progress=None,
     color_correction: str = "lab",
+    tile_batch_size: int = 1,
 ) -> List[Image.Image]:
-    """Batch process tiles by grouping them by size for optimal performance."""
+    """Batch process tiles by grouping them by size for optimal performance.
+
+    Args:
+        upscale_factor: Global output/input scale factor. Each size group's
+            SeedVR2 resolution is derived from its own shortest edge times
+            this factor (capped by tile_upscale_resolution) so every tile is
+            upscaled by a consistent amount regardless of its aspect ratio.
+        tile_batch_size: Maximum number of tiles sent to SeedVR2 in a single call.
+            1 processes tiles one at a time (lowest VRAM). Values above 1 are
+            snapped down to the 4n+1 pattern SeedVR2 requires.
+    """
     # Group tiles by their dimensions
     tiles_by_size = defaultdict(list)
     for idx, tile_info in enumerate(tiles):
@@ -80,7 +118,7 @@ def _batch_upscale_tiles(
         # Process this size group in optimal sub-batches
         while processed_tiles < num_tiles_in_group:
             remaining = num_tiles_in_group - processed_tiles
-            batch_size = _get_optimal_batch_size(remaining)
+            batch_size = _resolve_batch_size(tile_batch_size, remaining)
 
             # Get tiles for this sub-batch
             sub_batch = tile_group[processed_tiles:processed_tiles + batch_size]
@@ -89,17 +127,14 @@ def _batch_upscale_tiles(
             tile_tensors = [pil_to_tensor(tile_info["tile"]) for _, tile_info in sub_batch]
             batch_tensor = torch.cat(tile_tensors, dim=0)
 
-            # Update progress before processing
-            if progress:
-                progress.update_sub_progress(f"AI Upscaling ({tiles_processed_count + 1}/{len(tiles)})", 1)
-
             # Process this sub-batch
+            group_resolution = _resolution_for_tile(tile_size[0], tile_size[1], upscale_factor, tile_upscale_resolution)
             upscaled_batch = execute_seedvr2(
                 images=batch_tensor,
                 dit_config=dit_config,
                 vae_config=vae_config,
                 seed=seed,
-                resolution=tile_upscale_resolution,
+                resolution=group_resolution,
                 batch_size=batch_size,
                 color_correction=color_correction,
             )
@@ -372,6 +407,7 @@ def process_and_stitch(
     anti_aliasing_strength: float = 0.0,
     blending_method: str = "auto",
     color_correction: str = "lab",
+    tile_batch_size: int = 1,
 ) -> Image.Image:
     """Main stitching function that chooses the appropriate method based on settings.
 
@@ -390,6 +426,7 @@ def process_and_stitch(
         anti_aliasing_strength: Anti-aliasing strength (0-1)
         blending_method: Blending method to use
         color_correction: Color correction method for SeedVR2
+        tile_batch_size: Maximum tiles per SeedVR2 call (1 = lowest VRAM usage)
 
     Returns:
         Stitched output image
@@ -418,6 +455,7 @@ def process_and_stitch(
         "progress": progress,
         "original_image": original_image,
         "color_correction": color_correction,
+        "tile_batch_size": tile_batch_size,
     }
 
     # Route to appropriate blending function
@@ -485,6 +523,7 @@ def _process_and_stitch_multiband(
     progress,
     original_image: Image.Image,
     color_correction: str = "lab",
+    tile_batch_size: int = 1,
 ) -> Image.Image:
     """Multi-band blending using Laplacian pyramids for frequency-separated stitching."""
     # Create base image
@@ -494,7 +533,15 @@ def _process_and_stitch_multiband(
 
     # Batch process and upscale tiles
     upscaled_tiles = _batch_upscale_tiles(
-        tiles, dit_config, vae_config, seed, tile_upscale_resolution, progress, color_correction
+        tiles=tiles,
+        dit_config=dit_config,
+        vae_config=vae_config,
+        seed=seed,
+        tile_upscale_resolution=tile_upscale_resolution,
+        upscale_factor=upscale_factor,
+        progress=progress,
+        color_correction=color_correction,
+        tile_batch_size=tile_batch_size,
     )
 
     # Build Laplacian pyramid for base image
@@ -588,6 +635,7 @@ def _process_and_stitch_bilateral(
     progress,
     original_image: Image.Image,
     color_correction: str = "lab",
+    tile_batch_size: int = 1,
 ) -> Image.Image:
     """Bilateral filtering-based stitching for edge-preserving blending."""
     # Create base image
@@ -601,7 +649,15 @@ def _process_and_stitch_bilateral(
 
     # Batch process and upscale tiles
     upscaled_tiles = _batch_upscale_tiles(
-        tiles, dit_config, vae_config, seed, tile_upscale_resolution, progress, color_correction
+        tiles=tiles,
+        dit_config=dit_config,
+        vae_config=vae_config,
+        seed=seed,
+        tile_upscale_resolution=tile_upscale_resolution,
+        upscale_factor=upscale_factor,
+        progress=progress,
+        color_correction=color_correction,
+        tile_batch_size=tile_batch_size,
     )
 
     # Process each tile
@@ -665,6 +721,7 @@ def _process_and_stitch_content_aware(
     progress,
     original_image: Image.Image,
     color_correction: str = "lab",
+    tile_batch_size: int = 1,
 ) -> Image.Image:
     """Content-aware stitching using structure tensor for adaptive blending."""
     # Create base image
@@ -680,7 +737,15 @@ def _process_and_stitch_content_aware(
 
     # Batch process and upscale tiles
     upscaled_tiles = _batch_upscale_tiles(
-        tiles, dit_config, vae_config, seed, tile_upscale_resolution, progress, color_correction
+        tiles=tiles,
+        dit_config=dit_config,
+        vae_config=vae_config,
+        seed=seed,
+        tile_upscale_resolution=tile_upscale_resolution,
+        upscale_factor=upscale_factor,
+        progress=progress,
+        color_correction=color_correction,
+        tile_batch_size=tile_batch_size,
     )
 
     # Process each tile
@@ -750,6 +815,7 @@ def _process_and_stitch_zero_blur(
     progress,
     original_image: Image.Image,
     color_correction: str = "lab",
+    tile_batch_size: int = 1,
 ) -> Image.Image:
     """Zero-blur stitching that preserves maximum detail through precise pixel averaging."""
     # Create base image
@@ -762,7 +828,15 @@ def _process_and_stitch_zero_blur(
 
     # Batch process and upscale tiles
     upscaled_tiles = _batch_upscale_tiles(
-        tiles, dit_config, vae_config, seed, tile_upscale_resolution, progress, color_correction
+        tiles=tiles,
+        dit_config=dit_config,
+        vae_config=vae_config,
+        seed=seed,
+        tile_upscale_resolution=tile_upscale_resolution,
+        upscale_factor=upscale_factor,
+        progress=progress,
+        color_correction=color_correction,
+        tile_batch_size=tile_batch_size,
     )
 
     # Process each upscaled tile for stitching
@@ -817,6 +891,7 @@ def _process_and_stitch_blended(
     progress,
     original_image: Image.Image,
     color_correction: str = "lab",
+    tile_batch_size: int = 1,
 ) -> Image.Image:
     """Standard blended stitching with user-controlled blur."""
     # Create base image
@@ -828,7 +903,15 @@ def _process_and_stitch_blended(
 
     # Batch process and upscale tiles
     upscaled_tiles = _batch_upscale_tiles(
-        tiles, dit_config, vae_config, seed, tile_upscale_resolution, progress, color_correction
+        tiles=tiles,
+        dit_config=dit_config,
+        vae_config=vae_config,
+        seed=seed,
+        tile_upscale_resolution=tile_upscale_resolution,
+        upscale_factor=upscale_factor,
+        progress=progress,
+        color_correction=color_correction,
+        tile_batch_size=tile_batch_size,
     )
 
     # Process each upscaled tile for stitching

@@ -1,4 +1,4 @@
-# ComfyUI-Nunchaku QwenImage＆ZImageTurboLoraStack
+# ComfyUI-Nunchaku QwenImage/ZImageTurboLoraStack&Multi ControlNet Loader
 
 <table align="center">
   <tr>
@@ -13,7 +13,7 @@
 
 **目前正在开发和测试中。正在大量输出调试日志。这不影响功能。**
 
-> 最新版本: [v2.5.6 发行说明](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.5.6)
+> 最新版本: [v2.5.7 发行说明](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.5.7)
 >
 
 ## 来源
@@ -46,10 +46,6 @@
 - **NunchakuQwenImageLoraLoader**: 单 LoRA 加载器
 
 <img src="../images/single_loader.png" alt="NunchakuQwenImageLoraLoader: 单 LoRA 加载器" width="400">
-
-- **NunchakuQwenImageLoraStack**: 多 LoRA 堆叠器，带动态 UI（旧版）
-
-<img src="../images/legacy_stack.png" alt="NunchakuQwenImageLoraStack: 多 LoRA 堆叠器，带动态 UI（旧版）" width="400">
 
 - **NunchakuQwenImageLoraStackV1**: 多 LoRA 堆叠器，rgthree 风格 UI
   - 简洁、极简的设计，灵感来自 [Power Lora Loader (rgthree-comfy)](https://github.com/rgthree/rgthree-comfy)。每行包含切换、LoRA 名称和强度。
@@ -90,7 +86,7 @@
 
 **对于 Nunchaku Qwen Image 模型：**
 1. 使用 `Nunchaku Qwen Image DiT Loader` 加载您的 Nunchaku Qwen Image 模型
-2. 添加 `NunchakuQwenImageLoraLoader` 或 `NunchakuQwenImageLoraStack` 节点
+2. 添加 `NunchakuQwenImageLoraLoader` 或 `NunchakuQwenImageLoraStackV1` / `V2` / `V3` 节点
 3. 选择您的 LoRA 文件并设置强度
 4. 连接到您的工作流
 
@@ -191,7 +187,7 @@ Z-Image / Nunchaku 路由完全隔离——使用这些路由的现有工作流�
 在 AMD/ROCm（或任何无法导入 `nunchaku` 包的机器）上，本自定义节点会自动检测缺失的依赖并适配：
 
 - **已禁用**：所有依赖 nunchaku 的节点将不再注册，不会出现在节点列表中：
-  - `NunchakuQwenImageLoraLoader` / `NunchakuQwenImageLoraStack`
+  - `NunchakuQwenImageLoraLoader`
   - `NunchakuQwenImageLoraStackV1` / `V2` / `V3`
   - `NunchakuZImageTurboLoraStackV1` / `V4`
 - **仍可使用**：不依赖 nunchaku 的 Krea2 ControlNet 节点保持完整功能：

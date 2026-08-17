@@ -7,8 +7,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from nodes.helper_minimax_h3_director import audio_duration, load_audio, load_embedded_video_audio, load_video
-from nodes.helper_minimax_h3_prompt_builder import build_prompt, default_builder_state
+from nodes.helper_minimax_h3_director import (
+    audio_duration, load_audio, load_embedded_video_audio, load_video,
+    scale_canvas_to_short_edge, scale_input_media,
+)
+from nodes.helper_minimax_h3_prompt_builder import (
+    PROMPT_MODES, build_base_prompt, build_prompt, build_ref_prompt, default_builder_state,
+)
 from nodes import nodes_minimax_h3_director as director
 from nodes import nodes_minimax_h3_director_guide as director_guide
 
@@ -23,6 +28,28 @@ def test_base_prompt_builder_includes_fl2va_alignment_and_schema():
     assert "Picture 2 (from Shot 2) aligns with the 5.17-second mark" in prompt
     assert "integrated_multimodal_description: [Shot 1] A lantern rises." in prompt
     assert "overall_soundscape: wind" in prompt
+
+
+def test_minimax_auto_canvas_sets_the_short_edge_to_768_on_a_16_pixel_grid():
+    assert scale_canvas_to_short_edge(1920, 1080) == (1360, 768)
+    assert scale_canvas_to_short_edge(1080, 1920) == (768, 1360)
+    assert scale_canvas_to_short_edge(1024, 1024) == (768, 768)
+
+
+def test_director_input_scaling_reuses_torch_resize_without_upscaling_auto_inputs():
+    torch = __import__("torch")
+    image = torch.zeros((1, 3000, 6000, 3))
+    small_image = torch.zeros((1, 100, 200, 3))
+
+    auto = scale_input_media(image, "Auto", 1024, 768)
+    small_auto = scale_input_media(small_image, "Auto", 1024, 768)
+    target = scale_input_media(image, "Target", 1024, 768)
+    off = scale_input_media(image, "Off", 1024, 768)
+
+    assert auto.shape == (1, 2048, 4096, 3)
+    assert small_auto is small_image
+    assert target.shape == (1, 768, 1024, 3)
+    assert off is image
 
 
 def test_ref_prompt_builder_emits_all_required_sections():
@@ -59,7 +86,7 @@ def test_director_emits_v2_consolidated_prompt_for_i2va_builder_state():
     builder = default_builder_state("I2VA")
     builder.update({"imd": "A bright room.", "soundscape": "birds", "music": "N/A"})
 
-    guide, _, resolved, _, _, _, fl2va_requested, ref2va_requested = director.MiniMaxH3Director().build_guide(
+    guide, _, resolved, _, _, _, fl2va_requested, ref2va_requested, _ = director.MiniMaxH3Director().build_guide(
         "I2VA", "legacy", 1344, 768, 5, "match", json.dumps(state), json.dumps(builder)
     )
 
@@ -69,6 +96,150 @@ def test_director_emits_v2_consolidated_prompt_for_i2va_builder_state():
     assert guide["prompt_payload"]["full_prompt"] == resolved
     assert "integrated_multimodal_description: A bright room." in resolved
     assert fl2va_requested and not ref2va_requested
+
+
+def test_director_blank_external_prompt_falls_back_to_builder():
+    """Structured mode: a blank/whitespace external prompt must not bypass the builder."""
+    builder = default_builder_state("T2VA")
+    builder.update({"imd": "[Shot 1] A calm lake at dawn.", "soundscape": "light wind", "music": "N/A"})
+
+    def resolved_for(external_prompt_overwrite):
+        return director.MiniMaxH3Director().build_guide(
+            "T2VA", "", 1344, 768, 5, "match", json.dumps({"items": []}),
+            json.dumps(builder), None, None, external_prompt_overwrite=external_prompt_overwrite
+        )[2]
+
+    # Blank string and whitespace-only must both resolve via the builder (non-empty).
+    for blank in ("", "   "):
+        fallback = resolved_for(blank)
+        assert fallback != blank
+        assert "integrated_multimodal_description: [Shot 1] A calm lake at dawn." in fallback
+
+    # A real external prompt still overrides the builder.
+    assert resolved_for("MY OWN PROMPT") == "MY OWN PROMPT"
+
+
+def test_director_external_dimension_overwrites_replace_canvas_before_guide_construction():
+    guide, _, resolved, output_width, output_height, *_ = director.MiniMaxH3Director().build_guide(
+        "I2VA", "internal prompt", 1344, 768, 5, "match",
+        json.dumps({"items": [{"type": "image", "value": "opening.png", "slot": 0}]}),
+        external_width_overwrite=1023,
+        external_height_overwrite=577,
+        external_prompt_overwrite="external prompt",
+    )
+
+    assert (output_width, output_height) == (1023, 577)
+    assert (guide["width"], guide["height"]) == (1023, 577)
+    assert resolved == "external prompt"
+
+
+def test_director_external_dimension_overwrites_require_a_complete_pair():
+    with pytest.raises(ValueError, match="both external width overwrite and external height overwrite"):
+        director.MiniMaxH3Director().build_guide(
+            "T2VA", "", 1344, 768, 5, "match", json.dumps({"items": []}),
+            external_width_overwrite=1024,
+        )
+
+
+def test_prompt_modes_constant_lists_both_styles():
+    assert set(PROMPT_MODES) == {"simple", "structured"}
+
+
+def test_base_mode_defaults_to_structured_when_prompt_mode_absent():
+    state = default_builder_state("FL2VA")
+    state.update({"imd": "[Shot 1] A lantern rises.", "soundscape": "wind", "music": "N/A"})
+    prompt = build_prompt(state)
+    # structured = the official sectioned layout (with the FL2VA alignment head).
+    assert "How the reference pictures align" in prompt
+    assert "integrated_multimodal_description: [Shot 1] A lantern rises." in prompt
+    # simple would not carry the alignment head.
+    assert prompt == build_base_prompt(state)
+
+
+def test_base_mode_simple_flattens_fields_without_alignment_head():
+    state = default_builder_state("FL2VA")
+    state.update({"imd": "[Shot 1] A lantern rises.", "soundscape": "wind", "music": "N/A", "prompt_mode": "simple"})
+    prompt = build_prompt(state)
+    assert "How the reference pictures align" not in prompt
+    assert "integrated_multimodal_description: [Shot 1] A lantern rises." in prompt
+    assert "overall_soundscape: wind" in prompt
+    assert "non_diegetic_music: N/A" in prompt
+    # simple keeps one header per line, no blank-line sectioning.
+    assert "\n\n" not in prompt
+
+
+def test_simple_prompt_mode_uses_the_single_saved_prompt_field():
+    state = default_builder_state("REF2VA")
+    state.update({"prompt_mode": "simple", "simple_prompt": "A red fox walks through a quiet forest."})
+    state["ref"].update({"subject_definitions": "This must not be rendered."})
+
+    assert build_prompt(state) == "A red fox walks through a quiet forest."
+
+
+def test_prompt_mode_simple_is_lossless_vs_structured_fields():
+    """Every non-empty field present in structured must appear in simple."""
+    state = default_builder_state("FL2VA")
+    state.update({"imd": "[Shot 1] A lantern rises.", "soundscape": "wind and birds", "music": "soft strings"})
+    structured = build_prompt(state)
+    simple = build_prompt({**state, "prompt_mode": "simple"})
+    for field in ("[Shot 1] A lantern rises.", "wind and birds", "soft strings"):
+        assert field in structured
+        assert field in simple
+
+
+def test_ref2va_mode_simple_flattens_sectioned_layout():
+    state = default_builder_state("REF2VA")
+    state["ref"].update({
+        "subject_definitions": "<Subject 1> is a red fox.",
+        "summary": "[reference generation] Animate the fox.",
+        "retention_analysis": "<Subject 1>: fully_preserved - keep fur",
+        "detailed_description": "Cinematic. [Shot 1] The fox turns.",
+        "soundscape": "forest", "music": "N/A",
+    })
+    structured = build_prompt(state)
+    simple = build_prompt({**state, "prompt_mode": "simple"})
+    # structured keeps the sectioned "header:\nvalue" layout.
+    assert "subject_definitions:\n<Subject 1> is a red fox." in structured
+    # simple flattens to "header: value" on one line each.
+    assert "subject_definitions: <Subject 1> is a red fox." in simple
+    assert "summary: [reference generation] Animate the fox." in simple
+    assert "retention_analysis: <Subject 1>: fully_preserved - keep fur" in simple
+    # and simple drops the multi-line sectioning.
+    assert "subject_definitions:\n" not in simple
+
+
+def test_prompt_mode_invalid_or_non_string_falls_back_to_structured():
+    state = default_builder_state("T2VA")
+    state.update({"imd": "A room.", "soundscape": "quiet", "music": "N/A"})
+    assert build_prompt({**state, "prompt_mode": "bogus"}) == build_prompt(state)
+    assert build_prompt({**state, "prompt_mode": 5}) == build_prompt(state)
+    assert build_prompt({**state, "prompt_mode": None}) == build_prompt(state)
+    # case-insensitive + whitespace-tolerant.
+    assert build_prompt({**state, "prompt_mode": "  Simple  "}) == build_prompt({**state, "prompt_mode": "simple"})
+
+
+def test_director_end_to_end_honors_prompt_mode_from_builder_state():
+    base = default_builder_state("T2VA")
+    base.update({"imd": "[Shot 1] A calm lake at dawn.", "soundscape": "light wind", "music": "N/A"})
+
+    def resolved_with(prompt_mode):
+        builder = dict(base)
+        if prompt_mode is not None:
+            builder["prompt_mode"] = prompt_mode
+        return director.MiniMaxH3Director().build_guide(
+            "T2VA", "", 1344, 768, 5, "match", json.dumps({"items": []}),
+            json.dumps(builder), None, None,
+        )[2]
+
+    structured = resolved_with("structured")
+    simple = resolved_with("simple")
+    # default (absent) == structured, backward compatible.
+    assert resolved_with(None) == structured
+    # structured keeps the sectioned body, simple does not carry double-newlines.
+    assert "integrated_multimodal_description: [Shot 1] A calm lake at dawn." in structured
+    assert "\n\n" in structured
+    assert "integrated_multimodal_description: [Shot 1] A calm lake at dawn." in simple
+    assert "\n\n" not in simple
 
 
 def test_guider_routes_l2va_to_image_to_video_with_only_last_frame(monkeypatch):
@@ -93,7 +264,7 @@ def test_director_ui_exposes_the_derived_frame_slots():
 
     assert 'mode() === "I2VA" ? [0]' in source
     assert 'mode() === "FL2VA" ? [0, 1]' in source
-    assert 'mode() === "L2VA" ? [1]' in source
+    assert 'mode() === "L2VA" ? [0, 1]' in source
     assert 'mode() === "T2VA" ? []' in source
 
 
@@ -101,7 +272,7 @@ def test_director_preview_overlay_is_clickable_and_closes_with_escape():
     source = Path("js/minimax_h3_director.js").read_text()
 
     assert "function openPreview(item)" in source
-    assert "function closePreview()" in source
+    assert "function closePreview(discard = false)" in source
     assert 'previewCloseFn = event => { if (event.key === "Escape") closePreview(); };' in source
     assert "openPreview(item);" in source
 
@@ -113,6 +284,61 @@ def test_director_clip_clicks_do_not_commit_a_reorder_without_pointer_movement()
     assert "if (!dragged) return;" in source
 
 
+def test_director_text_fields_preserve_the_comfyui_run_shortcut():
+    source = Path("js/minimax_h3_director.js").read_text()
+
+    assert 'if ((event.ctrlKey || event.metaKey) && event.key === "Enter") return;' in source
+
+
+def test_director_dom_ui_forwards_wheel_events_to_the_comfyui_canvas():
+    source = Path("js/minimax_h3_director.js").read_text()
+
+    assert 'timeline.addEventListener("wheel", event =>' in source
+    assert "const canvas = app.canvas?.canvas;" in source
+    assert 'canvas.dispatchEvent(new WheelEvent("wheel", {' in source
+
+
+def test_director_paste_replaces_selected_media_without_changing_its_slot():
+    source = Path("js/minimax_h3_director.js").read_text()
+
+    assert "const replacementFile = files.find(file =>" in source
+    assert "await replaceSelectedFile(replacementFile, selected);" in source
+    assert "async function replaceSelectedFile(file, selected)" in source
+    assert "laneForItem(selected) !== lane" in source
+    assert "s.items[index] = item" in source
+
+
+def test_director_recognizes_wav_aliases_and_falls_back_to_riff_metadata_for_editing():
+    source = Path("js/minimax_h3_director.js").read_text()
+
+    assert '"wav", "wave"' in source
+    assert 'const mimeType = String(file.type || "").toLowerCase();' in source
+    assert "function wavDurationFromBuffer(buffer)" in source
+    assert "async function probeWavDuration(value)" in source
+    assert "data.getUint32(0, false) !== 0x52494646" in source
+    assert "return duration ?? (type === \"audio\" ? await probeWavDuration(value) : null);" in source
+
+
+def test_director_preview_crop_range_can_be_dragged_without_resizing():
+    source = Path("js/minimax_h3_director.js").read_text()
+
+    assert 'dragging = "range"' in source
+    assert "cropDragOffset = pct - sPct" in source
+    assert "MARKER_GRAB_RADIUS_PX" in source
+    assert "const width = parseFloat(rangeTe.value) - parseFloat(rangeTs.value);" in source
+    assert "rangeTe.value = start + width;" in source
+
+
+def test_director_preview_can_play_only_the_current_crop_range():
+    source = Path("js/minimax_h3_director.js").read_text()
+
+    assert 'playCropBtn.textContent = "▶ Play crop"' in source
+    assert "media.currentTime = start;" in source
+    assert "if (cropPlayback && media.currentTime >= Number(teInput.value))" in source
+    assert "media.currentTime = Number(teInput.value);" in source
+    assert "media.pause();\n        media.currentTime = start;" not in source
+
+
 def test_director_uses_the_native_h3_frame_grid_for_guide_and_output_length():
     guide, output_length, *_ = director.MiniMaxH3Director().build_guide(
         "FL2VA", "overall_soundscape: quiet room tone", 1344, 768, 5, "match", "{}"
@@ -120,6 +346,44 @@ def test_director_uses_the_native_h3_frame_grid_for_guide_and_output_length():
 
     assert guide["length"] == 124
     assert output_length == 124
+
+
+def test_director_exposes_frame_rate_output_and_validates_range():
+    node = director.MiniMaxH3Director()
+
+    # Default frame_rate is 24 and is emitted as the final output.
+    *_, default_fps = node.build_guide("FL2VA", "", 1344, 768, 5, "match", "{}")
+    assert default_fps == 24.0
+    assert isinstance(default_fps, float)
+
+    # A selected frame_rate passes straight through to the output.
+    *_, chosen_fps = node.build_guide("FL2VA", "", 1344, 768, 5, "match", "{}", frame_rate=60)
+    assert chosen_fps == 60.0
+
+    # Fractional rates pass through, while the declared bounds are enforced.
+    *_, fractional = node.build_guide("FL2VA", "", 1344, 768, 5, "match", "{}", frame_rate=23.976)
+    assert fractional == 23.976
+    *_, low = node.build_guide("FL2VA", "", 1344, 768, 5, "match", "{}", frame_rate=0.1)
+    assert low == 0.1
+    *_, high = node.build_guide("FL2VA", "", 1344, 768, 5, "match", "{}", frame_rate=240)
+    assert high == 240.0
+    for out_of_range in (0.09, 240.01):
+        with pytest.raises(ValueError, match="frame_rate must be between 0.1 and 240"):
+            node.build_guide("FL2VA", "", 1344, 768, 5, "match", "{}", frame_rate=out_of_range)
+
+
+def test_director_input_types_declare_frame_rate_directly_under_duration():
+    required = director.MiniMaxH3Director.INPUT_TYPES()["required"]
+    assert required["frame_rate"] == ("FLOAT", {"default": 24.0, "min": 0.1, "max": 240.0, "step": 0.01})
+    keys = list(required)
+    # The widget must render directly beneath duration in the node UI.
+    assert keys.index("frame_rate") == keys.index("duration") + 1
+
+
+def test_director_keeps_only_external_prompt_overwrite_as_its_prompt_input():
+    optional = director.MiniMaxH3Director.INPUT_TYPES()["optional"]
+    assert "external_prompt_overwrite" in optional
+    assert "external_prompt" not in optional
 
 
 def test_fl2va_slot_two_without_slot_one_is_the_closing_frame():

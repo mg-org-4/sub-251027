@@ -696,14 +696,6 @@ class _:
             h_scaled = closest_resolution[0]
             w_scaled = max(round(closest_resolution[0] / h * w), 0)
 
-        scaled_deg = self.angle(w_scaled, h_scaled)
-        print(f"{[h, w] = }")
-        print(f"{closest_resolution = }")
-        print(f"{[h_scaled, w_scaled] = }")
-        print(f"{img_deg = }")
-        print(f"{target_deg = }")
-        print(f"{scaled_deg = }")
-
         image = image.permute(0, 3, 1, 2)
         image = F.resize(
             image,
@@ -718,6 +710,79 @@ class _:
         image = image.permute(0, 2, 3, 1)
 
         return (image, closest_resolution[1], closest_resolution[0])
+
+
+@register_node("JWImageResizeToMegapixels", "Image Resize to Megapixels")
+class _:
+    CATEGORY = "jamesWalker55"
+    INPUT_TYPES = lambda: {
+        "required": {
+            "image": ("IMAGE",),
+            "megapixels": (
+                "FLOAT",
+                {"default": 1.0, "min": 0.01, "step": 0.01, "max": 99999.0},
+            ),
+            "divisible_by": ("INT", {"default": 32, "min": 1, "step": 1, "max": 99999}),
+            "interpolation_mode": (
+                ["bicubic", "bilinear", "nearest", "nearest exact"],
+            ),
+        }
+    }
+    RETURN_TYPES = ("IMAGE", "INT", "INT")
+    RETURN_NAMES = ("IMAGE", "WIDTH", "HEIGHT")
+    FUNCTION = "execute"
+
+    def execute(
+        self,
+        image: torch.Tensor,
+        megapixels: float,
+        divisible_by: int,
+        interpolation_mode: str,
+    ):
+        assert isinstance(image, torch.Tensor)
+        assert isinstance(megapixels, float)
+        assert isinstance(divisible_by, int)
+        assert isinstance(interpolation_mode, str)
+
+        interpolation_mode = interpolation_mode.upper().replace(" ", "_")
+        interpolation_mode = getattr(InterpolationMode, interpolation_mode)
+
+        _, h, w, _ = image.shape
+
+        # find target resolution without rounding
+        aspect_ratio = w / h
+        target_h_exact = math.sqrt(megapixels * 1_000_000 / aspect_ratio)
+        target_w_exact = math.sqrt(megapixels * 1_000_000 * aspect_ratio)
+
+        # round to nearest `divisible_by` (ensure it doesn't round to 0)
+        final_h = max(round(target_h_exact / divisible_by) * divisible_by, divisible_by)
+        final_w = max(round(target_w_exact / divisible_by) * divisible_by, divisible_by)
+
+        # find scale amount needed to fully cover final dimensions
+        scale_w = final_w / w
+        scale_h = final_h / h
+        scale = max(scale_w, scale_h)
+
+        # calculate resize dimensions (prevent floating point rounding into smaller dimension)
+        resize_w = max(round(w * scale), final_w)
+        resize_h = max(round(h * scale), final_h)
+
+        image = image.permute(0, 3, 1, 2)
+
+        image = F.resize(
+            image,
+            [resize_h, resize_w],
+            interpolation=interpolation_mode,  # type: ignore
+            antialias=True,
+        )
+        image = F.center_crop(
+            image,
+            [final_h, final_w],  # type: ignore
+        )
+
+        image = image.permute(0, 2, 3, 1)
+
+        return (image, final_w, final_h)
 
 
 def get_image_from_clipboard(rgba=False) -> Optional[torch.Tensor]:

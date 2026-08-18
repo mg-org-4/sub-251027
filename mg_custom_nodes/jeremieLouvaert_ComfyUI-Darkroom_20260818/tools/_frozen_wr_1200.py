@@ -1,4 +1,9 @@
 """
+FROZEN ORACLE — verbatim copy of utils/water_refraction.py at v1.20.0 (main 4032b0a),
+vendored PRE-BUILD for the slice-3 mask teeth (docs/water-mask-derivation.md §7.11).
+Only the lazy relative import in restore_grain is patched to resolve from tools/.
+Do not edit; it exists so W1/W13 compare the build against what actually shipped.
+
 Water Refraction engine — exact Snell through a simulated free surface.
 
 Full derivation: docs/water-refraction-derivation.md. What makes this not a
@@ -780,7 +785,11 @@ def restore_grain(rendered, source, deficit, amount=1.0, grain_size=1.2,
     """
     import torch
 
-    from .grain_newson import render_film_grain
+    # frozen-copy patch: resolve grain_newson from the pack this file sits inside
+    import os as _os
+    from importlib import import_module as _im
+    _pkg = _os.path.basename(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+    render_film_grain = _im(f"{_pkg}.utils.grain_newson").render_film_grain
 
     t = torch.from_numpy(np.ascontiguousarray(rendered)).float()
     full = render_film_grain(t, grain_size=grain_size, radius_variation=0.0,

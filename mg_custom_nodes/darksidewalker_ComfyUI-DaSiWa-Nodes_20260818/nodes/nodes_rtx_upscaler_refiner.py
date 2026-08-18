@@ -8,10 +8,16 @@ from typing import Tuple
 
 import folder_paths
 try:
-    from .helper_batch_output import allocate_cpu_output, tensor_nbytes, force_gc_and_cleanup
+    from .helper_batch_output import (
+        allocate_cpu_output, can_allocate_in_ram, tensor_nbytes,
+        force_gc_and_cleanup, unload_all_comfy_models,
+    )
     from .helper_logging import log_dasiwa
 except ImportError:
-    from helper_batch_output import allocate_cpu_output, tensor_nbytes, force_gc_and_cleanup
+    from helper_batch_output import (
+        allocate_cpu_output, can_allocate_in_ram, tensor_nbytes,
+        force_gc_and_cleanup, unload_all_comfy_models,
+    )
     from helper_logging import log_dasiwa
 
 # Optional: ComfyUI model_management for soft-empty-cache
@@ -80,33 +86,97 @@ def _allocate_output_tensor(
     dtype: torch.dtype,
     device: torch.device,
     soft_empty_cache: bool = False,
+    allow_mmap: bool = True,
+    auto_unload_models: bool = True,
 ):
+    """Allocate the output tensor.
+
+    Preference order (always): VRAM -> RAM -> disk.
+
+    - ``auto_unload_models``: when the active tier is short, fully unload
+      ComfyUI-managed models and re-check that tier before dropping to a lower
+      tier. This is the first remediation, not a last resort.
+    - ``allow_mmap`` (the ``use_mmap`` switch): when False, disk is never used;
+      if every non-disk tier is short, raise a clear error.
+
+    Returns ``(tensor, mmap_path)`` where ``mmap_path`` is None for in-memory
+    tensors and the temp file path for the disk-backed fallback.
+    """
     required_bytes = _projected_output_bytes(shape[0], shape[2], shape[1], dtype)
 
-    # Always run lightweight cleanup before deciding allocation strategy
+    # Always run lightweight cleanup before deciding allocation strategy.
     _cleanup_cuda(soft_empty_cache=soft_empty_cache)
 
-    if device.type == "cpu":
-        directory = _temporary_output_directory()
-        return allocate_cpu_output(shape, dtype, directory)
+    def gpu_fits() -> bool:
+        return (
+            device.type == "cuda"
+            and required_bytes <= MAX_GPU_OUTPUT_BYTES
+            and _can_fit_in_vram(required_bytes, device)
+        )
 
-    # GPU path: check hard cap, then actual VRAM
-    if required_bytes > MAX_GPU_OUTPUT_BYTES:
+    def ram_fits() -> bool:
+        return can_allocate_in_ram(required_bytes)
+
+    def try_mmap():
+        return allocate_cpu_output(
+            shape, dtype, _temporary_output_directory(),
+            force_mmap=True,
+            before_mmap=lambda: log_dasiwa(
+                "RTX Upscaler & Refiner",
+                f"Creating disk-backed (mmap) output file for "
+                f"{required_bytes / 1024 ** 3:.2f} GiB tensor.",
+            ),
+        )
+
+    def no_disk_allowed(short_of: str):
         raise RuntimeError(
-            f"RTX output requires {required_bytes / 1024 ** 3:.2f} GiB on {device}. "
-            "Disk-backed output is only available for CPU IMAGE batches."
+            f"RTX output requires {required_bytes / 1024 ** 3:.2f} GiB and "
+            f"{short_of} is still insufficient, but 'use_mmap' is off (never use "
+            "disk-backed output). Enable 'use_mmap', free system memory, or reduce "
+            "the batch size / target resolution, then retry."
         )
 
-    if not _can_fit_in_vram(required_bytes, device):
-        log_dasiwa(
-            "RTX Upscaler & Refiner",
-            f"VRAM insufficient for {required_bytes / 1024 ** 3:.2f} GiB output tensor; "
-            "falling back to disk-backed CPU output.",
-        )
-        directory = _temporary_output_directory()
-        return allocate_cpu_output(shape, dtype, directory)
+    if device.type == "cuda":
+        # Tier 1: VRAM.
+        if gpu_fits():
+            return torch.zeros(shape, device=device, dtype=dtype), None
+        # First remediation: auto-unload, re-check VRAM.
+        if auto_unload_models and unload_all_comfy_models():
+            log_dasiwa("RTX Upscaler & Refiner",
+                       "Auto-unload: VRAM insufficient; unloaded ComfyUI-managed models and re-checking.")
+            if gpu_fits():
+                log_dasiwa("RTX Upscaler & Refiner",
+                           "VRAM sufficient after auto-unload; keeping GPU output.")
+                return torch.zeros(shape, device=device, dtype=dtype), None
+        # Tier 2: RAM (always preferred over disk).
+        if ram_fits():
+            log_dasiwa("RTX Upscaler & Refiner",
+                       f"VRAM short for {required_bytes / 1024 ** 3:.2f} GiB; using RAM (CPU) instead of disk.")
+            return torch.zeros(shape, dtype=dtype), None
+        # Tier 3: disk (only if permitted).
+        if not allow_mmap:
+            no_disk_allowed("VRAM and RAM")
+        log_dasiwa("RTX Upscaler & Refiner",
+                   f"VRAM and RAM short for {required_bytes / 1024 ** 3:.2f} GiB; "
+                   "falling back to disk-backed (mmap) output.")
+        return try_mmap()
 
-    return torch.zeros(shape, device=device, dtype=dtype), None
+    # CPU device: Tier 1 is RAM.
+    if ram_fits():
+        return torch.zeros(shape, dtype=dtype), None
+    if auto_unload_models and unload_all_comfy_models():
+        log_dasiwa("RTX Upscaler & Refiner",
+                   "Auto-unload: RAM insufficient; unloaded ComfyUI-managed models and re-checking.")
+        if ram_fits():
+            log_dasiwa("RTX Upscaler & Refiner",
+                       "RAM sufficient after auto-unload; using RAM instead of disk.")
+            return torch.zeros(shape, dtype=dtype), None
+    if not allow_mmap:
+        no_disk_allowed("RAM")
+    log_dasiwa("RTX Upscaler & Refiner",
+               f"RAM short for {required_bytes / 1024 ** 3:.2f} GiB; "
+               "falling back to disk-backed (mmap) output.")
+    return try_mmap()
 
 def _aligned_aspect_size(
     target_width: float,
@@ -443,6 +513,8 @@ class DaSiWa_RTX_UpscalerRefiner:
             },
             "optional": {
                 "empty_cache": ("BOOLEAN", {"default": False, "description": "Run a lightweight GC + empty_cache before allocation; also calls model_management.soft_empty_cache() to ask ComfyUI models to unload, which can free VRAM but may slow subsequent nodes."}),
+                "use_mmap": ("BOOLEAN", {"default": True, "description": "Allow the disk-backed (mmap) output fallback. Preference is always VRAM -> RAM -> disk. Only when free VRAM/RAM is still insufficient after 'auto_unload_models' does the output spill to a temp .mmap file. Off: never use disk — if memory stays short the output uses RAM when possible, otherwise a clear error is raised (free RAM or reduce the batch/resolution)."}),
+                "auto_unload_models": ("BOOLEAN", {"default": True, "description": "When VRAM/RAM is insufficient for the output, automatically unload ComfyUI-managed models (like the manual 'empty cache' but a full unload) and re-check before falling back to disk. Off: skip the unload and fall back directly."}),
             },
         }
 
@@ -483,6 +555,8 @@ class DaSiWa_RTX_UpscalerRefiner:
         resize_method,
         device_id,
         empty_cache=False,
+        use_mmap=True,
+        auto_unload_models=True,
     ):
         if not torch.cuda.is_available():
             raise RuntimeError("NVIDIA RTX VFX requires CUDA. No CUDA devices found.")
@@ -534,7 +608,12 @@ class DaSiWa_RTX_UpscalerRefiner:
             f"Input={source_width}x{source_height}, target={target_width}x{target_height}, "
             f"frames={batch_size}, output={projected_bytes / 1024 ** 3:.2f} GiB.",
         )
-        out, mmap_path = _allocate_output_tensor(output_shape, out_dtype, out_device, soft_empty_cache=empty_cache)
+        out, mmap_path = _allocate_output_tensor(
+            output_shape, out_dtype, out_device,
+            soft_empty_cache=empty_cache,
+            allow_mmap=use_mmap,
+            auto_unload_models=auto_unload_models,
+        )
         if mmap_path:
             log_dasiwa("RTX Upscaler & Refiner", f"Disk-backed output: {mmap_path}")
 

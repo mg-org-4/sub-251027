@@ -16,8 +16,8 @@ from __future__ import annotations
 import re
 from   typing   import Iterator
 from   .system  import logger
-type VersionTuple = tuple[int, int, int]
-type ColorTuple   = tuple[str, str, str, str]
+VersionTuple = tuple[int, int, int]
+ColorTuple   = tuple[str, str, str, str]
 
 # Regex to validate basic Hex color format (e.g., #FFFFFF or #FFF)
 _HEX_PATTERN = re.compile(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")

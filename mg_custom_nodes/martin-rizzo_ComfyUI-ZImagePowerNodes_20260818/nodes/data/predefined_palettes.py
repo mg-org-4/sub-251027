@@ -17,7 +17,7 @@ from collections     import defaultdict
 from ..core.palette  import Palette, PaletteSet
 from ..core.helpers  import get_project_root
 from ..core.system   import logger
-type VersionTuple = tuple[int, int, int]
+VersionTuple = tuple[int, int, int]
 
 
 #=========================== PredefinedPalettes ============================#
@@ -125,14 +125,15 @@ class PredefinedPalettes:
 
     def __repr__(self) -> str:
         """
-        Return a string representation of the PredefinedPalettes instance,
+        Return a string representation of the `PredefinedPalettes` instance,
         displaying versions and their respective palette counts in a structured format.
         """
         items = []
         for versiontup, palettes in self._palettes_by_versiontup.items():
             version = ".".join(map(str, versiontup))
             items.append(f"  {{ version: {version}, palette_count: {len(palettes)} }}")
-        return f"PredefinedPalettes({{\n{ ",\n".join(items) }\n}})"
+        joined_items = ",\n".join(items)
+        return f"PredefinedPalettes({{\n{joined_items}\n}})"
 
 
 #====================== 'PREDEFINED_PALETTES' OBJECT =======================#

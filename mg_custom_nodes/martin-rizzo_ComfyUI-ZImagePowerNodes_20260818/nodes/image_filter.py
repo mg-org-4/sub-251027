@@ -1,6 +1,6 @@
 """
-File    : basic_image_filters.py
-Purpose : Experimental node to apply simple filters to generated images.
+File    : image_filter.py
+Purpose : Node to apply simple post-processing filters to generated images.
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Jul 27, 2026
 Repo    : https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes
@@ -22,18 +22,18 @@ from functools           import cache
 from comfy_api.latest    import io
 from .                   import widgets as zp
 from .core.helpers_image import adjust_hsv_components, stretch_histogram, apply_dithering, convert_to_rgb
-class Filter(Enum):
-    """Enum representing available image processing filters.
+class Effect(Enum):
+    """Enum representing available image processing filter effects.
     Attributes:
-        NONE            : Represents no filter applied.
-        BLACK_AND_WHITE : Grayscale filter.
-        SATURATION      :
+        NONE            : Represents no effect applied.
+        BLACK_AND_WHITE : Grayscale effect.
+        COLOR           : Color level effect
         COLOR_POP       :
-        COLOR           : Standard color level filter.
-        COLOR_TWIST     : Hue component twist filter.
-        CONTRAST        :
-        INTENSITY_1     : Low color intensity filter.
-        INTENSITY_2     : High color intensity filter.
+        COLOR_TWIST     : Hue component twist effect.
+        CONTRAST        : Brightness curve change effect.
+        INTENSITY_1     : Low color intensity effect.
+        INTENSITY_2     : High color intensity effect.
+        SATURATION_NOISE:
     """
     NONE             = "none"
     BLACK_AND_WHITE  = "bw"
@@ -41,15 +41,15 @@ class Filter(Enum):
     COLOR_POP        = "color_pop"
     COLOR_TWIST      = "color_twist"
     CONTRAST         = "contrast"
-    INTENSITY_1      = "intensity_1"
-    INTENSITY_2      = "intensity_2"
+   #INTENSITY_1      = "intensity_1"
+   #INTENSITY_2      = "intensity_2"
    #SATURATION_NOISE = "saturation_noise"
 
 
-class BasicImageFilters(io.ComfyNode):
-    xTITLE         = "Basic Image Filters"
+class ImageFilter(io.ComfyNode):
+    xTITLE         = "Image Filter"
     xDESCRIPTION   = (
-        "Provides a set of image processing filters for post-generation color "
+        "Provides a set of image processing effects for post-generation color "
         "correction and tone adjustment. Supports up to three simultaneous "
         "filtering layers with individual intensity scaling, along with an "
         "optional automatic contrast normalization pass."
@@ -69,23 +69,24 @@ class BasicImageFilters(io.ComfyNode):
             is_deprecated = cls.xDEPRECATED,
             search_aliases=["decode", "decode latent", "latent to image", "render latent"],
             inputs=[
-                io.Image.Input    ("images"),
+                io.Image.Input    ("images"
+                                  ),
                 io.Boolean.Input  ("enable_auto_contrast",
                                    tooltip="When enabled, automatically adjusts the dynamic range of the "
                                            "image to fix washed-out tones and optimize contrast boundaries."
                                   ),
-                io.Boolean.Input  ("enable_filters",
-                                   tooltip="When enabled, applies the color correction filters configured below. "
-                                           "If disabled, all filter selections and adjustments are bypassed."
+                io.Boolean.Input  ("enable_effects",
+                                   tooltip="When enabled, applies the color correction effects configured below. "
+                                           "If disabled, all effect selections and adjustments are bypassed."
                                   ),
 
                 zp.Separator.Input("divider1", mode="divider"),#===================================
 
-                io.Combo.Input    ("filter_1",
-                                   options=cls.filters(),
-                                   tooltip="The first color correction filter to apply to the resulting image."
+                io.Combo.Input    ("effect_1",
+                                   options=cls.effects(),
+                                   tooltip="The first color correction effect to apply to the resulting image."
                                   ),
-                io.Float.Input    ("filter_1_adjust",
+                io.Float.Input    ("effect_1_tweak",
                                    default=0.0, min=-0.5, max=0.5, step=0.1, round=0.1,
                                    tooltip="The fine-tuning control for the filter effect. "
                                            "Range is -0.5 to 0.5, with 0.0 as the ideal baseline balance. "
@@ -93,11 +94,11 @@ class BasicImageFilters(io.ComfyNode):
 
                 zp.Separator.Input("divider2", mode="spacer"),#====================================
 
-                io.Combo.Input    ("filter_2",
-                                   options=cls.filters(),
-                                   tooltip="The second color correction filter to apply to the resulting image."
+                io.Combo.Input    ("effect_2",
+                                   options=cls.effects(),
+                                   tooltip="The second color correction effect to apply to the resulting image."
                                   ),
-                io.Float.Input    ("filter_2_adjust",
+                io.Float.Input    ("effect_2_tweak",
                                    default=0.0, min=-0.5, max=0.5, step=0.1, round=0.1,
                                    tooltip="The fine-tuning control for the filter effect. "
                                            "Range is -0.5 to 0.5, with 0.0 as the ideal baseline balance. "
@@ -105,11 +106,11 @@ class BasicImageFilters(io.ComfyNode):
 
                 zp.Separator.Input("divider3", mode="spacer"),#====================================
 
-                io.Combo.Input    ("filter_3",
-                                   options=cls.filters(),
-                                   tooltip="The third color correction filter to apply to the resulting image."
+                io.Combo.Input    ("effect_3",
+                                   options=cls.effects(),
+                                   tooltip="The third color correction effect to apply to the resulting image."
                                   ),
-                io.Float.Input    ("filter_3_adjust",
+                io.Float.Input    ("effect_3_tweak",
                                    default=0.0, min=-0.5, max=0.5, step=0.1, round=0.1,
                                    tooltip="The fine-tuning control for the filter effect. "
                                            "Range is -0.5 to 0.5, with 0.0 as the ideal baseline balance. "
@@ -125,21 +126,21 @@ class BasicImageFilters(io.ComfyNode):
     def execute(cls,
                 images: torch.Tensor,
                 enable_auto_contrast: bool,
-                enable_filters      : bool,
-                filter_1            : str,
-                filter_1_adjust     : float,
-                filter_2            : str,
-                filter_2_adjust     : float,
-                filter_3            : str,
-                filter_3_adjust     : float,
+                enable_effects      : bool,
+                effect_1            : str,
+                effect_1_tweak      : float,
+                effect_2            : str,
+                effect_2_tweak      : float,
+                effect_3            : str,
+                effect_3_tweak      : float,
                 divider1: Any = None,
                 divider2: Any = None,
                 divider3: Any = None,
                 ):
         # round float values to 1 decimal place
-        filter_1_adjust = round(filter_1_adjust, 1)
-        filter_2_adjust = round(filter_2_adjust, 1)
-        filter_3_adjust = round(filter_3_adjust, 1)
+        effect_1_tweak = round(effect_1_tweak, 1)
+        effect_2_tweak = round(effect_2_tweak, 1)
+        effect_3_tweak = round(effect_3_tweak, 1)
 
         # convert images to shape [B, C, H, W] compatible with torchvision & kornia
         images = images.permute(0, 3, 1, 2)
@@ -151,11 +152,11 @@ class BasicImageFilters(io.ComfyNode):
         else:
             images = torch.clamp(images, 0.0, 1.0)
 
-        # apply filters, which may modify the color space of the images
-        if enable_filters:
-            images, color_space = cls.apply_filter_to_images(images, color_space, filter_1, filter_1_adjust)
-            images, color_space = cls.apply_filter_to_images(images, color_space, filter_2, filter_2_adjust)
-            images, color_space = cls.apply_filter_to_images(images, color_space, filter_3, filter_3_adjust)
+        # apply effects, which may modify the color space of the images
+        if enable_effects:
+            images, color_space = cls.apply_effect_to_images(images, color_space, effect_1, value=effect_1_tweak)
+            images, color_space = cls.apply_effect_to_images(images, color_space, effect_2, value=effect_2_tweak)
+            images, color_space = cls.apply_effect_to_images(images, color_space, effect_3, value=effect_3_tweak)
 
         # convert back to RGB color space
         # and return to [B, H, W, C] shape, which is compatible with ComfyUI
@@ -166,76 +167,75 @@ class BasicImageFilters(io.ComfyNode):
     #__ internal functions ________________________________
 
     @staticmethod
-    def apply_filter_to_images(images     : torch.Tensor,
+    def apply_effect_to_images(images     : torch.Tensor,
                                color_space: str,
-                               filter     : Filter | str,
+                               effect     : Effect | str,
                                value      : float
                                ) -> tuple[torch.Tensor, str]:
-        if isinstance(filter,str):
-            filter = Filter(filter)
+        if isinstance(effect,str):
+            effect = Effect(effect)
 
-        if filter == Filter.NONE:
+        if effect == Effect.NONE:
             return images, color_space
 
-        elif filter == Filter.BLACK_AND_WHITE:
+        elif effect == Effect.BLACK_AND_WHITE:
             if value>=0:
                 images = adjust_hsv_components(images,
-                                               saturation_factor      = 0,
+                                               saturation_factor        = 0,
                                                brightness_scurve_factor = 1-(value*1.33),
-                                               input_color_space      = color_space)
+                                               input_color_space = color_space)
             else:
                 images = adjust_hsv_components(images,
-                                               saturation_factor      = -value,
-                                               input_color_space      = color_space)
+                                               saturation_factor = -value,
+                                               input_color_space = color_space)
 
             return images, 'hsv'
 
-        elif filter == Filter.COLOR:
+        elif effect == Effect.COLOR:
             images = adjust_hsv_components(images,
-                                           saturation_factor        = 1+(value*1.25),
-                                           input_color_space        = color_space)
-            return images, 'hsv'
-
-        elif filter == Filter.COLOR_POP:
-            images = adjust_hsv_components(images,
-                                           saturation_stretch = min(abs(value*3.33), 1.0),
-                                           saturation_gamma         = 1+(value*1.75),
-                                           #contrast_scurve_factor   = (value-1)*0.2 + 1,
-                                           input_color_space        = color_space)
-            return images, 'hsv'
-
-        elif filter == Filter.COLOR_TWIST:
-            images = adjust_hsv_components(images,
-                                           hue_twist_factor  = value*(0.75*pi),
+                                           saturation_factor = 1+(value*1.25),
                                            input_color_space = color_space)
             return images, 'hsv'
 
-        elif filter == Filter.CONTRAST:
+        elif effect == Effect.COLOR_POP:
+            images = adjust_hsv_components(images,
+                                           saturation_stretch = min(abs(value*3.33), 1.0),
+                                           saturation_gamma   = 1+(value*1.75),
+                                           input_color_space = color_space)
+            return images, 'hsv'
+
+        elif effect == Effect.COLOR_TWIST:
+            images = adjust_hsv_components(images,
+                                           hue_twist_factor = value*(0.75*pi),
+                                           input_color_space = color_space)
+            return images, 'hsv'
+
+        elif effect == Effect.CONTRAST:
             images = adjust_hsv_components(images,
                                            brightness_scurve_factor = 1+(value*0.66),
                                            input_color_space = color_space)
             return images, 'hsv'
 
-        elif filter == Filter.INTENSITY_1:
-            contrast_factor = 1 + (value*1.0 if value<0 else value*1.0)
-            images = adjust_hsv_components(images,
-                                           saturation_target      = 0.35,
-                                           brightness_scurve_factor = contrast_factor,
-                                           input_color_space      = color_space)
-            return images, 'hsv'
+        # elif effect == Effect.INTENSITY_1:
+        #     contrast_factor = 1 + (value*1.0 if value<0 else value*1.0)
+        #     images = adjust_hsv_components(images,
+        #                                    saturation_target      = 0.35,
+        #                                    brightness_scurve_factor = contrast_factor,
+        #                                    input_color_space      = color_space)
+        #     return images, 'hsv'
 
-        elif filter == Filter.INTENSITY_2:
-            contrast_factor = 1 + (value*1.0 if value<0 else value*1.0)
-            images = adjust_hsv_components(images,
-                                           saturation_target      = 0.40,
-                                           brightness_scurve_factor = contrast_factor,
-                                           input_color_space      = color_space)
-            return images, 'hsv'
+        # elif effect == Effect.INTENSITY_2:
+        #     contrast_factor = 1 + (value*1.0 if value<0 else value*1.0)
+        #     images = adjust_hsv_components(images,
+        #                                    saturation_target      = 0.40,
+        #                                    brightness_scurve_factor = contrast_factor,
+        #                                    input_color_space      = color_space)
+        #     return images, 'hsv'
 
-        raise ValueError(f'Invalid filter: {filter.value}')
+        raise ValueError(f'Invalid effect: {effect.value}')
 
 
     @staticmethod
     @cache
-    def filters() -> list[str]:
-        return [f.value for f in Filter]
+    def effects() -> list[str]:
+        return [f.value for f in Effect]

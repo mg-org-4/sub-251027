@@ -16,7 +16,7 @@ from collections     import defaultdict
 from ..core.style    import Style, StyleSet
 from ..core.helpers  import get_project_root
 from ..core.system   import logger
-type VersionTuple = tuple[int, int, int]
+VersionTuple = tuple[int, int, int]
 
 
 #============================== StyleLibrary ===============================#
@@ -58,12 +58,12 @@ class StyleLibrary:
                 - The total number of styles loaded from those files.
         """
         loaded_files  = 0
-        total_palettes = 0
+        total_styles = 0
         for path in Path(directory).iterdir():
             if not path.is_file():
                 continue
             try:
-                # read the identifier and check if it's a palette file
+                # read the identifier and check if it's a style definition file
                 with open(path, "rb") as f:
                     header = f.read(len(self.FILE_IDENTIFIER))
                 if header != self.FILE_IDENTIFIER:
@@ -80,13 +80,13 @@ class StyleLibrary:
                 content  = path.read_text(encoding='utf-8')
 
                 if version and category:
-                    loaded_files   += 1
-                    total_palettes += self.add_styles_from_string(content, category=category, version=version)
+                    loaded_files += 1
+                    total_styles += self.add_styles_from_string(content, category=category, version=version)
 
             except (OSError, IOError) as e:
                 logger.warning(f"Could not process file {path.name}: {e}")
 
-        return loaded_files, total_palettes
+        return loaded_files, total_styles
 
 
     def add_styles_from_string(self,
@@ -137,14 +137,15 @@ class StyleLibrary:
 
     def __repr__(self) -> str:
         """
-        Return a string representation of the PredefinedStyles instance,
+        Return a string representation of the `StyleLibrary` instance,
         displaying versions and their respective style counts in a structured format.
         """
         items = []
         for versiontup, styles in self._styles_by_versiontup.items():
             version = ".".join(map(str, versiontup))
             items.append(f"  {{ version: {version}, style_count: {len(styles)} }}")
-        return f"PredefinedPalettes({{\n{ ",\n".join(items) }\n}})"
+        joined_items = ",\n".join(items)
+        return f"StyleLibrary({{\n{joined_items}\n}})"
 
 
 

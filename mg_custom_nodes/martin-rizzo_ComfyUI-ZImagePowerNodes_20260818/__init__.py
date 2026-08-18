@@ -219,12 +219,12 @@ class ZImagePowerNodesExtension(ComfyExtension):
         from .nodes.advanced_vae_decoder_X21 import AdvancedVAEDecoderX21
         _register_node( AdvancedVAEDecoderX21, nodes, subcategory )
 
-        from .nodes.basic_image_filters import BasicImageFilters
-        _register_node( BasicImageFilters, nodes, subcategory )
-
 
         #--[ utils ]-----------------------------
         subcategory = "utils"
+
+        from .nodes.image_filter import ImageFilter
+        _register_node( ImageFilter, nodes, subcategory )
 
         from .nodes.image_labeler_2 import ImageLabeler2
         _register_node( ImageLabeler2, nodes, subcategory )

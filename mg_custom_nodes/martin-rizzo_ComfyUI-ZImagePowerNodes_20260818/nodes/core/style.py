@@ -19,8 +19,8 @@ from   typing          import Iterator
 from   collections.abc import KeysView
 from   .palette        import Palette
 from   .system         import logger
-type VersionTuple = tuple[int, int, int]
-type CommandTuple = tuple[str,str,str,str]
+VersionTuple = tuple[int, int, int]
+CommandTuple = tuple[str,str,str,str]
 
 # Pattern used to remove non-alphanumeric characters.
 _CLEAN_PATTERN = re.compile(r"[^a-z0-9_]")

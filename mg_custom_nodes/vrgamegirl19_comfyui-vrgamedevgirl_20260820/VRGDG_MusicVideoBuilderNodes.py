@@ -3327,6 +3327,19 @@ def _lm_studio_context_limit(payload):
     return _normalized_token_limit(configured, 32768, minimum=512)
 
 
+def _lm_studio_reasoning_mode(payload, default=""):
+    payload = payload if isinstance(payload, dict) else {}
+    configured = payload.get("lmstudio_reasoning")
+    if configured in (None, ""):
+        configured = payload.get("lm_studio_reasoning")
+    normalized = str(configured or "").strip().lower()
+    allowed = {"off", "low", "medium", "high", "on"}
+    if normalized in allowed:
+        return normalized
+    fallback = str(default or "").strip().lower()
+    return fallback if fallback in allowed else ""
+
+
 def _lm_studio_api_root(payload):
     base_url = str(payload.get("lmstudio_base_url") or _LM_STUDIO_DEFAULT_BASE_URL).strip().rstrip("/")
     if base_url.lower().endswith("/v1"):
@@ -3356,7 +3369,7 @@ def _lm_studio_native_output_text(data):
     return "\n".join(part.strip() for part in parts if str(part or "").strip()).strip()
 
 
-def _run_lm_studio_native_chat(payload, input_value, temperature, top_p, max_new_tokens, timeout, label):
+def _run_lm_studio_native_chat(payload, input_value, temperature, top_p, max_new_tokens, timeout, label, reasoning_default=""):
     api_root = _lm_studio_api_root(payload)
     model = str(payload.get("lmstudio_model") or payload.get("model_file") or "").strip()
     api_key = str(payload.get("lmstudio_api_key") or "").strip()
@@ -3374,6 +3387,9 @@ def _run_lm_studio_native_chat(payload, input_value, temperature, top_p, max_new
         "store": False,
         "stream": False,
     }
+    reasoning_mode = _lm_studio_reasoning_mode(payload, reasoning_default)
+    if reasoning_mode:
+        body["reasoning"] = reasoning_mode
     if payload.get("seed") is not None:
         body["seed"] = int(payload.get("seed"))
     headers = {"Content-Type": "application/json"}
@@ -3571,6 +3587,7 @@ def _run_lm_studio_vision(payload, instruction_text, pil_images, temperature=0.2
         max_new_tokens,
         payload.get("lmstudio_timeout") or 300,
         "vision ",
+        reasoning_default="off",
     )
 
 
@@ -9552,7 +9569,20 @@ def _delete_builder_project(payload):
 
 
 def _builder_scene_video_thumbnail_path(video_path):
-    root, _ext = os.path.splitext(os.path.abspath(str(video_path or "")))
+    video_path = os.path.abspath(str(video_path or "").strip().strip('"'))
+    root, _ext = os.path.splitext(video_path)
+    video_name = os.path.basename(root)
+    current = os.path.dirname(video_path)
+    while current and current != os.path.dirname(current):
+        if os.path.basename(current).lower() in {"rendered_scene_videos", "rendered_scene_videos_backup"}:
+            project_folder = os.path.dirname(current)
+            return os.path.join(project_folder, "scene_video_thumbnails", f"{video_name}.jpg")
+        current = os.path.dirname(current)
+    return f"{root}.jpg"
+
+
+def _builder_legacy_scene_video_thumbnail_path(video_path):
+    root, _ext = os.path.splitext(os.path.abspath(str(video_path or "").strip().strip('"')))
     return f"{root}.jpg"
 
 
@@ -9657,6 +9687,7 @@ def _restore_scene_video(payload):
     os.makedirs(target_dir, exist_ok=True)
     target_path = os.path.join(target_dir, f"video_{scene_number:04d}-audio.mp4")
     thumbnail_path = _builder_scene_video_thumbnail_path(target_path)
+    legacy_thumbnail_path = _builder_legacy_scene_video_thumbnail_path(target_path)
     backup_path = ""
     backup_thumbnail_path = ""
     if os.path.isfile(target_path) and os.path.normcase(os.path.abspath(source_path)) != os.path.normcase(os.path.abspath(target_path)):
@@ -9671,11 +9702,12 @@ def _restore_scene_video(payload):
     copied = _copy_file_if_exists(source_path, target_path)
     if not copied:
         raise RuntimeError("Could not copy the selected video into the project.")
-    if os.path.isfile(thumbnail_path):
-        try:
-            os.remove(thumbnail_path)
-        except OSError:
-            pass
+    for stale_thumbnail in (thumbnail_path, legacy_thumbnail_path):
+        if os.path.isfile(stale_thumbnail):
+            try:
+                os.remove(stale_thumbnail)
+            except OSError:
+                pass
     created_thumbnail = _ensure_builder_scene_video_thumbnail(copied)
     return {
         "video_path": copied,
@@ -9732,6 +9764,12 @@ def _scan_builder_scene_videos(project_folder):
         if os.path.isfile(path):
             key = str(int(match.group(1)))
             videos[key] = path
+            legacy_thumbnail = _builder_legacy_scene_video_thumbnail_path(path)
+            if os.path.isfile(legacy_thumbnail):
+                try:
+                    os.remove(legacy_thumbnail)
+                except OSError:
+                    pass
             thumb = _ensure_builder_scene_video_thumbnail(path)
             if thumb:
                 video_thumbnails[key] = thumb

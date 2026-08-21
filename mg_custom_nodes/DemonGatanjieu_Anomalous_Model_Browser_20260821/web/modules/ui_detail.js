@@ -6,8 +6,47 @@
 import { app } from "../../../scripts/app.js";
 import { translate } from './locales.js';
 import { escapeHtml, setSafeRichHtml } from './safe_dom.js';
+import { isPhysicalRenameProtectedType } from './model_policies.js';
 
 const t = (key, params) => translate(key, params);
+
+function createModelLocationCard(model) {
+    const card = document.createElement('div');
+    card.className = 'anomalous-model-location';
+
+    const appendValue = (labelKey, value) => {
+        const row = document.createElement('div');
+        row.className = 'anomalous-model-location-row';
+        const label = document.createElement('span');
+        label.className = 'anomalous-model-location-label';
+        label.textContent = t(labelKey);
+        const content = document.createElement('code');
+        content.textContent = value;
+        content.title = value;
+        row.append(label, content);
+        card.appendChild(row);
+    };
+
+    appendValue('detailPhysicalFilename', model.filename);
+    if (model.file_path) {
+        appendValue('detailFullPath', model.file_path);
+        const copyButton = document.createElement('button');
+        copyButton.type = 'button';
+        copyButton.className = 'anomalous-model-location-copy';
+        copyButton.textContent = t('detailCopyPath');
+        copyButton.onclick = async () => {
+            try {
+                await navigator.clipboard.writeText(model.file_path);
+                copyButton.textContent = t('detailPathCopied');
+            } catch (error) {
+                copyButton.textContent = t('detailPathCopyFailed');
+            }
+            setTimeout(() => { copyButton.textContent = t('detailCopyPath'); }, 1400);
+        };
+        card.appendChild(copyButton);
+    }
+    return card;
+}
 
 
 
@@ -412,6 +451,7 @@ export function showDetail(model) {
         topRow.appendChild(editMetaBtn);
 
         rightPanel.appendChild(topRow);
+        rightPanel.appendChild(createModelLocationCard(model));
 
         // 1.5 Custom Notes Section (Google Material Card)
         if (m.custom_notes) {
@@ -971,13 +1011,17 @@ export function showEditModal(model) {
         physicalCheckbox.type = 'checkbox';
         physicalCheckbox.id = 'anomalous-physical-rename-checkbox';
         physicalCheckbox.style.cursor = 'pointer';
+        const physicalRenameProtected = isPhysicalRenameProtectedType(this.currentType);
+        physicalCheckbox.disabled = physicalRenameProtected;
+        physicalCheckbox.style.cursor = physicalRenameProtected ? 'not-allowed' : 'pointer';
 
         const physicalLabel = document.createElement('label');
         physicalLabel.htmlFor = 'anomalous-physical-rename-checkbox';
         physicalLabel.textContent = t('detailPhysicalRename');
         physicalLabel.style.color = '#e8eaed';
         physicalLabel.style.fontSize = '0.9em';
-        physicalLabel.style.cursor = 'pointer';
+        physicalLabel.style.cursor = physicalRenameProtected ? 'not-allowed' : 'pointer';
+        physicalLabel.style.opacity = physicalRenameProtected ? '0.6' : '1';
 
         physicalCheckboxWrapper.appendChild(physicalCheckbox);
         physicalCheckboxWrapper.appendChild(physicalLabel);
@@ -986,7 +1030,9 @@ export function showEditModal(model) {
         physicalDesc.style.fontSize = '0.8em';
         physicalDesc.style.color = '#9aa0a6';
         physicalDesc.style.marginLeft = '22px';
-        physicalDesc.textContent = t('detailPhysicalRenameDesc');
+        physicalDesc.textContent = t(physicalRenameProtected
+            ? 'detailPhysicalRenameProtectedDesc'
+            : 'detailPhysicalRenameDesc');
 
         physicalRow.appendChild(physicalCheckboxWrapper);
         physicalRow.appendChild(physicalDesc);

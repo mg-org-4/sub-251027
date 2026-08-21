@@ -715,7 +715,13 @@ export function createDOM() {
             };
 
             const virtualSwitch = createMaterialSwitch(enableVirtualRename, (s) => enableVirtualRename = s);
-            const physicalSwitch = createMaterialSwitch(enablePhysicalRename, (s) => enablePhysicalRename = s);
+            let physicalProtectionNotice = null;
+            const physicalSwitch = createMaterialSwitch(enablePhysicalRename, (s) => {
+                enablePhysicalRename = s;
+                if (physicalProtectionNotice) {
+                    physicalProtectionNotice.style.display = s ? 'block' : 'none';
+                }
+            });
 
             const vContainer = document.createElement('div');
             vContainer.style.display = 'flex';
@@ -754,6 +760,19 @@ export function createDOM() {
             pDesc.innerHTML = t('sidebarPhysicalRenameDesc');
             pContainer.appendChild(pRow);
             pContainer.appendChild(pDesc);
+
+            physicalProtectionNotice = document.createElement('div');
+            physicalProtectionNotice.style.display = enablePhysicalRename ? 'block' : 'none';
+            physicalProtectionNotice.style.marginTop = '8px';
+            physicalProtectionNotice.style.padding = '9px 11px';
+            physicalProtectionNotice.style.border = '1px solid rgba(251, 188, 4, 0.45)';
+            physicalProtectionNotice.style.borderRadius = '6px';
+            physicalProtectionNotice.style.background = 'rgba(251, 188, 4, 0.08)';
+            physicalProtectionNotice.style.color = '#fdd663';
+            physicalProtectionNotice.style.fontSize = '0.8em';
+            physicalProtectionNotice.style.lineHeight = '1.45';
+            physicalProtectionNotice.textContent = t('sidebarPhysicalRenameProtectedNotice');
+            pContainer.appendChild(physicalProtectionNotice);
 
             dualChannelRow.appendChild(vContainer);
             dualChannelRow.appendChild(pContainer);
@@ -1152,7 +1171,7 @@ export function createDOM() {
         const modelSettingsDialog = document.createElement('div');
         modelSettingsDialog.className = 'anomalous-model-settings-dialog';
         modelSettingsDialog.setAttribute('role', 'dialog');
-        modelSettingsDialog.setAttribute('aria-modal', 'true');
+        modelSettingsDialog.setAttribute('aria-modal', 'false');
 
         const modelSettingsTitle = document.createElement('h2');
         const modelSettingsDescription = document.createElement('p');
@@ -1218,11 +1237,15 @@ export function createDOM() {
         };
         refreshModelSettingsText();
 
-        const closeModelSettings = () => { modelSettingsOverlay.hidden = true; };
+        const setModelSettingsOpen = (isOpen) => {
+            modelSettingsOverlay.hidden = !isOpen;
+            modelSettingsDialog.setAttribute('aria-modal', String(isOpen));
+        };
+        const closeModelSettings = () => { setModelSettingsOpen(false); };
         modelSettingsBtn.onclick = () => {
             refreshModelSettingsText();
             settingsHubModal.style.display = 'none';
-            modelSettingsOverlay.hidden = false;
+            setModelSettingsOpen(true);
             videoSetting.select.focus();
         };
         modelSettingsClose.onclick = closeModelSettings;
@@ -1589,13 +1612,11 @@ export function createDOM() {
                 this.initDoctorPanel();
             }
             // Trigger auto hash-resolve when opening Doctor
+            if (window.anomalous_reload_hashes) await window.anomalous_reload_hashes();
             if (window.anomalous_resolve_all_missing_nodes) {
-                window.anomalous_resolve_all_missing_nodes(true, false).then(() => {
-                    if (app.graph && app.graph.extra && app.graph.extra.anomalous_hashes) {
-                        this.renderGlobalDashboard(app.graph.extra.anomalous_hashes);
-                    }
-                });
+                await window.anomalous_resolve_all_missing_nodes(true, false);
             }
+            this.renderGlobalDashboard();
         };
 
         const assistantBtn = document.createElement('button');

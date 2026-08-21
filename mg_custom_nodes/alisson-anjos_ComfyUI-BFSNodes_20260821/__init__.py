@@ -17,6 +17,30 @@ from .ltx_multiple_controls import NODE_DISPLAY_NAME_MAPPINGS as MC_NODE_DISPLAY
 from .color_mask_node import NODE_CLASS_MAPPINGS as CM_NODE_CLASS_MAPPINGS
 from .color_mask_node import NODE_DISPLAY_NAME_MAPPINGS as CM_NODE_DISPLAY_NAME_MAPPINGS
 try:
+    from .minimax_h3_singleframe_vae import NODE_CLASS_MAPPINGS as MMVAE_NODE_CLASS_MAPPINGS
+    from .minimax_h3_singleframe_vae import NODE_DISPLAY_NAME_MAPPINGS as MMVAE_NODE_DISPLAY_NAME_MAPPINGS
+except Exception as _e:  # noqa
+    print(f"[BFSNodes] MiniMax-H3 VAE loaders not loaded: {_e!r}")
+    MMVAE_NODE_CLASS_MAPPINGS, MMVAE_NODE_DISPLAY_NAME_MAPPINGS = {}, {}
+try:
+    from .sharpest_frame import NODE_CLASS_MAPPINGS as SHARP_NODE_CLASS_MAPPINGS
+    from .sharpest_frame import NODE_DISPLAY_NAME_MAPPINGS as SHARP_NODE_DISPLAY_NAME_MAPPINGS
+except Exception as _e:  # noqa
+    print(f"[BFSNodes] Sharpest Frame node not loaded: {_e!r}")
+    SHARP_NODE_CLASS_MAPPINGS, SHARP_NODE_DISPLAY_NAME_MAPPINGS = {}, {}
+try:
+    from .minimax_h3_direct_decode import NODE_CLASS_MAPPINGS as MMDD_NODE_CLASS_MAPPINGS
+    from .minimax_h3_direct_decode import NODE_DISPLAY_NAME_MAPPINGS as MMDD_NODE_DISPLAY_NAME_MAPPINGS
+except Exception as _e:  # noqa
+    print(f"[BFSNodes] MiniMax-H3 direct decode node not loaded: {_e!r}")
+    MMDD_NODE_CLASS_MAPPINGS, MMDD_NODE_DISPLAY_NAME_MAPPINGS = {}, {}
+try:
+    from .save_h3_latent import NODE_CLASS_MAPPINGS as SVH3_NODE_CLASS_MAPPINGS
+    from .save_h3_latent import NODE_DISPLAY_NAME_MAPPINGS as SVH3_NODE_DISPLAY_NAME_MAPPINGS
+except Exception as _e:  # noqa
+    print(f"[BFSNodes] Save H3 Latent node not loaded: {_e!r}")
+    SVH3_NODE_CLASS_MAPPINGS, SVH3_NODE_DISPLAY_NAME_MAPPINGS = {}, {}
+try:
     from .ltx_identity_multiangle import NODE_CLASS_MAPPINGS as MA_NODE_CLASS_MAPPINGS
     from .ltx_identity_multiangle import NODE_DISPLAY_NAME_MAPPINGS as MA_NODE_DISPLAY_NAME_MAPPINGS
 except Exception as _e:  # noqa
@@ -59,6 +83,10 @@ NODE_CLASS_MAPPINGS = {
     **MRS_NODE_CLASS_MAPPINGS,
     **CM_NODE_CLASS_MAPPINGS,
     **MSP_NODE_CLASS_MAPPINGS,
+    **MMVAE_NODE_CLASS_MAPPINGS,
+    **SHARP_NODE_CLASS_MAPPINGS,
+    **MMDD_NODE_CLASS_MAPPINGS,
+    **SVH3_NODE_CLASS_MAPPINGS,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -76,4 +104,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     **MRS_NODE_DISPLAY_NAME_MAPPINGS,
     **CM_NODE_DISPLAY_NAME_MAPPINGS,
     **MSP_NODE_DISPLAY_NAME_MAPPINGS,
+    **MMVAE_NODE_DISPLAY_NAME_MAPPINGS,
+    **SHARP_NODE_DISPLAY_NAME_MAPPINGS,
+    **MMDD_NODE_DISPLAY_NAME_MAPPINGS,
+    **SVH3_NODE_DISPLAY_NAME_MAPPINGS,
 }

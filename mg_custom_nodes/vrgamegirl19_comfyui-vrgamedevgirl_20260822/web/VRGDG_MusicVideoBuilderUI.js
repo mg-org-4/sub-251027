@@ -534,13 +534,21 @@ function cloneMiniMaxH3Settings(value = {}) {
     })),
   };
 }
-const LTX_MODEL_DOWNLOADS = [
+const LTX_23_MODEL_DOWNLOADS = [
   { label: "LTX GGUF", url: "https://huggingface.co/Abiray/LTX-2.3-22B-DISTILLED-1.1-GGUF/tree/main" },
   { label: "Video VAE", url: "https://huggingface.co/Kijai/LTX2.3_comfy/tree/main/vae" },
   { label: "Gemma Clip", url: "https://huggingface.co/Sikaworld1990/gemma-3-12b-it-abliterated-sikaworld-high-fidelity-edition-Ltx-2/resolve/main/gemma-3-12b-it-abliterated-sikaworld-high-fidelity-edition.safetensors" },
   { label: "Text Projection", url: "https://huggingface.co/Kijai/LTX2.3_comfy/tree/main/text_encoders" },
   { label: "Latent Upscaler", url: "https://huggingface.co/prince-canuma/LTX-2.3-distilled/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors" },
   { label: "Audio VAE", url: "https://huggingface.co/Kijai/LTX2.3_comfy/tree/main/vae" },
+];
+const LTX_25_MODEL_DOWNLOADS = [
+  { label: "Gemma 4 E2B Text Encoder", url: "https://huggingface.co/Comfy-Org/gemma-4/resolve/main/text_encoders/gemma4_e2b_it_bf16.safetensors" },
+  { label: "Gemma 4 12B LTX 2.5 Text Encoder", url: "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors" },
+  { label: "LTX 2.5 Distilled Transformer", url: "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors" },
+  { label: "LTX 2.5 Video VAE", url: "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-video-vae-bf16.safetensors" },
+  { label: "LTX 2.5 Audio VAE", url: "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-audio-vae-bf16.safetensors" },
+  { label: "LTX 2.5 Latent Upscaler", url: "https://huggingface.co/Lightricks/LTX-2.5/resolve/main/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors" },
 ];
 const MINIMAX_H3_MODEL_DOWNLOADS = [
   { label: "Diffusion model", url: "https://huggingface.co/Comfy-Org/MiniMax-H3/blob/main/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors" },
@@ -595,18 +603,32 @@ const ERNIE_MODEL_DOWNLOADS = [
   { label: "Ministral text encoder", url: "https://huggingface.co/Comfy-Org/ERNIE-Image/resolve/main/text_encoders/ministral-3-3b.safetensors" },
   { label: "Ernie VAE", url: "https://huggingface.co/Comfy-Org/ERNIE-Image/resolve/main/vae/flux2-vae.safetensors" },
 ];
-const LLM_MODEL_DOWNLOADS = [
+const GEMMA_LLM_MODEL_DOWNLOADS = [
   { label: "SuperGemma GGUF", url: "https://huggingface.co/Jiunsong/supergemma4-26b-uncensored-gguf-v2/resolve/main/supergemma4-26b-uncensored-fast-v2-Q4_K_M.gguf" },
   { label: "Gemma Vision GGUF", url: "https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/gemma-4-26B-A4B-it-UD-IQ2_M.gguf" },
-  { label: "Vision mmproj", url: "https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/mmproj-BF16.gguf" },
+  { label: "Gemma Vision mmproj", url: "https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/mmproj-BF16.gguf" },
+];
+const QWEN_LLM_MODEL_DOWNLOADS = [
+  { label: "Qwen3.8-27B GGUF (choose a quantization/model)", url: "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/tree/main" },
+  { label: "Qwen3.8 vision mmproj (rename to qwen-mmproj-BF16.gguf)", url: "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/mmproj-BF16.gguf" },
 ];
 const MODEL_FOLDER_HINTS = {
-  "LLM / Vision": `ComfyUI/
+  "LLM / Gemma": `ComfyUI/
 models/
   LLM/
     supergemma4-26b-uncensored-fast-v2-Q4_K_M.gguf
     gemma-4-26B-A4B-it-UD-IQ2_M.gguf
-    mmproj-BF16.gguf`,
+    mmproj-BF16.gguf
+
+Gemma Vision requires both the model GGUF and its matching mmproj.`,
+  "LLM / Qwen": `ComfyUI/
+models/
+  LLM/
+    <chosen Qwen3.8 GGUF model files>
+    qwen-mmproj-BF16.gguf
+
+Qwen3.8 requires BOTH the chosen model GGUF (including all shards for that quantization) and its matching vision mmproj.
+Rename the downloaded Qwen projector to qwen-mmproj-BF16.gguf.`,
   "ZImage": `ComfyUI/
 models/
   text_encoders/
@@ -659,6 +681,18 @@ models/
     LTX2.3_audio_vae_bf16.safetensors
   latent_upscale_models/
     ltx-2.3-spatial-upscaler-x2-1.1.safetensors`,
+  "LTX 2.5": `ComfyUI/
+models/
+  text_encoders/
+    gemma4_e2b_it_bf16.safetensors
+    gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors
+  diffusion_models/
+    ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors
+  vae/
+    ltx-2.5-video-vae-bf16.safetensors
+    ltx-2.5-audio-vae-bf16.safetensors
+  latent_upscale_models/
+    ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors`,
   "MiniMax H3": `ComfyUI/
 models/
   diffusion_models/
@@ -1306,7 +1340,7 @@ function showGemmaBatchFailures(failures, options = {}) {
   document.body.append(backdrop);
 }
 
-function createProgressWindow(title, options = {}) {
+function createBaseProgressWindow(title, options = {}) {
   const box = document.createElement("div");
   const zIndex = Number(options.zIndex || 100004);
   box.style.cssText = `
@@ -1522,9 +1556,28 @@ function showModelDownloadModal() {
   const tabs = [
     {
       id: "ltx",
-      label: "LTX + Image Models",
+      label: "LTX",
+      subTabs: [
+        {
+          id: "ltx-25",
+          label: "LTX 2.5",
+          groups: [
+            { title: "LTX 2.5", note: "LTX 2.5 distilled transformer, Gemma 4 text encoders, video/audio VAEs, and x2 latent upscaler.", downloads: LTX_25_MODEL_DOWNLOADS },
+          ],
+        },
+        {
+          id: "ltx-23",
+          label: "LTX 2.3",
+          groups: [
+            { title: "LTX 2.3", note: "Legacy LTX 2.3 model files for existing workflows.", downloads: LTX_23_MODEL_DOWNLOADS },
+          ],
+        },
+      ],
+    },
+    {
+      id: "image-models",
+      label: "Image Models",
       groups: [
-        { title: "LTX 2.3", note: "High-quality image and video generation model.", downloads: LTX_MODEL_DOWNLOADS },
         { title: "ZImage", note: "Core ZImage Turbo diffusion model, Qwen text encoder, and VAE.", downloads: ZIMAGE_MODEL_DOWNLOADS },
         { title: "Krea2", note: "Krea2 text-to-image model used by the Reference Builder Krea2 + ZImage enhancer option.", downloads: KREA2_MODEL_DOWNLOADS },
         { title: "Flux/Klein 9B", note: "9B is higher quality. 4B is smaller and lighter.", downloads: FLUX_KLEIN_9B_MODEL_DOWNLOADS },
@@ -1535,8 +1588,21 @@ function showModelDownloadModal() {
     {
       id: "llm",
       label: "LLM Models",
-      groups: [
-        { title: "LLM / Vision", note: "Use SuperGemma for text prompting. Use Gemma Vision GGUF plus mmproj for image-reference prompting.", downloads: LLM_MODEL_DOWNLOADS },
+      subTabs: [
+        {
+          id: "gemma",
+          label: "Gemma",
+          groups: [
+            { title: "LLM / Gemma", note: "SuperGemma is used for text prompting. Gemma Vision GGUF plus its matching mmproj are used for image-reference prompting.", downloads: GEMMA_LLM_MODEL_DOWNLOADS },
+          ],
+        },
+        {
+          id: "qwen",
+          label: "Qwen",
+          groups: [
+            { title: "LLM / Qwen", note: "Qwen3.8 requires both a chosen GGUF model (including all shards for that quantization) and its matching vision mmproj. Rename the projector to qwen-mmproj-BF16.gguf so it is not confused with Gemma's mmproj-BF16.gguf.", downloads: QWEN_LLM_MODEL_DOWNLOADS },
+          ],
+        },
       ],
     },
     {
@@ -1569,6 +1635,7 @@ function showModelDownloadModal() {
   tabBar.setAttribute("aria-label", "Model download categories");
   tabBar.style.cssText = "position:sticky;top:78px;z-index:1;display:flex;flex-wrap:wrap;gap:10px;padding:14px 20px;border-bottom:1px solid #334155;background:#0b1220;";
   const tabButtons = new Map();
+  const activeSubTabs = new Map();
 
   const renderGroups = (groups) => {
     body.replaceChildren();
@@ -1624,6 +1691,38 @@ function showModelDownloadModal() {
     }
   };
 
+  const renderTab = (tab) => {
+    if (!tab.subTabs?.length) {
+      renderGroups(tab.groups || []);
+      return;
+    }
+
+    const selectedSubTab = tab.subTabs.find((subTab) => subTab.id === activeSubTabs.get(tab.id)) || tab.subTabs[0];
+    activeSubTabs.set(tab.id, selectedSubTab.id);
+    const subTabBar = document.createElement("div");
+    subTabBar.setAttribute("role", "tablist");
+    subTabBar.setAttribute("aria-label", `${tab.label} versions`);
+    subTabBar.style.cssText = "grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 4px;";
+
+    renderGroups(selectedSubTab.groups || []);
+    for (const subTab of tab.subTabs) {
+      const button = makeMiniButton(subTab.label);
+      const active = subTab.id === selectedSubTab.id;
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", active ? "true" : "false");
+      button.tabIndex = active ? 0 : -1;
+      button.style.cssText += `;font-size:14px;font-weight:900;padding:9px 15px;border-radius:999px;background:${active ? "#7c3aed" : "#1e293b"};border-color:${active ? "#c4b5fd" : "#475569"};color:${active ? "#f5f3ff" : "#cbd5e1"};`;
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        activeSubTabs.set(tab.id, subTab.id);
+        renderTab(tab);
+      });
+      subTabBar.append(button);
+    }
+    body.prepend(subTabBar);
+  };
+
   const activateTab = (tabId) => {
     const selected = tabs.find((tab) => tab.id === tabId) || tabs[0];
     for (const [id, button] of tabButtons) {
@@ -1634,7 +1733,7 @@ function showModelDownloadModal() {
       button.style.borderColor = active ? "#22d3ee" : "#475569";
       button.style.color = active ? "#ecfeff" : "#cbd5e1";
     }
-    renderGroups(selected.groups);
+    renderTab(selected);
   };
 
   for (const tab of tabs) {
@@ -4489,6 +4588,57 @@ function openBuilder(node) {
   const miniMaxTextGemmaModelSelect = makeSelect([""], "");
   const miniMaxGemmaModelSelect = makeSelect([""], "");
   const miniMaxMmprojSelect = makeSelect([""], "");
+  const builderTextLlmModelSelects = [
+    t2iTextGemmaModelSelect,
+    ernieTextGemmaModelSelect,
+    krea2TwoPassTextGemmaModelSelect,
+    i2vTextGemmaModelSelect,
+    miniMaxTextGemmaModelSelect,
+  ];
+  const builderVisionLlmModelSelects = [
+    gemmaModelSelect,
+    ernieGemmaModelSelect,
+    krea2TwoPassGemmaModelSelect,
+    zEnhanceGemmaModelSelect,
+    i2vGemmaModelSelect,
+    miniMaxGemmaModelSelect,
+    fluxGemmaModelSelect,
+    nbGemmaModelSelect,
+  ];
+  const builderVisionMmprojSelects = [
+    mmprojSelect,
+    ernieMmprojSelect,
+    krea2TwoPassMmprojSelect,
+    zEnhanceMmprojSelect,
+    i2vMmprojSelect,
+    miniMaxMmprojSelect,
+    fluxMmprojSelect,
+    nbMmprojSelect,
+  ];
+  function selectBuilderLlmValue(select, value) {
+    const selectedValue = String(value || "").trim();
+    if (!selectedValue) return;
+    if (!Array.from(select.options).some((option) => option.value === selectedValue)) {
+      const option = document.createElement("option");
+      option.value = selectedValue;
+      option.textContent = selectedValue;
+      select.append(option);
+    }
+    select.value = selectedValue;
+  }
+  function syncBuilderLlmModelSelectsFromRunner() {
+    const runner = String(state.textGemmaRunner || "builtin").toLowerCase();
+    if (!["builtin", "qwen_local"].includes(runner)) return;
+    const modelFile = runner === "qwen_local" ? state.qwenModelFile : state.gemmaModelFile;
+    for (const select of [...builderTextLlmModelSelects, ...builderVisionLlmModelSelects]) {
+      selectBuilderLlmValue(select, modelFile);
+    }
+    if (runner === "qwen_local") {
+      for (const select of builderVisionMmprojSelects) {
+        selectBuilderLlmValue(select, state.qwenMmprojFile);
+      }
+    }
+  }
   function copySelectOptions(sourceSelect, targetSelect) {
     targetSelect.textContent = "";
     for (const option of sourceSelect.options) {
@@ -5249,8 +5399,8 @@ function openBuilder(node) {
       makeField("VAE", zVaePicker.wrapper),
     ]),
     makeSettingsSection("LLM Models", [
-      makeField("Non-Vision text Gemma model", t2iTextGemmaModelSelect),
-      makeField("Vision Gemma model", gemmaModelSelect),
+      makeField("Non-Vision text LLM model", t2iTextGemmaModelSelect),
+      makeField("Vision LLM model", gemmaModelSelect),
       makeField("Vision mmproj", mmprojSelect),
     ]),
     zUseLora.wrapper,
@@ -5302,8 +5452,8 @@ function openBuilder(node) {
           makeField("VAE", ernieVaePicker.wrapper),
         ]),
         makeSettingsSection("LLM Models", [
-          makeField("Non-Vision text Gemma model", ernieTextGemmaModelSelect),
-          makeField("Vision Gemma model", ernieGemmaModelSelect),
+          makeField("Non-Vision text LLM model", ernieTextGemmaModelSelect),
+          makeField("Vision LLM model", ernieGemmaModelSelect),
           makeField("Vision mmproj", ernieMmprojSelect),
         ]),
         ernieUseLora.wrapper,
@@ -5354,8 +5504,8 @@ function openBuilder(node) {
           krea2TwoPassLoraPanel,
         ]),
         makeSettingsSection("LLM Models", [
-          makeField("Non-Vision text Gemma model", krea2TwoPassTextGemmaModelSelect),
-          makeField("Vision Gemma model", krea2TwoPassGemmaModelSelect),
+          makeField("Non-Vision text LLM model", krea2TwoPassTextGemmaModelSelect),
+          makeField("Vision LLM model", krea2TwoPassGemmaModelSelect),
           makeField("Vision mmproj", krea2TwoPassMmprojSelect),
         ]),
         makeKrea2TwoPassCreateButton(),
@@ -6114,10 +6264,10 @@ function openBuilder(node) {
         makeField("Video VAE", miniMaxVideoVaePicker.wrapper),
         makeField("Audio VAE", miniMaxAudioVaePicker.wrapper),
         makeSettingsSection("Non-Vision LLM Models", [
-          makeField("Non-Vision text Gemma model", miniMaxTextGemmaModelSelect),
+          makeField("Non-Vision text LLM model", miniMaxTextGemmaModelSelect),
         ]),
         makeSettingsSection("Vision LLM Models", [
-          makeField("Vision Gemma model", miniMaxGemmaModelSelect),
+          makeField("Vision LLM model", miniMaxGemmaModelSelect),
           makeField("Vision mmproj", miniMaxMmprojSelect),
         ]),
       ]),
@@ -6185,10 +6335,10 @@ function openBuilder(node) {
           i2vDiffusionLoaderAdvanced,
         ]),
         makeSettingsSection("Non-Vision LLM Models", [
-          makeField("Non-Vision text Gemma model", i2vTextGemmaModelSelect),
+          makeField("Non-Vision text LLM model", i2vTextGemmaModelSelect),
         ]),
         makeSettingsSection("Vision LLM Models", [
-          makeField("Vision Gemma model", i2vGemmaModelSelect),
+          makeField("Vision LLM model", i2vGemmaModelSelect),
           makeField("Vision mmproj", i2vMmprojSelect),
         ]),
         ltxMsrRequiredPanel,
@@ -6911,6 +7061,7 @@ function openBuilder(node) {
     overlaySegments: [],
     overlayTrack: normalizeOverlayTrackState(),
     activeId: "",
+    miniMaxH3PanelSegmentId: "",
     activeTrack: "base",
     multiSelectMode: false,
     selectedSegmentIds: [],
@@ -6967,6 +7118,9 @@ function openBuilder(node) {
     storyIdeaPath: "",
     subjectScenePath: "",
     textGemmaRunner: "builtin",
+    qwenModelFile: "",
+    qwenMmprojFile: "",
+    gemmaModelFile: "",
     gemmaContextLimit: 8000,
     gemmaOutputTokenLimit: 8192,
     gemmaGpuLayers: 99,
@@ -7044,6 +7198,13 @@ function openBuilder(node) {
   };
 
   function syncProjectVideoEngineUI() {
+    // Auto Build can open while project restoration has not assigned an active
+    // scene yet. Engine-panel synchronization expects a real scene whenever
+    // the project has one, so restore that selection before refreshing panels.
+    ensureAllSegmentRuntimeFields();
+    if (!activeSegment()) {
+      state.activeId = state.segments[0]?.id || state.overlaySegments[0]?.id || "";
+    }
     const miniMaxProject = normalizeProjectVideoEngine(state.projectVideoEngine) === "minimax_h3";
     if (projectVideoEngineSettingsSelect) projectVideoEngineSettingsSelect.value = miniMaxProject ? "minimax_h3" : "ltx";
     projectVideoEngineBadge.dataset.engine = miniMaxProject ? "minimax_h3" : "ltx";
@@ -7192,8 +7353,10 @@ function openBuilder(node) {
     }
   }
 
-  function saveMiniMaxH3SettingsFromPanel() {
-    const segment = activeSegment();
+  function saveMiniMaxH3SettingsFromPanel(targetSegment = null) {
+    // DOM event listeners pass their Event as the first argument. Only treat
+    // an actual scene object as an explicit target.
+    const segment = targetSegment?.id ? targetSegment : activeSegment();
     const currentSettings = miniMaxH3SettingsForSegment(segment);
     const loraEnabled = Boolean(miniMaxUseLoras.input.checked);
     const turboEnabled = Boolean(miniMaxUseTurboLora.input.checked) && !loraEnabled;
@@ -7231,6 +7394,7 @@ function openBuilder(node) {
           : miniMaxRefImageSize.value,
       two_pass_lora_name: miniMaxTwoPassLoraPicker.input.value,
       two_pass_lora_strength: miniMaxTwoPassLoraStrength.value,
+      two_pass_defaults_version: DEFAULT_MINIMAX_H3_SETTINGS.two_pass_defaults_version,
       two_pass_final_width: miniMaxTwoPassFinalWidth.value,
       two_pass_final_height: miniMaxTwoPassFinalHeight.value,
       two_pass_latent_upscale_scale: miniMaxTwoPassLatentScale.value,
@@ -7903,6 +8067,7 @@ function openBuilder(node) {
   function syncMiniMaxH3Panel() {
     const miniMaxProject = normalizeProjectVideoEngine(state.projectVideoEngine) === "minimax_h3";
     const segment = activeSegment();
+    state.miniMaxH3PanelSegmentId = String(segment?.id || "");
     state.miniMaxH3Settings = cloneMiniMaxH3Settings(state.miniMaxH3Settings);
     const settings = miniMaxH3SettingsForSegment(segment);
     miniMaxDiffusionModelPicker.input.value = settings.diffusion_model_name;
@@ -10128,7 +10293,7 @@ function openBuilder(node) {
     const text = String(message || "");
     if (settings.mode === "errors") return false;
     if (settings.mode === "all") return true;
-    const batchDone = /\b(?:Build Full Video|Image All|Render All|Stitch Preview|(?:Gemma|LM Studio|API LLM) (?:T2I|I2V|T2V|Video) All|Flux\/Klein All|NanoBanana All|Ernie All|ZImage All)\b[\s\S]{0,80}\b(?:complete|finished|ready|saved)\b/i.test(text) ||
+    const batchDone = /\b(?:Build Full Video|Image All|Render All|Stitch Preview|(?:Gemma Local|Qwen Local|LM Studio|LLM API|Custom Server) (?:T2I|I2V|T2V|Video) All|Flux\/Klein All|NanoBanana All|Ernie All|ZImage All)\b[\s\S]{0,80}\b(?:complete|finished|ready|saved)\b/i.test(text) ||
       /\b(?:complete after \d+ attempts|final video|stitched video)\b/i.test(text);
     if (settings.mode === "batch") return batchDone;
     const completedThing = /\b(?:complete|completed|finished|created|ready|rendered|stitched|saved)\b/i.test(text);
@@ -10201,8 +10366,13 @@ function openBuilder(node) {
   window.addEventListener("vrgdg:builder-toast", toastNotificationHandler);
 
   function textGemmaRunnerPayload() {
+    const qwenLocal = state.textGemmaRunner === "qwen_local";
     return {
       text_runner: state.textGemmaRunner || "builtin",
+      qwen_model_file: state.qwenModelFile || "",
+      qwen_mmproj_file: state.qwenMmprojFile || "",
+      gemma_model_file: state.gemmaModelFile || "",
+      model_file: qwenLocal ? (state.qwenModelFile || "") : "",
       n_ctx: normalizeGemmaContextLimit(state.gemmaContextLimit),
       gemma_output_token_limit: normalizeOutputTokenLimit(state.gemmaOutputTokenLimit),
       n_gpu_layers: normalizeGemmaGpuLayers(state.gemmaGpuLayers),
@@ -10239,8 +10409,9 @@ function openBuilder(node) {
 
   function gemmaRunnerLabel(options = {}) {
     if (options.forceBuiltin) return options.vision ? "Built-in GGUF vision" : "Built-in GGUF";
-    if (state.textGemmaRunner === "llm_api") return options.vision ? "API LLM vision" : "LLM API";
-    if (state.textGemmaRunner === "own_server") return options.vision ? "Own server vision" : "Own server";
+    if (state.textGemmaRunner === "llm_api") return options.vision ? "LLM API vision" : "LLM API";
+    if (state.textGemmaRunner === "own_server") return options.vision ? "Custom Server vision" : "Custom Server";
+    if (state.textGemmaRunner === "qwen_local") return options.vision ? "Qwen Local vision" : "Qwen Local";
     if (options.vision) return state.textGemmaRunner === "lm_studio" ? "LM Studio vision" : "Built-in GGUF vision";
     return state.textGemmaRunner === "lm_studio" ? "LM Studio" : "Gemma Local";
   }
@@ -10251,15 +10422,59 @@ function openBuilder(node) {
 
   function promptRunnerActionName() {
     if (state.textGemmaRunner === "lm_studio") return "LM Studio";
-    if (state.textGemmaRunner === "llm_api") return "API LLM";
-    if (state.textGemmaRunner === "own_server") return "Own server";
-    return "Gemma";
+    if (state.textGemmaRunner === "llm_api") return "LLM API";
+    if (state.textGemmaRunner === "own_server") return "Custom Server";
+    if (state.textGemmaRunner === "qwen_local") return "Qwen Local";
+    return "Gemma Local";
+  }
+
+  function runnerAwareLlmText(value) {
+    return String(value || "")
+      .replace(/\b(?:Vision Gemma|Gemma Vision)\b/gi, gemmaRunnerLabel({ vision: true }))
+      .replace(/\bGemma4?\b/g, promptRunnerActionName())
+      .replace(/\bAPI LLM\b/g, "LLM API")
+      .replace(/\bOwn server\b/gi, "Custom Server");
+  }
+
+  function createProgressWindow(title, options = {}) {
+    const runnerAware = options.runnerAware !== false;
+    const displayedTitle = runnerAware ? runnerAwareLlmText(title) : title;
+    const progress = createBaseProgressWindow(displayedTitle, options);
+    if (!runnerAware) return progress;
+    return {
+      ...progress,
+      set(message, percent = null) {
+        progress.set(runnerAwareLlmText(message), percent);
+      },
+      setHtml(html, percent = null) {
+        progress.setHtml(runnerAwareLlmText(html), percent);
+      },
+    };
   }
 
   function updatePromptRunnerButtonLabels() {
     const runner = promptRunnerActionName();
     gemmaT2IAllButton.textContent = `${runner} T2I All`;
     gemmaVideoAllButton.textContent = `${runner} Video All`;
+    createT2IButton.textContent = `${runner} T2I`;
+    ernieCreateT2IButton.textContent = `${runner} T2I`;
+    krea2TwoPassCreateT2IButton.textContent = `${runner} T2I`;
+    createFluxPromptButton.textContent = `${runner} Flux Prompt`;
+    createNBPromptButton.textContent = `${runner} NB Prompt`;
+    flowGptCreatePromptButton.textContent = `${runner} Browser Prompt`;
+    zEnhanceGemmaButton.textContent = `${runner} Enhance Prompt`;
+    const mode = currentVideoMode();
+    createI2VButton.textContent = mode === "id_lora"
+      ? `${runner} ID Script`
+      : mode === "ingredients"
+        ? `${runner} Ingredients Video`
+        : mode === "flf"
+          ? `${runner} First/Last Prompt`
+          : mode === "rtv"
+            ? `${runner} Reference Video`
+            : mode === "t2v"
+              ? `${runner} T2V`
+              : `${runner} I2V`;
   }
 
   function referenceDescriptionVisionModel() {
@@ -12026,6 +12241,9 @@ function openBuilder(node) {
       storyIdeaPath: state.storyIdeaPath,
       subjectScenePath: state.subjectScenePath,
       textGemmaRunner: state.textGemmaRunner,
+      qwenModelFile: state.qwenModelFile,
+      qwenMmprojFile: state.qwenMmprojFile,
+      gemmaModelFile: state.gemmaModelFile,
       gemmaContextLimit: normalizeGemmaContextLimit(state.gemmaContextLimit),
       gemmaOutputTokenLimit: normalizeOutputTokenLimit(state.gemmaOutputTokenLimit),
       gemmaGpuLayers: normalizeGemmaGpuLayers(state.gemmaGpuLayers),
@@ -12120,6 +12338,10 @@ function openBuilder(node) {
     state.storyIdeaPath = data.storyIdeaPath || "";
     state.subjectScenePath = data.subjectScenePath || "";
     state.textGemmaRunner = data.textGemmaRunner || data.text_gemma_runner || state.textGemmaRunner || "builtin";
+    state.qwenModelFile = data.qwenModelFile || data.qwen_model_file || state.qwenModelFile || "";
+    state.qwenMmprojFile = data.qwenMmprojFile || data.qwen_mmproj_file || state.qwenMmprojFile || "";
+    state.gemmaModelFile = data.gemmaModelFile || data.gemma_model_file || state.gemmaModelFile || "";
+    syncBuilderLlmModelSelectsFromRunner();
     state.gemmaContextLimit = normalizeGemmaContextLimit(data.gemmaContextLimit ?? data.gemma_context_limit ?? data.n_ctx ?? legacyLlmMaxTokens ?? state.gemmaContextLimit);
     state.gemmaOutputTokenLimit = normalizeOutputTokenLimit(data.gemmaOutputTokenLimit ?? data.gemma_output_token_limit ?? legacyLlmMaxTokens ?? state.gemmaOutputTokenLimit);
     state.gemmaGpuLayers = normalizeGemmaGpuLayers(data.gemmaGpuLayers ?? data.gemma_gpu_layers ?? data.n_gpu_layers ?? state.gemmaGpuLayers);
@@ -14699,12 +14921,18 @@ function openBuilder(node) {
   }
 
   function setActiveSegment(segment) {
-    if (state.activeId && state.activeId !== segment?.id) {
-      clearSegmentLutPreview(activeSegment());
-      clearSegmentAdjustPreview(activeSegment());
-      clearSegmentFilmGrainPreview(activeSegment());
+    const displayedSegment = activeSegment();
+    if (displayedSegment && displayedSegment.id !== segment?.id) {
+      clearSegmentLutPreview(displayedSegment);
+      clearSegmentAdjustPreview(displayedSegment);
+      clearSegmentFilmGrainPreview(displayedSegment);
       updateActiveFromInputs({ skipHistory: true });
       saveI2VVideoSettingsFromPanel();
+      // Snapshot the visible MiniMax panel before changing scenes. Do not rely
+      // on state.activeId here; some selection paths update it first.
+      if (normalizeProjectVideoEngine(state.projectVideoEngine) === "minimax_h3") {
+        saveMiniMaxH3SettingsFromPanel();
+      }
     }
     state.activeId = segment?.id || "";
     state.activeTrack = segment ? segmentTrack(segment) : state.activeTrack || "base";
@@ -15061,11 +15289,12 @@ function openBuilder(node) {
   }
 
   function selectedSegmentImageThumbnailPath(segment) {
+    if (!segment) return "";
     ensureSegmentRuntimeFields(segment);
-    return segment?.image_history?.[segment.image_history_index]
-      || segment?.image_history?.[segment.image_history.length - 1]
-      || segment?.custom_image_path
-      || segment?.approved_image_path
+    return segment.image_history?.[segment.image_history_index]
+      || segment.image_history?.[segment.image_history.length - 1]
+      || segment.custom_image_path
+      || segment.approved_image_path
       || "";
   }
 
@@ -15426,7 +15655,13 @@ function openBuilder(node) {
   }
 
   function syncInspector() {
+    const previousPanelSegmentId = String(state.miniMaxH3PanelSegmentId || "");
     const segment = activeSegment();
+    if (previousPanelSegmentId && previousPanelSegmentId !== String(segment?.id || "")
+      && normalizeProjectVideoEngine(state.projectVideoEngine) === "minimax_h3") {
+      const previousPanelSegment = allEditableSegments().find((item) => String(item?.id || "") === previousPanelSegmentId);
+      if (previousPanelSegment) saveMiniMaxH3SettingsFromPanel(previousPanelSegment);
+    }
     startInput.dataset.vrgdgInspectorSegmentId = String(segment?.id || "");
     lyricTextInput.dataset.vrgdgInspectorSegmentId = String(segment?.id || "");
     lyricTextInput.dataset.vrgdgUserEdited = "0";
@@ -18661,7 +18896,8 @@ function openBuilder(node) {
     i2vPass2NodePanel.style.display = isFLF || isLegacySinglePassRTV ? "none" : "";
     syncTimelineTrimModeButton();
     i2vWarmCooldownSection.style.display = isIdLora ? "none" : "";
-    createI2VButton.textContent = isIdLora ? "Gemma ID Script" : isIngredients ? "Gemma Ingredients Video" : isFLF ? "Gemma First/Last Prompt" : isRTV ? "Gemma Reference Video" : isT2V ? "Gemma T2V" : "Gemma I2V";
+    const runnerName = promptRunnerActionName();
+    createI2VButton.textContent = isIdLora ? `${runnerName} ID Script` : isIngredients ? `${runnerName} Ingredients Video` : isFLF ? `${runnerName} First/Last Prompt` : isRTV ? `${runnerName} Reference Video` : isT2V ? `${runnerName} T2V` : `${runnerName} I2V`;
     syncVideoInstructionEditorButtons();
     i2vNotesInput.placeholder = isT2V
       ? "Extra text-to-video motion notes, camera movement, character movement..."
@@ -21284,6 +21520,7 @@ function openBuilder(node) {
   }
 
   function segmentImageSource(segment) {
+    if (!segment) return null;
     ensureSegmentRuntimeFields(segment);
     const historyPath = segment.image_history?.[segment.image_history_index] || segment.image_history?.[segment.image_history.length - 1] || "";
     if (historyPath) {
@@ -21792,7 +22029,7 @@ function openBuilder(node) {
       try {
         gemma.disabled = true;
         gemma.textContent = "Gemma...";
-        progress = createProgressWindow(title.replace(/^Edit\s+/i, "Gemma4 "));
+        progress = createProgressWindow(title.replace(/^Edit\s+/i, "Gemma4 "), { runnerAware: false });
         progress.set(`Creating draft from your notes...\n${gemmaRunnerLine({ forceBuiltin: true })}`, 25);
         const styleTheme = gemmaTarget === "builder_story_idea" || gemmaTarget === "builder_subjects_and_scenes"
           ? await loadContextTextQuiet(themeStyleInput.value)
@@ -36240,6 +36477,12 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     try {
       updateActiveFromInputs();
       saveI2VVideoSettingsFromPanel();
+      // Quick Save must capture the live builder panels before serializing the
+      // session, including MiniMax's scene/project-scoped controls.
+      if (normalizeProjectVideoEngine(state.projectVideoEngine) === "minimax_h3") {
+        saveMiniMaxH3SettingsFromPanel();
+        saveMiniMaxSceneInputsFromPanel();
+      }
       ensureAllSegmentRuntimeFields();
       const projectFolder = activeProjectFolderForSave();
       if (!projectFolder) {
@@ -36441,6 +36684,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     try {
       updateActiveFromInputs();
       saveI2VVideoSettingsFromPanel();
+      if (normalizeProjectVideoEngine(state.projectVideoEngine) === "minimax_h3") {
+        saveMiniMaxH3SettingsFromPanel();
+        saveMiniMaxSceneInputsFromPanel();
+      }
       const projectFolder = activeProjectFolderForSave();
       if (!projectFolder) {
         console.warn(`[VRGDG Music Builder] Autosave skipped before ${reason || "action"} because no active project is set.`);
@@ -45014,6 +45261,12 @@ Chrome vault corridor = Sealed industrial passage...</pre>
   }
 
   async function renderMiniMaxSceneVideoWithProgress(segment, sceneIndex, progress, options = {}) {
+    // The panel can still contain a newer value than the project object when a
+    // render is started immediately after editing a field. Flush the active
+    // scene one last time before taking the settings snapshot used to build
+    // the hidden workflow.
+    if (segment?.id === activeSegment()?.id) saveMiniMaxH3SettingsFromPanel();
+    const panelSegmentId = activeSegment()?.id;
     const progressBase = Number(options.progressBase ?? 0);
     const progressSpan = Number(options.progressSpan ?? 100);
     const batchLabel = options.batchLabel ? `${options.batchLabel}\n` : "";
@@ -45170,6 +45423,13 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     state.activeId = segment.id;
     segment.video_status = "running";
     renderList();
+    const activePanel = segment?.id === panelSegmentId;
+    const requestedTwoPassSteps = twoPass && activePanel
+      ? {
+        pass1: Math.max(1, Math.min(1000, Math.trunc(Number(twoPassControls[0].steps.value) || 20))),
+        pass2: Math.max(1, Math.min(1000, Math.trunc(Number(twoPassControls[1].steps.value) || 5))),
+      }
+      : null;
     progress?.set(`${batchLabel}Preparing exact MiniMax H3 scene timing and ${builtInAudio ? "native audio generation" : "input audio"}...`, pct(8));
 
     try {
@@ -45215,12 +45475,12 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         output_crf: twoPass ? miniMaxSettings.two_pass_output_crf : undefined,
         three_pass_lightx_lora_name: miniMaxSettings.three_pass_lightx_lora_name,
         three_pass_lightx_lora_strength: miniMaxSettings.three_pass_lightx_lora_strength,
-        pass1_steps: twoPass ? miniMaxSettings.two_pass_pass1_steps : miniMaxSettings.steps,
+        pass1_steps: twoPass ? (requestedTwoPassSteps?.pass1 ?? miniMaxSettings.two_pass_pass1_steps) : miniMaxSettings.steps,
         pass1_denoise: twoPass ? miniMaxSettings.two_pass_pass1_denoise : miniMaxSettings.denoise,
         pass1_sampler_name: twoPass ? miniMaxSettings.two_pass_pass1_sampler : miniMaxSettings.sampler_name,
         pass1_scheduler: twoPass ? miniMaxSettings.two_pass_pass1_scheduler : miniMaxSettings.scheduler,
         pass1_seed: twoPass ? miniMaxSettings.two_pass_pass1_seed : miniMaxSettings.seed,
-        pass2_steps: twoPass ? miniMaxSettings.two_pass_pass2_steps : 4,
+        pass2_steps: twoPass ? (requestedTwoPassSteps?.pass2 ?? miniMaxSettings.two_pass_pass2_steps) : 4,
         pass2_denoise: twoPass ? miniMaxSettings.two_pass_pass2_denoise : 0.2,
         pass2_sampler_name: twoPass ? miniMaxSettings.two_pass_pass2_sampler : miniMaxSettings.sampler_name,
         pass2_scheduler: twoPass ? miniMaxSettings.two_pass_pass2_scheduler : miniMaxSettings.scheduler,
@@ -45282,12 +45542,63 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       const builtLoraSettings = built?.lora_settings || {};
       const builtTurboSettings = built?.turbo_settings || {};
       const builtAdvancedSettings = built?.advanced_settings || {};
-      const loraLine = builtLoraSettings.enabled
-        ? `\nLoRAs: ${Number(builtLoraSettings.count || 0)} — ${(builtLoraSettings.loras || []).map((item) => `${item.name} @ ${item.strength}`).join(", ")}`
-        : "\nLoRAs: OFF";
-      const turboLine = builtTurboSettings.enabled
-        ? `\nTurbo: ON — effective steps ${Number(builtAdvancedSettings.effective_steps || builtTurboSettings.steps || miniMaxSettings.steps)}; LoRA ${builtTurboSettings.lora_name || miniMaxSettings.turbo_lora_name} @ ${builtTurboSettings.strength ?? miniMaxSettings.turbo_lora_strength}`
-        : `\nTurbo: OFF — steps ${Number(builtAdvancedSettings.steps || miniMaxSettings.steps)}`;
+      const exactTwoPassSteps = twoPass
+        ? {
+          pass1: Number(built?.prompt?.["124"]?.inputs?.steps),
+          pass2: Number(built?.prompt?.["190"]?.inputs?.value),
+        }
+        : null;
+      if (twoPass && (!Number.isInteger(exactTwoPassSteps.pass1) || !Number.isInteger(exactTwoPassSteps.pass2))) {
+        throw new Error("The built MiniMax H3 two-pass prompt is missing its exact sampler step values.");
+      }
+      const exactTwoPassStepsLine = twoPass
+        ? `\nRequested panel steps: Pass 1 = ${requestedTwoPassSteps?.pass1 ?? miniMaxSettings.two_pass_pass1_steps}; Pass 2 = ${requestedTwoPassSteps?.pass2 ?? miniMaxSettings.two_pass_pass2_steps}`
+          + `\nExact built-prompt sampler steps: Pass 1 = ${exactTwoPassSteps.pass1}; Pass 2 = ${exactTwoPassSteps.pass2}`
+        : "";
+      const exactModelChainLoras = (modelRef) => {
+        const loras = [];
+        const visited = new Set();
+        let currentRef = modelRef;
+        while (Array.isArray(currentRef) && currentRef.length >= 2) {
+          const nodeId = String(currentRef[0]);
+          if (visited.has(nodeId)) break;
+          visited.add(nodeId);
+          const promptNode = built?.prompt?.[nodeId];
+          if (!promptNode?.inputs) break;
+          const loraName = String(promptNode.inputs.lora_name || "").trim();
+          if (loraName && /lora/i.test(String(promptNode.class_type || ""))) {
+            loras.push({
+              nodeId,
+              name: loraName,
+              strength: Number(promptNode.inputs.strength_model),
+            });
+          }
+          currentRef = promptNode.inputs.model;
+        }
+        return loras.reverse();
+      };
+      const exactTwoPassLoras = twoPass
+        ? {
+          pass1: exactModelChainLoras(built?.prompt?.["124"]?.inputs?.model),
+          pass2: exactModelChainLoras(built?.prompt?.["192"]?.inputs?.model),
+        }
+        : null;
+      const formatExactLoras = (loras) => loras.length
+        ? loras.map((item) => `${item.name} @ ${Number.isFinite(item.strength) ? item.strength : "unknown strength"} [node ${item.nodeId}]`).join(" → ")
+        : "none";
+      const exactTwoPassLorasLine = twoPass
+        ? `\nExact built-prompt LoRAs:\nPass 1: ${formatExactLoras(exactTwoPassLoras.pass1)}\nPass 2: ${formatExactLoras(exactTwoPassLoras.pass2)}`
+        : "";
+      const loraLine = twoPass
+        ? exactTwoPassLorasLine
+        : builtLoraSettings.enabled
+          ? `\nLoRAs: ${Number(builtLoraSettings.count || 0)} — ${(builtLoraSettings.loras || []).map((item) => `${item.name} @ ${item.strength}`).join(", ")}`
+          : "\nLoRAs: OFF";
+      const turboLine = (twoPass || threePass)
+        ? ""
+        : builtTurboSettings.enabled
+          ? `\nTurbo: ON — effective steps ${Number(builtAdvancedSettings.effective_steps || builtTurboSettings.steps || miniMaxSettings.steps)}; LoRA ${builtTurboSettings.lora_name || miniMaxSettings.turbo_lora_name} @ ${builtTurboSettings.strength ?? miniMaxSettings.turbo_lora_strength}`
+          : `\nTurbo: OFF — steps ${Number(builtAdvancedSettings.steps || miniMaxSettings.steps)}`;
       const settingsScopeLine = `\nSettings scope: ${segment?.use_scene_minimax_h3_settings ? "locked scene settings" : "project/global settings"}`;
       const finalDuration = Number(postTrim.duration);
       if (!Number.isFinite(finalDuration) || Math.abs(finalDuration - sceneDuration) > 0.001) {
@@ -45302,6 +45613,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         + `Timeline: ${sceneDuration.toFixed(3)}s\n`
         + `H3 render: ${Number(timing.h3_frame_count || 0)} frames`
         + (threePass ? "\nStage 1 and Stage 2 are saved as backups; Stage 3 will be used for stitching." : twoPass ? "\nPass 1 is learned-latent upscaled and refined by pass 2; the final pass-2 video will be used for stitching." : "")
+        + exactTwoPassStepsLine
         + loraLine
         + turboLine
         + settingsScopeLine
@@ -45382,7 +45694,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         promptId,
         (message) => {
           void registerLiveThreePassBackups();
-          progress?.set(`${batchLabel}${threePass ? "MiniMax H3 3 Pass (Stage 1 → Stage 2 → Stage 3)\n" : twoPass ? "MiniMax H3 2 Pass (Stage 1 → Stage 2)\n" : ""}${message}\nPrompt ID: ${promptId}`, pct(62));
+          progress?.set(`${batchLabel}${threePass ? "MiniMax H3 3 Pass (Stage 1 → Stage 2 → Stage 3)\n" : twoPass ? "MiniMax H3 2 Pass (Stage 1 → Stage 2)\n" : ""}${message}${exactTwoPassStepsLine}${exactTwoPassLorasLine}\nPrompt ID: ${promptId}`, pct(62));
         },
         () => state.batchCancelled,
         null,
@@ -45597,17 +45909,18 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     const segment = requireActiveSegment();
     if (!segment) return;
     const mode = currentVideoMode();
+    const runnerName = promptRunnerActionName();
     if (mode === "import") {
-      toast("Imported-video mode does not use Gemma prompt generation. Use Create Scene Video instead.", true);
+      toast(`Imported-video mode does not use ${runnerName} prompt generation. Use Create Scene Video instead.`, true);
       return;
     }
     const modeLabel = videoModeDisplayLabel(mode, true);
-    if (!window.confirm(`Run Gemma to replace this scene's ${modeLabel} prompt, then immediately create the video without stopping for prompt review?`)) return;
+    if (!window.confirm(`Run ${runnerName} to replace this scene's ${modeLabel} prompt, then immediately create the video without stopping for prompt review?`)) return;
     updateActiveFromInputs();
     let progress = null;
     try {
       setButtonGroupState(gemmaThenCreateVideoButtons, { disabled: true });
-      progress = createProgressWindow("Gemma → Create Scene Video");
+      progress = createProgressWindow(`${runnerName} → Create Scene Video`);
       progress.set(`Creating the ${modeLabel} prompt with Gemma...`, 8);
       await generateI2VPromptForSegment(
         segment,
@@ -48998,7 +49311,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         concept_match_mode: "medium",
         append_subject_to_prompts: true,
         repair_lyric_segments: false,
-        text_gemma_runner: state.textGemmaRunner || "builtin",
+      text_gemma_runner: state.textGemmaRunner || "builtin",
+      qwen_model_file: state.qwenModelFile || "",
+      qwen_mmproj_file: state.qwenMmprojFile || "",
+      gemma_model_file: state.gemmaModelFile || "",
         gemma_context_limit: normalizeGemmaContextLimit(state.gemmaContextLimit),
         gemma_output_token_limit: normalizeOutputTokenLimit(state.gemmaOutputTokenLimit),
         gemma_gpu_layers: normalizeGemmaGpuLayers(state.gemmaGpuLayers),
@@ -50409,7 +50725,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       scope.value = "full_scene_plan";
     }
     const clear = makeButton("Clear Chat");
-    controlGrid.append(makeField("Context sent to Gemma", scope), makeField("Agent mode", mode), makeField("Purpose", purpose), clear);
+    controlGrid.append(makeField(`Context sent to ${promptRunnerActionName()}`, scope), makeField("Agent mode", mode), makeField("Purpose", purpose), clear);
     controls.append(agentTopbar, controlGrid);
     purpose.addEventListener("change", () => {
       state.builderAgentPurpose = purpose.value || "scene_work";
@@ -50436,7 +50752,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       body.style.cssText = "padding:14px;display:grid;gap:12px;font-size:12px;line-height:1.5;color:#cbd5e1;";
       const sections = [
         {
-          title: "Context sent to Gemma",
+          title: `Context sent to ${promptRunnerActionName()}`,
           lines: [
             "Active scene only: sends the selected scene details. Best when you want focused edits.",
             "Active scene + neighbors: also sends nearby scenes. Best for continuity between scenes.",
@@ -51172,14 +51488,15 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     const header = document.createElement("div");
     header.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:12px;";
     const heading = document.createElement("div");
-    heading.innerHTML = `<div style="font-size:16px;font-weight:900;color:#cffafe;">LLM Runner</div><div style="font-size:12px;color:#94a3b8;margin-top:3px;">Choose the LLM runner for prompt writing. Image-reference video prompts can use LM Studio vision, a vision-capable LLM API model, or your own OpenAI-compatible server.</div>`;
+    heading.innerHTML = `<div style="font-size:16px;font-weight:900;color:#cffafe;">LLM Runner</div><div style="font-size:12px;color:#94a3b8;margin-top:3px;">Choose the LLM runner for prompt writing. Image-reference video prompts can use Qwen Local with an mmproj, LM Studio vision, a vision-capable LLM API model, or your own OpenAI-compatible server.</div>`;
     const close = makeButton("Close");
     header.append(heading, close);
-    const runner = makeSelect(["builtin", "lm_studio", "llm_api", "own_server"], state.textGemmaRunner || "builtin");
+    const runner = makeSelect(["builtin", "qwen_local", "lm_studio", "llm_api", "own_server"], state.textGemmaRunner || "builtin");
     runner.options[0].textContent = "Gemma Local";
-    runner.options[1].textContent = "LM Studio";
-    runner.options[2].textContent = "LLM API";
-    runner.options[3].textContent = "Use my own server";
+    runner.options[1].textContent = "Qwen Local";
+    runner.options[2].textContent = "LM Studio";
+    runner.options[3].textContent = "LLM API";
+    runner.options[4].textContent = "Custom Server";
     const gemmaContextLimit = makeInput(String(normalizeGemmaContextLimit(state.gemmaContextLimit)), "number");
     gemmaContextLimit.min = "512";
     gemmaContextLimit.max = "262144";
@@ -51192,21 +51509,120 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     gemmaGpuLayers.min = "0";
     gemmaGpuLayers.max = "999";
     gemmaGpuLayers.step = "1";
+    const qwenModelSelect = makeSelect([""], state.qwenModelFile || "");
+    const qwenModelPath = makeInput(state.qwenModelFile || "");
+    const qwenMmprojSelect = makeSelect([""], state.qwenMmprojFile || "");
+    const chooseQwenModel = makeButton("Choose GGUF file");
+    const qwenModelRow = document.createElement("div");
+    qwenModelRow.style.cssText = "display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;";
+    const gemmaLocalSelect = makeSelect([""], state.gemmaModelFile || "");
+    const gemmaLocalPath = makeInput(state.gemmaModelFile || "");
+    const chooseGemmaModel = makeButton("Choose GGUF file");
+    const gemmaLocalRow = document.createElement("div");
+    gemmaLocalRow.style.cssText = "display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;";
     const builtinPanel = document.createElement("div");
     builtinPanel.style.cssText = "display:flex;flex-direction:column;gap:10px;border:1px solid #334155;border-radius:7px;background:#0f172a;padding:12px;";
     const builtinNote = document.createElement("div");
     builtinNote.style.cssText = "font-size:12px;color:#cbd5e1;line-height:1.45;";
     builtinNote.textContent = "Advanced local GGUF settings. Context limit is the model's total input/output window; maximum output tokens is the most text one request may generate. Their combined use must fit the loaded model. Higher values can use much more RAM/VRAM and take longer.";
+    const gemmaLocalPanel = document.createElement("div");
+    gemmaLocalPanel.style.cssText = "display:flex;flex-direction:column;gap:10px;";
+    gemmaLocalPanel.append(
+      makeField("Gemma Local model in models/LLM", gemmaLocalSelect),
+      gemmaLocalRow,
+    );
+    const qwenLocalPanel = document.createElement("div");
+    qwenLocalPanel.style.cssText = "display:flex;flex-direction:column;gap:10px;";
+    qwenLocalPanel.append(
+      makeField("Qwen Local model in configured LLM folders", qwenModelSelect),
+      makeField("Qwen vision mmproj (optional)", qwenMmprojSelect),
+      qwenModelRow,
+    );
     const gpuNote = document.createElement("div");
     gpuNote.style.cssText = "font-size:12px;color:#94a3b8;line-height:1.4;";
-    gpuNote.textContent = "Lower GPU layers if Gemma Local runs out of VRAM; try 12 for 10GB cards. Higher values use more VRAM and may run faster.";
     builtinPanel.append(
       builtinNote,
+      gemmaLocalPanel,
+      qwenLocalPanel,
       makeField("Context limit / n_ctx", gemmaContextLimit),
       makeField("Maximum output tokens", gemmaOutputTokenLimit),
       gpuNote,
       makeField("GPU layers / n_gpu_layers", gemmaGpuLayers),
     );
+    qwenModelRow.append(makeField("Qwen GGUF path (optional external file)", qwenModelPath), chooseQwenModel);
+    gemmaLocalRow.append(makeField("Gemma GGUF path (optional external file)", gemmaLocalPath), chooseGemmaModel);
+    gemmaLocalSelect.onchange = () => {
+      gemmaLocalPath.value = gemmaLocalSelect.value || "";
+      state.gemmaModelFile = gemmaLocalPath.value;
+      syncBuilderLlmModelSelectsFromRunner();
+    };
+    gemmaLocalPath.oninput = () => {
+      state.gemmaModelFile = gemmaLocalPath.value || "";
+      syncBuilderLlmModelSelectsFromRunner();
+    };
+    chooseGemmaModel.onclick = async () => {
+      try {
+        const data = await postJson("/vrgdg/music_builder/pick_path", { kind: "gguf" });
+        if (data.path) {
+          gemmaLocalPath.value = data.path;
+          state.gemmaModelFile = data.path;
+          syncBuilderLlmModelSelectsFromRunner();
+        }
+      } catch (error) { toast(String(error?.message || error), true); }
+    };
+    qwenModelSelect.onchange = () => {
+      qwenModelPath.value = qwenModelSelect.value || "";
+      state.qwenModelFile = qwenModelPath.value;
+      syncBuilderLlmModelSelectsFromRunner();
+    };
+    qwenModelPath.oninput = () => {
+      state.qwenModelFile = qwenModelPath.value || "";
+      syncBuilderLlmModelSelectsFromRunner();
+    };
+    qwenMmprojSelect.onchange = () => {
+      state.qwenMmprojFile = qwenMmprojSelect.value || "";
+      syncBuilderLlmModelSelectsFromRunner();
+    };
+    chooseQwenModel.onclick = async () => {
+      try {
+        const data = await postJson("/vrgdg/music_builder/pick_path", { kind: "gguf" });
+        if (data.path) {
+          qwenModelPath.value = data.path;
+          state.qwenModelFile = data.path;
+          syncBuilderLlmModelSelectsFromRunner();
+        }
+      } catch (error) { toast(String(error?.message || error), true); }
+    };
+    getJson("/vrgdg/music_builder/gemma_choices").then((data) => {
+      const gemmaModels = Array.isArray(data.models) ? data.models.filter((item) => item && !/^\[No Gemma/i.test(item)) : [];
+      gemmaLocalSelect.innerHTML = "";
+      gemmaModels.forEach((item) => { const option = document.createElement("option"); option.value = item; option.textContent = item; gemmaLocalSelect.append(option); });
+      if (state.gemmaModelFile && gemmaModels.includes(state.gemmaModelFile)) gemmaLocalSelect.value = state.gemmaModelFile;
+      else if (gemmaModels.length && !state.gemmaModelFile) { gemmaLocalSelect.value = gemmaModels[0]; gemmaLocalPath.value = gemmaModels[0]; state.gemmaModelFile = gemmaModels[0]; }
+      const models = Array.isArray(data.qwen_models) ? data.qwen_models.filter((item) => item && !/^\[No Qwen/i.test(item)) : [];
+      const mmproj = Array.isArray(data.qwen_mmproj) ? data.qwen_mmproj.filter((item) => item && !/^\[No Qwen/i.test(item)) : [];
+      qwenModelSelect.innerHTML = "";
+      models.forEach((item) => { const option = document.createElement("option"); option.value = item; option.textContent = item; qwenModelSelect.append(option); });
+      if (!models.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No Qwen GGUF found — choose a GGUF file below";
+        qwenModelSelect.append(option);
+      }
+      if (state.qwenModelFile && models.includes(state.qwenModelFile)) qwenModelSelect.value = state.qwenModelFile;
+      else if (models.length && !state.qwenModelFile) { qwenModelSelect.value = models[0]; qwenModelPath.value = models[0]; state.qwenModelFile = models[0]; }
+      qwenMmprojSelect.innerHTML = "";
+      mmproj.forEach((item) => { const option = document.createElement("option"); option.value = item; option.textContent = item; qwenMmprojSelect.append(option); });
+      if (!mmproj.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No mmproj found (text-only Qwen is still supported)";
+        qwenMmprojSelect.append(option);
+      }
+      if (state.qwenMmprojFile && mmproj.includes(state.qwenMmprojFile)) qwenMmprojSelect.value = state.qwenMmprojFile;
+      else if (mmproj.length === 1) { qwenMmprojSelect.value = mmproj[0]; state.qwenMmprojFile = mmproj[0]; }
+      syncBuilderLlmModelSelectsFromRunner();
+    }).catch(() => null);
     const baseUrl = makeInput(state.lmStudioBaseUrl || "http://127.0.0.1:1234/v1");
     const model = makeInput(state.lmStudioModel || "");
     const modelSelect = makeSelect([""], "");
@@ -51439,7 +51855,13 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       state.gemmaGpuLayers = normalizeGemmaGpuLayers(gemmaGpuLayers.value);
       state.lmStudioContextLimit = normalizeLmStudioContextLimit(lmStudioContextLimit.value);
       state.lmStudioOutputTokenLimit = normalizeOutputTokenLimit(lmStudioOutputTokenLimit.value);
-      builtinPanel.style.display = runner.value === "builtin" ? "flex" : "none";
+      syncBuilderLlmModelSelectsFromRunner();
+      builtinPanel.style.display = ["builtin", "qwen_local"].includes(runner.value) ? "flex" : "none";
+      gemmaLocalPanel.style.display = runner.value === "builtin" ? "flex" : "none";
+      qwenLocalPanel.style.display = runner.value === "qwen_local" ? "flex" : "none";
+      gpuNote.textContent = runner.value === "qwen_local"
+        ? "Lower GPU layers if Qwen Local runs out of VRAM. Higher values use more VRAM and may run faster."
+        : "Lower GPU layers if Gemma Local runs out of VRAM; try 12 for 10GB cards. Higher values use more VRAM and may run faster.";
       lmPanel.style.display = runner.value === "lm_studio" ? "flex" : "none";
       apiPanel.style.display = runner.value === "llm_api" ? "flex" : "none";
       ownPanel.style.display = runner.value === "own_server" ? "flex" : "none";
@@ -51501,13 +51923,16 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       state.ownServerApiKey = runner.value === "own_server" ? ownApiKey.value || "" : state.ownServerApiKey || "";
       state.ownServerOutputTokenLimit = normalizeOutputTokenLimit(ownOutputTokenLimit.value);
       state.ownServerTimeoutMinutes = normalizeOwnServerTimeoutMinutes(ownTimeoutMinutes.value);
+      syncBuilderLlmModelSelectsFromRunner();
       await autoSaveSessionQuiet("LLM runner settings");
       toast(state.textGemmaRunner === "llm_api"
         ? "LLM API settings saved for this session. API key was not saved with the project."
         : state.textGemmaRunner === "own_server"
-          ? "Own server settings saved for this session. API key was not saved with the project unless you use Save API Key to Project."
+          ? "Custom Server settings saved for this session. API key was not saved with the project unless you use Save API Key to Project."
           : state.textGemmaRunner === "lm_studio"
           ? "Text LLM runner set to LM Studio."
+          : state.textGemmaRunner === "qwen_local"
+          ? "Text LLM runner set to Qwen Local."
           : "Text LLM runner set to Gemma Local.");
       updatePromptRunnerButtonLabels();
       backdrop.remove();
@@ -51597,13 +52022,13 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         ].join("\n");
         ownStatus.textContent = `Test passed: ${data.used_model || modelId}`;
         ownStatus.style.color = "#67e8f9";
-        toast("Own server test passed.");
+        toast("Custom Server test passed.");
       } catch (error) {
         const message = String(error?.message || error);
         ownTestOutput.value = `Status: failed\nURL: ${url}\nModel: ${modelId || "(missing)"}\n\n${message}`;
         ownStatus.textContent = `Test failed: ${message}`;
         ownStatus.style.color = "#fca5a5";
-        toast(`Own server test failed: ${message}`, true);
+        toast(`Custom Server test failed: ${message}`, true);
       } finally {
         testOwn.disabled = false;
         testOwn.textContent = "Test own server";
@@ -51623,7 +52048,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         state.ownServerTimeoutMinutes = normalizeOwnServerTimeoutMinutes(ownTimeoutMinutes.value);
         await saveSession({ quiet: true, throwOnError: true });
         toast(key
-          ? "Own server API key saved to this project. Shareable exports will warn you before including it."
+          ? "Custom Server API key saved to this project. Shareable exports will warn you before including it."
           : "Cleared the project-saved own server API key. Requests will continue without a key.");
       } catch (error) {
         toast(`Could not save the project API key: ${String(error?.message || error)}`, true);
@@ -52929,10 +53354,10 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       }
       if (state.textGemmaRunner === "own_server") {
         if (!String(state.ownServerUrl || "").trim()) {
-          throw new Error("Own server is selected, but no URL is set. Open LLM Runner, paste the server URL, then start Auto Build again.");
+          throw new Error("Custom Server is selected, but no URL is set. Open LLM Runner, paste the server URL, then start Auto Build again.");
         }
         if (!String(state.ownServerModel || "").trim()) {
-          throw new Error("Own server is selected, but no model name is set. Open LLM Runner, enter or load the served model, then start Auto Build again.");
+          throw new Error("Custom Server is selected, but no model name is set. Open LLM Runner, enter or load the served model, then start Auto Build again.");
         }
       }
     };
@@ -54005,7 +54430,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         },
       };
       const runnerName = promptRunnerActionName();
-      const runnerGenericName = runnerName === "Gemma" ? "Gemma" : "LLM";
+      const runnerGenericName = runnerName;
       const progress = createProgressWindow(`Storyboard ${runnerName} All (${miniMaxProject ? "MiniMax H3 project/locked modes" : videoModeDisplayLabel(videoMode, true)})`, { zIndex: 100012 });
       let created = 0;
       const failurePrefix = `storyboard:${videoMode}`;
@@ -55978,6 +56403,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     }
     syncMiniMaxLlmSelectsFromShared();
     syncKrea2TwoPassLlmSelectsFromShared();
+    syncBuilderLlmModelSelectsFromRunner();
   }
 
   function renderSearchableSuggestions(picker, onSelect = null, renderOptions = {}) {

@@ -28,6 +28,8 @@ Everything in this pack that touches **MiniMax‑H3** video prompting: how each 
    - [APNext H3 Claude Code Scenes Writer](#apnext-h3-claude-code-scenes-writer)
    - [APNext H3 Crossover Writer](#apnext-h3-crossover-writer)
    - [APNext H3 Music Video Writer](#apnext-h3-music-video-writer)
+   - [APNext H3 Music Video (Minimal)](#apnext-h3-music-video-minimal)
+   - [APNext H3 Presentation Writer](#apnext-h3-presentation-writer)
 5. [Cast and model](#cast-and-model)
    - [APNext H3 Characters](#apnext-h3-characters)
    - [APNext H3 LLM Backend](#apnext-h3-llm-backend-ollama--local--api)
@@ -36,6 +38,7 @@ Everything in this pack that touches **MiniMax‑H3** video prompting: how each 
    - [APNext H3 Scene Counter](#apnext-h3-scene-counter)
    - [APNext H3 Scenes Join](#apnext-h3-scenes-join)
    - [APNext H3 Scenes → Contex Loop Plan](#apnext-h3-scenes--contex-loop-plan)
+   - [APNext H3 Dailies Gate (print / punch up / cut)](#apnext-h3-dailies-gate-print--punch-up--cut)
    - [APNext H3 Resolution Planner (Crop Only)](#apnext-h3-resolution-planner-crop-only)
 7. [Viewing](#viewing)
    - [APNext H3 Prompt Preview](#apnext-h3-prompt-preview)
@@ -74,10 +77,10 @@ Every H3 node opens in a **short form** — the inputs you touch on every run (i
 
 | Node family | Default engine | Switch to another model |
 |---|---|---|
-| **Claude Code** writers (Writer, Reference Writer, Continue, Refiner, Scenes, Crossover, Music Video) | Claude Code CLI, your own login (`model` = `sonnet` / `opus` / `haiku` / `fable` / `default`) | Connect an **[H3 LLM Backend](#apnext-h3-llm-backend-ollama--local--api)** to the `llm` socket, **or** pick a discovered `ollama:` / `lmstudio:` / `local:` entry in the node's own `model` dropdown |
+| **Claude Code** writers (Writer, Reference Writer, Continue, Refiner, Scenes, Crossover, Music Video, Presentation) | Claude Code CLI, your own login (`model` = `sonnet` / `opus` / `haiku` / `fable` / `default`) | Pick **`codex`** in the `model` dropdown to write with the **OpenAI Codex CLI** instead (shown when installed — `npm i -g @openai/codex`, `codex login`; `codex:<model-id>` picks a specific model via an LLM Backend / `model_override`). Or connect an **[H3 LLM Backend](#apnext-h3-llm-backend-ollama--local--api)** to the `llm` socket, or pick a discovered `ollama:` / `lmstudio:` / `local:` entry in the dropdown |
 | Plain writers (Prompt Writer, Reference Prompt Writer) | `auto-detect` (first API key of Claude → GPT → Gemini → Grok → Groq, then Claude Code CLI, then a running local server) | `model` dropdown, `model_override` (`ollama:qwen3:8b`), `local_base_url` |
 
-The Claude Code block on every Claude Code node: `model`, `research` (web research before writing — CLI only), `director` (loads the H3 director skills from `data/h3/skills` with their reference libraries), `use_subscription` (hide the API key so the CLI bills your seat), `timeout_seconds`, `seed`, and optional `resume_session_id` / `working_dir`.
+The Claude Code block on every Claude Code node: `model`, `research` (web research before writing — agent CLIs only; on Codex it enables the web-search tool), `director` (loads the H3 director skills from `data/h3/skills` with their reference libraries — both CLIs read them from disk), `use_subscription` (hide the API key so the CLI bills your seat: `ANTHROPIC_API_KEY` for Claude Code, `OPENAI_API_KEY` for Codex), `timeout_seconds`, `seed`, and optional `resume_session_id` / `working_dir`. Sessions stick to their backend: Claude Code ids resume with Claude Code, `codex-` ids with Codex, `local-` ids with the same local model — feeding one to the wrong backend gives a clear error.
 
 When a node runs **off‑CLI** (Ollama etc.): `research` is ignored; the director skills are pasted into the system prompt (turn on the backend's `inline_skill_references` to paste the whole reference library too — much better prompts, needs a large context window: raise Ollama's `num_ctx`); `session_id` still works through a text‑only local session kept under ComfyUI's temp folder. A Claude Code session id cannot be resumed with a local model and vice versa — the error says so.
 
@@ -97,7 +100,7 @@ A read‑only **`{vars}`** strip under each writer lists what is currently avail
 
 ### Wardrobe and location locks
 
-Multi‑scene writers (Scenes, Crossover, Music Video) fix continuity mechanically:
+Multi‑scene writers (Scenes, Crossover, Music Video, Presentation) fix continuity mechanically:
 
 - **Wardrobe lock** — one line per character, `Name: anchor, anchor, anchor` (exact colour + material + garment, accessories with their side). The writer copies the anchors word‑for‑word into *every shot* the character is on screen in. Empty = the model fixes an outfit per character in the synopsis’s `Wardrobe:` lines itself. A wardrobe typed on an **H3 Characters** node travels with its cast line and is merged in automatically (writer‑typed lines win for the same name).
 - **Location lock** — one line per recurring place, `Name: anchor, anchor …` (fixed features with colour/material and LEFT/RIGHT position, openings, surfaces, practical light). Restated in the first shot of every scene set there, so the room looks the same in every scene. Empty = the model locks every place used in more than one scene in the synopsis’s `Locations:` lines.
@@ -111,7 +114,7 @@ Multi‑scene writers (Scenes, Crossover, Music Video) fix continuity mechanical
 
 - `image` (single writers): the keyframe(s) the video model actually gets — I2VA first frame, L2VA last frame, FL2VA both; handed back out as `first_frame` / `last_frame`.
 - `subject_1..3`, `scenery_1..3`, `object_1..3` (Claude Code Writer / Scenes Writer): **typed references** the model describes in words; the video model never sees them.
-- `image_1..9` (Reference writers, Crossover, Music Video): `<Picture 1>..<Picture N>` in connection order; downscaled copies go to the model, the originals come back out on the matching `image_N` outputs — wire those to the same slots on *MiniMax H3 Reference to Video*. `image_notes` (`Image 1: the singer`) tells the model what each picture is.
+- `image_1..9` (Reference writers, Crossover, Music Video, Presentation): `<Picture 1>..<Picture N>` in connection order; downscaled copies go to the model, the originals come back out on the matching `image_N` outputs — wire those to the same slots on *MiniMax H3 Reference to Video*. `image_notes` (`Image 1: the singer`) tells the model what each picture is.
 
 ### Sessions
 
@@ -189,7 +192,7 @@ A **cast** (from H3 Characters nodes on `cast_1..4`, or typed in `extra_cast`) +
 - Outputs `scenes` **(list)**, `durations` **(list)**, `scenes_text`, `synopsis`, `cast` (merged), `scene_count`, `session_id`, `info`, `image_1..9`.
 
 ### APNext H3 Music Video Writer
-`H3ClaudeCodeMusicVideoWriter` · Claude Code / `llm` · workflow: [`h3_music_video.json`](examples/h3/h3_music_video.json)
+`H3ClaudeCodeMusicVideoWriter` · Claude Code / `llm` · workflows: [`h3_music_video.json`](examples/h3/h3_music_video.json), [`h3_music_video_masked_audio.json`](examples/h3/h3_music_video_masked_audio.json), [`h3_music_video_masked_audio_briefs.json`](examples/h3/h3_music_video_masked_audio_briefs.json) (masked latent + Scene Briefs)
 
 Turns a **song** into a whole music video:
 
@@ -198,6 +201,31 @@ Turns a **song** into a whole music video:
 3. Emits matching **lists**: `scenes` → the video node’s `prompt`; `lengths` (frame counts) → `length`; `audio_segments` → `ref_audio_1`; `durations`; plus `segment_table` (`01  0:00.00 – 0:15.08  (15.08s, 362 frames)  energy: peak  lyrics: …`), `scenes_text`, `synopsis`, `cast`, `scene_count`, `song_seconds`, `session_id`, `info`, `image_1..9`.
 
 Inputs: `audio` (Load Audio), `direction` (the concept), `lyrics` (`[0:15] line`, `0:15 line` or LRC `[00:15.20] line` for exact sync; `[Chorus]` tags kept; untimed lines spread evenly; empty = instrumental), `dialogue_language` (lyric language), cast (`cast_1..4` / `extra_cast` — an H3 Characters node in ✏️ custom mode with a `wardrobe` is made for the performer), locks, images, the Claude Code block, `llm`. Finish with **Scenes Join** (`replace_audio` = the song) → Create Video → Save Video. Code: `nodes/h3/claude_code_music_video_writer.py`, `nodes/h3/music_support.py`.
+
+### APNext H3 Music Video (Minimal)
+`H3MusicVideoMinimal` · Claude Code / Codex / `llm` · workflow: [`h3_music_video_minimal.json`](examples/h3/h3_music_video_minimal.json)
+
+The one‑box music video: **song + lyrics + a cinematic look + three sliders — go.** The full [Music Video Writer](#apnext-h3-music-video-writer) runs underneath with opinionated defaults: the model invents the concept and the performer, the song is cut **on the music** (Auto segmentation), the imagery of every scene is staged from its lyric lines, dialogue language matches the lyrics, and the director skills are on.
+
+- `visual_style` — the curated cinematic looks (35mm, Wes Anderson, neon noir, …); *Auto* lets the model pick one for the song.
+- `performance` slider — 0–33 Narrative (nobody sings on camera), 34–66 Mixed, 67–100 Performance (lip‑synced on camera).
+- `pace` slider — 0 = long slow pieces (~15 s), 100 = quick cuts (~6 s); cuts still land on the music.
+- `wildness` slider — 0 grounded → 100 fully surreal (same bands as the full writer).
+- `model` + `llm` socket — Claude Code aliases, `codex`, or any local/API model; `seed`; `image_1..9` reference pictures fix the performer's face and pass through to the video node.
+
+Outputs the rendering essentials: `scenes` / `durations` / `lengths` / `audio_segments` **(lists)**, `scenes_text`, `session_id`, `info`, `image_1..9`, `clip_starts`. Runs save to `output/apnext_scenes/` like the full writer. Reach for the full writer when you need a written concept, cast lines, wardrobe/location locks, scene briefs, or the masked‑audio path. Code: `nodes/h3/music_video_minimal.py`.
+
+### APNext H3 Presentation Writer
+`H3ClaudeCodePresentationWriter` · Claude Code / `llm` · workflow: [`h3_presentation.json`](examples/h3/h3_presentation.json)
+
+Turns **source material** — scientific findings, benchmark numbers, a paper abstract, a changelog, code, release notes — into a **presented video**: a presenter walks through the material to camera, scene by scene, with charts and graphics that display the real values. No audio input; the spoken script, the visual aids and the pacing are all generated.
+
+1. **Facts are sacred**: `source_material` is the ground truth. Every number, unit, date, name and claim spoken or shown on screen must come **verbatim** from it — nothing invented, rounded or “improved”; where the material gives no number the presenter speaks qualitatively instead.
+2. **Plans the talk in the synopsis**: an `Outline:` line per scene (`NN: the point covered + its visual aid`) covering all the material’s key points in teaching order — scene 01 hooks and names the topic, each middle scene covers one point, the last scene lands the takeaway. Long talks are written in chunks (`scenes_per_call`) continuing one session, with a talk‑so‑far recap.
+3. **Stages the graphics as objects in the scene** per `presentation_format` (keynote stage + LED screen, whiteboard drawn by hand, news studio insets, lab demo, boardroom pitch, documentary, tech screencast — *Auto* picks one): chart type named, title and axis labels in verbatim double quotes, 2–5 labeled values from the material, and the visual relationship stated (which bar is taller, where the line rises) so the picture reads even where small text renders imperfectly. `visual_aids` sets how often (*Auto* / every scene / key data moments / none).
+4. **Paces the script to the clock** (~2.3 words per second; in *Vary* duration mode a heavier point gets a longer scene, never a faster read) and emits the same matching **lists** as the other multi‑scene writers: `scenes` → the video node’s `prompt`, `lengths` (frame counts, snapped to H3’s grid) → `length`, `durations`; plus `scenes_text`, `synopsis`, `script` (teleprompter view of every spoken `<d>` line per scene), `cast`, `scene_count`, `total_seconds`, `session_id`, `info`, `image_1..9`.
+
+Inputs: `source_material` (the ground truth), `direction` (who presents, where, the tone), `presentation_format`, `scene_count` (1–24), `duration_mode` / `scene_duration`, `visual_aids`, `continuity_mode`, cast (`cast_1..4` / `extra_cast`; empty = the model invents a presenter), locks + `enforce_wardrobe`, `image_1..9` reference pictures (`image_notes`), scene briefs, the Claude Code block, `llm`, `save_scenes` (JSON bundle for **Scenes Load**). `wildness` here is a pure scale (0 = sober, 100 = totally unhinged staging): only the level and its band label reach the model — no specific surreal elements are injected — and the facts, chart values and on‑screen text stay verbatim at every level. Finish with **Scenes Join** → Create Video → Save Video. Code: `nodes/h3/claude_code_presentation_writer.py`.
 
 ---
 
@@ -267,6 +295,19 @@ Re‑render a saved run **without any LLM call**. The Music Video Writer's `save
 
 The commit gate: nothing renders until the scene text has been through it. In **Review** mode (the default) a queue run fills the node's editor with the incoming `scenes` (or a single `h3_prompt`) and stops cleanly — the editor shows the same colour‑coded tags as the Prompt Preview but is fully editable, all scenes at once or one scene at a time (scope selector / ◀ ▶). Edit what you like, then queue again: the mode has flipped to **Continue** automatically, so the next run renders exactly the editor text. **▶ Continue** and **🎲 Recreate** buttons do it in one click — Recreate bumps the writer's seed and reviews a fresh draft. **Bypass** passes through untouched. A `source-fingerprint` line in the editor header ties the edits to the scenes they came from: change the cast, direction, lyrics or seed upstream and the next queue **re-reviews with the fresh scenes automatically** instead of rendering the stale editor text. Keep the `=== SCENE NN ===` markers and the scene count (the writer's `durations` / `audio_segments` stay aligned; a mismatch is padded/trimmed with a warning), and give the writer a **fixed seed** so Continue runs reuse its cached answer instead of paying for new scenes. Outputs `scenes`, `scene_count`.
 
+### APNext H3 Dailies Gate (print / punch up / cut)
+`H3ScenesReviewGate` · workflow: [`h3_music_video_dailies_gate.json`](examples/h3/h3_music_video_dailies_gate.json)
+
+The **live** sibling of Scenes Review, styled as a screening‑room "dailies desk": instead of stopping the queue, the run **holds open** at this node while the freshly written scenes wait in the browser, and it moves again the moment a button is pressed — no re‑queueing, no seed juggling. On the desk:
+
+- **▶ Print it** — render exactly what is on the desk, hand edits included (the editor is the same colour‑coded overlay as the Prompt Preview, viewable **all takes at once or one take at a time** — ◀ Take NN ▶).
+- **✍ Punch‑up** — type director's notes (and optionally which takes: `2, 4-5`; empty = the take being viewed, or all in the all‑takes view) and the selected scenes are rewritten **inside the writer's own model session** — synopsis, locks, lyrics, reference images still in context. Hand edits are folded in *first*, so "fix a line by hand, then have the model rebuild the scene around it" is one round trip. Works with Claude Code, Codex (`codex-`) and local‑model (`local-`) sessions; the gate auto‑switches its `model` to codex for a `codex-` session id.
+- **🎲 New take** — the same rewrite with the notes dropped: the model is asked for a noticeably different version of the selected takes. Roll as many as you like.
+- **↩ Undo** — every rewrite is kept in a server‑side history for the life of the gate, so a bad punch‑up rolls back instantly (and the history survives a browser reload).
+- **✋ Cut** — end the run cleanly, render nothing.
+
+Wire the writer's `scenes` in, plus `durations` (keeps rewritten takes on their exact lengths — matters for music videos) and `session_id` (what enables the AI rewrites; without it the desk is edit‑by‑hand only). `auto_approve_minutes` > 0 prints automatically with a **live countdown** in the header so unattended runs still render; `chime` plays a soft browser tone when takes land; ComfyUI's Stop button also releases the gate, and a browser reload re‑attaches to a waiting desk. Because the gate sits *before* the render, no video model weights are held while it waits. Choose this gate for hands‑on sessions; choose **Scenes Review** when you want the free stop‑edit‑requeue flow with the writer's cached seed. Outputs `scenes`, `scene_count`, `status`. Code: `nodes/h3/scenes_review_gate.py`, `web/js/h3_review_gate.js`.
+
 ### APNext H3 Resolution Planner (Crop Only)
 `H3ResolutionPlannerCropOnly` · by gabbo
 
@@ -316,6 +357,10 @@ All in `Settings → APNext` (and the *APNext* top‑menu / canvas right‑click
 | [`h3_llm_backend_crossover.json`](examples/h3/h3_llm_backend_crossover.json) | The crossover batch written by a local model through an **LLM Backend** (`ollama:qwen3:14b`). |
 | [`h3_music_video.json`](examples/h3/h3_music_video.json) | Load Audio → **Music Video Writer** (custom performer + wardrobe from a Characters node) → clips (`lengths` → `length`, `audio_segments` → `ref_audio_1`) → Scenes Join with `replace_audio` = the song → one music video. |
 | [`h3_music_video_masked_audio.json`](examples/h3/h3_music_video_masked_audio.json) | The strongest lip‑sync: writer in `audio_mode` = *Masked latent* → **AudioSeparation** vocal stem + `clip_starts` → **H3 Song Audio + Masked Video Context** (the song slice written into the H3 audio latent, protected from denoising) → sampler → Scenes Join with `replace_audio` = the full mix. The song is deliberately *not* wired to `ref_audio`. Needs ComfyUI‑H3‑Motion‑Context‑MultiRef + audio‑separation‑nodes. |
+| [`h3_music_video_masked_audio_briefs.json`](examples/h3/h3_music_video_masked_audio_briefs.json) | The masked‑latent music video **plus custom scenes**: three chained **H3 Scene Brief** nodes → the writer's `scene_briefs` — brief 1 pinned to scene 01, the rest filling in order, every unplanned piece still the model's to invent. |
+| [`h3_music_video_minimal.json`](examples/h3/h3_music_video_minimal.json) | **Music Video (Minimal)**: song + lyrics + a curated look + three sliders; a performer photo on `image_1` passes through to `ref_image_0`; Scenes Join with `replace_audio` = the song. |
+| [`h3_presentation.json`](examples/h3/h3_presentation.json) | **Presentation Writer**: source material (benchmark numbers) presented by a custom presenter on a keynote stage — `scenes` → prompt, `lengths` → length, generated voice, Scenes Join → one talk. |
+| [`h3_music_video_dailies_gate.json`](examples/h3/h3_music_video_dailies_gate.json) | The music video with the **Dailies Gate**: the run holds live in the browser — print (render with hand edits), punch up selected takes through the writer's own session with director's notes, or cut. |
 
 Every example has an **H3 Prompt Preview** wired to the writer’s prompt / scenes‑text output.
 
@@ -333,7 +378,12 @@ Every example has an **H3 Prompt Preview** wired to the writer’s prompt / scen
 | Scene envelope parsing | `nodes/h3/scenes_support.py` (`parse_scenes`, `envelope_contract`) |
 | Which model runs an H3 node / local sessions | `nodes/h3/claude_code_support.py`, `nodes/h3/llm_backend.py`, `utils/llm_router.py` |
 | Song segmentation / lyrics parsing | `nodes/h3/music_support.py` |
+| Music‑video plot / ending variety, cliché bans | `nodes/h3/claude_code_music_video_writer.py` → `PLOT_ARCHETYPES`, `ENDING_MOVES`, `_ANTI_CLICHE_DIRECTIVE`, `_WILD_FUN_DIRECTIVE` |
 | Template variables | `nodes/h3/template_vars.py`, `web/js/h3_template_vars.js` |
 | Preview rendering / colours | `web/js/h3_prompt_preview.js` |
 | Theme, wires, highlights, sparks, node colours | `web/js/apnext_theme.js` |
 | Autogrow sockets (`context_N`, `image_N`) | `web/js/apnext_context_inputs.js`, `web/js/h3_reference_images.js` |
+
+### TODO — watching upstream
+
+- **[ComfyUI PR #15789](https://github.com/Comfy-Org/ComfyUI/pull/15789)** (`--disable-subgraph-caching` + per‑node `"no_cache": true`, draft as of 2026‑08): compute‑and‑release for intermediate tensors. Our render chains are the target case — a full music video keeps per‑scene latents, decoded frames, the joined batch **and** the upscaled batch in the output cache after the run. When it merges: wrap the render section of the example workflows (conditioning → sampler → decode → join → upscale) in a subgraph, or set `no_cache` on those heavy nodes in the workflow generator — while **keeping the writers cached**: the Scenes Review stop‑edit‑requeue flow and fixed‑seed re‑runs rely on the writer's cached output to avoid paying for the LLM twice. (The Dailies Gate holds one run open and doesn't need the cache at all, so it pairs cleanly with aggressive no‑caching.)

@@ -27,6 +27,14 @@ def _detect_architecture(keys):
     if any('transformer_blocks' in k and any(x in k for x in ['img_mlp', 'txt_mlp', 'img_mod', 'txt_mod']) for k in keys_lower):
         return 'QWEN_IMAGE'
 
+    # Check for Krea 2 (28 main SingleStreamBlocks plus txtfusion/projection modules)
+    if 'lora_krea2' in keys_str or 'krea2' in keys_str or 'krea_2' in keys_str:
+        return 'KREA2'
+    if any(x in keys_str for x in ['txtfusion', 'txtmlp', 'tmlp', 'tproj']) and any(re.search(r'blocks[._]\d+', k) for k in keys_lower):
+        return 'KREA2'
+    if any(re.search(r'blocks[._]\d+[._].*(?:attn[._])?(?:wq|wk|wv|wo|gate)', k) for k in keys_lower):
+        return 'KREA2'
+
     # Check for Flux formats - must check BEFORE Z-Image since both have single_transformer_blocks
     # AI-Toolkit format: transformer.single_transformer_blocks / transformer.double_blocks
     if any('transformer.single_transformer_blocks' in k or 'transformer.double_blocks' in k for k in keys_lower):
@@ -92,6 +100,12 @@ def _extract_block_id(key: str, architecture: str) -> str:
 
     if architecture == 'QWEN_IMAGE':
         match = re.search(r'transformer_blocks[._](\d+)', key)
+        return f"block_{match.group(1)}" if match else 'other'
+
+    elif architecture == 'KREA2':
+        if any(part in key_lower for part in ['txtfusion', 'txtmlp', 'tmlp', 'tproj', 'first', 'last']):
+            return 'other'
+        match = re.search(r'blocks[._](\d+)', key_lower)
         return f"block_{match.group(1)}" if match else 'other'
 
     elif architecture == 'ZIMAGE':

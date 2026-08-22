@@ -307,6 +307,37 @@ const SELECTIVE_LOADER_PRESETS = {
             "Odds Only": { enabled: Array.from({length: 30}, (_, i) => `block_${i * 2 + 1}`), strength: 1.0 },
         }
     },
+    "Krea2SelectiveLoRALoader": {
+        blocks: [...Array.from({length: 28}, (_, i) => `block_${i}`), "other_weights"],
+        presets: {
+            "Default": { enabled: "ALL", strength: 1.0 },
+            "All Off": { enabled: [], strength: 0.0 },
+            "Half Strength": { enabled: "ALL", strength: 0.5 },
+            "Late Only (21-27)": { enabled: [...Array.from({length: 7}, (_, i) => `block_${i + 21}`), "other_weights"], strength: 1.0 },
+            "Mid-Late (14-27)": { enabled: [...Array.from({length: 14}, (_, i) => `block_${i + 14}`), "other_weights"], strength: 1.0 },
+            "Skip Early (7-27)": { enabled: [...Array.from({length: 21}, (_, i) => `block_${i + 7}`), "other_weights"], strength: 1.0 },
+            "Mid Only (9-18)": { enabled: Array.from({length: 10}, (_, i) => `block_${i + 9}`), strength: 1.0 },
+            "Early Only (0-8)": { enabled: Array.from({length: 9}, (_, i) => `block_${i}`), strength: 1.0 },
+            "Evens Only": { enabled: Array.from({length: 14}, (_, i) => `block_${i * 2}`), strength: 1.0 },
+            "Odds Only": { enabled: Array.from({length: 14}, (_, i) => `block_${i * 2 + 1}`), strength: 1.0 },
+        }
+    },
+    "MiniMaxH3SelectiveLoRALoader": {
+        blocks: [...Array.from({length: 50}, (_, i) => `block_${i}`), "other_weights"],
+        presets: {
+            "Default": { enabled: "ALL", strength: 1.0 },
+            "All Blocks": { enabled: "ALL", strength: 1.0 },
+            "All Off": { enabled: [], strength: 0.0 },
+            "Half Strength": { enabled: "ALL", strength: 0.5 },
+            "Late Only (38-49)": { enabled: [...Array.from({length: 12}, (_, i) => `block_${i + 38}`), "other_weights"], strength: 1.0 },
+            "Mid-Late (25-49)": { enabled: [...Array.from({length: 25}, (_, i) => `block_${i + 25}`), "other_weights"], strength: 1.0 },
+            "Skip Early (13-49)": { enabled: [...Array.from({length: 37}, (_, i) => `block_${i + 13}`), "other_weights"], strength: 1.0 },
+            "Mid Only (17-32)": { enabled: [...Array.from({length: 16}, (_, i) => `block_${i + 17}`)], strength: 1.0 },
+            "Early Only (0-16)": { enabled: [...Array.from({length: 17}, (_, i) => `block_${i}`)], strength: 1.0 },
+            "Evens Only": { enabled: Array.from({length: 25}, (_, i) => `block_${i * 2}`), strength: 1.0 },
+            "Odds Only": { enabled: Array.from({length: 25}, (_, i) => `block_${i * 2 + 1}`), strength: 1.0 },
+        }
+    },
     // V2 Combined Analyzer + Selective Loaders
     "ZImageAnalyzerSelectiveLoaderV2": {
         blocks: [...Array.from({length: 30}, (_, i) => `layer_${i}`), "context_refiner", "noise_refiner", "final_layer", "x_embedder", "other_weights"],
@@ -397,6 +428,36 @@ const SELECTIVE_LOADER_PRESETS = {
             "Early Only (0-29)": { enabled: Array.from({length: 30}, (_, i) => `block_${i}`), strength: 1.0 },
             "Evens Only": { enabled: Array.from({length: 30}, (_, i) => `block_${i * 2}`), strength: 1.0 },
             "Odds Only": { enabled: Array.from({length: 30}, (_, i) => `block_${i * 2 + 1}`), strength: 1.0 },
+        }
+    },
+    "Krea2AnalyzerSelectiveLoaderV2": {
+        blocks: [...Array.from({length: 28}, (_, i) => `block_${i}`), "other_weights"],
+        presets: {
+            "Default": { enabled: "ALL", strength: 1.0 },
+            "All Off": { enabled: [], strength: 0.0 },
+            "Half Strength": { enabled: "ALL", strength: 0.5 },
+            "Late Only (21-27)": { enabled: [...Array.from({length: 7}, (_, i) => `block_${i + 21}`), "other_weights"], strength: 1.0 },
+            "Mid-Late (14-27)": { enabled: [...Array.from({length: 14}, (_, i) => `block_${i + 14}`), "other_weights"], strength: 1.0 },
+            "Skip Early (7-27)": { enabled: [...Array.from({length: 21}, (_, i) => `block_${i + 7}`), "other_weights"], strength: 1.0 },
+            "Mid Only (9-18)": { enabled: Array.from({length: 10}, (_, i) => `block_${i + 9}`), strength: 1.0 },
+            "Early Only (0-8)": { enabled: Array.from({length: 9}, (_, i) => `block_${i}`), strength: 1.0 },
+            "Evens Only": { enabled: Array.from({length: 14}, (_, i) => `block_${i * 2}`), strength: 1.0 },
+            "Odds Only": { enabled: Array.from({length: 14}, (_, i) => `block_${i * 2 + 1}`), strength: 1.0 },
+        }
+    },
+    "MiniMaxH3AnalyzerSelectiveLoaderV2": {
+        blocks: [...Array.from({length: 50}, (_, i) => `block_${i}`), "other_weights"],
+        presets: {
+            "Default": { enabled: "ALL", strength: 1.0 },
+            "All Off": { enabled: [], strength: 0.0 },
+            "Half Strength": { enabled: "ALL", strength: 0.5 },
+            "Late Only (38-49)": { enabled: [...Array.from({length: 12}, (_, i) => `block_${i + 38}`), "other_weights"], strength: 1.0 },
+            "Mid-Late (25-49)": { enabled: [...Array.from({length: 25}, (_, i) => `block_${i + 25}`), "other_weights"], strength: 1.0 },
+            "Skip Early (13-49)": { enabled: [...Array.from({length: 37}, (_, i) => `block_${i + 13}`), "other_weights"], strength: 1.0 },
+            "Mid Only (17-32)": { enabled: [...Array.from({length: 16}, (_, i) => `block_${i + 17}`)], strength: 1.0 },
+            "Early Only (0-16)": { enabled: [...Array.from({length: 17}, (_, i) => `block_${i}`)], strength: 1.0 },
+            "Evens Only": { enabled: Array.from({length: 25}, (_, i) => `block_${i * 2}`), strength: 1.0 },
+            "Odds Only": { enabled: Array.from({length: 25}, (_, i) => `block_${i * 2 + 1}`), strength: 1.0 },
         }
     },
     // FLUX Klein 4B (5 double + 20 single blocks)
@@ -516,12 +577,16 @@ app.registerExtension({
             "FLUXSelectiveLoRALoader",
             "WanSelectiveLoRALoader",
             "QwenSelectiveLoRALoader",
+            "Krea2SelectiveLoRALoader",
+            "MiniMaxH3SelectiveLoRALoader",
             // V2 Combined Analyzer + Selective Loaders
             "ZImageAnalyzerSelectiveLoaderV2",
             "SDXLAnalyzerSelectiveLoaderV2",
             "FLUXAnalyzerSelectiveLoaderV2",
             "WanAnalyzerSelectiveLoaderV2",
             "QwenAnalyzerSelectiveLoaderV2",
+            "Krea2AnalyzerSelectiveLoaderV2",
+            "MiniMaxH3AnalyzerSelectiveLoaderV2",
             "FluxKlein4BAnalyzerSelectiveLoaderV2",
             "FluxKlein9BAnalyzerSelectiveLoaderV2",
             // Model Layer Editor nodes (base model per-block control)
@@ -556,6 +621,13 @@ app.registerExtension({
                 node.combineBlockWidgets();
                 node.addPresetWidget(nodeData.name);
                 node.setupSchedulePresetWidget();
+                node.setupBidirectionalSync(nodeData.name);
+
+                setTimeout(() => {
+                    if (node.updateStringFromUI) {
+                        node.updateStringFromUI();
+                    }
+                }, 150);
 
                 // Double the default width for better slider usability
                 const minWidth = 500;
@@ -645,8 +717,21 @@ app.registerExtension({
                     }
                 }
 
+                if (node.updateStringFromUI) {
+                    node.updateStringFromUI();
+                }
+
                 node.setDirtyCanvas(true);
             }, 150); // Longer delay to ensure ComfyUI finishes deserializing first
+        };
+
+        const origOnMouseUp = nodeType.prototype.onMouseUp;
+        nodeType.prototype.onMouseUp = function(e, localPos, graphCanvas) {
+            const result = origOnMouseUp ? origOnMouseUp.apply(this, arguments) : false;
+            if (this.updateStringFromUI) {
+                this.updateStringFromUI();
+            }
+            return result;
         };
 
         // Hook onExecuted to store analysis data and sync user presets
@@ -759,6 +844,10 @@ app.registerExtension({
 
             // Combined draw function for toggle widget (strength widget will be hidden)
             toggle.draw = function(ctx, node, widgetWidth, y, widgetHeight) {
+                // Store draw position for precise slider hit detection.
+                toggle._lastDrawY = y;
+                toggle._lastDrawHeight = widgetHeight;
+
                 const margin = 10;
                 const checkboxSize = 14;
                 const labelWidth = 95; // Fixed label width
@@ -883,9 +972,11 @@ app.registerExtension({
                 labelWidth: 95,
                 valueWidth: 38,
                 gap: 6,
-                min: -2.0,
-                max: 2.0,
-                step: 0.05,  // Hardcoded - ComfyUI widget options not reliably accessible
+                min: strength.options?.min ?? -2.0,
+                max: strength.options?.max ?? 2.0,
+                // ComfyUI can expose stale widget metadata here; block values
+                // are declared in 0.05 increments across the selective loaders.
+                step: 0.05,
                 getLayout: function(widgetWidth) {
                     const sliderWidth = widgetWidth - this.margin - this.checkboxSize - this.gap - this.labelWidth - this.gap - this.valueWidth - this.margin - this.gap;
                     const checkboxX = this.margin;
@@ -896,25 +987,74 @@ app.registerExtension({
                 }
             };
 
-            // Mouse handling for slider - let default toggle behavior work for other clicks
+            // Mouse handling for slider with precise Y-axis hit detection and click-to-jump.
             const originalMouse = toggle.mouse?.bind(toggle);
             toggle.mouse = function(event, pos, node) {
                 const widgetWidth = node.size[0];
                 const info = toggle.sliderInfo;
                 const layout = info.getLayout(widgetWidth);
                 const localX = pos[0];
+                const absoluteY = pos[1];
 
-                // Slider interaction - intercept drag on slider area
-                if (localX >= layout.sliderX - 5 && localX <= layout.sliderX + layout.sliderWidth + 5) {
-                    if (event.type === "pointerdown" || event.type === "pointermove") {
-                        let normalized = (localX - layout.sliderX) / layout.sliderWidth;
-                        normalized = Math.max(0, Math.min(1, normalized));
-                        let newStrength = info.min + normalized * (info.max - info.min);
-                        // Snap to step
-                        newStrength = Math.round(newStrength / info.step) * info.step;
-                        newStrength = Math.max(info.min, Math.min(info.max, newStrength));
-                        strength.value = newStrength;
-                        node.setDirtyCanvas(true);
+                if (toggle._lastDrawY === undefined || toggle._lastDrawHeight === undefined) {
+                    return originalMouse ? originalMouse(event, pos, node) : false;
+                }
+
+                const widgetY = toggle._lastDrawY;
+                const widgetHeight = toggle._lastDrawHeight;
+                const localY = absoluteY - widgetY;
+                const trackCenterY = widgetHeight / 2;
+                const verticalTolerance = 4;
+
+                const inSliderX = localX >= layout.sliderX && localX <= layout.sliderX + layout.sliderWidth;
+                const inSliderY = Math.abs(localY - trackCenterY) <= verticalTolerance;
+
+                const setStrengthFromX = () => {
+                    let normalized = (localX - layout.sliderX) / layout.sliderWidth;
+                    normalized = Math.max(0, Math.min(1, normalized));
+                    let newStrength = info.min + normalized * (info.max - info.min);
+                    newStrength = Math.round(newStrength / info.step) * info.step;
+                    newStrength = Math.max(info.min, Math.min(info.max, newStrength));
+                    strength.value = newStrength;
+                    node.setDirtyCanvas(true);
+                };
+
+                if (event.type === "pointermove") {
+                    if (toggle._wasDragging || (inSliderX && inSliderY)) {
+                        toggle._wasDragging = true;
+                        setStrengthFromX();
+                        return true;
+                    }
+                }
+
+                if (inSliderX && inSliderY && event.type === "pointerup") {
+                    if (!toggle._wasDragging) {
+                        let strengthVal = parseFloat(strength.value);
+                        if (isNaN(strengthVal)) strengthVal = 1.0;
+
+                        const range = info.max - info.min;
+                        const normalizedStrength = (strengthVal - info.min) / range;
+                        const handleX = layout.sliderX + normalizedStrength * layout.sliderWidth;
+                        const handleRadius = 6;
+                        const distanceToHandle = Math.abs(localX - handleX);
+
+                        if (distanceToHandle > handleRadius) {
+                            // LiteGraph may already toggle on track click; undo that and jump the slider.
+                            toggle.value = !toggle.value;
+                            setStrengthFromX();
+                        }
+                    }
+                    toggle._wasDragging = false;
+                    return true;
+                }
+
+                if (event.type === "pointerup") {
+                    toggle._wasDragging = false;
+                }
+
+                if (localX >= layout.sliderX - 5 && localX <= layout.sliderX + layout.sliderWidth + 5 && inSliderY) {
+                    if (event.type === "pointerdown") {
+                        setStrengthFromX();
                         return true;
                     }
                 }
@@ -1309,7 +1449,127 @@ app.registerExtension({
                 }
             }
 
+            if (this.updateStringFromUI) {
+                this.updateStringFromUI();
+            }
+
             this.setDirtyCanvas(true);
+        };
+
+        nodeType.prototype.setupBidirectionalSync = function(nodeName) {
+            const node = this;
+            const config = SELECTIVE_LOADER_PRESETS[nodeName];
+            if (!config) return;
+
+            const stringWidget = node.widgets.find(w => w.name === "block_weights_string");
+            if (!stringWidget) return;
+
+            node._lastStringValue = stringWidget.value || "";
+
+            node.parseStringToUI = function() {
+                const widget = node.widgets.find(w => w.name === "block_weights_string");
+                if (!widget || !widget.value?.trim() || widget._updating) return;
+
+                const input = widget.value.trim();
+                if (input.startsWith("%")) {
+                    return;
+                }
+
+                const values = input.split(",").map(v => parseFloat(v.trim())).filter(v => !Number.isNaN(v));
+                if (values.length !== config.blocks.length) {
+                    return;
+                }
+
+                for (let i = 0; i < config.blocks.length; i++) {
+                    const blockName = config.blocks[i];
+                    const toggleWidget = node.widgets.find(w => w.name === blockName);
+                    const strWidget = node.widgets.find(w => w.name === `${blockName}_str`);
+                    if (!toggleWidget || !strWidget) continue;
+
+                    const value = values[i];
+                    toggleWidget.value = value !== 0;
+                    strWidget.value = value !== 0 ? value : 1.0;
+                }
+
+                node.setDirtyCanvas(true);
+            };
+
+            node.updateStringFromUI = function() {
+                const widget = node.widgets.find(w => w.name === "block_weights_string");
+                if (!widget || widget._updating) return;
+
+                const values = config.blocks.map((blockName) => {
+                    const toggleWidget = node.widgets.find(w => w.name === blockName);
+                    const strWidget = node.widgets.find(w => w.name === `${blockName}_str`);
+                    if (!toggleWidget || !strWidget) {
+                        return "1.00";
+                    }
+                    return toggleWidget.value ? Number(strWidget.value).toFixed(2) : "0.00";
+                });
+
+                widget._updating = true;
+                widget.value = values.join(", ");
+                widget._updating = false;
+                node._lastStringValue = widget.value;
+            };
+
+            node.checkAndSyncTextChanges = function() {
+                const widget = node.widgets.find(w => w.name === "block_weights_string");
+                if (!widget || widget._updating) return;
+                if (widget.value !== node._lastStringValue) {
+                    node._lastStringValue = widget.value;
+                    node.parseStringToUI();
+                }
+            };
+
+            const origOnMouseDown = node.onMouseDown;
+            node.onMouseDown = function(e, pos, canvas) {
+                node.checkAndSyncTextChanges();
+                if (origOnMouseDown) {
+                    return origOnMouseDown.apply(this, arguments);
+                }
+            };
+
+            if (stringWidget.inputEl) {
+                stringWidget.inputEl.addEventListener("blur", () => {
+                    node.checkAndSyncTextChanges();
+                });
+                stringWidget.inputEl.addEventListener("change", () => {
+                    node.checkAndSyncTextChanges();
+                });
+                stringWidget.inputEl.addEventListener("input", () => {
+                    node._lastStringValue = stringWidget.value;
+                    node.parseStringToUI();
+                });
+            }
+
+            setTimeout(() => {
+                for (const blockName of config.blocks) {
+                    const toggleWidget = node.widgets.find(w => w.name === blockName);
+                    const strWidget = node.widgets.find(w => w.name === `${blockName}_str`);
+                    if (!toggleWidget || !strWidget) continue;
+
+                    const origToggleCallback = toggleWidget.callback;
+                    toggleWidget.callback = function(value) {
+                        if (origToggleCallback) {
+                            origToggleCallback.call(this, value);
+                        }
+                        if (node.updateStringFromUI) {
+                            node.updateStringFromUI();
+                        }
+                    };
+
+                    const origStrCallback = strWidget.callback;
+                    strWidget.callback = function(value) {
+                        if (origStrCallback) {
+                            origStrCallback.call(this, value);
+                        }
+                        if (node.updateStringFromUI) {
+                            node.updateStringFromUI();
+                        }
+                    };
+                }
+            }, 200);
         };
     }
 });

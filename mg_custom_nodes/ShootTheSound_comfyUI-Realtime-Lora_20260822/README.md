@@ -3,7 +3,7 @@
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow.svg)](https://buymeacoffee.com/lorasandlenses)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Train**, **analyze**, **selectively load by block**, and **edit base models** for **SDXL, SD 1.5, FLUX, Z-Image, Qwen Image, Qwen Image Edit, and Wan 2.2** directly inside ComfyUI. One unified interface across three training backends, plus powerful analysis, block-level loading, strength scheduling, and model editing tools.
+**Train**, **analyze**, **selectively load by block**, and **edit base models** for **SDXL, SD 1.5, FLUX, Z-Image, Qwen Image, Qwen Image Edit, Wan 2.2, and Krea 2 LoRAs** directly inside ComfyUI. One unified interface across three training backends, plus powerful analysis, block-level loading, strength scheduling, and model editing tools.
 
 > **Version 2 Now Available:** Combined analyzer + selective loader nodes with strength scheduling and LoRA saving!
 >
@@ -17,10 +17,10 @@
 | **Musubi Tuner** | Z-Image, Z-Image Base, FLUX Klein 4B/9B, Qwen Image, Qwen Image Edit, Wan 2.2 | Cutting-edge models, smaller LoRAs, excellent VRAM efficiency |
 | **AI-Toolkit** | FLUX.1-dev, Z-Image, Wan 2.2 alternative training pipeline |
 
-**8 architectures. 3 training backends. 31 nodes total. **
+**8 training architectures plus Krea 2 LoRA block loading. 3 training backends. 33 nodes total. **
 
 - 10 trainer nodes
-- 13 selective loaders (5 V1 + 8 V2 combined)
+- 15 selective loaders (6 V1 + 9 V2 combined)
 - 2 analyzers (V1 + V2)
 - 6 model layer editors
 - 1 utility node
@@ -59,6 +59,7 @@ The V2 nodes combine analysis and selective loading into a single node, with pow
 - **Save Refined LoRA** - Export your block-filtered LoRA as a new file
 - **40+ Schedule Presets** - Fades, bell curves, pulses, step functions, and inverted versions
 - **Extra Z-Image Blocks** - Control context_refiner, noise_refiner, final_layer, x_embedder
+- **Krea 2 LoRA Block Loading** - Control 28 main SingleStreamBlocks, with non-main Krea 2 Linear layers grouped under `other_weights`
 - **LoKR/LoHa Support** - Proper handling of decomposed LoRA formats (common for Z-Image)
 
 ### Model Layer Editor Nodes
@@ -213,6 +214,8 @@ Search for these in ComfyUI:
 - **Selective LoRA Loader (FLUX)** - Load FLUX LoRAs with per-block toggles (57 blocks: 19 double + 38 single)
 - **Selective LoRA Loader (Wan)** - Load Wan LoRAs with per-block toggles (40 blocks)
 - **Selective LoRA Loader (Qwen)** - Load Qwen LoRAs with per-block toggles (60 blocks)
+- **Selective LoRA Loader (Krea 2)** - Load Krea 2 LoRAs with per-block toggles (28 main blocks)
+- **Selective LoRA Loader (MiniMax H3)** - Load MiniMax H3 LoRAs with per-block toggles (50 main DiT blocks)
 
 **V2 Combined Analyzer + Selective Loader (Recommended):**
 
@@ -223,6 +226,8 @@ These combine analysis and selective loading in one node, with strength scheduli
 - **FLUX Analyzer + Selective Loader V2** - 57 blocks with strength scheduling
 - **Wan Analyzer + Selective Loader V2** - 40 blocks with strength scheduling
 - **Qwen Analyzer + Selective Loader V2** - 60 blocks with strength scheduling
+- **Krea 2 Analyzer + Selective Loader V2** - 28 main blocks with strength scheduling
+- **MiniMax H3 Analyzer + Selective Loader V2** - 50 main DiT blocks with strength scheduling
 - **FLUX Klein 4B Analyzer + Selective Loader V2** - 25 blocks (5 double + 20 single) with strength scheduling
 - **FLUX Klein 9B Analyzer + Selective Loader V2** - 32 blocks (8 double + 24 single) with strength scheduling
 - **LoRA Loader + Analyzer V2** - Basic V2 analyzer without selective loading

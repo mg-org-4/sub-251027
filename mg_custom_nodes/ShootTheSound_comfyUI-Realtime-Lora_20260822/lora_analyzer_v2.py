@@ -395,6 +395,10 @@ def _detect_from_metadata(metadata: dict) -> str:
     # Check modelspec.architecture (newer LoRAs)
     arch = metadata.get('modelspec.architecture', '').lower()
 
+    if 'krea' in arch or 'krea2' in arch or 'k2' == arch:
+        return 'KREA2'
+    if 'minimax' in arch or 'h3' in arch:
+        return 'MINIMAX_H3'
     # Check for FLUX Klein variants first (before generic FLUX). Match loosely on
     # "klein" + size so the distilled and base variants both resolve, e.g.
     # flux-2-klein-9b AND flux-2-klein-base-9b.
@@ -411,6 +415,10 @@ def _detect_from_metadata(metadata: dict) -> str:
 
     # Check ss_base_model_version (Kohya format)
     base_model = metadata.get('ss_base_model_version', '').lower()
+    if 'krea' in base_model or 'krea2' in base_model:
+        return 'KREA2'
+    if 'minimax' in base_model or 'h3' in base_model:
+        return 'MINIMAX_H3'
     # Check Klein variants first (loose match catches *-klein-base-9b etc.)
     if 'klein' in base_model and '4b' in base_model:
         return 'FLUX_KLEIN_4B'
@@ -425,6 +433,10 @@ def _detect_from_metadata(metadata: dict) -> str:
 
     # Check ss_network_module (Kohya format)
     network_module = metadata.get('ss_network_module', '').lower()
+    if 'lora_krea2' in network_module or 'krea' in network_module:
+        return 'KREA2'
+    if 'minimax' in network_module or 'h3' in network_module:
+        return 'MINIMAX_H3'
     if 'flux' in network_module:
         return 'FLUX'
     if 'zimage' in network_module or 'z_image' in network_module:
@@ -436,6 +448,10 @@ def _detect_from_metadata(metadata: dict) -> str:
 
     # Check ss_sd_model_name for hints
     model_name = metadata.get('ss_sd_model_name', '').lower()
+    if 'krea' in model_name or 'krea2' in model_name:
+        return 'KREA2'
+    if 'minimax' in model_name or 'h3' in model_name:
+        return 'MINIMAX_H3'
     if 'flux' in model_name:
         return 'FLUX'
     if 'sdxl' in model_name or 'xl' in model_name:
@@ -454,12 +470,29 @@ def _count_unique_blocks(keys: list) -> dict:
         'flux_single': set(),
         'wan_blocks': set(),
         'qwen_blocks': set(),
+        'krea2_blocks': set(),
+        'minimax_h3_blocks': set(),
         'sdxl_blocks': set(),
         'sd15_blocks': set(),
     }
 
     for key in keys:
         key_lower = key.lower()
+
+        # MiniMax H3 top-level packed DiT blocks (0-49). Token-refiner blocks
+        # are intentionally not counted here and remain in other_weights.
+        if re.search(
+            r'(?:^|_)lora_unet_blocks_\d+_(?:attn_qkv_proj|attn_out_proj|mlp_fc[12])',
+            key_lower,
+        ) or re.search(
+            r'(?:^|\.)(?:diffusion_model|transformer)\.blocks[._]\d+\..*(?:qkv_proj|out_proj|mlp\.fc[12])',
+            key_lower,
+        ):
+            match = re.search(r'(?:^|_)lora_unet_blocks_(\d+)_', key_lower)
+            if not match:
+                match = re.search(r'(?:^|\.)(?:diffusion_model|transformer)\.blocks[._](\d+)', key_lower)
+            if match:
+                counts['minimax_h3_blocks'].add(int(match.group(1)))
 
         # Z-Image layers (0-29)
         match = re.search(r'diffusion_model\.layers\.(\d+)', key)
@@ -507,6 +540,12 @@ def _count_unique_blocks(keys: list) -> dict:
             if match:
                 counts['qwen_blocks'].add(int(match.group(1)))
 
+        # Krea 2 main SingleStreamBlocks (0-27)
+        if any(x in key_lower for x in ['txtfusion', 'txtmlp', 'tmlp', 'tproj', 'wq', 'wk', 'wv', 'wo', 'gate', 'mlp']):
+            match = re.search(r'blocks[._](\d+)', key_lower)
+            if match:
+                counts['krea2_blocks'].add(int(match.group(1)))
+
         # SDXL/SD15 blocks
         match = re.search(r'input_blocks?[._]?(\d+)', key_lower)
         if match:
@@ -525,14 +564,44 @@ def _score_architecture(keys: list, num_keys: int, block_counts: dict) -> dict:
         'FLUX': 0,
         'FLUX_KLEIN_4B': 0,
         'FLUX_KLEIN_9B': 0,
+        'KREA2': 0,
         'ZIMAGE': 0,
         'WAN': 0,
         'SDXL': 0,
         'SD15': 0,
+        'MINIMAX_H3': 0,
     }
 
     keys_lower = [k.lower() for k in keys]
     keys_str = ' '.join(keys_lower)
+
+    # === KREA2 scoring ===
+    if 'lora_krea2' in keys_str or 'krea2' in keys_str or 'krea_2' in keys_str:
+        scores['KREA2'] += 80
+    if any(x in keys_str for x in ['txtfusion', 'txtmlp', 'tmlp', 'tproj']) and any(re.search(r'blocks[._]\d+', k) for k in keys_lower):
+        scores['KREA2'] += 60
+    if any(re.search(r'blocks[._]\d+[._].*(?:attn[._])?(?:wq|wk|wv|wo|gate)', k) for k in keys_lower):
+        scores['KREA2'] += 45
+    if block_counts['krea2_blocks'] == 28:
+        scores['KREA2'] += 35
+    elif 20 <= block_counts['krea2_blocks'] <= 28:
+        scores['KREA2'] += 20
+
+    # === MINIMAX H3 scoring ===
+    if 'minimax_h3' in keys_str:
+        scores['MINIMAX_H3'] += 80
+    if any(
+        re.search(r'(?:diffusion_model|transformer)\.blocks[._]\d+\..*(?:qkv_proj|out_proj|mlp\.fc[12])', k)
+        for k in keys_lower
+    ) or any(
+        re.search(r'lora_unet_blocks_\d+_(?:attn_qkv_proj|attn_out_proj|mlp_fc[12])', k)
+        for k in keys_lower
+    ):
+        scores['MINIMAX_H3'] += 60
+    if block_counts['minimax_h3_blocks'] == 50:
+        scores['MINIMAX_H3'] += 35
+    elif block_counts['minimax_h3_blocks'] >= 20:
+        scores['MINIMAX_H3'] += 20
 
     # === QWEN_IMAGE scoring ===
     if any('transformer_blocks' in k and any(x in k for x in ['img_mlp', 'txt_mlp', 'img_mod', 'txt_mod']) for k in keys_lower):
@@ -642,6 +711,9 @@ def _score_architecture(keys: list, num_keys: int, block_counts: dict) -> dict:
         scores['SD15'] -= 30
     if scores['FLUX'] > 40:
         scores['SD15'] -= 30
+    if scores['KREA2'] > 40:
+        scores['WAN'] -= 20
+        scores['SD15'] -= 30
 
     return scores
 
@@ -717,6 +789,21 @@ def _extract_block_id_v2(key: str, architecture: str) -> str:
     if architecture == 'QWEN_IMAGE':
         match = re.search(r'transformer_blocks[._](\d+)', key)
         return f"block_{match.group(1)}" if match else 'other'
+
+    elif architecture == 'KREA2':
+        if any(part in key_lower for part in ['txtfusion', 'txtmlp', 'tmlp', 'tproj', 'first', 'last']):
+            return 'other'
+        match = re.search(r'blocks[._](\d+)', key_lower)
+        return f"block_{match.group(1)}" if match else 'other'
+
+    elif architecture == 'MINIMAX_H3':
+        match = re.search(r'(?:^|_)lora_unet_blocks_(\d+)_', key_lower)
+        if match:
+            return f"block_{match.group(1)}"
+        match = re.search(r'(?:^|\.)(?:diffusion_model|transformer)\.blocks[._](\d+)', key_lower)
+        if match:
+            return f"block_{match.group(1)}"
+        return 'other'
 
     elif architecture == 'ZIMAGE':
         # AI-Toolkit format: diffusion_model.layers.N.attention/adaLN_modulation
@@ -1350,6 +1437,69 @@ Supports strength scheduling format: 0:.2,.5:.8,1:1.0""",
             "Custom": None,
         },
     },
+    "KREA2": {
+        "node_id": "Krea2AnalyzerSelectiveLoaderV2",
+        "display_name": "Krea 2 Analyzer + Selective Loader V2",
+        "description": """Combined analyzer and selective loader for Krea 2 LoRAs.
+Analyzes block impact and allows per-block control with strength shaping.
+
+Block Guide (28 main SingleStreamBlocks):
+- block_0-8: Early main blocks
+- block_9-18: Mid main blocks
+- block_19-27: Late main blocks
+
+Non-main-block Krea 2 Linear layers such as first, last.linear, tmlp, txtmlp, tproj,
+and txtfusion are controlled by other_weights.
+
+Supports strength scheduling format: 0:.2,.5:.8,1:1.0""",
+        "architecture": "KREA2",
+        "blocks": [f"block_{i}" for i in range(28)] + ["other_weights"],
+        "block_labels": {f"block_{i}": f"Block {i}" for i in range(28)} | {"other_weights": "Other Weights"},
+        "presets": {
+            "Default": {"enabled": "ALL", "strength": 1.0},
+            "All Off": {"enabled": [], "strength": 0.0},
+            "Half Strength": {"enabled": "ALL", "strength": 0.5},
+            "Late Only (21-27)": {"enabled": [f"block_{i}" for i in range(21, 28)] + ["other_weights"], "strength": 1.0},
+            "Mid-Late (14-27)": {"enabled": [f"block_{i}" for i in range(14, 28)] + ["other_weights"], "strength": 1.0},
+            "Skip Early (7-27)": {"enabled": [f"block_{i}" for i in range(7, 28)] + ["other_weights"], "strength": 1.0},
+            "Mid Only (9-18)": {"enabled": [f"block_{i}" for i in range(9, 19)], "strength": 1.0},
+            "Early Only (0-8)": {"enabled": [f"block_{i}" for i in range(9)], "strength": 1.0},
+            "Evens Only": {"enabled": [f"block_{i}" for i in range(0, 28, 2)], "strength": 1.0},
+            "Odds Only": {"enabled": [f"block_{i}" for i in range(1, 28, 2)], "strength": 1.0},
+            "Custom": None,
+        },
+    },
+    "MINIMAX_H3": {
+        "node_id": "MiniMaxH3AnalyzerSelectiveLoaderV2",
+        "display_name": "MiniMax H3 Analyzer + Selective Loader V2",
+        "description": """Combined analyzer and selective loader for MiniMax H3 LoRAs.
+Analyzes LoRA impact and allows per-block control with strength shaping.
+
+Block Guide (50 main packed DiT blocks):
+- block_0-12: Early DiT blocks
+- block_13-37: Middle DiT blocks
+- block_38-49: Late DiT blocks
+
+Token-refiner and other non-main H3 tensors are controlled by other_weights.
+Supports strength scheduling format: 0:.2,.5:.8,1:1.0""",
+        "architecture": "MINIMAX_H3",
+        "blocks": [f"block_{i}" for i in range(50)] + ["other_weights"],
+        "block_labels": {f"block_{i}": f"DiT Block {i}" for i in range(50)} |
+                        {"other_weights": "Other Weights"},
+        "presets": {
+            "Default": {"enabled": "ALL", "strength": 1.0},
+            "All Off": {"enabled": [], "strength": 0.0},
+            "Half Strength": {"enabled": "ALL", "strength": 0.5},
+            "Late Only (38-49)": {"enabled": [f"block_{i}" for i in range(38, 50)] + ["other_weights"], "strength": 1.0},
+            "Mid-Late (25-49)": {"enabled": [f"block_{i}" for i in range(25, 50)] + ["other_weights"], "strength": 1.0},
+            "Skip Early (13-49)": {"enabled": [f"block_{i}" for i in range(13, 50)] + ["other_weights"], "strength": 1.0},
+            "Mid Only (17-32)": {"enabled": [f"block_{i}" for i in range(17, 33)], "strength": 1.0},
+            "Early Only (0-16)": {"enabled": [f"block_{i}" for i in range(17)], "strength": 1.0},
+            "Evens Only": {"enabled": [f"block_{i}" for i in range(0, 50, 2)], "strength": 1.0},
+            "Odds Only": {"enabled": [f"block_{i}" for i in range(1, 50, 2)], "strength": 1.0},
+            "Custom": None,
+        },
+    },
     "WAN": {
         "node_id": "WanAnalyzerSelectiveLoaderV2",
         "display_name": "Wan Analyzer + Selective Loader V2",
@@ -1427,6 +1577,10 @@ def _filter_lora_by_blocks(lora_state_dict: dict, enabled_blocks: set, block_str
     # Detect LoRA type once for the whole dict
     keys = list(lora_state_dict.keys())
     lora_type = _detect_lora_type(keys)
+    scale_minimax_h3_tensor = None
+    if architecture == 'MINIMAX_H3':
+        from .selective_lora_loader import _scale_minimax_h3_tensor
+        scale_minimax_h3_tensor = _scale_minimax_h3_tensor
 
     for key, value in lora_state_dict.items():
         block_id = _extract_block_id_v2(key, architecture)
@@ -1448,13 +1602,19 @@ def _filter_lora_by_blocks(lora_state_dict: dict, enabled_blocks: set, block_str
         if block_id == 'other':
             if other_enabled:
                 if other_strength != 1.0 and should_scale:
-                    filtered_dict[key] = value * other_strength
+                    filtered_dict[key] = (
+                        scale_minimax_h3_tensor(key, value, other_strength)
+                        if scale_minimax_h3_tensor else value * other_strength
+                    )
                 else:
                     filtered_dict[key] = value
         elif block_id in enabled_blocks:
             strength = block_strengths.get(block_id, 1.0)
             if strength != 1.0 and should_scale:
-                filtered_dict[key] = value * strength
+                filtered_dict[key] = (
+                    scale_minimax_h3_tensor(key, value, strength)
+                    if scale_minimax_h3_tensor else value * strength
+                )
             else:
                 filtered_dict[key] = value
 
@@ -1535,18 +1695,24 @@ def _create_combined_node_class(config: dict):
                     "default": "",
                     "tooltip": "Filename for saved LoRA (timestamp auto-appended). Leave empty for auto-name."
                 }),
+                "block_weights_string": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "tooltip": "Input/Output block profile string. Positional text syncs with the UI. String input overrides UI values."
+                }),
             }
 
             return inputs
 
-        RETURN_TYPES = ("MODEL", "CONDITIONING", "CONDITIONING", "STRING", "STRING")
-        RETURN_NAMES = ("model", "positive", "negative", "analysis", "analysis_json")
+        RETURN_TYPES = ("MODEL", "CONDITIONING", "CONDITIONING", "STRING", "STRING", "STRING")
+        RETURN_NAMES = ("model", "positive", "negative", "analysis", "analysis_json", "weights_output")
         OUTPUT_TOOLTIPS = (
             "Model with LoRA applied (filtered by enabled blocks).",
             "Positive conditioning (with hooks if using schedule).",
             "Negative conditioning (with hooks if using schedule).",
             "Per-block analysis showing impact scores.",
             "JSON analysis data for UI coloring.",
+            "Block profile string output for chaining or reuse.",
         )
         FUNCTION = "load_analyze_and_filter"
         CATEGORY = "loaders/lora"
@@ -1554,11 +1720,15 @@ def _create_combined_node_class(config: dict):
         DESCRIPTION = config["description"]
 
         def load_analyze_and_filter(self, model, positive, negative, lora_name, strength, preset,
-                                    schedule_preset="Custom", strength_schedule="", lora_path_opt=None, save_refined_lora=False, save_path="", save_filename="", **kwargs):
+                                    schedule_preset="Custom", strength_schedule="", lora_path_opt=None, save_refined_lora=False, save_path="", save_filename="", block_weights_string="", **kwargs):
             cfg = self._config
             architecture = cfg["architecture"]
             blocks = cfg["blocks"]
             presets = cfg["presets"]
+
+            if architecture == "MINIMAX_H3":
+                from .selective_lora_loader import _coerce_scalar_strength
+                strength = _coerce_scalar_strength(strength)
 
             # Get LoRA path - use optional override if provided
             if lora_path_opt and os.path.exists(lora_path_opt):
@@ -1566,7 +1736,7 @@ def _create_combined_node_class(config: dict):
             else:
                 lora_path = folder_paths.get_full_path("loras", lora_name)
             if not lora_path or not os.path.exists(lora_path):
-                return {"ui": {"analysis_json": ["{}"]}, "result": (model, positive, negative, "Error: LoRA file not found", "{}")}
+                return {"ui": {"analysis_json": ["{}"]}, "result": (model, positive, negative, "Error: LoRA file not found", "{}", "")}
 
             print(f"[{cfg['display_name']}] Loading: {lora_name}")
 
@@ -1585,30 +1755,42 @@ def _create_combined_node_class(config: dict):
             arch_display = f"{detected_arch} ({lora_type})" if lora_type != 'LoRA' else detected_arch
             print(f"[{cfg['display_name']}] Detected: {arch_display} ({confidence} via {method})")
 
+            from .selective_lora_loader import _parse_block_weights_string
+            parsed_weights = _parse_block_weights_string(block_weights_string, architecture)
+
             # Determine enabled blocks and strengths
             # Note: JS always sends "Custom" so we read individual widget values
-            preset_cfg = presets.get(preset)
-            if preset_cfg is not None:
-                # Using a preset (only when JS is not present)
-                if preset_cfg["enabled"] == "ALL":
-                    enabled_blocks = set(blocks)
-                else:
-                    enabled_blocks = set(preset_cfg["enabled"])
-                block_strengths = {b: preset_cfg["strength"] for b in enabled_blocks}
-                other_enabled = "other_weights" in enabled_blocks or preset != "All Off"
-                other_strength = preset_cfg["strength"]
-            else:
-                # Custom mode - read from kwargs
+            if parsed_weights:
                 enabled_blocks = set()
                 block_strengths = {}
-                for block in blocks:
-                    if block == "other_weights":
-                        continue
-                    if kwargs.get(block, True):
-                        enabled_blocks.add(block)
-                        block_strengths[block] = kwargs.get(f"{block}_str", 1.0)
-                other_enabled = kwargs.get("other_weights", True)
-                other_strength = kwargs.get("other_weights_str", 1.0)
+                for block_name, (enabled, blk_str) in parsed_weights.items():
+                    if block_name == "other_weights":
+                        other_enabled = enabled
+                        other_strength = blk_str
+                    elif enabled:
+                        enabled_blocks.add(block_name)
+                        block_strengths[block_name] = blk_str
+            else:
+                preset_cfg = presets.get(preset)
+                if preset_cfg is not None:
+                    if preset_cfg["enabled"] == "ALL":
+                        enabled_blocks = set(blocks)
+                    else:
+                        enabled_blocks = set(preset_cfg["enabled"])
+                    block_strengths = {b: preset_cfg["strength"] for b in enabled_blocks}
+                    other_enabled = "other_weights" in enabled_blocks or preset != "All Off"
+                    other_strength = preset_cfg["strength"]
+                else:
+                    enabled_blocks = set()
+                    block_strengths = {}
+                    for block in blocks:
+                        if block == "other_weights":
+                            continue
+                        if kwargs.get(block, True):
+                            enabled_blocks.add(block)
+                            block_strengths[block] = kwargs.get(f"{block}_str", 1.0)
+                    other_enabled = kwargs.get("other_weights", True)
+                    other_strength = kwargs.get("other_weights_str", 1.0)
 
             # Filter LoRA by enabled blocks
             original_count = len(lora_state_dict)
@@ -1724,8 +1906,16 @@ def _create_combined_node_class(config: dict):
             if saved_path:
                 info_lines.append(f"Saved: {os.path.basename(saved_path)}")
 
-            # Return with UI format for analysis_json passthrough to JS
-            return {"ui": {"analysis_json": [analysis_json]}, "result": (model_out, positive_out, negative_out, "\n".join(info_lines), analysis_json)}
+            output_values = [
+                block_strengths.get(block, 0.0) if block in enabled_blocks else 0.0
+                for block in blocks
+                if block != "other_weights"
+            ]
+            if architecture == "KREA2":
+                output_values.append(other_strength if other_enabled else 0.0)
+            weights_output = ", ".join(f"{value:.2f}" for value in output_values)
+
+            return {"ui": {"analysis_json": [analysis_json]}, "result": (model_out, positive_out, negative_out, "\n".join(info_lines), analysis_json, weights_output)}
 
     # Set class attributes from config
     CombinedAnalyzerSelectiveLoader.__name__ = config["node_id"]

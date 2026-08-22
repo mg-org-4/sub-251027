@@ -181,10 +181,153 @@ app.registerExtension({
             app.canvas.canvas.addEventListener('dragover', handleCanvasDragOver, { capture: true });
             app.canvas.canvas.addEventListener('drop', handleCanvasDrop, { capture: true });
             
+            // Переменные для превью
+            let _previewContainer = null;
+            let _previewImg = null;
+            let _previewTimeout = null;
+            let _previewCache = {};
+            
+            const createPreviewContainer = () => {
+                if (_previewContainer) return;
+                
+                _previewContainer = document.createElement("div");
+                _previewContainer.className = 'spline-image-preview';
+                _previewContainer.style.cssText = `
+                    position: fixed;
+                    width: 200px;
+                    height: 200px;
+                    background: #1a1a1a;
+                    border: 1px solid #444;
+                    border-radius: 6px;
+                    z-index: 10002;
+                    display: none;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+                    opacity: 0;
+                    transition: opacity 0.2s ease-in-out;
+                `;
+                
+                _previewImg = document.createElement("img");
+                _previewImg.style.cssText = `
+                    max-width: 100%;
+                    max-height: 100%;
+                    object-fit: contain;
+                `;
+                
+                _previewContainer.appendChild(_previewImg);
+                document.body.appendChild(_previewContainer);
+            };
+            
+            const showPreview = (imgPath, targetElement) => {
+                if (!_previewContainer) createPreviewContainer();
+                
+                // Проверяем кэш
+                if (_previewCache[imgPath]) {
+                    _previewImg.src = _previewCache[imgPath];
+                    positionPreview(targetElement);
+                    _previewContainer.style.display = "flex";
+                    setTimeout(() => {
+                        _previewContainer.style.opacity = "1";
+                    }, 10);
+                    return;
+                }
+                
+                // Загружаем изображение
+                const img = new Image();
+                
+                // Пробуем с параметрами размера
+                let filename = imgPath;
+                let subfolder = "";
+                if (imgPath.includes("/")) {
+                    const parts = imgPath.split("/");
+                    subfolder = parts[0];
+                    filename = parts.slice(1).join("/");
+                }
+                
+                let imgUrl = `/view?filename=${encodeURIComponent(filename)}&type=input&width=200&height=200`;
+                if (subfolder) imgUrl += `&subfolder=${encodeURIComponent(subfolder)}`;
+                imgUrl += `&t=${Date.now()}`;
+                
+                img.onload = () => {
+                    _previewCache[imgPath] = imgUrl;
+                    _previewImg.src = imgUrl;
+                    positionPreview(targetElement);
+                    _previewContainer.style.display = "flex";
+                    setTimeout(() => {
+                        _previewContainer.style.opacity = "1";
+                    }, 10);
+                };
+                
+                img.onerror = () => {
+                    // Fallback: пробуем без параметров размера
+                    let fallbackUrl = `/view?filename=${encodeURIComponent(filename)}&type=input`;
+                    if (subfolder) fallbackUrl += `&subfolder=${encodeURIComponent(subfolder)}`;
+                    fallbackUrl += `&t=${Date.now()}`;
+                    
+                    const fallbackImg = new Image();
+                    fallbackImg.onload = () => {
+                        _previewCache[imgPath] = fallbackUrl;
+                        _previewImg.src = fallbackUrl;
+                        positionPreview(targetElement);
+                        _previewContainer.style.display = "flex";
+                        setTimeout(() => {
+                            _previewContainer.style.opacity = "1";
+                        }, 10);
+                    };
+                    fallbackImg.onerror = () => {
+                        console.error("[SPLINE 🦊] Failed to load preview for:", imgPath);
+                    };
+                    fallbackImg.src = fallbackUrl;
+                };
+                
+                img.src = imgUrl;
+            };
+            
+            const positionPreview = (targetElement) => {
+                if (!_previewContainer || !targetElement) return;
+                
+                const rect = targetElement.getBoundingClientRect();
+                const previewWidth = 200;
+                const gap = 10;
+                
+                // Пробуем справа
+                let left = rect.right + gap;
+                let top = rect.top + (rect.height / 2) - 100; // Центрируем по вертикали
+                
+                // Проверяем, хватает ли места справа
+                if (left + previewWidth > window.innerWidth) {
+                    // Если нет - показываем слева
+                    left = rect.left - previewWidth - gap;
+                }
+                
+                // Проверяем границы экрана по вертикали
+                if (top < 0) top = 0;
+                if (top + 200 > window.innerHeight) top = window.innerHeight - 200;
+                
+                _previewContainer.style.left = left + "px";
+                _previewContainer.style.top = top + "px";
+            };
+            
+            const hidePreview = () => {
+                if (!_previewContainer) return;
+                _previewContainer.style.opacity = "0";
+                setTimeout(() => {
+                    if (_previewContainer) {
+                        _previewContainer.style.display = "none";
+                    }
+                }, 200);
+            };
+            
             node.showImageSelector = function() {
                 const self = this;
+                
+                // Удаляем старое меню и превью, если есть
                 const existingMenu = document.querySelector('.spline-image-menu');
-                if (existingMenu) existingMenu.remove();
+                if (existingMenu) {
+                    existingMenu.remove();
+                }
+                hidePreview();
                 
                 fetch("/rayko/spline/images")
                     .then(response => response.json())
@@ -197,16 +340,61 @@ app.registerExtension({
                         
                         const menu = document.createElement("div");
                         menu.className = 'spline-image-menu';
+                        // Убрали max-height и overflow-y отсюда, добавили flex
                         menu.style.cssText = `
                             position: fixed;
                             background: #1a1a1a;
                             border: 1px solid #444;
                             border-radius: 6px;
-                            max-height: 300px;
-                            overflow-y: auto;
                             z-index: 10001;
                             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
                             min-width: 200px;
+                            display: flex;
+                            flex-direction: column;
+                        `;
+                        
+                        // Header с кнопкой закрытия
+                        const header = document.createElement("div");
+                        header.style.cssText = `
+                            height: 28px;
+                            flex-shrink: 0; /* Чтобы header не сжимался */
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            border-bottom: 1px solid #333;
+                            cursor: pointer;
+                            background: #2a2a2a;
+                        `;
+                        header.onmouseover = () => header.style.background = "#444";
+                        header.onmouseout = () => header.style.background = "#2a2a2a";
+                        
+                        const closeText = document.createElement("span");
+                        closeText.textContent = "CLOSE ✕";
+                        closeText.style.cssText = `
+                            color: #dc3545;
+                            font-size: 11px;
+                            font-weight: bold;
+                            font-family: Arial, sans-serif;
+                        `;
+                        
+                        header.appendChild(closeText);
+                        menu.appendChild(header);
+                        
+                        // Обработчик клика на header
+                        header.onclick = (e) => {
+                            e.stopPropagation();
+                            if (_previewTimeout) clearTimeout(_previewTimeout);
+                            hidePreview();
+                            menu.remove();
+                        };
+                        
+                        // Content area для элементов списка
+                        const content = document.createElement("div");
+                        content.className = 'menu-content';
+                        // Перенесли max-height и overflow-y сюда
+                        content.style.cssText = `
+                            max-height: 300px;
+                            overflow-y: auto;
                         `;
                         
                         self.imageList.forEach(imgPath => {
@@ -223,21 +411,35 @@ app.registerExtension({
                             `;
                             item.onmouseover = () => item.style.background = "#444";
                             item.onmouseout = () => item.style.background = imgPath === self.data.selected_image ? '#333' : "#1a1a1a";
+                            
+                            // Hover для превью с debounce
+                            item.onmouseenter = () => {
+                                if (_previewTimeout) clearTimeout(_previewTimeout);
+                                _previewTimeout = setTimeout(() => {
+                                    showPreview(imgPath, item);
+                                }, 250);
+                            };
+                            
+                            item.onmouseleave = () => {
+                                if (_previewTimeout) clearTimeout(_previewTimeout);
+                                hidePreview();
+                            };
+                            
                             item.onclick = (e) => {
                                 e.stopPropagation();
+                                if (_previewTimeout) clearTimeout(_previewTimeout);
+                                hidePreview();
                                 self.loadImage(imgPath);
                                 menu.remove();
                             };
-                            menu.appendChild(item);
+                            
+                            content.appendChild(item);
                         });
+                        
+                        menu.appendChild(content);
                         
                         self.positionMenu(menu, 0);
                         document.body.appendChild(menu);
-                        
-                        const closeHandler = (e) => {
-                            if (!menu.contains(e.target)) menu.remove();
-                        };
-                        setTimeout(() => document.addEventListener("mousedown", closeHandler), 100);
                     })
                     .catch(err => console.error(err));
             };
@@ -252,17 +454,32 @@ app.registerExtension({
                 
                 const canvasRect = canvasEl.getBoundingClientRect();
                 const ds = app.canvas.ds;
-                const btnY = this.size[1] - 45;
+                const scale = ds.scale;
+                
+                // Экранная позиция левого верхнего угла ноды
+                const nodeScreenX = canvasRect.left + ((this.pos[0] + ds.offset[0]) * scale);
+                const nodeScreenY = canvasRect.top + ((this.pos[1] + ds.offset[1]) * scale);
+                
+                // Параметры кнопок (должны быть идентичны тем, что в onDrawForeground)
                 const padding = 15;
                 const gap = 10;
                 const btnW = (this.size[0] - 2 * padding - 2 * gap) / 3;
+                const btnH = 28;
+                const btnYOffset = 45; // Отступ от низа ноды до ВЕРХНЕГО края кнопок
+                
+                // Рассчитываем позицию конкретной кнопки (INPUT = 0)
                 const btnX = padding + (buttonIndex * (btnW + gap));
                 
-                const nodeScreenX = canvasRect.left + ((this.pos[0] + ds.offset[0]) * ds.scale);
-                const nodeScreenY = canvasRect.top + ((this.pos[1] + ds.offset[1]) * ds.scale);
+                // Y-координата ВЕРХНЕГО края кнопки в графовых координатах
+                const btnGraphY = this.size[1] - btnYOffset;
                 
-                menu.style.left = (nodeScreenX + btnX) + "px";
-                menu.style.top = (nodeScreenY + btnY + 30) + "px";
+                // Переводим в экранные координаты
+                const screenLeft = nodeScreenX + (btnX * scale);
+                const screenTop = nodeScreenY + (btnGraphY * scale) + (btnH * scale);
+                
+                // Добавляем небольшой отступ (5px) чтобы меню не прилипало к кнопке
+                menu.style.left = screenLeft + "px";
+                menu.style.top = (screenTop + 5) + "px";
             };
             
             node.triggerFileUpload = function() {
@@ -651,8 +868,10 @@ app.registerExtension({
                     _animationId = null;
                 }
                 if (_overlayCanvas) _overlayCanvas.remove();
+                if (_previewContainer) _previewContainer.remove();
                 const menu = document.querySelector('.spline-image-menu');
                 if (menu) menu.remove();
+                if (_previewTimeout) clearTimeout(_previewTimeout);
                 
                 app.canvas.canvas.removeEventListener('dragover', handleCanvasDragOver, { capture: true });
                 app.canvas.canvas.removeEventListener('drop', handleCanvasDrop, { capture: true });

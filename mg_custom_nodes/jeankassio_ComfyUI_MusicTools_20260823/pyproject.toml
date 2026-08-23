@@ -1,0 +1,31 @@
+[project]
+name = "musictools"
+description = "Audio repair, genre-informed finishing, loudness, EQ, dynamics, and mastering nodes for ComfyUI."
+version = "1.1.0"
+requires-python = ">=3.10"
+license = {file = "LICENSE"} 
+dependencies = [
+    "numpy>=1.23.0",
+    "scipy>=1.9.0",
+    "pyloudnorm>=0.1.1",
+    "noisereduce>=3.0.0",
+]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Repository = "https://github.com/jeankassio/ComfyUI_MusicTools"
+Homepage = "https://github.com/jeankassio/ComfyUI_MusicTools"
+Documentation = "https://github.com/jeankassio/ComfyUI_MusicTools/wiki"
+Issues = "https://github.com/jeankassio/ComfyUI_MusicTools/issues"
+
+[tool.comfy]
+PublisherId = "jeankassio12"
+DisplayName = "ComfyUI_MusicTools"
+Icon = ""
+includes = [] 
+

@@ -1,9 +1,9 @@
 [project]
 name = "z-tipo-extension"
 description = "A general extension to utilize TIPO or DanTagGen to do 'text-presampling' based on KGen library: [a/https://github.com/KohakuBlueleaf/KGen](https://github.com/KohakuBlueleaf/KGen)"
-version = "2.0.1"
+version = "2.0.2"
 license = {file = "LICENSE"}
-dependencies = ["tipo-kgen>=0.3.0", "transformers"]
+dependencies = ["tipo-kgen>=0.3.1", "transformers"]
 
 [project.urls]
 Repository = "https://github.com/KohakuBlueleaf/z-tipo-extension"

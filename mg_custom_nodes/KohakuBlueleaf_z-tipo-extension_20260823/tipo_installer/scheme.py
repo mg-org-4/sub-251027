@@ -20,7 +20,7 @@ RELEASE_PAGES = 2
 
 TAG_PATTERN = r"^v(?P<version>\d+(?:\.\d+)*)(?:-(?P<variant>.+))?$"
 
-VERSION_FLOOR = "0.3.0"
+VERSION_FLOOR = "0.3.1"
 VERSION_CEILING = None
 
 CPU_VARIANT = ""

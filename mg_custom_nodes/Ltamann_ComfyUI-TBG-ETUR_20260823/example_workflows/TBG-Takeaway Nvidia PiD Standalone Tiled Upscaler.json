@@ -1,0 +1,314 @@
+{
+  "id": "b29b027f-1c70-4543-8fe4-40954d1c4ced",
+  "revision": 0,
+  "last_node_id": 6,
+  "last_link_id": 11,
+  "nodes": [
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        6310.003034106821,
+        6996.830468415852
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.24.0",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "ae.safetensors"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "LoadImage",
+      "pos": [
+        6316.518003199625,
+        7133.605169364409
+      ],
+      "size": [
+        282.798828125,
+        314
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.24.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "0_PID_raw_decode_4x_temp_xumnq_00001_.png",
+        "image"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "TBG ETUR Download PiD Model",
+      "pos": [
+        6301.803560844947,
+        6797.281672917888
+      ],
+      "size": [
+        311.103125,
+        122
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "PID Model",
+          "type": "MODEL",
+          "links": [
+            7
+          ]
+        },
+        {
+          "name": "PID CLIP",
+          "type": "CLIP",
+          "links": [
+            9
+          ]
+        },
+        {
+          "name": "PID Model Info",
+          "type": "PID_MODEL_INFO",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "tbg-etur",
+        "ver": "34ddb6fb1f46fc6c5e2d7a9eb3e7f2af22f06c12",
+        "Node name for S&R": "TBG ETUR Download PiD Model"
+      },
+      "widgets_values": [
+        "SuperResolution/PID Flux1 1K to 4K BF16",
+        true
+      ]
+    },
+    {
+      "id": 1,
+      "type": "PreviewImage",
+      "pos": [
+        7069.972916317032,
+        6799.375626068558
+      ],
+      "size": [
+        693.4831939558953,
+        657.5280799305237
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.24.0",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "type": "TBG ETUR PID Tile Upscale Rebuild",
+      "pos": [
+        6643.755308843287,
+        6798.117174867988
+      ],
+      "size": [
+        400,
+        708
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "PID Diffusion Model",
+          "name": "PID_Model",
+          "type": "MODEL",
+          "link": 7
+        },
+        {
+          "label": "Input Image (color correction reference)",
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 8
+        },
+        {
+          "label": "Source Latent",
+          "name": "latent",
+          "shape": 7,
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "label": "Sampler Override",
+          "name": "Sampler",
+          "shape": 7,
+          "type": "SAMPLER",
+          "link": null
+        },
+        {
+          "label": "PID CLIP Override",
+          "name": "PID_CLIP",
+          "shape": 7,
+          "type": "CLIP",
+          "link": 9
+        },
+        {
+          "label": "PID Source VAE Override",
+          "name": "PID_Source_VAE",
+          "shape": 7,
+          "type": "VAE",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PID Rebuilt",
+          "type": "IMAGE",
+          "links": [
+            11
+          ]
+        },
+        {
+          "name": "PID Tiles",
+          "shape": 6,
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "tbg-etur",
+        "ver": "34ddb6fb1f46fc6c5e2d7a9eb3e7f2af22f06c12",
+        "Node name for S&R": "TBG ETUR PID Tile Upscale Rebuild"
+      },
+      "widgets_values": [
+        "FLUX1",
+        5,
+        "fixed",
+        4,
+        4,
+        1,
+        "pid_sde",
+        "simple",
+        1,
+        0.1,
+        "TBG Detail-Preserving Color Stabilizer",
+        true,
+        1,
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      7,
+      5,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      8,
+      4,
+      0,
+      6,
+      1,
+      "IMAGE"
+    ],
+    [
+      9,
+      5,
+      1,
+      6,
+      4,
+      "CLIP"
+    ],
+    [
+      10,
+      3,
+      0,
+      6,
+      5,
+      "VAE"
+    ],
+    [
+      11,
+      6,
+      0,
+      1,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.116781577942544,
+      "offset": [
+        -6080.201015595305,
+        -6626.053822453686
+      ]
+    },
+    "frontendVersion": "1.48.7",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

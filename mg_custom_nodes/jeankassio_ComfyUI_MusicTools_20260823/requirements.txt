@@ -1,0 +1,5 @@
+# Core dependencies. ComfyUI already supplies torch; do not reinstall it here.
+numpy>=1.23.0
+scipy>=1.9.0
+pyloudnorm>=0.1.1
+noisereduce>=3.0.0

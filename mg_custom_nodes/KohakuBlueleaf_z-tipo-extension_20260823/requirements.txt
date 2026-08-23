@@ -1,0 +1,5 @@
+# llama-cpp-python is intentionally absent: it needs a GPU-specific prebuilt
+# wheel, and listing it here makes ComfyUI-Manager attempt a source build.
+# tipo_installer resolves and installs the right wheel on first node run.
+tipo-kgen>=0.3.1
+transformers

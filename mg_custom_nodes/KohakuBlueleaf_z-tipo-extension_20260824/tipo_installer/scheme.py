@@ -20,7 +20,7 @@ RELEASE_PAGES = 2
 
 TAG_PATTERN = r"^v(?P<version>\d+(?:\.\d+)*)(?:-(?P<variant>.+))?$"
 
-VERSION_FLOOR = "0.3.1"
+VERSION_FLOOR = "0.3.0"
 VERSION_CEILING = None
 
 CPU_VARIANT = ""
@@ -53,4 +53,4 @@ NETWORK_TIMEOUT = 15
 
 KGEN_DISTRIBUTION = "tipo-kgen"
 KGEN_IMPORT_NAME = "kgen"
-KGEN_MIN_VERSION = "0.3.0"
+KGEN_MIN_VERSION = "0.3.1"

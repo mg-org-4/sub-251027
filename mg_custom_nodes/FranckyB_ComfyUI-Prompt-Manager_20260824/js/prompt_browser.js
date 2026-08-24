@@ -1085,7 +1085,8 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
         : null;
     const selectTitle = typeof options?.title === "string" ? options.title : null;
     const multiSelect = options?.multiSelect === true;
-    const supportsMultiSelect = mode !== "save";
+    const allowMultiSelect = options?.allowMultiSelect !== false;
+    const supportsMultiSelect = mode !== "save" && allowMultiSelect;
     const startInMultiSelect = multiSelect && options?.startInMultiSelect !== false;
     const multiCategorySelect = multiSelect && options?.multiCategorySelect === true;
     const clearSelectionOnCategorySwitch = options?.clearSelectionOnCategorySwitch === true;
@@ -2308,10 +2309,7 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
         rebuildCategoryList();
 
         // When the caller locks the browser to a single category, hide the whole bar.
-        // Also hidden for the System Prompts source: that data has no real
-        // categories (a single "System Prompts" bucket), so the bar is noise.
-        const hideCategoryBar = (allowedCategories && allowedCategories.length === 1)
-            || endpointPrefix === "/prompt-generator";
+        const hideCategoryBar = allowedCategories && allowedCategories.length === 1;
         if (hideCategoryBar) {
             categoryBar.style.display = "none";
         }

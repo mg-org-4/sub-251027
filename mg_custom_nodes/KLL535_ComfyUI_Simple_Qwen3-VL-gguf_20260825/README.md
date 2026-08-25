@@ -15,6 +15,7 @@ In the latest update added a new `keep_vram` mode, which allows you to keep the 
 
 **Nightly (tests)**
 
+- New design for LLM Config
 - **Added new configurator 🌐 LLM Config (Advanced)**
   
 The new advanced configurator brings a completely redesigned configuration experience with the following advantages:
@@ -24,9 +25,9 @@ The new advanced configurator brings a completely redesigned configuration exper
 1. Built-in Preset Management - Direct access to JSON preset files from within ComfyUI. You can now add new models, delete, or rename presets without manually editing JSON files. The preset browser integrates seamlessly with save/rename/delete buttons right in the node interface.
 2. Complete Parameter Access - All 73+ parameters currently supported by the system are available in one place. To prevent overwhelming users, parameters are organized into 9 collapsible groups (Model & Paths, Memory & Context, Sampling & Generation, etc.). Only essential parameters are visible by default; advanced settings remain hidden until needed.
 3. Windows File Browser - For Windows users, dedicated Browse Model and Browse MMProj buttons allow selecting GGUF files from anywhere on your disk, not just ComfyUI's predefined folders. No more manual path typing!
-4. Flexible Widget Layout - The configurator now supports widget reordering and insertion. You can rearrange parameters or add custom widgets without breaking saved workflows. Field positions in existing workflows will remain stable.
+4. Flexible Widget Layout - The configurator now supports easy rearrangement and insertion of new (future) parameter. Previously, adding a new parameter to the middle would displace all the others, corrupting old saves. With the new approach, this problem no longer exists.
 
-<img width="734" height="825" alt="image" src="https://github.com/user-attachments/assets/f612508c-ef17-4fb1-b3be-0faf2aef2897" />
+<img width="843" height="648" alt="image" src="https://github.com/user-attachments/assets/400b62aa-0c9e-4d6d-9b65-8ece4577cbab" />
 
 - Added `words_to_ban` config (logit_bias).
 - Added `📸 Simple Gif Maker` node.
@@ -317,7 +318,7 @@ The node is split into two parts. All work is isolated in a subprocess. Why? To 
 - **LLM Sampling Config** - Legacy configuration node (Sampling parameters only).
 
 # Simple Qwen-VL Vision Language Model
-A universal version. The model and its parameters mast be passed to the `config_override` input or described in a file `custom_nodes\ComfyUI_Simple_Qwen3-VL-gguf\system_prompts_user.json`
+A universal version. The model and its parameters mast be passed to the `config_override` input or described in a file `ComfyUI/user/SimpleQwenVL_configs/system_prompts_user.json`
 
 <img width="546" height="609" alt="image" src="https://github.com/user-attachments/assets/4e06cb5f-4901-4dc3-900d-1324e21806e0" />
 
@@ -468,7 +469,7 @@ Possible model configurations that can be passed to the `config_override` input.
 
 | Field | Type | Default | Description |
 |--------|--------|--------|--------|
-| force_mmproj | bool | False | Load mmproj even without media inputs. Preserves template for enable_thinking. Uses VRAM unnecessarily if no media |
+| force_mmproj | bool | True | Load mmproj even without media inputs. Preserves template for enable_thinking. Uses VRAM unnecessarily if no media |
 | image_min_tokens | int | 0 | Minimum tokens for image embeddings. 0 = not set. Controls memory allocation |
 | image_max_tokens | int | 0 | Maximum tokens for image embeddings. 0 = not set. Prevents oversized image encodings |
 | max_images | int | 10 | Limit on total incoming images across image/image2/image3 inputs (batch mode can send many) | 
@@ -493,7 +494,7 @@ Possible model configurations that can be passed to the `config_override` input.
 | Field | Type | Default | Description |
 |--------|--------|--------|--------|
 | verbose | bool | False | Enable verbose logging from llama.cpp. Prints detailed inference info to console |
-| debug | bool | False | Enable timing output for each stage. Shows [DEBUG] total time: 7.818s | 397 word (50.8 word/sec) |
+| debug | bool | True | Enable timing output for each stage in console. Shows metrics [DEBUG] inference 80.11 tok/sec 1812 tokens: 22.619s |
 | debug_output | bool | False | Print final LLM text output to console | 
 | raw_output | bool | False | Disable output.strip(). Keeps leading/trailing whitespaces in response | 
 | clearing_cache | bool | True | Clear cache to prevent execution freezing during heavy memory activity | 
@@ -523,7 +524,7 @@ Parameters are rendered in a fixed order matching the Python node's INPUT_TYPES(
 Presets are saved to ComfyUI/user/SimpleQwenVL_configs/system_prompts_user.json. The file is created automatically on first use. 
 
 6. Multi-GPU Caveats
-cuda_device parameter may not work correctly in direct_clean and keep_vram modes, as ComfyUI itself may have already initialized CUDA with different settings. For multi-GPU, subprocess mode is recommended.
+cuda_device parameter may not work correctly in direct_clean and keep_vram modes, as ComfyUI itself may have already initialized CUDA with different settings.
 
 7. Vision ID Logic
 add_vision_id with auto mode calculates: True if (num_images != 1 or num_videos > 0) else False. This matches Qwen3/Qwen3.5 requirements for multi-image scenarios.
@@ -788,11 +789,9 @@ For example: `Hy-MT2-7B-Q4_K_M.gguf`
         },
 ```
 
-- https://huggingface.co/GrahLnn/Hy-MT2-30B-A3B-4bit-GGUF/tree/main/patches
+- https://huggingface.co/mradermacher/Hy-MT2-30B-A3B-GGUF
 
-For example: `Hy-MT2-30B-A3B-Q4_K_M.gguf`
-
-> 💡 **WARNING:** **Not yet supported by the library.** A patch for llama.cpp is required, or wait until support is added to llama.cpp.
+For example: `Hy-MT2-30B-A3B.Q4_K_M.gguf`
 
 > 💡 **TIP:** "n_cpu_moe": 12 to 16G VRAM
 

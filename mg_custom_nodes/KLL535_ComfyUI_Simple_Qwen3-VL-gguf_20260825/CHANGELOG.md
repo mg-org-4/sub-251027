@@ -1,4 +1,6 @@
 # Nightly
+- Fix default value
+- New design for `🌐 LLM Config (Advanced)`
 - Added new configurator `🌐 LLM Config (Advanced)`
 - Added `words_to_ban` config (logit_bias).
 - Added `📸 Simple Gif Maker` node.

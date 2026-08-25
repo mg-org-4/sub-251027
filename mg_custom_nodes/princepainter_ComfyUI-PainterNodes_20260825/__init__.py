@@ -216,19 +216,6 @@ except Exception as e:
     print(f"[PainterNodes] Failed to import PainterMiniMaxRefToVideo2: {e}")
 
 
-try:
-    from . import PainterMiniMaxToVideo
-    _register_module(PainterMiniMaxToVideo)
-except Exception as e:
-    print(f"[PainterNodes] Failed to import PainterMiniMaxToVideo: {e}")
-
-
-
-try:
-    from . import PainterMiniMaxFL2VA
-    _register_module(PainterMiniMaxFL2VA)
-except Exception as e:
-    print(f"[PainterNodes] Failed to import PainterMiniMaxFL2VA: {e}")
 
 try:
     from . import PainterMinimaxH3LatentUpscaler
@@ -248,11 +235,7 @@ try:
 except Exception as e:
     print(f"[PainterNodes] Failed to import PainterPromptRewriter: {e}") 
     
-try:
-    from . import PainterPreviewAny
-    _register_module(PainterPreviewAny)
-except Exception as e:
-    print(f"[PainterNodes] Failed to import PainterPreviewAny: {e}") 
+
 
 
 print(f"\033[92m[PainterNodes] Loaded {len(NODE_CLASS_MAPPINGS)} nodes successfully!\033[0m")

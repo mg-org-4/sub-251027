@@ -1,7 +1,6 @@
 """
-File    : photo_style_prompt_encoder.py
-Purpose : Node that converts a text prompt into an embedding, automatically
-          adapting the prompt to match the selected photographic style.
+File    : style_prompt_encoder.py
+Purpose : Node to get conditioning embeddings from a given style + prompt.
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Jan 16, 2026
 Repo    : https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes
@@ -11,8 +10,8 @@ License : MIT
          ComfyUI nodes designed specifically for the "Z-Image" model.
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-    The V3 schema documentation can be found here:
-    - https://docs.comfy.org/custom-nodes/v3_migration
+ ComfyUI V3 Schema oficial documentation:
+ - https://docs.comfy.org/custom-nodes/v3_migration
 
 """
 from typing                    import Final
@@ -20,16 +19,16 @@ from functools                 import cache
 from comfy_api.latest          import io
 from ..core.style              import StyleSet
 from ..data.predefined_styles  import PREDEFINED_STYLES
-_STL_VERSION: Final[str] = "0.8.0" #< the version of style definitions this node uses
+_STL_VERSION: Final[str] = "0.9.0" #< the version of style definitions this node uses
 
 
-class PhotoStylePromptEncoder(io.ComfyNode):
-    xTITLE         = "Photo-Style Prompt Encoder"
+class StylePromptEncoder(io.ComfyNode):
+    xTITLE         = "Style & Prompt Encoder (old version)"
     xDESCRIPTION   = (
-        "Transforms a text prompt into an embedding, adapted to the selected photographic style. "
-        "This node takes a prompt, adjusts its visual style according to the chosen option, and "
-        "then encodes it using the provided text encoder to generate an embedding that will guide "
-        "image generation."
+        "Transforms a text prompt into embeddings, automatically adapting the prompt to match "
+        "the selected style. This node takes a prompt, adjusts its visual style according to "
+        "the chosen option, and then encodes it using the provided text encoder (clip) to "
+        "generate an embedding that will guide image generation."
         )
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
@@ -55,7 +54,10 @@ class PhotoStylePromptEncoder(io.ComfyNode):
                                   'its description on the next lines. The description should incorporate "{$@}" where the '
                                   'main text prompt will be inserted.'),
                                ),
-                io.Combo.Input ("style_to_apply", options=cls.style_names(),
+                io.Combo.Input ("category", options=cls.category_names(),
+                                tooltip="The category of styles you want to select from.",
+                               ),
+                io.Combo.Input ("style", options=cls.style_names(), default=cls.default_style_name(),
                                 tooltip="The style you want for your image.",
                                ),
                 io.String.Input("text", multiline=True, dynamic_prompts=True,
@@ -64,15 +66,20 @@ class PhotoStylePromptEncoder(io.ComfyNode):
             ],
             outputs=[
                 io.Conditioning.Output(tooltip="The encoded text used to guide the image generation."),
-                io.String.Output(tooltip="The prompt after applying the selected photographic style."),
+                io.String.Output(tooltip="The prompt after applying the selected visual style."),
             ]
         )
 
     #__ FUNCTION __________________________________________
     @classmethod
-    def execute(cls, clip, style_to_apply: str, text: str, customization: str = "") -> io.NodeOutput:
+    def execute(cls,
+                clip,
+                category      : str,
+                style         : str,
+                text          : str,
+                customization : str = ""
+                ) -> io.NodeOutput:
         prompt        = text
-        style         = style_to_apply if isinstance(style_to_apply, str) else "none"
         custom_styles = StyleSet.from_string(customization)
 
         # try to find the definition of the style selected by the user,
@@ -82,20 +89,47 @@ class PhotoStylePromptEncoder(io.ComfyNode):
         if not style_obj:
             style_obj = PREDEFINED_STYLES.by_version(_STL_VERSION).get(style)
 
-        # if the style was found, apply it to the prompt
+        # apply the style template to the prompt
         if style_obj:
-            prompt = style_obj.apply_to_prompt(prompt, spicy_impact_booster=False)
+            prompt = style_obj.apply_to_prompt(prompt)
 
-        # generate the embeddings and output them
+        # encode the prompt using the provided text encoder (clip)
         tokens = clip.tokenize(prompt)
         return io.NodeOutput( clip.encode_from_tokens_scheduled(tokens), prompt )
+
+
+    #__ VALIDATION ________________________________________
+    @classmethod
+    def validate_inputs(cls, **kwargs) -> bool | str:
+        if kwargs["category"] not in cls.category_names():
+            return f"The category name '{kwargs['category']}' is invalid. May be the node is from an older version."
+        return True
+
+
+
+    #__ internal functions ________________________________
+
+    @staticmethod
+    @cache
+    def category_names() -> list[str]:
+        """Returns all available category names."""
+        return PREDEFINED_STYLES.by_version(_STL_VERSION).categories()
 
 
     @staticmethod
     @cache
     def style_names() -> list[str]:
+        """Returns all available style names."""
         return (
             ["none"]
-            + list( PREDEFINED_STYLES.by_version(_STL_VERSION).by_category("photo").names() )
+            + list( PREDEFINED_STYLES.by_version(_STL_VERSION).quoted_names() )
         )
+
+
+    @staticmethod
+    @cache
+    def default_style_name() -> str:
+        """Returns the default style name (the first one that is not 'none')."""
+        style_names = StylePromptEncoder.style_names()
+        return style_names[1 if len(style_names)>1 else 0]
 

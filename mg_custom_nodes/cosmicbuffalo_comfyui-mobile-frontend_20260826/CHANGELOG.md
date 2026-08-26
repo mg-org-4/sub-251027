@@ -1,0 +1,681 @@
+# Changelog
+
+## 3.2.5 - Unreleased
+
+### Fixed
+
+- **A model picker promoted out of a subgraph no longer shows its saved model as missing** when the node declares the input in ComfyUI's V3 COMBO form (e.g. Load Latent Upscale Model). The promoted widget only understood the legacy declaration, so its option list came up empty and the selected file looked absent from the server even though the same workflow ran fine on desktop (#91)
+
+### Changed
+
+- **`/mobile/ws/progress` can be paced by the client.** 3.2.4 pushed a snapshot to every connected app the instant the sampler moved — around ten a second. That is free on a LAN, but each message costs a TCP ack in both directions, and over a hole-punched or relayed tunnel the resulting packet rate can keep the path in permanent renegotiation while carrying almost no data. When that happens the whole tunnel goes with it, not just this socket. A client may now send `{"type": "hello", "min_interval_ms": N}` on the same socket and the server coalesces to that cadence, last-writer-wins, so a slowed client sees fewer snapshots rather than staler ones. Prompt starts, prompt changes and `finished` are exempt and always delivered at once, so completion stays in lockstep with the push notification however slow the stream is. A client that sends nothing keeps the 3.2.4 behaviour exactly, so upgrading the node alone changes nothing
+- **A client that cannot keep up is slowed rather than disconnected.** 3.2.4 already noticed when a send timed out and then discarded that signal, dropping the socket. Dropping it forces a reconnect, which costs more packets over precisely the link that was already struggling. Consecutive stalled sends now halve that one client's rate instead, up to a 4s floor, and it is told why with `{"type": "rate_advice"}`. This half needs no cooperation from the client, so it also protects apps too old to negotiate
+
+### Added
+
+- **`{"type": "ping", "seq": N}` on `/mobile/ws/progress` is echoed back as `pong`**, so a client can measure the round trip and jitter of the socket it is actually using — at the packet cadence it is considering — instead of guessing a rate and finding out mid-generation
+- **`GET /mobile/api/progress-ws/stats`** reports connected clients and their negotiated intervals, plus how many sends have stalled and how many clients the server has had to slow down. The counters are what turn "the connection felt bad last night" into evidence
+- **Per-server Live Activity opt-out support.** `POST /mobile/api/push/app-targets/live-activity/remove` removes only the Live Activity role from the requesting iOS installation. If the same target also receives completion notifications, that pairing is preserved; a live-only target is removed entirely
+
+### Notes
+
+- Internal maintenance: the largest source files (the workflow store, `__init__.py`, WorkflowPanel, useWebSocket and the workflow-input helpers) were split into smaller per-domain modules and duplicated logic was consolidated. Cleanup only — no behaviour changes
+- The backend test suite now also runs on pushes to `release-*` branches, not only on `main` and pull requests into it. Release work happens on those branches, so this reports a break while it is being made rather than when the release PR is finally opened
+
+## 3.2.4 - 2026-08-23
+
+### Added
+
+- **Overall prompt progress on `/mobile/ws/progress`** — `nodes_total`, `nodes_done` and the executing `node_name` alongside `value`/`max`, so a single progress bar counts finished nodes instead of resetting on every node. Cached nodes count as done
+- **Long-press Run to queue at the front.** Multi-run batches keep their seed/run order, and their pending cards sit immediately above the active generation
+- **File moves ask before overwriting.** A name already in the destination offers **Keep Both** or **Overwrite**, with apply-to-all for batches. Two files in the same move sharing a name are auto-suffixed without asking
+
+### Fixed
+
+- **Follow Queue advances reliably as prompts finish**, including fast history/session handoffs, prepended and infinite-loop runs, and work queued after the viewer was already open
+- **Queue/history cards start unfolded** unless you folded them yourself
+- **The queue image viewer keeps paging backward through history** instead of stopping at the first page
+- **Pinned widgets share one editor state**, so the bottom pin button closes the open editor rather than stacking another. Numeric widgets now render there, and unsupported controls are no longer offered as pins
+- **Full-screen widget editors close when their backdrop is tapped**
+- **Combo/model searches stay usable above the iOS keyboard** — results scroll to the end, and dismissing the keyboard keeps the filter
+- **No more stale thumbnails or previews after a file is moved, renamed or replaced.** Cache identity now folds in ctime and inode, and each generation carries its own browser-cache token
+
+### Notes
+
+- Server-side groundwork for Live Activity support in the CueForge iOS app
+
+## 3.2.3 - 2026-08-17
+
+### Changed
+
+- **Outputs and the input picker now sort by newest-created first**, instead of by last-modified. Moving or renaming a file no longer jumps it to the top of the list. If your sort was still on the old default it moves across with this release; an explicit **Modified** choice is left alone, and both fields remain selectable in the outputs filter
+
+### Fixed
+
+- **Wildcards populate again when a Lora Manager node shares the workflow** ([#87](https://github.com/cosmicbuffalo/comfyui-mobile-frontend/issues/87)). Lora Manager's list widgets were sent as bare arrays, which in ComfyUI's prompt format are indistinguishable from a `[node_id, slot]` link once a list holds exactly two entries — enough to break Impact Pack's prompt hook and silently stop `ImpactWildcardProcessor` expanding anything. Two loras on a Lora Loader triggered it, and so did two trigger-word groups on a TriggerWord Toggle, whatever the lora count. Both lists are now sent the way the desktop frontend sends them
+- **TriggerWord Toggle no longer receives its toggle list in the `trigger_words` slot.** That input is a link socket, not a widget, so a workflow that left it unconnected was sending Lora Manager a value it discarded — and it was the second route into the wildcard bug above
+- The outputs filter's **Created** and **Modified** labels are translated rather than left in English in the four non-English locales
+
+### Notes
+
+- Further groundwork for the CueForge iOS app
+- The upstream-drift check (`npm run parity`) now covers eight custom-node packs instead of four, and `CONTRIBUTING.md` documents what belongs in a manifest
+
+## 3.2.2 - 2026-08-17
+
+### Fixed
+
+- **Swiping onto an output that has been moved no longer hangs on a spinner.** The viewer's image had no error handler, so a file whose old path was still in the list left the spinner running forever instead of settling. It now says the image could not be loaded — refreshing the outputs panel picks up the new location. Most likely to bite when you move files on one device and swipe on another
+
+## 3.2.1 - 2026-08-17
+
+### Added
+
+**Use Everywhere support** ([cg-use-everywhere](https://github.com/chrisgoringe/cg-use-everywhere))
+
+- Inputs fed by an **Anything Everywhere** node now show what they are actually connected to on the node card, instead of looking unconnected
+- Those broadcast connections are resolved when the workflow is queued, so workflows built around them run from mobile rather than failing on missing inputs
+- Covers the group/title/type match rules, priority and ambiguity handling, bypassed and muted nodes, and the older node names still saved in existing workflows
+
+### Fixed
+
+- **Latent previews work again.** With VideoHelperSuite installed, turning previews on sent every sampler's frames — plain image workflows included — through VHS's animated preview format, which this node was reading four bytes out of step. Nothing ever rendered. Broken since 3.1.2
+- **A batch previews every image side by side** instead of flickering between them in one slot. Batched runs now tile their live previews; video latents keep animating as before
+- A preview frame that can't be decoded is dropped with a console warning rather than handed to the page as a broken image, so a future format change shows up as an error instead of an empty slot
+- **The Restart ComfyUI confirmation opens on top of the menu**, not behind it and its background blur. Every confirmation raised from the main menu — restart, delete, rename, move, new folder, uninstall, feedback — now sits above the panel that opened it
+
+## 3.2.0 - 2026-08-16
+
+### Added
+
+**Internationalization** ([#80](https://github.com/cosmicbuffalo/comfyui-mobile-frontend/pull/80), thanks @taochangle!)
+
+- The interface can now be switched between English, Simplified Chinese, Traditional Chinese, Japanese, and Korean from the Language section in the main menu
+- The node uses the saved language choice on future visits and otherwise follows the browser/device locale. Notification setup and status copy use the same translation layer
+- The non-English dictionaries are machine-translated; native-speaker corrections are especially welcome
+
+**Native app integration work**
+
+- Groundwork to power future native app features such as sharing images to workflows, saving outputs to Photos, native notifications, and Live Activities
+
+### Fixed
+
+- **Load Workflow** no longer appears on images with no embedded workflow to load
+- Stock desktop ComfyUI file pickers now show the real input paths for this node's `.mi-…` privacy aliases, instead of exposing opaque alias filenames alongside normal inputs. An alias whose original file has since moved or been deleted stays listed, since the alias itself remains a valid input
+- **Load Workflow** availability is re-checked when a file is replaced at the same path, instead of staying stale until reload
+
+### Notes
+
+- Push accepts only the production CueForge relay by default. Administrators running a self-hosted or development relay can add comma-separated HTTPS origins with `COMFYUI_MOBILE_APP_PUSH_RELAYS`
+
+## 3.1.3 - 2026-08-12
+
+### Added
+
+**Dates in the outputs browser**
+
+- File and folder cards show a compact age ("4 hours ago") alongside their size
+- The filter sheet's single "Date" sort is now **Created** and **Modified**, each reversible; section headers and card ages follow the active one. Linux has no real creation time, so Created matches Modified for anything the app hasn't touched — the two diverge once an item is favorited, rejected, hidden, renamed, or moved in-app
+- Favoriting, rejecting, renaming and moving bump an item's modified date, and that of every folder above it
+
+**Rejects filter, and exclude modes**
+
+- The favorites toggle is now a pair, **Favorites** and **Rejects**, each cycling off → only → everything-except
+- Switching between the two "only" modes swaps them, since a file is never both. Once either is excluding, tapping the other joins it there, so you can hide both and browse what you haven't triaged
+
+**Wildcard nodes** ([#78](https://github.com/cosmicbuffalo/comfyui-mobile-frontend/issues/78))
+
+- Impact Pack, Inspire Pack and Easy-Use wildcard nodes now behave the way they do on desktop: the "Select to add Wildcard" dropdown lists your server's wildcards and inserts the one you pick, and `populated_text` fills in with the resolved prompt when you queue. Needs ComfyUI-Impact-Pack, which owns the wildcard list
+
+### Fixed
+
+- Load Image widgets saved with an opaque `.mi-` alias show their real input path again
+- Bulk actions (favorite, hide, move, delete, download, bulk process) now leave selection mode when they finish
+- Tighter, more consistent spacing between parameter controls, and a seed value now renders directly above its `control_after_generate`
+- `control_after_generate` no longer renders twice on a subgraph-promoted seed, or disappears when the seed input is linked
+- The modified date ignores metadata-only changes (hard-linking an output into input, `chmod`, backup restores) that could scramble the default listing order
+- Empty folders no longer show "0 B"
+
+## 3.1.2 - 2026-08-10
+
+### Added
+
+**Video previews in the workflow panel**
+
+- **Video outputs play inline on their node card.** SaveVideo and any other node that emits a video now shows a real seekable player — poster frame, tap-to-scrub controls, and muted autoplay when the card is visible — instead of a broken image. Only one preview plays at a time, playback pauses when the card scrolls away or the full-screen viewer opens, and a metadata line shows resolution, frame count, fps, and whether the clip has audio. Batches tile images and tap-to-play videos together
+- **Video Helper Suite input previews.** VHS Load Video / Load Video FFmpeg (including the Path variants), Load Images, and Load Image Path show the same node-sized advanced preview as desktop — rate, frame-cap, and resize settings applied — and Video Combine previews its result. Hidden previews stay hidden, with a "Show video preview" button to reveal them
+- **VHS animated latent previews.** When latent previews are enabled, samplers that support VHS's animated preview protocol show a moving preview on the node card and in the queue while they sample, instead of a single still
+- **Video Oasis preview nodes** restore their scene bar on mobile: every result is kept in a thumbnail playlist with play-once / loop / cycle modes and playback speed, live results append as they arrive, and the selection survives save, tab switches, and reload
+- **Deno Video Compare** gets a full A/B comparison player: slider, side-by-side, difference, and toggle modes with both sides frame-locked to one clock, frame stepping, speed control, loop, fullscreen, and switchable A/B audio
+
+Also new: `npm run smoke:workflow-video`, a targeted real-server check that generates a small model-free video and verifies the inline player end to end.
+
+### Fixed
+
+- Closing the app menu no longer cancels a "Load from file" pick that is still in flight — the file dialog now survives the menu closing underneath it
+- Format dropdowns whose options are bare container names (like SaveVideo's `mp4`) no longer show phantom "Upload video from device" / "Browse files" buttons — only combos listing real video filenames (or VHS-style `video` widgets) are treated as file pickers
+
+## 3.1.1 - 2026-08-09
+
+### Fixed
+
+**ComfyUI V3-schema nodes**
+
+- **V3 string-typed combos are now real dropdowns.** Nodes whose schema publishes combos as `COMBO`/custom string types with an options list (instead of the legacy array form) previously rendered without their dropdowns and queued without those values; they now render, edit, and queue like any other combo
+- **Dynamic combos rebuild their conditional inputs.** Switching a `COMFY_DYNAMICCOMBO_V3` option swaps the sub-widgets *and* sockets that option contributes — compatible connections are kept, invalidated ones are cleanly removed, and nested dynamic combos work. Promoted and pinned widgets inside subgraphs get the same handling
+- **Custom widget types with a declared default** (color pickers and friends) get their control and their value in the queued prompt again, while null-default connection inputs correctly stay sockets
+- **Numeric combo options are matched by value** before falling back to legacy index interpretation, so combos like `[1, 2, 4]` no longer queue a different option than the one picked
+- **Seed `control_after_generate` slots follow desktop's rule** (schema flag, or seed-name fallback), keeping widget values aligned when workflows round-trip between mobile and desktop
+- **Widget index drift** between seed handling and rendering is fixed via a single shared slot walk
+
+**Workflow loading**
+
+- A combo value that can't be resolved against the server's options is left intact and flagged as missing, instead of being silently replaced on load
+
+**Queue**
+
+- Favorite/reject work on completed temp-format outputs, and the hover controls stay reachable no matter which state is active
+- History deletion reports API failures instead of silently doing nothing
+
+**Desktop**
+
+- Two-finger trackpad swipes no longer misfire on SVG elements or steal the gesture from horizontally scrollable areas
+- Large model dropdowns no longer rebuild their option list on every render
+
+## 3.1.0 - 2026-08-08
+
+### Added
+
+**Workflow editing**
+
+- **Undo/redo** in the workflow menu — per tab, with rapid edits to one widget coalescing into a single step and seed changes excluded
+- **Pop a widget out into a primitive node:** any STRING/INT/FLOAT/BOOLEAN widget becomes a typed core primitive wired into the input it was backing
+- **Connect to inputs that are still widgets:** the connection menu lists widget-backed optional inputs and materializes the real slot for you
+- **Select mode:** multi-select nodes and groups from the `...` menu, then Copy, Create group, or Delete. Copy/paste carries whole subgraphs and works across workflow tabs
+- **Set/Get node support (KJNodes):** compact relay cards, a connection picker for GetNode, correct labels, and an optional "collapse Set/Get nodes" that rewires relays into direct connections
+- **Missing nodes** are listed in a dialog, outlined in red on the affected cards, and one tap opens the Custom Nodes Manager filtered to what you need
+- **Add node / add group** buttons, and unfolding a node now leaves every section open
+- **One-tap PreviewImage ↔ SaveImage convert**, preserving a custom filename prefix
+
+**Outputs**
+
+- **Favorite and reject** any output from the queue, grid, or viewer — mutually exclusive, with a **Delete rejected** bulk action. Favorites, rejects, and hidden marks now live server-side against file contents, so they survive reloads and renames
+- **Navigable favorites filter:** with Show Favorites Only on, folders holding favorites stay visible and show how many are inside
+- **The filter button turns amber** while a filter is narrowing the listing, so a filtered view can't be mistaken for an empty folder
+- **Bulk process:** pick several outputs and run a saved workflow once per image, swapped into the LoadImage node you choose
+- **Use an output as an input** without duplicating it on disk
+
+**Image viewer**
+
+- **Full-screen A/B comparer** for Image Comparer (rgthree) outputs, plus batch output tiling
+- **Swipe down to close**, alongside the existing left/right swipes
+- **Live preview while Follow Queue waits**, so a run you're following shows itself taking shape instead of a bare spinner
+
+**Queue**
+
+- **Video playback that needs nothing extra:** videos are prepared once and served from a seekable cache, so they start fast and seek cleanly — including formats a browser won't play directly. Preparation uses PyAV, which ComfyUI already ships, and runs out of process so a malformed file can't take the server down
+- **True resolution on cards,** read from the file itself rather than the downscaled preview
+- **Stack Outputs / Tab Outputs** toggle for runs with several outputs
+- **Show Prompt Preview:** queued and running cards start expanded and show the input images the job will run on, so you can tell what's cooking before it finishes
+- **A card fits the page on desktop,** capped to the height between the top and bottom bars
+
+**Elsewhere**
+
+- **Web Push notifications:** enable/test buttons and notify-on-complete/error preferences for the 3.0.2 push backend
+- **Install to your home screen** — the app now ships a web manifest and service worker (also what iOS requires before it will deliver notifications)
+- **Two-finger trackpad swipe** between panels on desktop
+- **Workflow favorites sync to the server,** surviving a browser-data clear
+- An opt-out preference to **credit this frontend** in the workflows you run
+
+### Fixed
+
+- **Queue restoration after reload:** completed runs and their previews repopulate reliably, and a temporary preview failure retries instead of deleting the saved run
+- **Follow Queue with nothing in history** left the viewer stuck on a spinner for good
+- **Video posters after a regenerated file:** replacing a video under the same name now invalidates its poster, even within the same second
+
+### Notes
+
+- `requirements.txt` still declares `pywebpush>=2.0` (from 3.0.2); without it web push reports itself unavailable and everything else works
+
+## 3.0.7 - 2026-08-07
+
+### Fixed
+
+- **Custom-node example templates failed to load:** the Templates tab lists template names without a `.json` extension, but the server serves the underlying files with one, so opening any custom-node example workflow failed with "Failed to load template" ([#71](https://github.com/cosmicbuffalo/comfyui-mobile-frontend/pull/71))
+
+## 3.0.6 - 2026-08-06
+
+### Fixed
+
+- **Subgraph-promoted seed controls (e.g. the MiniMax H3 video template):** when a subgraph promotes a seed widget without also promoting its `control_after_generate` companion, the seed control no longer shows and edits an unrelated promoted widget (like the model filename) — the mode dropdown now correctly falls back to per-node "Randomize each time" tracking instead of guessing by position ([#69](https://github.com/cosmicbuffalo/comfyui-mobile-frontend/issues/69))
+- **Subgraph-promoted seeds actually randomize now:** a freshly-randomized seed on a subgraph placeholder was being silently overwritten by the placeholder's stale saved value while the queued prompt was being built, so "randomize" never took effect on the executed generation
+- **Subgraph widgets promoted only through the boundary definition** (with no corresponding socket on the placeholder card itself — the shape the shipped MiniMax H3 template uses for its prompt, seed, and model widgets) are now discoverable at all; previously they were invisible to the mobile UI entirely
+- **Duplicate-named subgraph widgets** (e.g. two VAELoader widgets both promoted as `vae_name`, disambiguated by ComfyUI as `vae_name_1`): the second one now shows its intended label (e.g. "audio_vae") instead of the raw disambiguated name, and its dropdown now correctly lists the installed model files instead of appearing empty
+
+## 3.0.5 - 2026-07-27
+
+### Added
+
+- **ComfyUI-Custom-Scripts as a tag autocomplete source:** prompt autocomplete no longer requires Autocomplete-Plus — a detected ComfyUI-Custom-Scripts (pysssss) install now also enables it, contributing your custom word list (every file format its desktop settings accept, including a1111-style csv) plus LoRA and embedding completion; when both nodes are installed the word list is merged into the tag table ([#67](https://github.com/cosmicbuffalo/comfyui-mobile-frontend/issues/67))
+- **e621 tag data support:** Autocomplete-Plus installs configured with e621 (instead of Danbooru) tag data are now detected as a valid autocomplete source
+
+### Fixed
+
+- **Autocomplete dropdown position:** the caret-measuring mirror no longer mis-positions the suggestion dropdown on scrolled pages
+- **Autocomplete performance:** tag search keys are cached lazily instead of being recomputed every keystroke over the ~150k-entry tag table
+- **Autocomplete UX polish:** the dropdown waits a beat after a field gains focus before covering the caret, shows a loading row while tag data is still downloading, and Escape now also dismisses it (alongside the floating ✕ button, which stays — it is the only way to dismiss on mobile)
+
+## 3.0.4 - 2026-07-09
+
+### Fixed
+
+- **Follow queue mode:** the image viewer no longer swaps in an older generation while following the queue, and every finished generation now surfaces — previously some completed jobs never appeared in follow mode even though they showed up in the queue panel.
+- **Mobile node reordering:** moving nodes around in the workflow panel now marks the workflow as modified so it can be saved, even when no widget values or connections changed. Previously the reordered layout could not be saved and was lost on reload.
+- **iOS Safari downloads:** saving an image no longer silently does nothing on iOS Safari. Each save now issues a synchronous anchor click that preserves the browser's user-gesture activation instead of pre-fetching the file first.
+- **Seed bounds:** generated random seeds and increment/decrement results are clamped to the universal 2^32-1 ceiling, so nodes with lower declared maxima (and ComfyUI's own validation) no longer reject them.
+- **Load Image (from Outputs):** picking an output image for a LoadImageOutput node no longer fails with "Input file not found"; output/temp picks are routed into the input directory the node reads from.
+- **Workflow loading robustness:** malformed workflow payloads are rejected before the tab transition (with sane default node position/size), and root link ids are clamped to the ids actually in use to avoid id collisions.
+- **Outputs panel:** the infinite-mode skip button is now hidden on the Outputs panel, where it does not apply.
+- **Server freeze on saving push preferences:** 3.0.2's preferences module could deadlock the whole server on the first toggle (a non-reentrant lock re-acquired); fixed.
+- **rgthree Fast Groups Bypasser rendered as a "Missing Node":** it now renders its group toggles.
+
+## 3.0.3 - 2026-07-08
+
+### Added
+
+- **Tag autocomplete:** when ComfyUI-Autocomplete-Plus is installed, prompt text fields can suggest Danbooru tags, LoRA names, and embeddings. The integration is opt-in under Preferences and includes alias matching, caret-anchored placement, an in-popup dismiss button, and wiki links for supported Danbooru tags.
+- **Server-side output favorites:** file and folder favorites now persist on the ComfyUI server so they sync across devices. File favorites are content-hash backed, survive in-app moves/renames, can be rediscovered after external filesystem moves, and no longer attach to a new generation just because it reused a favorited filename.
+
+### Fixed
+
+- **Desktop repositioning:** reposition mode now keeps its content to a readable desktop width instead of stretching across the full screen.
+- **Mobile node order persistence:** reordering nodes in the mobile layout now writes tidy canvas geometry, so saving and reopening a workflow reconstructs the same mobile order instead of falling back to the default dependency order.
+- **Lost queued jobs banner:** dismissing the recovered "Lost queued jobs found" banner now discards those recovered jobs so the same banner does not reappear later.
+- **Tidy group sizing:** tidy layout no longer inflates non-empty groups to the empty-group minimum size.
+
+## 3.0.2 - 2026-06-18
+
+### Added
+
+- **Push notification backend.** Server-side completion detection (poll-and-diff on `PromptServer.instance.prompt_queue.history`) plus two delivery sinks:
+  - **Native-app push** via a relay: `/mobile/api/push/app-targets` registers a `{relay_url, pairing_code, server_id, label}` target; the node POSTs `/event` to the relay on completion; the relay holds the APNs key and fans out to paired devices. `server_id` is forwarded so the iOS app can route a notification tap to the right server when multiple are paired.
+  - **Web Push** (browser, self-hosted, no third party): `/mobile/api/push/{config,subscribe,unsubscribe,test}` for VAPID/pywebpush subscriptions; service worker shows the notification.
+- `/mobile/api/push/preferences` toggles for `notifyOnComplete`, `notifyOnError`, and `includeThumbnail`.
+- Regression tests for the native-app push module (`tests/test_mobile_app_push.py`).
+
+### Notes
+
+- **Web Push UI (in-app menu toggles, subscribe button, service worker registration) is intentionally not included in this release.** Those changes depend on other unrelated v3.1.0 work. Backend is functional for direct API callers (and for the iOS app, which doesn't use the web UI anyway). The Web Push browser UI will land in a later release alongside its supporting frontend changes.
+- New runtime dep `pywebpush>=2.0` (declared in `requirements.txt`). If it's missing the node still loads; `/mobile/api/push/config` reports `{"enabled": false, "reason": …}` and web push is no-op'd.
+
+## 3.0.1 - 2026-06-17
+
+### Added
+
+- **Load a workflow from an image:** drag an image onto the workflow panel or pick one via "From Device" to load the workflow embedded in its metadata, extracted entirely client-side from PNG `tEXt`/`iTXt` or WEBP/JPEG EXIF. The device picker now accepts images alongside `.json`, the panel shows a "Drop to load workflow" overlay while dragging, and a dismissible dialog explains when an image carries no embedded workflow
+- **Image viewer zoom & pan (desktop):** zooming (Ctrl-scroll / trackpad pinch) now anchors at the cursor instead of growing from center, and a plain scroll wheel / trackpad pans the image once zoomed in (no more click-drag-only)
+
+### Fixed
+
+- **Workflows silently producing no output:** a stale closed-enum combo value (e.g. a captured action-widget placeholder) was sent verbatim, so ComfyUI dropped that node's whole branch and the prompt "succeeded" with no output. Closed-enum values now fall back to the default, while file-picker values are still kept as-is so the server can resolve or clearly reject them
+- **Over-max seeds rejected at validation:** randomized/queued seeds are now clamped to each node's declared seed maximum (with a universal 2^32-1 ceiling), so nodes that cap the seed below 2^64 (e.g. Qwen-VL) no longer get silently dropped from the run
+- **405 on Custom Nodes Manager install:** the queue reset/start calls now try `POST` and fall back to `GET`, so install/update works across ComfyUI-Manager versions that register those endpoints with either method
+- **Prompt-preview overflow:** long unbroken values (file paths, seeds, hex tokens) in the prompt-preview diff now wrap instead of overflowing the container
+
+
+## 3.0.0 - 2026-06-11
+
+### Added
+
+- **Multiple workflows open at once:** keep up to 10 workflows loaded and switch between them from a tab strip under the top bar. Exactly one workflow is active while the others are held in the background. Tabs show a per-workflow queue count (with progress ring) or an animated infinite-generation indicator, a `*` when there are unsaved changes, and a one-click close button when saved. Open workflows, the active tab, and which workflow is looping all survive a refresh
+- **Per-workflow infinite generation:** at most one workflow loops at a time; switching tabs leaves the loop running on its workflow, and enabling it elsewhere moves it. A safety check stops the loop with an explanation if it would re-submit an identical prompt forever (e.g. a fixed seed)
+- **Use an output in a specific open workflow:** the "use in workflow" picker now lets you choose which open workflow to load the image into when more than one is open
+- **Rich model picker** with Lora Manager metadata, plus a standalone fallback when Lora Manager isn't installed
+- **Image Comparer node support** with handle to drag for side by side comparison (rgthree)
+- **Custom nodes manager modal** for browsing/managing custom nodes from the app
+- **Workflow folders:** organize saved workflows into folders — create, rename, and delete folders from the Workflows panel, navigate in and out, and have folders sort by their most recently modified workflow
+- **Bookmarks for workflows and templates:** a bookmark toggle on each item plus a "show bookmarks only" filter in both the Workflows and Templates panels. Bookmarks are stored per-device, follow workflows and folders through rename/move, and are cleared automatically when an item is deleted
+- **Hidden workflows & folders:** mark saved workflows or folders as hidden (Workflows panel → Hide/Unhide), with a "show hidden" toggle. A declutter convenience only (not access control); the hidden list is saved to your ComfyUI user data and persists across sessions, and any output created from a hidden workflow is also hidden automatically in the outputs panel
+- **Backend connection overlay:** a clear "connection lost / reconnecting" overlay when the ComfyUI backend goes away, and a notice on reconnect if a running/queued job was interrupted (with optional auto-restore)
+- **Duplicate nodes and subgraphs:** a "Duplicate" action in the node menu copies a node — or an entire subgraph, internals and all — keeping its input connections and leaving outputs unconnected
+- **Aliased paths:** an opt-in preference replaces local input paths and output filename prefixes with opaque aliases in the workflow embedded in shared images/JSON, so sharing a workflow doesn't leak your folder structure; the real values are restored automatically when loaded into the workflow panel
+- **Animated tab favicon:** the browser-tab icon pulses green while a generation is running and is solid cyan when idle, so you can watch progress from another tab
+- **Live outputs refresh:** while you're on the Outputs panel, images from a finished run appear in the folder you're viewing automatically
+- **Paged queue history:** the Queue page loads runs as you scroll instead of stopping at a fixed count, and the header shows the true total run count in your server's history
+- **Resolution everywhere:** the image viewer shows the source resolution under the filename, and queue/output thumbnails carry resolution and file-size badges (previews included)
+- **Restart ComfyUI from the app:** a "Restart ComfyUI" button under Menu → Server restarts the backend (with a confirmation), then waits for it to come back and reloads automatically
+- **Outputs panel improvements:** multiple tabs, download-to-device, hidden folders/outputs, prompt search, range selection
+- **Beginnings of desktop support:** somewhat more responsive interface, keyboard controls!
+  - arrows to move through the media viewer
+  - delete - open the delete dialog + enter to submit
+  - `f` to toggle favorite
+  - `d` to download
+  - `w` to load the image's embedded workflow
+  - `u` to use the image in a workflow (images only)
+  - `i` to toggle the metadata overlay
+  - `q` to toggle follow-queue mode (or open the viewer in follow-queue mode from the workflow/queue panels)
+  - `p` to toggle the pinned widget editor
+  - escape to close the viewer (or the topmost open modal)
+
+### Changed
+
+- **Dark theme:** the entire UI was restyled to a slate/cyan dark palette, routed through shared style modules. This is now the only theme — light mode is dead
+- **Faster image reuse:** reusing an output in a workflow now does a single server-side copy into the input folder instead of downloading and re-uploading the file, and no longer blocks on a node-types refresh
+- Inline output and combo thumbnails load small webp previews instead of full-resolution images
+- **Smoother queue & outputs panels:** the queue list and the outputs grid render incrementally and only re-render what changed, staying responsive with large histories and folders; queue scroll position stays put while images load and new runs arrive
+- **More responsive server:** image-metadata, thumbnail/video-frame, and model-list work now runs off the web-server event loop, and model listings are cached, so browsing stays snappy under load
+- **Pinned-widget editor leaves the bottom bar reachable** — you can queue/iterate while it's open (other full-screen modals still cover the bar)
+- **Redesigned queue cards:** each run shows one media slot with a tab bar to switch between its previews and outputs (videos are pinned by default). The slot only swaps once the next image has decoded, so cards no longer flash or jump as results stream in
+- **Move destinations** show the real source name (Inputs / Outputs / Temp) instead of "Root"
+
+### Fixed
+
+- Seed-related widgets had a few bugs that have since been fixed
+- Batch downloads keep each file's real filename instead of naming them all `image.png`
+- **Fixed input connection editor:** choosing an input connection now uses the same tap-to-select / Apply flow as outputs instead of immediately closing and scrolling the view
+- **Stale image after delete:** regenerating an output that reuses the filename of one you just deleted now shows the new image instead of the cached deleted one
+
+### Security
+
+- Hardened directory checks on the file-serving endpoints so a crafted path can't escape the output/input folders, and restricted the model-preview endpoint to image/video files only
+
+## 2.6.3 - 2026-05-24
+
+### Fixed
+
+- KSampler SDXL (Eff.) and other Efficient Nodes samplers now work correctly when the saved workflow keeps the `control_after_generate` slot but stores `null` in it. The previous fix in 2.6.2 only handled the case where the slot was stripped entirely; nulled slots still caused widget values to be read one position off, producing spurious "Missing on ComfyUI server" badges on `sampler_name`, `preview_method`, etc., and sometimes rejected queues (#57)
+
+## 2.6.2 - 2026-05-23
+
+### Fixed
+
+- "Unsaved changes" confirmation dialog (triggered from the outputs panel viewer's load-workflow button) no longer leaves an unstyled gap at the top where the hidden top bar would be
+- Seed overrides for `noise_seed` inputs (used by Efficient KSampler Adv, KSampler SDXL Eff., etc.) now resolve correctly at queue time. Previously the special-mode value `-1` was sent to the server, which rejected it due to `min: 0` (#57)
+- Reading widget values for nodes whose JS strips the auto `control_after_generate` widget (Efficient KSampler family) no longer reads later inputs from the wrong array indices. This eliminates spurious "Missing on ComfyUI server" badges on sampler_name, scheduler, preview_method, and similar inputs
+
+## 2.6.1 - 2026-05-18
+
+### Added
+
+- **Image favorites in the viewer:** new heart button next to the load-workflow and use-in-workflow buttons. Outline when not favorited, solid red when favorited. Toggling works the same in the queue follow-mode viewer and the outputs panel viewer — state is shared, so favoriting an image anywhere updates it everywhere
+- **Seed (rgthree) node support:** dedicated controls matching the desktop rgthree Seed node — 🎲 Randomize each time, 🎲 New fixed random, and ♻️ Use last queued seed (with the last queued value shown in the button label). When randomize mode is selected the seed field displays `-1`, matching the desktop behavior
+
+### Changed
+
+- Heart icon (solid red) replaces the yellow bookmark indicator on favorited files in the Outputs panel
+- Skip button in the bottom bar uses an SVG icon instead of an emoji
+- Image viewer modals (delete, unsaved changes) now cover the full viewport instead of leaving an unstyled gap at the top where the (hidden) top bar would be
+- Trash icon in the image viewer's delete button is nudged for better optical centering
+
+### Fixed
+
+- Run-count picker no longer briefly appears between clicking Stop and execution actually ending in infinite generation mode
+- "Seed control" dropdown no longer renders blank for rgthree Seed nodes (and no longer overrides the seed widget with a real number on queue when the node has a stale empty control value)
+
+## 2.6.0 - 2026-05-17
+
+### Added
+
+- **Infinite generation:** new ∞ toggle beside the run button starts an unbounded loop where each finished run automatically queues the next, similar to desktop's "Run (Instant)" (#54, thanks @mario-marin!). The run button becomes Stop, with a Skip button for advancing past the current iteration without ending the loop. Gated behind an opt-in "Enable infinite mode" preference under Menu → Server → Preferences
+- **Image viewer keyboard navigation:** left/right arrow keys step through images (left → newer, right → older), and Escape closes the viewer
+
+### Fixed
+
+- Image viewer no longer hides in-progress previews when older runs in the same history already produced saved outputs — the preference is now applied per item, so each run shows its outputs if it has any and its previews otherwise
+
+## 2.5.1 - 2026-05-14
+
+### Fixed
+
+- Mobile prompt generation now resolves KJNodes `GetNode`/`SetNode` virtual links, fixing workflows with subgraphs that previously failed validation with missing inputs.
+
+## 2.5.0 - 2026-05-04
+
+### Added
+
+- **In-app feedback:** new "Send Feedback" button in the About section of the app menu opens a modal that lets you file a GitHub issue without needing a GitHub account. Submissions are forwarded through a small open-source Cloudflare Worker ([cosmicbuffalo/comfyui-mobile-frontend-feedback-worker](https://github.com/cosmicbuffalo/comfyui-mobile-frontend-feedback-worker)) that creates the issue on the project's GitHub repo on your behalf
+- Optional **diagnostic info** checkbox attaches your ComfyUI version, OS, and other system info to help with debugging — opt-in only, with a preview shown before you submit so you can see exactly what's included
+- Optional **contact field** for follow-up. Verified GitHub handles get `@-mentioned` in the public issue; anything else (email addresses, phone numbers, free text) is treated as private and forwarded to the maintainer's inbox instead of being written into the public issue body
+
+## 2.4.1 - 2026-05-02
+
+### Fixed
+
+- Fast Groups Bypasser config modal now stays within the visible viewport on mobile screens
+- Improved LoRA Manager node registration for subgraphs by sending the subgraph name and node bypass mode to the backend
+- Fixed LoRA Manager text-widget resolution when metadata widgets are present, preventing metadata blobs from appearing in prompt fields
+- Fixed LoRA name normalization so trigger-word lookups use the basename without model file extensions
+- Prevented LoRA Text Loader nodes from gaining a phantom LoRA list widget when saving from mobile
+
+## 2.4.0 - 2026-03-24
+
+### Added
+
+- **Follow executing node:** tap the progress overlay during generation to scroll to and follow the currently executing node. Automatically navigates into subgraphs when enabled (configurable in Preferences)
+- **Use from outputs:** upload-capable combo widgets gain a "Use from outputs" button that opens a browsable folder picker over the ComfyUI output directory, letting you copy a generated image or video into inputs without leaving the mobile UI
+- **Video upload:** combo widgets that accept video files (e.g. VHS LoadVideo) now show an "Upload video from device" button, auto-detected by widget name or file extensions
+- **Preferences panel:** new submenu under Server section for configuring generation and execution behavior
+- **Latent previews:** live preview images on sampler nodes during generation. Enable via Main Menu → Server → Preferences. Choose between Fast (latent2rgb) or Accurate (TAESD) preview methods. Off by default
+- **Fast Groups Bypasser config editor:** Fast Groups Bypasser (rgthree) nodes now expose an "Edit config" action from the node context menu for updating group filters and sort behavior directly in the mobile UI
+
+### Fixed
+
+- Subgraph inner nodes now correctly resolve for execution tracking (progress, outputs, errors) even when the user hasn't navigated into that subgraph scope
+- Upload and output picker errors now surface in the error toast instead of failing silently
+- Root subgraph placeholder fold state now persists across refreshes
+
+## 2.3.3 - 2026-03-22
+
+### Added
+
+- **Server Info** shown in app menu, includes GPU/VRAM/RAM, etc
+- **Recent Workflows:** new "Recent" button in the Load section shows the 10 most recently opened workflows, including workflows loaded from output/queue files. Persisted locally with server backup sync
+- **Wildcard connection grouping:** connection picker now shows concrete type matches at the top, with wildcard-compatible nodes listed below a "Wildcard *" separator
+- Clear button on the Recent Workflows panel to reset the list
+
+### Fixed
+
+- Workflows loaded from output files now track their source file, display the filename, and can be reloaded from the Recent list
+- Reload from source now supports file-sourced workflows
+
+## 2.3.2 - 2026-03-17
+
+### Added
+
+- **Folder navigation in My Workflows:** browse into subfolders with drill-down navigation instead of a flat file list
+- Search still flattens results across all folders, with subfolder path shown as a subtitle
+
+### Fixed
+
+- Workflows saved in subfolders now load correctly (fixes #38)
+- Workflow title bar and save button display only the workflow name without folder path
+
+## 2.3.1 - 2026-03-17
+
+### Fixed
+
+- Bookmark repositioning works again
+- Also fixes resolution of bookmarks for nodes with repeated IDs in root/subgraph scopes
+
+## 2.3.0 - 2026-03-17
+
+### Added
+
+- **Improved Subgraph Support:** subgraph placeholder nodes now render on the mobile frontend.
+  use the "Enter subgraph" action to drill into the subgraph and manipulate its inner nodes
+- Widget controls on subgraph placeholder nodes: promoted widgets (slot-promotion and
+  proxyWidgets mechanisms) now appear as editable controls on the placeholder card
+- Breadcrumb bar shows the current scope path (Root / Subgraph Name) when inside a
+  subgraph; tap a crumb to jump back up the stack
+- **Smart bookmarks:** bookmarks work across root/subgraph scopes; tapping a bookmark for a
+  node inside a different scope will automatically navigate to that scope
+- Add Group action in the workflow options menu now places the new group near the
+  currently visible nodes rather than always at the document origin
+- Reposition mode now syncs node positions and group bounding boxes in the workflow
+  geometry when nodes move between groups or scopes in the mobile layout (experimental)
+
+### Removed
+
+- Light mode (temporarily? I just don't want to waste time tweaking colors in a theme I never use)
+- Movement of nodes/groups across subgraph boundaries
+- Legacy workflow state compatibility (Back up your mobile workflows before upgrading to v2.3.0 just in case)
+
+### Fixed
+
+- **ComfyUI Frontend compatibility:** Saving a carefully crafted desktop workflow containing subgraphs
+  in the mobile frontend no longer butchers your workflow by dumping everything into the root scope!
+- **Group display:** fixed various issues with group containment logic and colors
+
+## 2.2.3 - 2026-03-15
+
+### Added
+
+- Visual bypass indicators for groups — groups with all nodes bypassed turn purple, collapsed groups with some bypassed nodes show a bypass icon with count badge
+- Purple card outline on the Fast Groups Bypasser (rgthree) node for fully bypassed groups
+
+### Fixed
+
+- Collapsed bypassed nodes no longer show a bottom border color bleed
+- Workflow saves not persisting across sessions — browser cache and workflow source tracking now update correctly after saving
+
+## 2.2.2 - 2026-02-24
+
+### Added
+
+- Color picker for nodes and groups, tap "Change color" from the node/group context menu to choose from the standard ComfyUI palette
+
+### Changed
+
+- Cosmetic changes to the outputs panel and filter modal, moved some things around, changed some colors
+- Cosmetic tweaks to node/container menus and fold animations
+
+### Fixed
+
+- Cycle detection in connection suggestions, results now filter out nodes that would create a cycle in the workflow graph
+- Default sort and direction arrows in the outputs panel now look more intuitive
+
+## 2.2.1 - 2026-02-20
+
+### Added
+
+- Load workflow from videos in the media viewer — the viewer checks for an associated image sidecar to extract embedded workflow metadata, and shows the Load Workflow button when one is found
+- New backend endpoint `GET /mobile/api/workflow-availability` to check whether a file has an associated workflow without fetching full metadata
+
+### Changed
+
+- Loading a workflow from the image/outputs viewer now first resolves against in-memory run history before falling back to a network fetch
+- Extracted shared path resolution and workflow extraction logic into helper functions in the backend, reused across file-metadata and workflow-availability endpoints
+
+### Fixed
+
+- Missing stable keys on nodes, groups, and subgraphs are now repaired on every workflow load, preventing crashes when loading externally-generated or older workflows
+- Hidden items, collapsed state, and bookmarks had various small but annoying bugs related to failed stable key mappings, causing bookmarks to disappear or groups to get stuck folded
+- Embed workflow sync now propagates the full node state (mode, flags, properties, title, color, bgcolor) back to the embed workflow, not just widget values
+
+## 2.2.0 - 2026-02-17
+
+### Added
+
+- LoRA Manager integration layer:
+  - Support for LoraManager nodes and websocket integration (thanks @pccr10001!)
+- Node text output previews are now rendered in the workflow panel
+- Focused unit/integration coverage for LoRA Manager and related serialization behavior:
+  - `loraManager` utils
+  - `triggerWordToggle` utils
+  - LoRA manager store/action flows
+  - viewer image building and temp-source workflow path resolution
+
+### Changed
+
+- Queue/Image Viewer media pipeline now includes preview/temp images in the same generated order instead of output-only lists
+- Follow Queue mode now advances using all generated media (including previews), not just saved output files
+
+### Fixed
+
+- Loading workflow metadata from temp images now resolves `temp` as a first-class source instead of incorrectly defaulting to `output`
+- Queue card image ordering mismatch that could open the wrong media item when previews were present
+
+## 2.1.0 - 2026-02-15
+
+### Added
+
+- Expanded workflow editing support: add/remove nodes, reconnect node inputs/outputs, and reposition items on the mobile layout
+- Generic container editing actions for both groups and subgraphs (hide, bookmark, bypass nested nodes, delete container-only or container + nested contents)
+- Outputs panel rename actions for both files and folders
+
+### Changed
+
+- Unified group/subgraph rendering into shared container components across workflow and repositioning views
+- Migrated workflow UI state handling to stable identity keys for item-level state operations
+- Consolidated context-menu trigger button variants into shared reusable button components
+
+### Fixed
+
+- Move modal now respects hidden-folder visibility settings when selecting destination folders
+- Multiple container and bookmark state consistency issues after key/state refactors
+
+## 2.0.6 - 2026-02-08
+
+### Fixed
+
+- Fix image loading bug in media viewer
+- Minor cosmetic UI fixes
+
+## 2.0.5 - 2026-02-07
+
+### Added
+
+- Workflow and template search
+
+## 2.0.4 - 2026-02-06
+
+### Changed
+
+- README updates and documentation fixes
+- Added `pyproject.toml`
+- Added automatic publish action setup
+- Added initial test suite setup
+
+## 2.0.3 - 2026-02-06
+
+### Fixed
+
+- Bugfixes for movement and selection of files/folders in the outputs panel
+
+### Changed
+
+- Added screenshots to project documentation
+
+## 2.0.2 - 2026-02-02
+
+### Fixed
+
+- Fix pinch-to-zoom and panning being janky and unresponsive in the image viewer
+- Fix pinned widget edit modal appearing behind the image viewer
+
+## 2.0.1 - 2026-02-02
+
+### Fixed
+
+- Fix delete and load workflow confirmation modals appearing behind the image viewer
+- Fix widget edit modal content being hidden behind the bottom bar when text is long; content area is now scrollable
+
+## 2.0.0 - 2026-01-27
+
+### Added
+
+- **Outputs panel** - Browse, search, filter, and manage files in your outputs and inputs folders directly from the app
+- **Multi-panel navigation** - Swipe between Workflow, Queue, and Outputs panels, or use top bar menu options
+- **Group and subgraph support** - Collapse, expand, and hide node groups and subgraphs
+- **Pinned widget overlay** - Pin a frequently-used widget to the bottom bar for one-tap editing from anywhere
+- **Node bookmarks** - Pin up to 5 nodes to a floating bookmark bar for quick access
+- **Node search** - Search workflow nodes by name, type, or group
+- **Media viewer** - View images and videos with enhanced control overlays
+- **Batch selection** - Select multiple output files for bulk actions
+- **File operations** - Delete, move, and organize input/output files and folders
+- **Favorites** - Star favorite output files for quick access
+- **Output filtering** - Filter outputs by file type, filename, change sort order
+
+### Changed
+
+- Massive refactors to app internal structure to inch away from vibecoded nonsense to something a bit more maintainable

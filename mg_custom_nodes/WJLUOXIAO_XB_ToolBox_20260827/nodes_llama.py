@@ -590,11 +590,11 @@ class XB_llamaModelLoader:
     def INPUT_TYPES(s):
         all_llms = folder_paths.get_filename_list("LLM")
         model_list = [f for f in all_llms if "mmproj" not in f.lower()]
-        mmproj_list = ["None"] + [f for f in all_llms if "mmproj" in f.lower()]
+        mmproj_list = [f for f in all_llms if "mmproj" in f.lower()] or ["None"]
 
         return {"required": {
             "model": (model_list,),
-            "mmproj": (mmproj_list, {"default": "None"}),
+            "mmproj": (mmproj_list,),
             "chat_handler": (chat_handlers, {"default": "None"}),
             "n_ctx": ("INT", {
                 "default": 8192,

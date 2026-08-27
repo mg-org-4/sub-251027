@@ -1,5 +1,11 @@
 # 更新日志 / Changelog
+## 1.1.2 2026-8-27
+重构"文本编辑器（继续运行）"节点运作方式，移除手动同步按钮，改为节点暂停时自动同步输入文本
+ <br>
+Restructure the operation mode of the "Text Editor with Continue" node by removing the manual synchronization button and automatically synchronizing input text when the node is paused
+
 ## 1.1.2 2026-8-25
+- 显示任何节点（ShowAny）新增“复制”按钮，用于复制当前显示的文本到剪贴板
 - 修复组管理器节点(GroupManager)中的几个运作逻辑错误
 - 修复提示词替换节点(PromptReplace)中的输入框会被重置的问题
 - 修复系统提示词节点(SystemPrompt)中在最新版本ComfyUI中显示出错的问题

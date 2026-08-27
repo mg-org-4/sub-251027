@@ -7,6 +7,16 @@ import { showRecipes, refreshRecipes, renderRecipeList, handleSaveRecipe } from 
 import { initDoctorPanel, diagnoseNode, renderGlobalDashboard, initAssistantPanel, renderAssistantModelCard, _loadAssistantHistory, _openGalleryReplacer, openLoraInsertionPicker, runGlobalDoctorScan } from './modules/ui_doctor.js';
 import { app } from "../../scripts/app.js";
 import { normalizeLocale, resolveLocale, translate } from './modules/locales.js';
+import {
+    clampFloatingTriggerPosition,
+    normalizeEntryMode,
+    normalizeFloatingTriggerSize,
+    normalizeFloatingTriggerStyle
+} from './modules/entry_controls.js';
+import {
+    createShortcutSettingControl,
+    DEFAULT_BROWSER_SHORTCUT
+} from './modules/shortcut_controls.js';
 // ============================================================================
 // TABLE OF CONTENTS (TOC)
 // 1. App Registration & Entry     (Search for "app.registerExtension")
@@ -58,6 +68,127 @@ try {
 let currentLang = resolveLocale(localStorage.getItem('anomalous_lang') || defaultLang);
 window.anomalous_browser_lang = currentLang;
 const t = (key, params) => translate(key, params, window.anomalous_browser_lang || currentLang);
+
+const LANGUAGE_SETTING_ID = 'Anomalous.ModelBrowser.Language';
+const ENTRY_MODE_SETTING_ID = 'Anomalous.ModelBrowser.EntryMode';
+const SHORTCUT_SETTING_ID = 'Anomalous.ModelBrowser.Shortcut';
+const FLOATING_TRIGGER_SIZE_SETTING_ID = 'Anomalous.ModelBrowser.FloatingTriggerSize';
+const FLOATING_TRIGGER_STYLE_SETTING_ID = 'Anomalous.ModelBrowser.FloatingTriggerStyle';
+const OPEN_BROWSER_COMMAND_ID = 'Anomalous.ModelBrowser.Open';
+const RESET_TRIGGER_POSITION_COMMAND_ID = 'Anomalous.ModelBrowser.ResetFloatingTriggerPosition';
+let entryMode = 'floating';
+let floatingTriggerSize = 'medium';
+let floatingTriggerStyle = 'icon';
+let browserInstance = null;
+let triggerButton = null;
+let triggerBoundsUpdater = null;
+
+function normalizeLanguagePreference(value) {
+    return value === 'zh' || value === 'en' ? value : 'auto';
+}
+
+function resolveComfyLanguage() {
+    try {
+        const settings = app.extensionManager?.setting;
+        const locale = settings?.get('Comfy.Locale')
+            || app.ui?.settings?.getSettingValue?.('Comfy.Locale')
+            || app.ui?.settings?.getSettingValue?.('Comfy.Locale.Language');
+        return normalizeLocale(locale) || defaultLang;
+    } catch (error) {
+        return defaultLang;
+    }
+}
+
+function getInterfaceSettingTranslations() {
+    const category = t('mainInterfaceCategory');
+    return {
+        [FLOATING_TRIGGER_STYLE_SETTING_ID]: {
+            name: t('mainFloatingTriggerStyleSetting'),
+            category: ['Anomalous Model Browser', category, 'floating-trigger-style'],
+            tooltip: t('mainFloatingTriggerStyleTooltip'),
+            options: [
+                { value: 'icon', text: t('mainFloatingTriggerStyleIcon') },
+                { value: 'pill', text: t('mainFloatingTriggerStylePill') }
+            ]
+        },
+        [FLOATING_TRIGGER_SIZE_SETTING_ID]: {
+            name: t('mainFloatingTriggerSizeSetting'),
+            category: ['Anomalous Model Browser', category, 'floating-trigger-size'],
+            tooltip: t('mainFloatingTriggerSizeTooltip'),
+            options: [
+                { value: 'small', text: t('mainFloatingTriggerSizeSmall') },
+                { value: 'medium', text: t('mainFloatingTriggerSizeMedium') },
+                { value: 'large', text: t('mainFloatingTriggerSizeLarge') }
+            ]
+        },
+        [SHORTCUT_SETTING_ID]: {
+            name: t('mainShortcutSetting'),
+            category: ['Anomalous Model Browser', category, 'shortcut'],
+            tooltip: t('mainShortcutTooltip')
+        },
+        [ENTRY_MODE_SETTING_ID]: {
+            name: t('mainEntryModeSetting'),
+            category: ['Anomalous Model Browser', category, 'entry-mode'],
+            tooltip: t('mainEntryModeTooltip'),
+            options: [
+                { value: 'floating', text: t('mainEntryModeFloating') },
+                { value: 'topbar', text: t('mainEntryModeTopbar') },
+                { value: 'menu', text: t('mainEntryModeMenu') }
+            ]
+        },
+        [LANGUAGE_SETTING_ID]: {
+            name: t('mainLanguageSetting'),
+            category: ['Anomalous Model Browser', category, 'language'],
+            tooltip: t('mainLanguageTooltip'),
+            options: [
+                { value: 'auto', text: t('mainLanguageAuto') },
+                { value: 'zh', text: t('mainLanguageChinese') },
+                { value: 'en', text: t('mainLanguageEnglish') }
+            ]
+        }
+    };
+}
+
+function refreshRegisteredInterfaceSettings() {
+    const settingsApi = app.extensionManager?.setting;
+    const registry = settingsApi?.settings?.value || settingsApi?.settings;
+    if (!registry || typeof registry !== 'object') return;
+
+    const translations = getInterfaceSettingTranslations();
+    for (const [id, patch] of Object.entries(translations)) {
+        const current = registry[id];
+        if (!current) continue;
+        // Replacing the descriptor keeps ComfyUI's computed settings tree reactive,
+        // including the open settings dialog and its translated combo options.
+        registry[id] = { ...current, ...patch };
+    }
+}
+
+function applyLanguagePreference(value) {
+    const preference = normalizeLanguagePreference(value);
+    if (preference === 'auto') {
+        localStorage.removeItem('anomalous_lang');
+    } else {
+        localStorage.setItem('anomalous_lang', preference);
+    }
+
+    const nextLanguage = preference === 'auto' ? resolveComfyLanguage() : preference;
+    const changed = nextLanguage !== window.anomalous_browser_lang;
+    currentLang = nextLanguage;
+    window.anomalous_browser_lang = nextLanguage;
+    applyFloatingTriggerPresentation();
+    refreshRegisteredInterfaceSettings();
+    if (changed) {
+        window.dispatchEvent(new CustomEvent('anomalous-language-change', {
+            detail: { language: nextLanguage, preference }
+        }));
+    }
+}
+
+if (!localStorage.getItem('anomalous_lang')) {
+    currentLang = resolveComfyLanguage();
+    window.anomalous_browser_lang = currentLang;
+}
 
 class AnomalousBrowser {
     constructor() {
@@ -117,7 +248,7 @@ class AnomalousBrowser {
 
     setTriggerVisible(visible) {
         const trigger = this.triggerButton || document.getElementById('anomalous-trigger-btn');
-        trigger?.classList.toggle('anomalous-trigger-hidden', !visible);
+        trigger?.classList.toggle('anomalous-trigger-hidden', !visible || entryMode !== 'floating');
     }
     // [EXTRACTED] showNotebooks
 
@@ -491,8 +622,188 @@ AnomalousBrowser.prototype.showEditModal = showEditModal;
 AnomalousBrowser.prototype._openAdvancedModelSelector = _openAdvancedModelSelector;
 AnomalousBrowser.prototype.setWidgetValuePath = setWidgetValuePath;
 
+function syncFloatingTriggerVisibility() {
+    document.documentElement.classList.toggle('anomalous-topbar-entry-enabled', entryMode === 'topbar');
+    document.documentElement.classList.toggle('anomalous-floating-entry-enabled', entryMode === 'floating');
+    const browserIsOpen = browserInstance?.modal?.classList.contains('visible') === true;
+    const shouldShow = entryMode === 'floating' && !browserIsOpen;
+    triggerButton?.classList.toggle('anomalous-trigger-hidden', !shouldShow);
+}
+
+function applyFloatingTriggerPresentation() {
+    if (!triggerButton) return;
+    triggerButton.dataset.size = floatingTriggerSize;
+    triggerButton.dataset.style = floatingTriggerStyle;
+
+    const icon = document.createElement('span');
+    icon.className = 'anomalous-trigger-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '📦';
+
+    const label = document.createElement('span');
+    label.className = 'anomalous-trigger-label';
+    label.textContent = t('mainFloatingTriggerLabel');
+    triggerButton.replaceChildren(icon, label);
+    triggerButton.title = t('mainOpenTitle');
+    triggerButton.setAttribute('aria-label', t('mainOpenTitle'));
+    requestAnimationFrame(() => triggerBoundsUpdater?.());
+}
+
+function resetFloatingTriggerPosition() {
+    localStorage.removeItem('anomalous_btn_x');
+    localStorage.removeItem('anomalous_btn_y');
+    if (!triggerButton) return;
+    triggerButton.style.left = '';
+    triggerButton.style.top = '';
+    triggerButton.style.right = '30px';
+    triggerButton.style.bottom = '30px';
+    requestAnimationFrame(() => triggerBoundsUpdater?.());
+}
+
+function ensureBrowser() {
+    if (browserInstance) return browserInstance;
+    try {
+        browserInstance = new AnomalousBrowser();
+        browserInstance.triggerButton = triggerButton;
+        window.anomalousBrowserInstance = browserInstance;
+        triggerButton?.classList.remove('anomalous-trigger-error');
+        if (triggerButton) {
+            triggerButton.title = t('mainOpenTitle');
+            triggerButton.setAttribute('aria-label', t('mainOpenTitle'));
+        }
+        syncFloatingTriggerVisibility();
+        return browserInstance;
+    } catch (error) {
+        console.error('[Anomalous Model Browser] UI initialization failed:', error);
+        triggerButton?.classList.add('anomalous-trigger-error');
+        if (triggerButton) {
+            triggerButton.title = currentLang === 'zh' ? t('mainRetryInit') : t('mainRetryInitEn');
+            triggerButton.setAttribute('aria-label', triggerButton.title);
+        }
+        return null;
+    }
+}
+
+function openBrowser() {
+    ensureBrowser()?.show();
+}
+
 app.registerExtension({
     name: 'Anomalous.ModelBrowser',
+    settings: [
+        {
+            id: FLOATING_TRIGGER_STYLE_SETTING_ID,
+            name: t('mainFloatingTriggerStyleSetting'),
+            category: ['Anomalous Model Browser', t('mainInterfaceCategory'), 'floating-trigger-style'],
+            tooltip: t('mainFloatingTriggerStyleTooltip'),
+            type: 'combo',
+            defaultValue: 'icon',
+            options: [
+                { value: 'icon', text: t('mainFloatingTriggerStyleIcon') },
+                { value: 'pill', text: t('mainFloatingTriggerStylePill') }
+            ],
+            onChange(value) {
+                floatingTriggerStyle = normalizeFloatingTriggerStyle(value);
+                applyFloatingTriggerPresentation();
+            }
+        },
+        {
+            id: FLOATING_TRIGGER_SIZE_SETTING_ID,
+            name: t('mainFloatingTriggerSizeSetting'),
+            category: ['Anomalous Model Browser', t('mainInterfaceCategory'), 'floating-trigger-size'],
+            tooltip: t('mainFloatingTriggerSizeTooltip'),
+            type: 'combo',
+            defaultValue: 'medium',
+            options: [
+                { value: 'small', text: t('mainFloatingTriggerSizeSmall') },
+                { value: 'medium', text: t('mainFloatingTriggerSizeMedium') },
+                { value: 'large', text: t('mainFloatingTriggerSizeLarge') }
+            ],
+            onChange(value) {
+                floatingTriggerSize = normalizeFloatingTriggerSize(value);
+                applyFloatingTriggerPresentation();
+            }
+        },
+        {
+            id: SHORTCUT_SETTING_ID,
+            name: t('mainShortcutSetting'),
+            category: ['Anomalous Model Browser', t('mainInterfaceCategory'), 'shortcut'],
+            tooltip: t('mainShortcutTooltip'),
+            type: () => createShortcutSettingControl({
+                app,
+                commandId: OPEN_BROWSER_COMMAND_ID,
+                translate: t
+            }),
+            defaultValue: '',
+            telemetry: { trackChanges: false }
+        },
+        {
+            id: ENTRY_MODE_SETTING_ID,
+            name: t('mainEntryModeSetting'),
+            category: ['Anomalous Model Browser', t('mainInterfaceCategory'), 'entry-mode'],
+            tooltip: t('mainEntryModeTooltip'),
+            type: 'combo',
+            defaultValue: 'floating',
+            options: [
+                { value: 'floating', text: t('mainEntryModeFloating') },
+                { value: 'topbar', text: t('mainEntryModeTopbar') },
+                { value: 'menu', text: t('mainEntryModeMenu') }
+            ],
+            onChange(value) {
+                entryMode = normalizeEntryMode(value);
+                syncFloatingTriggerVisibility();
+            }
+        },
+        {
+            id: LANGUAGE_SETTING_ID,
+            name: t('mainLanguageSetting'),
+            category: ['Anomalous Model Browser', t('mainInterfaceCategory'), 'language'],
+            tooltip: t('mainLanguageTooltip'),
+            type: 'combo',
+            defaultValue: () => normalizeLanguagePreference(localStorage.getItem('anomalous_lang')),
+            options: [
+                { value: 'auto', text: t('mainLanguageAuto') },
+                { value: 'zh', text: t('mainLanguageChinese') },
+                { value: 'en', text: t('mainLanguageEnglish') }
+            ],
+            onChange(value) {
+                applyLanguagePreference(value);
+            }
+        }
+    ],
+    actionBarButtons: [
+        {
+            icon: 'pi pi-box',
+            label: t('mainTopbarTriggerLabel'),
+            tooltip: t('mainOpenTitle'),
+            class: 'anomalous-topbar-entry',
+            onClick: openBrowser
+        }
+    ],
+    commands: [
+        {
+            id: OPEN_BROWSER_COMMAND_ID,
+            label: t('mainOpenTitle'),
+            function: openBrowser
+        },
+        {
+            id: RESET_TRIGGER_POSITION_COMMAND_ID,
+            label: t('mainResetFloatingTriggerPosition'),
+            function: resetFloatingTriggerPosition
+        }
+    ],
+    keybindings: [
+        {
+            combo: DEFAULT_BROWSER_SHORTCUT,
+            commandId: OPEN_BROWSER_COMMAND_ID
+        }
+    ],
+    menuCommands: [
+        {
+            path: ['Extensions', 'Anomalous Model Browser'],
+            commands: [OPEN_BROWSER_COMMAND_ID, RESET_TRIGGER_POSITION_COMMAND_ID]
+        }
+    ],
     async setup() {
         const cssUrl = '/extensions/Anomalous_Model_Browser/styles.css?v=' + Date.now();
         if (!document.querySelector(`link[href^="/extensions/Anomalous_Model_Browser/styles.css"]`)) {
@@ -502,40 +813,11 @@ app.registerExtension({
             link.href = cssUrl;
             document.head.appendChild(link);
         }
-        if (!localStorage.getItem('anomalous_lang')) {
-            try {
-                if (app && app.ui && app.ui.settings) {
-                    const locale = app.ui.settings.getSettingValue('Comfy.Locale') || app.ui.settings.getSettingValue('Comfy.Locale.Language');
-                    if (locale) {
-                        currentLang = normalizeLocale(locale) || defaultLang;
-                        window.anomalous_browser_lang = currentLang;
-                    }
-                }
-            } catch (e) { }
-        }
-
-        let browser = null;
         const btn = document.createElement('button');
         btn.id = 'anomalous-trigger-btn';
-        btn.textContent = '📦';
         btn.setAttribute('aria-label', 'Anomalous Model Browser');
-
-        const ensureBrowser = () => {
-            if (browser) return browser;
-            try {
-                browser = new AnomalousBrowser();
-                browser.triggerButton = btn;
-                window.anomalousBrowserInstance = browser;
-                btn.classList.remove('anomalous-trigger-error');
-                return browser;
-            } catch (error) {
-                console.error('[Anomalous Model Browser] UI initialization failed:', error);
-                btn.classList.add('anomalous-trigger-error');
-                btn.title = currentLang === 'zh' ? t('mainRetryInit') : t('mainRetryInitEn');
-                btn.setAttribute('aria-label', btn.title);
-                return null;
-            }
-        };
+        triggerButton = btn;
+        if (browserInstance) browserInstance.triggerButton = btn;
         btn.title = t('mainOpenTitle');
         let isDragging = false;
         let startX, startY, initialX, initialY;
@@ -550,14 +832,17 @@ app.registerExtension({
         window.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
             e.preventDefault();
-            let newX = initialX + (e.clientX - startX);
-            let newY = initialY + (e.clientY - startY);
-            if (newX < 0) newX = 0;
-            if (newY < 0) newY = 0;
-            if (newX > window.innerWidth - 60) newX = window.innerWidth - 60;
-            if (newY > window.innerHeight - 60) newY = window.innerHeight - 60;
-            btn.style.left = newX + 'px';
-            btn.style.top = newY + 'px';
+            const nextPosition = clampFloatingTriggerPosition({
+                x: initialX + (e.clientX - startX),
+                y: initialY + (e.clientY - startY),
+                width: btn.offsetWidth,
+                height: btn.offsetHeight,
+                viewportWidth: window.innerWidth,
+                viewportHeight: window.innerHeight,
+                margin: 0
+            });
+            btn.style.left = nextPosition.x + 'px';
+            btn.style.top = nextPosition.y + 'px';
             btn.style.right = 'auto'; btn.style.bottom = 'auto';
         });
         window.addEventListener('mouseup', (e) => {
@@ -567,27 +852,31 @@ app.registerExtension({
                 localStorage.setItem('anomalous_btn_x', btn.style.left);
                 localStorage.setItem('anomalous_btn_y', btn.style.top);
                 if (Math.abs(e.clientX - startX) < 5 && Math.abs(e.clientY - startY) < 5) {
-                    ensureBrowser()?.show();
+                    openBrowser();
                 }
             }
         });
 
-        const savedX = localStorage.getItem('anomalous_btn_x');
-        const savedY = localStorage.getItem('anomalous_btn_y');
+        let savedX = localStorage.getItem('anomalous_btn_x');
+        let savedY = localStorage.getItem('anomalous_btn_y');
 
         const updateBtnBounds = () => {
-            let numX = parseInt(btn.style.left || savedX);
-            let numY = parseInt(btn.style.top || savedY);
-            if (isNaN(numX)) numX = window.innerWidth - 90;
-            if (isNaN(numY)) numY = window.innerHeight - 90;
-
-            if (numX < 0) numX = 0;
-            if (numY < 0) numY = 0;
-            if (numX > window.innerWidth - 60) numX = window.innerWidth - 60;
-            if (numY > window.innerHeight - 60) numY = window.innerHeight - 60;
-            btn.style.left = numX + 'px';
-            btn.style.top = numY + 'px';
+            savedX = localStorage.getItem('anomalous_btn_x');
+            savedY = localStorage.getItem('anomalous_btn_y');
+            const position = clampFloatingTriggerPosition({
+                x: btn.style.left || savedX,
+                y: btn.style.top || savedY,
+                width: btn.offsetWidth,
+                height: btn.offsetHeight,
+                viewportWidth: window.innerWidth,
+                viewportHeight: window.innerHeight
+            });
+            btn.style.left = position.x + 'px';
+            btn.style.top = position.y + 'px';
+            btn.style.right = 'auto';
+            btn.style.bottom = 'auto';
         };
+        triggerBoundsUpdater = updateBtnBounds;
 
         if (savedX && savedY && savedX !== 'NaN' && savedY !== 'NaN') {
             btn.style.right = 'auto';
@@ -601,11 +890,24 @@ app.registerExtension({
 
         window.addEventListener('resize', () => {
             if (btn.style.left) updateBtnBounds();
+            syncFloatingTriggerVisibility();
         });
 
         document.body.appendChild(btn);
-        // Keep the entry point visible even when a panel regression prevents
-        // the full browser UI from being constructed.
+        try {
+            const settings = app.extensionManager?.setting;
+            const configuredEntryMode = settings?.get(ENTRY_MODE_SETTING_ID);
+            const configuredSize = settings?.get(FLOATING_TRIGGER_SIZE_SETTING_ID);
+            const configuredStyle = settings?.get(FLOATING_TRIGGER_STYLE_SETTING_ID);
+            entryMode = normalizeEntryMode(configuredEntryMode);
+            floatingTriggerSize = normalizeFloatingTriggerSize(configuredSize);
+            floatingTriggerStyle = normalizeFloatingTriggerStyle(configuredStyle);
+        } catch (error) {
+            console.warn('[Anomalous Model Browser] Unable to read entry preferences:', error);
+        }
+        applyFloatingTriggerPresentation();
+        syncFloatingTriggerVisibility();
+        // Initialize the shared browser instance once for every entry mode.
         ensureBrowser();
 
         // Pre-create a lightweight, translucent, and aesthetic drag ghost image for huge Hires Fix images

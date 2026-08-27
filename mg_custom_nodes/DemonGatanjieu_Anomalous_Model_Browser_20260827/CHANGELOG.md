@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### ✨ Interface & Access
+- **Native Configurable Shortcut (原生可配置快捷键)**: Added `Ctrl + Shift + M` as the default shortcut for opening the browser. The plugin's Interface settings show the currently active binding and open ComfyUI's native key recorder for customization. Conflict detection, overwrite confirmation, removal, reserved-key guidance, and modal guards therefore remain centralized without a separate global keyboard listener.
+
+### 🐛 Bug Fixes
+- **Live Language Switching (语言即时切换)**: Changing the plugin language now immediately re-translates the open native Interface settings—including labels, tooltips, and combo choices—as well as the browser UI, without refreshing ComfyUI.
+
+## v1.56.1 Beta (Interface Preferences & Scan Reliability) — 2026-08-26
+
+### ✨ Interface & Access
+- **Native Interface Preferences (原生界面偏好)**: Added one native ComfyUI entry-mode setting with three strictly exclusive choices: floating button, action-bar button beside the run controls, or Extensions menu only. Floating size/style controls now appear only when floating mode is selected. A colocated language preference follows ComfyUI by default or applies a plugin-only Chinese/English override, and the existing in-browser language shortcut updates that same native setting. Entry selection remains authoritative during action-bar redraws, and every entry reuses the same browser instance and open path.
+
 ### 🐛 Reliability & Scan Feedback
 - **Interrupted Scan Recovery (异常扫描自动恢复)**: Closing ComfyUI during a folder or global scan no longer leaves the browser permanently locked. Versioned scan ownership records distinguish live workers from stale or legacy markers, clean interrupted state automatically, and allow an immediate retry without reinstalling the extension.
 - **Real Scan Progress (真实扫描进度)**: Folder, custom-selection, and global scans now show a non-blocking localized progress panel backed by the scanner's actual folder/model counts and current filename. Reopening the browser reconnects to the running task through the existing status polling contract.

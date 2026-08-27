@@ -14,6 +14,7 @@ import gc
 import io
 import inspect
 import json
+import math
 import os
 import time
 from dataclasses import dataclass
@@ -27,42 +28,25 @@ from PIL import Image
 import folder_paths
 from AILab_OutputCleaner import OutputCleanConfig, clean_model_output
 
-NODE_DIR = Path(__file__).parent
-CONFIG_PATH = NODE_DIR / "hf_models.json"
-SYSTEM_PROMPTS_PATH = NODE_DIR / "AILab_System_Prompts.json"
-GGUF_CONFIG_PATH = NODE_DIR / "gguf_models.json"
+from AILab_Utils import (
+    PLUGIN_DIR,
+    GGUF_CONFIG_PATH,
+    CUSTOM_MODELS_PATH,
+    safe_dirname,
+    resolve_base_dir,
+    find_local_gguf_file,
+    model_name_to_filename_candidates,
+    filter_kwargs_for_callable,
+    load_system_prompts,
+    parse_gguf_repos,
+    tensor_to_base64_png,
+    sample_video_frames,
+    resolve_safe_video_max_side,
+)
 
-
-def _load_prompt_config():
-    preset_prompts = ["🖼️ Detailed Description"]
-    system_prompts: dict[str, str] = {}
-
-    try:
-        with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
-            data = json.load(fh) or {}
-        preset_prompts = data.get("_preset_prompts") or preset_prompts
-        system_prompts = data.get("_system_prompts") or system_prompts
-    except Exception as exc:
-        print(f"[QwenVL] Config load failed: {exc}")
-
-    try:
-        with open(SYSTEM_PROMPTS_PATH, "r", encoding="utf-8") as fh:
-            data = json.load(fh) or {}
-        qwenvl_prompts = data.get("qwenvl") or {}
-        preset_override = data.get("_preset_prompts") or []
-        if isinstance(qwenvl_prompts, dict) and qwenvl_prompts:
-            system_prompts = qwenvl_prompts
-        if isinstance(preset_override, list) and preset_override:
-            preset_prompts = preset_override
-    except FileNotFoundError:
-        pass
-    except Exception as exc:
-        print(f"[QwenVL] System prompts load failed: {exc}")
-
-    return preset_prompts, system_prompts
-
-
-PRESET_PROMPTS, SYSTEM_PROMPTS = _load_prompt_config()
+_prompts = load_system_prompts()
+PRESET_PROMPTS = _prompts["preset_prompts"]
+SYSTEM_PROMPTS = _prompts["qwenvl_prompts"]
 
 
 @dataclass(frozen=True)
@@ -82,83 +66,49 @@ class GGUFVLResolved:
     pool_size: int
 
 
-def _resolve_base_dir(base_dir_value: str) -> Path:
-    base_dir = Path(base_dir_value)
-    if base_dir.is_absolute():
-        return base_dir
-    return Path(folder_paths.models_dir) / base_dir
-
-
-def _safe_dirname(value: str) -> str:
-    value = (value or "").strip()
-    if not value:
-        return "unknown"
-    return "".join(ch for ch in value if ch.isalnum() or ch in "._- ").strip() or "unknown"
-
-
-def _model_name_to_filename_candidates(model_name: str) -> set[str]:
-    raw = (model_name or "").strip()
-    if not raw:
-        return set()
-    candidates = {raw, f"{raw}.gguf"}
-    if " / " in raw:
-        tail = raw.split(" / ", 1)[1].strip()
-        candidates.update({tail, f"{tail}.gguf"})
-    if "/" in raw:
-        tail = raw.rsplit("/", 1)[-1].strip()
-        candidates.update({tail, f"{tail}.gguf"})
-    return candidates
-
-
 def _load_gguf_vl_catalog():
-    if not GGUF_CONFIG_PATH.exists():
-        return {"base_dir": "LLM/GGUF", "models": {}}
-    try:
-        with open(GGUF_CONFIG_PATH, "r", encoding="utf-8") as fh:
-            data = json.load(fh) or {}
-    except Exception as exc:
-        print(f"[QwenVL] gguf_models.json load failed: {exc}")
-        return {"base_dir": "LLM/GGUF", "models": {}}
-
-    base_dir = data.get("base_dir") or "LLM/GGUF"
-
     flattened: dict[str, dict] = {}
-
-    repos = data.get("qwenVL_model") or data.get("vl_repos") or data.get("repos") or {}
     seen_display_names: set[str] = set()
-    for repo_key, repo in repos.items():
-        if not isinstance(repo, dict):
-            continue
-        author = repo.get("author") or repo.get("publisher")
-        repo_name = repo.get("repo_name") or repo.get("repo_name_override") or repo_key
-        repo_id = repo.get("repo_id") or (f"{author}/{repo_name}" if author and repo_name else None)
-        alt_repo_ids = repo.get("alt_repo_ids") or []
+    base_dir = "LLM/GGUF"
 
-        defaults = repo.get("defaults") or {}
-        mmproj_file = repo.get("mmproj_file")
-        model_files = repo.get("model_files") or []
+    if GGUF_CONFIG_PATH.exists():
+        try:
+            with open(GGUF_CONFIG_PATH, "r", encoding="utf-8") as fh:
+                data = json.load(fh) or {}
+            base_dir = data.get("base_dir") or base_dir
+            for key in ["qwenVL_model", "Qwen_model"]:
+                repos = data.get(key) or {}
+                if isinstance(repos, dict):
+                    parse_gguf_repos(repos, flattened, seen_display_names)
+            legacy_models = data.get("models") or {}
+            if isinstance(legacy_models, dict):
+                for name, entry in legacy_models.items():
+                    if isinstance(entry, dict):
+                        flattened[name] = entry
+        except Exception as exc:
+            print(f"[QwenVL] gguf_models.json load failed: {exc}")
 
-        for model_file in model_files:
-            display = Path(model_file).name
-            if display in seen_display_names:
-                display = f"{display} ({repo_key})"
-            seen_display_names.add(display)
-            flattened[display] = {
-                **defaults,
-                "author": author,
-                "repo_dirname": repo_name,
-                "repo_id": repo_id,
-                "alt_repo_ids": alt_repo_ids,
-                "filename": model_file,
-                "mmproj_filename": mmproj_file,
-            }
-
-    legacy_models = data.get("models") or {}
-    for name, entry in legacy_models.items():
-        if isinstance(entry, dict):
-            flattened[name] = entry
+    # Merge custom_models.json (central custom config)
+    if CUSTOM_MODELS_PATH.exists():
+        try:
+            with open(CUSTOM_MODELS_PATH, "r", encoding="utf-8") as fh:
+                custom_data = json.load(fh) or {}
+            for key in ["gguf_models", "gguf_vl_models", "gguf_text_models"]:
+                repos = custom_data.get(key) or {}
+                if isinstance(repos, dict) and repos:
+                    parse_gguf_repos(repos, flattened, seen_display_names, overwrite_existing=True)
+        except Exception as exc:
+            print(f"[QwenVL] custom_models.json (GGUF) skipped: {exc}")
 
     return {"base_dir": base_dir, "models": flattened}
+
+
+def reload_gguf_vl_catalog():
+    global GGUF_VL_CATALOG
+    GGUF_VL_CATALOG = _load_gguf_vl_catalog()
+
+
+GGUF_VL_CATALOG = _load_gguf_vl_catalog()
 
 
 GGUF_VL_CATALOG = _load_gguf_vl_catalog()
@@ -181,29 +131,10 @@ def _filter_kwargs_for_callable(fn, kwargs: dict) -> dict:
     return {k: v for k, v in kwargs.items() if k in allowed}
 
 
-def _tensor_to_base64_png(tensor) -> str | None:
-    if tensor is None:
-        return None
-    if tensor.ndim == 4:
-        tensor = tensor[0]
-    array = (tensor * 255).clamp(0, 255).to(torch.uint8).cpu().numpy()
-    pil_img = Image.fromarray(array, mode="RGB")
-    buf = io.BytesIO()
-    pil_img.save(buf, format="PNG")
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
-
-
-def _sample_video_frames(video, frame_count: int):
-    if video is None:
-        return []
-    if video.ndim != 4:
-        return [video]
-    total = int(video.shape[0])
-    frame_count = max(int(frame_count), 1)
-    if total <= frame_count:
-        return [video[i] for i in range(total)]
-    idx = np.linspace(0, total - 1, frame_count, dtype=int)
-    return [video[i] for i in idx]
+# Aliases for shared utilities from AILab_Utils
+_tensor_to_base64_png = tensor_to_base64_png
+_resolve_safe_video_max_side = resolve_safe_video_max_side
+_sample_video_frames = sample_video_frames
 
 
 def _pick_device(device_choice: str) -> str:
@@ -255,10 +186,11 @@ def _download_single_file(repo_ids: list[str], filename: str, target_path: Path)
 
 
 def _resolve_model_entry(model_name: str) -> GGUFVLResolved:
-    all_models = GGUF_VL_CATALOG.get("models") or {}
+    catalog = _load_gguf_vl_catalog()
+    all_models = catalog.get("models") or {}
     entry = all_models.get(model_name) or {}
     if not entry:
-        wanted = _model_name_to_filename_candidates(model_name)
+        wanted = model_name_to_filename_candidates(model_name)
         for candidate in all_models.values():
             filename = candidate.get("filename")
             if filename and Path(filename).name in wanted:
@@ -275,7 +207,7 @@ def _resolve_model_entry(model_name: str) -> GGUFVLResolved:
     mmproj_filename = entry.get("mmproj_filename")
 
     if not model_filename:
-        raise ValueError(f"[QwenVL] gguf_vl_models.json entry missing 'filename' for: {model_name}")
+        raise ValueError(f"[QwenVL] gguf_models.json entry missing 'filename' for: {model_name}")
 
     def _int(name: str, default: int) -> int:
         value = entry.get(name, default)
@@ -289,7 +221,7 @@ def _resolve_model_entry(model_name: str) -> GGUFVLResolved:
         repo_id=repo_id,
         alt_repo_ids=[str(x) for x in alt_repo_ids if x],
         author=str(author) if author else None,
-        repo_dirname=_safe_dirname(str(repo_dirname)),
+        repo_dirname=safe_dirname(str(repo_dirname)),
         model_filename=str(model_filename),
         mmproj_filename=str(mmproj_filename) if mmproj_filename else None,
         context_length=_int("context_length", 8192),
@@ -308,13 +240,7 @@ class QwenVLGGUFBase:
         self.current_signature = None
 
     def clear(self):
-        if self.llm is not None:
-            if hasattr(self.llm, "close"):
-                try:
-                    self.llm.close()
-                except Exception:
-                    pass
-            self.llm = None
+        self.llm = None
         self.chat_handler = None
         self.current_signature = None
         gc.collect()
@@ -343,14 +269,23 @@ class QwenVLGGUFBase:
         self._load_backend()
 
         resolved = _resolve_model_entry(model_name)
-        base_dir = _resolve_base_dir(GGUF_VL_CATALOG.get("base_dir") or "llm/GGUF")
+        base_dir = resolve_base_dir(GGUF_VL_CATALOG.get("base_dir") or "LLM/GGUF")
 
-        author_dir = _safe_dirname(resolved.author or "")
-        repo_dir = _safe_dirname(resolved.repo_dirname)
+        author_dir = safe_dirname(resolved.author or "")
+        repo_dir = safe_dirname(resolved.repo_dirname)
         target_dir = base_dir / author_dir / repo_dir
 
-        model_path = target_dir / Path(resolved.model_filename).name
-        mmproj_path = target_dir / Path(resolved.mmproj_filename).name if resolved.mmproj_filename else None
+        existing_model = find_local_gguf_file(resolved.model_filename, target_dir)
+        if existing_model:
+            model_path = existing_model
+        else:
+            model_path = target_dir / Path(resolved.model_filename).name
+
+        existing_mmproj = find_local_gguf_file(resolved.mmproj_filename, target_dir, allow_recursive=False)
+        if existing_mmproj:
+            mmproj_path = existing_mmproj
+        else:
+            mmproj_path = target_dir / Path(resolved.mmproj_filename).name if resolved.mmproj_filename else None
 
         repo_ids: list[str] = []
         if resolved.repo_id:
@@ -362,10 +297,64 @@ class QwenVLGGUFBase:
                 raise FileNotFoundError(f"[QwenVL] GGUF model not found locally and no repo_id provided: {model_path}")
             _download_single_file(repo_ids, resolved.model_filename, model_path)
 
+        # Smart mmproj resolution:
+        # 1. If configured filename exists in model's directory, use it.
+        # 2. If configured filename does not exist, try downloading it from model repo.
+        # 3. If no filename configured or download failed, search model's own target_dir locally for *mmproj*.gguf.
+        # 4. If still not found, search remote repo_ids for *mmproj*.gguf, download, and use.
         if mmproj_path is not None and not mmproj_path.exists():
-            if not repo_ids:
-                raise FileNotFoundError(f"[QwenVL] mmproj not found locally and no repo_id provided: {mmproj_path}")
-            _download_single_file(repo_ids, resolved.mmproj_filename, mmproj_path)
+            if repo_ids:
+                try:
+                    _download_single_file(repo_ids, resolved.mmproj_filename, mmproj_path)
+                except Exception as exc:
+                    print(f"[QwenVL] Configured mmproj download failed ({resolved.mmproj_filename}): {exc}")
+
+        if mmproj_path is None or not mmproj_path.exists():
+            # Check ONLY model's own target_dir for any matching mmproj (never hijack from other model folders)
+            local_mmprojs = []
+            if target_dir.exists():
+                local_mmprojs = list(target_dir.glob("*mmproj*.gguf"))
+            if local_mmprojs:
+                model_stem = Path(resolved.model_filename).stem.lower()
+                matched_local = None
+                for lm in local_mmprojs:
+                    lm_name = lm.name.lower()
+                    if "q8" in model_stem and "q8" in lm_name:
+                        matched_local = lm
+                        break
+                    elif "f16" in lm_name or "bf16" in lm_name:
+                        if matched_local is None:
+                            matched_local = lm
+                mmproj_path = matched_local or local_mmprojs[0]
+                print(f"[QwenVL] Auto-detected local visual projector: {mmproj_path.name}")
+
+        if (mmproj_path is None or not mmproj_path.exists()) and repo_ids:
+            try:
+                from huggingface_hub import HfApi
+                api = HfApi()
+                for rid in repo_ids:
+                    repo_files = api.list_repo_files(repo_id=rid)
+                    mmproj_files = [f for f in repo_files if "mmproj" in f.lower() and f.endswith(".gguf")]
+                    if mmproj_files:
+                        model_stem = Path(resolved.model_filename).stem.lower()
+                        chosen_mmproj = mmproj_files[0]
+                        for mf in mmproj_files:
+                            mf_lower = mf.lower()
+                            if "q8" in model_stem and "q8" in mf_lower:
+                                chosen_mmproj = mf
+                                break
+                            elif "f16" in mf_lower or "bf16" in mf_lower:
+                                chosen_mmproj = mf
+
+                        target_mmproj_file = target_dir / Path(chosen_mmproj).name
+                        print(f"[QwenVL] Auto-discovering visual projector from {rid}: {chosen_mmproj}")
+                        _download_single_file([rid], chosen_mmproj, target_mmproj_file)
+                        if target_mmproj_file.exists():
+                            mmproj_path = target_mmproj_file
+                            print(f"[QwenVL] Successfully auto-downloaded visual projector: {mmproj_path.name}")
+                            break
+            except Exception as exc:
+                print(f"[QwenVL] Remote mmproj auto-discovery skipped: {exc}")
 
         device_kind = _pick_device(device)
 
@@ -423,7 +412,7 @@ class QwenVLGGUFBase:
                 "force_reasoning": False,
                 "verbose": False,
             }
-            mmproj_kwargs = _filter_kwargs_for_callable(getattr(handler_cls, "__init__", handler_cls), mmproj_kwargs)
+            mmproj_kwargs = filter_kwargs_for_callable(getattr(handler_cls, "__init__", handler_cls), mmproj_kwargs)
             if "image_max_tokens" not in mmproj_kwargs:
                 print(
                     "[QwenVL] Warning: installed llama_cpp chat handler does not support image_max_tokens; "
@@ -447,7 +436,7 @@ class QwenVLGGUFBase:
             llm_kwargs["image_max_tokens"] = img_max
 
         print(f"[QwenVL] Loading GGUF: {model_path.name} (device={device_kind}, gpu_layers={n_gpu_layers}, ctx={n_ctx})")
-        llm_kwargs_filtered = _filter_kwargs_for_callable(getattr(Llama, "__init__", Llama), llm_kwargs)
+        llm_kwargs_filtered = filter_kwargs_for_callable(getattr(Llama, "__init__", Llama), llm_kwargs)
         if has_mmproj and self.chat_handler is not None and "chat_handler" not in llm_kwargs_filtered:
             print(
                 "[QwenVL] Warning: installed llama_cpp Llama() does not accept chat_handler; images will be ignored. "
@@ -469,7 +458,7 @@ class QwenVLGGUFBase:
         repetition_penalty: float,
         seed: int,
     ) -> str:
-        if images_b64:
+        if images_b64 and self.chat_handler is not None:
             content = [{"type": "text", "text": user_prompt}]
             for img in images_b64:
                 if not img:
@@ -480,6 +469,8 @@ class QwenVLGGUFBase:
                 {"role": "user", "content": content},
             ]
         else:
+            if images_b64 and self.chat_handler is None:
+                print("[QwenVL] Warning: Image provided but model has no visual projector (mmproj); running in text-only mode.")
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -535,6 +526,7 @@ class QwenVLGGUFBase:
         image_max_tokens: int | None,
         top_k: int | None,
         pool_size: int | None,
+        video_frame_size: str = "auto",
     ):
         torch.manual_seed(int(seed))
 
@@ -542,14 +534,23 @@ class QwenVLGGUFBase:
         if custom_prompt and custom_prompt.strip():
             prompt = custom_prompt.strip()
 
+        resolved = _resolve_model_entry(model_name)
+        effective_ctx = int(ctx) if ctx is not None else resolved.context_length
+
         images_b64: list[str] = []
         if image is not None:
-            img = _tensor_to_base64_png(image)
+            img = _tensor_to_base64_png(image, max_side=1280)
             if img:
                 images_b64.append(img)
         if video is not None:
+            video_max_side = _resolve_safe_video_max_side(
+                video,
+                frame_count=int(frame_count),
+                ctx=effective_ctx,
+                video_frame_size=video_frame_size,
+            )
             for frame in _sample_video_frames(video, int(frame_count)):
-                img = _tensor_to_base64_png(frame)
+                img = _tensor_to_base64_png(frame, max_side=video_max_side)
                 if img:
                     images_b64.append(img)
 
@@ -587,9 +588,14 @@ class QwenVLGGUFBase:
 
 class AILab_QwenVL_GGUF(QwenVLGGUFBase):
     @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        return True
+
+    @classmethod
     def INPUT_TYPES(cls):
-        all_models = GGUF_VL_CATALOG.get("models") or {}
-        model_keys = sorted([key for key, entry in all_models.items() if (entry or {}).get("mmproj_filename")]) or ["(edit gguf_models.json)"]
+        catalog = _load_gguf_vl_catalog()
+        all_models = catalog.get("models") or {}
+        model_keys = sorted(list(all_models.keys())) or ["(edit gguf_models.json)"]
         default_model = model_keys[0]
 
         prompts = PRESET_PROMPTS or ["🖼️ Detailed Description"]
@@ -647,14 +653,20 @@ class AILab_QwenVL_GGUF(QwenVLGGUFBase):
             image_max_tokens=None,
             top_k=None,
             pool_size=None,
+            video_frame_size="auto",
         )
 
 
 class AILab_QwenVL_GGUF_Advanced(QwenVLGGUFBase):
     @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        return True
+
+    @classmethod
     def INPUT_TYPES(cls):
-        all_models = GGUF_VL_CATALOG.get("models") or {}
-        model_keys = sorted([key for key, entry in all_models.items() if (entry or {}).get("mmproj_filename")]) or ["(edit gguf_models.json)"]
+        catalog = _load_gguf_vl_catalog()
+        all_models = catalog.get("models") or {}
+        model_keys = sorted(list(all_models.keys())) or ["(edit gguf_models.json)"]
         default_model = model_keys[0]
 
         prompts = PRESET_PROMPTS or ["🖼️ Detailed Description"]
@@ -676,6 +688,7 @@ class AILab_QwenVL_GGUF_Advanced(QwenVLGGUFBase):
                 "top_p": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0}),
                 "repetition_penalty": ("FLOAT", {"default": 1.2, "min": 0.5, "max": 2.0}),
                 "frame_count": ("INT", {"default": 16, "min": 1, "max": 64}),
+                "video_frame_size": (["auto", "384", "448", "512", "768", "original"], {"default": "auto"}),
                 "ctx": ("INT", {"default": 8192, "min": 1024, "max": 262144, "step": 512}),
                 "n_batch": ("INT", {"default": 512, "min": 64, "max": 32768, "step": 64}),
                 "gpu_layers": ("INT", {"default": -1, "min": -1, "max": 200}),
@@ -707,6 +720,7 @@ class AILab_QwenVL_GGUF_Advanced(QwenVLGGUFBase):
         top_p,
         repetition_penalty,
         frame_count,
+        video_frame_size,
         ctx,
         n_batch,
         gpu_layers,
@@ -738,6 +752,7 @@ class AILab_QwenVL_GGUF_Advanced(QwenVLGGUFBase):
             image_max_tokens=image_max_tokens,
             top_k=top_k,
             pool_size=pool_size,
+            video_frame_size=video_frame_size,
         )
 
 

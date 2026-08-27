@@ -45,9 +45,19 @@ try:
 except ImportError:
     SAGE_ATTENTION_AVAILABLE = False
 
-NODE_DIR = Path(__file__).parent
-CONFIG_PATH = NODE_DIR / "hf_models.json"
-SYSTEM_PROMPTS_PATH = NODE_DIR / "AILab_System_Prompts.json"
+from AILab_Utils import (
+    PLUGIN_DIR,
+    CUSTOM_MODELS_PATH,
+    HF_CONFIG_PATH,
+    SYSTEM_PROMPTS_PATH,
+    load_system_prompts,
+    tensor_to_pil,
+    sample_video_frames,
+    resolve_safe_video_max_side,
+)
+
+NODE_DIR = PLUGIN_DIR
+CONFIG_PATH = HF_CONFIG_PATH
 HF_VL_MODELS: dict[str, dict] = {}
 HF_TEXT_MODELS: dict[str, dict] = {}
 HF_ALL_MODELS: dict[str, dict] = {}
@@ -70,6 +80,7 @@ TOOLTIPS = {
     "num_beams": "Beam-search width. Values >1 disable temperature/top_p and trade speed for more stable answers.",
     "repetition_penalty": "Values >1 (e.g., 1.1–1.3) penalize repeated phrases; 1.0 leaves logits untouched.",
     "frame_count": "Number of frames extracted from video inputs before prompting Qwen-VL. More frames provide context but cost time.",
+    "video_frame_size": "Control the maximum resolution for video frames. 'auto' computes safe budget to prevent OOM/overflow while keeping small videos untouched.",
 }
 
 class Quantization(str, Enum):
@@ -92,60 +103,45 @@ ATTENTION_MODES = ["auto", "sage", "flash_attention_2", "sdpa"]
 
 def load_model_configs():
     global HF_VL_MODELS, HF_TEXT_MODELS, HF_ALL_MODELS, SYSTEM_PROMPTS, PRESET_PROMPTS
-    try:
-        with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
-            data = json.load(fh) or {}
-        if "hf_vl_models" in data or "hf_text_models" in data:
-            HF_VL_MODELS = data.get("hf_vl_models") or {}
-            HF_TEXT_MODELS = data.get("hf_text_models") or {}
-        else:
-            HF_VL_MODELS = {k: v for k, v in data.items() if not k.startswith("_")}
-            HF_TEXT_MODELS = {}
-        SYSTEM_PROMPTS = data.get("_system_prompts", {})
-        PRESET_PROMPTS = data.get("_preset_prompts", PRESET_PROMPTS)
-    except Exception as exc:
-        print(f"[QwenVL] Config load failed: {exc}")
-        HF_VL_MODELS = {}
-        HF_TEXT_MODELS = {}
-        HF_ALL_MODELS = {}
-        SYSTEM_PROMPTS = {}
-    try:
-        with open(SYSTEM_PROMPTS_PATH, "r", encoding="utf-8") as fh:
-            data = json.load(fh) or {}
-        qwenvl_prompts = data.get("qwenvl") or {}
-        preset_override = data.get("_preset_prompts") or []
-        if isinstance(qwenvl_prompts, dict) and qwenvl_prompts:
-            SYSTEM_PROMPTS = qwenvl_prompts
-        if isinstance(preset_override, list) and preset_override:
-            PRESET_PROMPTS = preset_override
-    except FileNotFoundError:
-        pass
-    except Exception as exc:
-        print(f"[QwenVL] System prompts load failed: {exc}")
-    custom = NODE_DIR / "custom_models.json"
-    if custom.exists():
+    prompts_data = load_system_prompts()
+    PRESET_PROMPTS = prompts_data["preset_prompts"]
+    SYSTEM_PROMPTS = prompts_data["qwenvl_prompts"]
+
+    HF_VL_MODELS = {}
+    HF_TEXT_MODELS = {}
+
+    if HF_CONFIG_PATH.exists():
         try:
-            with open(custom, "r", encoding="utf-8") as fh:
+            with open(HF_CONFIG_PATH, "r", encoding="utf-8") as fh:
                 data = json.load(fh) or {}
+            if "hf_vl_models" in data or "hf_text_models" in data:
+                HF_VL_MODELS.update(data.get("hf_vl_models") or {})
+                HF_TEXT_MODELS.update(data.get("hf_text_models") or {})
+            else:
+                HF_VL_MODELS.update({k: v for k, v in data.items() if not k.startswith("_")})
+        except Exception as exc:
+            print(f"[QwenVL] Config load failed: {exc}")
+
+    if CUSTOM_MODELS_PATH.exists():
+        try:
+            with open(CUSTOM_MODELS_PATH, "r", encoding="utf-8") as fh:
+                data = json.load(fh) or {}
+            custom_hf = data.get("hf_models") or {}
+            if isinstance(custom_hf, dict) and custom_hf:
+                HF_VL_MODELS.update(custom_hf)
             custom_vl = data.get("hf_vl_models") or {}
-            custom_text = data.get("hf_text_models") or {}
-            legacy = data.get("hf_models", {}) or data.get("models", {})
             if isinstance(custom_vl, dict) and custom_vl:
                 HF_VL_MODELS.update(custom_vl)
-                print(f"[QwenVL] Loaded {len(custom_vl)} custom VL models")
+            custom_text = data.get("hf_text_models") or {}
             if isinstance(custom_text, dict) and custom_text:
                 HF_TEXT_MODELS.update(custom_text)
-                print(f"[QwenVL] Loaded {len(custom_text)} custom text models")
-            if isinstance(legacy, dict) and legacy:
-                HF_VL_MODELS.update(legacy)
-                print(f"[QwenVL] Loaded {len(legacy)} custom legacy models")
         except Exception as exc:
             print(f"[QwenVL] custom_models.json skipped: {exc}")
+
     HF_ALL_MODELS = dict(HF_VL_MODELS)
     HF_ALL_MODELS.update(HF_TEXT_MODELS)
 
-if not HF_ALL_MODELS:
-    load_model_configs()
+load_model_configs()
 
 def get_device_info():
     gpu = {"available": False, "total_memory": 0, "free_memory": 0}
@@ -456,22 +452,34 @@ def ensure_model(model_name):
     if not info:
         raise ValueError(f"Model '{model_name}' not in config")
     repo_id = info["repo_id"]
+    repo_parts = repo_id.split("/")
+    author = repo_parts[0] if len(repo_parts) > 1 else ""
+    repo_name = repo_parts[-1]
 
-    # Use ComfyUI's multi-path system if available
-    llm_paths = folder_paths.get_folder_paths("LLM") if "LLM" in folder_paths.folder_names_and_paths else []
-    if llm_paths:
-        models_dir = Path(llm_paths[0]) / "Qwen-VL"
-    else:
-        # Fallback to default behavior
-        models_dir = Path(folder_paths.models_dir) / "LLM" / "Qwen-VL"
+    # Check candidate local folders across ComfyUI LLM directories
+    base_models_dir = Path(folder_paths.models_dir)
+    llm_paths = [base_models_dir / "LLM", base_models_dir / "llm"]
+    if "LLM" in folder_paths.folder_names_and_paths:
+        for p in folder_paths.get_folder_paths("LLM"):
+            llm_paths.append(Path(p))
 
-    models_dir.mkdir(parents=True, exist_ok=True)
-    target = models_dir / repo_id.split("/")[-1]
+    for base in llm_paths:
+        if not base.exists():
+            continue
+        candidates = [
+            base / author / repo_name if author else None,
+            base / repo_name,
+            base / "Qwen-VL" / repo_name,
+            base / "hf" / author / repo_name if author else None,
+        ]
+        for c in candidates:
+            if c is not None and c.exists() and c.is_dir():
+                if any(c.glob("*.safetensors")) or any(c.glob("*.bin")):
+                    return str(c)
 
-    # ✅ If already downloaded (has weights), use local without calling snapshot_download
-    if target.exists() and target.is_dir():
-        if any(target.glob("*.safetensors")) or any(target.glob("*.bin")):
-            return str(target)
+    # Fallback target: models/LLM/{author}/{repo_name}
+    target = (base_models_dir / "LLM" / author / repo_name) if author else (base_models_dir / "LLM" / repo_name)
+    target.mkdir(parents=True, exist_ok=True)
 
     snapshot_download(
         repo_id=repo_id,
@@ -766,13 +774,8 @@ class QwenVLBase:
         self.current_signature = signature
 
     @staticmethod
-    def tensor_to_pil(tensor):
-        if tensor is None:
-            return None
-        if tensor.dim() == 4:
-            tensor = tensor[0]
-        array = (tensor.cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
-        return Image.fromarray(array)
+    def tensor_to_pil(tensor, max_side=None):
+        return tensor_to_pil(tensor, max_side=max_side)
 
     @torch.no_grad()
     def generate(
@@ -786,17 +789,23 @@ class QwenVLBase:
         top_p,
         num_beams,
         repetition_penalty,
+        video_frame_size="auto",
     ):
         conversation = [{"role": "user", "content": []}]
         if image is not None:
-            conversation[0]["content"].append({"type": "image", "image": self.tensor_to_pil(image)})
+            conversation[0]["content"].append({"type": "image", "image": tensor_to_pil(image, max_side=1280)})
         if video is not None:
-            frames = [self.tensor_to_pil(frame) for frame in video]
-            if len(frames) > frame_count:
-                idx = np.linspace(0, len(frames) - 1, frame_count, dtype=int)
-                frames = [frames[i] for i in idx]
-            if frames:
-                conversation[0]["content"].append({"type": "video", "video": frames})
+            video_max_side = resolve_safe_video_max_side(
+                video,
+                frame_count=int(frame_count),
+                ctx=8192,
+                video_frame_size=video_frame_size,
+            )
+            frames = sample_video_frames(video, int(frame_count))
+            pil_frames = [tensor_to_pil(frame, max_side=video_max_side) for frame in frames]
+            pil_frames = [f for f in pil_frames if f is not None]
+            if pil_frames:
+                conversation[0]["content"].append({"type": "video", "video": pil_frames})
         conversation[0]["content"].append({"type": "text", "text": prompt_text})
         chat = self.processor.apply_chat_template(conversation, tokenize=False, add_generation_prompt=True)
         images = [item["image"] for item in conversation[0]["content"] if item["type"] == "image"]
@@ -829,7 +838,7 @@ class QwenVLBase:
         text = self.tokenizer.decode(outputs[0, input_len:], skip_special_tokens=True)
         return text.strip()
 
-    def run(self, model_name, quantization, preset_prompt, custom_prompt, image, video, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device):
+    def run(self, model_name, quantization, preset_prompt, custom_prompt, image, video, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, video_frame_size="auto"):
         # Create progress bar with 3 stages: setup, model loading, generation
         pbar = ProgressBar(3)
         
@@ -862,6 +871,7 @@ class QwenVLBase:
                 top_p,
                 num_beams,
                 repetition_penalty,
+                video_frame_size=video_frame_size,
             )
             
             pbar.update_absolute(3, 3, None)
@@ -873,7 +883,12 @@ class QwenVLBase:
 
 class AILab_QwenVL(QwenVLBase):
     @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        return True
+
+    @classmethod
     def INPUT_TYPES(cls):
+        load_model_configs()
         models = list(HF_VL_MODELS.keys())
         default_model = models[0] if models else "Qwen3-VL-4B-Instruct"
         prompts = PRESET_PROMPTS or ["Describe this image in detail."]
@@ -902,11 +917,16 @@ class AILab_QwenVL(QwenVLBase):
     CATEGORY = "🧪AILab/QwenVL"
 
     def process(self, model_name, quantization, preset_prompt, custom_prompt, attention_mode, max_tokens, keep_model_loaded, seed, image=None, video=None):
-        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, video, 16, max_tokens, 0.6, 0.9, 1, 1.2, seed, keep_model_loaded, attention_mode, False, "auto")
+        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, video, 16, max_tokens, 0.6, 0.9, 1, 1.2, seed, keep_model_loaded, attention_mode, False, "auto", video_frame_size="auto")
 
 class AILab_QwenVL_Advanced(QwenVLBase):
     @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        return True
+
+    @classmethod
     def INPUT_TYPES(cls):
+        load_model_configs()
         models = list(HF_VL_MODELS.keys())
         default_model = models[0] if models else "Qwen3-VL-4B-Instruct"
         prompts = PRESET_PROMPTS or ["Describe this image in detail."]
@@ -932,6 +952,7 @@ class AILab_QwenVL_Advanced(QwenVLBase):
                 "num_beams": ("INT", {"default": 1, "min": 1, "max": 8, "tooltip": TOOLTIPS["num_beams"]}),
                 "repetition_penalty": ("FLOAT", {"default": 1.2, "min": 0.5, "max": 2.0, "tooltip": TOOLTIPS["repetition_penalty"]}),
                 "frame_count": ("INT", {"default": 16, "min": 1, "max": 64, "tooltip": TOOLTIPS["frame_count"]}),
+                "video_frame_size": (["auto", "384", "448", "512", "768", "original"], {"default": "auto", "tooltip": TOOLTIPS["video_frame_size"]}),
                 "keep_model_loaded": ("BOOLEAN", {"default": True, "tooltip": TOOLTIPS["keep_model_loaded"]}),
                 "seed": ("INT", {"default": 1, "min": 1, "max": 2**32 - 1, "tooltip": TOOLTIPS["seed"]}),
             },
@@ -946,8 +967,8 @@ class AILab_QwenVL_Advanced(QwenVLBase):
     FUNCTION = "process"
     CATEGORY = "🧪AILab/QwenVL"
 
-    def process(self, model_name, quantization, attention_mode, use_torch_compile, device, preset_prompt, custom_prompt, max_tokens, temperature, top_p, num_beams, repetition_penalty, frame_count, keep_model_loaded, seed, image=None, video=None):
-        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, video, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device)
+    def process(self, model_name, quantization, attention_mode, use_torch_compile, device, preset_prompt, custom_prompt, max_tokens, temperature, top_p, num_beams, repetition_penalty, frame_count, video_frame_size, keep_model_loaded, seed, image=None, video=None):
+        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, video, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, video_frame_size=video_frame_size)
 
 NODE_CLASS_MAPPINGS = {
     "AILab_QwenVL": AILab_QwenVL,

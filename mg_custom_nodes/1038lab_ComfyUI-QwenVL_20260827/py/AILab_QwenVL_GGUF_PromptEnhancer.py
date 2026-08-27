@@ -22,57 +22,21 @@ from llama_cpp import Llama
 import folder_paths
 from AILab_OutputCleaner import OutputCleanConfig, clean_model_output
 
-NODE_DIR = Path(__file__).parent
-GGUF_CONFIG_PATH = NODE_DIR / "gguf_models.json"
-PROMPT_CONFIG_PATH = NODE_DIR / "AILab_System_Prompts.json"
+from AILab_Utils import (
+    PLUGIN_DIR,
+    GGUF_CONFIG_PATH,
+    CUSTOM_MODELS_PATH,
+    safe_dirname,
+    resolve_base_dir,
+    find_local_gguf_file,
+    model_name_to_filename_candidates,
+    load_system_prompts,
+    parse_gguf_repos,
+)
 
-
-def load_prompt_config():
-    if not PROMPT_CONFIG_PATH.exists():
-        raise FileNotFoundError(f"[QwenVL] Missing AILab_System_Prompts.json at {PROMPT_CONFIG_PATH}")
-    try:
-        with open(PROMPT_CONFIG_PATH, "r", encoding="utf-8") as fh:
-            data = json.load(fh) or {}
-        qwen_text = data.get("qwen_text") or {}
-        styles = qwen_text.get("styles")
-        translation_prompt = qwen_text.get("translation_prompt")
-        if not styles or not translation_prompt:
-            raise ValueError("AILab_System_Prompts.json must include qwen_text.styles and qwen_text.translation_prompt")
-        return {"styles": styles, "translation_prompt": translation_prompt}
-    except Exception as exc:
-        raise RuntimeError(f"[QwenVL] Failed to load AILab_System_Prompts.json: {exc}") from exc
-
-
-PROMPT_CONFIG = load_prompt_config()
-STYLES = PROMPT_CONFIG.get("styles", {})
-
-
-def _safe_dirname(value: str) -> str:
-    value = (value or "").strip()
-    if not value:
-        return "unknown"
-    return "".join(ch for ch in value if ch.isalnum() or ch in "._- ").strip() or "unknown"
-
-
-def _resolve_base_dir(base_dir_value: str) -> Path:
-    base_dir = Path(base_dir_value)
-    if base_dir.is_absolute():
-        return base_dir
-    return Path(folder_paths.models_dir) / base_dir
-
-
-def _model_name_to_filename_candidates(model_name: str) -> set[str]:
-    raw = (model_name or "").strip()
-    if not raw:
-        return set()
-    candidates = {raw, f"{raw}.gguf"}
-    if " / " in raw:
-        tail = raw.split(" / ", 1)[1].strip()
-        candidates.update({tail, f"{tail}.gguf"})
-    if "/" in raw:
-        tail = raw.rsplit("/", 1)[-1].strip()
-        candidates.update({tail, f"{tail}.gguf"})
-    return candidates
+_prompt_data = load_system_prompts()
+STYLES = _prompt_data["qwen_text_styles"]
+TRANSLATION_PROMPT = _prompt_data["translation_prompt"]
 
 
 class AILab_QwenVL_GGUF_PromptEnhancer:
@@ -93,58 +57,47 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
             "base_dir": "LLM/GGUF",
             "models": {},
         }
-        if not GGUF_CONFIG_PATH.exists():
-            return fallback
-        try:
-            with open(GGUF_CONFIG_PATH, "r", encoding="utf-8") as fh:
-                data = json.load(fh) or {}
-        except Exception as exc:
-            print(f"[QwenVL] gguf_models.json load failed: {exc}")
-            return fallback
-
-        base_dir = data.get("base_dir") or fallback["base_dir"]
-
+        base_dir = fallback["base_dir"]
         models: dict[str, dict] = {}
+        seen_display_names: set[str] = set()
 
-        # Legacy/custom direct entries (optional)
-        legacy_models = data.get("models") or {}
-        if isinstance(legacy_models, dict):
-            for name, entry in legacy_models.items():
-                if isinstance(entry, dict):
-                    models[name] = entry
+        if GGUF_CONFIG_PATH.exists():
+            try:
+                with open(GGUF_CONFIG_PATH, "r", encoding="utf-8") as fh:
+                    data = json.load(fh) or {}
+                base_dir = data.get("base_dir") or base_dir
 
-        # Text-only catalog (use Qwen_model; do not use qwenVL_model here)
-        qwen_repos = data.get("Qwen_model") or {}
-        if isinstance(qwen_repos, dict):
-            seen_display_names: set[str] = set()
-            for repo_key, repo in qwen_repos.items():
-                if not isinstance(repo, dict):
-                    continue
-                author = repo.get("author") or repo.get("publisher")
-                repo_name = repo.get("repo_name") or repo.get("repo_name_override") or repo_key
-                defaults = repo.get("defaults") if isinstance(repo.get("defaults"), dict) else {}
-                repo_id = repo.get("repo_id")
-                alt_repo_ids = repo.get("alt_repo_ids") or []
-                model_files = repo.get("model_files") or []
-                for model_file in model_files:
-                    # Prefer short names in UI: just the filename.
-                    display = Path(model_file).name
-                    if display in seen_display_names:
-                        display = f"{display} ({repo_key})"
-                    seen_display_names.add(display)
-                    entry = dict(defaults)
-                    entry.update(
-                        {
-                            "author": author,
-                            "repo_dirname": repo_name,
-                            "repo_id": repo_id,
-                            "alt_repo_ids": alt_repo_ids,
-                            "filename": model_file,
-                        }
-                    )
-                    models[display] = entry
+                # Legacy direct entries
+                legacy_models = data.get("models") or {}
+                if isinstance(legacy_models, dict):
+                    for name, entry in legacy_models.items():
+                        if isinstance(entry, dict):
+                            models[name] = entry
+
+                for key in ["Qwen_model", "qwenVL_model"]:
+                    repos = data.get(key) or {}
+                    if isinstance(repos, dict):
+                        parse_gguf_repos(repos, models, seen_display_names)
+            except Exception as exc:
+                print(f"[QwenVL] gguf_models.json load failed: {exc}")
+
+        # Merge custom_models.json (central custom config)
+        if CUSTOM_MODELS_PATH.exists():
+            try:
+                with open(CUSTOM_MODELS_PATH, "r", encoding="utf-8") as fh:
+                    custom_data = json.load(fh) or {}
+                for key in ["gguf_models", "gguf_text_models", "gguf_vl_models"]:
+                    repos = custom_data.get(key) or {}
+                    if isinstance(repos, dict) and repos:
+                        parse_gguf_repos(repos, models, seen_display_names, overwrite_existing=True)
+            except Exception as exc:
+                print(f"[QwenVL] custom_models.json (GGUF Text) skipped: {exc}")
 
         return {"base_dir": base_dir, "models": models}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        return True
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -204,9 +157,18 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
             author = _safe_dirname(str(entry.get("author") or entry.get("publisher") or ""))
             repo_dir = _safe_dirname(str(entry.get("repo_dirname") or model_name))
             if author and author != "unknown":
-                return base_dir / author / repo_dir / Path(filename).name
-            return base_dir / repo_dir / Path(filename).name
+                preferred_dir = base_dir / author / repo_dir
+            else:
+                preferred_dir = base_dir / repo_dir
 
+            existing = _find_local_gguf_file(filename, preferred_dir)
+            if existing:
+                return existing
+            return preferred_dir / Path(filename).name
+
+        existing = _find_local_gguf_file(model_name, base_dir)
+        if existing:
+            return existing
         return base_dir / model_name
 
     def _maybe_download_model(self, model_name, resolved):
@@ -296,7 +258,6 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
             "n_threads": None if threads == 0 else threads,
             "n_batch": 1024,
             "verbose": False,
-            "chat_format": "qwen",
         }
         self.llm = Llama(**kwargs)
         self.current_signature = signature
@@ -378,7 +339,7 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
         style_entry = self.styles.get(preset_system_prompt, {})
         system_prompt = (custom_system_prompt.strip() or style_entry.get("system_prompt") or "").strip()
         if not system_prompt:
-            raise ValueError("system_prompt is empty; check AILab_System_Prompts.json or preset selection.")
+            raise ValueError("system_prompt is empty; check system_prompts.json or preset selection.")
         system_prompt = (
             f"{system_prompt}\n\n"
             "Return only the final prompt text. No preface, no explanations, no analysis, no JSON, no markdown fences, and no <think>.\n"

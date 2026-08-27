@@ -19,41 +19,25 @@ from AILab_QwenVL import (
     TOOLTIPS,
 )
 
-NODE_DIR = Path(__file__).parent
-SYSTEM_PROMPTS_PATH = NODE_DIR / "AILab_System_Prompts.json"
+from AILab_Utils import (
+    load_system_prompts,
+)
 
-DEFAULT_STYLES = {
-    "📝 Enhance": "Expand and enrich this prompt with vivid visual context:",
-    "📝 Refine": "Polish this prompt for clarity and precise AI interpretation:",
-    "📝 Creative Rewrite": "Rewrite this prompt imaginatively while preserving intent:",
-    "📝 Detailed Visual": "Turn this prompt into a highly detailed visual description:",
-    "📝 Artistic Style": "Describe this prompt in artistic language suitable for image generation:",
-    "📝 Technical Specs": "Convert this prompt into clear technical parameters:",
+_prompt_data = load_system_prompts()
+_styles_dict = _prompt_data.get("qwen_text_styles") or {}
+PROMPT_STYLES = {
+    name: (entry.get("system_prompt", "") if isinstance(entry, dict) else str(entry))
+    for name, entry in _styles_dict.items()
 }
-
-
-def _load_prompt_styles() -> dict[str, str]:
-    try:
-        with open(SYSTEM_PROMPTS_PATH, "r", encoding="utf-8") as fh:
-            data = json.load(fh) or {}
-        qwen_text = data.get("qwen_text") or {}
-        styles = qwen_text.get("styles") or {}
-        if isinstance(styles, dict) and styles:
-            resolved = {
-                name: entry.get("system_prompt", "")
-                for name, entry in styles.items()
-                if isinstance(entry, dict) and entry.get("system_prompt")
-            }
-            if resolved:
-                return resolved
-    except FileNotFoundError:
-        pass
-    except Exception as exc:
-        print(f"[QwenVL] Prompt style load failed: {exc}")
-    return DEFAULT_STYLES
-
-
-PROMPT_STYLES = _load_prompt_styles()
+if not PROMPT_STYLES:
+    PROMPT_STYLES = {
+        "📝 Enhance": "Expand and enrich this prompt with vivid visual context:",
+        "📝 Refine": "Polish this prompt for clarity and precise AI interpretation:",
+        "📝 Creative Rewrite": "Rewrite this prompt imaginatively while preserving intent:",
+        "📝 Detailed Visual": "Turn this prompt into a highly detailed visual description:",
+        "📝 Artistic Style": "Describe this prompt in artistic language suitable for image generation:",
+        "📝 Technical Specs": "Convert this prompt into clear technical parameters:",
+    }
 
 
 class AILab_QwenVL_PromptEnhancer(QwenVLBase):
@@ -69,6 +53,10 @@ class AILab_QwenVL_PromptEnhancer(QwenVLBase):
         self.text_model = None
         self.text_tokenizer = None
         self.text_signature = None
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        return True
 
     @classmethod
     def INPUT_TYPES(cls):

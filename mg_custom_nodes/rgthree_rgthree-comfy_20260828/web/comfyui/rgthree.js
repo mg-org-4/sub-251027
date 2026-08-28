@@ -520,7 +520,7 @@ class Rgthree extends EventTarget {
         app.loadApiJson = async function (apiData, fileName) {
             rgthree.loadingApiJson = apiData;
             try {
-                loadApiJson.apply(app, [...arguments]);
+                await loadApiJson.apply(app, [...arguments]);
             }
             finally {
                 rgthree.loadingApiJson = null;

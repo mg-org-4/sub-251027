@@ -771,7 +771,10 @@ class Rgthree extends EventTarget {
     app.loadApiJson = async function (apiData: any, fileName: string) {
       rgthree.loadingApiJson = apiData as ComfyApiFormat;
       try {
-        loadApiJson.apply(app, [...arguments] as any);
+        // [🤮] ComfyUI changed this to async, but their types are still broken and can't be
+        // updated, so TS ignore warnings
+        // @ts-ignore
+        await loadApiJson.apply(app, [...arguments] as any);
       } finally {
         rgthree.loadingApiJson = null;
       }

@@ -1,0 +1,192 @@
+/* Only what ComfyUI's own Tailwind classes do not already provide: drag and selection affordances, grid view, inline naming. */
+
+/* Drag, selection and grid view — no upstream equivalent. */
+.ere-sidebar .ere-sb-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+}
+.ere-sidebar .ere-sb-selected,
+.ere-sidebar .ere-sb-tile.ere-sb-selected {
+    background: rgba(var(--ere-drag-accent-rgb, 74, 158, 255), .18);
+    outline: 1px solid var(--ere-drag-accent, var(--p-primary-color, #4a9eff));
+    outline-offset: -1px;
+    border-radius: var(--p-border-radius-sm, 4px);
+}
+.ere-sb-drop-target {
+    outline: 2px dashed var(--ere-drag-accent, var(--p-primary-color, #4a9eff)) !important;
+    outline-offset: -2px;
+    background: rgba(var(--ere-drag-accent-rgb, 74, 158, 255), .12) !important;
+    border-radius: var(--p-border-radius-sm, 4px);
+}
+
+/* CSS grid, not flex-wrap: folder tiles and file tiles are different elements with different intrinsic widths, so a flex row packed them into different column counts and drifted further out of alignment the wider the panel got. */
+.ere-sidebar .ere-sb-grid + .ere-sb-grid {
+    padding-top: 0;
+}
+.ere-sidebar .ere-sb-grid {
+    display: grid;
+    gap: var(--ere-tile-gap, 8px);
+    padding: .5rem;
+    grid-template-columns: repeat(auto-fill, var(--ere-tile-w, 96px));
+    justify-content: start;
+    align-items: start;
+}
+.ere-sidebar .ere-sb-tile {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    width: var(--ere-tile-w, 96px);
+    height: var(--ere-tile-h, 96px);
+    border-radius: var(--p-border-radius-md, 6px);
+}
+.ere-sidebar .ere-sb-tile > .ere-tile {
+    width: 100% !important;
+    height: 100% !important;
+}
+.ere-sidebar .ere-sb-folder-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .25rem;
+    border: 1px solid var(--p-content-border-color, var(--border-color, #444));
+    background: var(--p-content-background, var(--comfy-input-bg, #222));
+}
+.ere-sidebar .ere-sb-tile-name {
+    max-width: 100%;
+    padding: 0 .25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+}
+.ere-sidebar .ere-sb-tile-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+}
+/* Sticky, because it is the only way back up and the grid below it can be thousands of tiles long.
+   It needs an opaque background of its own or the tiles scroll through it; --comfy-menu-bg is the panel the sidebar is drawn on and follows the theme. */
+.ere-sidebar .ere-sb-crumbs {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: .5rem;
+    background: var(--comfy-menu-bg, var(--p-content-background, #202020));
+    border-color: var(--comfy-input-bg);
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: 1px;
+    font-size: .75rem;
+}
+/* Tag index build progress.
+   Two divs and a width, not PrimeVue's ProgressBar: p-progressbar is lazily injected like every other p-* component, so a tab opened before one has ever mounted would render nothing at all. Same reason the tree rows are hand-built. */
+.ere-sidebar .ere-sb-index-banner {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: .5rem .75rem;
+    background: var(--comfy-menu-bg, var(--p-content-background, #202020));
+    border-color: var(--comfy-input-bg);
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: 1px;
+    font-size: .75rem;
+}
+.ere-sidebar .ere-sb-progress {
+    height: 3px;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 2px;
+    background: rgba(127, 127, 127, .25);
+}
+.ere-sidebar .ere-sb-progress-fill {
+    height: 100%;
+    width: 0;
+    border-radius: 2px;
+    background: var(--ere-drag-accent, var(--p-primary-color, #4a9eff));
+    transition: width .3s ease;
+}
+/* The scan has not produced a total yet, so there is no fraction to draw. A sweep says "working" where a bar stuck at 0% says "stuck". */
+.ere-sidebar .ere-sb-progress-fill.ere-sb-progress-idle {
+    width: 35%;
+    animation: ere-sb-progress-sweep 1.2s ease-in-out infinite;
+}
+@keyframes ere-sb-progress-sweep {
+    from { margin-left: -35%; }
+    to   { margin-left: 100%; }
+}
+/* A looping sweep is exactly what this setting is about. Static and full-width still reads as indeterminate next to the spinner beside it. */
+@media (prefers-reduced-motion: reduce) {
+    .ere-sidebar .ere-sb-progress-fill {
+        transition: none;
+    }
+    .ere-sidebar .ere-sb-progress-fill.ere-sb-progress-idle {
+        width: 100%;
+        margin-left: 0;
+        animation: none;
+        opacity: .4;
+    }
+}
+
+/* Dimmed on the text, not the bar: fading the whole thing would make its background translucent and let tiles show through. */
+.ere-sidebar .ere-sb-crumbs > * {
+    opacity: .85;
+}
+.ere-sidebar .ere-sb-crumb {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+.ere-sidebar .ere-sb-crumb:hover {
+    background: var(--p-content-hover-background, rgba(255, 255, 255, .08));
+}
+
+/* Inline naming (rename / new folder) — sized to sit inside a row without changing its height, so the tree does not jump when editing starts. */
+.ere-sidebar .ere-sb-inline {
+    min-width: 0;
+    flex: 1 1 auto;
+    height: 20px;
+    padding: 0 4px;
+    border-radius: var(--p-border-radius-sm, 4px);
+    border: 1px solid var(--p-primary-color, #4a9eff);
+    background: var(--p-content-background, var(--comfy-input-bg, #222));
+    color: inherit;
+    font: inherit;
+    font-size: .75rem;
+    outline: none;
+}
+.ere-sidebar .ere-sb-tile .ere-sb-inline {
+    width: 100%;
+    flex: 0 0 auto;
+}
+/* Only the "Loading…" line now; the empty state uses the frontend's own placeholder markup. */
+.ere-sidebar .ere-sb-empty {
+    padding: 1rem;
+    text-align: center;
+    opacity: .55;
+    font-size: .75rem;
+}
+/* The tag groups folder is configurable and its path can be long, so it wraps rather than stretching the card. */
+.ere-sidebar .no-results-placeholder p {
+    word-break: break-word;
+}
+
+/* ComfyUI compiles only a subset of lucide, and the rectangle icons are not in it.
+   Stretching the square stands in for them: at 16px the proportions read clearly enough. */
+.ere-sidebar .ere-ratio-3-4 {
+    scale: 1 1.1;
+}
+.ere-sidebar .ere-ratio-9-16 {
+    scale: 1 1.2;
+}

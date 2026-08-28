@@ -4,7 +4,7 @@
 
 **English** | **[中文](./README_zh.md)**
 
-**Version: v0.1.71**
+**Version: v0.1.8**
 
 ComfyUI nodes for [bosonai/higgs-audio-v3-tts-4b](https://huggingface.co/bosonai/higgs-audio-v3-tts-4b): multilingual conversational TTS, zero-shot voice cloning, inline emotion/style/prosody/SFX tags, longform chunking, multi-speaker dialogue, Whisper reference transcription, and ComfyUI/AIMDO DynamicVRAM support.
 
@@ -116,6 +116,7 @@ The checkpoint is about **9.31 GB** on disk. Expect roughly **11 GB VRAM** for t
 | `seed` | INT | `0` | `0` uses the current random state; a positive seed is reused unchanged for every longform chunk. |
 | `longform_chunking` | BOOLEAN | `True` | Split long text safely at sentence/pause boundaries. When off, the node makes one direct generation call. |
 | `words_per_chunk` | INT | `45` | Target chunk size. Around 35-55 fits the 2048-token default better; CJK-like scripts use character-style splitting. |
+| `tag_chunk` | BOOLEAN | `False` | Cut chunks at every `<\|...\|>` tag instead of only at sentence breaks. Oversized tag sections are still split by `words_per_chunk`, with the active tag re-inserted at the start of each new piece so it keeps the tone/voice. |
 | `pause_between_chunks` | FLOAT | `0.15` | Silence inserted between generated chunks. |
 
 **Output:** `audio` (`AUDIO`)

@@ -2,7 +2,7 @@ import logging
 import os
 
 # Version information - must be at module level for ComfyUI Manager
-__version__ = "2.5.9"
+__version__ = "2.6.0"
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -143,7 +143,7 @@ NODE_DISPLAY_NAME_MAPPINGS["Krea2ControlNetLoraLoader"] = "Krea2 controlnet lora
 
 # Add ControlNet display name only if the node was successfully loaded
 if "NunchakuQwenImageDiffsynthControlnet" in NODE_CLASS_MAPPINGS:
-    NODE_DISPLAY_NAME_MAPPINGS["NunchakuQwenImageDiffsynthControlnet"] = "NunchakuQI&ZITDiffsynthControlnet"
+    NODE_DISPLAY_NAME_MAPPINGS["NunchakuQwenImageDiffsynthControlnet"] = "Nunchaku ZI Diffsynth Controlnet&Krea2 LoRA ControlNet"
 
 # Register JavaScript extensions
 WEB_DIRECTORY = "js"

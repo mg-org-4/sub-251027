@@ -5,7 +5,26 @@
   </tr>
 </table>
 
-### v2.6.0 (最新)
+### v2.6.2 (最新)
+- **已修复**: Nunchaku CPU Offload 参数复制（`copy_params_into`）期间的 `AssertionError: assert not hasattr(md, "wtscale")` 及 `AttributeError: 'SVDQW4A4Linear' object has no attribute 'wtscale'` 报错。
+  - Nunchaku 的 `CPUOffloadManager` 通过深拷贝 Block 0 创建两个 GPU ping-pong 缓冲区（`buffer_blocks`）并交替使用。
+  - 当传输源模块不包含量化 `wtscale` 属性的后续块（例如非量化层、注入 LoRA 的模块或 USDU 分块采样）时，由于循环使用的 GPU 缓冲区残留了先前迭代的 `wtscale` 属性，导致上游 `assert not hasattr(md, "wtscale")` 断言失败崩溃。
+  - `patches/nunchaku_patch.py` 现提供内存运行时动态补丁（`apply_nunchaku_copy_params_patch`），替换 `nunchaku.utils` 与 `nunchaku.models.utils` 中的 `copy_params_into`。
+  - 补丁采用**键名精确匹配的参数/缓冲区复制**（`named_parameters`、`named_buffers`、`named_modules`）以消除 LoRA 层带来的位置错位，存在时安全同步 `wtscale`，不存在时赋予合法的默认值（`nvfp4` 为 `1.0`，`int4` 为 `None`）而非执行属性删除（`delattr`），保持 `site-packages` 100% 纯净未修改。
+- **文档**: 新增英文技术文档 `md/NUNCHAKU_OFFLOAD_WTSCALE_ASSERTION_FIX.md`。
+- **技术详情**: 参见 [v2.6.2 发行说明](v2.6.2.md) 获取完整说明
+
+### v2.6.1
+- **已记录**: LoRA 型 ControlNet 无法用于 Nunchaku Qwen Image（例如 `qwen_image_union_diffsynth_lora.safetensors`）。调查结果：
+  - 该 LoRA（Comfy-Org 的 Qwen-Image-DiffSynth-ControlNets，原为 DiffSynth-Studio 的 Qwen-Image-In-Context-Control-Union）是对全部 60 个 transformer 块的 rank 64 全量 LoRA，**没有任何控制注入机制**；条件必须作为参考潜在（ref）token 从外部注入。
+  - **ref-concat**（`index` / `index_timestep_zero`）在 Nunchaku Qwen Image 上会产生**双重结构伪影**（参考图像被绘制为内部小图）。
+  - **隔离 kv_cache 注入**（Krea2 openpose 方式）对该 LoRA **完全无法引导生成**。
+  - 双重结构伪影**并非 Nunchaku 特有**：即使在标准 bf16 Qwen Image 模型上，该 LoRA 也会绘制内部小图（bf16 还会额外绘制外部画面，而 Nunchaku 不会）。
+- **推荐**: 对于 Nunchaku Qwen Image，请使用**标准（非 model-patch）ControlNet**，例如阿里巴巴的 [Qwen-Image-2512-Fun-Controlnet-Union](https://huggingface.co/alibaba-pai/Qwen-Image-2512-Fun-Controlnet-Union)，通过 ComfyUI 常规的 Apply ControlNet 流程使用。
+- **文档**: 更新 README 的 "Known Limitations"，补充了 Nunchaku Qwen Image 上 **model-patch 型** 与 **LoRA 型** ControlNet 的详细技术背景。
+- **技术详情**: 参见 [v2.6.1 发行说明](v2.6.1.md) 获取完整说明
+
+### v2.6.0
 - **已更改**: ControlNet 节点名称由 `NunchakuQI&ZITDiffsynthControlnet` 改为 **`Nunchaku ZI Diffsynth Controlnet&Krea2 LoRA ControlNet`**（内部类名不变：`NunchakuQwenImageDiffsynthControlnet`，已有工作流无需修改即可加载）。
 - **明确支持范围**:
   - **Z-Image-Turbo（ZI 路由）**：支持 **Nunchaku**（量化）以及所有非量化 / 量化 Z-Image 模型。
@@ -23,7 +42,7 @@
 
 ### v2.5.8
 - **已修复**: 当预编译 LoRA 缓存文件在磁盘上损坏（头部可读、数据区不可读）时，ComfyUI 不再因 Windows 致命 "page error" 崩溃。`load_precompiled()` 现在改为以普通字节方式读取缓存，而非使用基于 mmap 的 `load_file`，因此同一损坏会以普通 Python `OSError` 形式暴露，加载器会自动回退到完整的重新融合。
-- **技术详情**: 参见 [v2.5.8 发行说明](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.5.8) 获取完整说明
+- **技术详情**: 参见 [v2.5.8 发行说明](v2.5.8.md) 获取完整说明
 
 ### v2.5.7
 - **已移除**: 从注册节点映射及文档中移除了旧版节点 `NunchakuQwenImageLoraStack`（"Nunchaku Qwen Image LoRA Stack (Legacy)"）。请使用 `NunchakuQwenImageLoraStackV1`、`V2` 或 `V3` 替代。

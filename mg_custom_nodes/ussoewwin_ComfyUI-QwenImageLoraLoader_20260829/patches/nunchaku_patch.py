@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 _svdq_from_linear_patched: bool = False
 _qwen_apply_rotary_emb_compat_applied: bool = False
+_copy_params_patched: bool = False
 
 _ROTARY_SHIM_TAG = "_qwen_lora_loader_rotary_shim"
 
@@ -413,14 +414,87 @@ def forward_with_manual_planar_injection(
     return encoder_hidden_states, hidden_states
 
 
+def _safe_copy_params_into(src: torch.nn.Module, dst: torch.nn.Module, non_blocking: bool = True):
+    """
+    Safely copy parameters and buffers from src to dst by name matching (with positional fallback),
+    and correctly synchronize wtscale attribute without attribute deletion.
+    """
+    with torch.no_grad():
+        src_params = dict(src.named_parameters())
+        dst_params = dict(dst.named_parameters())
+        if src_params and dst_params and set(src_params.keys()) == set(dst_params.keys()):
+            for name, pd in dst_params.items():
+                pd.copy_(src_params[name], non_blocking=non_blocking)
+        else:
+            for ps, pd in zip(src.parameters(), dst.parameters()):
+                pd.copy_(ps, non_blocking=non_blocking)
+
+        src_buffers = dict(src.named_buffers())
+        dst_buffers = dict(dst.named_buffers())
+        if src_buffers and dst_buffers and set(src_buffers.keys()) == set(dst_buffers.keys()):
+            for name, bd in dst_buffers.items():
+                bd.copy_(src_buffers[name], non_blocking=non_blocking)
+        else:
+            for bs, bd in zip(src.buffers(), dst.buffers()):
+                bd.copy_(bs, non_blocking=non_blocking)
+
+        src_modules = dict(src.named_modules())
+        dst_modules = dict(dst.named_modules())
+        if src_modules and dst_modules and set(src_modules.keys()) == set(dst_modules.keys()):
+            for name, md in dst_modules.items():
+                ms = src_modules[name]
+                if hasattr(ms, "wtscale"):
+                    md.wtscale = ms.wtscale
+                elif hasattr(md, "wtscale"):
+                    precision = getattr(md, "precision", "int4")
+                    md.wtscale = 1.0 if precision == "nvfp4" else None
+        else:
+            for ms, md in zip(src.modules(), dst.modules()):
+                if hasattr(ms, "wtscale"):
+                    md.wtscale = ms.wtscale
+                elif hasattr(md, "wtscale"):
+                    precision = getattr(md, "precision", "int4")
+                    md.wtscale = 1.0 if precision == "nvfp4" else None
+
+
+def apply_nunchaku_copy_params_patch() -> bool:
+    """
+    Patch nunchaku copy_params_into to safely handle wtscale attribute differences
+    when reusing buffer_blocks during CPU offloading.
+    """
+    global _copy_params_patched
+    if _copy_params_patched:
+        return True
+    applied = False
+    for mod_name in ("nunchaku.utils", "nunchaku.models.utils"):
+        try:
+            if mod_name in sys.modules:
+                mod = sys.modules[mod_name]
+                if hasattr(mod, "copy_params_into"):
+                    mod.copy_params_into = _safe_copy_params_into
+                    applied = True
+            else:
+                import importlib
+                mod = importlib.import_module(mod_name)
+                mod.copy_params_into = _safe_copy_params_into
+                applied = True
+        except Exception:
+            pass
+    if applied:
+        _copy_params_patched = True
+        logger.info("Patched nunchaku.copy_params_into for safe CPU offload buffer parameter copying.")
+    return applied
+
+
 def apply_nunchaku_patch():
     """
-    Apply ComfyUI-nunchaku compatibility patches (LoRA planar injection + lazy Linear fixes).
+    Apply ComfyUI-nunchaku compatibility patches (LoRA planar injection + lazy Linear fixes + safe copy_params_into).
     Returns True if at least one patch was applied or was already active.
     """
     rotary_compat = apply_qwen_image_apply_rotary_emb_compat()
     lazy_from = apply_svdqw4a4_lazy_linear_patch()
     lazy_fuse = apply_nunchaku_zimage_fuse_lazy_linear_patch()
+    copy_params_ok = apply_nunchaku_copy_params_patch()
     if not lazy_fuse:
         schedule_nunchaku_zimage_fuse_patch_retries()
 
@@ -455,4 +529,5 @@ def apply_nunchaku_patch():
     except Exception as e:
         logger.error("Failed to apply Nunchaku planar patch: %s", e)
 
-    return planar_ok or lazy_from or rotary_compat
+    return planar_ok or lazy_from or rotary_compat or copy_params_ok
+

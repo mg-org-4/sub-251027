@@ -13,7 +13,7 @@ A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nun
 
 **Currently under development and testing. Debug logs are being output extensively. This does not affect functionality.**
 
-> Latest release: [v2.6.0 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.6.0)
+> Latest release: [v2.6.2 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.6.2)
 > 
 
 ## Source
@@ -80,6 +80,8 @@ By default, detailed debug logs are **muted**. If you want detailed debug output
 - **Nunchaku ZI Diffsynth Controlnet&Krea2 LoRA ControlNet** (class: `NunchakuQwenImageDiffsynthControlnet`): DiffSynth ControlNet support node.
   - **Z-Image-Turbo (ZI) route**: supports **Nunchaku** (quantized) and all non-quantized / quantized Z-Image models.
   - **Qwen Image (QI) route**: supports all **non-Nunchaku** Qwen Image models (both non-quantized and quantized, e.g. HSWQ ConvRot INT8). **Nunchaku Qwen Image is NOT supported** by the DiffSynth route (quantized hidden-state scale mismatch produces broken output).
+    - For **Nunchaku Qwen Image**, use Alibaba's [Qwen-Image-2512-Fun-Controlnet-Union](https://huggingface.co/alibaba-pai/Qwen-Image-2512-Fun-Controlnet-Union) instead.
+    - It is a **standard (non-model-patch) ControlNet**: it works with ComfyUI's normal ControlNet application flow (Apply ControlNet style), so it can be used directly with Nunchaku Qwen Image without this node's DiffSynth route.
   - **Krea2** (depth / openpose): Krea2 control support.
 
 - **Krea2ControlNetLoraLoader**: Krea2 controlnet-lora loader (depth & openpose)
@@ -262,6 +264,27 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 **Related Issues**: [Issue #38](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/38), [Issue #40](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/40)
 
 ## Known Limitations
+
+### ControlNet on Nunchaku Qwen Image
+Nunchaku Qwen Image models **cannot use** either of the two custom ControlNet formats below:
+
+- **Model-patch type ControlNet** (e.g. DiffSynth block-wise ControlNet with `control_block` weights): **not usable**.
+  - Reason: the failure is **not** in the ControlNet model itself (the `QwenImageBlockWiseControlNet` decode is correct), but in the **nunchaku W4A4-quantized Qwen Image model's internal hidden-state scale**:
+    - The nunchaku `SVDQW4A4Linear` (W4A4, activations also quantized) amplifies hidden states inside each transformer block (measured: `to_qkv` ~29x, MLP ~760x amplification; block output mean ~1.4e5, whereas Z-Image stays at standard scale ~0.3-5).
+    - Hidden states also have severely non-uniform **per-channel scales** (channel RMS spread up to ~1500x), caused by accumulated W4A4 group scales.
+    - BlockWise ControlNet (`QwenImageBlockWiseControlNet`) is trained for **standard-scale** hidden states. Its residual is ~0.3% of the nunchaku hidden-state magnitude, so the control is effectively invisible; naive residual rescaling breaks the channel structure and produces glitched output.
+    - Z-Image is unaffected because its nunchaku implementation (`NextDiT`) keeps hidden states at standard scale.
+  - This is a nunchaku Qwen Image limitation (similar to upstream issue #711), not a bug in the ControlNet model itself.
+- **LoRA-type ControlNet** (e.g. `qwen_image_union_diffsynth_lora.safetensors`): **not usable**.
+  - Background: this LoRA (from Comfy-Org's Qwen-Image-DiffSynth-ControlNets, originally DiffSynth-Studio's Qwen-Image-In-Context-Control-Union) is a full LoRA over all 60 transformer blocks (rank 64 on every attention / MLP / modulation module). It contains **no control-injection machinery** (no `control_img_in`, no `control_blocks`, no `controlnet_x_embedder`), so the condition must be injected externally as reference-latent (ref) tokens.
+  - What we tested on Nunchaku Qwen Image:
+    - **ref-concat (`index`)**: produces a double-structure artifact — the ref image (the condition) is drawn as an inner picture inside the generated image. The inner picture does follow the canny structure, but the layout is broken (picture-in-picture), so it cannot be used as a proper ControlNet.
+    - **ref-concat (`index_timestep_zero`)**: the inner picture becomes a copy of the source image (the edit-style conditioning keeps the ref content too strongly), so canny control is effectively lost.
+    - **isolated kv_cache injection** (the Krea2 openpose style): does **not steer generation at all** with this LoRA — the LoRA does not respond to K/V-cached ref conditioning.
+  - Note: the double-structure artifact is **not specific to Nunchaku** — even with a standard bf16 Qwen Image model, this LoRA produces an inner small picture (the difference is only that bf16 also renders the outer picture, while Nunchaku does not).
+  - Conclusion: neither ref injection style works correctly on Nunchaku Qwen Image. Use a standard (non-model-patch) ControlNet instead (see below).
+
+**Use a standard (non-model-patch) ControlNet instead**, such as Alibaba's [Qwen-Image-2512-Fun-Controlnet-Union](https://huggingface.co/alibaba-pai/Qwen-Image-2512-Fun-Controlnet-Union), which is a standard ControlNet that works with ComfyUI's normal Apply ControlNet flow and can be used directly with Nunchaku Qwen Image.
 
 ### LoKR (Lycoris) LoRA Support
 - **Status**: ❌ **Not Supported**

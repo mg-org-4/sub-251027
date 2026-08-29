@@ -2,6 +2,8 @@
 
 A high-performance collection of custom nodes for ComfyUI, optimized for video workflows, resolution management, and logic control.
 
+[📰 News & Changelog — release notes and complete change history across the collection →](docs/news_and_changelog.md)
+
 ## Included Nodes
 
 ### 🎬 MiniMax H3 Director
@@ -38,6 +40,8 @@ An approximate, model-scoped whole-block-stack residual cache for ComfyUI's nati
 - **CONTROLLED REUSE:** sampled audio/video-token relative-L1 threshold, 15–90% sampling window, and a bounded number of consecutive cache hits.
 - **STORAGE:** auto / CUDA / CPU cached-residual storage with CPU fallback if automatic storage runs out of VRAM.
 - **COMPATIBILITY:** preserves ComfyUI block replacements and transformer options; can be chained with **Patch Comfy Kitchen Attention**.
+- **PDD HEAD BANK:** works with ComfyUI's PDD LoRA head bank (0.34+). The node passes the PDD sigma-schedule arguments automatically, so cache and PDD coexist with no extra setup.
+- **PER-TOKEN MASKS:** honors per-token video and audio denoise masks, running masked rows at their own strength exactly like Core, so cached and region-masked generations match Core quality.
 - **QUALITY:** approximate optimization—higher cache thresholds trade fidelity for more skipped block-stack evaluations.
 
 [Full documentation, usage, compatibility, and provenance →](docs/minimax_h3_cache.md)

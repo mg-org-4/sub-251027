@@ -6,6 +6,10 @@ This changelog covers the last two months: **2026-06-29 → 2026-08-29**. The fi
 
 ## News
 
+- **Advanced LoRA Loader trash button (08-29):** every slot row gets a trash button (plain canvas paths, ASCII — a drawn trash-can, no emoji) directly right of the info button — it resets that slot's LoRA back to "None" (strengths and multipliers kept, exactly like selecting None in the picker), so you can unstack a LoRA without reopening the picker. The info button shifted slightly left to make room. No backend change; version bump to 0.4.29.
+- **Seed Control queue roll (08-29):** Random mode rolls a fresh seed on every prompt build under the new Vue frontend — the legacy extension-level queue hook stopped dispatching there, and the Run button's internal queue path doesn't call the global queue entry point either, so the roll now runs by wrapping the app's prompt build (`app.graphToPrompt`), the choke point every Run routes through (Pixaroma-seed-node style; Fixed mode and external-seed links unchanged).
+- **LoRA info button (08-29):** the Advanced LoRA Loader rows now have an ⓘ glyph at the right edge. It opens a panel with the LoRA's Civitai link (looked up by the file's SHA-256, cached in `lorainfo/`), trigger/trained words from the safetensors header and Civitai (click-select, copy), and preview images (Civitai + a local sidecar `*.png` next to the LoRA if present).
+- **Advanced LoRA Loader: universal rename + PDD/ACC support + opt-in cache (08-29):** the LTX-2-only loader is renamed to a universal **Advanced LoRA Loader** (serialized node ID unchanged), forwards PDD/ACC LoRA metadata to Core so PDD/ACC head banks activate, and gains an **opt-in** `use_cache` button (default off) that caches each unique LoRA file across slots.
 - **H3 Cache compatibility & quality parity (08-29):** PDD LoRA head bank support (ComfyUI 0.34+) and per-token denoise-mask parity with Core.
 - **Image Inpaint mode for the Director (08-28):** a 5-frame image-to-video pass through the native `MiniMaxH3ImageToVideo` node; the `inpaint_requested` output lets downstream sampling branch on mode.
 - **Director 2.0 frozen (08-28):** the experimental v2 fork is removed from the nodepack and preserved under `frozen/`; v1 plus Image Inpaint is the supported path.
@@ -21,6 +25,10 @@ Quick reference for the version bumps inside this window, newest first:
 
 | Version | Date | Headline |
 |---|---|---|
+| 0.4.30 | 08-29 | Seed Control: Random-mode roll via the graphToPrompt choke point; panel DOM syncs after a run |
+| 0.4.29 | 08-29 | Advanced LoRA Loader trash button (per-row, resets the slot to None) |
+| 0.4.28 | 08-29 | LoRA info button in the Advanced LoRA Loader (Civitai link, trigger words, images) |
+| 0.4.27 | 08-29 | Advanced LoRA Loader universal rename; PDD/ACC metadata passthrough; opt-in cache button |
 | 0.4.26 | 08-29 | H3 Cache PDD head-bank + per-token mask support |
 | 0.4.25 | 08-28 | Director v1 Image Inpaint mode; `inpaint_requested` output switch |
 | 0.4.24 | 08-28 | Director 2.0 freeze (v2 archived to `frozen/`) |
@@ -66,8 +74,12 @@ Quick reference for the version bumps inside this window, newest first:
 
 - **08-26:** new standalone Seed Control node extracted from the Director seed panel: full 64-bit unsigned seeds, Random|Fixed segmented switch, spinner with hold-to-repeat, Last 10 seeds history, external override socket, and INT + NOISE outputs; lossless 64-bit display via decimal-string mirroring; mode, last seed, and history persist with the workflow.
 
-### Advanced LoRA Loader (LTX-2.3)
+### Advanced LoRA Loader (formerly LTX-2.3)
 
+- **08-29:** **Trash button (0.4.29):** each slot row gained a trash button (plain canvas paths, ASCII-drawn trash-can, no emoji) placed directly right of the info button. Clicking it resets that slot's LoRA back to "None" (the STR / VIS / A multipliers are kept — exactly like picking "None" in the slot picker), so a LoRA can be unstacked without reopening the picker. The info button shifted slightly left (x 976 → 962) to make room; the trash button occupies the previous info x. UI-only, no backend change.
+- **08-29:** **LoRA info button (0.4.28):** each slot row gained an ⓘ glyph at its right edge. It opens an info panel with the LoRA's Civitai link (SHA-256 looked up on Civitai's `model-versions/by-hash` API, results cached in `lorainfo/`), trigger/trained words from the safetensors header and Civitai (click-select, copy), and preview images (Civitai plus a local sidecar image next to the LoRA if present). Two new GET-only routes (`/dasiwa/ltx2/lorainfo`, `/dasiwa/ltx2/loraimg`) in `nodes/lora_info.py`; no new dependencies.
+- **08-29:** **PDD/Acc LoRA head-bank guard (warn-only):** when a PDD LoRA (`pdd_num_steps`) is applied to a single-head H3 model, the loader prints a console warning — the incompatible `final_layer` head-bank `set`/`bias` keys are **kept**, so the protective core shape crash at `comfy/lora.py` still aborts the run (deliberate: no circumvention until an upstream patch lands). The guard warns only on positive evidence (bank width and model width both readable and different); a genuine PDD model whose width matches is untouched. **Recommended fix:** pair PDD LoRAs with a PDD model (`final_layer.video_out [3072,5376]`). Bugfix — no version bump.
+- **08-29:** **universal rename + PDD/ACC support + opt-in cache:** the LTX-2-only `DaSiWa LTX-2 Master Loader` is renamed to the **Advanced LoRA Loader** — module/class/JS/docs/display name changed internally, but the *serialized* node ID `DaSiWa_LTX2LoraLoader` and display name stay stable for saved workflows (display now drops the "DaSiWa" prefix). The file is read with `return_metadata=True` and the PDD/ACC metadata is forwarded to Core's `load_lora_for_models`, so PDD / ACC LoRA head banks activate (older builds fall back via `TypeError`). A new **⚡ CACHE** button in the control strip enables an opt-in per-path LRU cache (max 4 entries, **off by default**), so a LoRA reused across slots is read once.
 - **08-25:** **inline value editor:** the STR, VIS, and AUDIO pills open an in-canvas editor instead of a `prompt()` dialog; the editor is pinned to its pill and tracks pan and zoom; documented.
 - **08-15:** STR / VIS / A value editors no longer bounce off 0 (nullish fallback).
 - **07-11:** LoRA list refreshes dynamically.

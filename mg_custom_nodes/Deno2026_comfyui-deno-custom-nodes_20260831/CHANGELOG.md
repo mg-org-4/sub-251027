@@ -6,6 +6,17 @@ This file intentionally stays short. Detailed engineering notes belong in privat
 
 ## Unreleased
 
+## 0.7.100 - 2026-08-31
+
+- Extended `(Deno) Ideogram Director`'s existing `bboxes` output to connect to both `BBOX` and `BOUNDING_BOX` consumers, and exposed its active box count through a transient, non-serialized frontend bridge for `Ideogram4_MultiLora_BoundingBoxNode_Fedor`. Existing output order, saved `caption_data`, widgets, and BBOX links are unchanged.
+
+## 0.7.99 - 2026-08-31
+
+- Fixed `(Deno) Local LLM Loader` workflow loading on current ComfyUI frontend releases by deferring linked widget-socket cleanup until the node has an authoritative graph. Existing image, duration, audio-context, and prompt links are preserved through load, save, and reopen.
+- Removed duplicate global Local LLM wheel interception and synchronous layout reads. Local preview scrolling stays local, while normal canvas zoom and middle-button pan continue through ComfyUI's native interaction path.
+- Fixed `(Deno) Advanced Image Source Loader` input-folder thumbnails by trying compatible `/api/view` and `/view` URL variants before showing a fallback. Large input and external folders now render a bounded virtual grid with lazy thumbnails and preserved selection instead of creating every card at once.
+- Documented the existing opt-in route for calling an owned LM Studio server on a trusted LAN through the `Custom` provider and an exact `DENO_LOCAL_LLM_ALLOWED_HOSTS=IP:port` allowlist. The dedicated `LM Studio` provider remains localhost-only.
+
 ## 0.7.98 - 2026-08-29
 
 - Followed up the Registry scanner compatibility cleanup by keeping the same four read-only environment lookups behind a direct standard-library import. This removes the scanner's remaining two false-positive source patterns without changing Local LLM host opt-in, Unsloth API-key lookup, SOS diagnostics, or any public node contract.

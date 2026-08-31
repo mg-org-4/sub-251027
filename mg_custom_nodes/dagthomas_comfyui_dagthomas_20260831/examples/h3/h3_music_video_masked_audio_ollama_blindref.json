@@ -1,8 +1,8 @@
 {
- "id": "a1c7f0d2-6b31-4e88-9f04-2ad51c9e77b1",
+ "id": "c3e9f4a5-8d53-4a17-b62c-4cf73eb09913",
  "revision": 0,
- "last_node_id": 203,
- "last_link_id": 430,
+ "last_node_id": 201,
+ "last_link_id": 428,
  "nodes": [
   {
    "id": 119,
@@ -247,7 +247,7 @@
    "type": "MiniMaxH3ReferenceToVideo",
    "pos": [
     -160,
-    5000
+    4910
    ],
    "size": [
     410,
@@ -565,7 +565,7 @@
    "type": "H3ResolutionSelector",
    "pos": [
     -170,
-    6070
+    5980
    ],
    "size": [
     270,
@@ -623,8 +623,8 @@
    "id": 153,
    "type": "H3PromptPreview",
    "pos": [
-    3670,
-    5680
+    3820,
+    5590
    ],
    "size": [
     847,
@@ -668,8 +668,8 @@
    "id": 157,
    "type": "H3Characters",
    "pos": [
-    220,
-    5680
+    370,
+    5590
    ],
    "size": [
     330,
@@ -754,7 +754,7 @@
    "type": "MarkdownNote",
    "pos": [
     -1860,
-    5680
+    5590
    ],
    "size": [
     700,
@@ -769,7 +769,7 @@
     "Node name for S&R": "MarkdownNote"
    },
    "widgets_values": [
-    "# H3 Music Video - masked audio, written locally by Ollama\n\nThe song is the clock. The writer cuts it into 5-15 s pieces on the music (timed\nlyrics make cuts land before a line), writes one H3 scene per piece, and emits\nmatching lists - `scenes`, `lengths`, `audio_segments`, `clip_starts` - that the\nvideo node renders one clip at a time.\n\n**Masked audio** is what makes the lip-sync work: each clip's real slice of the\nsong is encoded and written straight into the H3 audio latent with the mask held\nat 0, so the model generates picture against a frozen, real vocal instead of being\nasked politely to sync. That is why the song is *not* wired to `ref_audio`.\n\n**What is different here:** the scenes are written by a local model. The **Ollama\nbackend** node overrides the writer's `model` dropdown - the Claude Code CLI is\nnever called, no API key is needed, nothing leaves this machine. The model is multimodal, so the performer photo reaches it as well.\n\n**Output:** every piece is decoded and saved as its own file by H3 Save Clip,\ncarrying its original slice of the song. Stitch them externally, or add\n**H3 Scenes Join** with `replace_audio` = the LoadAudio output for one file with\nthe full mix.\n\n**Seed:** the writer's seed is -1 (randomize) - every queue writes a brand-new\nvideo. Set a fixed number to re-render the same scenes.\n\n\n**What H3 listens to - Voice Over Music.** The audio in H3's latent is not the song itself but a mix made for the model: AudioSeparation's **Vocals** on top at full level, **Drums + Bass + Other** summed **-9 dB** under them and ducked a further **-6 dB** only while the voice sounds. The mouth follows the voice, the picture moves on the real beat, and no word gets buried (the plain song buried consonants; the bare vocal stem had no beat to cut on). `music_db` is the dial: -3 is nearly the full song, -18 a whisper of beat. The original song still goes to the output.\n\n**Beats.** Sound Events (hits, drops, stops) \u2192 **Beat Grid** (the tempo and every beat, phase-fitted to the hits) \u2192 **Cut Plan** (the scenes, cut on the music) \u2192 the writer's `cut_plan` and `sound_events`. Every piece's brief then lists its `[beat]` offsets and its `[+start ->+land ->+settle s]` moments, and the scene is staged on them - the hit sentences are written ON TOP of the piece's picture budget, never instead of it.\n\n**Clips land one by one.** The sampler and Save Clip are one node here - **Sampler + Save Clip** - so every scene is sampled, decoded, muxed with its slice of the song and written to `output/` BEFORE the next scene starts sampling. Watch the folder fill up during the run; a crash late in the run keeps everything already saved. (Two separate nodes would sample every scene first and only then start saving.)"
+    "# H3 Music Video - masked audio, written locally by Ollama\n\nThe song is the clock. The writer cuts it into 5-15 s pieces on the music (timed\nlyrics make cuts land before a line), writes one H3 scene per piece, and emits\nmatching lists - `scenes`, `lengths`, `audio_segments`, `clip_starts` - that the\nvideo node renders one clip at a time.\n\n**Masked audio** is what makes the lip-sync work: each clip's real slice of the\nsong is encoded and written straight into the H3 audio latent with the mask held\nat 0, so the model generates picture against a frozen, real vocal instead of being\nasked politely to sync. That is why the song is *not* wired to `ref_audio`.\n\n**What is different here:** the scenes are written by a local model. The **Ollama\nbackend** node overrides the writer's `model` dropdown - the Claude Code CLI is\nnever called, no API key is needed, nothing leaves this machine. The writer is **blind**: the performer photo goes to the video model only, so this runs on any text model - no vision required.\n\n**Output:** every piece is decoded and saved as its own file by H3 Save Clip,\ncarrying its original slice of the song. Stitch them externally, or add\n**H3 Scenes Join** with `replace_audio` = the LoadAudio output for one file with\nthe full mix.\n\n**Seed:** the writer's seed is -1 (randomize) - every queue writes a brand-new\nvideo. Set a fixed number to re-render the same scenes.\n\n\n**What H3 listens to - Voice Over Music.** The audio in H3's latent is not the song itself but a mix made for the model: AudioSeparation's **Vocals** on top at full level, **Drums + Bass + Other** summed **-9 dB** under them and ducked a further **-6 dB** only while the voice sounds. The mouth follows the voice, the picture moves on the real beat, and no word gets buried (the plain song buried consonants; the bare vocal stem had no beat to cut on). `music_db` is the dial: -3 is nearly the full song, -18 a whisper of beat. The original song still goes to the output.\n\n**Beats.** Sound Events (hits, drops, stops) \u2192 **Beat Grid** (the tempo and every beat, phase-fitted to the hits) \u2192 **Cut Plan** (the scenes, cut on the music) \u2192 the writer's `cut_plan` and `sound_events`. Every piece's brief then lists its `[beat]` offsets and its `[+start ->+land ->+settle s]` moments, and the scene is staged on them - the hit sentences are written ON TOP of the piece's picture budget, never instead of it.\n\n**Clips land one by one.** The sampler and Save Clip are one node here - **Sampler + Save Clip** - so every scene is sampled, decoded, muxed with its slice of the song and written to `output/` BEFORE the next scene starts sampling. Watch the folder fill up during the run; a crash late in the run keeps everything already saved. (Two separate nodes would sample every scene first and only then start saving.)"
    ],
    "title": "How this works",
    "color": "#222",
@@ -779,8 +779,8 @@
    "id": 163,
    "type": "H3ClaudeCodeMusicVideoWriter",
    "pos": [
-    2920,
-    5680
+    3030,
+    5590
    ],
    "size": [
     520,
@@ -1008,7 +1008,7 @@
     "Interior of a 1990s sedan at night: dark dash with one lit gauge cluster, black leather steering wheel, rain beading on the side glass",
     true,
     "",
-    "Image 1: the lead singer",
+    "Image 1: Mara, the lead singer",
     "",
     "",
     false,
@@ -1016,7 +1016,7 @@
     "Masked latent (song injected into the audio latent)",
     true,
     2,
-    "Ref2VA (bind reference images)",
+    "Ref2VA blind (bind pictures, model never sees them)",
     "haiku",
     false,
     "",
@@ -1026,14 +1026,14 @@
     "write (call the LLM)",
     "cut plan decides (continue over soft cuts, hard cut on drops / sections / taps)"
    ],
-   "title": "H3 Music Video Writer - Ref2VA (vision model)"
+   "title": "H3 Music Video Writer - blind Ref2VA (no vision needed)"
   },
   {
    "id": 164,
    "type": "LoadAudio",
    "pos": [
     -170,
-    5680
+    5590
    ],
    "size": [
     315,
@@ -1050,8 +1050,9 @@
      "links": [
       319,
       327,
-      423,
-      430
+      413,
+      421,
+      423
      ]
     }
    ],
@@ -1066,6 +1067,69 @@
    "title": "Load the song"
   },
   {
+   "id": 166,
+   "type": "AudioSeparation",
+   "pos": [
+    1050,
+    5590
+   ],
+   "size": [
+    315,
+    198
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "audio",
+     "type": "AUDIO",
+     "link": 327
+    }
+   ],
+   "outputs": [
+    {
+     "name": "Bass",
+     "type": "AUDIO",
+     "links": [
+      418
+     ]
+    },
+    {
+     "name": "Drums",
+     "type": "AUDIO",
+     "links": [
+      417
+     ]
+    },
+    {
+     "name": "Other",
+     "type": "AUDIO",
+     "links": [
+      419
+     ]
+    },
+    {
+     "name": "Vocals",
+     "type": "AUDIO",
+     "links": [
+      416,
+      428
+     ],
+     "slot_index": 3
+    }
+   ],
+   "title": "Vocal stem (better lip-sync)",
+   "properties": {
+    "Node name for S&R": "AudioSeparation"
+   },
+   "widgets_values": [
+    "linear",
+    10.0,
+    0.1
+   ]
+  },
+  {
    "id": 167,
    "type": "H3MaskedSongLatent",
    "pos": [
@@ -1074,7 +1138,7 @@
    ],
    "size": [
     420,
-    420
+    330
    ],
    "flags": {},
    "order": 0,
@@ -1121,7 +1185,8 @@
     {
      "name": "voice",
      "type": "AUDIO",
-     "link": 428
+     "link": 428,
+     "shape": 7
     }
    ],
    "outputs": [
@@ -1144,7 +1209,7 @@
      "links": null
     }
    ],
-   "title": "H3 Masked Song Latent (ours, voice gate)",
+   "title": "H3 Masked Song Latent",
    "properties": {
     "Node name for S&R": "H3MaskedSongLatent"
    },
@@ -1181,15 +1246,15 @@
    "title": "Masked-audio lip-sync",
    "properties": {},
    "widgets_values": [
-    "**Masked-audio music video (H3 Masked Song Latent)** - the strongest lip-sync H3 can do, on this pack's own node.\n\nEach clip's exact slice of the song is encoded with the audio VAE and written straight into the H3 audio latent, protected from denoising (mask 0). The video is generated against the real, frozen vocal - lip-sync is enforced by the model, not requested by the prompt.\n\n- The song is **not** connected to `ref_audio` (that is on purpose).\n- The **vocal stem** (AudioSeparation) is injected so instruments don't mask the voice; the final soundtrack is still the full mix via Scenes Join `replace_audio`.\n- The writer's `audio_mode` is set to *Masked latent*, so the prompts reference the protected master-song audio instead of `<Audio 1>`.\n- `clip_starts` from the writer gives every clip its exact offset in the master song.\n\nNeeds audio-separation-nodes-comfyui (the masked-audio node is this pack's own H3 Masked Song Latent).\n\n**H3 Masked Song Latent** replaces the MultiRef `MiniMaxH3SongMaskedAVContext` node, drop-in: the Ref2VA `positive` still goes straight to the guider; only the `LATENT` passes through this node, which writes the song slice into the audio latent and freezes it. New widgets: `preroll_seconds` (1.0) and `lookahead_seconds` (0.2) encode the slice in context - the audio VAE's first ~0.5 s and last ~0.2 s of tokens are wrong on a hard cut; set both to 0 to reproduce the old node for an A/B. `audio_denoise` 0 = frozen song (0.05-0.15 lets the model touch the audio rows).\n\n**Voice gate**: the vocal stem (AudioSeparation vocals) is also wired to `voice`. Wherever the voice sings, the audio rows are frozen (`audio_denoise` 0) so the lips have the exact vocal; between phrases they sit at `gap_denoise` (0.15), so the model may re-touch the music bed where no lip-sync is at stake; `gate_hold_seconds` (0.2) extends the frozen region around every phrase. Unplug `voice` for one value everywhere.\n\n**One gapless file**: H3 Sample + Save still writes every clip to disk as it finishes; after the last scene **H3 Stitch Clips** joins those files into `<project>_full.mp4` in the same folder - video packets copied (no re-encode, no frames in RAM), the original song (`song` = Load Audio) muxed once from 0:00. Stitching the per-clip mp4s yourself with a stream copy leaves a 2-14 ms AAC priming gap at every join; this does not. Unplug `song` to use the clips' own audio instead (decoded and encoded once - also gapless)."
+    "**Masked-audio music video** - the strongest lip-sync H3 can do.\n\nEach clip's exact slice of the song is encoded with the audio VAE and written straight into the H3 audio latent, protected from denoising (mask 0). The video is generated against the real, frozen vocal - lip-sync is enforced by the model, not requested by the prompt.\n\n- The song is **not** connected to `ref_audio` (that is on purpose).\n- The **vocal stem** (AudioSeparation) is injected so instruments don't mask the voice; the final soundtrack is still the full mix via Scenes Join `replace_audio`.\n- The writer's `audio_mode` is set to *Masked latent*, so the prompts reference the protected master-song audio instead of `<Audio 1>`.\n- `clip_starts` from the writer gives every clip its exact offset in the master song.\n\nNeeds audio-separation-nodes-comfyui (the masked-audio node is this pack's own H3 Masked Song Latent)."
    ]
   },
   {
    "id": 193,
    "type": "H3LLMBackend",
    "pos": [
-    2380,
-    5680
+    2530,
+    5590
    ],
    "size": [
     400,
@@ -1213,7 +1278,7 @@
      "links": null
     }
    ],
-   "title": "Ollama backend - qwen3.8:27b writes the scenes",
+   "title": "Ollama backend - any text model works here",
    "properties": {
     "Node name for S&R": "H3LLMBackend"
    },
@@ -1224,7 +1289,7 @@
     0.9,
     8000,
     false,
-    65536,
+    131072,
     "off (faster - recommended)",
     true,
     "auto (JSON with a schema on Ollama, text envelopes elsewhere)",
@@ -1238,10 +1303,10 @@
    "type": "LoadImage",
    "pos": [
     -170,
-    5890
+    5800
    ],
    "size": [
-    320,
+    321,
     102
    ],
    "flags": {},
@@ -1264,7 +1329,7 @@
      "links": null
     }
    ],
-   "title": "Performer photo - <Picture 1>",
+   "title": "Performer photo - goes to the VIDEO model only",
    "properties": {
     "Node name for S&R": "LoadImage"
    },
@@ -1278,7 +1343,7 @@
    "type": "MarkdownNote",
    "pos": [
     -1860,
-    6010
+    5920
    ],
    "size": [
     700,
@@ -1302,7 +1367,7 @@
    "type": "MarkdownNote",
    "pos": [
     -1100,
-    5680
+    5590
    ],
    "size": [
     700,
@@ -1311,10 +1376,10 @@
    "flags": {},
    "order": 0,
    "mode": 0,
-   "title": "Reference images",
+   "title": "Blind Ref2VA - how this works",
    "properties": {},
    "widgets_values": [
-    "# Reference images and multimodal models\n\n`qwen3.8:27b` reports the **vision** capability, so the pictures you connect to the\nwriter's `image_1..image_9` really are sent to it - downscaled, as part of the\nprompt - and it writes `<Picture 1>` bindings from what it can see.\n\nThe picture goes to **three** places, and all are needed:\n\n1. the **H3 Characters** node's `image` - it travels with the cast line, and its `image`\n   output feeds the **writer's** `image_1`, so the prompt describes the right face;\n2. the **video node's** `ref_image_0` - so the renderer actually has the picture;\n3. the **Prompt Preview**'s `image_1` - the thumbnail next to every scene.\n\nThe model is **ref2va** (`minimax_h3_ref2va_pruned_int8_convrot.safetensors`) - the\npicture-binding checkpoint; workflows without a picture run fl2va with `prompt_mode = FL / T2VA`.\n\n`prompt_mode` is **Ref2VA**, the guide that binds `<Picture N>` labels.\n`reference_image_use = Characters only` means a photo is a person, never a\nlocation: its background is ignored unless an `image_notes` line says otherwise.\n\n**If your model has no vision** (plain `qwen3`, `llama3.1`, `mistral`, most\n\"instruct\" text models) the images cannot help it, and sending them errors out.\nUse the text-only workflow instead - `h3_music_video_masked_audio_ollama_textonly.json`\n- where `prompt_mode = FL / T2VA` and everything is written in words.\n\nCheck what a model can do: the **\ud83d\udccf Show 1024 tokens** modal tags every pulled\nmodel with `vision` / `thinking` / `tools`, read from Ollama's own metadata.\n"
+    "# Blind Ref2VA - reference photos on a model that cannot see\n\nThis is the middle setting between the other two Ollama workflows, and for local\nmodels it is usually the right one.\n\n- The **video model** still receives the photo as `<Picture 1>`, exactly as in a\n  normal Ref2VA run - the render is identical.\n- The **writer** never receives a single pixel. It learns who is in each picture\n  from the cast line and from `image_notes`, and binds the label by position:\n  `<Subject 1> Mara (S1) <Picture 1>, a woman in her early 30s with a platinum\n  pixie cut, wearing ...`\n\nThat means **any text model works** - a plain `qwen3`, a small quantised model, an\nuncensored fine-tune - and you still get face consistency across every clip,\nbecause face consistency comes from the picture reaching the *video* model, not\nfrom the writer having looked at it.\n\n## What you must write\n\n`image_notes` is doing the work here. One line per picture:\n\n```\nImage 1: Mara, the lead singer\nImage 2: the diner, use as the location\n```\n\nA picture with no note is bound to the cast member in the same position in cast\norder. The writer is explicitly forbidden from describing or guessing at picture\ncontents, so anything you do not state it will take from the CAST lines and the\nwardrobe lock instead - keep those specific.\n\n## Cost\n\nBlind Ref2VA uses the reference guide, so the system prompt is ~15k tokens rather\nthan the ~9k of a text-only FL run - but it sends **no image data at all**, which\non a local model is usually the bigger saving. `num_ctx` 32768 covers it.\n\n## The three Ollama workflows\n\n| Workflow | Writer sees photo | Video model gets photo | Needs vision |\n|---|---|---|---|\n| `..._ollama.json` (Ref2VA) | yes | yes | **yes** |\n| `..._ollama_blindref.json` (this one) | no | yes | no |\n| `..._ollama_textonly.json` (FL / T2VA) | no | no | no |\n"
    ],
    "color": "#2a3f4a",
    "bgcolor": "#1b2b33",
@@ -1325,8 +1390,8 @@
    "id": 197,
    "type": "H3SoundEvents",
    "pos": [
-    900,
-    5950
+    1050,
+    5860
    ],
    "size": [
     340,
@@ -1408,8 +1473,8 @@
    "id": 198,
    "type": "H3VoiceOverMusic",
    "pos": [
-    900,
-    6720
+    1050,
+    6630
    ],
    "size": [
     475,
@@ -1472,8 +1537,8 @@
    "id": 199,
    "type": "H3BeatGrid",
    "pos": [
-    1740,
-    5680
+    1890,
+    5590
    ],
    "size": [
     340,
@@ -1545,8 +1610,8 @@
    "id": 200,
    "type": "H3CutPlan",
    "pos": [
-    220,
-    6140
+    370,
+    6050
    ],
    "size": [
     405,
@@ -1622,7 +1687,7 @@
    "type": "H3SampleAndSave",
    "pos": [
     1520,
-    4760
+    4510
    ],
    "size": [
     400,
@@ -1686,9 +1751,7 @@
     {
      "name": "file_path",
      "type": "STRING",
-     "links": [
-      429
-     ]
+     "links": null
     }
    ],
    "properties": {
@@ -1700,136 +1763,6 @@
     "mp4"
    ],
    "title": "Sampler + Save Clip - each scene written to disk as it finishes"
-  },
-  {
-   "id": 202,
-   "type": "H3StitchClips",
-   "pos": [
-    1520,
-    4510
-   ],
-   "size": [
-    400,
-    176
-   ],
-   "flags": {},
-   "order": 23,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "file_paths",
-     "type": "STRING",
-     "link": 429,
-     "widget": {
-      "name": "file_paths"
-     }
-    },
-    {
-     "name": "song",
-     "type": "AUDIO",
-     "link": 430,
-     "shape": 7
-    }
-   ],
-   "outputs": [
-    {
-     "name": "file_path",
-     "type": "STRING",
-     "links": null
-    },
-    {
-     "name": "report",
-     "type": "STRING",
-     "links": null
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "H3StitchClips"
-   },
-   "widgets_values": [
-    "_full",
-    true,
-    0.0
-   ],
-   "title": "H3 Stitch Clips (one gapless file, after the last scene)",
-   "color": "#232",
-   "bgcolor": "#353"
-  },
-  {
-   "id": 203,
-   "type": "H3StemSplit",
-   "pos": [
-    900,
-    5680
-   ],
-   "size": [
-    360,
-    230
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "audio",
-     "type": "AUDIO",
-     "link": 327
-    }
-   ],
-   "outputs": [
-    {
-     "name": "beats_mix",
-     "type": "AUDIO",
-     "links": [
-      413,
-      421
-     ]
-    },
-    {
-     "name": "vocals",
-     "type": "AUDIO",
-     "links": [
-      416,
-      428
-     ]
-    },
-    {
-     "name": "drums",
-     "type": "AUDIO",
-     "links": [
-      417
-     ]
-    },
-    {
-     "name": "bass",
-     "type": "AUDIO",
-     "links": [
-      418
-     ]
-    },
-    {
-     "name": "other",
-     "type": "AUDIO",
-     "links": [
-      419
-     ]
-    },
-    {
-     "name": "info",
-     "type": "STRING",
-     "links": null
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "H3StemSplit"
-   },
-   "widgets_values": [
-    "htdemucs (4 stems, fast)",
-    true,
-    true,
-    false,
-    false
-   ]
   }
  ],
  "links": [
@@ -1997,7 +1930,7 @@
    327,
    164,
    0,
-   203,
+   166,
    0,
    "AUDIO"
   ],
@@ -2083,7 +2016,7 @@
   ],
   [
    413,
-   203,
+   164,
    0,
    197,
    0,
@@ -2107,32 +2040,32 @@
   ],
   [
    416,
-   203,
-   1,
+   166,
+   3,
    198,
    0,
    "AUDIO"
   ],
   [
    417,
-   203,
-   2,
+   166,
+   1,
    198,
    1,
    "AUDIO"
   ],
   [
    418,
-   203,
-   3,
+   166,
+   0,
    198,
    2,
    "AUDIO"
   ],
   [
    419,
-   203,
-   4,
+   166,
+   2,
    198,
    3,
    "AUDIO"
@@ -2147,7 +2080,7 @@
   ],
   [
    421,
-   203,
+   164,
    0,
    199,
    0,
@@ -2203,26 +2136,10 @@
   ],
   [
    428,
-   203,
-   1,
+   166,
+   3,
    167,
    7,
-   "AUDIO"
-  ],
-  [
-   429,
-   201,
-   1,
-   202,
-   0,
-   "STRING"
-  ],
-  [
-   430,
-   164,
-   0,
-   202,
-   1,
    "AUDIO"
   ]
  ],
@@ -2260,7 +2177,7 @@
     -200,
     4400,
     930,
-    990
+    900
    ],
    "color": "#b59a1f",
    "font_size": 24,
@@ -2286,7 +2203,7 @@
     1480,
     4400,
     710,
-    660
+    410
    ],
    "color": "#2a6e4a",
    "font_size": 24,
@@ -2297,7 +2214,7 @@
    "title": "NOTES",
    "bounding": [
     -1900,
-    5570,
+    5480,
     1540,
     1420
    ],
@@ -2310,8 +2227,8 @@
    "title": "USER INPUTS",
    "bounding": [
     -210,
-    5570,
-    920,
+    5480,
+    1070,
     990
    ],
    "color": "#4f8a3a",
@@ -2322,8 +2239,8 @@
    "id": 8,
    "title": "AUDIO ANALYSIS",
    "bounding": [
-    860,
-    5570,
+    1010,
+    5480,
     1330,
     1400
    ],
@@ -2335,8 +2252,8 @@
    "id": 9,
    "title": "PROMPT WRITER (LLM)",
    "bounding": [
-    2340,
-    5570,
+    2490,
+    5480,
     1140,
     1800
    ],
@@ -2348,8 +2265,8 @@
    "id": 10,
    "title": "PROMPT PREVIEW",
    "bounding": [
-    3630,
-    5570,
+    3780,
+    5480,
     930,
     970
    ],
@@ -2361,7 +2278,7 @@
  "config": {},
  "extra": {
   "ds": {
-   "scale": 0.2786,
+   "scale": 0.2723,
    "offset": [
     1960,
     -4340

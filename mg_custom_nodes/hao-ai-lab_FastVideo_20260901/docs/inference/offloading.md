@@ -1,0 +1,179 @@
+# Offloading
+
+This page describes how to use offloading techniques for inference to reduce GPU memory usage while maintaining acceptable performance.
+
+## Default Behavior
+
+```python
+dit_cpu_offload: bool = True
+use_fsdp_inference: bool = False
+dit_layerwise_offload: bool = True
+text_encoder_cpu_offload: bool = True
+image_encoder_cpu_offload: bool = True
+vae_cpu_offload: bool = True
+pin_cpu_memory: bool = True
+```
+
+On unified-memory accelerators such as NVIDIA GB10 and Apple silicon, FastVideo
+detects the selected device inside each worker and disables all five host-offload
+modes before loading modules. Host and accelerator allocations share one physical
+pool there, so offload adds transfers and duplicate residency instead of freeing
+memory. CUDA FSDP sharding remains enabled when requested; MPS continues to
+disable FSDP. `pin_cpu_memory` is not an offload mode and is left unchanged.
+
+MiniMax H3 CUDA inference can use a second lever that does not copy weights to a
+host pool: load the Qwen3-VL text encoder, run conditioning, then release that
+encoder before loading the DiT and video/audio VAEs. `h3_sequential_load`
+defaults to auto (`None`): on for unified-memory devices such as GB10, off on
+discrete GPUs. Pass `--h3-sequential-load` to force it, or
+`--no-h3-sequential-load` to keep the encoder resident for later `generate()`
+calls on the same worker. Sequential load currently cannot re-encode a new prompt
+on that worker; start a new generator until prompt-cache reload exists. The MLX
+FastH3 runtime always uses this phase order. When host offload is off, DiT
+safetensors are read onto the accelerator instead of CPU-then-copy.
+Input-preparation geometry (spatial ratio, latent channels, audio sample rate)
+comes from the VAE arch configs until those weights load.
+
+## Behavior Explanation
+
+!!! note
+    For CLI usage, replace underscores (`_`) with hyphens (`-`).
+
+### `use_fsdp_inference`
+
+Enables [FSDP](https://docs.pytorch.org/tutorials/intermediate/FSDP_tutorial.html) for inference. The model weights are sharded across multiple GPUs to reduce memory usage per GPU, and weights are broadcast to all GPUs layer by layer during inference.
+
+#### Performance Impact
+
+FSDP inference introduces negligible performance overhead due to weight prefetching. Performance overhead may be visible when GPU interconnect is slow (e.g., multiple consumer-level GPUs connected by slow PCIe without GPU P2P support).
+
+#### Usage Recommendation
+
+We recommend enabling this option when multiple GPUs are available.
+
+### `dit_cpu_offload`
+
+Enables CPU offloading for FSDP inference. When enabled, the model weights are offloaded to CPU memory, and the weight of each layer is moved to GPU memory only when that layer is being computed.
+
+#### Performance Impact
+
+The PyTorch FSDP implementation does not overlap computation and data transfer perfectly for inference, so enabling this option will harm performance.
+
+#### Usage Recommendation
+
+This option only takes effect when FSDP is enabled. For single GPU usage, we recommend using `dit_layerwise_offload` instead.
+
+### `dit_layerwise_offload`
+
+This option is similar to `dit_cpu_offload`, but with two key differences:
+
+1. It overlaps computation and PCIe data transfer
+2. It only works for single GPU inference
+
+#### Performance Impact
+
+This option introduces negligible performance overhead.
+
+#### Usage Recommendation
+
+We recommend enabling this option for single GPU usage. This option is not compatible with FSDP.
+
+### `h3_sequential_load`
+
+MiniMax H3 only. When enabled, the pipeline loads Qwen3-VL, runs conditioning,
+releases that encoder, then loads the DiT and VAEs. Default is auto: enabled on
+unified-memory accelerators, disabled on discrete GPUs.
+
+#### Performance Impact
+
+On GB10 / Spark this is required so encoder, DiT, and VAE weights are not all
+resident in one unified pool. On discrete GPUs (for example 4×GB200) sequential
+load is unnecessary and it blocks a second `generate()` on the same worker
+because the encoder has been released.
+
+#### Usage Recommendation
+
+Leave the default on Spark / DGX Spark. Force `--h3-sequential-load` only when
+you need the split on a discrete GPU. Use `--no-h3-sequential-load` when you
+need more than one prompt per worker and have enough memory to keep the encoder.
+
+### `text_encoder_cpu_offload`
+
+When enabled, the text encoder model weights are offloaded to CPU memory, and text encoding is computed on CPU.
+
+#### Performance Impact
+
+This option significantly slows down text encoding computation, but text encoding is usually not the bottleneck.
+
+#### Usage Recommendation
+
+We recommend enabling this option only when OOM happens.
+
+### `image_encoder_cpu_offload` and `vae_cpu_offload`
+
+When enabled, the weights are stored in CPU memory and moved to GPU memory when the corresponding module is being computed. After computation, the weights are moved back to CPU memory.
+
+#### Performance Impact
+
+These options introduce performance overhead due to PCIe data transfer.
+
+#### Usage Recommendation
+
+We recommend enabling these options when OOM happens.
+
+## General Recommendations
+
+### Single GPU Inference
+
+We recommend enabling `dit_layerwise_offload`. If OOM happens, also enable `image_encoder_cpu_offload` and `vae_cpu_offload`. If OOM still happens, consider enabling `text_encoder_cpu_offload`.
+
+### Multi-GPU Inference
+
+We recommend enabling `use_fsdp_inference` and disabling both `dit_layerwise_offload` and `dit_cpu_offload`. If OOM happens, consider enabling `text_encoder_cpu_offload`, `image_encoder_cpu_offload`, and `vae_cpu_offload`. If OOM still happens, consider enabling `dit_cpu_offload`.
+
+## Examples
+
+### Single GPU with Layerwise Offloading
+
+```python
+from fastvideo import VideoGenerator
+
+generator = VideoGenerator.from_pretrained(
+    "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
+    num_gpus=1,
+    # Recommended for single GPU
+    dit_layerwise_offload=True,
+    # Enable if OOM happens
+    vae_cpu_offload=True,
+    image_encoder_cpu_offload=True,
+    text_encoder_cpu_offload=True,
+    # Speeds up CPU-GPU transfer
+    pin_cpu_memory=True,
+)
+
+prompt = "A curious raccoon peers through a vibrant field of yellow sunflowers."
+video = generator.generate_video(prompt, output_path="output/", save_video=True)
+```
+
+### Multi-GPU with FSDP
+
+```python
+from fastvideo import VideoGenerator
+
+generator = VideoGenerator.from_pretrained(
+    "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
+    num_gpus=2,
+    # Recommended for multi-GPU
+    use_fsdp_inference=True,
+    dit_layerwise_offload=False,
+    dit_cpu_offload=False,
+    # Enable if OOM happens
+    vae_cpu_offload=True,
+    image_encoder_cpu_offload=True,
+    text_encoder_cpu_offload=True,
+    pin_cpu_memory=True,
+)
+
+prompt = "A majestic lion strides across the golden savanna."
+video = generator.generate_video(prompt, output_path="output/", save_video=True)
+```

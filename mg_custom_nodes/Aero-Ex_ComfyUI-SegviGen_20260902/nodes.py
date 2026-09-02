@@ -1,0 +1,752 @@
+import os
+import torch
+import numpy as np
+from PIL import Image
+import trimesh
+import folder_paths
+from . import inference_full as inf
+from . import split as splitter
+
+# --- Native Trellis2 Integration Setup ---
+import sys
+import os
+
+# Ensure Trellis2 is in the path for subclassing
+# This must happen before defining SegviGenTrellis2Pipeline
+custom_nodes = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+trellis2_dir = os.path.join(custom_nodes, "ComfyUI-Trellis2-GGUF")
+if trellis2_dir not in sys.path:
+    sys.path.append(trellis2_dir)
+
+try:
+    from trellis2_gguf.pipelines.trellis2_image_to_3d import Trellis2ImageTo3DPipeline
+except ImportError:
+    print("[SegviGen] Warning: ComfyUI-Trellis2-GGUF not found. Native loader will not work.")
+    Trellis2ImageTo3DPipeline = object
+
+REMOTE_CHECKPOINTS = {
+    "SegviGen/full_seg.safetensors": ("Aero-Ex/SegviGen", "full_seg.safetensors"),
+    "SegviGen/full_seg_w_2d_map.safetensors": ("Aero-Ex/SegviGen", "full_seg_w_2d_map.safetensors"),
+}
+
+def resolve_full_path(path):
+    if not path or not isinstance(path, str):
+        return path
+    if os.path.isabs(path):
+        return path
+    
+    # Try output, input, and temp directories
+    for folder in [folder_paths.get_output_directory(), folder_paths.get_input_directory(), folder_paths.get_temp_directory()]:
+        if folder is None: continue
+        full = os.path.abspath(os.path.join(folder, path))
+        if os.path.exists(full):
+            # print(f"[SegviGen Res] Found: {full}")
+            return full
+    
+    print(f"[SegviGen Res] FAILED to resolve relative path: {path}")
+    print(f"  Checked directories based on folder_paths: output={folder_paths.get_output_directory()}, input={folder_paths.get_input_directory()}, temp={folder_paths.get_temp_directory()}")
+    # Fallback to check relative to this file
+    local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), path))
+    if os.path.exists(local_path):
+        return local_path
+
+    return path
+
+def extract_glb_path(mesh, temp_prefix="segvigen_tmp"):
+    if isinstance(mesh, list) and len(mesh) > 0:
+        mesh = mesh[0]
+        
+    if isinstance(mesh, dict):
+        # Some nodes might pass a dict with 'mesh' or 'glb_path'
+        mesh = mesh.get("mesh") or mesh.get("glb_path") or mesh
+
+    if isinstance(mesh, str):
+        return resolve_full_path(mesh)
+    
+    # Check for File3D specifically (from comfy_api)
+    if type(mesh).__name__ == "File3D":
+        if hasattr(mesh, "get_source"):
+            source = mesh.get_source()
+            if isinstance(source, str):
+                return resolve_full_path(source)
+        if hasattr(mesh, "save_to"):
+            temp_dir = folder_paths.get_temp_directory()
+            glb_path = os.path.join(temp_dir, f"{temp_prefix}_{os.urandom(4).hex()}.glb")
+            return mesh.save_to(glb_path)
+        if hasattr(mesh, "_source") and isinstance(mesh._source, str):
+            return resolve_full_path(mesh._source)
+
+    # Check for common path attributes
+    for attr in ["source", "path", "_path", "full_path", "filename", "abs_path"]:
+        if hasattr(mesh, attr):
+            val = getattr(mesh, attr)
+            if isinstance(val, str):
+                return resolve_full_path(val)
+    
+    # Check for export method (trimesh)
+    if hasattr(mesh, "export"):
+        temp_dir = folder_paths.get_temp_directory()
+        glb_path = os.path.join(temp_dir, f"{temp_prefix}_{os.urandom(4).hex()}.glb")
+        mesh.export(glb_path)
+        return glb_path
+        
+    # Check for trellis2 internal mesh
+    if type(mesh).__name__ == "Mesh" and hasattr(mesh, "vertices") and hasattr(mesh, "faces"):
+        import trimesh
+        tm = trimesh.Trimesh(vertices=mesh.vertices.cpu().numpy(), faces=mesh.faces.cpu().numpy())
+        temp_dir = folder_paths.get_temp_directory()
+        glb_path = os.path.join(temp_dir, f"{temp_prefix}_trellis_{os.urandom(4).hex()}.glb")
+        tm.export(glb_path)
+        return glb_path
+        
+    # Fallback for File3D if attributes didn't match, try to parse source from repr
+    if type(mesh).__name__ == "File3D":
+        m_repr = str(mesh)
+        if "source='" in m_repr:
+            src = m_repr.split("source='")[1].split("'")[0]
+            return resolve_full_path(src)
+
+    raise ValueError(f"Unsupported mesh type: {type(mesh)}. Available attributes: {dir(mesh)}")
+
+# SegviGen Model Loader
+class SegviGenModelLoader:
+    @classmethod
+    def INPUT_TYPES(s):
+        ckpts = folder_paths.get_filename_list("checkpoints")
+        # Add remote checkpoints to the list if not already present locally
+        for remote_name in REMOTE_CHECKPOINTS.keys():
+            if remote_name not in ckpts:
+                ckpts.append(remote_name)
+        return {
+            "required": {
+                "ckpt_name": (ckpts,),
+            }
+        }
+
+    RETURN_TYPES = ("SEG_MODEL",)
+    FUNCTION = "load_model"
+    CATEGORY = "SegviGen"
+
+    def load_model(self, ckpt_name):
+        ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
+        
+        if ckpt_path is None or not os.path.exists(ckpt_path):
+            if ckpt_name in REMOTE_CHECKPOINTS:
+                repo_id, filename = REMOTE_CHECKPOINTS[ckpt_name]
+                # Try to find the best local path
+                base_ckpt_dir = folder_paths.get_folder_paths("checkpoints")[0]
+                
+                # If name doesn't have prefix, we still prefer downloading to SegviGen/ subfolder
+                if "/" not in ckpt_name:
+                    target_path = os.path.join(base_ckpt_dir, "SegviGen", ckpt_name)
+                else:
+                    target_path = os.path.join(base_ckpt_dir, ckpt_name)
+                
+                if not os.path.exists(target_path):
+                    from huggingface_hub import hf_hub_download
+                    print(f"[SegviGen] Downloading remote checkpoint: {ckpt_name} from {repo_id}")
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    hf_hub_download(
+                        repo_id=repo_id, 
+                        filename=filename, 
+                        local_dir=os.path.dirname(target_path)
+                    )
+                ckpt_path = target_path
+            else:
+                raise FileNotFoundError(f"Checkpoint {ckpt_name} not found and no remote mapping exists.")
+
+        inf.PIPE.load_ckpt_if_needed(ckpt_path)
+        return ({"ckpt_path": ckpt_path},)
+
+# --- Native Trellis2 Integration ---
+
+class SegviGenTrellis2Pipeline(Trellis2ImageTo3DPipeline):
+    """
+    Subclass of Trellis2ImageTo3DPipeline to support SegviGen weights and output mapping.
+    """
+    def __init__(self, *args, segvigen_ckpt=None, **kwargs):
+        # We handle initialization via from_pretrained usually
+        super().__init__(*args, **kwargs)
+        self.segvigen_ckpt = segvigen_ckpt
+
+    def _apply_segvigen_weights(self, model, ckpt_path):
+        from safetensors.torch import load_file
+        from collections import OrderedDict
+        print(f"[SegviGen] Loading weights from: {ckpt_path}")
+        state_dict = load_file(ckpt_path)
+        # SegviGen weights have "gen3dseg." prefix for internal models
+        # Also handle potential "flow_model." and "tex_slat_flow_model." prefixes
+        mapped_sd = OrderedDict()
+        for k, v in state_dict.items():
+            new_k = k
+            # Strip multiple layers of potential prefixes
+            for prefix in ["gen3dseg.", "tex_slat_flow_model.", "flow_model.", "tex_slat_decoder."]:
+                if new_k.startswith(prefix):
+                    new_k = new_k[len(prefix):]
+            mapped_sd[new_k] = v
+            
+        res = model.load_state_dict(mapped_sd, strict=False)
+        matched = len(mapped_sd) - len(res.unexpected_keys)
+        
+        # Only log if we actually matched something
+        if matched > 0:
+            print(f"[SegviGen] Weights applied to {model.__class__.__name__}: {matched} keys matched.")
+            if res.missing_keys:
+                print(f"[SegviGen] Note: {len(res.missing_keys)} missing keys (standard for partial load)")
+            if res.unexpected_keys:
+                 print(f"[SegviGen] Note: {len(res.unexpected_keys)} unexpected keys found in checkpoint")
+
+    def load_tex_slat_flow_model_1024(self):
+        super().load_tex_slat_flow_model_1024()
+        if self.segvigen_ckpt:
+            self._apply_segvigen_weights(self.models['tex_slat_flow_model_1024'], self.segvigen_ckpt)
+
+    def load_tex_slat_flow_model_512(self):
+        super().load_tex_slat_flow_model_512()
+        if self.segvigen_ckpt:
+            self._apply_segvigen_weights(self.models['tex_slat_flow_model_512'], self.segvigen_ckpt)
+
+    def load_tex_slat_decoder(self):
+        super().load_tex_slat_decoder()
+        if self.segvigen_ckpt:
+            self._apply_segvigen_weights(self.models['tex_slat_decoder'], self.segvigen_ckpt)
+
+    def postprocess_mesh(self, mesh, pbr_voxel, *args, **kwargs):
+        # Handle SegviGen's 3-channel output for Trellis2 compatibility
+        target_voxel = pbr_voxel[0] if isinstance(pbr_voxel, (list, tuple)) else pbr_voxel
+        
+        if hasattr(target_voxel, 'feats') and target_voxel.feats.shape[1] == 3:
+            print(f"[SegviGen] Adapting 3-channel labels ({target_voxel.feats.shape[0]} voxels) to 6-channel PBR for Trellis2")
+            device = target_voxel.feats.device
+            dummy_metallic = torch.zeros(target_voxel.feats.shape[0], 1, device=device)
+            dummy_roughness = torch.ones(target_voxel.feats.shape[0], 1, device=device) * 0.5
+            dummy_alpha = torch.ones(target_voxel.feats.shape[0], 1, device=device)
+            
+            new_feats = torch.cat([target_voxel.feats, dummy_metallic, dummy_roughness, dummy_alpha], dim=1)
+            
+            new_voxel = target_voxel.__class__(new_feats, target_voxel.coords, target_voxel.spatial_shape)
+            if isinstance(pbr_voxel, list):
+                pbr_voxel[0] = new_voxel
+            else:
+                pbr_voxel = new_voxel
+            
+        return super().postprocess_mesh(mesh, pbr_voxel, *args, **kwargs)
+
+class Trellis2_SegviGenLoadModel:
+    @classmethod
+    def INPUT_TYPES(s):
+        ckpts = folder_paths.get_filename_list("checkpoints")
+        for remote_name in REMOTE_CHECKPOINTS.keys():
+            if remote_name not in ckpts:
+                ckpts.append(remote_name)
+        return {
+            "required": {
+                "ckpt_name": (ckpts, {"default": "SegviGen/full_seg_w_2d_map.safetensors"}),
+                "backend": (["flash_attn", "xformers", "sdpa", "flash_attn_3"], {"default": "xformers"}),
+                "device": (["cpu","cuda"],{"default":"cuda"}),
+                "low_vram": ("BOOLEAN",{"default":True}),
+                "keep_models_loaded": ("BOOLEAN", {"default":True}),
+            }
+        }
+
+    RETURN_TYPES = ("TRELLIS2PIPELINE", )
+    RETURN_NAMES = ("pipeline", )
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper (GGUF)"
+    OUTPUT_NODE = True
+
+    def process(self, ckpt_name, backend, device, low_vram, keep_models_loaded):
+        import sys
+        import os
+        
+        # 1. Resolve SegviGen Checkpoint
+        ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
+        if ckpt_path is None or not os.path.exists(ckpt_path):
+             if ckpt_name in REMOTE_CHECKPOINTS:
+                repo_id, filename = REMOTE_CHECKPOINTS[ckpt_name]
+                base_ckpt_dir = folder_paths.get_folder_paths("checkpoints")[0]
+                target_path = os.path.join(base_ckpt_dir, ckpt_name if "/" in ckpt_name else os.path.join("SegviGen", ckpt_name))
+                if not os.path.exists(target_path):
+                    from huggingface_hub import hf_hub_download
+                    print(f"[SegviGen] Downloading: {ckpt_name}")
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    hf_hub_download(repo_id=repo_id, filename=filename, local_dir=os.path.dirname(target_path))
+                ckpt_path = target_path
+        
+        # 2. Instantiate SegviGen pipeline
+        try:
+            from trellis2_gguf_model_manager import get_models_dir
+            model_path = get_models_dir()
+        except ImportError:
+             model_path = os.path.join(folder_paths.models_dir, "Trellis2")
+        
+        # Instantiate correctly as SegviGenTrellis2Pipeline
+        pipeline = SegviGenTrellis2Pipeline.from_pretrained(
+            model_path,
+            keep_models_loaded=keep_models_loaded,
+            enable_gguf=False,
+            precision="bf16",
+        )
+        pipeline.segvigen_ckpt = ckpt_path
+        pipeline.low_vram = low_vram
+        if device == "cuda":
+            pipeline.to(device)
+            
+        return (pipeline,)
+
+# SegviGen Mesh Voxelizer
+class SegviGenMeshVoxelizer:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "mesh": ("*",),
+            }
+        }
+
+    RETURN_TYPES = ("VXZ_DATA",)
+    FUNCTION = "voxelize"
+    CATEGORY = "SegviGen"
+
+    def voxelize(self, mesh):
+        glb_path = extract_glb_path(mesh, temp_prefix="segvigen_input")
+
+        vxz_path = glb_path.replace(".glb", ".vxz")
+        inf.process_glb_to_vxz(glb_path, vxz_path)
+        return ({"vxz_path": vxz_path, "glb_path": glb_path},)
+
+# SegviGen Latent Encoder
+class SegviGenLatentEncoder:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "vxz_data": ("VXZ_DATA",),
+            }
+        }
+
+    RETURN_TYPES = ("SHAPE_SLAT", "TEX_SLAT", "MESHES", "SUBS")
+    FUNCTION = "encode"
+    CATEGORY = "SegviGen"
+
+    def encode(self, vxz_data):
+        inf.PIPE.load_all_models()
+        shape_enc, tex_enc, shape_dec = inf.PIPE.get_encoders_decoder()
+        shape_enc.cuda()
+        tex_enc.cuda()
+        shape_dec.cuda()
+        
+        shape_slat, meshes, subs, tex_slat = inf.vxz_to_latent_slat(
+            shape_enc, shape_dec, tex_enc, vxz_data["vxz_path"]
+        )
+        
+        # Offload models and move latents to CPU to save VRAM
+        inf.PIPE.unload('shape_encoder', 'tex_encoder', 'shape_decoder')
+        
+        return (
+            {"feats": shape_slat.feats.cpu(), "coords": shape_slat.coords.cpu()},
+            {"feats": tex_slat.feats.cpu(), "coords": tex_slat.coords.cpu()},
+            meshes,
+            subs
+        )
+
+# SegviGen Image Conditioner
+class SegviGenImageConditioner:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITION",)
+    FUNCTION = "condition"
+    CATEGORY = "SegviGen"
+
+    def condition(self, image):
+        # ComfyUI [B, H, W, C] -> PIL
+        img_np = (image[0].cpu().numpy() * 255).astype(np.uint8)
+        pil_img = Image.fromarray(img_np)
+        
+        inf.PIPE.load_all_models()
+        rembg_model = inf.PIPE.get_rembg()
+        rembg_model.cuda()
+        pil_img = inf.preprocess_image(rembg_model, pil_img)
+        inf.PIPE.unload('rembg_model')
+        
+        cond_model = inf.PIPE.get_cond_model()
+        cond_model.cuda()
+        cond = inf.get_cond(cond_model, [pil_img])
+        # Offload to CPU
+        cond = {k: v.cpu() for k, v in cond.items()}
+        inf.PIPE.unload('image_cond_model')
+        
+        return (cond,)
+
+# SegviGen Sampler
+class SegviGenSampler:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "seg_model": ("SEG_MODEL",),
+                "shape_slat": ("SHAPE_SLAT",),
+                "tex_slat": ("TEX_SLAT",),
+                "condition": ("CONDITION",),
+                "steps": ("INT", {"default": 50, "min": 1, "max": 200}),
+                "guidance_scale": ("FLOAT", {"default": 7.5, "min": 0.0, "max": 20.0}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+            }
+        }
+
+    RETURN_TYPES = ("LATENT_SLAT_OUT",)
+    FUNCTION = "sample"
+    CATEGORY = "SegviGen"
+
+    def sample(self, seg_model, shape_slat, tex_slat, condition, steps, guidance_scale, seed):
+        inf.PIPE.load_all_models()
+        inf.PIPE.load_ckpt_if_needed(seg_model["ckpt_path"])
+        gen3dseg = inf.PIPE.get_gen3dseg()
+        gen3dseg.cuda()
+        
+        # We need to reconstruct SparseTensor from dict
+        import trellis2.modules.sparse as sp
+        shape_slat_sp = sp.SparseTensor(shape_slat["feats"].cuda(), shape_slat["coords"].cuda())
+        tex_slat_sp = sp.SparseTensor(tex_slat["feats"].cuda(), tex_slat["coords"].cuda())
+        cond_gpu = {k: v.cuda() for k, v in condition.items()}
+        
+        output_tex_slat = inf.tex_slat_sample_single(
+            gen3dseg, inf.PIPE.sampler, inf.PIPE.pipeline_args, 
+            shape_slat_sp, tex_slat_sp, cond_gpu,
+            steps=steps, cfg_scale=guidance_scale, seed=seed
+        )
+        res = {"feats": output_tex_slat.feats.cpu(), "coords": output_tex_slat.coords.cpu()}
+        inf.PIPE.unload('gen3dseg', 'tex_slat_flow_model')
+        return (res,)
+
+# SegviGen Texture Decoder
+class SegviGenTextureDecoder:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "latent_slat": ("LATENT_SLAT_OUT",),
+                "subs": ("SUBS",),
+            }
+        }
+
+    RETURN_TYPES = ("TEXTURE_VOXELS",)
+    FUNCTION = "decode"
+    CATEGORY = "SegviGen"
+
+    def decode(self, latent_slat, subs):
+        import trellis2.modules.sparse as sp
+        inf.PIPE.load_all_models()
+        tex_decoder = inf.PIPE.get_tex_decoder()
+        tex_decoder.cuda()
+        
+        latent_slat_sp = sp.SparseTensor(latent_slat["feats"].cuda(), latent_slat["coords"].cuda())
+        subs_gpu = [s.cuda() if isinstance(s, torch.Tensor) else s for s in subs]
+        
+        with torch.no_grad():
+            tex_voxels = tex_decoder(latent_slat_sp, guide_subs=subs_gpu) * 0.5 + 0.5
+            tex_voxels = [v.cpu() for v in tex_voxels]
+            
+        inf.PIPE.unload('tex_decoder')
+        return (tex_voxels,)
+
+# SegviGen Mesh Baker
+class SegviGenMeshBaker:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "mesh": ("*",),
+                "texture_voxels": ("TEXTURE_VOXELS",),
+                "resolution": ("INT", {"default": 512, "min": 64, "max": 1024}),
+                "texture_size": ("INT", {"default": 2048, "min": 512, "max": 4096}),
+                "generate_uv": ("BOOLEAN", {"default": False}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("GLB_PATH",)
+    FUNCTION = "bake"
+    CATEGORY = "SegviGen"
+    OUTPUT_NODE = True
+
+    def bake(self, mesh, texture_voxels, resolution, texture_size, generate_uv):
+        glb_path = extract_glb_path(mesh, temp_prefix="segvigen_bake_src")
+        
+
+        output_path = os.path.join(folder_paths.get_output_directory(), f"segvigen_baked_{os.urandom(4).hex()}.glb")
+        
+        inf.bake_to_mesh(
+            glb_path, 
+            texture_voxels, 
+            output_path, 
+            resolution=resolution, 
+            texture_size=texture_size,
+            generate_uv=generate_uv
+        )
+        return (output_path,)
+
+# SegviGen Mesh Exporter
+class SegviGenMeshExporter:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "meshes": ("MESHES",),
+                "texture_voxels": ("TEXTURE_VOXELS",),
+                "resolution": ("INT", {"default": 512, "min": 64, "max": 1024}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("GLB_PATH",)
+    FUNCTION = "export_mesh"
+    CATEGORY = "SegviGen"
+    OUTPUT_NODE = True
+
+    def export_mesh(self, meshes, texture_voxels, resolution):
+        glb = inf.slat_to_glb(meshes, texture_voxels, resolution=resolution)
+        
+        # Apply the same Y-up fix as in original app.py
+        T = np.eye(4, dtype=np.float64)
+        T[:3, :3] = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]], dtype=np.float64)
+        
+        output_path = os.path.join(folder_paths.get_output_directory(), f"segvigen_exported_{os.urandom(4).hex()}.glb")
+        
+        if hasattr(glb, "apply_transform"):
+            glb.apply_transform(T)
+            glb.export(output_path)
+        else:
+            glb.export(output_path)
+            scene_or_mesh = trimesh.load(output_path, force="scene")
+            scene_or_mesh.apply_transform(T)
+            scene_or_mesh.export(output_path)
+            
+        return (output_path,)
+
+# SegviGen Split Refine
+class SegviGenSplitRefine:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "glb_path": ("STRING",),
+                "min_faces_per_part": ("INT", {"default": 50, "min": 1, "max": 1000}),
+                "bake_transforms": ("BOOLEAN", {"default": True}),
+                "color_quant_step": ("INT", {"default": 16, "min": 1, "max": 64}),
+                "palette_sample_pixels": ("INT", {"default": 2000000}),
+                "palette_min_pixels": ("INT", {"default": 500}),
+                "palette_max_colors": ("INT", {"default": 256}),
+                "palette_merge_dist": ("INT", {"default": 32}),
+                "samples_per_face": ([1, 4], {"default": 4}),
+                "flip_v": ("BOOLEAN", {"default": True}),
+                "uv_wrap_repeat": ("BOOLEAN", {"default": True}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("PARTS_GLB_PATH",)
+    FUNCTION = "split"
+    CATEGORY = "SegviGen"
+    OUTPUT_NODE = True
+
+    def split(self, glb_path, **kwargs):
+        glb_path = resolve_full_path(glb_path)
+        out_parts_glb = os.path.join(folder_paths.get_output_directory(), f"segvigen_parts_{os.urandom(4).hex()}.glb")
+        splitter.split_glb_by_texture_palette_rgb(
+            in_glb_path=glb_path,
+            out_glb_path=out_parts_glb,
+            debug_print=True,
+            **kwargs
+        )
+        return (out_parts_glb,)
+
+# SegviGen Mesh Simplify
+class SegviGenMeshSimplify:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "glb_path": ("STRING",),
+                "target_faces": ("INT", {"default": 100000, "min": 1000, "max": 1000000}),
+                "aggression": ("INT", {"default": 7, "min": 1, "max": 20}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("GLB_PATH",)
+    FUNCTION = "simplify"
+    CATEGORY = "SegviGen"
+    OUTPUT_NODE = True
+
+    def simplify(self, glb_path, target_faces, aggression):
+        glb_path = resolve_full_path(glb_path)
+        out_glb = os.path.join(folder_paths.get_output_directory(), f"segvigen_simplified_{os.urandom(4).hex()}.glb")
+        inf.build_simplified_work_glb(glb_path, out_glb, target_faces=target_faces, aggression=aggression)
+        return (out_glb,)
+
+# SegviGen Material Transfer
+class SegviGenMaterialTransfer:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "source_mesh": ("*",),
+                "split_mesh": ("*",),
+                "flip_uv": ("BOOLEAN", {"default": False}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("GLB_PATH",)
+    FUNCTION = "transfer"
+    CATEGORY = "SegviGen"
+    OUTPUT_NODE = True
+
+    def transfer(self, source_mesh, split_mesh, flip_uv):
+        source_path = extract_glb_path(source_mesh, temp_prefix="segvigen_mat_src")
+        split_path = extract_glb_path(split_mesh, temp_prefix="segvigen_mat_split")
+        
+        out_glb = os.path.join(folder_paths.get_output_directory(), f"segvigen_transferred_{os.urandom(4).hex()}.glb")
+        
+        import trimesh
+        # Load geometries
+        source_scene = trimesh.load(source_path, force="scene", process=False)
+        target_scene = trimesh.load(split_path, force="scene", process=False)
+        
+        # Build a mapping of geom_name -> material from the source scene
+        source_mats = {}
+        for node_name in source_scene.graph.nodes_geometry:
+            geom_name = source_scene.graph[node_name][1]
+            geom = source_scene.geometry.get(geom_name)
+            if geom and hasattr(geom.visual, 'material'):
+                source_mats[geom_name] = geom.visual.material
+        
+        # If there's only one source geometry & material, we just use it for everything
+        default_mat = None
+        if len(source_mats) == 1:
+            default_mat = list(source_mats.values())[0]
+            
+        # Apply to target geometries
+        for node_name in target_scene.graph.nodes_geometry:
+            geom_name = target_scene.graph[node_name][1]
+            geom = target_scene.geometry.get(geom_name)
+            if not geom:
+                continue
+                
+            # The split mesh geom_name usually contains the original geom_name
+            mat_to_apply = default_mat
+            
+            # Try to match the exact source geometry name if there are multiple
+            if len(source_mats) > 1:
+                # Sort by length descending to match the most specific name first
+                for src_name in sorted(source_mats.keys(), key=len, reverse=True):
+                    if src_name in geom_name:
+                        mat_to_apply = source_mats[src_name]
+                        break
+            
+            if mat_to_apply is not None:
+                # The split output retains the UVs in geom.visual.uv
+                if hasattr(geom.visual, 'uv') and geom.visual.uv is not None:
+                    uvs = geom.visual.uv.copy()
+                    if flip_uv:
+                        uvs[:, 1] = 1.0 - uvs[:, 1]
+                    geom.visual = trimesh.visual.TextureVisuals(uv=uvs, material=mat_to_apply)
+                else:
+                    geom.visual.material = mat_to_apply
+                    
+        target_scene.export(out_glb)
+        print(f"[SegviGen] MaterialTransfer: Saved to {out_glb}")
+        return (out_glb,)
+
+
+# SegviGen Monolithic Segmentation
+class SegviGenMonolithicSegmentation:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "mesh": ("*",),
+                "seg_model": ("SEG_MODEL",),
+                "bake_mode": ("BOOLEAN", {"default": False}),
+                "generate_uv": ("BOOLEAN", {"default": False}),
+            },
+            "optional": {
+                "image": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("GLB_PATH",)
+    FUNCTION = "process"
+    CATEGORY = "SegviGen"
+
+    def process(self, mesh, seg_model, bake_mode, generate_uv, image=None):
+        glb_path = extract_glb_path(mesh, temp_prefix="segvigen_mono")
+
+        # 2. Temp files
+        workdir = os.path.join(folder_paths.get_temp_directory(), f"seg_mono_{os.urandom(4).hex()}")
+        os.makedirs(workdir, exist_ok=True)
+        in_vxz = os.path.join(workdir, "input.vxz")
+        export_glb = os.path.join(folder_paths.get_output_directory(), f"segvigen_mono_out_{os.urandom(4).hex()}.glb")
+
+        item = {
+            "glb": glb_path,
+            "input_vxz": in_vxz,
+            "export_glb": export_glb,
+            "bake": bake_mode,
+            "generate_uv": generate_uv,
+        }
+
+        if image is not None:
+            img_np = (image[0].cpu().numpy() * 255).astype(np.uint8)
+            pil_img = Image.fromarray(img_np)
+            out_img = os.path.join(workdir, "input_map.png")
+            pil_img.save(out_img)
+            item["2d_map"] = True
+            item["img"] = out_img
+        else:
+            item["2d_map"] = False
+            item["transforms"] = os.path.join(os.path.dirname(__file__), "data_toolkit", "transforms.json")
+            item["img"] = os.path.join(workdir, "render.png")
+
+        inf.inference_with_loaded_models(seg_model["ckpt_path"], item)
+        return (export_glb,)
+
+NODE_CLASS_MAPPINGS = {
+    "SegviGenModelLoader": SegviGenModelLoader,
+    "SegviGenMeshVoxelizer": SegviGenMeshVoxelizer,
+    "SegviGenLatentEncoder": SegviGenLatentEncoder,
+    "SegviGenImageConditioner": SegviGenImageConditioner,
+    "SegviGenSampler": SegviGenSampler,
+    "SegviGenTextureDecoder": SegviGenTextureDecoder,
+    "SegviGenMeshBaker": SegviGenMeshBaker,
+    "SegviGenMeshExporter": SegviGenMeshExporter,
+    "SegviGenSplitRefine": SegviGenSplitRefine,
+    "SegviGenMeshSimplify": SegviGenMeshSimplify,
+    "SegviGenMaterialTransfer": SegviGenMaterialTransfer,
+    "SegviGenMonolithicSegmentation": SegviGenMonolithicSegmentation,
+    "Trellis2_SegviGenLoadModel": Trellis2_SegviGenLoadModel,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "SegviGenModelLoader": "SegviGen Model Loader",
+    "SegviGenMeshVoxelizer": "SegviGen Mesh Voxelizer",
+    "SegviGenLatentEncoder": "SegviGen Latent Encoder",
+    "SegviGenImageConditioner": "SegviGen Image Conditioner",
+    "SegviGenSampler": "SegviGen Sampler",
+    "SegviGenTextureDecoder": "SegviGen Texture Decoder",
+    "SegviGenMeshBaker": "SegviGen Mesh Baker",
+    "SegviGenMeshExporter": "SegviGen Mesh Exporter",
+    "SegviGenSplitRefine": "SegviGen Split & Refine",
+    "SegviGenMeshSimplify": "SegviGen Mesh Simplify",
+    "SegviGenMaterialTransfer": "SegviGen Material Transfer",
+    "SegviGenMonolithicSegmentation": "SegviGen Monolithic Segmentation",
+    "Trellis2_SegviGenLoadModel": "Trellis2 - Load SegviGen Model",
+}

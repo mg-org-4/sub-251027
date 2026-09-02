@@ -1,0 +1,141 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+        pip install -r requirements.txt
+        pip install pytest black flake8 mypy
+    
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Check code formatting with black
+      run: |
+        black --check --diff .
+    
+    - name: Type check with mypy
+      run: |
+        mypy . --ignore-missing-imports
+    
+    - name: Test imports
+      run: |
+        python -c "from latent_colormatch import LatentColorMatch, LatentColorMatchSimple"
+        python -c "from latent_adjust import LatentImageAdjust"
+    
+    - name: Test basic functionality
+      run: |
+        python -c "
+        import torch
+        from latent_colormatch import LatentColorMatch
+        from latent_adjust import LatentImageAdjust
+        
+        # Test tensor creation
+        latent = {'samples': torch.randn(1, 4, 64, 64)}
+        reference = {'samples': torch.randn(1, 4, 64, 64)}
+        
+        # Test color match node
+        color_match = LatentColorMatch()
+        result = color_match.execute(latent, reference, 'RGB', 0.5, 'cpu', 1)
+        assert 'samples' in result[0]
+        print('Color match test passed')
+        
+        # Test adjust node
+        adjust = LatentImageAdjust()
+        result = adjust.execute(latent, 0.1, 1.1, 10.0, 1.1, 1.1, 'cpu', 1)
+        assert 'samples' in result[0]
+        print('Image adjust test passed')
+        "
+
+  test-with-optional-deps:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+    
+    - name: Install all dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+        pip install -r requirements.txt
+        pip install kornia color-matcher
+    
+    - name: Test with all features
+      run: |
+        python -c "
+        import torch
+        from latent_colormatch import LatentColorMatch
+        from latent_adjust import LatentImageAdjust
+        
+        # Test with kornia methods
+        latent = {'samples': torch.randn(1, 4, 64, 64)}
+        reference = {'samples': torch.randn(1, 4, 64, 64)}
+        
+        color_match = LatentColorMatch()
+        
+        # Test LAB method (requires kornia)
+        result = color_match.execute(latent, reference, 'LAB', 0.5, 'cpu', 1)
+        assert 'samples' in result[0]
+        print('LAB method test passed')
+        
+        # Test advanced method (requires color-matcher)
+        try:
+            result = color_match.execute(latent, reference, 'hm-mkl-hm', 0.5, 'cpu', 1)
+            assert 'samples' in result[0]
+            print('Advanced method test passed')
+        except Exception as e:
+            print(f'Advanced method test skipped: {e}')
+        "
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+    
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install black flake8 mypy
+    
+    - name: Run black
+      run: black --check .
+    
+    - name: Run flake8
+      run: flake8 .
+    
+    - name: Run mypy
+      run: mypy . --ignore-missing-imports

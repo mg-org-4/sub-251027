@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comfyui-latent-color-tools"
+version = "1.0.0"
+description = "Advanced color manipulation and image adjustments directly in ComfyUI's latent space"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "ComfyUI Latent Color Tools Contributors"}
+]
+keywords = ["comfyui", "latent", "color", "image-processing", "ai", "stable-diffusion"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "torch>=1.9.0",
+    "numpy>=1.21.0",
+    "kornia>=0.6.0",
+    "color-matcher>=0.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "black>=22.0",
+    "flake8>=4.0",
+    "mypy>=0.900",
+]
+
+[project.urls]
+Homepage = "https://github.com/DenRakEiw/Latent_Nodes"
+Repository = "https://github.com/DenRakEiw/Latent_Nodes"
+Issues = "https://github.com/DenRakEiw/Latent_Nodes/issues"
+Documentation = "https://github.com/DenRakEiw/Latent_Nodes#readme"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.comfy]
+PublisherId = "denrakeiw"
+DisplayName = "ComfyUI Latent Color Tools"

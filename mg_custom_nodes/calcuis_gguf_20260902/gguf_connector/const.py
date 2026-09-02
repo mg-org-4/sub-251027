@@ -984,6 +984,7 @@ class GGMLQuantizationType(IntEnum):
     MXFP4 = 39
     NVFP4 = 40
     Q1_0 = 41
+    Q2_0 = 42
 class ExpertGatingFuncType(IntEnum):
     SOFTMAX = 1
     SIGMOID = 2

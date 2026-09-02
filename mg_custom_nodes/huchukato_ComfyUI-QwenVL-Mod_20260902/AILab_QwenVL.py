@@ -898,6 +898,55 @@ class QwenVLBase:
                 "use_safetensors": True,
                 "low_cpu_mem_usage": True,
             }
+            # Patch: some Qwen3-VL configs have rope_scaling=None which crashes
+            # transformers. Also handle qwen3_5 model_type not yet in CONFIG_MAPPING.
+            try:
+                import json
+                from pathlib import Path
+                from transformers import AutoConfig
+                cfg = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+                if hasattr(cfg, "text_config") and getattr(cfg.text_config, "rope_scaling", "missing") is None:
+                    cfg.text_config.rope_scaling = {"mrope_section": [24, 20, 20], "mrope_type": "mrope"}
+                    load_kwargs["config"] = cfg
+                    print("[QwenVL] Patched rope_scaling=None in text_config")
+                elif getattr(cfg, "rope_scaling", "missing") is None:
+                    cfg.rope_scaling = {"mrope_section": [24, 20, 20], "mrope_type": "mrope"}
+                    load_kwargs["config"] = cfg
+                    print("[QwenVL] Patched rope_scaling=None in config")
+            except (ValueError, KeyError) as e:
+                # Fallback: if model_type (e.g. qwen3_5) is not recognized, try
+                # patching the config.json to use qwen3_vl which is architecturally
+                # compatible for VL models in the Qwen3 family.
+                print(f"[QwenVL] AutoConfig failed ({e}), trying config.json patch...")
+                try:
+                    cfg_path = Path(model_path) / "config.json"
+                    if cfg_path.exists():
+                        import json as _json
+                        cfg_dict = _json.loads(cfg_path.read_text())
+                        original_type = cfg_dict.get("model_type", "")
+                        if original_type in ("qwen3_5", "qwen3.5"):
+                            cfg_dict["model_type"] = "qwen3_vl"
+                            # Also patch text_config if present
+                            if "text_config" in cfg_dict and isinstance(cfg_dict["text_config"], dict):
+                                tc = cfg_dict["text_config"]
+                                if tc.get("model_type") in ("qwen3_5", "qwen3.5"):
+                                    tc["model_type"] = "qwen3"
+                                if tc.get("rope_scaling") is None:
+                                    tc["rope_scaling"] = {"mrope_section": [24, 20, 20], "mrope_type": "mrope"}
+                            if cfg_dict.get("rope_scaling") is None:
+                                cfg_dict["rope_scaling"] = {"mrope_section": [24, 20, 20], "mrope_type": "mrope"}
+                            # Write patched config
+                            cfg_path.write_text(_json.dumps(cfg_dict, indent=2))
+                            print(f"[QwenVL] Patched config.json: {original_type} -> qwen3_vl")
+                            # Reload config
+                            from transformers import AutoConfig
+                            cfg = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+                            load_kwargs["config"] = cfg
+                            load_kwargs["trust_remote_code"] = True
+                except Exception as e2:
+                    print(f"[QwenVL] config.json patch also failed: {e2}")
+            except Exception as e:
+                print(f"[QwenVL] rope_scaling pre-check skipped: {e}")
             self.model = AutoModelForVision2Seq.from_pretrained(model_path, **load_kwargs).eval()
 
             if device != "cpu" and torch.cuda.is_available():
@@ -1080,7 +1129,7 @@ class QwenVLBase:
         text = self.tokenizer.decode(outputs[0, input_len:], skip_special_tokens=True)
         return text.strip()
 
-    def run(self, model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt=False):
+    def run(self, model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt=False, camera_tag="None"):
         torch.manual_seed(seed)
         
         global LAST_SAVED_PROMPT
@@ -1117,6 +1166,48 @@ class QwenVLBase:
             prompt = f"{custom_prompt.strip()}\n\n{prompt_template}"
         else:
             prompt = prompt_template
+
+        # ── Camera tag injection ───────────────────────────────────────────
+        # Qwen 9B has strong recency bias: tags at the start of a 10k-char
+        # prompt get diluted. Two sources of camera tags:
+        #   1. The `camera_tag` dropdown (authoritative, takes priority)
+        #   2. Tags written manually in custom_prompt (fallback)
+        # The chosen tag + its short description is injected BOTH at the
+        # start (as a prefix) and as a FINAL reminder at the end so the
+        # model sees it right before generation.
+        CAMERA_TAGS = list(CAMERA_TAG_DESCRIPTIONS.keys())
+        found_cam_tag = None
+        # Source 1: dropdown
+        if camera_tag and camera_tag.strip() and camera_tag.strip().upper() != "NONE":
+            tag_clean = camera_tag.strip().upper().strip("[]")
+            if tag_clean in CAMERA_TAGS:
+                found_cam_tag = tag_clean
+        # Source 2: manual tag in custom_prompt (only if dropdown is None)
+        if not found_cam_tag and custom_prompt and custom_prompt.strip():
+            upper = custom_prompt.upper()
+            for tag in CAMERA_TAGS:
+                if f"[{tag}]" in upper:
+                    found_cam_tag = tag
+                    break
+        if found_cam_tag:
+            desc = CAMERA_TAG_DESCRIPTIONS.get(found_cam_tag, "")
+            tag_str = f"[{found_cam_tag}]"
+            prefix = f"{tag_str}\n\n"
+            reminder = (
+                f"\n\n═══ FINAL CAMERA DIRECTIVE (HIGHEST PRIORITY) ═══\n"
+                f"Camera: {tag_str} — {desc}\n"
+                f"You MUST use this camera movement and NO other. "
+                f"State it explicitly in the first sentence of [Shot 1].\n"
+                f"IMPORTANT: the camera tag controls ONLY the camera. "
+                f"The subject MUST still have natural, lively action and "
+                f"movement throughout the clip — breathing, gestures, "
+                f"expression changes, body motion, interaction with the "
+                f"environment. Do NOT freeze the subject just because the "
+                f"camera is moving. The subject is alive and active while "
+                f"the camera performs {tag_str}.\n"
+                f"═══ END DIRECTIVE ═══"
+            )
+            prompt = prefix + prompt + reminder
             
         self.load_model(
             model_name,
@@ -1177,6 +1268,7 @@ class AILab_QwenVL(QwenVLBase):
                 "quantization": (Quantization.get_values(), {"default": Quantization.FP16.value, "tooltip": TOOLTIPS["quantization"]}),
                 "attention_mode": (ATTENTION_MODES, {"default": "auto", "tooltip": TOOLTIPS["attention_mode"]}),
                 "preset_prompt": (prompts, {"default": default_prompt, "tooltip": TOOLTIPS["preset_prompt"]}),
+                "camera_tag": (CAMERA_TAG_OPTIONS, {"default": "None", "tooltip": CAMERA_TAG_TOOLTIP}),
                 "custom_prompt": ("STRING", {"default": "", "multiline": True, "tooltip": TOOLTIPS["custom_prompt"]}),
                 "max_tokens": ("INT", {"default": 8192, "min": 64, "max": 8192, "tooltip": TOOLTIPS["max_tokens"]}),
                 "keep_model_loaded": ("BOOLEAN", {"default": True, "tooltip": TOOLTIPS["keep_model_loaded"]}),
@@ -1194,8 +1286,8 @@ class AILab_QwenVL(QwenVLBase):
     FUNCTION = "process"
     CATEGORY = "QwenVL-Mod/QwenVL"
 
-    def process(self, model_name, quantization, preset_prompt, custom_prompt, attention_mode, max_tokens, keep_model_loaded, seed, keep_last_prompt=False, image=None, image2=None):
-        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, image2, 16, max_tokens, 0.6, 0.9, 1, 1.2, seed, keep_model_loaded, attention_mode, False, "auto", keep_last_prompt)
+    def process(self, model_name, quantization, preset_prompt, camera_tag, custom_prompt, attention_mode, max_tokens, keep_model_loaded, seed, keep_last_prompt=False, image=None, image2=None):
+        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, image2, 16, max_tokens, 0.6, 0.9, 1, 1.2, seed, keep_model_loaded, attention_mode, False, "auto", keep_last_prompt, camera_tag)
 
 class AILab_QwenVL_Advanced(QwenVLBase):
     @classmethod
@@ -1218,6 +1310,7 @@ class AILab_QwenVL_Advanced(QwenVLBase):
                 "use_torch_compile": ("BOOLEAN", {"default": False, "tooltip": TOOLTIPS["use_torch_compile"]}),
                 "device": (device_options, {"default": "auto", "tooltip": TOOLTIPS["device"]}),
                 "preset_prompt": (prompts, {"default": default_prompt, "tooltip": TOOLTIPS["preset_prompt"]}),
+                "camera_tag": (CAMERA_TAG_OPTIONS, {"default": "None", "tooltip": CAMERA_TAG_TOOLTIP}),
                 "custom_prompt": ("STRING", {"default": "", "multiline": True, "tooltip": TOOLTIPS["custom_prompt"]}),
                 "max_tokens": ("INT", {"default": 8192, "min": 64, "max": 8192, "tooltip": TOOLTIPS["max_tokens"]}),
                 "temperature": ("FLOAT", {"default": 0.6, "min": 0.1, "max": 1.0, "tooltip": TOOLTIPS["temperature"]}),
@@ -1240,13 +1333,71 @@ class AILab_QwenVL_Advanced(QwenVLBase):
     FUNCTION = "process"
     CATEGORY = "QwenVL-Mod/QwenVL"
 
-    def process(self, model_name, quantization, attention_mode, use_torch_compile, device, preset_prompt, custom_prompt, max_tokens, temperature, top_p, num_beams, repetition_penalty, frame_count, keep_model_loaded, seed, keep_last_prompt, image=None, image2=None):
-        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt)
+    def process(self, model_name, quantization, attention_mode, use_torch_compile, device, preset_prompt, camera_tag, custom_prompt, max_tokens, temperature, top_p, num_beams, repetition_penalty, frame_count, keep_model_loaded, seed, keep_last_prompt, image=None, image2=None):
+        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt, camera_tag)
 
 NODE_CLASS_MAPPINGS = {
     "AILab_QwenVL": AILab_QwenVL,
     "AILab_QwenVL_Advanced": AILab_QwenVL_Advanced,
 }
+
+# ── Camera tag dropdown options ───────────────────────────────────
+# "None" = let the preset decide (default behavior). Any other value
+# is injected as [TAG] at the start of the user prompt AND as a final
+# reminder at the end, overriding any other camera instruction.
+CAMERA_TAG_OPTIONS = [
+    "None",
+    "[STATIC_CAMERA]",
+    "[LOCKED_OFF]",
+    "[SLOW_ZOOM_IN]",
+    "[SLOW_ZOOM_OUT]",
+    "[FAST_ZOOM_IN]",
+    "[FAST_ZOOM_OUT]",
+    "[PAN_LEFT]",
+    "[PAN_RIGHT]",
+    "[TILT_UP]",
+    "[TILT_DOWN]",
+    "[DOLLY_IN]",
+    "[DOLLY_OUT]",
+    "[TRACKING_LEFT]",
+    "[TRACKING_RIGHT]",
+    "[CRANE_UP]",
+    "[CRANE_DOWN]",
+    "[ORBIT]",
+    "[HANDHELD]",
+    "[ROLL]",
+]
+
+# Short per-tag descriptions injected into the prompt when the tag is
+# selected. Kept here instead of in the system prompts to keep presets
+# lean. Each description tells Qwen exactly what to write.
+CAMERA_TAG_DESCRIPTIONS = {
+    "STATIC_CAMERA":  "the camera MUST remain completely static. ABSOLUTELY NO zoom, pan, orbit, push-in, pull-out, tilt, tracking, or any motion whatsoever. You MUST explicitly state \"the camera remains locked-off, completely static throughout the entire clip\" and you MUST NOT describe any camera movement anywhere in the output.",
+    "LOCKED_OFF":     "the camera MUST remain completely static. ABSOLUTELY NO zoom, pan, orbit, push-in, pull-out, tilt, tracking, or any motion whatsoever. You MUST explicitly state \"the camera remains locked-off, completely static throughout the entire clip\" and you MUST NOT describe any camera movement anywhere in the output.",
+    "SLOW_ZOOM_IN":   "slow continuous push-in (dolly toward subject). The camera smoothly and continuously moves closer to the subject throughout the clip.",
+    "SLOW_ZOOM_OUT":  "slow continuous pull-back (dolly away from subject). The camera smoothly and continuously moves away from the subject throughout the clip.",
+    "FAST_ZOOM_IN":   "fast aggressive push-in, dramatic. The camera rapidly moves closer to the subject with energy.",
+    "FAST_ZOOM_OUT":  "fast pull-back, reveal context. The camera rapidly moves away from the subject to reveal the wider scene.",
+    "PAN_LEFT":       "smooth horizontal pan from right to left. The camera rotates smoothly on its axis, moving the framing from right to left.",
+    "PAN_RIGHT":      "smooth horizontal pan from left to right. The camera rotates smoothly on its axis, moving the framing from left to right.",
+    "TILT_UP":        "smooth vertical tilt from bottom to top, revealing the subject. The camera rotates upward on its axis.",
+    "TILT_DOWN":      "smooth vertical tilt from top to bottom. The camera rotates downward on its axis.",
+    "DOLLY_IN":       "physical dolly movement toward the subject (not optical zoom — the camera moves through space, creating parallax).",
+    "DOLLY_OUT":      "physical dolly movement away from the subject (not optical zoom — the camera moves through space, creating parallax).",
+    "TRACKING_LEFT":  "lateral tracking shot moving left, subject stays in frame. The camera physically moves left while keeping the subject centered.",
+    "TRACKING_RIGHT": "lateral tracking shot moving right, subject stays in frame. The camera physically moves right while keeping the subject centered.",
+    "CRANE_UP":       "crane/jib movement rising upward, revealing the scene from above. The camera physically rises.",
+    "CRANE_DOWN":     "crane/jib movement descending toward the subject. The camera physically descends.",
+    "ORBIT":          "smooth 360-degree orbit around the subject. The camera circles completely around the subject.",
+    "HANDHELD":       "subtle handheld sway with natural micro-movements. The camera feels held by a person, with gentle bob and sway.",
+    "ROLL":           "slow camera roll (rotation around the lens axis). The horizon slowly rotates.",
+}
+
+CAMERA_TAG_TOOLTIP = (
+    "Camera movement override for video presets (MiniMax H3, WAN, etc). "
+    "'None' lets the preset decide. Any other value is injected as a "
+    "[TAG] and reinforced at the end of the prompt so Qwen respects it."
+)
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "AILab_QwenVL": "QwenVL-Mod",

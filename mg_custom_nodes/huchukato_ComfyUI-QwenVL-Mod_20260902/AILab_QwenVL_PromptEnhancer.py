@@ -18,6 +18,8 @@ from AILab_OutputCleaner import OutputCleanConfig, clean_model_output, prompt_ou
 
 from AILab_QwenVL import (
     ATTENTION_MODES,
+    CAMERA_TAG_OPTIONS,
+    CAMERA_TAG_TOOLTIP,
     HF_TEXT_MODELS,
     HF_VL_MODELS,
     PROMPT_CACHE,
@@ -35,7 +37,6 @@ LAST_SAVED_PROMPT = None
 
 NODE_DIR = Path(__file__).parent
 SYSTEM_PROMPTS_PATH = NODE_DIR / "AILab_System_Prompts.json"
-CUSTOM_ONLY_STYLE = "✍️ Custom Only (no preset)"
 
 DEFAULT_STYLES = {
     "📝 Enhance": "Write one production-ready prompt paragraph in the same language as the user. Expand the idea with concrete subject, action, environment, lighting, camera, composition, color, texture, mood, and style details. Output only the final prompt paragraph.",
@@ -69,7 +70,6 @@ def _load_prompt_styles() -> dict[str, str]:
 
 
 PROMPT_STYLES = _load_prompt_styles()
-PROMPT_STYLES = {CUSTOM_ONLY_STYLE: "", **PROMPT_STYLES}
 
 
 class AILab_QwenVL_PromptEnhancer(QwenVLBase):
@@ -102,7 +102,7 @@ class AILab_QwenVL_PromptEnhancer(QwenVLBase):
                 "device": (["auto", "cuda", "cpu", "mps"], {"default": "auto", "tooltip": TOOLTIPS["device"]}),
                 "prompt_text": ("STRING", {"default": "", "multiline": True, "tooltip": "Prompt text to enhance. Leave blank to just emit the preset instruction."}),
                 "enhancement_style": (styles, {"default": default_style}),
-                "custom_system_prompt": ("STRING", {"default": "", "multiline": True}),
+                "camera_tag": (CAMERA_TAG_OPTIONS, {"default": "None", "tooltip": CAMERA_TAG_TOOLTIP}),
                 "max_tokens": ("INT", {"default": 1024, "min": 32, "max": 16384}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0.1, "max": 1.0}),
                 "top_p": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0}),
@@ -122,7 +122,7 @@ class AILab_QwenVL_PromptEnhancer(QwenVLBase):
         device,
         prompt_text,
         enhancement_style,
-        custom_system_prompt,
+        camera_tag,
         max_tokens,
         temperature,
         top_p,
@@ -146,16 +146,11 @@ class AILab_QwenVL_PromptEnhancer(QwenVLBase):
         # Always generate when keep last prompt is disabled
         print(f"[QwenVL PromptEnhancer HF] Keep last prompt disabled - generating new prompt")
 
-        is_custom_only = enhancement_style == CUSTOM_ONLY_STYLE
-        style_instruction = "" if is_custom_only else self.STYLES.get(
+        style_instruction = self.STYLES.get(
             enhancement_style,
             next(iter(self.STYLES.values()), ""),
         ).strip()
-        custom_instruction = custom_system_prompt.strip()
-        base_instruction = "\n\n".join(part for part in (custom_instruction, style_instruction) if part)
-        if not base_instruction and is_custom_only:
-            raise ValueError("custom_system_prompt is required when using Custom Only (no preset).")
-        base_instruction = "\n\n".join(part for part in (base_instruction, prompt_output_guard()) if part)
+        base_instruction = "\n\n".join(part for part in (style_instruction, prompt_output_guard()) if part)
         user_prompt = prompt_text.strip() or "Describe a scene vividly."
         merged_prompt = f"{user_prompt}\n\n{base_instruction}".strip()
         if model_name in HF_TEXT_MODELS:
@@ -185,6 +180,7 @@ class AILab_QwenVL_PromptEnhancer(QwenVLBase):
                 repetition_penalty,
                 keep_model_loaded,
                 seed,
+                camera_tag=camera_tag,
             )
 
         # Save the generated prompt for future bypass mode
@@ -207,6 +203,7 @@ class AILab_QwenVL_PromptEnhancer(QwenVLBase):
         repetition_penalty,
         keep_model_loaded,
         seed,
+        camera_tag="None",
     ):
         output = self.run(
             model_name=model_name,
@@ -226,6 +223,7 @@ class AILab_QwenVL_PromptEnhancer(QwenVLBase):
             attention_mode=attention_mode,
             use_torch_compile=use_torch_compile,
             device=device,
+            camera_tag=camera_tag,
         )
         return output[0]
 

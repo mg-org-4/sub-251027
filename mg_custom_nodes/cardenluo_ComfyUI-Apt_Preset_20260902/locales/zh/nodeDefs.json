@@ -285,10 +285,10 @@
         "name": "潜空间"
       },
       "latent_image": {
-        "name": "潜空间图像"
+        "name": "latent图像"
       },
       "latent_mask": {
-        "name": "潜空间遮罩"
+        "name": "latent遮罩"
       },
       "steps": {
         "name": "步数"
@@ -350,10 +350,10 @@
         "name": "CLIP模型"
       },
       "7": {
-        "name": "潜空间图像"
+        "name": "图像"
       },
       "8": {
-        "name": "潜空间遮罩"
+        "name": "latent遮罩"
       }
     }
   },
@@ -14084,33 +14084,13 @@
       },
       "total": {
         "name": "总阶段数"
-      },
-      "restart_completed": {
-        "name": "重启已完成"
-      },
-      "start": {
-        "name": "起始阶段"
-      },
-      "initial_data": {
-        "name": "初始数据"
       }
     },
     "outputs": {
     }
   },
-  "flow_stage_data": {
-    "display_name": "flow_阶段数据",
-    "inputs": {
-      "stage_info": {
-        "name": "阶段信息"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "数组"
-      }
-    }
-  },
+
+
   "flow_stage_list": {
     "display_name": "flow_阶段列表",
     "inputs": {
@@ -14180,30 +14160,30 @@
   "flow_stage_unpack": {
     "display_name": "flow_阶段解包",
     "inputs": {
+      "stage_info": {
+        "name": "阶段信息"
+      }
     },
     "outputs": {
-      "0": {
-        "name": "图像"
-      },
-      "1": {
-        "name": "掩码"
-      },
-      "2": {
-        "name": "潜空间"
-      }
+
     }
   },
   "flow_stage_end": {
     "display_name": "flow_阶段结束",
     "inputs": {
-      "data": {
-        "name": "数据"
+      "unload_models": {
+        "name": "卸载模型"
       },
-      "data_type": {
-        "name": "数据类型"
+      "free_memory": {
+        "name": "释放内存"
+      },
+      "free_memory_interval": {
+        "name": "释放内存_间隔阶段"
       }
+  
     }
   },
+
 
   "csv_write_data": {
     "display_name": "CSV_写入数据",

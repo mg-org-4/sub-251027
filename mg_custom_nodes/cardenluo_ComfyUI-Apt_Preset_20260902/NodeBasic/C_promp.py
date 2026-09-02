@@ -1693,6 +1693,42 @@ class text_StrMatrix:
 
 
 
+class text_MinimaxH3:
+    CATEGORY = "Apt_Preset/prompt"
+    FUNCTION = "process"
+    RETURN_TYPES = ("ARRAY",)
+    RETURN_NAMES = ("array",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "text": ("STRING", {"default": "", "multiline": True, "dynamicPrompts": False}),
+            "delimiter": ("STRING", {"default": "【Segment {n}】",
+                "tooltip": "分隔标识必须独占一行；{n} 匹配数字。例如 【Segment {n}】、#segment{n}--------- 或 ---。"}),
+        }}
+
+    def process(self, text, delimiter="【Segment {n}】"):
+        marker = str(delimiter).strip()
+        if not marker or "\n" in marker or "\r" in marker:
+            raise ValueError("分隔标识不能为空或包含换行")
+        pattern = re.compile(re.escape(marker).replace(re.escape("{n}"), r"[0-9]+"))
+        segments, lines = [], []
+        for line in str(text).replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+            if pattern.fullmatch(line.strip()):
+                segment = "\n".join(lines).strip()
+                if segment:
+                    segments.append(segment)
+                lines = []
+            else:
+                lines.append(line)
+        segment = "\n".join(lines).strip()
+        if segment:
+            segments.append(segment)
+        if not segments:
+            raise ValueError("批量文本为空，没有可导入的Segment ")
+        return (segments,)
+
+
 class text_interPrompt:
     CATEGORY = "Apt_Preset/prompt"
     FUNCTION = "process"

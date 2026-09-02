@@ -698,10 +698,11 @@ def _upscale_minimax_h3_video_latent(latent, model_name, scale):
 
     batch, channels, frames, height, width = samples.shape
     pixel_width = width * 16 * scale
-    aligned_width = round(pixel_width / 32) * 32
-    aligned_height = aligned_width / (width / height)
-    output_width = max(1, round(aligned_width / 16))
-    output_height = max(1, round(aligned_height / 16))
+    pixel_height = height * 16 * scale
+    aligned_width = max(32, round(pixel_width / 32) * 32)
+    aligned_height = max(32, round(pixel_height / 32) * 32)
+    output_width = aligned_width // 16
+    output_height = aligned_height // 16
     if output_width == width and output_height == height:
         return latent
 
@@ -744,7 +745,6 @@ class latent_minimaxH3_scale:
         video_latent, audio_latent = LTXVSeparateAVLatent.execute(latent).result
         scaled_video = _upscale_minimax_h3_video_latent(video_latent, model, scale)
         return LTXVConcatAVLatent.execute(scaled_video, audio_latent).result
-
 
 
 

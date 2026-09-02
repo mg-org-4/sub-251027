@@ -27,6 +27,7 @@ from .NodeBasic.C_model import *
 from .NodeBasic.C_mask import *
 from .NodeBasic.C_latent import *
 from .NodeBasic.C_viewIO import *
+from .NodeBasic.View_video_compare import View_image_compare, View_video_compare
 from .NodeBasic.C_AD import *
 from .NodeBasic.C_image import *
 from .NodeBasic.C_promp import *
@@ -247,12 +248,13 @@ NODE_CLASS_MAPPINGS= {
 
 
 
-"AD_MiniMax_guide": AD_MiniMax_guide,
+
 "AD_MinMax_Ref2_generate": AD_MinMax_Ref2_generate,
 "AD_MinMax_FL2_generate": AD_MinMax_FL2_generate,
-"AD_MinMax_Ref2_mul": AD_MinMax_Ref2_mul,
-"AD_MinMax_FL2_mul": AD_MinMax_FL2_mul,
+"AD_MinMax_Ref2_generate_refine": AD_MinMax_Ref2_generate_refine,
 
+
+"AD_MiniMax_guide": AD_MiniMax_guide,
 
 
 "AD_sam_Crop": AD_sam_Crop,
@@ -285,6 +287,7 @@ NODE_CLASS_MAPPINGS= {
 
 
 "view_Data": view_Data,  #wed---
+"View_bridge_tentor": View_bridge_tentor,
 "view_bridge_image": view_bridge_image,  #wed---
 "view_bridge_Text":view_bridge_Text, #wed---
 "view_Mask_And_Img": view_Mask_And_Img, #wed---
@@ -297,6 +300,8 @@ NODE_CLASS_MAPPINGS= {
 "view_GetLength": view_GetLength, #wed----utils
 "view_mask": view_mask,
 "view_mulView": view_mulView,
+"View_video_compare": View_video_compare,
+"View_image_compare": View_image_compare,
 "view_node_Script": view_node_Script, 
 
 #-------------输入输出 IO_Port-------------------
@@ -321,22 +326,20 @@ NODE_CLASS_MAPPINGS= {
 
 "IO_ShotCreate": IO_ShotCreate,
 "IO_LoadShotBatch": IO_LoadShotBatch,
-
 "IO_PathProcessor": IO_PathProcessor,
-"IO_loadLatent": IO_loadLatent,
-"IO_SaveLatent": IO_SaveLatent,
 "IO_load_anyimage": IO_load_anyimage,
 "IO_store_image": IO_store_image,
 "IO_EasyMark": IO_EasyMark,
 "IO_image_select": IO_image_select,
 "IO_save_image": IO_save_image, 
-"IO_ImageSaveOverwrite": IO_ImageSaveOverwrite,
 "IO_input_any": IO_input_any,
 "IO_RegexPreset": IO_RegexPreset,
 "IO_node_Script": IO_node_Script,
-"IO_video_encode": IO_video_encode,
+"IO_loadLatent": IO_loadLatent,
+"IO_SaveLatent": IO_SaveLatent,
 
-
+#"IO_video_encode": IO_video_encode,
+#"IO_ImageSaveOverwrite": IO_ImageSaveOverwrite,
 
 #-------------data-------------------
 
@@ -585,6 +588,7 @@ NODE_CLASS_MAPPINGS= {
 "text_saveText": text_saveText,
 "text_StrMatrix":text_StrMatrix,
 
+"text_MinimaxH3":text_MinimaxH3,
 "text_interPrompt":text_interPrompt,
 
 
@@ -636,7 +640,10 @@ NODE_CLASS_MAPPINGS= {
 "flow_stage_collect_multi":flow_stage_collect_multi,
 "flow_stage_list":flow_stage_list,
 "flow_stage_unpack":flow_stage_unpack,
-#"flow_stage_data":flow_stage_data,
+"flow_stage_bridge_decode_range":flow_stage_bridge_decode_range,
+"AD_Video_color_grad":AD_Video_color_grad,
+
+
 
 
 "flow_forStart": flow_forStart,

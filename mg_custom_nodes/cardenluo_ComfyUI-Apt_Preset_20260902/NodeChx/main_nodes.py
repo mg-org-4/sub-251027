@@ -555,8 +555,8 @@ class sum_load_adv:
     def INPUT_TYPES(cls):
 
         available_ckpt = folder_paths.get_filename_list("checkpoints")
-        available_unets = list(set(folder_paths.get_filename_list("unet") + folder_paths.get_filename_list("unet_gguf")))
-        available_clips = list(set(folder_paths.get_filename_list("text_encoders") + folder_paths.get_filename_list("clip_gguf")))
+        available_unets = sorted(set(folder_paths.get_filename_list("unet") + folder_paths.get_filename_list("unet_gguf")))
+        available_clips = sorted(set(folder_paths.get_filename_list("text_encoders") + folder_paths.get_filename_list("clip_gguf")))
         available_vaes = folder_paths.get_filename_list("vae")
         available_loras = folder_paths.get_filename_list("loras")
 
@@ -825,8 +825,8 @@ class sum_load_simple(sum_load_adv):
     def INPUT_TYPES(cls):
         # 动态获取模型列表
         available_ckpt = folder_paths.get_filename_list("checkpoints")
-        available_unets = list(set(folder_paths.get_filename_list("unet") + folder_paths.get_filename_list("unet_gguf")))
-        available_clips = list(set(folder_paths.get_filename_list("text_encoders") + folder_paths.get_filename_list("clip_gguf")))
+        available_unets = sorted(set(folder_paths.get_filename_list("unet") + folder_paths.get_filename_list("unet_gguf")))
+        available_clips = sorted(set(folder_paths.get_filename_list("text_encoders") + folder_paths.get_filename_list("clip_gguf")))
         available_vaes = folder_paths.get_filename_list("vae")
         available_loras = folder_paths.get_filename_list("loras")
 
@@ -917,18 +917,18 @@ class sum_load_MiniMaxH3:
 
     @classmethod
     def INPUT_TYPES(cls):
-        available_unets = list(set(folder_paths.get_filename_list("unet") + folder_paths.get_filename_list("unet_gguf")))
-        available_clips = list(set(folder_paths.get_filename_list("text_encoders") + folder_paths.get_filename_list("clip_gguf")))
+        available_unets = sorted(set(folder_paths.get_filename_list("unet") + folder_paths.get_filename_list("unet_gguf")))
+        available_clips = sorted(set(folder_paths.get_filename_list("text_encoders") + folder_paths.get_filename_list("clip_gguf")))
         available_vaes = folder_paths.get_filename_list("vae")
 
         return {
             "optional":{
-                "unet_name": (["None"] + available_unets,),
-                "unet_Weight_Dtype": (["None", "default", "fp8_e4m3fn", "fp8_e4m3fn_fast", "fp8_e5m2"],),
-                "clip_type": (["None"] + CLIP_TYPE,),
-                "clip1": (["None"] + available_clips,),
-                "vae": (["None"] + available_vaes,),
-                "audio_vae": (["None"] + available_vaes,),
+                "unet_name": (available_unets,),
+                "unet_Weight_Dtype": (["default", "fp8_e4m3fn", "fp8_e4m3fn_fast", "fp8_e5m2"],),
+                "clip_type": (CLIP_TYPE,),
+                "clip1": (available_clips,),
+                "vae": (available_vaes,),
+                "audio_vae": (available_vaes,),
                 "steps": ("INT", {"default": 20, "min": 1, "max": 999999}),
                 "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.5, "round": 0.01}),
                 "sampler": (comfy.samplers.KSampler.SAMPLERS, ),
@@ -1389,7 +1389,7 @@ class sum_editor:
             }
         }
     RETURN_TYPES = ("RUN_CONTEXT", "MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "VAE","CLIP", "IMAGE", "MASK",)
-    RETURN_NAMES = ("context", "model","positive", "negative", "latent", "vae","clip", "latent_image", "latent_mask",)
+    RETURN_NAMES = ("context", "model","positive", "negative", "latent", "vae","clip", "image", "latent_mask",)
     FUNCTION = "text"
     CATEGORY = "Apt_Preset/chx_load"
     NAME = "sum_editor"

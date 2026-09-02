@@ -16,6 +16,7 @@ _LOG = logging.getLogger("h3_motion_context")
 
 MC_KEY = "motion_context_index"
 MC_AUDIO_KEY = "motion_context_audio_end_frame"
+MC_GENERATED_KEY = "motion_context_generated"
 
 FRAME_PER_TOKEN = (1, 4, 4, 4, 4)
 VIDEO_RUN_GRID = (124, 107, 90, 73, 56, 39, 22, 5, 1)
@@ -170,7 +171,34 @@ def _steps_for_frames(n):
     return k if covered == n else None
 
 
+def h3_export_video_tail(vae, latent, frames, end_frame):
+    """Reuse only an unmodified export tail ending on the sampled latent grid."""
+    if latent is not None:
+        video = _video_from_latent(latent)
+        total = int(video.shape[2])
+        steps = _steps_for_frames(int(frames.shape[0]))
+        if (steps is not None and steps <= total and (total - steps) % 5 == 0
+                and int(end_frame) == _pixel_frames(total)
+                and tuple(frames.shape[1:3]) == (int(video.shape[3]) * 16, int(video.shape[4]) * 16)):
+            _LOG.info("h3_motion_context: reusing %d export-tail latent steps without VAE re-encoding", steps)
+            return video[:1, :, total - steps:].clone()
+    return vae.encode(frames)
+
+
 def _video_tail_from_latent(latent, n):
+    exported_tail = latent.get("apt_h3_export_tail_latent")
+    exported_frames = int(latent.get("apt_h3_export_context_frames", 22))
+    if exported_tail is not None and n == exported_frames:
+        if exported_tail.ndim == 4:
+            exported_tail = exported_tail.unsqueeze(0)
+        steps = _steps_for_frames(n)
+        if exported_tail.ndim != 5 or int(exported_tail.shape[2]) != steps:
+            raise ValueError(
+                "h3_motion_context: stored export tail does not match the "
+                "%d-frame H3 latent grid" % n)
+        blocks = [exported_tail[:1, :, k:k + 1].clone() for k in range(steps)]
+        return blocks, _step_offsets(steps), n
+
     video = _video_from_latent(latent)
     total = int(video.shape[2])
     steps = _steps_for_frames(n)
@@ -202,6 +230,15 @@ def _video_tail_from_latent(latent, n):
 
 
 def _audio_tail_from_latent(latent, a_frames):
+    exported_tail = latent.get("apt_h3_export_tail_audio_latent")
+    if exported_tail is not None:
+        if exported_tail.ndim == 3:
+            exported_tail = exported_tail.unsqueeze(0)
+        if exported_tail.ndim != 4:
+            raise ValueError(
+                "h3_motion_context: stored export audio tail has an invalid shape")
+        return exported_tail[:1].clone(), int(exported_tail.shape[-1]), 0.0
+
     parts = _streams_from_latent(latent)
     if len(parts) < 2:
         raise ValueError(
@@ -376,7 +413,7 @@ class AptMiniMaxH3MotionContext:
 
         keyframes = []
         for p, blk in zip(indices, blocks):
-            kf = {"latent": blk}
+            kf = {"latent": blk, MC_GENERATED_KEY: True}
             if _layout_native:
                 kf["resolved_frame_index"] = p
             else:
@@ -413,6 +450,7 @@ class AptMiniMaxH3MotionContext:
                 "kind": "audio",
                 "ref_audio_t": ref_audio_t,
                 "audio_latent": audio_latent,
+                MC_GENERATED_KEY: True,
             }
             if audio_mode == "timeline":
                 if _layout_native:

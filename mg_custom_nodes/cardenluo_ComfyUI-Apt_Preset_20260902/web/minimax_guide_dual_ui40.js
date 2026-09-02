@@ -2,14 +2,13 @@ import { app } from "../../scripts/app.js";
 
 // AD MiniMax Guide frontend.
 
-const AD_GUIDE_UI_VERSION = "2026.08.23-guide-v74-ui38";
-globalThis.__AD_MINIMAX_GUIDE_UI38_MODULE__ = true;
+const AD_GUIDE_UI_VERSION = "2026.09.01-guide-v90-ui40";
+globalThis.__AD_MINIMAX_GUIDE_UI40_MODULE__ = true;
 console.info(`[ADMiniMaxGuide] frontend ${AD_GUIDE_UI_VERSION} loaded`);
 const NODE_CLASS = "AD_MiniMax_guide";
 const REF2_GENERATE_NODE_CLASS = "AD_MinMax_Ref2_generate";
-const REF2_MUL_NODE_CLASS = "AD_MinMax_Ref2_mul";
+const REF2_REFINE_NODE_CLASS = "AD_MinMax_Ref2_generate_refine";
 const FL2_GENERATE_NODE_CLASS = "AD_MinMax_FL2_generate";
-const FL2_MUL_NODE_CLASS = "AD_MinMax_FL2_mul";
 const FLOW_STAGE_BEGIN_CLASS = "flow_stage_begin";
 const LOADER_CLASS = "ADMiniMaxGuideLoader";
 const OUTPUT_CLASS = "ADMiniMaxGuideOutput";
@@ -17,10 +16,8 @@ const LINKS_PROP = "ad_minimax_guide_virtual_media_links";
 const PROMPT_DOC_PROP = "ad_minimax_guide_prompt_reference_doc";
 const STAGE_PROMPT_DOCS_PROP = "ad_minimax_guide_stage_prompt_docs";
 const STAGE_PROMPT_INDEX_PROP = "ad_minimax_guide_stage_prompt_index";
-const MUL_WIDGET_VALUES_PROP = "ad_minimax_guide_mul_widget_values";
-const MUL2_WIDGET_VALUES_PROP = "ad_minimax_guide_mul2_widget_values";
+const REF2_GENERATE_WIDGET_VALUES_PROP = "ad_minimax_guide_ref2_generate_widget_values";
 const FL2_GENERATE_WIDGET_VALUES_PROP = "ad_minimax_guide_fl2_generate_widget_values";
-const FL2_MUL_WIDGET_VALUES_PROP = "ad_minimax_guide_fl2_mul_widget_values";
 const RUNTIME_REF_PREFIX = "__AD_MINIMAX_GUIDE_REF_";
 const UNRESOLVED_REF_PREFIX = "__AD_MINIMAX_GUIDE_UNRESOLVED_REF_";
 const DIALOGUE_CLASS = "ad-guide-dialogue-block";
@@ -31,7 +28,6 @@ const RESOLUTION_CUSTOM = "custom";
 const REF_IMAGE_MATCH = "match";
 const REF_IMAGE_MAX = "max";
 const MAX_MEDIA = 64;
-const MAX_STAGE_TEXT = 64;
 const MIN_SECONDS = 4;
 const MAX_SECONDS = 20;
 const PROMPT_HISTORY_LIMIT = 120;
@@ -74,7 +70,7 @@ const TEXT = {
     length: ZH_BROWSER ? "\u5e27\u6570" : "Length",
     seconds: ZH_BROWSER ? "\u79d2\u6570" : "Seconds",
     advanced: ZH_BROWSER ? "\u9ad8\u7ea7\u9009\u9879" : "Advanced options",
-    fps: ZH_BROWSER ? "\u5e27\u7387 (FPS)" : "Frame rate (FPS)",
+    fps: "fps",
     keyframeRole: ZH_BROWSER ? "\u9996\u5c3e\u5e27\u8bbe\u7f6e" : "First/last frame setup",
     singleImagePosition: ZH_BROWSER ? "\u5355\u56fe\u4f4d\u7f6e" : "Single image position",
     refImageSize: ZH_BROWSER ? "\u53c2\u8003\u56fe\u5c3a\u5bf8" : "Reference size",
@@ -199,15 +195,18 @@ const LABELS = {
     audio: "Audio",
 };
 const MATERIAL_LABELS = {
-    image: "Pic",
+    image: "Image",
     video: "Video",
     audio: "Audio",
 };
 const LOADERS = {
+    batch: { classType: "text_MinimaxH3", label: ZH_BROWSER ? "批量文本" : "Batch text" },
     image: { classType: "LoadImage", label: TEXT.loadImage },
     video: { classType: "LoadVideo", label: TEXT.loadVideo },
     audio: { classType: "LoadAudio", label: TEXT.loadAudio },
 };
+const BATCH_IMAGE_NODE_CLASS = "BatchImagesNode";
+const SPECIAL_MATERIAL_TYPES = new Set(["text", "latent", "batch", "image_batch"]);
 
 let installed = false;
 let patchedCanvas = false;
@@ -229,23 +228,23 @@ let nativeThemeWatcherInstalled = false;
 let lastVueNodesMode = null;
 
 function isTarget(node) {
-    return [NODE_CLASS, REF2_GENERATE_NODE_CLASS, REF2_MUL_NODE_CLASS, FL2_GENERATE_NODE_CLASS, FL2_MUL_NODE_CLASS].includes(String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || ""));
+    return [NODE_CLASS, REF2_GENERATE_NODE_CLASS, FL2_GENERATE_NODE_CLASS].includes(String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || ""));
 }
 
 function isChxTarget(node) {
-    return [REF2_GENERATE_NODE_CLASS, REF2_MUL_NODE_CLASS, FL2_GENERATE_NODE_CLASS, FL2_MUL_NODE_CLASS].includes(String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || ""));
+    return [REF2_GENERATE_NODE_CLASS, FL2_GENERATE_NODE_CLASS].includes(String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || ""));
+}
+
+function isRef2GenerateTarget(node) {
+    return String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "") === REF2_GENERATE_NODE_CLASS;
+}
+
+function isRef2RefineTarget(node) {
+    return String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "") === REF2_REFINE_NODE_CLASS;
 }
 
 function isMulTarget(node) {
-    return [REF2_GENERATE_NODE_CLASS, REF2_MUL_NODE_CLASS, FL2_GENERATE_NODE_CLASS, FL2_MUL_NODE_CLASS].includes(String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || ""));
-}
-
-function isRef2MulTarget(node) {
-    return String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "") === REF2_MUL_NODE_CLASS;
-}
-
-function isFl2MulTarget(node) {
-    return String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "") === FL2_MUL_NODE_CLASS;
+    return [REF2_GENERATE_NODE_CLASS, FL2_GENERATE_NODE_CLASS].includes(String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || ""));
 }
 
 function isFl2GenerateTarget(node) {
@@ -253,7 +252,7 @@ function isFl2GenerateTarget(node) {
 }
 
 function isFl2Target(node) {
-    return [FL2_GENERATE_NODE_CLASS, FL2_MUL_NODE_CLASS].includes(String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || ""));
+    return isFl2GenerateTarget(node);
 }
 
 function isLoader(node) {
@@ -360,12 +359,12 @@ function localizeNodeInstance(node) {
 }
 
 function localizeNodeDefinition(nodeData) {
-    if (!nodeData || ![NODE_CLASS, REF2_GENERATE_NODE_CLASS, REF2_MUL_NODE_CLASS, FL2_GENERATE_NODE_CLASS, FL2_MUL_NODE_CLASS, LOADER_CLASS, OUTPUT_CLASS].includes(nodeData.name)) return;
+    if (!nodeData || ![NODE_CLASS, REF2_GENERATE_NODE_CLASS, FL2_GENERATE_NODE_CLASS, LOADER_CLASS, OUTPUT_CLASS].includes(nodeData.name)) return;
     nodeData.display_name = nodeData.name === LOADER_CLASS
         ? TEXT.loaderTitle
         : nodeData.name === OUTPUT_CLASS
             ? TEXT.outputTitle
-            : [REF2_GENERATE_NODE_CLASS, REF2_MUL_NODE_CLASS, FL2_GENERATE_NODE_CLASS, FL2_MUL_NODE_CLASS].includes(nodeData.name)
+            : [REF2_GENERATE_NODE_CLASS, FL2_GENERATE_NODE_CLASS].includes(nodeData.name)
                 ? nodeData.name
                 : TEXT.mainTitle;
 }
@@ -377,17 +376,6 @@ function getWidget(node, name) {
 function getWidgetValue(node, name, fallback = "") {
     const widget = getWidget(node, name);
     return widget?.value ?? fallback;
-}
-
-function asBoolean(value, fallback = false) {
-    if (typeof value === "boolean") return value;
-    if (typeof value === "number") return value !== 0;
-    if (typeof value === "string") {
-        const normalized = value.trim().toLowerCase();
-        if (["", "0", "false", "off", "no"].includes(normalized)) return false;
-        if (["1", "true", "on", "yes"].includes(normalized)) return true;
-    }
-    return value == null ? fallback : Boolean(value);
 }
 
 function isReferenceMode(node) {
@@ -435,7 +423,7 @@ function stageDataLink(node) {
 }
 
 function resequence(node) {
-    const counts = { image: 0, video: 0, audio: 0, latent: 0, text: 0 };
+    const counts = { image: 0, video: 0, audio: 0, latent: 0, text: 0, batch: 0, image_batch: 0 };
     ensureLinks(node).forEach((link) => {
         const mediaType = String(link.media_type || "image").toLowerCase();
         const sequenceType = Object.hasOwn(counts, mediaType) ? mediaType : "image";
@@ -454,11 +442,10 @@ function normalizeLinks(node, removeMissing = false) {
         const sourceId = Number(link?.source_id);
         const sourceSlot = Number(link?.source_slot) || 0;
         let mediaType = String(link?.media_type || "image").toLowerCase();
-        if (!Number.isFinite(sourceId) || !["image", "video", "audio", "latent", "text"].includes(mediaType)) continue;
-        const promptStage = Math.max(0, Number(link?.prompt_stage) || 0);
-        if (mediaType === "text" && hasText && !isMultiStage) continue;
+        if (!Number.isFinite(sourceId) || !["image", "video", "audio", "latent", "text", "batch", "image_batch"].includes(mediaType)) continue;
+        if ((mediaType === "text" && (hasText || isMultiStage)) || (["batch", "image_batch"].includes(mediaType) && !isMultiStage)) continue;
         if (Number.isFinite(Number(node?.id)) && sourceId === Number(node.id)) continue;
-        const key = `${sourceId}:${sourceSlot}:${mediaType}:${mediaType === "text" && isMultiStage ? promptStage : ""}`;
+        const key = `${sourceId}:${sourceSlot}:${mediaType}`;
         if (seen.has(key)) continue;
         const canResolveSource = typeof app.graph?.getNodeById === "function";
         const source = canResolveSource ? app.graph.getNodeById(sourceId) : null;
@@ -467,8 +454,10 @@ function normalizeLinks(node, removeMissing = false) {
             const detectedType = getMediaType(getSlotType(source.outputs?.[sourceSlot]), source);
             if (!detectedType) continue;
             mediaType = detectedType;
-            if (mediaType === "text" && hasText && !isMultiStage) continue;
+            if ((mediaType === "text" && (hasText || isMultiStage)) || (["batch", "image_batch"].includes(mediaType) && !isMultiStage)) continue;
         }
+        if (mediaType === "batch" && normalized.some((item) => item.media_type === "batch")) continue;
+        if (mediaType === "image_batch" && normalized.some((item) => item.media_type === "image_batch")) continue;
         if (mediaType === "text" && !isMultiStage) hasText = true;
         seen.add(key);
         normalized.push({
@@ -476,7 +465,6 @@ function normalizeLinks(node, removeMissing = false) {
             source_id: sourceId,
             source_slot: sourceSlot,
             media_type: mediaType,
-            ...(mediaType === "text" && isMultiStage ? { prompt_stage: promptStage } : {}),
         });
     }
     const changed = normalized.length !== links.length || normalized.some((link, index) => {
@@ -498,6 +486,8 @@ function getSlotType(slot) {
 
 function getMediaType(sourceType, sourceNode = null) {
     const type = String(sourceType || "").toUpperCase();
+    if (type.includes("IMAGE") && String(sourceNode?.comfyClass || sourceNode?.type || "") === BATCH_IMAGE_NODE_CLASS) return "image_batch";
+    if (type === "ARRAY" && String(sourceNode?.comfyClass || sourceNode?.type || "") === "text_MinimaxH3") return "batch";
     if (type.includes("LATENT")) return "latent";
     if (type.includes("AUDIO")) return "audio";
     if (type.includes("VIDEO")) return "video";
@@ -509,10 +499,10 @@ function getMediaType(sourceType, sourceNode = null) {
 
 function mediaLimits(node) {
     if (isFl2Target(node)) {
-        return { image: MAX_MEDIA, video: 0, audio: 0, latent: 1, text: MAX_STAGE_TEXT, total: MAX_MEDIA };
+        return { image: MAX_MEDIA, video: 0, audio: 0, latent: 1, text: 0, batch: 1, image_batch: 1, total: MAX_MEDIA };
     }
     if (isMulTarget(node)) {
-        return { image: MAX_MEDIA, video: MAX_MEDIA, audio: MAX_MEDIA, latent: 1, text: MAX_STAGE_TEXT, total: MAX_MEDIA };
+        return { image: MAX_MEDIA, video: MAX_MEDIA, audio: MAX_MEDIA, latent: 1, text: 0, batch: 1, image_batch: 1, total: MAX_MEDIA };
     }
     return { image: 9, video: 3, audio: 3, latent: 1, text: 1, total: 15 };
 }
@@ -521,20 +511,20 @@ function canAccept(node, mediaType) {
     const limits = mediaLimits(node);
     if (!limits[mediaType]) return false;
     const links = ensureLinks(node);
-    const referenceCount = links.filter((link) => !["text", "latent"].includes(String(link.media_type || "image"))).length;
-    if (!["text", "latent"].includes(mediaType) && referenceCount >= limits.total) return false;
+    const referenceCount = links.filter((link) => !SPECIAL_MATERIAL_TYPES.has(String(link.media_type || "image"))).length;
+    if (!SPECIAL_MATERIAL_TYPES.has(mediaType) && referenceCount >= limits.total) return false;
     const count = links.filter((link) => String(link.media_type || "image") === mediaType).length;
     return count < limits[mediaType];
 }
 
 function pruneLinksForMode(node) {
     const limits = mediaLimits(node);
-    const counts = { image: 0, video: 0, audio: 0, latent: 0, text: 0 };
+    const counts = { image: 0, video: 0, audio: 0, latent: 0, text: 0, batch: 0, image_batch: 0 };
     const kept = [];
     for (const link of ensureLinks(node)) {
         const type = String(link.media_type || "image");
-        const mediaCount = kept.filter((item) => !["text", "latent"].includes(String(item.media_type || "image"))).length;
-        if (!limits[type] || counts[type] >= limits[type] || (!["text", "latent"].includes(type) && mediaCount >= limits.total)) continue;
+        const mediaCount = kept.filter((item) => !SPECIAL_MATERIAL_TYPES.has(String(item.media_type || "image"))).length;
+        if (!limits[type] || counts[type] >= limits[type] || (!SPECIAL_MATERIAL_TYPES.has(type) && mediaCount >= limits.total)) continue;
         counts[type] += 1;
         kept.push(link);
     }
@@ -650,20 +640,10 @@ function addVirtualLink(targetNode, sourceNode, sourceSlot, sourceType, mediaTyp
     if (!Number.isFinite(sourceId)) return false;
     mediaType ||= getMediaType(sourceType, sourceNode);
     const links = ensureLinks(targetNode);
-    const promptStage = mediaType === "text" && isMulTarget(targetNode)
-        ? Math.max(0, Number(targetNode.properties?.[STAGE_PROMPT_INDEX_PROP]) || 0)
-        : null;
     const exists = links.some((link) =>
-        Number(link.source_id) === sourceId
-        && Number(link.source_slot) === Number(sourceSlot)
-        && (promptStage == null || Number(link.prompt_stage) === promptStage)
+        Number(link.source_id) === sourceId && Number(link.source_slot) === Number(sourceSlot)
     );
     if (exists) return false;
-    if (promptStage != null) {
-        targetNode.properties[LINKS_PROP] = links.filter((link) =>
-            String(link.media_type || "image") !== "text" || Number(link.prompt_stage) !== promptStage
-        );
-    }
     if (!canAccept(targetNode, mediaType)) return false;
     const targetLinks = ensureLinks(targetNode);
     targetLinks.push({
@@ -672,7 +652,6 @@ function addVirtualLink(targetNode, sourceNode, sourceSlot, sourceType, mediaTyp
         source_type: sourceType || "*",
         media_type: mediaType,
         order: targetLinks.length + 1,
-        ...(promptStage == null ? {} : { prompt_stage: promptStage }),
     });
     resequence(targetNode);
     refreshMaterialTray(targetNode);
@@ -936,6 +915,7 @@ function openCreateMenu(canvas, targetNode, event, allowedTypes) {
         setNativeSearchVisualSuppression(false);
         clearTemporaryRenderLink(canvas);
     };
+    if (isMulTarget(targetNode)) allowedTypes = [...allowedTypes, "batch"];
     const items = allowedTypes.filter((type) => canAccept(targetNode, type)).map((type) => ({
         content: LOADERS[type].label,
         callback: () => {
@@ -1399,18 +1379,11 @@ function drawLinks(canvas, ctx) {
             const markerX = geometry.mid[0];
             const markerY = geometry.mid[1];
             const textLink = String(link.media_type || "image") === "text";
-            const stageTextLink = textLink && isMulTarget(targetNode);
             ctx.beginPath();
             ctx.arc(markerX, markerY, markerRadius, 0, Math.PI * 2);
             ctx.fillStyle = "#e53935";
             ctx.fill();
-            if (stageTextLink) {
-                ctx.fillStyle = "#ffffff";
-                ctx.font = "bold 9px system-ui, sans-serif";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(`P${Math.max(0, Number(link.prompt_stage) || 0) + 1}`, markerX, markerY + 0.5);
-            } else if (textLink) {
+            if (textLink) {
                 ctx.beginPath();
                 ctx.moveTo(markerX - 3.5, markerY - 3.5);
                 ctx.lineTo(markerX + 3.5, markerY + 3.5);
@@ -1554,14 +1527,14 @@ function patchGraphToPrompt() {
                 delete promptNode.inputs[`media_${index}`];
                 delete promptNode.inputs[`media_type_${index}`];
             }
-            for (let index = 1; index <= MAX_STAGE_TEXT; index += 1) {
-                delete promptNode.inputs[`stage_text_${index}`];
+            for (const name of Object.keys(promptNode.inputs)) {
+                if (/^stage_text_\d+$/.test(name)) delete promptNode.inputs[name];
             }
             if (!promptIsLinked && node.__adGuideEditor) syncPromptFromEditor(node, false);
             const orderedLinks = normalizeLinks(node).filter((link) => Boolean(output[String(link.source_id)]));
             const textLink = orderedLinks.find((link) => String(link.media_type || "") === "text");
             const carryLink = isMulTarget(node) ? orderedLinks.find(isStageDataLink) || null : null;
-            const transportLinks = orderedLinks.filter((link) => String(link.media_type || "") !== "text" && link !== carryLink);
+            const transportLinks = orderedLinks.filter((link) => !["text", "batch", "image_batch"].includes(String(link.media_type || "")) && link !== carryLink);
             transportLinks.forEach((link, index) => {
                 const source = output[String(link.source_id)];
                 const slot = Number(link.source_slot) || 0;
@@ -1570,21 +1543,15 @@ function patchGraphToPrompt() {
             });
             if (isMulTarget(node)) {
                 const docs = ensureStagePromptDocs(node);
-                for (const link of orderedLinks) {
-                    if (String(link.media_type || "") !== "text") continue;
-                    const stage = Math.max(0, Number(link.prompt_stage) || 0);
-                    if (stage >= docs.length || stage >= MAX_STAGE_TEXT) continue;
-                    promptNode.inputs[`stage_text_${stage + 1}`] = [String(link.source_id), Number(link.source_slot) || 0];
-                }
                 if (carryLink) promptNode.inputs.stage_data = [String(carryLink.source_id), Number(carryLink.source_slot) || 0];
                 else delete promptNode.inputs.stage_data;
                 promptNode.inputs.prompt = "";
                 promptNode.inputs.stage_prompts = JSON.stringify(docs.map((doc, index) => buildRuntimePrompt(node, transportLinks, doc, index)));
             } else if (textLink) promptNode.inputs.prompt = [String(textLink.source_id), Number(textLink.source_slot) || 0];
             else if (!promptIsLinked) promptNode.inputs.prompt = buildRuntimePrompt(node, transportLinks);
-            promptNode.inputs.width = Number(getWidgetValue(node, "width", 1344));
-            promptNode.inputs.height = Number(getWidgetValue(node, "height", 768));
-            promptNode.inputs.length = Number(getWidgetValue(node, "length", 124));
+            if (!Array.isArray(promptNode.inputs.width)) promptNode.inputs.width = Number(getWidgetValue(node, "width", 1344));
+            if (!Array.isArray(promptNode.inputs.height)) promptNode.inputs.height = Number(getWidgetValue(node, "height", 768));
+            if (!Array.isArray(promptNode.inputs.length)) promptNode.inputs.length = Number(getWidgetValue(node, "length", 124));
             if (getWidget(node, "single_image_position")) {
                 promptNode.inputs.single_image_position = canonicalOption(
                     "single_image_position",
@@ -1596,7 +1563,12 @@ function patchGraphToPrompt() {
             } else {
                 delete promptNode.inputs.ref_image_size;
             }
-            for (const removed of ["mode", "advanced", "fps", "keyframe_role", "reference_mention_mode", "resolution", "aspect_ratio", "seconds"]) {
+            if (isRef2GenerateTarget(node) || isFl2GenerateTarget(node)) {
+                promptNode.inputs.fps = Number(getWidgetValue(node, "fps", 24));
+            } else {
+                delete promptNode.inputs.fps;
+            }
+            for (const removed of ["mode", "advanced", "keyframe_role", "reference_mention_mode", "resolution", "aspect_ratio", "seconds"]) {
                 delete promptNode.inputs[removed];
             }
         }
@@ -1721,7 +1693,7 @@ function normalizeEditorMentionTags(node, sync = true) {
 
 function mentionOptions(node) {
     if (!isReferenceMode(node)) return [];
-    const orderedLinks = normalizeLinks(node).filter((link) => !["text", "latent"].includes(String(link.media_type || "image")));
+    const orderedLinks = normalizeLinks(node).filter((link) => !SPECIAL_MATERIAL_TYPES.has(String(link.media_type || "image")));
     const counts = { image: 0, video: 0, audio: 0 };
     const mode = referenceMentionMode(node);
     return orderedLinks.map((link) => {
@@ -1949,6 +1921,12 @@ function scheduleMaterialRestoreRefresh(node) {
 
 function watchMediaSourceNode(node) {
     if (!node) return;
+    if (ZH_BROWSER && String(node.comfyClass || node.type || "") === "text_MinimaxH3") {
+        const labels = { text: "批量文本", delimiter: "分隔标识" };
+        for (const widget of node.widgets || []) {
+            if (labels[widget.name]) widget.label = labels[widget.name];
+        }
+    }
     node.__adGuideMediaSourceWatchInstalled = true;
     if (!node.__adGuideMediaSourceRemoveWatchInstalled) {
         node.__adGuideMediaSourceRemoveWatchInstalled = true;
@@ -1981,7 +1959,7 @@ function watchMediaSourceNode(node) {
 
 function installMediaSourceNode(nodeType, nodeData) {
     const name = String(nodeData?.name || "").toLowerCase();
-    if (!name.includes("loadimage") && !name.includes("loadvideo") && !name.includes("loadaudio")) return;
+    if (name !== "text_minimaxh3" && !name.includes("loadimage") && !name.includes("loadvideo") && !name.includes("loadaudio")) return;
     if (nodeType.prototype.__adGuideMediaSourceInstalled) return;
     nodeType.prototype.__adGuideMediaSourceInstalled = true;
     const originalCreated = nodeType.prototype.onNodeCreated;
@@ -2225,6 +2203,7 @@ function reorderMaterialLinks(node, sourceKey, targetKey, insertAfter = false) {
     const from = links.findIndex((link) => materialLinkKey(link) === sourceKey);
     const to = links.findIndex((link) => materialLinkKey(link) === targetKey);
     if (from < 0 || to < 0 || from === to) return false;
+    if (["batch", "image_batch"].includes(links[from].media_type) || ["batch", "image_batch"].includes(links[to].media_type)) return false;
     const [moved] = links.splice(from, 1);
     const targetIndex = links.findIndex((link) => materialLinkKey(link) === targetKey);
     links.splice(Math.max(0, targetIndex + (insertAfter ? 1 : 0)), 0, moved);
@@ -2260,13 +2239,176 @@ function resizeMaterialTray(node, itemCount) {
     if (previousHeight !== nextHeight) adjustNodeHeight(node, nextHeight - previousHeight);
 }
 
+function splitBatchPrompts(text, delimiter = "【分段{n}】") {
+    const marker = String(delimiter).trim();
+    if (!marker || /[\r\n]/.test(marker)) throw new Error("分隔标识不能为空或包含换行");
+    const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(`^(?:${marker.split("{n}").map(escape).join("[0-9]+")})$`);
+    const segments = [];
+    let lines = [];
+    for (const line of String(text).replace(/\r\n?/g, "\n").split("\n")) {
+        if (pattern.test(line.trim())) {
+            const segment = lines.join("\n").trim();
+            if (segment) segments.push(segment);
+            lines = [];
+        } else lines.push(line);
+    }
+    const segment = lines.join("\n").trim();
+    if (segment) segments.push(segment);
+    if (!segments.length) throw new Error("批量文本为空，没有可导入的分段");
+    return segments;
+}
+
+function importBatchPrompts(node, link) {
+    const source = app.graph?.getNodeById?.(Number(link.source_id));
+    if (String(source?.comfyClass || source?.type || "") !== "text_MinimaxH3") {
+        throw new Error("请连接 text_MinimaxH3 批量文本节点");
+    }
+    if (source.inputs?.some((input) => ["text", "delimiter"].includes(input.name) && input.link != null)) {
+        throw new Error("请直接在批量文本节点中粘贴文本并设置分隔标识；自动分段不会运行上游节点");
+    }
+    const segments = splitBatchPrompts(getWidgetValue(source, "text", ""), getWidgetValue(source, "delimiter", "【分段{n}】"));
+    // Parse all documents before replacing any existing stage or editor state.
+    const docs = segments.map((text) => {
+        const container = document.createElement("div");
+        appendPromptTextWithDialogueBlocks(container, text, node);
+        return serializeEditorDoc(container);
+    });
+    app.graph?.beforeChange?.();
+    node.properties[STAGE_PROMPT_DOCS_PROP] = docs;
+    node.properties[STAGE_PROMPT_INDEX_PROP] = 0;
+    node.properties[PROMPT_DOC_PROP] = docs[0];
+    setConfiguredWidgetValue(node, "prompt", docs[0].text);
+    updateStagePromptsWidget(node);
+    renderEditorFromNode(node, true);
+    resetPromptHistory(node);
+    closeMentionMenu(node);
+    updateStagePromptBar(node);
+    node.setDirtyCanvas?.(true, true);
+    app.graph?.afterChange?.();
+    app.graph?.change?.();
+    return docs.length;
+}
+
+function createBatchPromptCard(node, link) {
+    watchMediaSourceNode(app.graph?.getNodeById?.(Number(link.source_id)));
+    const card = document.createElement("div");
+    card.className = "ad-guide-material-card is-batch";
+    card.title = "双击：清空已有提示词分段，按批量文本重新分配。接入或修改源文本不会自动覆盖。";
+    card.draggable = false;
+    const label = document.createElement("div");
+    label.textContent = "Auto Text";
+    label.style.cssText = "white-space:nowrap;text-align:center;font:10px/1.2 system-ui;pointer-events:none";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "ad-guide-material-remove";
+    remove.textContent = "×";
+    remove.title = "断开批量文本（保留已导入的分段）";
+    remove.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const index = ensureLinks(node).findIndex((item) => materialLinkKey(item) === materialLinkKey(link));
+        if (index >= 0) removeVirtualLink(node, index);
+    });
+    card.addEventListener("pointerdown", (event) => event.stopPropagation());
+    card.addEventListener("dblclick", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+            const count = importBatchPrompts(node, link);
+            card.title = `已更新 ${count} 段。修改源文本后，再次双击可整体替换。`;
+        } catch (error) {
+            app.ui.dialog.show(String(error.message || error));
+        }
+    });
+    card.append(label, remove);
+    return card;
+}
+
+function batchImageSources(link) {
+    const batchNode = app.graph?.getNodeById?.(Number(link.source_id));
+    if (String(batchNode?.comfyClass || batchNode?.type || "") !== BATCH_IMAGE_NODE_CLASS) {
+        throw new Error("请连接官方 Batch Images 节点");
+    }
+    const graph = batchNode.graph || app.graph;
+    const sources = [];
+    for (const input of batchNode.inputs || []) {
+        const nativeLink = getNativeGraphLink(graph, input?.link);
+        if (!nativeLink) continue;
+        const directSource = nativeLink.origin_node || nativeLink.originNode || nativeLink.fromNode || nativeLink.sourceNode;
+        const sourceId = nativeLink.origin_id ?? nativeLink.originId ?? nativeLink.from_id ?? nativeLink.fromId
+            ?? (directSource && typeof directSource === "object" ? directSource.id : directSource);
+        const sourceNode = directSource && typeof directSource === "object"
+            ? directSource : graph?.getNodeById?.(Number(sourceId));
+        if (!sourceNode) continue;
+        const rawSlot = nativeLink.origin_slot ?? nativeLink.originSlot ?? nativeLink.from_slot ?? nativeLink.fromSlot ?? 0;
+        const sourceSlot = Number.isFinite(Number(rawSlot)) ? Number(rawSlot) : 0;
+        const sourceType = getSlotType(sourceNode.outputs?.[sourceSlot]);
+        if (!sourceType.includes("IMAGE")) continue;
+        sources.push({ sourceNode, sourceSlot, sourceType });
+    }
+    return sources;
+}
+
+function importBatchImages(node, link) {
+    const sources = batchImageSources(link);
+    if (!sources.length) throw new Error("Batch Images 没有已连接的图片输入");
+    let added = 0;
+    for (const source of sources) {
+        if (addVirtualLink(node, source.sourceNode, source.sourceSlot, source.sourceType, "image")) added += 1;
+    }
+    return added;
+}
+
+function createBatchImageCard(node, link) {
+    const card = document.createElement("div");
+    card.className = "ad-guide-material-card is-batch is-image-batch";
+    card.title = "双击：按 Batch Images 的输入顺序，将图片追加到素材区。";
+    card.draggable = false;
+    const label = document.createElement("div");
+    label.textContent = "Auto Img";
+    label.style.cssText = "white-space:nowrap;text-align:center;font:10px/1.2 system-ui;pointer-events:none";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "ad-guide-material-remove";
+    remove.textContent = "×";
+    remove.title = "断开 Batch Images（保留已追加的图片素材）";
+    remove.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const index = ensureLinks(node).findIndex((item) => materialLinkKey(item) === materialLinkKey(link));
+        if (index >= 0) removeVirtualLink(node, index);
+    });
+    card.addEventListener("pointerdown", (event) => event.stopPropagation());
+    card.addEventListener("dblclick", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+            const count = importBatchImages(node, link);
+            card.title = count
+                ? `已向后追加 ${count} 张图片。再次双击只追加尚未存在的图片。`
+                : "没有新增图片；这些图片已经在素材区或已达到素材上限。";
+        } catch (error) {
+            app.ui.dialog.show(String(error.message || error));
+        }
+    });
+    card.append(label, remove);
+    return card;
+}
+
 function refreshMaterialTray(node, suppliedOptions = null) {
     const tray = node?.__adGuideMaterialTray;
     if (!tray) return;
     const options = suppliedOptions || mentionOptions(node);
     tray.textContent = "";
-    resizeMaterialTray(node, options.length);
-    if (!options.length) {
+    const links = normalizeLinks(node);
+    const batchLink = links.find((link) => link.media_type === "batch");
+    const batchImageLink = links.find((link) => link.media_type === "image_batch");
+    if (batchLink) tray.append(createBatchPromptCard(node, batchLink));
+    if (batchImageLink) tray.append(createBatchImageCard(node, batchImageLink));
+    const fixedCardCount = (batchLink ? 1 : 0) + (batchImageLink ? 1 : 0);
+    resizeMaterialTray(node, options.length + fixedCardCount);
+    if (!options.length && !fixedCardCount) {
         const empty = document.createElement("div");
         empty.className = "ad-guide-material-empty";
         empty.textContent = isFl2Target(node) ? TEXT.fl2MaterialEmpty : TEXT.materialEmpty;
@@ -2284,7 +2426,7 @@ function refreshMaterialTray(node, suppliedOptions = null) {
         const label = document.createElement("div");
         label.className = "ad-guide-material-label";
         label.textContent = option.type === "image" && Number(option.ordinal) > 0
-            ? `Pic ${Number(option.ordinal)}`
+            ? `Image ${Number(option.ordinal)}`
             : (option.label || "");
         const remove = document.createElement("button");
         remove.type = "button";
@@ -2688,11 +2830,6 @@ function addStagePrompt(node) {
     syncPromptFromEditor(node, false);
     const docs = ensureStagePromptDocs(node);
     const index = Number(node.properties[STAGE_PROMPT_INDEX_PROP]) || 0;
-    for (const link of ensureLinks(node)) {
-        if (String(link.media_type || "") === "text" && Number(link.prompt_stage) > index) {
-            link.prompt_stage = Number(link.prompt_stage) + 1;
-        }
-    }
     docs.splice(index + 1, 0, clonePromptDoc({ text: "", parts: [] }));
     node.properties[STAGE_PROMPT_DOCS_PROP] = docs;
     selectStagePrompt(node, index + 1);
@@ -2703,13 +2840,6 @@ function deleteStagePrompt(node) {
     const docs = ensureStagePromptDocs(node);
     if (docs.length <= 1) return;
     const index = Number(node.properties[STAGE_PROMPT_INDEX_PROP]) || 0;
-    node.properties[LINKS_PROP] = ensureLinks(node).filter((link) => {
-        if (String(link.media_type || "") !== "text") return true;
-        const stage = Math.max(0, Number(link.prompt_stage) || 0);
-        if (stage === index) return false;
-        if (stage > index) link.prompt_stage = stage - 1;
-        return true;
-    });
     docs.splice(index, 1);
     node.properties[STAGE_PROMPT_DOCS_PROP] = docs;
     selectStagePrompt(node, Math.min(index, docs.length - 1));
@@ -3592,14 +3722,14 @@ function syncModeWidgets(node) {
     return changed;
 }
 
-function syncSecondPassWidgets(node, mode = String(getWidgetValue(node, "second_pass_mode", "None"))) {
-    if (!isMulTarget(node)) return false;
+function syncSecondPassWidgets(node, mode = String(getWidgetValue(node, isRef2RefineTarget(node) ? "refine_mode" : "second_pass_mode", "None"))) {
+    if (!isMulTarget(node) && !isRef2RefineTarget(node)) return false;
     const refineEnabled = mode === "refine";
     const latentScaleEnabled = mode === "latent_scale";
     const changed = [
         ...["refine_model", "refine_denoise", "refine_steps"]
             .map((name) => setConditionalWidgetVisible(node, getWidget(node, name), refineEnabled)),
-        ...["latent_model", "latent_scale", "split_step"]
+        ...["latent_model", "latent_scale", "split_step", "low_sigma_start_step"]
             .map((name) => setConditionalWidgetVisible(node, getWidget(node, name), latentScaleEnabled)),
     ]
         .some(Boolean);
@@ -3628,8 +3758,8 @@ function reorderMulWidgets(node) {
 }
 
 function installSecondPassWidgetSync(node) {
-    if (!isMulTarget(node)) return;
-    const selector = getWidget(node, "second_pass_mode");
+    if (!isMulTarget(node) && !isRef2RefineTarget(node)) return;
+    const selector = getWidget(node, isRef2RefineTarget(node) ? "refine_mode" : "second_pass_mode");
     if (!selector) return;
     if (!selector.__adGuideSecondPassSyncInstalled) {
         selector.__adGuideSecondPassSyncInstalled = true;
@@ -3641,6 +3771,37 @@ function installSecondPassWidgetSync(node) {
         };
     }
     syncSecondPassWidgets(node);
+}
+
+function syncOnePassWidgets(node, enabled = getWidgetValue(node, "one_pass_sample", true)) {
+    if (!isRef2GenerateTarget(node) && !isFl2GenerateTarget(node)) return false;
+    const visible = enabled !== false && String(enabled).toLowerCase() !== "false";
+    const changed = [getWidget(node, "seed"), seedControlWidget(node)]
+        .map((widget) => setConditionalWidgetVisible(node, widget, visible))
+        .some(Boolean);
+    if (changed) {
+        node._widgetSlotsDirty = true;
+        node.setDirtyCanvas?.(true, true);
+        node.graph?.setDirtyCanvas?.(true, true);
+        app.graph?.setDirtyCanvas?.(true, true);
+    }
+    return changed;
+}
+
+function installOnePassWidgetSync(node) {
+    if (!isRef2GenerateTarget(node) && !isFl2GenerateTarget(node)) return;
+    const selector = getWidget(node, "one_pass_sample");
+    if (!selector) return;
+    if (!selector.__adGuideOnePassSyncInstalled) {
+        selector.__adGuideOnePassSyncInstalled = true;
+        const originalCallback = selector.callback;
+        selector.callback = function onOnePassSampleChange(value) {
+            const result = originalCallback?.apply(this, arguments);
+            syncOnePassWidgets(node, value);
+            return result;
+        };
+    }
+    syncOnePassWidgets(node);
 }
 
 function repairNodeLayout(node) {
@@ -4600,6 +4761,11 @@ function setConfiguredWidgetValue(node, name, value) {
     if (widget._state) widget._state.value = value;
 }
 
+function canonicalRef2GenerateMotionContext(value) {
+    const mode = { "22帧": "22", "39帧": "39" }[String(value ?? "")] || String(value ?? "");
+    return ["None", "22", "39"].includes(mode) ? mode : "22";
+}
+
 function seedControlWidget(node) {
     const widgets = Array.isArray(node?.widgets) ? node.widgets : [];
     const named = widgets.find((widget) => String(widget?.name || "").toLowerCase() === "control_after_generate");
@@ -4621,19 +4787,13 @@ function mulWidgetValuesArray(values) {
         values.height,
         values.length,
         values.ref_image_size,
+        values.fps,
+        values.motion_context,
+        values.Auto_split_ref,
+        values.one_pass_sample,
         values.seed,
         values.seed_control,
         values.stage_prompts,
-        values.single_long_video_split,
-        values.single_long_audio_split,
-        values.second_pass_mode,
-        values.refine_model,
-        values.refine_denoise,
-        values.refine_steps,
-        values.latent_model,
-        values.latent_scale,
-        values.split_step,
-        values.fps,
     ];
 }
 
@@ -4645,19 +4805,13 @@ function currentMulWidgetValues(node) {
         height: Number(getWidgetValue(node, "height", 768)),
         length: Number(getWidgetValue(node, "length", 124)),
         ref_image_size: Object.prototype.hasOwnProperty.call(OPTION_DEFS.ref_image_size, refImageSize) ? refImageSize : REF_IMAGE_MATCH,
+        fps: Number(getWidgetValue(node, "fps", 24)),
+        motion_context: canonicalRef2GenerateMotionContext(getWidgetValue(node, "motion_context", "22")),
+        Auto_split_ref: String(getWidgetValue(node, "Auto_split_ref", "None")),
+        one_pass_sample: Boolean(getWidgetValue(node, "one_pass_sample", true)),
         seed: Number(getWidgetValue(node, "seed", 0)),
         seed_control: String(seedControlWidget(node)?.value || "randomize").toLowerCase(),
         stage_prompts: String(getWidgetValue(node, "stage_prompts", "[]")),
-        single_long_video_split: Boolean(getWidgetValue(node, "single_long_video_split", false)),
-        single_long_audio_split: Boolean(getWidgetValue(node, "single_long_audio_split", false)),
-        second_pass_mode: String(getWidgetValue(node, "second_pass_mode", "None")),
-        refine_model: String(getWidgetValue(node, "refine_model", "None")),
-        refine_denoise: Number(getWidgetValue(node, "refine_denoise", 0.3)),
-        refine_steps: Number(getWidgetValue(node, "refine_steps", 8)),
-        latent_model: String(getWidgetValue(node, "latent_model", "")),
-        latent_scale: Number(getWidgetValue(node, "latent_scale", 1.3)),
-        split_step: Number(getWidgetValue(node, "split_step", 4)),
-        fps: Number(getWidgetValue(node, "fps", 24)),
     };
 }
 
@@ -4667,17 +4821,12 @@ function fl2GenerateWidgetValuesArray(values) {
         values.width,
         values.height,
         values.length,
+        values.fps,
+        values.motion_context,
+        values.one_pass_sample,
         values.seed,
         values.seed_control,
         values.stage_prompts,
-        values.second_pass_mode,
-        values.refine_model,
-        values.refine_denoise,
-        values.refine_steps,
-        values.latent_model,
-        values.latent_scale,
-        values.split_step,
-        values.fps,
     ];
 }
 
@@ -4687,17 +4836,12 @@ function currentFl2GenerateWidgetValues(node) {
         width: Number(getWidgetValue(node, "width", 512)),
         height: Number(getWidgetValue(node, "height", 768)),
         length: Number(getWidgetValue(node, "length", 124)),
+        fps: Number(getWidgetValue(node, "fps", 24)),
+        motion_context: canonicalRef2GenerateMotionContext(getWidgetValue(node, "motion_context", "22")),
+        one_pass_sample: Boolean(getWidgetValue(node, "one_pass_sample", true)),
         seed: Number(getWidgetValue(node, "seed", 0)),
         seed_control: String(seedControlWidget(node)?.value || "randomize").toLowerCase(),
         stage_prompts: String(getWidgetValue(node, "stage_prompts", "[]")),
-        second_pass_mode: String(getWidgetValue(node, "second_pass_mode", "None")),
-        refine_model: String(getWidgetValue(node, "refine_model", "None")),
-        refine_denoise: Number(getWidgetValue(node, "refine_denoise", 0.3)),
-        refine_steps: Number(getWidgetValue(node, "refine_steps", 8)),
-        latent_model: String(getWidgetValue(node, "latent_model", "")),
-        latent_scale: Number(getWidgetValue(node, "latent_scale", 1.3)),
-        split_step: Number(getWidgetValue(node, "split_step", 4)),
-        fps: Number(getWidgetValue(node, "fps", 24)),
     };
 }
 
@@ -4707,25 +4851,18 @@ function repairFl2GenerateConfiguredWidgetValues(node, info) {
         ? info.properties[PROMPT_DOC_PROP].text
         : null;
     const source = stored && typeof stored === "object" ? stored : {};
-    const secondPassMode = ["None", "refine", "latent_scale"].includes(source.second_pass_mode)
-        ? source.second_pass_mode : "None";
     const values = {
         prompt: configuredDocText ?? String(source.prompt || ""),
         width: Number.isFinite(Number(source.width)) ? Number(source.width) : 512,
         height: Number.isFinite(Number(source.height)) ? Number(source.height) : 768,
         length: Number.isFinite(Number(source.length)) ? Number(source.length) : 124,
+        fps: Number.isFinite(Number(source.fps)) ? Number(source.fps) : 24,
+        motion_context: canonicalRef2GenerateMotionContext(source.motion_context),
+        one_pass_sample: source.one_pass_sample !== false,
         seed: Number.isFinite(Number(source.seed)) ? Number(source.seed) : 0,
         seed_control: SEED_CONTROL_MODES.has(String(source.seed_control || "").toLowerCase())
             ? String(source.seed_control).toLowerCase() : "randomize",
         stage_prompts: typeof source.stage_prompts === "string" ? source.stage_prompts : "[]",
-        second_pass_mode: secondPassMode,
-        refine_model: typeof source.refine_model === "string" ? source.refine_model : "None",
-        refine_denoise: Number.isFinite(Number(source.refine_denoise)) ? Number(source.refine_denoise) : 0.3,
-        refine_steps: Number.isFinite(Number(source.refine_steps)) ? Number(source.refine_steps) : 8,
-        latent_model: typeof source.latent_model === "string" ? source.latent_model : "",
-        latent_scale: Number.isFinite(Number(source.latent_scale)) ? Number(source.latent_scale) : 1.3,
-        split_step: Number.isFinite(Number(source.split_step)) ? Number(source.split_step) : 4,
-        fps: Number.isFinite(Number(source.fps)) ? Number(source.fps) : 24,
     };
     for (const [name, value] of Object.entries(values)) setConfiguredWidgetValue(node, name, value);
     const control = seedControlWidget(node);
@@ -4736,124 +4873,6 @@ function repairFl2GenerateConfiguredWidgetValues(node, info) {
     node.properties ||= {};
     node.properties[FL2_GENERATE_WIDGET_VALUES_PROP] = { ...values };
     info.widgets_values = fl2GenerateWidgetValuesArray(values);
-}
-
-function mul2WidgetValuesArray(values) {
-    return [
-        values.prompt,
-        values.width,
-        values.height,
-        values.length,
-        values.ref_image_size,
-        values.stage_prompts,
-        values.single_long_video_split,
-        values.single_long_audio_split,
-        values.long_split_FPS,
-        values.default_trim_frames,
-    ];
-}
-
-function currentMul2WidgetValues(node) {
-    const refImageSize = canonicalOption("ref_image_size", getWidgetValue(node, "ref_image_size", REF_IMAGE_MATCH));
-    return {
-        prompt: String(getWidgetValue(node, "prompt", "")),
-        width: Number(getWidgetValue(node, "width", 1344)),
-        height: Number(getWidgetValue(node, "height", 768)),
-        length: Number(getWidgetValue(node, "length", 124)),
-        ref_image_size: Object.prototype.hasOwnProperty.call(OPTION_DEFS.ref_image_size, refImageSize) ? refImageSize : REF_IMAGE_MATCH,
-        stage_prompts: String(getWidgetValue(node, "stage_prompts", "[]")),
-        single_long_video_split: asBoolean(getWidgetValue(node, "single_long_video_split", false)),
-        single_long_audio_split: asBoolean(getWidgetValue(node, "single_long_audio_split", false)),
-        long_split_FPS: Number(getWidgetValue(node, "long_split_FPS", 24)),
-        default_trim_frames: Number(getWidgetValue(node, "default_trim_frames", 22)),
-    };
-}
-
-function repairMul2ConfiguredWidgetValues(node, info) {
-    const stored = info?.properties?.[MUL2_WIDGET_VALUES_PROP];
-    const configuredDocText = typeof info?.properties?.[PROMPT_DOC_PROP]?.text === "string"
-        ? info.properties[PROMPT_DOC_PROP].text
-        : null;
-    const refImageSize = canonicalOption("ref_image_size", stored?.ref_image_size);
-    const values = stored && typeof stored === "object"
-        ? {
-            prompt: configuredDocText ?? String(stored.prompt || ""),
-            width: Number.isFinite(Number(stored.width)) ? Number(stored.width) : 1344,
-            height: Number.isFinite(Number(stored.height)) ? Number(stored.height) : 768,
-            length: Number.isFinite(Number(stored.length)) ? Number(stored.length) : 124,
-            ref_image_size: Object.prototype.hasOwnProperty.call(OPTION_DEFS.ref_image_size, refImageSize) ? refImageSize : REF_IMAGE_MATCH,
-            stage_prompts: typeof stored.stage_prompts === "string" ? stored.stage_prompts : "[]",
-            single_long_video_split: asBoolean(stored.single_long_video_split, false),
-            single_long_audio_split: asBoolean(stored.single_long_audio_split, false),
-            long_split_FPS: Number.isFinite(Number(stored.long_split_FPS)) ? Number(stored.long_split_FPS) : 24,
-            default_trim_frames: Number.isFinite(Number(stored.default_trim_frames)) ? Number(stored.default_trim_frames) : 22,
-        }
-        : {
-            prompt: configuredDocText ?? "",
-            width: 1344,
-            height: 768,
-            length: 124,
-            ref_image_size: REF_IMAGE_MATCH,
-            stage_prompts: "[]",
-            single_long_video_split: false,
-            single_long_audio_split: false,
-            long_split_FPS: 24,
-            default_trim_frames: 22,
-        };
-    for (const [name, value] of Object.entries(values)) setConfiguredWidgetValue(node, name, value);
-    node.properties ||= {};
-    node.properties[MUL2_WIDGET_VALUES_PROP] = { ...values };
-    info.widgets_values = mul2WidgetValuesArray(values);
-}
-
-function fl2MulWidgetValuesArray(values) {
-    return [
-        values.prompt,
-        values.width,
-        values.height,
-        values.length,
-        values.stage_prompts,
-        values.default_trim_frames,
-    ];
-}
-
-function currentFl2MulWidgetValues(node) {
-    return {
-        prompt: String(getWidgetValue(node, "prompt", "")),
-        width: Number(getWidgetValue(node, "width", 1344)),
-        height: Number(getWidgetValue(node, "height", 768)),
-        length: Number(getWidgetValue(node, "length", 124)),
-        stage_prompts: String(getWidgetValue(node, "stage_prompts", "[]")),
-        default_trim_frames: Number(getWidgetValue(node, "default_trim_frames", 22)),
-    };
-}
-
-function repairFl2MulConfiguredWidgetValues(node, info) {
-    const stored = info?.properties?.[FL2_MUL_WIDGET_VALUES_PROP];
-    const configuredDocText = typeof info?.properties?.[PROMPT_DOC_PROP]?.text === "string"
-        ? info.properties[PROMPT_DOC_PROP].text
-        : null;
-    const values = stored && typeof stored === "object"
-        ? {
-            prompt: configuredDocText ?? String(stored.prompt || ""),
-            width: Number.isFinite(Number(stored.width)) ? Number(stored.width) : 1344,
-            height: Number.isFinite(Number(stored.height)) ? Number(stored.height) : 768,
-            length: Number.isFinite(Number(stored.length)) ? Number(stored.length) : 124,
-            stage_prompts: typeof stored.stage_prompts === "string" ? stored.stage_prompts : "[]",
-            default_trim_frames: Number.isFinite(Number(stored.default_trim_frames)) ? Number(stored.default_trim_frames) : 22,
-        }
-        : {
-            prompt: configuredDocText ?? "",
-            width: 1344,
-            height: 768,
-            length: 124,
-            stage_prompts: "[]",
-            default_trim_frames: 22,
-        };
-    for (const [name, value] of Object.entries(values)) setConfiguredWidgetValue(node, name, value);
-    node.properties ||= {};
-    node.properties[FL2_MUL_WIDGET_VALUES_PROP] = { ...values };
-    info.widgets_values = fl2MulWidgetValuesArray(values);
 }
 
 function repairConfiguredWidgetValues(node, info) {
@@ -4943,12 +4962,10 @@ function repairConfiguredWidgetValues(node, info) {
 }
 
 function normalizeMulOutputs(node) {
-    if (!isMulTarget(node)) return false;
-    const desired = isFl2MulTarget(node)
-        ? [["context", "RUN_CONTEXT"], ["trim_frames", "INT"], ["text", "STRING"]]
-        : isRef2MulTarget(node)
-            ? [["context", "RUN_CONTEXT"], ["exact_audio", "AUDIO"], ["trim_frames", "INT"], ["text", "STRING"]]
-            : [["denoise_latent1", "LATENT"], ["segment_video", "VIDEO"], ["merged_video", "VIDEO"], ["text", "STRING"]];
+    if (!isMulTarget(node) && !isRef2RefineTarget(node)) return false;
+    const desired = isRef2RefineTarget(node)
+        ? [["refined_latent", "LATENT"], ["segment_video", "VIDEO"], ["merged_video", "VIDEO"]]
+        : [["context", "RUN_CONTEXT"], ["segment_video", "VIDEO"], ["merged_video", "VIDEO"], ["text", "STRING"]];
     const current = [...(node.outputs || [])];
     const used = new Set();
     const next = desired.map(([name, type]) => {
@@ -4976,8 +4993,15 @@ function normalizeMulOutputs(node) {
             changed = true;
         }
     }
+    const graph = node.graph || app.graph;
+    for (const output of current) {
+        if (used.has(output)) continue;
+        const ids = Array.isArray(output?.links) ? [...output.links] : [];
+        for (const id of ids) graph?.removeLink?.(id);
+        changed = true;
+    }
     node.outputs = next;
-    const links = graphLinkValues(node.graph || app.graph);
+    const links = graphLinkValues(graph);
     node.outputs.forEach((output, originSlot) => {
         const ids = Array.isArray(output?.links) ? output.links : [];
         for (const id of ids) {
@@ -4996,47 +5020,52 @@ function normalizeMulOutputs(node) {
     return changed;
 }
 
+function normalizeRef2StageInfoInput(node) {
+    const expected = isRef2GenerateTarget(node) || isFl2GenerateTarget(node)
+        ? "stage_info_data1"
+        : isRef2RefineTarget(node) ? "stage_info_data2" : null;
+    if (!expected) return false;
+    const input = (node.inputs || []).find((item) => String(item?.type || "") === "FLOW_STAGE_INFO");
+    if (!input || String(input.name || "") === expected) return false;
+    input.name = expected;
+    input.label = expected;
+    node._widgetSlotsDirty = true;
+    node.setDirtyCanvas?.(true, true);
+    return true;
+}
+
 function repairMulConfiguredWidgetValues(node, info) {
     const raw = Array.isArray(info?.widgets_values) ? [...info.widgets_values] : [];
-    const stored = info?.properties?.[MUL_WIDGET_VALUES_PROP];
+    const stored = info?.properties?.[REF2_GENERATE_WIDGET_VALUES_PROP];
     const configuredDocText = typeof info?.properties?.[PROMPT_DOC_PROP]?.text === "string"
         ? info.properties[PROMPT_DOC_PROP].text
         : null;
     const source = stored && typeof stored === "object" ? stored : {
         prompt: raw[0], width: raw[1], height: raw[2], length: raw[3], ref_image_size: raw[4],
-        seed: raw[5], seed_control: raw[6], stage_prompts: raw[7],
-        single_long_video_split: raw[8], single_long_audio_split: raw[9], second_pass_mode: raw[10],
-        refine_model: raw[11], refine_denoise: raw[12], refine_steps: raw[13],
-        latent_model: raw[14], latent_scale: raw[15], split_step: raw[16], fps: raw[17],
+        fps: raw[5], motion_context: raw[6], Auto_split_ref: raw[7], one_pass_sample: raw[8],
+        seed: raw[9], seed_control: raw[10], stage_prompts: raw[11],
     };
     const refImageSize = canonicalOption("ref_image_size", source.ref_image_size);
-    const secondPassMode = ["None", "refine", "latent_scale"].includes(source.second_pass_mode)
-        ? source.second_pass_mode : "None";
+    const autoSplitRef = ["None", "single_long_video_split", "single_long_audio_split"].includes(source.Auto_split_ref)
+        ? source.Auto_split_ref : "None";
     const values = {
         prompt: configuredDocText ?? String(source.prompt || ""),
         width: Number.isFinite(Number(source.width)) ? Number(source.width) : 1344,
         height: Number.isFinite(Number(source.height)) ? Number(source.height) : 768,
         length: Number.isFinite(Number(source.length)) ? Number(source.length) : 124,
         ref_image_size: Object.prototype.hasOwnProperty.call(OPTION_DEFS.ref_image_size, refImageSize) ? refImageSize : REF_IMAGE_MATCH,
+        fps: Number.isFinite(Number(source.fps)) ? Number(source.fps) : 24,
+        motion_context: canonicalRef2GenerateMotionContext(source.motion_context),
+        Auto_split_ref: autoSplitRef,
+        one_pass_sample: source.one_pass_sample !== false,
         seed: Number.isFinite(Number(source.seed)) ? Number(source.seed) : 0,
         seed_control: SEED_CONTROL_MODES.has(String(source.seed_control || "").toLowerCase())
             ? String(source.seed_control).toLowerCase() : "randomize",
         stage_prompts: typeof source.stage_prompts === "string" ? source.stage_prompts : "[]",
-        single_long_video_split: Boolean(source.single_long_video_split),
-        single_long_audio_split: Boolean(source.single_long_audio_split),
-        second_pass_mode: secondPassMode,
-        refine_model: typeof source.refine_model === "string" ? source.refine_model : "None",
-        refine_denoise: Number.isFinite(Number(source.refine_denoise)) ? Number(source.refine_denoise) : 0.3,
-        refine_steps: Number.isFinite(Number(source.refine_steps)) ? Number(source.refine_steps) : 8,
-        latent_model: typeof source.latent_model === "string" ? source.latent_model : "",
-        latent_scale: Number.isFinite(Number(source.latent_scale)) ? Number(source.latent_scale) : 1.3,
-        split_step: Number.isFinite(Number(source.split_step)) ? Number(source.split_step) : 4,
-        fps: Number.isFinite(Number(source.fps)) ? Number(source.fps) : 24,
     };
     for (const name of [
-        "prompt", "width", "height", "length", "ref_image_size", "seed", "stage_prompts",
-        "single_long_video_split", "single_long_audio_split", "second_pass_mode",
-        "refine_model", "refine_denoise", "refine_steps", "latent_model", "latent_scale", "split_step", "fps",
+        "prompt", "width", "height", "length", "ref_image_size", "fps", "motion_context",
+        "Auto_split_ref", "one_pass_sample", "seed", "stage_prompts",
     ]) {
         setConfiguredWidgetValue(node, name, values[name]);
     }
@@ -5046,19 +5075,20 @@ function repairMulConfiguredWidgetValues(node, info) {
         if (control._state) control._state.value = values.seed_control;
     }
     node.properties ||= {};
-    node.properties[MUL_WIDGET_VALUES_PROP] = { ...values };
+    node.properties[REF2_GENERATE_WIDGET_VALUES_PROP] = { ...values };
     info.widgets_values = mulWidgetValuesArray(values);
 }
 
 function installNode(nodeType, nodeData) {
-    if (![NODE_CLASS, REF2_GENERATE_NODE_CLASS, REF2_MUL_NODE_CLASS, FL2_GENERATE_NODE_CLASS, FL2_MUL_NODE_CLASS].includes(nodeData?.name)) return;
+    if (![NODE_CLASS, REF2_GENERATE_NODE_CLASS, FL2_GENERATE_NODE_CLASS].includes(nodeData?.name)) return;
     pruneTransportInputs(nodeData);
-    if (Object.prototype.hasOwnProperty.call(nodeType.prototype, "__adGuideEasyNodeInstalledUI38")) return;
-    nodeType.prototype.__adGuideEasyNodeInstalledUI38 = true;
+    if (Object.prototype.hasOwnProperty.call(nodeType.prototype, "__adGuideEasyNodeInstalledUI40")) return;
+    nodeType.prototype.__adGuideEasyNodeInstalledUI40 = true;
     const originalCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function onNodeCreatedH3Easy() {
         const result = originalCreated?.apply(this, arguments);
         this.properties ||= {};
+        normalizeRef2StageInfoInput(this);
         pruneTransportNodeInstance(this);
         ensureLinks(this);
         if (isMulTarget(this)) {
@@ -5076,6 +5106,7 @@ function installNode(nodeType, nodeData) {
             reorderMulInputSlots(this);
             reorderMulWidgets(this);
             installSecondPassWidgetSync(this);
+            installOnePassWidgetSync(this);
         }
         syncModeWidgets(this);
         patchCanvas();
@@ -5087,6 +5118,7 @@ function installNode(nodeType, nodeData) {
     const originalConfigure = nodeType.prototype.onConfigure;
     nodeType.prototype.onConfigure = function onConfigureH3Easy(info) {
         const result = originalConfigure?.apply(this, arguments);
+        normalizeRef2StageInfoInput(this);
         pruneTransportNodeInstance(this);
         if (info?.properties?.[PROMPT_DOC_PROP]) {
             this.properties ||= {};
@@ -5095,8 +5127,6 @@ function installNode(nodeType, nodeData) {
         if (isMulTarget(this)) {
             normalizeMulOutputs(this);
             if (isFl2GenerateTarget(this)) repairFl2GenerateConfiguredWidgetValues(this, info);
-            else if (isFl2MulTarget(this)) repairFl2MulConfiguredWidgetValues(this, info);
-            else if (isRef2MulTarget(this)) repairMul2ConfiguredWidgetValues(this, info);
             else repairMulConfiguredWidgetValues(this, info);
             this.properties ||= {};
             if (Array.isArray(info?.properties?.[STAGE_PROMPT_DOCS_PROP])) {
@@ -5118,6 +5148,7 @@ function installNode(nodeType, nodeData) {
             reorderMulInputSlots(this);
             reorderMulWidgets(this);
             installSecondPassWidgetSync(this);
+            installOnePassWidgetSync(this);
         }
         syncModeWidgets(this);
         renderEditorFromNode(this);
@@ -5158,27 +5189,16 @@ function installNode(nodeType, nodeData) {
                 info.properties[STAGE_PROMPT_INDEX_PROP] = Number(this.properties[STAGE_PROMPT_INDEX_PROP]) || 0;
             }
         }
-        if (info && isFl2GenerateTarget(this)) {
+        if (info && isRef2GenerateTarget(this)) {
+            const values = currentMulWidgetValues(this);
+            info.properties ||= {};
+            info.properties[REF2_GENERATE_WIDGET_VALUES_PROP] = { ...values };
+        } else if (info && isFl2GenerateTarget(this)) {
             const values = currentFl2GenerateWidgetValues(this);
             info.properties ||= {};
             info.properties[FL2_GENERATE_WIDGET_VALUES_PROP] = { ...values };
             info.widgets_values = fl2GenerateWidgetValuesArray(values);
-        } else if (info && isMulTarget(this) && !isRef2MulTarget(this) && !isFl2MulTarget(this)) {
-            const values = currentMulWidgetValues(this);
-            info.properties ||= {};
-            info.properties[MUL_WIDGET_VALUES_PROP] = { ...values };
-            info.widgets_values = mulWidgetValuesArray(values);
-        } else if (info && isRef2MulTarget(this)) {
-            const values = currentMul2WidgetValues(this);
-            info.properties ||= {};
-            info.properties[MUL2_WIDGET_VALUES_PROP] = { ...values };
-            info.widgets_values = mul2WidgetValuesArray(values);
-        } else if (info && isFl2MulTarget(this)) {
-            const values = currentFl2MulWidgetValues(this);
-            info.properties ||= {};
-            info.properties[FL2_MUL_WIDGET_VALUES_PROP] = { ...values };
-            info.widgets_values = fl2MulWidgetValuesArray(values);
-        } else if (info && !isRef2MulTarget(this) && !isFl2MulTarget(this)) {
+        } else if (info) {
             info.widgets_values = [
                 String(getWidgetValue(this, "prompt", "")),
                 Number(getWidgetValue(this, "width", 1344)),
@@ -5198,6 +5218,7 @@ function installNode(nodeType, nodeData) {
             reorderMulInputSlots(this);
             reorderMulWidgets(this);
             installSecondPassWidgetSync(this);
+            installOnePassWidgetSync(this);
         }
         if (this.__adGuideEditorVersion !== AD_GUIDE_UI_VERSION) repairDetachedPromptEditor(this);
         else if (this.__adGuideCanonicalMentionVersion !== AD_GUIDE_UI_VERSION) normalizeEditorMentionTags(this);
@@ -5226,6 +5247,30 @@ function installNode(nodeType, nodeData) {
     };
 }
 
+function installRefineNode(nodeType, nodeData) {
+    if (nodeData?.name !== REF2_REFINE_NODE_CLASS) return;
+    if (Object.prototype.hasOwnProperty.call(nodeType.prototype, "__adGuideRefineNodeInstalledUI40")) return;
+    nodeType.prototype.__adGuideRefineNodeInstalledUI40 = true;
+
+    const originalCreated = nodeType.prototype.onNodeCreated;
+    nodeType.prototype.onNodeCreated = function onNodeCreatedH3Refine() {
+        const result = originalCreated?.apply(this, arguments);
+        normalizeRef2StageInfoInput(this);
+        normalizeMulOutputs(this);
+        installSecondPassWidgetSync(this);
+        return result;
+    };
+
+    const originalConfigure = nodeType.prototype.onConfigure;
+    nodeType.prototype.onConfigure = function onConfigureH3Refine() {
+        const result = originalConfigure?.apply(this, arguments);
+        normalizeRef2StageInfoInput(this);
+        normalizeMulOutputs(this);
+        installSecondPassWidgetSync(this);
+        return result;
+    };
+}
+
 function graphLinkValues(graph = app.graph) {
     const links = graph?.links;
     if (Array.isArray(links)) return links.filter(Boolean);
@@ -5248,7 +5293,7 @@ function pruneLegacyFlowStageMediaLinks(node) {
 
 function reorderMulInputSlots(node) {
     if (!isMulTarget(node) || !Array.isArray(node.inputs)) return false;
-    const order = new Map([["context", 0], ["model", 1], ["stage_info", 2], ["media", 3]]);
+    const order = new Map([["context", 0], ["model", 1], ["stage_info", 2], ["stage_info_data1", 2], ["media", 3]]);
     const current = [...node.inputs];
     const next = current
         .map((input, index) => ({ input, index }))
@@ -5278,7 +5323,7 @@ function reorderMulInputSlots(node) {
 
 function normalizeFlowStageBeginSlots(node, force = false) {
     if (String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "") !== FLOW_STAGE_BEGIN_CLASS) return;
-    if (node.__adFlowStageSlotsNormalizedUI38 && !force) return;
+    if (node.__adFlowStageSlotsNormalizedUI40 && !force) return;
     for (let index = (node.outputs?.length || 0) - 1; index >= 0; index -= 1) {
         if (String(node.outputs[index]?.name || "") === "data") node.removeOutput?.(index);
     }
@@ -5293,7 +5338,7 @@ function normalizeFlowStageBeginSlots(node, force = false) {
         const inputType = String(input?.type || "").toUpperCase();
         if (inputName.toLowerCase() === "media") {
             removeIds.push(link.id);
-        } else if (inputName === "stage_info" && byName.stage_info != null) {
+        } else if (["stage_info", "stage_info_data1", "stage_info_data2"].includes(inputName) && byName.stage_info != null) {
             link.origin_slot = byName.stage_info;
         } else if (inputType === "INT" && byName.stage_index != null) {
             link.origin_slot = byName.stage_index;
@@ -5308,35 +5353,35 @@ function normalizeFlowStageBeginSlots(node, force = false) {
     }
     node._widgetSlotsDirty = true;
     node.setDirtyCanvas?.(true, true);
-    node.__adFlowStageSlotsNormalizedUI38 = true;
+    node.__adFlowStageSlotsNormalizedUI40 = true;
 }
 
 function syncFlowStageBeginWidgets(node) {
     if (String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "") !== FLOW_STAGE_BEGIN_CLASS) return;
     normalizeFlowStageBeginSlots(node);
     setConditionalWidgetVisible(node, getWidget(node, "run_id"), true);
-    const currentIndex = getWidget(node, "current_index");
-    if (currentIndex) currentIndex.label = "current_index";
+    const currentIndex = getWidget(node, "stage_index");
+    if (currentIndex) currentIndex.label = "stage_index";
 }
 
 function installFlowStageBeginNode(nodeType, nodeData) {
     if (nodeData?.name !== FLOW_STAGE_BEGIN_CLASS) return;
-    if (Object.prototype.hasOwnProperty.call(nodeType.prototype, "__adFlowStageBeginInstalledUI38")) return;
-    nodeType.prototype.__adFlowStageBeginInstalledUI38 = true;
+    if (Object.prototype.hasOwnProperty.call(nodeType.prototype, "__adFlowStageBeginInstalledUI40")) return;
+    nodeType.prototype.__adFlowStageBeginInstalledUI40 = true;
     const originalCreated = nodeType.prototype.onNodeCreated;
-    nodeType.prototype.onNodeCreated = function onNodeCreatedFlowStageBeginUI38() {
+    nodeType.prototype.onNodeCreated = function onNodeCreatedFlowStageBeginUI40() {
         const result = originalCreated?.apply(this, arguments);
         syncFlowStageBeginWidgets(this);
         return result;
     };
     const originalConfigure = nodeType.prototype.onConfigure;
-    nodeType.prototype.onConfigure = function onConfigureFlowStageBeginUI38() {
+    nodeType.prototype.onConfigure = function onConfigureFlowStageBeginUI40() {
         const result = originalConfigure?.apply(this, arguments);
         syncFlowStageBeginWidgets(this);
         return result;
     };
     const originalDraw = nodeType.prototype.onDrawForeground;
-    nodeType.prototype.onDrawForeground = function onDrawForegroundFlowStageBeginUI38() {
+    nodeType.prototype.onDrawForeground = function onDrawForegroundFlowStageBeginUI40() {
         const result = originalDraw?.apply(this, arguments);
         syncFlowStageBeginWidgets(this);
         return result;
@@ -5472,6 +5517,10 @@ function install() {
       .ad-guide-dialogue-block:focus { background: rgba(0,226,187,.19); box-shadow: inset 0 0 0 1px rgba(0,226,187,.26); }
       .ad-guide-material-tray, .ad-guide-material-tray *, .ad-guide-prompt-editor, .ad-guide-prompt-editor * { cursor: default !important; }
       .ad-guide-material-card { cursor: grab !important; }
+      .ad-guide-material-card.is-batch {
+        display: flex; align-items: center; justify-content: center; cursor: pointer !important;
+        color: var(--ad-guide-native-widget-text, var(--input-text, #ddd));
+      }
       .ad-guide-material-card.is-dragging { cursor: grabbing !important; }
       .ad-guide-mention-chip-thumb { display: inline-block; width: 16px; height: 16px; margin-right: 2px; object-fit: cover; border-radius: 3px; vertical-align: -2px; background: rgba(255,255,255,.12); user-select: none; }
       .ad-guide-mention-chip-thumb.is-image, .ad-guide-mention-menu-thumb.is-image { background: #5aa9f0; }
@@ -5499,10 +5548,10 @@ function install() {
     document.head.append(style);
 }
 
-if (!globalThis.__AD_MINIMAX_GUIDE_UI38_REGISTERED__) {
-    globalThis.__AD_MINIMAX_GUIDE_UI38_REGISTERED__ = true;
+if (!globalThis.__AD_MINIMAX_GUIDE_UI40_REGISTERED__) {
+    globalThis.__AD_MINIMAX_GUIDE_UI40_REGISTERED__ = true;
     app.registerExtension({
-        name: "ADMiniMaxGuide.ui38",
+        name: "ADMiniMaxGuide.ui40",
         setup() {
             install();
         },
@@ -5514,8 +5563,15 @@ if (!globalThis.__AD_MINIMAX_GUIDE_UI38_REGISTERED__) {
             }
             if (isMulTarget(node)) {
                 normalizeMulOutputs(node);
+                normalizeRef2StageInfoInput(node);
                 pruneLegacyFlowStageMediaLinks(node);
                 reorderMulInputSlots(node);
+                installOnePassWidgetSync(node);
+            }
+            if (isRef2RefineTarget(node)) {
+                normalizeRef2StageInfoInput(node);
+                normalizeMulOutputs(node);
+                installSecondPassWidgetSync(node);
             }
         },
         beforeRegisterNodeDef(nodeType, nodeData) {
@@ -5524,6 +5580,7 @@ if (!globalThis.__AD_MINIMAX_GUIDE_UI38_REGISTERED__) {
             installLoaderNode(nodeType, nodeData);
             installOutputNode(nodeType, nodeData);
             installFlowStageBeginNode(nodeType, nodeData);
+            installRefineNode(nodeType, nodeData);
             installNode(nodeType, nodeData);
         },
     });

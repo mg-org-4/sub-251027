@@ -5,6 +5,10 @@ import json
 import time
 import mimetypes
 from comfy_api.latest import io as comfy_api_io
+from comfy_api.latest import InputImpl, Types
+from comfy_execution.graph_utils import ExecutionBlocker
+from comfy_extras.nodes_audio import vae_decode_audio
+from fractions import Fraction
 
 try:
     from comfy_api.latest import InputImpl as _ComfyInputImpl
@@ -34,8 +38,9 @@ from server import PromptServer
 
 #--------------------------------------------------------------------
 
-from nodes import MAX_RESOLUTION, SaveImage, common_ksampler
+from nodes import MAX_RESOLUTION, SaveImage, VAEDecode, VAELoader, common_ksampler
 import sys
+import math
 import random
 from pathlib import Path
 
@@ -48,7 +53,16 @@ import comfy
 import comfy.nested_tensor
 import comfy.utils
 
-from .C_flow import _stage_decode_payload, _stage_encode_payload
+from .C_flow import (
+    _stage_decode_payload,
+    _stage_encode_payload,
+    _stage_run_dir,
+    _stage_checkpoint_filename,
+    _stage_batch_concat_image,
+    _stage_batch_concat_mask,
+    _stage_batch_concat_audio,
+    _stage_video_normalize_audio,
+)
 
 from aiohttp import web
 from PIL import Image, ImageOps, ImageSequence
@@ -654,6 +668,352 @@ class view_Data:
 
 
 
+#------View_bridge_tentor--------
+def _bridge_vae_choices(marker):
+    names = folder_paths.get_filename_list("vae")
+    default = next((name for name in names if marker in name.lower()), "None")
+    return ["None", *names], default
+
+
+def _bridge_mask(latent):
+    mask = latent.get("mask")
+    if mask is None:
+        mask = latent.get("noise_mask")
+    if isinstance(mask, comfy.nested_tensor.NestedTensor):
+        mask = mask.unbind()[0]
+    if not isinstance(mask, torch.Tensor):
+        return ExecutionBlocker(None)
+    if mask.ndim == 2:
+        return mask.unsqueeze(0)
+    if mask.ndim == 3:
+        return mask
+    if mask.ndim == 4 and mask.shape[1] == 1:
+        return mask[:, 0]
+    if mask.ndim == 4 and mask.shape[-1] == 1:
+        return mask[..., 0]
+    if mask.ndim == 5 and mask.shape[1] == 1:
+        return mask[:, 0].flatten(0, 1)
+    return ExecutionBlocker(None)
+
+
+def _bridge_text(latent):
+    for key in ("text", "prompt", "apt_h3_text", "apt_h3_prompt"):
+        value = latent.get(key)
+        if value is not None:
+            return value if isinstance(value, str) else str(value)
+    return ExecutionBlocker(None)
+
+
+def _bridge_align_audio(audio, trim_frames, export_frames, fps):
+    if audio is None:
+        return None
+    waveform = audio["waveform"]
+    sample_rate = int(audio["sample_rate"])
+    if trim_frames > 0:
+        start = min(int(round(trim_frames / fps * sample_rate)), int(waveform.shape[-1]))
+        waveform = waveform[..., start:]
+    if export_frames > 0:
+        wanted = max(1, int(round(export_frames / fps * sample_rate)))
+        if waveform.shape[-1] < wanted:
+            waveform = F.pad(waveform, (0, wanted - waveform.shape[-1]))
+        else:
+            waveform = waveform[..., :wanted]
+    output = dict(audio)
+    output["waveform"] = waveform
+    output["sample_rate"] = sample_rate
+    return output
+
+
+class View_bridge_tentor:
+    @classmethod
+    def INPUT_TYPES(cls):
+        vae_names, vae_default = _bridge_vae_choices("minimax_h3_video_vae")
+        audio_vae_names, audio_vae_default = _bridge_vae_choices("minimax_h3_audio_vae")
+        return {
+            "required": {
+                "bridge_latent": ("LATENT",),
+                "vae": (vae_names, {"default": vae_default}),
+                "audio_vae": (audio_vae_names, {"default": audio_vae_default}),
+                "fps": ("FLOAT", {"default": 24.0, "min": 1.0, "max": 240.0, "step": 0.01}),
+            },
+        }
+
+    INPUT_IS_LIST = True
+    RETURN_TYPES = ("IMAGE", "VIDEO", "AUDIO", "MASK", "STRING")
+    RETURN_NAMES = ("image", "video", "audio", "mask", "text")
+    FUNCTION = "decode"
+    CATEGORY = "Apt_Preset/PreView"
+    DESCRIPTION = "Decode one bridge latent, or decode and merge an ordered list of stage payloads."
+
+    def decode(self, bridge_latent, vae, audio_vae, fps=24.0):
+        payloads = bridge_latent if isinstance(bridge_latent, list) else [bridge_latent]
+        vae = vae[0] if isinstance(vae, list) else vae
+        audio_vae = audio_vae[0] if isinstance(audio_vae, list) else audio_vae
+        fps = fps[0] if isinstance(fps, list) else fps
+        outputs = [_stage_dispatch_bridge_payload(payload, vae, audio_vae, fps) for payload in payloads]
+        if not outputs:
+            return tuple(ExecutionBlocker(None) for _ in range(5))
+        if len(outputs) == 1:
+            return outputs[0]
+        images, videos, audios, masks, texts = (
+            [row[index] for row in outputs if row[index] is not None and not isinstance(row[index], ExecutionBlocker)]
+            for index in range(5)
+        )
+        video_out = _stage_merge_video_components(videos)
+        if videos and len(videos) == len(outputs):
+            components = video_out.get_components()
+            image_out = components.images
+            audio_out = components.audio if components.audio is not None else ExecutionBlocker(None)
+        else:
+            image_out = _stage_batch_concat_image(images)
+            audio_out = _stage_batch_concat_audio(audios)
+        return (
+            image_out, video_out, audio_out, _stage_batch_concat_mask(masks),
+            "\n".join(text for text in texts if text) if any(texts) else ExecutionBlocker(None),
+        )
+
+
+def _bridge_decode_latent(bridge_latent, vae, audio_vae, fps=24.0):
+    """Decode a single latent for View_bridge_tentor.
+
+    Returns the same 5-tuple as View_bridge_tentor: (image, video, audio, mask, text).
+    Missing inputs become ExecutionBlocker so downstream nodes can be safely wired.
+    """
+    if not isinstance(bridge_latent, dict) or "samples" not in bridge_latent:
+        raise TypeError("View_bridge_tentor: bridge_latent must contain samples")
+
+    samples = bridge_latent["samples"]
+    streams = list(samples.unbind()) if isinstance(samples, comfy.nested_tensor.NestedTensor) else [samples]
+    video_samples = streams[0]
+    audio_samples = streams[-1] if len(streams) > 1 else None
+    is_video = isinstance(video_samples, torch.Tensor) and video_samples.ndim == 5
+    fps = float(fps)
+    trim_frames = max(0, int(bridge_latent.get("apt_h3_trim_frames", 0) or 0))
+    export_frames = max(0, int(bridge_latent.get("apt_h3_export_frames", 0) or 0))
+
+    images = None
+    if vae != "None":
+        video_vae = VAELoader().load_vae(vae)[0]
+        images = VAEDecode().decode(video_vae, {"samples": video_samples})[0]
+        if is_video:
+            end = trim_frames + export_frames if export_frames > 0 else int(images.shape[0])
+            images = images[trim_frames:min(end, int(images.shape[0]))]
+
+    audio = None
+    if audio_vae != "None" and audio_samples is not None:
+        audio_model = VAELoader().load_vae(audio_vae)[0]
+        audio = vae_decode_audio(audio_model, {"samples": audio_samples})
+        aligned_frames = int(images.shape[0]) if images is not None and is_video else export_frames
+        audio = _bridge_align_audio(audio, trim_frames, aligned_frames, fps)
+
+    video = None
+    if images is not None and is_video:
+        video = InputImpl.VideoFromComponents(
+            Types.VideoComponents(images=images, audio=audio, frame_rate=Fraction(str(fps))),
+            bit_depth=8,
+        )
+
+    return (
+        images if images is not None else ExecutionBlocker(None),
+        video if video is not None else ExecutionBlocker(None),
+        audio if audio is not None else ExecutionBlocker(None),
+        _bridge_mask(bridge_latent),
+        _bridge_text(bridge_latent),
+    )
+
+
+# ---------- 按 ID 读取桥张量，统一交给 View_bridge_tentor 解码 ----------
+
+def _stage_persistent_payload_filename(stage_index, channel):
+    """Persistent file written by flow_stage_end once a stage commits."""
+    if channel not in ("data1", "data2"):
+        raise ValueError("flow_stage_bridge_decode_range: channel must be data1 or data2")
+    suffix = "_2" if channel == "data2" else ""
+    return f"stage_{int(stage_index):05d}{suffix}.safetensors"
+
+
+def _stage_bridge_file(run_dir, stage_index, channel):
+    """Return the path to a stage's bridge payload.
+
+    Prefers the persistent payload written at stage commit; falls back to the
+    in-progress checkpoint (created mid-stage and useful after an interrupt).
+    Returns None if neither exists.
+    """
+    payload_path = os.path.join(run_dir, _stage_persistent_payload_filename(stage_index, channel))
+    if os.path.isfile(payload_path):
+        return payload_path
+    checkpoint_path = os.path.join(run_dir, _stage_checkpoint_filename(stage_index, channel))
+    if os.path.isfile(checkpoint_path):
+        return checkpoint_path
+    return None
+
+
+def _stage_dispatch_bridge_payload(payload, vae, audio_vae, fps):
+    """Dispatch a decoded payload (from _stage_decode_payload) into the 5-tuple shape.
+
+    - LATENT dict  -> _bridge_decode_latent
+    - VIDEO object -> IMAGE + VIDEO + optional AUDIO passthrough
+    - AUDIO dict   -> AUDIO passthrough
+    - IMAGE/MASK tensors -> IMAGE/MASK passthrough
+    - STRING       -> text passthrough
+    - other        -> 5x ExecutionBlocker
+    """
+    if isinstance(payload, dict) and "samples" in payload:
+        return _bridge_decode_latent(payload, vae, audio_vae, fps)
+    if hasattr(payload, "get_components"):
+        comps = payload.get_components()
+        return (
+            comps.images, payload,
+            comps.audio if comps.audio is not None else ExecutionBlocker(None),
+            ExecutionBlocker(None), ExecutionBlocker(None),
+        )
+    if isinstance(payload, dict) and "waveform" in payload and "sample_rate" in payload:
+        return (
+            ExecutionBlocker(None),
+            ExecutionBlocker(None),
+            payload,
+            ExecutionBlocker(None),
+            "",
+        )
+    if isinstance(payload, torch.Tensor):
+        if payload.ndim == 4 and payload.shape[-1] in (1, 3, 4):
+            return (payload, ExecutionBlocker(None), ExecutionBlocker(None), ExecutionBlocker(None), "")
+        if payload.ndim in (2, 3):
+            return (ExecutionBlocker(None), ExecutionBlocker(None), ExecutionBlocker(None), payload, "")
+    if isinstance(payload, str):
+        return (ExecutionBlocker(None), ExecutionBlocker(None), ExecutionBlocker(None), ExecutionBlocker(None), payload)
+    return tuple(ExecutionBlocker(None) for _ in range(5))
+
+
+class flow_stage_bridge_decode_range:
+    """Read one stage or an inclusive ID range without VAE decoding."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "run_id": ("STRING", {"default": "default"}),
+                "start_id": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 5000,
+                    "step": 1,
+                    "tooltip": "1-based, inclusive.",
+                }),
+                "end_id": ("INT", {
+                    "default": 1,
+                    "min": 1,
+                    "max": 5000,
+                    "step": 1,
+                    "tooltip": "1-based, inclusive. Use the same start/end ID for one stage. Missing stages are skipped.",
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("LATENT", "LATENT")
+    RETURN_NAMES = ("bridge_latent_data1", "bridge_latent_data2")
+    OUTPUT_IS_LIST = (True, True)
+    FUNCTION = "decode_range"
+    CATEGORY = "Apt_Preset/flow"
+    DESCRIPTION = "Read both data1 and data2 for an inclusive stage ID range. Connect either output to View_bridge_tentor to decode and merge."
+
+    @classmethod
+    def IS_CHANGED(cls, run_id, start_id, end_id):
+        rid = str(run_id or "").strip()
+        if not rid:
+            return ""
+        run_dir = _stage_run_dir(rid)
+        if not os.path.isdir(run_dir):
+            return f"{rid}|missing"
+        lo, hi = int(start_id), int(end_id)
+        if hi < lo:
+            lo, hi = hi, lo
+        digests = []
+        for sid in range(lo, hi + 1):
+            for channel in ("data1", "data2"):
+                file_path = _stage_bridge_file(run_dir, sid - 1, channel)
+                if file_path is None or not os.path.isfile(file_path):
+                    digests.append(f"{sid}:{channel}:missing")
+                else:
+                    st = os.stat(file_path)
+                    digests.append(f"{sid}:{channel}:{os.path.basename(file_path)}:{st.st_mtime_ns}:{st.st_size}")
+        return f"{rid}|" + ",".join(digests)
+
+    def decode_range(self, run_id, start_id, end_id):
+        lo, hi = int(start_id), int(end_id)
+        if hi < lo:
+            lo, hi = hi, lo
+        run_dir = _stage_run_dir(run_id)
+        payloads = ([], [])
+        if not os.path.isdir(run_dir):
+            return payloads
+        for sid in range(lo, hi + 1):
+            for channel, output in zip(("data1", "data2"), payloads):
+                path = _stage_bridge_file(run_dir, sid - 1, channel)
+                if path is not None:
+                    output.append(_stage_decode_payload(path))
+        return payloads
+
+
+# ---------- 合并桥张量解码后的视频 ----------
+
+def _stage_merge_video_components(videos):
+    """Concatenate a list of VideoFromComponents into a single video.
+
+    Match the first video's resolution, frame rate and bit depth. Use the first
+    available audio format and fill silent stages to keep audio on the timeline.
+    """
+    if not videos:
+        return ExecutionBlocker(None)
+    if len(videos) == 1:
+        return videos[0]
+    ref = videos[0]
+    components = [video.get_components() for video in videos]
+    ref_comps = components[0]
+    ref_h, ref_w = int(ref_comps.images.shape[1]), int(ref_comps.images.shape[2])
+    frame_rate = ref_comps.frame_rate
+    bit_depth = ref.get_bit_depth() if hasattr(ref, "get_bit_depth") else 8
+    ref_audio = next((comps.audio for comps in components if comps.audio is not None), None)
+    ref_sr = int(ref_audio["sample_rate"]) if ref_audio is not None else 0
+    ref_ch = int(ref_audio["waveform"].shape[1]) if ref_audio is not None else 0
+
+    all_images = []
+    all_audios = []
+    total_frames = 0
+    audio_end = 0
+    for comps in components:
+        imgs = comps.images
+        if comps.frame_rate != frame_rate:
+            frame_count = max(1, round(int(imgs.shape[0]) * float(frame_rate) / float(comps.frame_rate)))
+            indices = (torch.arange(frame_count, device=imgs.device) * float(comps.frame_rate) / float(frame_rate)).long()
+            imgs = imgs[indices.clamp(max=int(imgs.shape[0]) - 1)]
+        if imgs.shape[1:3] != (ref_h, ref_w):
+            imgs = comfy.utils.common_upscale(
+                imgs.movedim(-1, 1), ref_w, ref_h, "bilinear", "center"
+            ).movedim(1, -1)
+        all_images.append(imgs)
+        total_frames += int(imgs.shape[0])
+        if ref_sr > 0:
+            next_audio_end = round(total_frames * ref_sr / frame_rate)
+            normalized = _stage_video_normalize_audio(
+                comps.audio, ref_sr, ref_ch, next_audio_end - audio_end
+            )
+            all_audios.append(normalized)
+            audio_end = next_audio_end
+
+    merged_images = torch.cat(all_images, dim=0)
+    merged_audio = None
+    if all_audios:
+        merged_audio = {
+            "waveform": torch.cat([a["waveform"] for a in all_audios], dim=2),
+            "sample_rate": ref_sr,
+        }
+
+    return InputImpl.VideoFromComponents(
+        Types.VideoComponents(images=merged_images, audio=merged_audio, frame_rate=frame_rate),
+        bit_depth=bit_depth,
+    )
+
 
 class view_GetLength:
     def __init__(self):
@@ -1222,7 +1582,7 @@ class IO_input_any:
 def _resolve_io_latent_path(latent_path, clip_index=0):
     path = (latent_path or "").strip().strip('"').strip("'")
     if not path:
-        path = "h3_context"
+        path = "bridge_latent"
 
     output_directory = folder_paths.get_output_directory()
     candidates = [path, os.path.join(output_directory, path)]
@@ -1237,7 +1597,7 @@ def _resolve_io_latent_path(latent_path, clip_index=0):
             endings = (f"_{index:05d}.safetensors", f"_clip{index:03d}.safetensors")
             files = [os.path.join(candidate, filename) for filename in os.listdir(candidate) if filename.endswith(endings)]
             if not files:
-                raise FileNotFoundError(f"IO_loadLatent: no saved latent for clip {index} in {candidate}")
+                raise FileNotFoundError(f"IO_loadLatent: no saved latent for file index {index} in {candidate}")
         else:
             files = [os.path.join(candidate, filename) for filename in os.listdir(candidate) if filename.endswith(".safetensors")]
             if not files:
@@ -1253,14 +1613,14 @@ class IO_loadLatent:
         return {
             "required": {
                 "latent_path": ("STRING", {
-                    "default": "h3_context",
+                    "default": "bridge_latent",
                     "tooltip": "Latent file or folder. Relative paths are resolved from the ComfyUI output folder.",
                 }),
                 "clip_index": ("INT", {
                     "default": 0,
                     "min": 0,
                     "max": 9999,
-                    "tooltip": "Clip slot to load. 0 loads the newest safetensors file in the folder.",
+                    "tooltip": "Clip number to load from a folder. 0 loads the newest safetensors file.",
                 }),
             },
         }
@@ -1309,12 +1669,12 @@ class IO_SaveLatent:
         return {
             "required": {
                 "latent": ("LATENT",),
-                "filename_prefix": ("STRING", {"default": "h3_context/clip"}),
+                "filename_prefix": ("STRING", {"default": "bridge_latent/clip"}),
                 "clip_index": ("INT", {
                     "default": 0,
                     "min": 0,
                     "max": 9999,
-                    "tooltip": "Fixed clip slot to overwrite. 0 creates a new numbered file on every run.",
+                    "tooltip": "Fixed clip number to overwrite. 0 creates a new numbered file on every run.",
                 }),
             },
         }

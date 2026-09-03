@@ -293,10 +293,17 @@ from .advanced import NODE_CLASS_MAPPINGS as _ADVANCED_NODE_CLASS_MAPPINGS
 from .advanced import NODE_DISPLAY_NAME_MAPPINGS as _ADVANCED_NODE_DISPLAY_NAME_MAPPINGS
 from .turbo_sigma_scheduler import NODE_CLASS_MAPPINGS as _SCHEDULER_NODE_CLASS_MAPPINGS
 from .turbo_sigma_scheduler import NODE_DISPLAY_NAME_MAPPINGS as _SCHEDULER_NODE_DISPLAY_NAME_MAPPINGS
+from .attention_weighted_phrase import Krea2AttentionWeightedPhraseEncoder
 
 NODE_CLASS_MAPPINGS.update(_ADVANCED_NODE_CLASS_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(_ADVANCED_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(_SCHEDULER_NODE_CLASS_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(_SCHEDULER_NODE_DISPLAY_NAME_MAPPINGS)
+NODE_CLASS_MAPPINGS["Krea2AttentionWeightedPhraseEncoder"] = (
+    Krea2AttentionWeightedPhraseEncoder
+)
+NODE_DISPLAY_NAME_MAPPINGS["Krea2AttentionWeightedPhraseEncoder"] = (
+    "Krea2 Text Encode — Attention-Weighted Phrases"
+)
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

@@ -69,8 +69,12 @@ def parse_search(search):
     return name, args
 
 
-def expand_macros(text):
-    text, defs = get_function(text, "DEF", defaults=None)
+def expand_macros(text, defs=None):
+    silent = False
+    if defs is None:
+        text, defs = get_function(text, "DEF", defaults=None)
+    else:
+        silent = True
     res = text
     prevres = text
     replacements = []
@@ -95,7 +99,8 @@ def expand_macros(text):
         prevres = res
     if res.strip() != text.strip():
         res = res.strip()
-        log.debug("DEFs expanded to: %s", res)
+        if not silent:
+            log.debug("DEFs expanded to: %s", res)
     return res
 
 
@@ -108,11 +113,8 @@ def substitute_var(text, name, replace, boundary=r"\b"):
 
 def substitute_defcall(text, search, replace):
     name, default_args = search
-    text, defns = get_function(text, name, defaults=None, placeholder=f"DEFNCALL{name}", require_args=False)
-    for i, d in enumerate(defns):
-        ph = d.placeholder
-        assert ph is not None, "This is a bug"
-        parameters = d.args
+
+    def run_macro(*parameters):
         paramvals = []
         if parameters:
             paramvals = [x.strip() for x in parameters[0].split(";")]
@@ -123,6 +125,7 @@ def substitute_defcall(text, search, replace):
 
         for i, v in enumerate(default_args):
             r = substitute_var(r, i + 1, v, boundary=end_re)
+        return r
 
-        text = text.replace(ph, r)
+    text, _ = get_function(text, name, defaults=None, processor=run_macro, require_args=False)
     return text

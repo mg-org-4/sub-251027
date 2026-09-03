@@ -253,34 +253,43 @@ def make_node(graph, p, clip, strip):
     return node
 
 
+def build_prompt(graph, prompt, clip, start=None, end=None):
+    p = prompt
+    strip = "NOSTRIP()" not in p
+    p = p.replace("NOSTRIP()", "")
+    # Need to explicitly expand SEGs here *before* NODE is processed
+    p = expand_segs(p)
+    p, combines = split_by_function(p, "COMBINE")
+    current_cond = make_node(graph, p, clip, strip)
+    for text, f in combines:
+        classname, param1, param2, extra = parse_extra_inputs(f.args[0], ["", "conditioning_1", "conditioning_2"])
+        if classname.strip() == "":
+            raise ValueError("Can't use COMBINE without a class name")
+        combiner = graph.node(classname.strip())
+        c2 = make_node(graph, text, clip, strip)
+        extra[param1] = current_cond.out(0)
+        extra[param2] = c2.out(0)
+        for e, v in extra.items():
+            combiner.set_input(e, v)
+        current_cond = combiner
+
+    node = current_cond
+    if start is not None and end is not None:
+        node = graph.node("ConditioningSetTimestepRange")
+        node.set_input("conditioning", current_cond.out(0))
+        node.set_input("start", start)
+        node.set_input("end", end)
+
+    return node
+
+
 def build_scheduled_prompts(graph, schedules, clip):
     nodes = []
     start_pct = 0.0
     for end_pct, c in schedules:
         p = c["prompt"]
-        strip = "NOSTRIP()" not in p
-        p = p.replace("NOSTRIP()", "")
-        # Need to explicitly expand SEGs here *before* NODE is processed
-        p = expand_segs(p)
-        p, combines = split_by_function(p, "COMBINE")
-        current_cond = make_node(graph, p, clip, strip)
-        for text, f in combines:
-            classname, param1, param2, extra = parse_extra_inputs(f.args[0], ["", "conditioning_1", "conditioning_2"])
-            if classname.strip() == "":
-                raise ValueError("Can't use COMBINE without a class name")
-            combiner = graph.node(classname.strip())
-            c2 = make_node(graph, text, clip, strip)
-            extra[param1] = current_cond.out(0)
-            extra[param2] = c2.out(0)
-            for e, v in extra.items():
-                combiner.set_input(e, v)
-            current_cond = combiner
-
-        timestep = graph.node("ConditioningSetTimestepRange")
-        timestep.set_input("conditioning", current_cond.out(0))
-        timestep.set_input("start", start_pct)
-        timestep.set_input("end", end_pct)
-        nodes.append(timestep)
+        node = build_prompt(graph, p, clip, start_pct, end_pct)
+        nodes.append(node)
         start_pct = end_pct
 
     node = nodes[0]
@@ -346,9 +355,49 @@ class PCLazyTextEncode(io.ComfyNode):
         return PCLazyTextEncodeAdvanced.execute(clip, text)
 
 
+predefined_macros = get_function(
+    """
+DEF(AND=COMBINE(ConditioningCombine, conditioning_1, conditioning_2))
+DEF(CAT=COMBINE(ConditioningConcat, conditioning_to, conditioning_from))
+DEF(AVG(0.5)=COMBINE(ConditioningAverage, conditioning_from, conditioning_to, conditioning_to_strength $1))
+""",
+    "DEF",
+    defaults=None,
+)
+
+
+class PCLazyTextEncodeSingle(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="PCLazyTextEncodeSingle",
+            display_name="PC: Prompt (without scheduling)",
+            is_experimental=True,
+            is_dev_only=True,
+            enable_expand=True,
+            category="promptcontrol",
+            inputs=[
+                io.Clip.Input("clip", raw_link=True),
+                io.String.Input("text", multiline=True, default=""),
+            ],
+            outputs=[
+                io.Conditioning.Output("conditioning"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, clip, text):
+        graph = GraphBuilder()
+        text = expand_macros(text, predefined_macros)
+        node = build_prompt(graph, text, clip)
+        g = graph.finalize()
+        return io.NodeOutput(node.out(0), expand=g)
+
+
 NODES = [
     PCLazyTextEncode,
     PCLazyTextEncodeAdvanced,
+    PCLazyTextEncodeSingle,
     PCLazyLoraLoader,
     PCLazyLoraLoaderAdvanced,
 ]

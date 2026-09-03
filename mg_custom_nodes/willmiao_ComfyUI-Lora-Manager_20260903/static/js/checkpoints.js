@@ -3,15 +3,16 @@ import { confirmDelete, closeDeleteModal, confirmExclude, closeExcludeModal } fr
 import { createPageControls } from './components/controls/index.js';
 import { ModelDuplicatesManager } from './components/ModelDuplicatesManager.js';
 import { MODEL_TYPES } from './api/apiConfig.js';
+import { initActiveFiltersSync } from './utils/activeFiltersSync.js';
 
-// Initialize the Embeddings page
-class EmbeddingsPageManager {
+// Initialize the Checkpoints page
+export class CheckpointsPageManager {
     constructor() {
         // Initialize page controls
-        this.pageControls = createPageControls(MODEL_TYPES.EMBEDDING);
+        this.pageControls = createPageControls(MODEL_TYPES.CHECKPOINT);
         
         // Initialize the ModelDuplicatesManager
-        this.duplicatesManager = new ModelDuplicatesManager(this, MODEL_TYPES.EMBEDDING);
+        this.duplicatesManager = new ModelDuplicatesManager(this, MODEL_TYPES.CHECKPOINT);
         
         // Expose only necessary functions to global scope
         this._exposeRequiredGlobalFunctions();
@@ -31,23 +32,24 @@ class EmbeddingsPageManager {
     async initialize() {
         // Initialize common page features (including context menus)
         appCore.initializePageFeatures();
-        
-        console.log('Embeddings Manager initialized');
+
+        // Mirror active filters to the backend for the ComfyUI-side autocomplete
+        initActiveFiltersSync(MODEL_TYPES.CHECKPOINT);
+
+        console.log('Checkpoints Manager initialized');
     }
 }
 
-async function initializeEmbeddingsPage() {
+export async function initializeCheckpointsPage() {
     // Initialize core application
     await appCore.initialize();
 
-    // Initialize embeddings page
-    const embeddingsPage = new EmbeddingsPageManager();
-    await embeddingsPage.initialize();
+    // Initialize checkpoints page
+    const checkpointsPage = new CheckpointsPageManager();
+    await checkpointsPage.initialize();
 
-    return embeddingsPage;
+    return checkpointsPage;
 }
 
 // Initialize everything when DOM is ready
-document.addEventListener('DOMContentLoaded', initializeEmbeddingsPage);
-
-export { EmbeddingsPageManager, initializeEmbeddingsPage };
+document.addEventListener('DOMContentLoaded', initializeCheckpointsPage);

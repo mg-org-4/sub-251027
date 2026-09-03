@@ -228,6 +228,7 @@ import {
   collectMissingNodeTypeReasons,
   collectUnexplainedRedOutlines,
   combineNodeErrorMaps,
+  pruneContradictedNodeErrorMaps,
   graphErrorsFindingCounts,
   graphErrorsResultIsClean,
   nodeRedFlagIsStale,
@@ -1853,9 +1854,14 @@ async function registerComfyNodeDefs(preloadedDefs, runOpts, runControl) {
   if (replacementMayReplaceWholeSnapshot) {
     // #2027 — a stale browser bundle must not fence or clear last-known schema.
     // Ask before invalidate/beginReplacement so a large-/object_info miss on an
-    // older tab cannot worsen the next widget edit.
-    const staleBundle = await refuseStaleBundleRefresh();
-    if (staleBundle) return staleBundle;
+    // older tab cannot worsen the next widget edit. A caller that already supplied
+    // a verified payload has no refresh fetch to protect: the payload is the
+    // authoritative answer this command just obtained, so do not discard it merely
+    // because the bundle-version probe says a later on-disk bundle exists (#2124).
+    if (preloadedDefs == null) {
+      const staleBundle = await refuseStaleBundleRefresh();
+      if (staleBundle) return staleBundle;
+    }
     // #716 — drop the widget-write burst cache at the START of this run, not after it
     // succeeds (codex). This function runs on exactly the events that change the schema —
     // refresh_nodes, a completed install/download, reconnect — and a refresh that FAILS is
@@ -3032,7 +3038,7 @@ const DOCS_URL = "https://comfyui-mcp.artokun.io/docs";
 // could never catch the real failure, that set-version.mjs was not run at all,
 // since one script writes them together. That is how 0.15.86..0.15.96 shipped
 // still announcing 0.15.85.
-const PANEL_VERSION = "0.15.153";
+const PANEL_VERSION = "0.15.159";
 
 // #1269 — ONE panel bundle per page, arbitrated AT MODULE SCOPE, before either
 // copy's registration polling can run. Two installs of this pack (a git clone at
@@ -12504,6 +12510,23 @@ async function validationBanner() {
   } catch {
     bannerStalePlaceholders = [];
   }
+  // #2192 — the SAME correlation graph_get_errors now runs, for the same reason and
+  // with more at stake: this banner asserts the user "is seeing these RIGHT NOW", so a
+  // rejection whose link has since been repaired makes the panel state something about
+  // the user's screen that is not true. `app.lastNodeErrors` is only replaced on the
+  // NEXT queue attempt, so nothing about repairing the graph clears it.
+  //
+  // Placed after the binding guard above, on the root graph that guard just proved is
+  // still the one this read started against — correlating against a graph that changed
+  // mid-read is how a live error would get dropped. Pruning HERE (not at the top, where
+  // nodeErrors is read) also puts the corrected map inside `missing.any`'s clean check
+  // and inside `sig`, so repairing the link both stops the banner and counts as a change
+  // — matching what the missing-asset entries in that signature already do.
+  try {
+    nodeErrors = pruneContradictedNodeErrorMaps(postProbeRootGraph, [nodeErrors]).nodeErrors;
+  } catch {
+    /* a banner must never throw; an unpruned map is the safe direction */
+  }
   missing.any = !!(
     missing.models.length ||
     missing.media.length ||
@@ -16303,12 +16326,17 @@ const GRAPH_TOOL_EXECUTORS = {
         // already partly spent, and on the reported scenario (a ComfyUI restart, whose
         // reconnect refresh is still running) it could park here until the relay gave up
         // and the user got the bare "did not reply" this whole change exists to replace.
+        // #2124 — the resolver has already obtained an authoritative definition. Carry
+        // that payload into the recovery instead of throwing it away and starting another
+        // whole-schema fetch; the class-scoped payload is enough to replace this class and
+        // avoids turning a stale-bundle verdict for the second fetch into a false refusal.
         //
         // Same allowance as the resolver's join, and the same reserve held back, so a
         // drift recovery cannot eat the window the widget-registration wait still needs.
-        const verdict = await refreshComfyNodeDefs(undefined, {
+        const verdict = await refreshComfyNodeDefs(freshDefs, {
           force: true,
           joinMs: budget.remaining() - ADD_NODE_POST_REFRESH_RESERVE_MS,
+          preloadedWholeSchema: !freshDefsAreSingleClass,
         });
         if (verdict === REFRESH_JOIN_ABANDONED) {
           // A NAMED reason, not the "unknown" the generic branch below produces for a
@@ -20119,8 +20147,7 @@ const GRAPH_TOOL_EXECUTORS = {
         // graph or replace it with a less useful queue-time error.
         throw new Error(graphToPromptFailureRefusal(preflightBuild.error));
       }
-      const built = preflightBuild.value;
-      preflightPrompt = built;
+      let built = preflightBuild.value;
       // comfyui-mcp#1582 — SERIALIZATION ITSELF CAN FAIL, and this is where that has to
       // be caught. `unrunnableNodeIds(undefined)` answers `[]` — correctly, since a
       // result that does not exist has no unrunnable entries in it — and the check below
@@ -20148,6 +20175,57 @@ const GRAPH_TOOL_EXECUTORS = {
           ),
         );
       }
+      // #2180 — graph_load is shared by panel_load_workflow and panel_flatten_workflow.
+      // A programmatic load can leave real custom-node instances on the canvas before
+      // this tab has their classes in LiteGraph.registered_node_types. The first prompt
+      // then carries missing class_type values even though the backend's /object_info can
+      // repair the registry. Refresh and reserialize once; if either operation cannot
+      // prove recovery, the existing refusal below remains the fail-closed outcome.
+      if (unrunnableNodeIdsInScope(built, partialTargets).length) {
+        // Keep 5s for the queue/receipt path after this recovery refresh.
+        const refreshBudget = budget.bounded(5000);
+        try {
+          await refreshComfyNodeDefs(undefined, {
+            force: true,
+            joinMs: refreshBudget,
+            runBudgetMs: refreshBudget,
+            // The refresh's own reapply sweep already has the fetched definitions and
+            // repairs the loaded instances; avoid paying for a second /object_info read.
+            skipDuplicateComboRefresh: true,
+          });
+        } catch {
+          // The retry below is deliberately still made: a late single-flight refresh may
+          // have completed its registration, and a failed refresh must not become a new
+          // panel_run failure mode.
+        }
+        const retryBuild = await withTimeout(
+          Promise.resolve(app.graphToPrompt()).then(
+            (value) => ({ value }),
+            (error) => ({ error }),
+          ),
+          budget.bounded(RUN_SERIALIZE_TIMEOUT_MS),
+          () => null,
+        );
+        if (retryBuild == null) throw new Error("graph_run recovery pre-flight: graphToPrompt did not answer in time");
+        if ("error" in retryBuild) {
+          throw new Error(graphToPromptFailureRefusal(retryBuild.error));
+        }
+        built = retryBuild.value;
+        // The recovery serializer is independently untrusted: a refresh can repair the
+        // registry while the second graphToPrompt still returns no usable prompt. Keep the
+        // same fail-closed refusal before this recovered value can reach queuePrompt.
+        if (graphToPromptUnusable(built)) {
+          throw new Error(
+            unserializableGraphRefusal(
+              unresolvedNodeTypes(
+                rootGraph ?? graph,
+                (window.LiteGraph ?? globalThis.LiteGraph)?.registered_node_types ?? {},
+              ),
+            ),
+          );
+        }
+      }
+      preflightPrompt = built;
       // comfyui-mcp#1871 — SCOPED to the requested branch. The refusal's own premise ("a
       // run carrying an unregistered type cannot succeed") holds for a full run and stopped
       // holding for a run-to-node once #1511 let ComfyUI's refusal of an excluded branch be
@@ -21315,7 +21393,19 @@ const GRAPH_TOOL_EXECUTORS = {
     // These are independent live stores. The app map can be an empty object
     // after a reset while the execution store still retains the actual rejected
     // prompt, so never let nullish selection make an empty app map mask it.
-    const nodeErrors = combineNodeErrorMaps([comfy?.lastNodeErrors ?? null, storeNodeErrors]);
+    // #2192 — that union is a snapshot of the LAST queue rejection and the frontend
+    // only replaces it on the NEXT one, so a repaired link keeps being reported. Drop
+    // the entries the LIVE graph contradicts before anything downstream reads them —
+    // the per-node join, `clean`, the red-outline adjudication and the payload all
+    // have to agree, and the contradiction the reporter saw (`errored_count: 0` beside
+    // a populated `node_errors`) is exactly what happens when they do not.
+    // Each map is adjudicated on its own and the survivors are unioned — never the other
+    // way round. Merging first lets the LAST map's `class_type` govern the FIRST map's
+    // errors, and a stale store entry then drops a live app error with it (codex gate P1).
+    const { nodeErrors, dropped: contradictedNodeErrors } = pruneContradictedNodeErrorMaps(
+      rootGraph,
+      [comfy?.lastNodeErrors ?? null, storeNodeErrors],
+    );
     if (nodeErrors) {
       for (const [id, entry] of Object.entries(nodeErrors)) {
         for (const e of entry?.errors ?? []) {
@@ -21526,6 +21616,31 @@ const GRAPH_TOOL_EXECUTORS = {
       // current_inputs/current_outputs and huge traceback lines (41k+ tokens).
       last_execution_error: boundExecFailurePayload(execFailureDetail),
       node_errors: nodeErrors,
+      // #2192 — a removal is disclosed, never silent: the caller can see WHICH stale
+      // rejection was withheld and on what evidence, instead of wondering whether a
+      // real error went missing between two reads. Capped like its sibling lists — and
+      // the cut is stated, because a silently short list inside a list whose whole job
+      // is disclosure would be the same defect this field exists to close (#809).
+      ...(contradictedNodeErrors.length
+        ? {
+            stale_node_errors: contradictedNodeErrors.slice(0, MAX_STATE_NODES),
+            stale_node_errors_note: tr(
+              "panel.these_validation_errors_from_the_last_queue",
+              "Recorded at the LAST queue attempt; the live graph disagrees with each, so they are reported here rather than in node_errors (the frontend only replaces that map on the next queue attempt). Every entry carries its errors IN FULL plus the evidence in contradicted_by, so for the conservative reading treat these as still live. This judgement reads the node definitions THIS TAB loaded, which a server-side pack update can get ahead of; the list itself is capped, and a cut is always reported with the true total.",
+            ),
+            ...(contradictedNodeErrors.length > MAX_STATE_NODES
+              ? {
+                  stale_node_errors_truncated: true,
+                  stale_node_errors_truncation_hint: fixedCapNote(
+                    "dropped stale validation error(s)",
+                    MAX_STATE_NODES,
+                    contradictedNodeErrors.length,
+                    "These were withheld as contradicted, not reported as errors; there is no parameter to page them.",
+                  ),
+                }
+              : {}),
+          }
+        : {}),
       ...(clean ? { note: tr("panel.no_errors_recorded_since_the_last_execution", "no errors recorded since the last execution start") } : {}),
     };
   },

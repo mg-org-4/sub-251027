@@ -57,7 +57,24 @@ Training-free methods that push pre-trained DiT models far beyond their native r
 | **❖ [PixelRush](#user-content-pixelrush)** | Cascade patch refinement of an existing base image. |
 | **❖ [FreeScale](#user-content-freescale)** | Tuning-free self-cascade upscaling. |
 
+### Which method when?
+
+Two families: **model patches** alter how your own KSampler run attends (no image input) — best for *native* high-res generation; **cascades** consume an existing latent/image and refine it.
+
+| Method | Models | Mechanism | Takes your image | Output character |
+|:---|:---|:---|:---:|:---|
+| **DyPE** | FLUX, Nunchaku, Qwen/Krea-2, Z-Image, Anima | Dynamic position-encoding extrapolation | ✗ | Native high-res generation |
+| **SEGA** | FLUX, Nunchaku, Qwen/Krea-2, Z-Image, Anima | Spectral-energy RoPE sharpening | ✗ | Native high-res generation |
+| **SPA** | FLUX, Qwen/Krea-2, Z-Image, Anima | Position-bundle attention alignment | ✗ | Native high-res generation |
+| **HAP** | FLUX, Qwen/Krea-2, Z-Image, Anima | Calibrated sparse attention (speed) | ✗ | Native high-res generation |
+| **PixelRush** | Any (SDXL, SD1.5, FLUX, Qwen, …) | Patch-wise low-denoise img2img cascade | ✓ | Faithful upscale + refinement |
+| **FreeScale** | FLUX-family DiTs | Scale-fused attention + self-cascade | ✓ | Regenerative hi-res, mostly new content |
+
+> [!TIP]
+> **Quick picker:** starting from noise → DyPE (or SEGA), add SPA if you see repeated/collapsed structures, add HAP for speed. Starting from an existing image → PixelRush to keep it faithful, FreeScale to re-imagine it at high res (lower its `noise_timestep` for more fidelity).
+
 <a id="user-content-dype"></a>
+
 ### ❖ DyPE
 
 Dynamic Position Extrapolation ([paper](https://arxiv.org/abs/2411.17087), [code](https://github.com/guyyariv/DyPE)). Adjusts positional encodings at each denoising step to match the current stage of generation — low-frequency structure early, fine detail later. Training-free, no additional sampling cost.
@@ -233,12 +250,18 @@ Cascade-based refinement node. Generates at native resolution first, then progre
 | Parameter | Description |
 |:---|:---|
 | `num_cascade_stages` | Number of cascade stages — each doubles the resolution. |
-| `noise_lambda` | Noise injection strength per cascade stage. |
+| `refiner_model` | **Optional** separate refiner model (paper setup: SDXL base + SDXL-Turbo). When not connected, the base model refines too. |
+| `noise_lambda` | Noise injection coefficient — the weight of the model's prediction (paper default 0.95 = 95% prediction + 5% random noise). |
+| `noise_injection` | `slerp` (paper default) or `additive` (legacy pre-2.9 behavior, kept for workflows tuned against it). |
 | `overlap` | Overlap between adjacent patches (blends seams). |
+| `gaussian_sigma` | Analytic Gaussian feather sigma (paper default 24; rule of thumb: σ ≈ patch_size / 5). |
 | `patch_h` / `patch_w` | Latent patch size (~native spatial size keeps VRAM flat). |
 
 > [!NOTE]
 > PixelRush calls the diffusion model directly (not through ComfyUI's sampler), performing its own CFG and prediction-type handling for EPS, flow, V-prediction and X0 models.
+
+> [!IMPORTANT]
+> **2.9 migration notes:** the noise injection now uses the paper's SLERP with λ weighting the model's prediction (set `noise_injection` to `additive` for the legacy formula); `gaussian_sigma` default moved 8 → 24 and its range extends to 128; the `gaussian_kernel_size` input was removed (the mask is now the paper's analytic Gaussian — old workflows simply ignore the stale value).
 
 </details>
 
@@ -308,6 +331,16 @@ Restart ComfyUI. No further dependency installation is required.
 <p align="right"><a href="#readme-top" title="back to top">⟔ ▲ ⟓</a></p>
 
 ## ▓ Changelog
+
+### v2.9.1 — 2026-09-02
+- **Fixed the PixelRush noise-injection λ convention** (user-reported "structure visible but completely noisy, soft blurred patches"). The injection now uses `slerp(eps_random, eps_refined, λ)` — λ weights the **model's prediction** (0.95 = 95% prediction + 5% noise). The previous order (`slerp(eps_pred, eps_random, λ)`) made λ=0.95 mean 99.6% pure random noise: at real scales per-pixel noise std ≈ 1.17 vs signal ≈ 1.0, which rendered through the Gaussian feather as the reported soft-patch noise. The `additive` legacy mode uses the same convention (`eps_refined + (1−λ)·eps_random`). This was exactly the argument-order caveat `pixelrush-correct.txt` flagged for verification against the authors' implementation.
+
+### v2.9.0 — 2026-09-02
+- **PixelRush realigned with the corrected theory** (plan 2026-09-02): standard raw-vector SLERP (with collinear lerp fallback) for the noise injection — the paper's `slerp(eps_pred, eps_random, λ)` is now the default, with the 2026-08-13 additive injection kept as an opt-in (`noise_injection`).
+- **Fixed the VAE/model space mixing** in the forward/reverse steps: adapters now convert via `process_latent_in/out`, so the model sees noise at the scale its timestep claims. For SDXL the previous code under-noised 7.7× — the root cause behind the "compressed look" that the additive hack had papered over.
+- Generic DDIM transitions (`ddim_deterministic_step` between arbitrary timesteps, `predict_x0_from_epsilon`); analytic Gaussian feather mask (σ default 24, `gaussian_kernel_size` input removed).
+- **Optional `refiner_model` input** — use a separate distilled refiner (e.g. SDXL-Turbo) as in the paper; the base model drives the partial inversion.
+- **Bug fixes:** empty-negative conditioning no longer amplifies eps by `cfg_scale` (CFG is skipped); `alpha_k` NameError with partially-provided adapters; empty positive now raises a clear error.
 
 ### v2.8.3 — 2026-08-31
 - **Qwen2D VAE support disabled by default.** User reports showed that with the Qwen2D VAE interception installed, loading certain non-Qwen2D (video-style) VAE checkpoints crashed with a size-mismatch error whose traceback passed through this pack's delegation frame — breaking workflows that never used the Qwen2D VAE. The patch now installs only when the environment variable `DYPE_ENABLE_QWEN2D_VAE=1` is set. If you relied on the Qwen2D VAE (Anzhc/Qwen2D-VAE checkpoint with FreeScale/PixelRush on Krea-2/Qwen/Anima), set that variable in your ComfyUI environment to restore the previous behavior.

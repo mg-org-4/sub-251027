@@ -1161,6 +1161,7 @@ class QwenVLBase:
                 print(f"[QwenVL] Using cached prompt for seed {seed}: {cache_key[:8]}...")
                 return (cached_text,)
         
+        prompt_template = add_danbooru_guidance(prompt_template, preset_prompt)
         if custom_prompt and custom_prompt.strip():
             # Combine user input with template - custom prompt first for priority
             prompt = f"{custom_prompt.strip()}\n\n{prompt_template}"
@@ -1197,7 +1198,7 @@ class QwenVLBase:
                 f"\n\n═══ FINAL CAMERA DIRECTIVE (HIGHEST PRIORITY) ═══\n"
                 f"Camera: {tag_str} — {desc}\n"
                 f"You MUST use this camera movement and NO other. "
-                f"State it explicitly in the first sentence of [Shot 1].\n"
+                f"{camera_directive_location(preset_prompt, prompt)}\n"
                 f"IMPORTANT: the camera tag controls ONLY the camera. "
                 f"The subject MUST still have natural, lively action and "
                 f"movement throughout the clip — breathing, gestures, "
@@ -1208,7 +1209,7 @@ class QwenVLBase:
                 f"═══ END DIRECTIVE ═══"
             )
             prompt = prefix + prompt + reminder
-            
+
         self.load_model(
             model_name,
             quantization,
@@ -1398,6 +1399,80 @@ CAMERA_TAG_TOOLTIP = (
     "'None' lets the preset decide. Any other value is injected as a "
     "[TAG] and reinforced at the end of the prompt so Qwen respects it."
 )
+
+# ── Style tag dropdown ────────────────────────────────────────────────
+# Replaces the vidstyle.txt wildcard for T2VA/T2V presets. Injected with
+# the same priority mechanism as camera_tag: prefix + final reminder.
+STYLE_TAG_OPTIONS = [
+    "None",
+    "[ANIME]",
+    "[PHOTOREALISTIC]",
+    "[3DCG]",
+    "[CARTOON]",
+    "[CLAYMATION]",
+    "[WATERCOLOR]",
+    "[VINTAGE]",
+    "[NOIR]",
+    "[CYBERPUNK]",
+    "[FANTASY]",
+    "[SOFTFOCUS]",
+    "[HENTAI]",
+]
+
+STYLE_TAG_DESCRIPTIONS = {
+    "ANIME":        "2D-animated, cel-shaded, vibrant anime color palette, clean lineart, anime-style lighting",
+    "PHOTOREALISTIC": "Live-action, cinematic photorealism, natural skin textures, realistic lighting, shallow depth of field",
+    "3DCG":         "3D CG rendered, subsurface scattering, physically based rendering, cinematic 3D animation",
+    "CARTOON":      "2D cartoon, bold outlines, flat colors, exaggerated expressions, cartoon-style animation",
+    "CLAYMATION":   "Claymation, stop-motion clay texture, handcrafted look, visible fingerprints, studio lighting",
+    "WATERCOLOR":   "Watercolor painting style, soft bleeding pigments, paper texture, hand-painted aesthetic",
+    "VINTAGE":      "Vintage film, 35mm grain, muted colors, halation, film scratches, analog warmth",
+    "NOIR":         "Film noir, high-contrast black and white, harsh shadows, venetian blind light, moody atmosphere",
+    "CYBERPUNK":    "Cyberpunk, neon-lit, holographic displays, rainy night, chrome reflections, magenta-cyan palette",
+    "FANTASY":      "Fantasy, ethereal lighting, magical particles, painterly atmosphere, mystical glow",
+    "SOFTFOCUS":    "Soft focus, dreamy diffusion, bloom, pastel palette, romantic atmosphere",
+    "HENTAI":       "2D-animated hentai, cel-shaded, explicit anime style, clean lineart, anime-style lighting",
+}
+
+STYLE_TAG_TOOLTIP = (
+    "Visual style override for video presets (MiniMax H3, LTX 2.3, WAN, etc). "
+    "'None' lets the preset decide. Any other value is injected as a "
+    "[TAG] and reinforced at the end of the prompt so Qwen respects it. "
+    "For image-reference modes, identity and composition remain anchored to the references."
+)
+
+DANBOORU_INPUT_GUIDANCE = """INPUT TAG SUPPORT:
+- The user input may be natural language, Danbooru-style comma-separated tags, or mixed text with TagComplete wildcards already resolved.
+- Treat Danbooru tags as a visual blueprint and expand them into fluent cinematic English.
+- Preserve every non-conflicting tag: subject count, identity, anatomy, hair, eyes, clothing, pose, expression, action, environment, lighting, framing, and style.
+- Resolve conflicting tags logically instead of silently dropping them.
+- Anime-typical tags default to 2D animation unless a style directive or reference image establishes another style.
+- Text input takes priority for requested action and motion; reference images remain authoritative for visible identity, appearance, and composition unless the user explicitly requests a change."""
+
+
+def add_danbooru_guidance(prompt, preset_name):
+    name = preset_name or ""
+    if "LTX 2.3" not in name and not ("MiniMax H3" in name and ("R2VA" in name or "FL2VA" in name)):
+        return prompt
+    if "INPUT TAG SUPPORT:" in prompt or "Danbooru-style tags" in prompt:
+        return prompt
+    return f"{prompt}\n\n{DANBOORU_INPUT_GUIDANCE}"
+
+
+def camera_directive_location(preset_name, prompt=""):
+    context = f"{preset_name or ''}\n{prompt or ''}"
+    if "LTX 2.3" in context:
+        return "State it explicitly in the first sentence of the video description; do not introduce a [Shot 1] label unless the selected preset already requires one."
+    if "MiniMax H3" in context:
+        return "State it explicitly in the first sentence of [Shot 1]."
+    return "State it explicitly in the first sentence of the generated video prompt."
+
+
+def style_reference_guard(preset_name, prompt=""):
+    context = f"{preset_name or ''}\n{prompt or ''}"
+    if any(mode in context for mode in ("I2V", "FL2VA", "R2VA", "L2VA")):
+        return " Apply the style consistently while preserving the reference image subjects' identity, visible appearance, composition, and continuity unless the user explicitly requests a change."
+    return ""
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "AILab_QwenVL": "QwenVL-Mod",

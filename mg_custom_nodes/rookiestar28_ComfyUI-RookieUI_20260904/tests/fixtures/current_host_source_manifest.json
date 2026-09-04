@@ -1,0 +1,271 @@
+{
+  "artifacts": [
+    {
+      "byte_drift": "unchanged",
+      "bytes": 20149,
+      "evidence": "direct-byte-hash",
+      "path": "app/user_manager.py",
+      "semantic_drift": "none",
+      "sha256": "28c89ca744702721839c586e9851a5abf9ff6057234be779dc1b72a2be9ef308",
+      "subject": "core"
+    },
+    {
+      "byte_drift": "unchanged",
+      "bytes": 49739,
+      "evidence": "direct-byte-hash",
+      "path": "comfy_extras/nodes_custom_sampler.py",
+      "semantic_drift": "none",
+      "sha256": "b0ba1521c72475e06fed15db004274ed7c8bb2bf73f1d58849faf6f9f9d264fe",
+      "subject": "core"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 73045,
+      "evidence": "pinned-git-blob-hash",
+      "path": "comfy_extras/nodes_images.py",
+      "semantic_drift": "graph-contract-compatible",
+      "sha256": "8f55ec8bf579c40176a1836067b873ef7c2ce437ea95a07fdbabe83cdf6c4223",
+      "subject": "core"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 15871,
+      "evidence": "direct-byte-hash",
+      "path": "comfy_extras/nodes_model_advanced.py",
+      "semantic_drift": "runtime-contract-compatible",
+      "sha256": "46de8e11873a00b7938737e77bdde3579a2236f54799174ab45ed80f8a10ae09",
+      "subject": "core"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 44785,
+      "evidence": "direct-byte-hash",
+      "path": "comfy_extras/nodes_model_patch.py",
+      "semantic_drift": "runtime-contract-compatible",
+      "sha256": "a059351facbb31895bf7be3f0155daaef87772bb8f4de3b001cff9bb88f3784c",
+      "subject": "core"
+    },
+    {
+      "byte_drift": "unchanged",
+      "bytes": 23350,
+      "evidence": "direct-byte-hash",
+      "path": "comfy_extras/nodes_textgen.py",
+      "semantic_drift": "none",
+      "sha256": "1813182f0b50545adfb51a4aace23d3cd86de312a287edf3aebc8ec84df1fde7",
+      "subject": "core"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 61543,
+      "evidence": "pinned-git-blob-hash",
+      "path": "execution.py",
+      "semantic_drift": "runtime-contract-compatible",
+      "sha256": "60e8333ec976e8723bba3aa854993963e2edfa21d62f2446fc68b8ea7ca7c480",
+      "subject": "core"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 108193,
+      "evidence": "direct-byte-hash",
+      "path": "nodes.py",
+      "semantic_drift": "graph-contract-compatible",
+      "sha256": "5068f3532233f2a14b21a61dc122123aa90dc12c0ddb6fdc513bee2c889162f6",
+      "subject": "core"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 532,
+      "evidence": "version-manifest-hash",
+      "path": "requirements.txt",
+      "semantic_drift": "none",
+      "sha256": "40f1398128730708aea1ec4d291128571052d866bd81eb631370c27875529d9a",
+      "subject": "core"
+    },
+    {
+      "byte_drift": "unchanged",
+      "bytes": 64758,
+      "evidence": "direct-byte-hash",
+      "path": "server.py",
+      "semantic_drift": "none",
+      "sha256": "74573b10465505b88b618da86059878e3a56418f84c7dae4073c8824aee35a6c",
+      "subject": "core"
+    },
+    {
+      "byte_drift": "unchanged",
+      "bytes": 4909,
+      "evidence": "version-manifest-hash",
+      "path": "package.json",
+      "semantic_drift": "none",
+      "sha256": "6b59c06835f997e16df5164a0b167dde1ccf48c3eda303c9fa57632e754124e6",
+      "subject": "desktop"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 12139,
+      "evidence": "version-manifest-hash",
+      "path": "package.json",
+      "semantic_drift": "none",
+      "sha256": "cd9bd73ba585633987690e0b9fa32e755c76c54d36f3d2a2a65c7edbb6f28b01",
+      "subject": "frontend"
+    },
+    {
+      "byte_drift": "unchanged",
+      "bytes": 766,
+      "evidence": "direct-byte-hash",
+      "path": "src/components/common/ExtensionSlot.vue",
+      "semantic_drift": "none",
+      "sha256": "f2f0e957102c8ab56830eb58caa297466f3bf8ad3b8b4096f482c03c1d8b3f3a",
+      "subject": "frontend"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 10347,
+      "evidence": "direct-byte-hash",
+      "path": "src/components/sidebar/SideToolbar.vue",
+      "semantic_drift": "toolbar-visibility-compatible",
+      "sha256": "9403b541268cd4bf163240edb65cf117e2f36b0fb8f17f0f6e894701b23d562b",
+      "subject": "frontend"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 18830,
+      "evidence": "direct-byte-hash",
+      "path": "src/schemas/apiSchema.ts",
+      "semantic_drift": "api-schema-compatible",
+      "sha256": "67fb3845ecfbc9ed964d17e274f17daaa3e3a5f16723d0af933c0dde78c6ce1e",
+      "subject": "frontend"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 52263,
+      "evidence": "pinned-git-blob-hash",
+      "path": "src/scripts/api.ts",
+      "semantic_drift": "event-dispatch-compatible",
+      "sha256": "83a14ae190015005660b53970e8fb9b5f46e048f632607976bd371d0c6fcf914",
+      "subject": "frontend"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 36654,
+      "evidence": "direct-byte-hash",
+      "path": "src/stores/executionStore.ts",
+      "semantic_drift": "workflow-isolation-compatible",
+      "sha256": "94d9309c8d24d689e7e0b4f230525e7589e9817fd592975c42399a9ef0720573",
+      "subject": "frontend"
+    },
+    {
+      "byte_drift": "unchanged",
+      "bytes": 5835,
+      "evidence": "direct-byte-hash",
+      "path": "src/stores/workspace/sidebarTabStore.ts",
+      "semantic_drift": "none",
+      "sha256": "de4f2eb9b9d0edebafc9b0ca679f3565893b40d5a658eb37f19301d1811d2bb7",
+      "subject": "frontend"
+    },
+    {
+      "byte_drift": "unchanged",
+      "bytes": 3753,
+      "evidence": "direct-byte-hash",
+      "path": "src/types/extensionTypes.ts",
+      "semantic_drift": "none",
+      "sha256": "bbd1f4b8d05fd3f49f39082b536680ba20e737cef2266220af7adfb23a87f307",
+      "subject": "frontend"
+    },
+    {
+      "byte_drift": "changed",
+      "bytes": 1681,
+      "evidence": "version-manifest-hash",
+      "path": "pyproject.toml",
+      "semantic_drift": "none",
+      "sha256": "d70603c86698dcdcbd7d84e6e4dd6d8f363ec7f49e960cf85c784e9fb30fbd66",
+      "subject": "workflow_templates"
+    }
+  ],
+  "captured_at": "2026-09-04T03:01:01+08:00",
+  "comparisons": [
+    {
+      "byte_drift": "mixed",
+      "from_revision": "c67885b14556cf3e4e061862925282d403d09862",
+      "owner": "core-contract-rebaseline",
+      "semantic_drift": "graph-and-runtime-contract-compatible",
+      "source_drift": "revision-and-component",
+      "subject": "core",
+      "to_revision": "30bdda1ef13a3a34fce2cd2fec633f15d832122a"
+    },
+    {
+      "byte_drift": "unchanged",
+      "from_revision": "e2d964b7456cea8423c7b9d3371c612313c06baa",
+      "owner": "source-freeze",
+      "semantic_drift": "none",
+      "source_drift": "none",
+      "subject": "desktop",
+      "to_revision": "e2d964b7456cea8423c7b9d3371c612313c06baa"
+    },
+    {
+      "byte_drift": "mixed",
+      "from_revision": "569e65b30fbfe96743c7996e201a32bcf029a310",
+      "owner": "frontend-host-integration-alignment",
+      "semantic_drift": "sidebar-and-runtime-compatible",
+      "source_drift": "revision-and-version",
+      "subject": "frontend",
+      "to_revision": "8f3b1569e4241ebbb5a9333da2bd09465947c40c"
+    },
+    {
+      "byte_drift": "changed",
+      "from_revision": "f54739874c88e5a1154275c4597b3860e5a617b4",
+      "owner": "workflow-template-alignment",
+      "semantic_drift": "semantic-review-pending",
+      "source_drift": "revision-and-component",
+      "subject": "workflow_templates",
+      "to_revision": "b0bcdb274878ea3c5cf46fed3819faa05b920707"
+    }
+  ],
+  "manifest_kind": "candidate-host-source-freeze",
+  "schema_version": "current-host-source-manifest-v4",
+  "serialization": {
+    "array_order": "subject-then-path",
+    "encoding": "UTF-8",
+    "newline_terminated": true,
+    "sort_keys": true
+  },
+  "subjects": {
+    "core": {
+      "components": {
+        "embedded_docs": "0.5.10",
+        "frontend_package": "1.51.9",
+        "workflow_templates": "0.11.54"
+      },
+      "kind": "git-host",
+      "revision": "30bdda1ef13a3a34fce2cd2fec633f15d832122a",
+      "status": "candidate-frozen"
+    },
+    "desktop": {
+      "kind": "git-host-control",
+      "revision": "e2d964b7456cea8423c7b9d3371c612313c06baa",
+      "status": "unchanged-control",
+      "version": "0.9.4"
+    },
+    "frontend": {
+      "kind": "git-host",
+      "revision": "8f3b1569e4241ebbb5a9333da2bd09465947c40c",
+      "status": "candidate-frozen",
+      "version": "1.54.1"
+    },
+    "workflow_templates": {
+      "artifact_status": "artifact-checksum-verified",
+      "components": {
+        "assets": "0.1.38",
+        "core": "0.3.331",
+        "json": "0.1.66",
+        "media_api": "0.3.84",
+        "media_image": "0.3.160",
+        "media_other": "0.3.229",
+        "media_video": "0.3.101",
+        "meta": "0.11.54"
+      },
+      "kind": "git-package-source",
+      "revision": "b0bcdb274878ea3c5cf46fed3819faa05b920707",
+      "tag": "v0.11.54"
+    }
+  }
+}

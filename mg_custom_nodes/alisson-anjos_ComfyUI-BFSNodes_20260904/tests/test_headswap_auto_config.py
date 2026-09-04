@@ -20,6 +20,15 @@ ROOT = Path(__file__).resolve().parents[1]
 for name in ("comfy", "comfy.model_management", "comfy.utils"):
     sys.modules.setdefault(name, types.ModuleType(name))
 
+# the module reaches comfy.utils.common_upscale as an attribute, so the stub has
+# to be attached to the package, not just registered in sys.modules
+def _common_upscale(samples, width, height, upscale_method, crop):
+    return torch.nn.functional.interpolate(samples, size=(height, width), mode="bilinear")
+
+sys.modules["comfy.utils"].common_upscale = _common_upscale
+sys.modules["comfy"].utils = sys.modules["comfy.utils"]
+sys.modules["comfy"].model_management = sys.modules["comfy.model_management"]
+
 SPEC = importlib.util.spec_from_file_location(
     "headswap_ltx_masked_sampler", ROOT / "headswap_ltx_masked_sampler.py")
 assert SPEC is not None and SPEC.loader is not None
@@ -181,6 +190,230 @@ class DirectionalGrowTest(unittest.TestCase):
     def test_zero_growth_leaves_the_mask_alone(self):
         m = torch.rand(2, 16, 16).round()
         self.assertTrue(torch.equal(NODE._grow_blur(m, (0, 0, 0, 0), 0), m))
+
+
+class GenericIcLoraTest(unittest.TestCase):
+    """The node is not head-swap specific: a LoRA that works from the guide
+    alone must be able to run with the reference slot empty."""
+
+    def test_identity_image_is_optional(self):
+        types = NODE.BFSHeadSwapMaskedSampler.INPUT_TYPES()
+        self.assertNotIn("identity_image", types["required"])
+        self.assertIn("identity_image", types["optional"])
+
+    def test_execute_defaults_it_to_none(self):
+        import inspect
+        sig = inspect.signature(NODE.BFSHeadSwapMaskedSampler.execute)
+        self.assertIsNone(sig.parameters["identity_image"].default)
+
+    def test_the_guide_is_still_required(self):
+        self.assertIn("guide_video", NODE.BFSHeadSwapMaskedSampler.INPUT_TYPES()["required"])
+
+    def test_registration_keys_are_unchanged(self):
+        # saved workflows reference these, the display name is free to change
+        self.assertIn("BFSHeadSwapMaskedSampler", NODE.NODE_CLASS_MAPPINGS)
+        self.assertIn("BFSHeadSwapPasteBack", NODE.NODE_CLASS_MAPPINGS)
+
+    def test_the_display_name_no_longer_claims_head_swap(self):
+        for name in NODE.NODE_DISPLAY_NAME_MAPPINGS.values():
+            self.assertNotIn("Head Swap", name)
+
+
+class PasteBackWithoutCropTest(unittest.TestCase):
+    """Crop off, mask on: everything the edit did not touch must stay the
+    source's own pixels, not the VAE's round trip of them."""
+
+    def setUp(self):
+        self.node = NODE.BFSHeadSwapMaskedSampler()
+        self.original = torch.zeros(3, 8, 8, 3)          # source frames
+        self.result = torch.ones(3, 8, 8, 3)             # what the sampler returned
+        self.mask = torch.zeros(3, 8, 8)
+        self.mask[:, 2:5, 2:5] = 1.0
+
+    def test_outside_the_mask_is_the_source_verbatim(self):
+        out = self.node._paste_back(self.result, self.original, None, 16, self.mask)
+        self.assertTrue(torch.equal(out[:, 0, 0], self.original[:, 0, 0]))
+        self.assertTrue(torch.equal(out[:, 7, 7], self.original[:, 7, 7]))
+
+    def test_inside_the_mask_is_the_result(self):
+        out = self.node._paste_back(self.result, self.original, None, 16, self.mask)
+        self.assertTrue(torch.equal(out[:, 3, 3], self.result[:, 3, 3]))
+
+    def test_without_a_mask_nothing_is_composited(self):
+        out = self.node._paste_back(self.result, self.original, None, 16, None)
+        self.assertTrue(torch.equal(out, self.result))
+
+    def test_a_result_of_another_size_is_brought_back_to_the_frame(self):
+        big = torch.ones(3, 16, 16, 3)
+        out = self.node._paste_back(big, self.original, None, 16, self.mask)
+        self.assertEqual(out.shape, self.original.shape)
+
+
+class ChunkOverlapTest(unittest.TestCase):
+    """Chunks are sampled with an overlap for continuity. Concatenating them
+    whole made the clip longer than it is, so every frame after the first seam
+    landed on the wrong moment -- and, with per-frame crop boxes, in the wrong
+    box. 97 frames at tile 72 / overlap 16 produced 15 latent frames where the
+    clip has 13."""
+
+    @staticmethod
+    def run_chunks(lat_per_chunk, total):
+        produced, out = 0, []
+        for t in lat_per_chunk:
+            got, produced = NODE._keep_new_frames(torch.zeros(1, 4, t, 2, 2), produced, total)
+            out.append(got)
+        return torch.cat(out, dim=2)
+
+    def test_the_concatenation_is_exactly_the_clip(self):
+        self.assertEqual(self.run_chunks([9, 6], 13).shape[2], 13)
+
+    def test_it_keeps_each_chunk_s_tail_not_its_head(self):
+        a = torch.zeros(1, 4, 9, 2, 2)
+        b = torch.arange(6, dtype=torch.float32).view(1, 1, 6, 1, 1).expand(1, 4, 6, 2, 2).clone()
+        _, produced = NODE._keep_new_frames(a, 0, 13)
+        kept, _ = NODE._keep_new_frames(b, produced, 13)
+        self.assertEqual(kept.shape[2], 4)
+        self.assertEqual(kept[0, 0, 0, 0, 0].item(), 2.0)   # frames 2..5, the new tail
+
+    def test_a_single_chunk_is_untouched(self):
+        got, produced = NODE._keep_new_frames(torch.zeros(1, 4, 13, 2, 2), 0, 13)
+        self.assertEqual(got.shape[2], 13)
+        self.assertEqual(produced, 13)
+
+    def test_it_never_returns_more_than_is_left(self):
+        got, _ = NODE._keep_new_frames(torch.zeros(1, 4, 9, 2, 2), 12, 13)
+        self.assertEqual(got.shape[2], 1)
+
+
+class CropAspectTest(unittest.TestCase):
+    """The crop is resized into the connected latent, so the box has to share
+    its aspect. Free-shaped boxes were stretched on the way in and squeezed on
+    the way back -- a portrait face crop sampled in a landscape latent came out
+    visibly deformed. The latent's SIZE is deliberately not touched: sampling a
+    small region at the model's resolution is why cropping exists."""
+
+    def setUp(self):
+        self.node = NODE.BFSHeadSwapMaskedSampler()
+        self.video = torch.zeros(6, 1080, 1920, 3)
+        self.mask = torch.zeros(6, 1080, 1920)
+        self.mask[:, 300:560, 900:1100] = 1.0        # 200x260, portrait
+
+    def box(self, aspect):
+        cropped, _, ctx, _ = self.node._crop(
+            self.video, self.mask, "off" if False else "combined", 1.2, 32, aspect)
+        return cropped.shape[2], cropped.shape[1], ctx
+
+    def test_a_free_box_follows_the_subject(self):
+        w, h, _ = self.box(0.0)
+        self.assertLess(w, h)                         # portrait, like the mask
+
+    def test_a_landscape_latent_gives_a_landscape_box(self):
+        w, h, _ = self.box(768 / 512)
+        self.assertAlmostEqual(w / h, 768 / 512, delta=0.25)
+        self.assertGreater(w, h)
+
+    def test_the_box_still_contains_the_subject(self):
+        w, h, ctx = self.box(768 / 512)
+        x0, y0, bw, bh = ctx[1]
+        self.assertLessEqual(x0, 900)
+        self.assertGreaterEqual(x0 + bw, 1100)
+        self.assertLessEqual(y0, 300)
+        self.assertGreaterEqual(y0 + bh, 560)
+
+    def test_the_box_stays_divisible(self):
+        w, h, _ = self.box(1.5)
+        self.assertEqual((w % 32, h % 32), (0, 0))
+
+    def test_static_box_honours_the_aspect_directly(self):
+        x0, y0, w, h = NODE._static_box(self.mask, self.video, 1.2, 32, aspect=2.0)
+        self.assertAlmostEqual(w / h, 2.0, delta=0.3)
+
+
+class CropSizeTest(unittest.TestCase):
+    """The size to build the empty latent at, known before sampling instead of
+    read off the debug string after a whole pass."""
+
+    def setUp(self):
+        self.video = torch.zeros(6, 256, 512, 3)
+        self.mask = torch.zeros(6, 256, 512)
+        self.mask[:, 60:160, 200:280] = 1.0          # 80x100, portrait
+
+    def size(self, mode="combined", scale=1.5, div=32):
+        w, h, boxes, info = NODE.BFSCropSize().execute(
+            self.video, self.mask, mode, scale, div)
+        return w, h, boxes, info
+
+    def test_it_reports_the_size_the_sampler_would_crop_to(self):
+        w, h, _, _ = self.size()
+        cropped, _, _, _ = NODE.BFSHeadSwapMaskedSampler()._crop(
+            self.video, self.mask, "combined", 1.5, 32)
+        self.assertEqual((w, h), (cropped.shape[2], cropped.shape[1]))
+
+    def test_the_size_is_divisible_by_the_grid(self):
+        for div in (8, 32, 64):
+            w, h, _, _ = self.size(div=div)
+            self.assertEqual((w % div, h % div), (0, 0))
+
+    def test_it_follows_the_subject_s_aspect_not_the_frame_s(self):
+        w, h, _, _ = self.size()
+        self.assertLess(w, h)                        # the mask is portrait
+
+    def test_one_box_per_frame(self):
+        _, _, boxes, _ = self.size()
+        self.assertEqual(len(boxes), self.video.shape[0])
+
+    def test_the_info_names_the_size(self):
+        w, h, _, info = self.size()
+        self.assertIn(f"{w}x{h}", info)
+
+    def test_it_is_registered(self):
+        self.assertIn("BFSCropSize", NODE.NODE_CLASS_MAPPINGS)
+        self.assertEqual(NODE.NODE_DISPLAY_NAME_MAPPINGS["BFSCropSize"], "BFS Crop Size")
+
+
+class NoShadowedModulesTest(unittest.TestCase):
+    """`import comfy.x` inside a function binds `comfy` as a LOCAL for the whole
+    function, so every earlier comfy.* use in it raises UnboundLocalError. It
+    shipped in 1.37.0 and only fired on multi-chunk clips, where the offload
+    line runs and the nested-latent import never had."""
+
+    def test_execute_does_not_shadow_the_comfy_module(self):
+        for cls in (NODE.BFSHeadSwapMaskedSampler, NODE.BFSHeadSwapPasteBack):
+            self.assertNotIn("comfy", cls.execute.__code__.co_varnames,
+                             f"{cls.__name__}.execute binds `comfy` locally")
+
+
+class WidgetOrderTest(unittest.TestCase):
+    """ComfyUI stores widgets_values POSITIONALLY.
+
+    A widget added anywhere but the end shifts every later value in every saved
+    workflow — 1.37.0 inserted two before crop_mode and existing graphs failed
+    validation with "input out of range" on crop_scale and crop_divisible_by.
+    This pins the historical order; new widgets go after it, never inside it.
+    """
+
+    HISTORICAL = [
+        "crop_mode", "crop_scale", "crop_divisible_by", "uncrop_feather",
+        "paste_back", "paste_confine_to_mask", "inpaint_with_mask", "mask_grow",
+        "mask_blur", "mask_hard_for_inpaint", "latent_mask_dilate",
+        "latent_mask_dilate_frames", "mask_strength", "decode",
+        "decode_tile_size", "decode_overlap", "decode_temporal_size",
+        "decode_temporal_overlap", "temporal_tile_size", "temporal_overlap",
+        "guide_source_id", "identity_source_id", "debug_log",
+    ]
+
+    @staticmethod
+    def widgets():
+        opt = NODE.BFSHeadSwapMaskedSampler.INPUT_TYPES()["optional"]
+        kinds = ("BOOLEAN", "INT", "FLOAT", "STRING")
+        return [k for k, v in opt.items() if isinstance(v[0], list) or v[0] in kinds]
+
+    def test_the_historical_widgets_keep_their_positions(self):
+        self.assertEqual(self.widgets()[: len(self.HISTORICAL)], self.HISTORICAL)
+
+    def test_new_widgets_are_appended_after_them(self):
+        self.assertEqual(self.widgets()[len(self.HISTORICAL):],
+                         ["auto_config", "identity_headroom"])
 
 
 class WiringTest(unittest.TestCase):

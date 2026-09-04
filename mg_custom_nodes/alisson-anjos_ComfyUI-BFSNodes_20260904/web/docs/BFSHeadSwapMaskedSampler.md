@@ -1,15 +1,21 @@
-# BFS Head Swap Sampler (crop · mask · loop)
+# BFS Sampler (crop · mask · loop)
 
-Runs an LTX head-swap LoRA and adds three things around it, each optional.
+Runs a guide-driven LTX IC-LoRA and adds three things around it, each optional.
 Connect only what you need — the node degrades to whatever is wired.
 
 | what you connect | what you get |
 |---|---|
-| `guide_video` + `identity_image` | plain head swap, one pass |
+| `guide_video` | the LoRA over the whole clip, one pass |
+| `+ identity_image` | for a LoRA that takes a reference (head swap, identity transfer) |
 | `+ subject_mask` | only the masked region is denoised |
-| `+ crop_mode` | the swap runs inside a box around the subject, then is pasted back |
+| `+ crop_mode` | the edit runs inside a box around the subject, then is pasted back |
 | `+ temporal_tile_size` | long clips sampled in chunks with overlap |
 | `+ auto_config` | crop, mask and feather amounts measured off the subject itself |
+
+`identity_image` is optional as of 1.38.0. A head-swap LoRA wants one; an
+instruction-edit, restyle or sharpening LoRA works from the guide alone, and
+with the slot empty it is simply not packed — the guide becomes the only
+reference. Everything else in the node is indifferent to which kind it is.
 
 The LoRA is never asked to understand a mask or a crop. It keeps doing its one
 job: the guide rides on `source_id 1`, the identity on `source_id 2`. Everything
@@ -135,6 +141,37 @@ video frame, and that is the real resolution of the edit. A tight outline around
 a face can nearly vanish at that scale — and then nothing changes, no matter how
 good the LoRA is. If the mask looks thin there, raise `mask_grow`.
 
+## Applying a LoRA to one region and putting it back
+
+The shape of the thing: cut the region out as its own small clip, run the LoRA
+on it, composite it back. What makes the result honest is that the composite
+goes into the **original frames**, so every pixel outside the mask is the
+source's own — it never went through the VAE at all.
+
+```
+subject_mask            connected
+inpaint_with_mask       true     # outside the mask the latent IS the guide, not noise
+mask_hard_for_inpaint   true     # a soft DENOISE mask means partial denoising at the edge
+mask_strength           1.0      # below this the original is blended back INSIDE the mask
+paste_back              true
+paste_confine_to_mask   true     # only the mask reaches the frame
+latent_mask_dilate      0        # one cell is 32 px of extra regenerated area, per side
+mask_grow               the least that fits the new content
+mask_blur               3-5% of the subject's width — the paste's soft edge
+```
+
+Since 1.39.0 this works with `crop_mode: off` too. Before that, with no crop the
+node returned the decoded frame whole: nothing *changed* outside the mask, but
+everything had been through an encode/decode round trip and came back softer.
+Now the mask composites against the source either way, and the crop goes back to
+being purely a resolution decision.
+
+**Two passes on the region.** Set `paste_back: false` and the images and latent
+stay in the crop's own space, so you can upscale and refine there — where the
+region actually has pixels — and composite at the end with **BFS Paste Back**,
+feeding it the `crop_bboxes` output. That is the whole point of `crop_bboxes`
+being a socket.
+
 ## Why crop, and which mode
 
 At 512×288 a person filling a fifth of the frame leaves a face about 25 px tall.
@@ -161,6 +198,49 @@ two thirds and the rest is margin. Keep neck and shoulders inside: a face-tight
 crop is a framing the LoRA never saw in training, and it will show.
 
 ## Sizing, which is the one fiddly part
+
+**Since 1.41.1 the shape is handled for you.** The crop is resized into the
+connected latent, so the box has to share its *aspect* — the sampler now asks
+the planner for exactly the latent's aspect ratio and says so in `debug`:
+
+```
+crop shaped to the latent's 1.500 aspect
+```
+
+Without it a mask around a face gives a portrait box, sampling it in a landscape
+latent stretches it, and the paste-back squeezes the result back — the face comes
+out deformed, and under `crop_mode: zoomed` by a different amount every frame.
+
+The latent's **size** is deliberately left to you, because that is the sampling
+resolution and it is the entire reason to crop: a face 200 px tall in the source
+sampled at 768 px wide is a face with pixels to work with, and the paste-back
+brings it home at the box's size. Choose the size for the quality you want; the
+shape is no longer yours to get right.
+
+**BFS Crop Size** is still there for when you want the number, or the per-frame
+boxes, upstream of the sampler — building the latent at the right size skips the
+rebuild, and the boxes feed BFS Paste Back directly:
+
+```
+subject_mask ──┬─→ BFS Crop Size ──→ width / height ──→ EmptyLTXVLatentVideo ──┐
+               │                                                               │
+               └───────────────────────────────────────────→ BFS Sampler ←─────┘
+```
+
+Keep its three crop widgets identical to the sampler's — the planner is
+deterministic, so equal inputs give the same box, and a mismatch means the
+sampler silently resizes the crop into a latent that does not fit it.
+
+That resize is worth naming, because it does not look like a sizing problem when
+it happens. A mask around a face in a 1920x1080 frame gives a portrait box —
+512x672, say. Sampling it into a 768x512 landscape latent stretches the crop
+horizontally, and the paste-back then squeezes the result back into the portrait
+box. The face comes out visibly deformed, and with `crop_mode: zoomed` the
+amount of deformation changes from frame to frame.
+
+### Doing it by hand
+
+
 
 The connected `latent` sets the sampled size. When you crop, the box is smaller
 than the frame, so the latent should match the box — the `debug` output prints

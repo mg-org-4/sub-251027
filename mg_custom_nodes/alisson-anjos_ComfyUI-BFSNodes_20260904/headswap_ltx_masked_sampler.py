@@ -2,7 +2,9 @@
 
 Everything is optional, so the node degrades to whatever you connect:
 
-    guide_video + identity_image                  -> plain head swap, one pass
+    guide_video                                   -> the LoRA over the whole clip, one pass
+    + identity_image                              -> for a LoRA that takes a reference
+                                                     (head swap, identity transfer)
     + subject_mask                                -> native inpainting: only the
                                                      masked region is denoised
     + crop_mode                                   -> the swap runs inside a stable
@@ -79,8 +81,13 @@ def _feather_ramp(h, w, feather, device, touches=(False, False, False, False)):
     return ramp[None, :, :, None]
 
 
-def _static_box(masks, images, crop_scale, divisible_by, thresh=0.1):
-    """Fallback crop: one box around the subject's whole travel, held for the clip."""
+def _static_box(masks, images, crop_scale, divisible_by, thresh=0.1, aspect=0.0):
+    """Fallback crop: one box around the subject's whole travel, held for the clip.
+
+    ``aspect`` (width/height, 0 = free) grows the short side so the box matches
+    the shape it will be resized into. Without it the crop is stretched on the
+    way in and squeezed on the way back out.
+    """
     m = masks if masks.ndim == 3 else masks.squeeze(-1)
     hits = (m > thresh).any(dim=0)
     ys, xs = torch.where(hits)
@@ -92,6 +99,11 @@ def _static_box(masks, images, crop_scale, divisible_by, thresh=0.1):
     cy, cx = (y0 + y1) / 2.0, (x0 + x1) / 2.0
     h = max(1.0, (y1 - y0) * crop_scale)
     w = max(1.0, (x1 - x0) * crop_scale)
+    if aspect and aspect > 0:
+        if w / h < aspect:
+            w = h * aspect
+        else:
+            h = w / aspect
     h = min(H, (int(h) + divisible_by - 1) // divisible_by * divisible_by)
     w = min(W, (int(w) + divisible_by - 1) // divisible_by * divisible_by)
     y0 = int(min(max(0, cy - h / 2), H - h))
@@ -323,6 +335,36 @@ def _mask_to_latent(masks, vae, latent_t, latent_h, latent_w):
 # node
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _keep_new_frames(samples, produced, total):
+    """Drop the head a chunk shares with the one before it.
+
+    Chunks are sampled with an overlap for continuity, so consecutive chunks
+    cover some of the same frames. Concatenating them whole makes the clip
+    longer than it is and every frame after the first seam lands on the wrong
+    moment -- and, with per-frame crop boxes, in the wrong box. Keeping only
+    what each chunk adds makes the concatenation exactly `total` frames.
+    """
+    have = samples.shape[2]
+    new = max(0, min(have, total - produced))
+    if new < have:
+        samples = samples[:, :, have - new:]
+    return samples, produced + samples.shape[2]
+
+
+def _boxes_per_frame(crop_ctx, n_frames):
+    """One box per frame, whatever the crop mode produced.
+
+    The planner already returns per-frame boxes; a static box is repeated so the
+    paste-back sees the same shape either way and never has to branch.
+    """
+    if crop_ctx is None:
+        return []
+    if crop_ctx[0] == "static":
+        x0, y0, w, h = crop_ctx[1]
+        return [[{"x": x0, "y": y0, "width": w, "height": h}]] * n_frames
+    return crop_ctx[1]
+
+
 def _inject_transformer_options(guider, model_patcher, debug=False):
     """Copy the patched model's transformer_options INTO the guider's own dict.
 
@@ -395,9 +437,13 @@ class BFSHeadSwapMaskedSampler:
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
                 "guide_video": ("IMAGE", {"tooltip": "Source clip: body, motion, camera, scene. Output geometry follows it."}),
-                "identity_image": ("IMAGE", {"tooltip": "Head/face reference. Crop to the head."}),
             },
             "optional": {
+                "identity_image": ("IMAGE", {"tooltip":
+                    "Reference image for the LoRA that wants one — a head crop for a head swap, "
+                    "a subject for identity transfer. Leave it unconnected for any IC-LoRA that "
+                    "works from the guide alone (an instruction edit, a sharpener, a restyler): "
+                    "the slot is simply not packed and the guide is the only reference."}),
                 "latent": ("LATENT", {"tooltip":
                     "Empty latent from EmptyLTXVLatentVideo, sized to the CROP when cropping is on. "
                     "Strongly recommended: LTX-2.5 latents are AV (video+audio) and this node cannot "
@@ -406,23 +452,6 @@ class BFSHeadSwapMaskedSampler:
                 "subject_mask": ("MASK", {"tooltip":
                     "Per-frame mask of the region to edit (head, with margin). Drives the crop box and, "
                     "with inpaint_with_mask on, restricts denoising to it. Leave unconnected for a plain swap."}),
-
-                "auto_config": ("BOOLEAN", {"default": False, "tooltip":
-                    "Measure the subject in the mask and set crop mode, crop scale, mask grow "
-                    "and blur, paste feather and latent dilation from its size -- ignoring those "
-                    "widgets. Needs subject_mask. Every amount below is in pixels, which only "
-                    "means something relative to how big the head is in frame: the same 8 px is "
-                    "generous on a distant head and invisible on a close one, and that mismatch "
-                    "is what leaves a seam. The debug output prints what it chose."}),
-
-                "identity_headroom": ("FLOAT", {"default": 1.15, "min": 1.0, "max": 2.0, "step": 0.05,
-                    "tooltip":
-                    "auto_config only. How much bigger the reference head may be than the head in "
-                    "the guide. The mask is the OLD head, so a wider face or more hair lands "
-                    "outside it and gets clipped -- the seam. The reference's PROPORTIONS are "
-                    "measured from identity_image against the mask; its absolute size cannot be, "
-                    "because a cropped head carries no scale. Raise it for big hair or a visibly "
-                    "larger head; 1.0 assumes the two heads match."}),
 
                 "crop_mode": (["off", "combined", "tracked", "zoomed"], {"default": "off", "tooltip":
                     "Sample inside a box around the subject instead of the whole frame -- the fix for faces "
@@ -443,9 +472,11 @@ class BFSHeadSwapMaskedSampler:
                     "composite at the end with the Head Swap Paste Back node, feeding it the "
                     "crop_bboxes output."}),
                 "paste_confine_to_mask": ("BOOLEAN", {"default": True, "tooltip":
-                    "Paste only inside the mask instead of the whole crop rectangle, so anything the "
-                    "model changed in the crop's background never reaches the frame. Off pastes the "
-                    "full box."}),
+                    "Composite only inside the mask, so anything the model changed outside it never "
+                    "reaches the frame. With a crop this confines the paste to the mask instead of "
+                    "the whole box; WITHOUT a crop it is what keeps the untouched pixels the "
+                    "source's own — otherwise the whole frame is the VAE's round trip of it, "
+                    "softer everywhere the edit never went. Off pastes the full frame or box."}),
 
                 "inpaint_with_mask": ("BOOLEAN", {"default": True, "tooltip":
                     "Send the mask to the sampler as a denoise mask, so only the masked region changes and "
@@ -496,14 +527,38 @@ class BFSHeadSwapMaskedSampler:
                 "guide_source_id": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 8.0, "step": 1.0}),
                 "identity_source_id": ("FLOAT", {"default": 2.0, "min": 0.0, "max": 8.0, "step": 1.0}),
                 "debug_log": ("BOOLEAN", {"default": False}),
+
+                # ── appended, never inserted ──────────────────────────────────
+                # ComfyUI stores widgets_values positionally, so a widget added
+                # anywhere but the end shifts every later value in every saved
+                # workflow: crop_mode lands in this slot, crop_scale in the next,
+                # and the graph fails validation with "input out of range".
+                "auto_config": ("BOOLEAN", {"default": False, "tooltip":
+                    "Measure the subject in the mask and set crop mode, crop scale, mask grow "
+                    "and blur, paste feather and latent dilation from its size -- ignoring those "
+                    "widgets. Needs subject_mask. Every amount below is in pixels, which only "
+                    "means something relative to how big the head is in frame: the same 8 px is "
+                    "generous on a distant head and invisible on a close one, and that mismatch "
+                    "is what leaves a seam. The debug output prints what it chose."}),
+
+                "identity_headroom": ("FLOAT", {"default": 1.15, "min": 1.0, "max": 2.0, "step": 0.05,
+                    "tooltip":
+                    "auto_config only. How much bigger the reference head may be than the head in "
+                    "the guide. The mask is the OLD head, so a wider face or more hair lands "
+                    "outside it and gets clipped -- the seam. The reference's PROPORTIONS are "
+                    "measured from identity_image against the mask; its absolute size cannot be, "
+                    "because a cropped head carries no scale. Raise it for big hair or a visibly "
+                    "larger head; 1.0 assumes the two heads match."}),
             },
         }
 
-    DESCRIPTION = ("Head swap with an optional stable crop around the subject, native mask "
-                   "inpainting and temporal chunking. Connect only what you need: guide + identity "
-                   "is a plain swap; add a mask to restrict the edit; add a crop mode to sample the "
-                   "subject full-frame when the face is too small to carry identity. auto_config "
-                   "measures the subject in the mask and derives every pixel amount from its size.")
+    DESCRIPTION = ("Sampler for guide-driven IC-LoRAs, with an optional stable crop around the "
+                   "subject, native mask inpainting and temporal chunking. Connect only what you "
+                   "need: a guide alone runs the LoRA over the whole clip; add an identity image "
+                   "for a LoRA that takes one; add a mask to restrict the edit; add a crop mode to "
+                   "sample the subject full-frame when it is too small to carry detail. "
+                   "auto_config measures the subject in the mask and derives every pixel amount "
+                   "from its size.")
     RETURN_TYPES = ("IMAGE", "IMAGE", "IMAGE", "MASK", "MASK", "LATENT", "BOUNDING_BOX", "STRING")
     RETURN_NAMES = ("images", "mask_over_source", "cropped_guide", "crop_mask",
                     "latent_mask", "latent", "crop_bboxes", "debug")
@@ -528,7 +583,7 @@ class BFSHeadSwapMaskedSampler:
 
     # -- internals ----------------------------------------------------------
 
-    def _crop(self, guide, masks, mode, scale, div):
+    def _crop(self, guide, masks, mode, scale, div, aspect=0.0):
         """Returns (cropped guide, cropped masks, paste-back fn, note)."""
         if mode == "off" or masks is None:
             return guide, masks, None, "crop: off"
@@ -536,7 +591,7 @@ class BFSHeadSwapMaskedSampler:
         planner = _planner() if mode in ("tracked", "zoomed") else None
         if planner is not None:
             try:
-                p = {"crop_scale": scale, "aspect_ratio": 0.0, "padding": "firm",
+                p = {"crop_scale": scale, "aspect_ratio": float(aspect), "padding": "firm",
                      "prefer": "stillness", "seamless_loop": False,
                      "pad_surplus_tol": 16, "zoom_step": 1.0}
                 out = planner(guide, masks, mode, p, div, 0.1, 0.0)
@@ -545,14 +600,31 @@ class BFSHeadSwapMaskedSampler:
             except Exception as exc:
                 log.warning("crop planner failed (%s); using the static box", exc)
 
-        x0, y0, w, h = _static_box(masks, guide, scale, div)
+        x0, y0, w, h = _static_box(masks, guide, scale, div, aspect=aspect)
         cropped = guide[:, y0:y0 + h, x0:x0 + w, :]
         cropped_masks = masks[:, y0:y0 + h, x0:x0 + w]
         return cropped, cropped_masks, ("static", (x0, y0, w, h)), f"crop: static {w}x{h} @({x0},{y0})"
 
     def _paste_back(self, result, original, ctx, feather, confine=None):
         if ctx is None:
-            return result
+            if confine is None:
+                return result
+            # No crop, but a mask: composite the full frame through it. Without
+            # this the whole frame is whatever came out of the VAE, so every
+            # pixel the edit never touched still went through encode/decode and
+            # came back softer. Confining here keeps them the source's own.
+            out = original.clone()[: result.shape[0]]
+            patch = result[: out.shape[0]]
+            H, W = out.shape[1], out.shape[2]
+            if patch.shape[1] != H or patch.shape[2] != W:
+                patch = comfy.utils.common_upscale(
+                    patch.movedim(-1, 1), W, H, "lanczos", "disabled").movedim(1, -1)
+            cm = confine[:1] if confine.shape[0] == 1 else confine[: out.shape[0]]
+            if cm.shape[-2:] != (H, W):
+                cm = torch.nn.functional.interpolate(
+                    cm.unsqueeze(1), size=(H, W), mode="bilinear").squeeze(1)
+            a = cm.unsqueeze(-1).to(patch.device, patch.dtype)
+            return a * patch + (1 - a) * out
         kind, box = ctx
         if kind == "planned":
             # one box per frame: paste each crop into its own box
@@ -608,7 +680,7 @@ class BFSHeadSwapMaskedSampler:
     # -- entry point --------------------------------------------------------
 
     def execute(self, model, vae, noise, sampler, sigmas, guider, positive, negative,
-                guide_video, identity_image, latent=None, subject_mask=None,
+                guide_video, identity_image=None, latent=None, subject_mask=None,
                 auto_config=False, identity_headroom=1.15,
                 crop_mode="off", crop_scale=1.5, crop_divisible_by=32, uncrop_feather=16,
                 inpaint_with_mask=True, mask_grow=8, mask_blur=4,
@@ -656,17 +728,31 @@ class BFSHeadSwapMaskedSampler:
                 notes.append(f"mask: grow {g}, blur {mask_blur}px, strength {mask_strength}")
 
         masks_full = masks
+        # The crop is resized into the connected latent, so the box has to share
+        # its aspect: otherwise the region is stretched on the way in and squeezed
+        # back on the way out, and under crop_mode zoomed by a different amount
+        # every frame. The latent's SIZE is left alone on purpose -- sampling a
+        # small region at the model's resolution is the whole point of cropping.
+        target_ar = 0.0
+        if latent is not None:
+            _sm = latent["samples"]
+            if getattr(_sm, "is_nested", False):
+                _v = _sm.tensors[0] if hasattr(_sm, "tensors") else _sm.unbind()[0]
+            else:
+                _v = _sm
+            target_ar = float(_v.shape[4]) / max(1.0, float(_v.shape[3]))
         guide, masks, crop_ctx, note = self._crop(
-            guide_video, masks, crop_mode, crop_scale, crop_divisible_by)
+            guide_video, masks, crop_mode, crop_scale, crop_divisible_by, target_ar)
         notes.append(note)
+        if target_ar:
+            notes.append(f"crop shaped to the latent's {target_ar:.3f} aspect")
 
         n_frames = guide.shape[0]
         tile = temporal_tile_size if 0 < temporal_tile_size < n_frames else n_frames
         overlap = min(temporal_overlap, max(0, tile - 8)) if tile < n_frames else 0
         stride = max(1, tile - overlap)
         notes.append(f"frames {n_frames}, tile {tile}, overlap {overlap}")
-        notes.append(f"sample size {guide.shape[2]}x{guide.shape[1]} "
-                     f"(connect EmptyLTXVLatentVideo at this size to avoid a resize)")
+        notes.append(f"crop {guide.shape[2]}x{guide.shape[1]}px, sampled at the latent's size")
 
         _, w_sf, h_sf = vae.downscale_index_formula
         lat_h, lat_w = guide.shape[1] // h_sf, guide.shape[2] // w_sf
@@ -683,6 +769,7 @@ class BFSHeadSwapMaskedSampler:
         mc = LTXMultipleControls()
         out_latents = []
         injections = []
+        produced = 0
         try:
             for idx, (a, b) in enumerate(chunks):
                 g = guide[a:b]
@@ -690,12 +777,11 @@ class BFSHeadSwapMaskedSampler:
                 if latent is not None:
                     empty = dict(latent)
                     sm = empty["samples"]
-                    if getattr(sm, "is_nested", False):
-                        if len(chunks) > 1:
-                            raise ValueError(
-                                "chunked sampling with an AV (nested) latent is not supported yet: "
-                                "set temporal_tile_size to 0, or feed a video-only latent")
-                    elif sm.shape[2] != lat_t:
+                    if getattr(sm, "is_nested", False) and len(chunks) > 1:
+                        raise ValueError(
+                            "chunked sampling with an AV (nested) latent is not supported yet: "
+                            "set temporal_tile_size to 0, or feed a video-only latent")
+                    if not getattr(sm, "is_nested", False) and sm.shape[2] != lat_t:
                         empty["samples"] = sm[:, :, :lat_t]
                 else:
                     # last resort: a plain video latent. On LTX-2.5 the real thing is an
@@ -726,11 +812,14 @@ class BFSHeadSwapMaskedSampler:
                     g_lat = vae.encode(g)
                     base = latent["samples"]
                     if getattr(base, "is_nested", False):
-                        # keep the audio stream from the connected AV latent, swap the video
-                        import comfy.nested_tensor
+                        # keep the audio stream from the connected AV latent, swap the video.
+                        # Bound to its own name on purpose: `import comfy.nested_tensor`
+                        # here would make `comfy` a LOCAL of this whole function, and
+                        # every other comfy.* use in it would raise UnboundLocalError.
+                        from comfy import nested_tensor as _nested
                         streams = list(base.tensors) if hasattr(base, "tensors") else list(base.unbind())
                         streams[0] = g_lat.to(streams[0].device, streams[0].dtype)
-                        latent["samples"] = comfy.nested_tensor.NestedTensor(tuple(streams))
+                        latent["samples"] = _nested.NestedTensor(tuple(streams))
                     else:
                         latent["samples"] = g_lat.to(base.device, base.dtype)
                     if debug_log:
@@ -757,6 +846,7 @@ class BFSHeadSwapMaskedSampler:
                 chunk = _Loop._sample_chunk(m, noise, sampler, sigmas, gd, latent, seed_offset=idx)
                 got = chunk["samples"]
                 if len(chunks) > 1 and not getattr(got, "is_nested", False):
+                    got, produced = _keep_new_frames(got, produced, lat_t_total)
                     # a long clip is many chunks: holding them all on the sampling
                     # device grows VRAM with the clip while the model is still loaded
                     got = got.to(comfy.model_management.intermediate_device())
@@ -843,10 +933,7 @@ class BFSHeadSwapMaskedSampler:
         debug = " | ".join(notes)
         if debug_log:
             print("[BFS Head Swap Masked Sampler]", debug)
-        boxes_out = crop_ctx[1] if crop_ctx is not None else []
-        if crop_ctx is not None and crop_ctx[0] == "static":
-            x0, y0, w, h = crop_ctx[1]
-            boxes_out = [[{"x": x0, "y": y0, "width": w, "height": h}]] * guide_video.shape[0]
+        boxes_out = _boxes_per_frame(crop_ctx, guide_video.shape[0])
         return (final, overlay, guide, crop_mask_out, latent_mask_out,
                 {"samples": samples}, boxes_out, debug)
 
@@ -891,11 +978,67 @@ class BFSHeadSwapPasteBack:
             cropped_images, original_images, ("planned", crop_bboxes), feather, confine_mask),)
 
 
+
+class BFSCropSize:
+    """The crop's size, before anything is sampled.
+
+    The sampler derives its box from the mask, so the size to build the empty
+    latent at is only knowable after a run -- which meant sampling a whole clip
+    to read one number off the debug string, and doing it again after every
+    change to the mask or the crop. This runs the same planner on the same
+    inputs and hands the number over up front.
+
+    Feed `width` and `height` straight into EmptyLTXVLatentVideo. Keep these
+    three widgets identical to the sampler's: the planner is deterministic, so
+    equal inputs give the same box, and a mismatch here means the sampler
+    silently resizes the crop to a latent that does not fit it.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "guide_video": ("IMAGE", {"tooltip": "The same clip you feed the sampler."}),
+                "subject_mask": ("MASK", {"tooltip": "The same mask you feed the sampler."}),
+                "crop_mode": (["combined", "tracked", "zoomed"], {"default": "tracked"}),
+                "crop_scale": ("FLOAT", {"default": 1.5, "min": 1.0, "max": 4.0, "step": 0.05}),
+                "crop_divisible_by": ("INT", {"default": 32, "min": 8, "max": 128, "step": 8}),
+            },
+        }
+
+    DESCRIPTION = ("The size the sampler will crop to, computed from the mask before sampling, "
+                   "so EmptyLTXVLatentVideo can be built at exactly that size instead of being "
+                   "guessed and silently resized. Keep the three crop widgets identical to the "
+                   "sampler's.")
+    RETURN_TYPES = ("INT", "INT", "BOUNDING_BOX", "STRING")
+    RETURN_NAMES = ("width", "height", "crop_bboxes", "info")
+    OUTPUT_TOOLTIPS = (
+        "Crop width -- into EmptyLTXVLatentVideo's width.",
+        "Crop height -- into EmptyLTXVLatentVideo's height.",
+        "One box per frame, the same the sampler will use. Feeds BFS Paste Back.",
+        "What the planner decided, for a PreviewAny.",
+    )
+    FUNCTION = "execute"
+    CATEGORY = CATEGORY
+
+    def execute(self, guide_video, subject_mask, crop_mode, crop_scale, crop_divisible_by):
+        masks = subject_mask.squeeze(-1) if subject_mask.ndim == 4 else subject_mask
+        cropped, _cm, ctx, note = BFSHeadSwapMaskedSampler()._crop(
+            guide_video, masks, crop_mode, crop_scale, crop_divisible_by)
+        h, w = int(cropped.shape[1]), int(cropped.shape[2])
+        boxes = _boxes_per_frame(ctx, guide_video.shape[0])
+        info = (f"{note} | sample size {w}x{h} "
+                f"(build EmptyLTXVLatentVideo at this size) | {len(boxes)} box(es)")
+        return (w, h, boxes, info)
+
+
 NODE_CLASS_MAPPINGS = {
     "BFSHeadSwapMaskedSampler": BFSHeadSwapMaskedSampler,
     "BFSHeadSwapPasteBack": BFSHeadSwapPasteBack,
+    "BFSCropSize": BFSCropSize,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "BFSHeadSwapMaskedSampler": "BFS Head Swap Sampler (crop · mask · loop)",
-    "BFSHeadSwapPasteBack": "BFS Head Swap Paste Back",
+    "BFSHeadSwapMaskedSampler": "BFS Sampler (crop · mask · loop)",
+    "BFSHeadSwapPasteBack": "BFS Paste Back",
+    "BFSCropSize": "BFS Crop Size",
 }

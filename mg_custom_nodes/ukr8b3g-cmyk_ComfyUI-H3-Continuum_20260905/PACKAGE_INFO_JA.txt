@@ -1,0 +1,68 @@
+ComfyUI-H3-Continuum V3.7.0
+
+MiniMax H3の5秒ChunkをAV latent contextで継続し、長尺映像として組み立てるComfyUIカスタムノードです。
+
+V3.7.0:
+- H3 Continuum Sampler V3.7と、1枚のStill Image Guide用optional入力を追加
+- Conditioning AdapterでFirst／Last、Continuation context、Still Guide元画像をSecond Passのtarget解像度へ再構築
+- 内部RefineSchedule v1としてExternal／Full／Tail／Partialを定義し、既存SIGMAS socketとの互換性を維持
+- 704×704 Internal Tail 6と1152×1152 Guide再ConditioningのGPU Correctness GateをPASS
+- Still Image GuideはCorrectness PASS、Experimental／Production HOLD。hard anchorによる急なtrajectory変化が起きる場合あり
+- V3.6 Production初期値、旧Node ID、保存済みWorkflow、Core PackedLayout／RoPE、First Pass Audio passthroughを維持
+
+V3.6.1:
+- Timeline/List混在PromptへH3C-P105警告を追加し、Timelineではstandalone --- 行だけを除去
+- Standard＋Audio Continuity ONのFast 5／Strong 39／Autoを、実行開始時からReference Contextへ安全にfallback
+- Balanced 22 Masked AV、Audio OFF Masked Video、Compatibility、Run Storage schema、旧Node／Workflow互換を維持
+
+V3.6.0:
+- H3 Continuum Sampler V3.6を追加
+- 標準Continuationは前ChunkのVideo／Audio latentを次Target内でNoise Mask保護するMasked AV方式
+- AdvancedのCompatibilityで従来V3.5 Reference Contextへ切替可能
+- Run Storage identityをbackend別に分離し、Terminal Mergeのlogical [2,3]はphysical group単位で再利用／再生成
+- chunk_seconds上限を30秒へ拡張（5～15秒を推奨・検証済み範囲として維持）
+- V3.5.3、V3.4 Node ID、保存済みWorkflow、Second Pass、Hi-Res Fix、Assemblyを維持
+
+V3.5.3:
+- 公開Conditioning Bridge WorkflowのWidth／Height接続を修正
+- 公開V3.4／V3.5 Workflowの孤立link IDを清掃し、全配布Workflowのserialization整合性テストを追加
+- Hybrid First／Last＋Referenceの`<Picture N>`警告を公開番号のまま表示
+- 生成契約、Node／socket、V3.5.2最適化、V3.4互換性は不変
+
+V3.5.2:
+- 同一Prompt / CLIP条件の繰り返し生成でCPU conditioning結果を再利用
+- Referenceや特殊CLIP経路は安全側でcache bypass
+- 長尺Video Guideの全source identityとfinite検査を維持し、必要prefixだけを保持
+- 検証条件でVideo GuideのPeak追加RSSを約71%、保持Storageを約59%削減
+- Sampling、Conditioning payload、Terminal Merge、Assembly、Seam、Run Storage、標準Seed動作は不変
+
+V3.5.1:
+- physical groupごとに完全なMODEL / CONDITIONINGを公開するConditioning Bridge V3.5
+- 生成音声を置換しない任意のReference Audio conditioningと常設socket
+- Video loaderのIMAGE frame batchを示すVideo Guide Frames / Video Guide Size表示名
+- backend socket key、既存workflow接続、V3.4 sampling契約を維持
+
+V3.5.0:
+- 外部加工したH3 latentをphysical group構造のまま再SamplingするSecond Pass
+- Pixel/VAE round tripを使うHi-Res Fix（Experimental）
+- Latent Resize utility（高倍率の直接latent補間はMain経路非推奨）
+- RAM / Disk-backed / Autoを選べるAssemble + Seam V3.5
+- Exact Duration、Seam、Terminal Merge、元音声passthroughを維持
+- V3.4ノードと保存済みワークフローの互換性を維持
+
+安定範囲:
+- Advanced Second Pass Bridge
+- Assemble + Seam V3.5のRAM / Disk-backed / Auto
+
+Experimental:
+- Still Image Guide V3.7（Correctness PASS、hard-anchor qualityはProduction HOLD）
+- Main Hi-Res Fix V3.5
+- Main Hi-Res Fix 3x5 2x（RTX 5060 Ti 16 GiBではTerminal 77TでCUDA OOM）
+
+GPU受入済み:
+- Internal Tail 6 704×704（外部Tail 6比Video SSIM 0.982936、decoded Audio PCM bit-exact）
+- Still Guide元画像の1152×1152再Conditioning（Correctnessのみ。品質はProduction HOLD）
+- Main Hi-Res Fix 1x5、576から1152
+- Hybrid FL2VA + Reference 1x5の統合Hi-Res FixとAdvanced Second Pass
+
+詳細: README.md および docs/VALIDATION_RESULTS.md

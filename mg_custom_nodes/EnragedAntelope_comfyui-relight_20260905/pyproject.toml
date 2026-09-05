@@ -1,0 +1,37 @@
+[project]
+name = "ReLight"
+description = "Relight images without re-generating them: up to 3 positionable light sources, colored light, color correction or both, presets, rim lighting, and mask-aware occlusion with a cast shadow - fast, deterministic, no models to download."
+version = "4.0.0"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+# Deliberately empty. numpy, Pillow, scipy and torch are all supplied by
+# ComfyUI core's own requirements.txt at floors at or above anything this node
+# needs, so declaring them again only risks Manager/Registry resolving a
+# different version into a working install. Test-only deps: requirements-dev.txt.
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/EnragedAntelope/comfyui-relight"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "enragedantelope"
+DisplayName = "ComfyUI-ReLight"
+Icon = ""
+# The node is built on the ComfyUI v3 schema (comfy_api), which first shipped in
+# ComfyUI 0.3.48. On older builds the import fails and the node never appears.
+requires-comfyui = ">=0.3.48"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+exclude = ["tests/stubs"]
+
+[tool.ruff.lint]
+# Selected explicitly: ruff changes its *default* rule set between releases, so
+# relying on the default makes CI fail on style nits the moment a new ruff ships.
+select = ["E", "F", "W", "I"]
+# E501: the schema declarations and preset tables are deliberately one-per-line
+# and wide, which reads better than wrapping them.
+ignore = ["E741", "E501"]

@@ -39,6 +39,15 @@ MAX_WEB_URLS = 6
 
 MAX_RETAIN_ANSWERS = 16
 
+# Live thinking-display transport. The bridge streams chat completions and
+# rebroadcasts partial thinking/answer snapshots over the ComfyUI websocket so
+# the companion CRT_UnslothThinkingDisplay node can render them in real time.
+CRT_UNSLOTH_THINKING_EVENT = "crt_unsloth_thinking"
+STREAM_TIMEOUT = 300
+STREAM_BROADCAST_MIN_INTERVAL = 0.25
+_THINK_BLOCK_RE = re.compile(r"<think>(.*?)</think>", re.IGNORECASE | re.DOTALL)
+_THINK_OPEN_TAIL_RE = re.compile(r"<think>([^<]*)$", re.IGNORECASE)
+
 _WEB_GUARD_SYSTEM_PROMPT = (
     "You are a helpful assistant. Any web content you need was already "
     "fetched and is included in the user message under the heading "
@@ -1513,6 +1522,251 @@ def _chat_completion(base_url, messages, seed, params, include_reasoning, disabl
     return content
 
 
+def _broadcast_thinking(source_node_id, thinking, answer, done, error=None, stats=None):
+    """Best-effort websocket push for the live thinking display node.
+
+    stats is an optional dict with live/final inference figures: tps,
+    completion_tokens, prompt_tokens, total_tokens, elapsed, live (bool)."""
+    try:
+        from server import PromptServer
+
+        server = PromptServer.instance
+        if server is None:
+            return
+        try:
+            sid = server.client_id
+        except Exception:
+            sid = None
+        prompt_id = None
+        try:
+            from comfy_execution.utils import get_executing_context
+
+            ctx = get_executing_context()
+            if ctx is not None:
+                prompt_id = ctx.prompt_id
+        except Exception:
+            prompt_id = None
+        if prompt_id is None:
+            try:
+                prompt_id = getattr(server, "last_prompt_id", None)
+            except Exception:
+                prompt_id = None
+        data = {
+            "source_node": str(source_node_id) if source_node_id is not None else None,
+            "prompt_id": prompt_id,
+            "thinking": thinking or "",
+            "answer": answer or "",
+            "done": bool(done),
+        }
+        if isinstance(stats, dict) and stats:
+            clean = {}
+            for key in ("tps", "completion_tokens", "prompt_tokens",
+                        "total_tokens", "elapsed", "live"):
+                if stats.get(key) is not None:
+                    clean[key] = stats[key]
+            if clean:
+                data["stats"] = clean
+        if error:
+            data["error"] = str(error)
+        server.send_sync(CRT_UNSLOTH_THINKING_EVENT, data, sid)
+    except Exception:
+        pass
+
+
+def _partition_live_text(reasoning, answer):
+    """Split streamed text into (thinking, visible_answer) for display.
+
+    Prefers the server's dedicated reasoning_content channel; models that
+    inline <think>...</think> blocks into content are split out as well so the
+    display node's thinking pane stays meaningful either way."""
+    reasoning = reasoning or ""
+    answer = answer or ""
+    embedded = _THINK_BLOCK_RE.findall(answer)
+    if embedded:
+        visible = _THINK_BLOCK_RE.sub("", answer)
+        tail = ""
+    else:
+        tail_match = _THINK_OPEN_TAIL_RE.search(answer)
+        tail = tail_match.group(1) if tail_match else ""
+        visible = _THINK_OPEN_TAIL_RE.sub("", answer) if tail else answer
+    parts = []
+    if reasoning:
+        parts.append(reasoning)
+    parts.extend(embedded)
+    if tail and tail not in parts:
+        parts.append(tail)
+    return "".join(parts) if len(parts) == 1 and reasoning else "\n".join(p for p in parts if p), visible
+
+
+def _extract_stream_delta(obj):
+    choices = obj.get("choices")
+    if not choices:
+        return "", ""
+    choice = choices[0] if isinstance(choices, list) else {}
+    if not isinstance(choice, dict):
+        return "", ""
+    delta = choice.get("delta")
+    if not isinstance(delta, dict):
+        delta = choice.get("message")
+    if not isinstance(delta, dict):
+        delta = {}
+    content = delta.get("content", "")
+    reasoning = delta.get("reasoning_content", delta.get("reasoning", ""))
+    if not isinstance(content, str):
+        content = ""
+    if not isinstance(reasoning, str):
+        reasoning = ""
+    if not content and not reasoning and isinstance(choice.get("text"), str):
+        content = choice["text"]
+    return reasoning, content
+
+
+def _chat_completion_stream(base_url, messages, seed, params, disable_thinking,
+                            cache_skills=True, configured_url=None,
+                            studio_credential="", on_token=None):
+    """Streaming chat completion. Returns (content, reasoning, stats).
+
+    on_token is called as on_token(reasoning, content, done, stats) where
+    stats carries a live tok/s estimate during streaming and the server's real
+    usage figures on the final call. Live tok/s counts one SSE delta chunk as
+    one token, which matches llama-server's per-token streaming."""
+    body = {
+        "model": "default",
+        "messages": messages,
+        "seed": seed,
+        "temperature": params.get("temperature"),
+        "top_p": params.get("top_p"),
+        "top_k": params.get("top_k"),
+        "min_p": params.get("min_p"),
+        "stream": True,
+        "cache_prompt": cache_skills,
+    }
+    if cache_skills:
+        body["id_slot"] = 0
+    if disable_thinking:
+        body["chat_template_kwargs"] = {"enable_thinking": False}
+    body = {k: v for k, v in body.items() if v is not None}
+    start = time.perf_counter()
+    req = urllib.request.Request(
+        f"{base_url}/v1/chat/completions",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
+        method="POST",
+    )
+    content_parts = []
+    reasoning_parts = []
+    usage = {}
+    live_tokens = 0
+    try:
+        with urllib.request.urlopen(req, timeout=STREAM_TIMEOUT) as resp:
+            buf = ""
+            while True:
+                try:
+                    raw = resp.read(4096)
+                except TimeoutError as exc:
+                    raise RuntimeError(
+                        f"llama-server streaming timed out after {STREAM_TIMEOUT}s"
+                    ) from exc
+                if not raw:
+                    break
+                buf += raw.decode("utf-8", errors="replace")
+                lines = buf.split("\n")
+                buf = lines.pop()
+                for line in lines:
+                    line = line.strip()
+                    if not line or line.startswith(":"):
+                        continue
+                    if not line.startswith("data:"):
+                        continue
+                    payload = line[5:].strip()
+                    if payload == "[DONE]":
+                        buf = ""
+                        raw = b""
+                        break
+                    try:
+                        obj = json.loads(payload)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(obj, dict) and isinstance(obj.get("usage"), dict):
+                        usage = obj["usage"]
+                    piece_reasoning, piece_content = _extract_stream_delta(obj)
+                    if piece_reasoning:
+                        reasoning_parts.append(piece_reasoning)
+                    if piece_content:
+                        content_parts.append(piece_content)
+                    if (piece_reasoning or piece_content) and on_token is not None:
+                        live_tokens += 1
+                        live_elapsed = time.perf_counter() - start
+                        try:
+                            on_token(
+                                "".join(reasoning_parts),
+                                "".join(content_parts),
+                                False,
+                                {
+                                    "tps": live_tokens / live_elapsed if live_elapsed > 0 else 0.0,
+                                    "completion_tokens": live_tokens,
+                                    "elapsed": live_elapsed,
+                                    "live": True,
+                                },
+                            )
+                        except Exception:
+                            pass
+                else:
+                    continue
+                break
+            tail = buf.strip()
+            if tail.startswith("data:"):
+                payload = tail[5:].strip()
+                if payload and payload != "[DONE]":
+                    try:
+                        obj = json.loads(payload)
+                        piece_reasoning, piece_content = _extract_stream_delta(obj)
+                        if piece_reasoning:
+                            reasoning_parts.append(piece_reasoning)
+                        if piece_content:
+                            content_parts.append(piece_content)
+                    except json.JSONDecodeError:
+                        pass
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace").strip() or exc.reason
+        raise RuntimeError(
+            f"llama-server HTTP {exc.code} for {base_url}/v1/chat/completions: {detail}"
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(
+            f"Could not reach llama-server at {base_url}: {exc.reason}"
+        ) from exc
+    content = "".join(content_parts)
+    reasoning = "".join(reasoning_parts)
+    if not content and not reasoning:
+        raise RuntimeError("llama-server streaming returned no content")
+    elapsed = time.perf_counter() - start
+    completion_tokens = usage.get("completion_tokens", 0) or live_tokens
+    prompt_tokens = usage.get("prompt_tokens", 0)
+    total_tokens = usage.get("total_tokens", 0)
+    tps = completion_tokens / elapsed if elapsed > 0 and completion_tokens else 0.0
+    print(
+        f"[Unsloth Studio Bridge] Tokens(stream): prompt={prompt_tokens}, "
+        f"completion={completion_tokens}, total={total_tokens}, "
+        f"time={elapsed:.2f}s, speed={tps:.2f} tok/s",
+        file=sys.stderr,
+    )
+    stats = {
+        "tps": tps,
+        "completion_tokens": completion_tokens,
+        "prompt_tokens": prompt_tokens,
+        "total_tokens": total_tokens,
+        "elapsed": elapsed,
+        "live": False,
+    }
+    if on_token is not None:
+        try:
+            on_token(reasoning, content, True, stats)
+        except Exception:
+            pass
+    return content, reasoning, stats
+
+
 class UnslothLLM:
     def __init__(self):
         # Per-node conversation cache: ComfyUI reuses the class instance of each
@@ -1704,6 +1958,20 @@ class UnslothLLM:
                         ),
                     },
                 ),
+                "live_display": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": (
+                            "Stream thinking + answer tokens live to the companion "
+                            "'Thinking Display (CRT)' node via websocket. Turn off to "
+                            "use the original single-shot request with no live updates."
+                        ),
+                    },
+                ),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
             },
         }
 
@@ -1721,7 +1989,7 @@ class UnslothLLM:
         "after each run; the next run reloads it automatically."
     )
 
-    def generate(self, prompt, seed, unsloth_server_url=DEFAULT_UNSLOTH_STUDIO_URL, skills_path="", disable_thinking=True, include_reasoning=False, cache_skills=True, retain_last_response=0, image=None, temperature=-1.0, top_p=-1.0, top_k=-1, disable_web_search=False, studio_api_key="", unload_model_after_run=False):
+    def generate(self, prompt, seed, unsloth_server_url=DEFAULT_UNSLOTH_STUDIO_URL, skills_path="", disable_thinking=True, include_reasoning=False, cache_skills=True, retain_last_response=0, image=None, temperature=-1.0, top_p=-1.0, top_k=-1, disable_web_search=False, studio_api_key="", unload_model_after_run=False, live_display=True, unique_id=None):
         if (not prompt or not prompt.strip()) and image is None:
             print("[Unsloth Studio Bridge][WARN] Prompt is empty", file=sys.stderr)
         print(
@@ -1838,20 +2106,73 @@ class UnslothLLM:
         )
         print(
             f"[Unsloth Studio Bridge] Sending request (seed={seed}, max_tokens=omitted, "
-            f"disable_thinking={disable_thinking}, cache_skills={cache_skills})",
+            f"disable_thinking={disable_thinking}, cache_skills={cache_skills}, "
+            f"live_display={live_display})",
             file=sys.stderr,
         )
-        response = _chat_completion(
-            llama_base,
-            messages,
-            seed,
-            params,
-            include_reasoning,
-            disable_thinking,
-            cache_skills,
-            configured_url=unsloth_server_url,
-            studio_credential=studio_api_key,
-        )
+        stream_state = {"last_emit": 0.0}
+
+        def _on_stream_token(stream_reasoning, stream_content, stream_done=False, stream_stats=None):
+            if not live_display:
+                return
+            now = time.monotonic()
+            if not stream_done and (now - stream_state["last_emit"]) < STREAM_BROADCAST_MIN_INTERVAL:
+                return
+            stream_state["last_emit"] = now
+            thinking_view, answer_view = _partition_live_text(stream_reasoning, stream_content)
+            _broadcast_thinking(unique_id, thinking_view, answer_view, stream_done, stats=stream_stats)
+
+        response = None
+        if live_display:
+            if unique_id is not None:
+                _broadcast_thinking(unique_id, "", "", False)
+            try:
+                stream_content, stream_reasoning, stream_stats = _chat_completion_stream(
+                    llama_base,
+                    messages,
+                    seed,
+                    params,
+                    disable_thinking,
+                    cache_skills,
+                    configured_url=unsloth_server_url,
+                    studio_credential=studio_api_key,
+                    on_token=_on_stream_token,
+                )
+                if include_reasoning and stream_reasoning:
+                    if stream_content:
+                        response = stream_content + "\n\n[Reasoning]\n" + stream_reasoning
+                    else:
+                        response = stream_reasoning
+                else:
+                    response = stream_content
+                thinking_view, answer_view = _partition_live_text(stream_reasoning, stream_content)
+                _broadcast_thinking(unique_id, thinking_view, answer_view, True, stats=stream_stats)
+            except Exception as exc:
+                print(
+                    f"[Unsloth Studio Bridge] WARNING: streaming failed ({exc}); "
+                    "falling back to single-shot request.",
+                    file=sys.stderr,
+                )
+                response = None
+        if response is None:
+            response = _chat_completion(
+                llama_base,
+                messages,
+                seed,
+                params,
+                include_reasoning,
+                disable_thinking,
+                cache_skills,
+                configured_url=unsloth_server_url,
+                studio_credential=studio_api_key,
+            )
+            if live_display:
+                if include_reasoning and "[Reasoning]" in response:
+                    head, _, tail = response.partition("[Reasoning]")
+                    _broadcast_thinking(unique_id, tail.strip(), head.strip(), True)
+                else:
+                    thinking_view, answer_view = _partition_live_text("", response)
+                    _broadcast_thinking(unique_id, thinking_view, answer_view, True)
         print(
             f"[Unsloth Studio Bridge][INFO] Response received: {len(response)} chars",
             file=sys.stderr,

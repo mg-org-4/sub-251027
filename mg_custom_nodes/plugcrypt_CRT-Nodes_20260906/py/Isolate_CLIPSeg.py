@@ -5,6 +5,7 @@ Produces the same pipe structure as CRT_IsolateInput so CRT_IsolateOutput can re
 
 import gc
 import os
+import shutil
 import threading
 import time
 import io
@@ -50,14 +51,36 @@ def _clipseg_cache_root():
     return os.path.join(folder_paths.models_dir, "clip_seg")
 
 
+def _clipseg_dir_complete(local_dir) -> bool:
+    """True only if the snapshot has config, tokenizer and weights.
+
+    An interrupted download can leave a dir with config.json but no weights,
+    which previously passed the check and failed at load time.
+    """
+    if not os.path.isdir(local_dir):
+        return False
+    if not os.path.isfile(os.path.join(local_dir, "config.json")):
+        return False
+    try:
+        names = os.listdir(local_dir)
+    except OSError:
+        return False
+    return any(n.endswith((".safetensors", ".bin")) for n in names)
+
+
 def _ensure_clipseg_model(model_id):
     model_id = (model_id or CLIPSEG_MODEL_ID).strip()
     safe_name = model_id.replace("/", "--")
     local_dir = os.path.join(_clipseg_cache_root(), safe_name)
     config_path = os.path.join(local_dir, "config.json")
 
-    if os.path.isfile(config_path):
+    if _clipseg_dir_complete(local_dir):
         return local_dir
+
+    if os.path.isdir(local_dir):
+        # Incomplete/corrupt snapshot - purge so the re-download starts clean.
+        print(f"[CRT CLIPSeg] Removing incomplete model dir: {local_dir}")
+        shutil.rmtree(local_dir, ignore_errors=True)
 
     os.makedirs(_clipseg_cache_root(), exist_ok=True)
     try:

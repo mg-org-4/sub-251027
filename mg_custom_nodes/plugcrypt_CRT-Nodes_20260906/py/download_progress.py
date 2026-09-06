@@ -66,6 +66,16 @@ def _content_length(response) -> int:
         return 0
 
 
+def _remote_content_length(url: str, headers: dict) -> int:
+    """Best-effort remote file size via HEAD (follows redirects). 0 if unknown."""
+    try:
+        req = urllib.request.Request(url, method="HEAD", headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return _content_length(resp)
+    except Exception:
+        return 0
+
+
 def _hf_download_url(url: str, destination: str | os.PathLike, label: str | None, console_prefix: str) -> str:
     """Use huggingface_hub for Hugging Face files (resume + fast transfer paths)."""
     # Max throughput: Xet chunked downloads when hf_xet is present, plus the
@@ -145,7 +155,11 @@ def _hf_download_url(url: str, destination: str | os.PathLike, label: str | None
         raise
 
     if str(Path(cached_path).resolve()) != str(destination_path.resolve()):
-        shutil.copyfile(cached_path, destination_path)
+        # Atomic copy: a crash mid-copy must not leave a truncated file at the
+        # destination (it would be silently accepted on the next run).
+        tmp_path = destination_path.with_name(f"{destination_path.name}.part")
+        shutil.copyfile(cached_path, tmp_path)
+        os.replace(tmp_path, destination_path)
 
     size_mb = destination_path.stat().st_size / (1024 * 1024)
     print(
@@ -170,23 +184,37 @@ def download_url_with_progress(
     """Download one file atomically while reporting bytes, speed, and ETA."""
 
     destination_path = Path(destination)
-    if destination_path.is_file():
-        return str(destination_path)
+    display_name = label or destination_path.name
 
     is_hf = bool(_HF_URL_RE.match(url))
+    headers = {"User-Agent": user_agent}
+    if is_hf:
+        token = _hf_token()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+    if destination_path.is_file():
+        # Validate against the remote size: an interrupted earlier attempt may
+        # have left a truncated file at the destination. Without this check the
+        # corrupt file would be silently accepted forever.
+        expected = _remote_content_length(url, headers)
+        if expected and destination_path.stat().st_size != expected:
+            print(
+                f"[{console_prefix}] Existing file incomplete "
+                f"({destination_path.stat().st_size} != {expected} bytes); "
+                f"re-downloading: {display_name}",
+                flush=True,
+            )
+            destination_path.unlink()
+        else:
+            return str(destination_path)
+
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     partial_path = (
         Path(temp_path)
         if temp_path is not None
         else destination_path.with_name(f"{destination_path.name}.part")
     )
-    display_name = label or destination_path.name
-
-    headers = {"User-Agent": user_agent}
-    if is_hf:
-        token = _hf_token()
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
 
     request = urllib.request.Request(url, headers=headers)
     open_kwargs = {} if timeout is None else {"timeout": timeout}

@@ -363,8 +363,9 @@ def _download(url, target):
 def ensure_model(key):
     spec = MODELS[key]
     target = _target_path(spec)
-    if os.path.exists(target):
-        return target
+    # No early return when the file already exists: download_url_with_progress
+    # HEAD-validates it against the remote size and re-downloads if a previous
+    # attempt left a truncated/corrupt file behind.
     for alternate in spec.get("alternate_filenames", []):
         alternate_path = os.path.join(_model_dir(spec["folder"]), alternate)
         if os.path.exists(alternate_path):

@@ -6,6 +6,27 @@ All notable changes to this project are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Fixed
+- panel_connect accepts an Autogrow display-label alias (`ref_image_0` → `ref_images.ref_image_0`) instead of refusing with a false "no input accepts type IMAGE"; the resolved live slot name still feeds #2008 dotted-name reconcile, and an unmatched name reports internal slot names rather than blaming the origin type (#2266)
+
+## [0.15.179] - 2026-09-05
+
+### Fixed
+- panel_set_widget combo refusals list the live options for generic enums (device/precision) instead of applying the private filename/path redaction to every combo (#2265, #2271)
+
+## [0.15.178] - 2026-09-05
+
+### Fixed
+- fetch_image no longer sends `/view` through ComfyUI `api.fetchApi`, which prefixes `/api` so local media became `/api/view` and failed with `Failed to fetch` after headless ECONNREFUSED. `/view` uses origin-validated `fileURL` + same-origin fetch (and `Comfy-User` when the API object has a user). History / system_stats keep `fetchApi` so cloud auth headers and 401 remint stay intact (comfyui-mcp#2884, #2261)
+
+
+## [0.15.177] - 2026-09-05
+
+### Fixed
+- panel_set_widget wraps live COMFY_DYNAMICCOMBO_V3 parents before the write so a Vue/widget-store flush cannot rebuild dotted FLOAT children from spec defaults while the receipt still says applied:true; panel_query_graph then sees the value that was written (#2031)
+- Save-As after panel_refresh_nodes proves destination canvas identity before refusing, recaptures the active tracker (and reseals a missing root uuid) so refresh does not invalidate content identity, and a failed copy's source restore actually runs then recaptures so the next graph read is not root-shape-mismatch (#2257)
+
+
 ## [0.15.176] - 2026-09-05
 
 ### Fixed

@@ -269,10 +269,10 @@ app.registerExtension({
       // The frontend paints the image from a deferred microtask, which lands on
       // top of anything the widget pass drew, so this button is painted from that
       // same deferred pass instead (see drawNoteLayer). Clicks still use isVisible.
-      const buttonDraw = noteButton.draw.bind(noteButton);
+      const origButtonDraw = noteButton.draw;
       noteButton.draw = () => {};
       drawNoteButton = (ctx) => {
-        if (noteButton.isVisible) buttonDraw(ctx);
+        if (noteButton.isVisible) origButtonDraw.call(noteButton, ctx);
       };
     }
 
@@ -386,7 +386,9 @@ app.registerExtension({
       // Pinned to the node, top left of the preview area
       if (noteButton) {
         const targetImg = noteTargetImage();
-        noteButton.isVisible = !!previewWidget && !!node.imgs?.length;
+        // Hidden in the history grid, there is no single image to attach a note to
+        const inHistoryGrid = !compare && node.imageIndex == null && node.imgs?.length > 1;
+        noteButton.isVisible = !!previewWidget && !!node.imgs?.length && !inHistoryGrid;
         if (typeof previewWidget?.y === "number") noteButton.myY = previewWidget.y + 6;
         noteButton.text = getNote(targetImg) ? "Edit Note" : "Add Note";
       }

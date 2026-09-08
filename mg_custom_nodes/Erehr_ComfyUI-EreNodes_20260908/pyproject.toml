@@ -1,0 +1,20 @@
+[project]
+name = "comfyui-erenodes"
+description = "Prompt management nodes with build in prompt library and tag autocomplete. Prompt tag cloud, multiselect, randomizer, gallery, composer, extractor. Drag and drop across nodes and sidebar library.  In prompt lora loader with trigger words. And more."
+version = "3.6.3"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+# safetensors ships with ComfyUI; declared for standalone tooling
+dependencies = ["safetensors"]
+classifiers = [
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Repository = "https://github.com/Erehr/ComfyUI-EreNodes"
+"Bug Tracker" = "https://github.com/Erehr/ComfyUI-EreNodes/issues"
+
+[tool.comfy]
+PublisherId = "erehr"
+DisplayName = "ComfyUI-EreNodes"
+Icon = "https://raw.githubusercontent.com/Erehr/ComfyUI-EreNodes/refs/heads/main/web/img/icon.png"

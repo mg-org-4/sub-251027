@@ -1,0 +1,541 @@
+import pytest
+
+from ComfyUI_H3_Continuum_Join.constants import (
+    PROMPT_FORMAT_AUTO,
+    PROMPT_FORMAT_FIXED,
+    PROMPT_FORMAT_LIST,
+    PROMPT_FORMAT_TIMELINE,
+    PROMPT_MODE_FIXED,
+    PROMPT_MODE_LIST,
+    PROMPT_MODE_TIMELINE,
+)
+from ComfyUI_H3_Continuum_Join.v2.prompts import (
+    PromptPlanError,
+    apply_prompt_overrides,
+    build_sampler_prompt_plan,
+    detect_prompt_mode,
+    make_prompt_plan,
+    parse_sparse_prompt_overrides,
+    prompt_hash,
+    prompt_plan_report,
+    validate_sparse_prompt_overrides,
+    validate_prompt_plan,
+)
+from ComfyUI_H3_Continuum_Join.v2.nodes import H3ContinuumPromptPlanPreview
+
+
+def test_fixed_prompt_repeats_without_mutation():
+    plan = make_prompt_plan(mode=PROMPT_MODE_FIXED, script="hello", chunks=3, chunk_seconds=5)
+    assert plan["prompts"] == ["hello", "hello", "hello"]
+    assert len(set(plan["hashes"])) == 1
+    assert validate_prompt_plan(plan) is plan
+
+
+def test_prompt_transparency_t1_fixed_passthrough():
+    script = "\n".join(
+        [
+            "<d>Hello world</d>",
+            "embedding:character_style",
+            "<Picture 1>",
+            "<FutureH3Token>",
+            "日本語 text:01",
+            "symbols +=[]{}()",
+        ]
+    )
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_FIXED,
+        script=script,
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == [script, script]
+
+
+def test_prompt_transparency_t2_list_passthrough():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_LIST,
+        script=(
+            "<d>first dialogue</d>\n"
+            "embedding:style_a\n"
+            "---\n"
+            "<d>second dialogue</d>\n"
+            "<FutureToken>"
+        ),
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == [
+        "<d>first dialogue</d>\nembedding:style_a",
+        "<d>second dialogue</d>\n<FutureToken>",
+    ]
+
+
+def test_prompt_transparency_t3_timeline_passthrough():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_TIMELINE,
+        script=(
+            "Shared <FutureToken>\n"
+            "embedding:global_style\n\n"
+            "[0-5s]\n"
+            "<d>first line</d>\n\n"
+            "[5-10s]\n"
+            "<d>second line</d>\n"
+            "<Picture 2>"
+        ),
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == [
+        "Shared <FutureToken>\nembedding:global_style\n\n<d>first line</d>",
+        "Shared <FutureToken>\nembedding:global_style\n\n<d>second line</d>\n<Picture 2>",
+    ]
+
+
+def test_prompt_transparency_t4_timeline_preamble_passthrough():
+    preamble = "embedding:character_x\n<FutureToken>\n<d>shared instruction</d>"
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_TIMELINE,
+        script=f"{preamble}\n\n[Chunk 1]\nfirst\n[Chunk 2]\nsecond",
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == [
+        f"{preamble}\n\nfirst",
+        f"{preamble}\n\nsecond",
+    ]
+
+
+def test_prompt_transparency_t5_external_override_passthrough_and_rehash():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_FIXED,
+        script="base",
+        chunks=2,
+        chunk_seconds=5,
+    )
+    override = "<d>override dialogue</d>\nembedding:new_style\n<UnknownSpecial>"
+    updated = apply_prompt_overrides(plan, [None, override])
+    assert updated["prompts"] == ["base", override]
+    assert updated["hashes"][0] == plan["hashes"][0]
+    assert updated["hashes"][1] == prompt_hash(override)
+    assert updated["hashes"][1] != plan["hashes"][1]
+
+
+def test_prompt_transparency_t6_invalid_timeline_fallback_passthrough():
+    script = "[0 to 5s]\n<d>Hello</d>\nembedding:style\n<UnknownSpecial>"
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_TIMELINE,
+        script=script,
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["mode"] == PROMPT_MODE_FIXED
+    assert plan["prompts"] == [script, script]
+    assert plan["diagnostics"][0]["code"] == "H3C-P100"
+
+
+@pytest.mark.parametrize(
+    ("left", "right"),
+    [
+        ("<d>Hello</d>", "<d>hello</d>"),
+        ("embedding:a", "embedding:b"),
+        ("<FutureA>", "<FutureB>"),
+    ],
+)
+def test_prompt_transparency_t7_hash_sensitivity(left, right):
+    assert prompt_hash(left) == prompt_hash(left)
+    assert prompt_hash(left) != prompt_hash(right)
+
+
+def test_prompt_transparency_t8_unknown_future_syntax_is_literal():
+    script = "\n".join(
+        [
+            '<h3_future_control value="1">',
+            "<future:abc>",
+            "[[SPECIAL_X]]",
+            "token://future/value",
+        ]
+    )
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_FIXED,
+        script=script,
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == [script, script]
+    assert "diagnostics" not in plan
+
+
+@pytest.mark.parametrize(
+    ("script", "expected"),
+    [
+        ("one continuous prompt", PROMPT_MODE_FIXED),
+        ("first\n---\nsecond", PROMPT_MODE_LIST),
+        ("[0-5s]\nfirst", PROMPT_MODE_TIMELINE),
+        ("[Chunk 1]\nfirst", PROMPT_MODE_TIMELINE),
+    ],
+)
+def test_auto_detects_prompt_format(script, expected):
+    assert detect_prompt_mode(script) == expected
+
+
+def test_auto_plan_records_detected_format_without_changing_schema_mode():
+    plan = make_prompt_plan(mode=PROMPT_FORMAT_AUTO, script="first\n---\nsecond", chunks=2, chunk_seconds=5)
+    assert plan["mode"] == PROMPT_MODE_LIST
+    assert plan["prompts"] == ["first", "second"]
+    assert plan["notes"][0] == "Auto detected List"
+
+
+def test_simple_fixed_format_maps_to_stable_fixed_plan_mode():
+    plan = make_prompt_plan(mode=PROMPT_FORMAT_FIXED, script="same", chunks=2, chunk_seconds=5)
+    assert plan["mode"] == PROMPT_MODE_FIXED
+
+
+def test_list_prompt_uses_separator_and_repeats_last():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_LIST,
+        script="first\n---\nsecond",
+        chunks=3,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == ["first", "second", "second"]
+    assert "repeated" in plan["notes"][0]
+
+
+def test_timeline_prompt_maps_ranges_and_chunk_headers():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_TIMELINE,
+        script="[0-5s]\none\n[5-10s]\ntwo\n[Chunk 3]\nthree",
+        chunks=3,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == ["one", "two", "three"]
+    assert not any(item["code"] == "H3C-P105" for item in plan.get("diagnostics", []))
+
+
+def test_clean_list_keeps_assignments_without_mixed_syntax_warning():
+    plan = make_prompt_plan(
+        mode=PROMPT_FORMAT_LIST,
+        script="A\n---\nB\n---\nC",
+        chunks=3,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == ["A", "B", "C"]
+    assert not any(item["code"] == "H3C-P105" for item in plan.get("diagnostics", []))
+
+
+@pytest.mark.parametrize("mode", [PROMPT_FORMAT_AUTO, PROMPT_FORMAT_TIMELINE])
+def test_timeline_mixed_with_list_separator_warns_and_ignores_separator(mode):
+    plan = make_prompt_plan(
+        mode=mode,
+        script="[Chunk 1]\nA\n[Chunk 2]\nB\n---\nC",
+        chunks=3,
+        chunk_seconds=5,
+    )
+    assert plan["mode"] == PROMPT_MODE_TIMELINE
+    assert plan["prompts"] == ["A", "B\nC", "B\nC"]
+    assert all("---" not in prompt for prompt in plan["prompts"])
+    assert any(item["code"] == "H3C-P105" for item in plan["diagnostics"])
+    assert any(item["code"] == "H3C-P101" for item in plan["diagnostics"])
+
+
+def test_timeline_mixed_separator_is_removed_from_shared_preamble():
+    plan = make_prompt_plan(
+        mode=PROMPT_FORMAT_AUTO,
+        script="Shared preamble\n---\n[Chunk 1]\nA\n[Chunk 2]\nB",
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == ["Shared preamble\n\nA", "Shared preamble\n\nB"]
+    assert all("---" not in prompt for prompt in plan["prompts"])
+    assert any(item["code"] == "H3C-P105" for item in plan["diagnostics"])
+
+
+def test_five_chunk_timeline_with_trailing_separator_preserves_all_assignments():
+    script = "\n".join(
+        [
+            "[Chunk 1]", "A", "[Chunk 2]", "B", "[Chunk 3]", "C",
+            "[Chunk 4]", "D", "[Chunk 5]", "E", "---",
+        ]
+    )
+    plan = make_prompt_plan(
+        mode=PROMPT_FORMAT_AUTO,
+        script=script,
+        chunks=5,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == ["A", "B", "C", "D", "E"]
+    assert any(item["code"] == "H3C-P105" for item in plan["diagnostics"])
+
+
+def test_explicit_list_with_timeline_header_warns_but_keeps_list_parsing():
+    plan = make_prompt_plan(
+        mode=PROMPT_FORMAT_LIST,
+        script="[Chunk 1]\nA\n---\nB\n---\nC",
+        chunks=3,
+        chunk_seconds=5,
+    )
+    assert plan["mode"] == PROMPT_MODE_LIST
+    assert plan["prompts"] == ["[Chunk 1]\nA", "B", "C"]
+    assert any(item["code"] == "H3C-P105" for item in plan["diagnostics"])
+    assert [item["message"] for item in plan["diagnostics"] if item["code"] == "H3C-P000"] == [
+        "Chunk 1 source: List section 1",
+        "Chunk 2 source: List section 2",
+        "Chunk 3 source: List section 3",
+    ]
+
+
+def test_explicit_fixed_keeps_all_special_syntax_literal_without_warning():
+    script = "[Chunk 1]\nA\n[0-5s]\nB\n---\nC"
+    plan = make_prompt_plan(
+        mode=PROMPT_FORMAT_FIXED,
+        script=script,
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == [script, script]
+    assert "diagnostics" not in plan
+
+
+def test_mixed_syntax_report_leads_with_warning_and_resolved_chunk_sources():
+    plan = make_prompt_plan(
+        mode=PROMPT_FORMAT_AUTO,
+        script="[Chunk 1]\nA\n[Chunk 2]\nB\n---\nC",
+        chunks=3,
+        chunk_seconds=5,
+    )
+    report = prompt_plan_report(plan)
+    assert report.startswith("PROMPT PREFLIGHT WARNING")
+    assert "H3C-P105" in report
+    assert "H3C-P101" in report
+    assert "Chunk 1 source:" in report
+    assert "Chunk 3 source:" in report
+
+
+def test_prompt_preview_uses_the_same_mixed_syntax_resolution():
+    script = "[Chunk 1]\nA\n[Chunk 2]\nB\n---\nC"
+    expected = make_prompt_plan(
+        mode=PROMPT_FORMAT_AUTO,
+        script=script,
+        chunks=3,
+        chunk_seconds=5,
+    )
+    preview_plan, preview_report = H3ContinuumPromptPlanPreview().build(
+        PROMPT_FORMAT_AUTO,
+        script,
+        3,
+        5,
+    )
+    assert preview_plan == expected
+    assert preview_report.startswith("PROMPT PREFLIGHT WARNING")
+    assert "Chunk 2:\nB\nC" in preview_report
+    assert "Chunk 3:\nB\nC" in preview_report
+
+
+def test_timeline_preamble_is_applied_to_every_chunk():
+    plan = make_prompt_plan(
+        mode=PROMPT_FORMAT_AUTO,
+        script="Refer to <Picture 1>.\n[0-5s]\none\n[5-10s]\ntwo",
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == ["Refer to <Picture 1>.\n\none", "Refer to <Picture 1>.\n\ntwo"]
+    assert plan["notes"] == ["Auto detected Timeline", "applied timeline preamble to all chunks"]
+
+
+def test_timeline_missing_coverage_warns_and_repeats_previous_prompt():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_TIMELINE,
+        script="[0-5s]\none",
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == ["one", "one"]
+    assert any(item["code"] == "H3C-P101" for item in plan["diagnostics"])
+    assert "fallback" in prompt_plan_report(plan)
+
+
+def test_timeline_leading_gap_uses_earliest_valid_prompt():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_TIMELINE,
+        script="[5-10s]\nsecond",
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == ["second", "second"]
+    assert plan["diagnostics"][0]["code"] == "H3C-P101"
+
+
+def test_timeline_extra_sections_warn_and_are_ignored():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_TIMELINE,
+        script="[0-5s]\none\n[5-10s]\ntwo\n[10-15s]\nextra",
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["prompts"] == ["one", "two"]
+    assert any(item["code"] == "H3C-P104" for item in plan["diagnostics"])
+
+
+@pytest.mark.parametrize(
+    ("script", "code"),
+    [
+        ("[0 to 5s]\none", "H3C-P001"),
+        ("[5-5s]\none", "H3C-P002"),
+        ("[Chunk 0]\none", "H3C-P004"),
+        ("[0-5s]\n", "H3C-P005"),
+    ],
+)
+def test_invalid_timeline_falls_back_with_actionable_diagnostic(script, code):
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_TIMELINE,
+        script=script,
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["mode"] == PROMPT_MODE_FIXED
+    assert plan["prompts"] == [script.strip(), script.strip()]
+    assert plan["diagnostics"][0]["code"] == "H3C-P100"
+    assert code in plan["diagnostics"][0]["message"]
+
+
+def test_invalid_mixed_timeline_fallback_preserves_original_text():
+    script = "[Chunk 0]\nA\n---\nB"
+    plan = make_prompt_plan(
+        mode=PROMPT_FORMAT_TIMELINE,
+        script=script,
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["mode"] == PROMPT_MODE_FIXED
+    assert plan["prompts"] == [script, script]
+    assert plan["diagnostics"][0]["code"] == "H3C-P100"
+
+
+def test_duplicate_chunk_section_falls_back_without_blocking():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_TIMELINE,
+        script="[Chunk 1]\none\n[Chunk 1]\ntwo",
+        chunks=2,
+        chunk_seconds=5,
+    )
+    assert plan["mode"] == PROMPT_MODE_FIXED
+    assert any("H3C-P003" in item["message"] for item in plan["diagnostics"])
+
+
+def test_prompt_preflight_reports_explicit_chunk_sources():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_TIMELINE,
+        script="[0-5s]\none\n[5-10s]\ntwo",
+        chunks=2,
+        chunk_seconds=5,
+    )
+    report = prompt_plan_report(plan)
+    assert "Prompt Preflight:" in report
+    assert "Chunk 1 source:" in report
+    assert "Chunk 2 source:" in report
+
+
+def test_native_h3_chunk_duration_rejects_sub_four_seconds():
+    with pytest.raises(PromptPlanError):
+        make_prompt_plan(mode=PROMPT_MODE_FIXED, script="x", chunks=1, chunk_seconds=3.9)
+
+
+def test_chunk_duration_accepts_thirty_seconds_and_rejects_above_limit():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_FIXED,
+        script="x",
+        chunks=1,
+        chunk_seconds=30.0,
+    )
+    assert plan["chunk_seconds"] == 30.0
+    assert validate_prompt_plan(plan) is plan
+
+    invalid_plan = dict(plan, chunk_seconds=30.1)
+    with pytest.raises(PromptPlanError, match="30.0"):
+        validate_prompt_plan(invalid_plan)
+
+    with pytest.raises(PromptPlanError, match="30.0"):
+        make_prompt_plan(
+            mode=PROMPT_MODE_FIXED,
+            script="x",
+            chunks=1,
+            chunk_seconds=30.1,
+        )
+
+
+def test_thirty_second_timeline_maps_one_section_to_each_chunk():
+    plan = make_prompt_plan(
+        mode=PROMPT_MODE_TIMELINE,
+        script="[0-30s]\nfirst\n[30-60s]\nsecond",
+        chunks=2,
+        chunk_seconds=30.0,
+    )
+    assert plan["prompts"] == ["first", "second"]
+
+
+def test_external_prompt_overrides_only_the_connected_clip_and_rehashes_it():
+    plan = make_prompt_plan(mode=PROMPT_MODE_LIST, script="first\n---\nsecond\n---\nthird", chunks=3, chunk_seconds=5)
+    updated = apply_prompt_overrides(plan, [None, "external second", None])
+    assert updated["prompts"] == ["first", "external second", "third"]
+    assert updated["hashes"][0] == plan["hashes"][0]
+    assert updated["hashes"][1] != plan["hashes"][1]
+    assert updated["hashes"][2] == plan["hashes"][2]
+    assert updated["notes"][-1] == "external Clip Prompt input(s): 2"
+
+
+def test_external_prompt_with_same_text_keeps_the_same_hash():
+    plan = make_prompt_plan(mode=PROMPT_MODE_FIXED, script="same", chunks=2, chunk_seconds=5)
+    assert apply_prompt_overrides(plan, [None, "same"])["hashes"] == plan["hashes"]
+
+
+def test_external_prompt_accepts_empty_connected_text():
+    plan = make_prompt_plan(mode=PROMPT_MODE_FIXED, script="fallback", chunks=1, chunk_seconds=5)
+    updated = apply_prompt_overrides(plan, ["   "])
+    assert updated["prompts"] == [""]
+
+
+def test_sequence_prompt_precedes_connected_plan_and_legacy_script():
+    connected = make_prompt_plan(mode=PROMPT_FORMAT_FIXED, script="connected plan", chunks=2, chunk_seconds=5)
+    resolved = build_sampler_prompt_plan(prompt_mode=PROMPT_FORMAT_AUTO, prompt_script="legacy", sequence_prompt="first\n---\nsecond", prompt_plan=connected, chunks=2, chunk_seconds=5)
+    assert resolved["prompts"] == ["first", "second"]
+
+
+def test_connected_plan_precedes_legacy_script_without_sequence_input():
+    connected = make_prompt_plan(mode=PROMPT_FORMAT_FIXED, script="connected plan", chunks=2, chunk_seconds=5)
+    resolved = build_sampler_prompt_plan(prompt_mode=PROMPT_FORMAT_AUTO, prompt_script="legacy", sequence_prompt=None, prompt_plan=connected, chunks=2, chunk_seconds=5)
+    assert resolved == connected
+
+
+def test_sparse_overrides_replace_only_explicit_clips_and_rehash():
+    plan = make_prompt_plan(mode=PROMPT_FORMAT_FIXED, script="Sequence Prompt", chunks=5, chunk_seconds=5)
+    sparse = validate_sparse_prompt_overrides(parse_sparse_prompt_overrides("[Clip 2]\nclose-up\n\n[Clip 5]\nfinish naturally"), chunks=5)
+    updated = apply_prompt_overrides(plan, [sparse.get(index) for index in range(1, 6)])
+    assert updated["prompts"] == ["Sequence Prompt", "close-up", "Sequence Prompt", "Sequence Prompt", "finish naturally"]
+    assert updated["hashes"][0] == plan["hashes"][0]
+    assert updated["hashes"][1] != plan["hashes"][1]
+    assert updated["hashes"][2] == plan["hashes"][2]
+    assert updated["hashes"][3] == plan["hashes"][3]
+    assert updated["hashes"][4] != plan["hashes"][4]
+
+
+def test_sparse_override_clip_one_leaves_remaining_clips_unchanged():
+    plan = make_prompt_plan(mode=PROMPT_FORMAT_FIXED, script="base", chunks=5, chunk_seconds=5)
+    sparse = validate_sparse_prompt_overrides(parse_sparse_prompt_overrides("[Clip 1]\nopening override"), chunks=5)
+    updated = apply_prompt_overrides(plan, [sparse.get(index) for index in range(1, 6)])
+    assert updated["prompts"] == ["opening override", "base", "base", "base", "base"]
+
+
+def test_sparse_override_rejects_out_of_range_clip():
+    sparse = parse_sparse_prompt_overrides("[Clip 6]\noutside")
+    with pytest.raises(PromptPlanError, match="outside"):
+        validate_sparse_prompt_overrides(sparse, chunks=5)
+
+
+def test_sparse_override_rejects_duplicate_clip():
+    with pytest.raises(PromptPlanError, match="more than once"):
+        parse_sparse_prompt_overrides("[Clip 2]\nfirst\n\n[Chunk 2]\nsecond")
+
+
+def test_sparse_override_rejects_timeline_preamble():
+    with pytest.raises(PromptPlanError, match="before the first"):
+        parse_sparse_prompt_overrides("global text\n[Clip 1]\nopening override")

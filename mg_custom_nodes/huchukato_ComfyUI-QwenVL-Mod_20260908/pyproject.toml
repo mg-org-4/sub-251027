@@ -1,0 +1,17 @@
+[project]
+name = "ComfyUI-QwenVL-Mod"
+description = "Enhanced QwenVL node with MiniMax H3 loop mode and presets, multilingual prompt generation, camera & style tag dropdowns, Pony prompt converters, Qwen 3.8 uncensored models, GGUF backend, LTX 2.3 FL2VA presets, and local model discovery for professional multimodal video workflows."
+version = "2.6.1"
+license = {file = "LICENSE"}
+dependencies = ["transformers", "torch", "huggingface-hub", "hf_xet", "psutil", "numpy", "Pillow", "opencv-python", "bitsandbytes", "accelerate", "llama-cpp-python"]
+
+[project.urls]
+Repository = "https://github.com/huchukato/ComfyUI-QwenVL-Mod"
+
+[tool.comfy]
+PublisherId = "huchukato"
+DisplayName = "QwenVL-Mod: Enhanced Vision-Language"
+Icon = "https://raw.githubusercontent.com/huchukato/ComfyUI-QwenVL-Mod/main/icon.png"
+Banner = "https://raw.githubusercontent.com/huchukato/ComfyUI-QwenVL-Mod/main/banner.png"
+requires-comfyui = ">=1.0.0"
+Category = "video"

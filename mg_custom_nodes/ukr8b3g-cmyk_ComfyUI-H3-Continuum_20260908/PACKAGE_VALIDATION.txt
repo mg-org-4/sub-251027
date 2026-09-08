@@ -1,0 +1,42 @@
+ComfyUI-H3-Continuum V3.8 — package validation record
+
+Status: source-tree release-hygiene candidate. Release / Registry readiness remains HOLD until the separate final package-staging gate completes. This record is not a release artifact and does not authorize commit, push, tag, release, or Registry publication.
+
+Public surface: exactly seven nodes
+- H3 Continuum Sampler V3.8
+- H3 Continuum Reference Audios
+- H3 Continuum Finalize
+- H3 Continuum Load Image
+- H3 Continuum Load Audio
+- H3 Continuum Load Video
+- H3 Continuum Second Pass
+
+Protected contracts
+- Sampling Contract v5
+- Run Storage v3
+- State, Session, Assembly Plan, Driving Audio, and Second Pass/O1
+- Existing six public node IDs, sockets, and widget order
+- AUDIO-R1 adds only the Reference Audios helper and the Sampler's optional bundle socket
+
+Current verified source checks (2026-09-03)
+- Full pytest: 1117 passed, 0 failed (one external pynvml deprecation warning)
+- JavaScript syntax: 7/7
+- Python compileall: PASS
+- Development and Registry manifests: regenerated from their established file lists; verification requires missing, extra, and mismatch all equal to zero
+- Historical V3.8 workflow check: one Registry workflow only; no Hi-Res Fix standard path. The final 2026-09-07 distribution uses the supplied Spectrum graph in JSON and ZIP forms instead of the former Core-only template.
+- Public workflow graph: no orphan links or required-input validation errors
+- Runtime verifier, isolated import, public export/display, and protected-contract checks are recorded by the release-hygiene result report
+
+Registry package policy
+- Include production runtime modules, the two runtime-required tools modules, and tools/verify_runtime.py for package verification.
+- Exclude tests, runner/probe/diagnostic tools, internal state/worklog documents, development manifests, Labs assets, and historical workflows.
+- Include `examples/workflows/MiniMax_H3_Continuum_V38.json` and `examples/workflows/MiniMax_H3_Continuum_V38.zip`: one identical, user-supplied graph in two formats, not two workflow variants. Spectrum, rgthree, KJNodes, and ComfyUI-Easy-Use are external requirements, not bundled dependencies.
+- Preserve the supplied JSON and ZIP bytes, including prompt, media filenames, titles, and settings. Exclude unrelated backup ZIPs without deleting them.
+- The Development `MANIFEST.sha256` is a source integrity record and is excluded from the Registry archive. `REGISTRY_MANIFEST.sha256` must cover the actual staged archive files with zero missing, extra, or mismatched paths.
+
+Required final Release Track gate (not performed by this document)
+1. Build an isolated stage by the current `.comfyignore` rules.
+2. Import only from the stage; verify all seven public nodes and production helpers.
+3. Run the official comfy-cli validate and pack commands.
+4. Re-expand the archive and prove source/stage/archive SHA parity, no internal files, and no secrets or local-path leakage.
+5. Keep Release / Registry readiness HOLD unless every gate passes.

@@ -1,0 +1,513 @@
+{
+  "schema_version": "dg-ltx25-prompt-benchmark/1",
+  "name": "LTX-2.5 mode-aware prompt contract benchmark v1",
+  "description": "Offline A/B/C cases for T2V, I2V, and first/last-frame prompting. Structural scores compare a raw brief, the legacy generic LTX expansion, and a mode-aware revision while generation controls remain fixed.",
+  "seeds": [
+    17,
+    101,
+    809
+  ],
+  "cases": [
+    {
+      "id": "t2v_single_exchange_4s",
+      "mode": "t2v",
+      "brief": "Create one readable punch-and-block exchange between two visible people in a wet night alley, with one continuous side-tracking shot and synchronized restrained sound.",
+      "generation_control": {
+        "model": "ltx-2.5-22b-distilled",
+        "text_encoder": "gemma4-12b-with-projection",
+        "precision": "int8-convrot",
+        "width": 768,
+        "height": 512,
+        "fps": 24,
+        "frames": 97,
+        "duration_seconds": 4.0,
+        "sampler": "euler_ancestral",
+        "scheduler": "official_distilled",
+        "stage_1_steps": 8,
+        "stage_2_steps": 3,
+        "video_cfg": 1.0,
+        "audio_cfg": 1.0,
+        "negative_prompt": "",
+        "prompt_enhancer": false,
+        "conditioning": {
+          "kind": "text_only",
+          "asset_ids": [],
+          "strength": 0.0
+        }
+      },
+      "candidates": {
+        "raw": "At night in a wet alley, a uniformed police officer faces a man in a gray hoodie. The officer blocks one punch and steps back while a medium side view follows them. Boots scrape, one muted impact lands, and restrained percussion plays.",
+        "current": "A cinematic-style man with reddish-brown hair wearing a crisp black police uniform with a microphone attached to the collar engages in a high-stakes choreographed fight scene within a gritty urban alleyway. The scene begins with a medium wide shot as the officer squares up against an unseen opponent. As the engagement commences, the camera utilizes rapid-fire cuts and dynamic low-angle shifts to telegraph intense strikes while obscuring the mechanics of the movements. When a heavy hit lands, the action suddenly slows down into cinematic slow-motion, emphasizing the impact through the spray of grit and the officer's strained reaction. The camera follows with handheld tracking motion, weaving between the combatants with a shallow depth of field that keeps the focus sharp on the officer's intense expression. Lighting is high-contrast with deep cinematic shadows and cool blue moonlight reflecting off wet pavement, creating a dramatic reality show aesthetic. The sequence ends with a tight close-up of the officer breathing heavily, mid-action, as the camera settles into a steady hold. Throughout the viral interaction, the upbeat reality show's theme song plays in the background, driving the rhythmic energy of the fight sequence.",
+        "revised": "At night in a narrow wet alley, a uniformed police officer faces a man in a gray hoodie, both visible head to toe. In one continuous medium shot from the side, the camera tracks slowly right as the man throws one straight punch. The officer raises his left forearm, blocks one punch, and steps back into guard; both men remain on the same sides of the frame. Boots scrape on wet pavement, one muted impact lands at the block, and restrained percussion continues underneath."
+      },
+      "rubric": {
+        "word_range": [
+          40,
+          110
+        ],
+        "sentence_range": [
+          3,
+          6
+        ],
+        "max_cuts": 0,
+        "max_camera_operations": 2,
+        "max_action_beats": 5,
+        "camera_operation_terms": [
+          "camera tracks",
+          "camera follows",
+          "rapid-fire cuts",
+          "low-angle shifts",
+          "handheld tracking",
+          "slow-motion",
+          "tight close-up",
+          "steady hold"
+        ],
+        "action_terms": [
+          "faces",
+          "blocks one punch",
+          "steps back",
+          "squares up",
+          "intense strikes",
+          "heavy hit lands",
+          "slows down",
+          "spray of grit",
+          "breathing heavily"
+        ],
+        "required_concepts": [
+          {
+            "id": "two_visible_subjects",
+            "scope": "general",
+            "weight": 4,
+            "match": "all",
+            "patterns": [
+              "uniformed police officer",
+              "man in a gray hoodie"
+            ]
+          },
+          {
+            "id": "night_alley_setting",
+            "scope": "general",
+            "weight": 2,
+            "match": "all",
+            "patterns": [
+              "at night",
+              "wet alley"
+            ]
+          },
+          {
+            "id": "one_readable_exchange",
+            "scope": "general",
+            "weight": 4,
+            "match": "all",
+            "patterns": [
+              "blocks one punch",
+              "steps back"
+            ]
+          },
+          {
+            "id": "continuous_side_camera",
+            "scope": "general",
+            "weight": 3,
+            "match": "any",
+            "patterns": [
+              "continuous medium shot from the side",
+              "medium side view"
+            ]
+          },
+          {
+            "id": "synchronized_sound",
+            "scope": "general",
+            "weight": 3,
+            "match": "all",
+            "patterns": [
+              "boots scrape",
+              "muted impact",
+              "restrained percussion"
+            ]
+          }
+        ],
+        "prohibited_concepts": [
+          {
+            "id": "unseen_opponent",
+            "weight": 4,
+            "patterns": [
+              "unseen opponent"
+            ]
+          },
+          {
+            "id": "generic_editing_intent",
+            "weight": 3,
+            "patterns": [
+              "obscuring the mechanics",
+              "telegraph intense strikes"
+            ]
+          },
+          {
+            "id": "style_conflict",
+            "weight": 2,
+            "patterns": [
+              "reality show aesthetic",
+              "cinematic-style"
+            ]
+          },
+          {
+            "id": "stale_audio_language",
+            "weight": 2,
+            "patterns": [
+              "viral interaction"
+            ]
+          }
+        ]
+      },
+      "notes": "A four-second T2V baseline deliberately limits choreography to one physically legible exchange."
+    },
+    {
+      "id": "i2v_officer_reaction_4s",
+      "mode": "i2v",
+      "brief": "Animate the supplied daylight close-up of one officer beside a patrol car. Preserve the first frame and show a short off-screen block and recovery without changing scene, identity, or framing.",
+      "generation_control": {
+        "model": "ltx-2.5-22b-distilled",
+        "text_encoder": "gemma4-12b-with-projection",
+        "precision": "int8-convrot",
+        "width": 768,
+        "height": 512,
+        "fps": 24,
+        "frames": 97,
+        "duration_seconds": 4.0,
+        "sampler": "euler_ancestral",
+        "scheduler": "official_distilled",
+        "stage_1_steps": 8,
+        "stage_2_steps": 3,
+        "video_cfg": 1.0,
+        "audio_cfg": 1.0,
+        "negative_prompt": "",
+        "prompt_enhancer": false,
+        "conditioning": {
+          "kind": "first_frame",
+          "asset_ids": [
+            "officer_daylight_closeup"
+          ],
+          "strength": 0.7
+        }
+      },
+      "candidates": {
+        "raw": "The daylight close-up holds on the uniformed officer with his collar microphone beside the patrol car. He turns toward frame right and raises both forearms to block one gloved arm entering from off-screen, then returns to guard. The camera remains in the same close-up. A muted impact and passing traffic are heard.",
+        "current": "A cinematic-style man with reddish-brown hair wearing a crisp black police uniform with a microphone attached to the collar engages in a high-stakes choreographed fight scene within a gritty urban alleyway. The scene begins with a medium wide shot as the officer squares up against an unseen opponent. As the engagement commences, the camera utilizes rapid-fire cuts and dynamic low-angle shifts to telegraph intense strikes while obscuring the mechanics of the movements. When a heavy hit lands, the action suddenly slows down into cinematic slow-motion, emphasizing the impact through the spray of grit and the officer's strained reaction. The camera follows with handheld tracking motion, weaving between the combatants with a shallow depth of field that keeps the focus sharp on the officer's intense expression. Lighting is high-contrast with deep cinematic shadows and cool blue moonlight reflecting off wet pavement, creating a dramatic reality show aesthetic. The sequence ends with a tight close-up of the officer breathing heavily, mid-action, as the camera settles into a steady hold. Throughout the viral interaction, the upbeat reality show's theme song plays in the background, driving the rhythmic energy of the fight sequence.",
+        "revised": "The shot opens on the same daylight street close-up: the uniformed officer with a collar microphone stands beside the patrol car, with the buildings and natural light unchanged. The camera holds the existing close-up in one continuous take. He snaps his gaze toward frame right, raises both forearms, blocks one gloved arm entering briefly from off-screen, recoils half a step, and returns to guard. The patrol car and street stay fixed behind him. A muted impact occurs at the block, passing traffic continues, and there is no dialogue."
+      },
+      "rubric": {
+        "word_range": [
+          45,
+          115
+        ],
+        "sentence_range": [
+          3,
+          6
+        ],
+        "max_cuts": 0,
+        "max_camera_operations": 1,
+        "max_action_beats": 5,
+        "camera_operation_terms": [
+          "camera holds",
+          "camera remains",
+          "rapid-fire cuts",
+          "low-angle shifts",
+          "camera follows",
+          "handheld tracking",
+          "slow-motion",
+          "tight close-up",
+          "steady hold"
+        ],
+        "action_terms": [
+          "turns toward",
+          "snaps his gaze",
+          "raises both forearms",
+          "blocks one gloved arm",
+          "recoils half a step",
+          "returns to guard",
+          "squares up",
+          "intense strikes",
+          "heavy hit lands",
+          "spray of grit",
+          "breathing heavily"
+        ],
+        "required_concepts": [
+          {
+            "id": "first_frame_identity",
+            "scope": "first_frame",
+            "weight": 4,
+            "match": "all",
+            "patterns": [
+              "uniformed officer",
+              "collar microphone"
+            ]
+          },
+          {
+            "id": "first_frame_daylight",
+            "scope": "first_frame",
+            "weight": 3,
+            "match": "any",
+            "patterns": [
+              "daylight street",
+              "daylight close-up",
+              "natural light unchanged"
+            ]
+          },
+          {
+            "id": "first_frame_composition",
+            "scope": "first_frame",
+            "weight": 4,
+            "match": "all",
+            "patterns": [
+              "close-up",
+              "patrol car"
+            ]
+          },
+          {
+            "id": "short_block_recovery",
+            "scope": "general",
+            "weight": 4,
+            "match": "all",
+            "patterns": [
+              "raises both forearms",
+              "blocks one gloved arm",
+              "recoils half a step",
+              "returns to guard"
+            ]
+          },
+          {
+            "id": "locked_closeup",
+            "scope": "general",
+            "weight": 3,
+            "match": "any",
+            "patterns": [
+              "camera holds the existing close-up",
+              "camera remains in the same close-up"
+            ]
+          },
+          {
+            "id": "source_synchronous_audio",
+            "scope": "general",
+            "weight": 3,
+            "match": "all",
+            "patterns": [
+              "muted impact",
+              "passing traffic"
+            ]
+          }
+        ],
+        "prohibited_concepts": [
+          {
+            "id": "scene_replacement",
+            "weight": 5,
+            "patterns": [
+              "gritty urban alleyway",
+              "blue moonlight",
+              "wet pavement"
+            ]
+          },
+          {
+            "id": "unsupported_opponent",
+            "weight": 4,
+            "patterns": [
+              "unseen opponent",
+              "between the combatants"
+            ]
+          },
+          {
+            "id": "multi_shot_camera",
+            "weight": 4,
+            "patterns": [
+              "rapid-fire cuts",
+              "low-angle shifts"
+            ]
+          },
+          {
+            "id": "stale_audio_language",
+            "weight": 2,
+            "patterns": [
+              "viral interaction",
+              "reality show's theme song"
+            ]
+          }
+        ]
+      },
+      "notes": "The first-frame rubric represents the actual daylight officer reference used in the failed workflow."
+    },
+    {
+      "id": "flf_courier_mount_5s",
+      "mode": "flf",
+      "brief": "Connect a first frame with a courier standing beside a bicycle at the left of a plaza to a last frame with the courier seated on it at the far-right curb, in one plausible locked-camera transition.",
+      "generation_control": {
+        "model": "ltx-2.5-22b-distilled",
+        "text_encoder": "gemma4-12b-with-projection",
+        "precision": "int8-convrot",
+        "width": 768,
+        "height": 512,
+        "fps": 24,
+        "frames": 121,
+        "duration_seconds": 5.0,
+        "sampler": "euler_ancestral",
+        "scheduler": "official_distilled",
+        "stage_1_steps": 8,
+        "stage_2_steps": 3,
+        "video_cfg": 1.0,
+        "audio_cfg": 1.0,
+        "negative_prompt": "",
+        "prompt_enhancer": false,
+        "conditioning": {
+          "kind": "first_last_frames",
+          "asset_ids": [
+            "courier_plaza_start",
+            "courier_curb_end"
+          ],
+          "strength": 0.7
+        }
+      },
+      "candidates": {
+        "raw": "A bike courier in a yellow jacket beside a blue bicycle mounts it and rides from the left side of a brick plaza to the far-right curb. The camera stays wide. A bicycle chain clicks and city ambience continues.",
+        "current": "Cinematic transition shot of a bike courier in a yellow jacket beside a blue bicycle in a sunlit brick plaza. The scene begins with a tight close-up of the courier's determined face before a rapid cut to a low-angle tracking shot as they leap dramatically onto the bicycle. The camera orbits around the rider while the plaza shifts into a rain-soaked night street, then cuts to a drone view. The bicycle transforms into a black motorcycle as the rider races through traffic. The shot ends with the courier standing beside the motorcycle at the left edge while triumphant music swells.",
+        "revised": "The shot begins in a locked wide view of the sunlit brick plaza. At the left edge of the brick plaza, the bike courier in a yellow jacket stands beside the blue bicycle, grips the handlebars, swings the right leg over the saddle, settles onto the seat, and pushes off. The courier pedals smoothly from left to right while the camera remains locked and the plaza background stays unchanged. The shot ends at the far-right curb with the courier seated on the bicycle, both wheels straight and the yellow jacket visible. The bicycle chain clicks during the push-off, tires roll over brick, and the same city ambience continues."
+      },
+      "rubric": {
+        "word_range": [
+          45,
+          120
+        ],
+        "sentence_range": [
+          3,
+          6
+        ],
+        "max_cuts": 0,
+        "max_camera_operations": 1,
+        "max_action_beats": 6,
+        "camera_operation_terms": [
+          "camera stays wide",
+          "camera remains locked",
+          "tight close-up",
+          "low-angle tracking",
+          "camera orbits",
+          "drone view"
+        ],
+        "action_terms": [
+          "stands beside",
+          "grips the handlebars",
+          "swings the right leg",
+          "settles onto the seat",
+          "pushes off",
+          "pedals smoothly",
+          "leap dramatically",
+          "races through traffic",
+          "standing beside the motorcycle"
+        ],
+        "required_concepts": [
+          {
+            "id": "first_frame_subject",
+            "scope": "first_frame",
+            "weight": 4,
+            "match": "all",
+            "patterns": [
+              "yellow jacket",
+              "blue bicycle"
+            ]
+          },
+          {
+            "id": "first_frame_position",
+            "scope": "first_frame",
+            "weight": 3,
+            "match": "any",
+            "patterns": [
+              "left side of a brick plaza",
+              "left edge of the brick plaza"
+            ]
+          },
+          {
+            "id": "last_frame_position",
+            "scope": "last_frame",
+            "weight": 4,
+            "match": "any",
+            "patterns": [
+              "far-right curb",
+              "far right curb"
+            ]
+          },
+          {
+            "id": "last_frame_state",
+            "scope": "last_frame",
+            "weight": 4,
+            "match": "any",
+            "patterns": [
+              "courier seated on the bicycle",
+              "seated on the blue bicycle"
+            ]
+          },
+          {
+            "id": "plausible_mount_transition",
+            "scope": "general",
+            "weight": 5,
+            "match": "all",
+            "patterns": [
+              "grips the handlebars",
+              "swings the right leg",
+              "pushes off",
+              "pedals smoothly"
+            ]
+          },
+          {
+            "id": "locked_camera",
+            "scope": "general",
+            "weight": 3,
+            "match": "any",
+            "patterns": [
+              "camera remains locked",
+              "camera stays wide"
+            ]
+          },
+          {
+            "id": "continuous_audio",
+            "scope": "general",
+            "weight": 3,
+            "match": "all",
+            "patterns": [
+              "bicycle chain clicks",
+              "city ambience continues"
+            ]
+          }
+        ],
+        "prohibited_concepts": [
+          {
+            "id": "weather_time_change",
+            "weight": 5,
+            "patterns": [
+              "rain-soaked night street"
+            ]
+          },
+          {
+            "id": "vehicle_transformation",
+            "weight": 5,
+            "patterns": [
+              "transforms into a black motorcycle",
+              "standing beside the motorcycle"
+            ]
+          },
+          {
+            "id": "implausible_stunt",
+            "weight": 3,
+            "patterns": [
+              "leap dramatically"
+            ]
+          },
+          {
+            "id": "endpoint_conflict",
+            "weight": 5,
+            "patterns": [
+              "ends with the courier standing",
+              "at the left edge while"
+            ]
+          }
+        ]
+      },
+      "notes": "FLF tests endpoint preservation, ordered transition language, and physically plausible interpolation."
+    }
+  ]
+}

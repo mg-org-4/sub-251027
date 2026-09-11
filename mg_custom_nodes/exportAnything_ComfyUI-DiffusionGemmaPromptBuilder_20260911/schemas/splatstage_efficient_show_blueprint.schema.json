@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "splatstage.efficient_show_blueprint@1",
+  "title": "SplatStage Efficient Show Blueprint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "project_title",
+    "creative_summary",
+    "music",
+    "performer",
+    "background",
+    "fx",
+    "editing",
+    "finish"
+  ],
+  "properties": {
+    "schema": {"const": "splatstage.efficient_show_blueprint"},
+    "version": {"const": 1},
+    "project_title": {"type": "string", "minLength": 1, "maxLength": 120},
+    "creative_summary": {"type": "string", "minLength": 1, "maxLength": 800},
+    "music": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ace_tags", "vocal_mode", "lyrics", "bpm", "key", "time_signature", "language"],
+      "properties": {
+        "ace_tags": {"type": "string", "minLength": 1, "maxLength": 800},
+        "vocal_mode": {"enum": ["vocal_hook", "instrumental"]},
+        "lyrics": {"type": "string", "minLength": 1, "maxLength": 5000},
+        "bpm": {"type": "integer", "minimum": 60, "maximum": 220},
+        "key": {
+          "enum": [
+            "C major", "C minor", "C# major", "C# minor", "D major", "D minor",
+            "D# major", "D# minor", "E major", "E minor", "F major", "F minor",
+            "F# major", "F# minor", "G major", "G minor", "G# major", "G# minor",
+            "A major", "A minor", "A# major", "A# minor", "B major", "B minor"
+          ]
+        },
+        "time_signature": {"enum": ["2", "3", "4", "6"]},
+        "language": {
+          "enum": ["en", "es", "fr", "de", "it", "pt", "ja", "ko", "zh", "hi", "ar"]
+        }
+      }
+    },
+    "performer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_description", "positive_prompt", "negative_prompt", "segmentation_prompt", "variations"],
+      "properties": {
+        "identity_description": {"type": "string", "minLength": 1, "maxLength": 800},
+        "positive_prompt": {"type": "string", "minLength": 1, "maxLength": 2200},
+        "negative_prompt": {"type": "string", "minLength": 1, "maxLength": 1600},
+        "segmentation_prompt": {"type": "string", "minLength": 1, "maxLength": 500},
+        "variations": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {"type": "string", "minLength": 1, "maxLength": 700}
+        }
+      }
+    },
+    "background": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["positive_prompt", "negative_prompt", "variations"],
+      "properties": {
+        "positive_prompt": {"type": "string", "minLength": 1, "maxLength": 2200},
+        "negative_prompt": {"type": "string", "minLength": 1, "maxLength": 1600},
+        "variations": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"type": "string", "minLength": 1, "maxLength": 700}
+        }
+      }
+    },
+    "fx": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["positive_prompt", "negative_prompt", "blend_mode", "key_mode", "opacity"],
+      "properties": {
+        "positive_prompt": {"type": "string", "minLength": 1, "maxLength": 1800},
+        "negative_prompt": {"type": "string", "minLength": 1, "maxLength": 1600},
+        "blend_mode": {"enum": ["screen", "add", "lighten"]},
+        "key_mode": {"enum": ["luminance", "black"]},
+        "opacity": {"type": "number", "minimum": 0.2, "maximum": 0.65}
+      }
+    },
+    "editing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["density", "music_reactivity"],
+      "properties": {
+        "density": {"enum": ["sparse", "musical", "energetic"]},
+        "music_reactivity": {"enum": ["low", "medium", "high"]}
+      }
+    },
+    "finish": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["style_preset"],
+      "properties": {
+        "style_preset": {"enum": ["broadcast_clean", "cable_access", "late_night_vhs", "damaged_tape"]}
+      }
+    }
+  }
+}

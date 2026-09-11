@@ -1,0 +1,66 @@
+{
+  "schema": "diffusiongemma.advertisement_music3_runtime_fixture",
+  "version": 1,
+  "source_api": "examples/api/16_minimax_h3_ref2va_advertisement_glowbloom_v1_api.json",
+  "source_api_canonical_sha256": "6296d86a7640ce1babe307f68c3ddab845341e5e1185cb2216924097e9b4f743",
+  "known_good_v6": "examples/15_minimax_h3_ref2va_music_video_v6.json",
+  "known_good_v6_sha256": "594f6aef94531f87b74659e1e8004cccdff00716d0cfe263cee6bf2149545c83",
+  "known_good_v6_is_never_overwritten": true,
+  "api_graph_canonical_sha256": "d6f8d8de431f233c00a1172afca39815b8bd8bd619b633e8e5162db310fffc82",
+  "api_graph_file_sha256": "d491c2c897a66dce1eace9487445003c224a3492dc60d2c0868fe8787567a9be",
+  "node_count": 99,
+  "models": {
+    "director": {
+      "checkpoint_directory": "models/LLM/diffusiongemma-26B-A4B-it-NVFP4"
+    },
+    "minimax_h3": {
+      "diffusion_model": "models/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "text_encoder": "models/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "video_vae": "models/vae/minimax_h3_video_vae_fp16.safetensors",
+      "audio_vae": "models/vae/minimax_h3_audio_vae_fp32.safetensors",
+      "turbo_lora": "models/loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors"
+    },
+    "minimax_music3": {
+      "diffusion_model": "models/diffusion_models/minimax_music3_dit_fp16.safetensors",
+      "text_encoder": "models/text_encoders/minimax_music3_text_encoder_pruned_int8_convrot.safetensors",
+      "vae": "models/vae/minimax_music3_dav.safetensors"
+    }
+  },
+  "assets": {
+    "performer_hero": {
+      "relative_input_path": "diffusiongemma_campaigns/glowbloom_20260823/glowbloom_hero_identity.png",
+      "sha256": "98ced6b029fe36888b4ada491f5cbd7cb9efd4724001da064f3713b3da4798e4"
+    },
+    "performer_sheet": {
+      "relative_input_path": "diffusiongemma_campaigns/glowbloom_20260823/glowbloom_performer_contact_sheet_v1.png",
+      "sha256": "cf13e146624290c1932727fb1a54e38bbe275a866b60ed649d1ca0ee4fd1939b"
+    },
+    "product_sheet": {
+      "relative_input_path": "diffusiongemma_campaigns/glowbloom_20260823/glowbloom_product_contact_sheet_v1.png",
+      "sha256": "ed534b55bc417c1610051f7d91fa807360bf67757e7aa41a96bcc655d4e5db8e"
+    }
+  },
+  "audio_source_default": "MiniMax Music 3",
+  "api_audio_sources": [
+    "MiniMax Music 3"
+  ],
+  "companion_ui_only_audio_sources": [
+    "Upload song",
+    "Legacy ACE-Step"
+  ],
+  "h3_reference_policy": {
+    "picture_1": "performer hero",
+    "picture_2": "same-performer contact sheet",
+    "picture_3": "independent product/package contact sheet",
+    "picture_4": "hash-verified, downscaled copy of the exact retained prior-lane final frame; continuity only"
+  },
+  "deliverables": [
+    "30s 9:16 review draft",
+    "15s 9:16 review draft",
+    "6s 9:16 review draft"
+  ],
+  "adaptations": "status-only until a semantic reframe renderer is connected; never falsely marked rendered",
+  "qa_default": "not_measured for visual identity, copy legibility, and audio sync until a human or measured checker supplies evidence",
+  "save_policy": "Saved media are review drafts; QA pass with evidence is required before delivery approval.",
+  "manifest_sha256": "0c1b6f9d994f6eabf24f31bf35fd151267140df7ea136505ab8ca06916efaca4"
+}

@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "diffusiongemma.advertisement_reference_assets@1",
+  "title": "DiffusionGemma Advertisement Reference Assets",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "generation_width",
+    "generation_height",
+    "performer_budget",
+    "product_budget",
+    "assets",
+    "director_batch",
+    "identity_product_combined_sheet",
+    "ready"
+  ],
+  "properties": {
+    "schema": { "const": "diffusiongemma.advertisement_reference_assets" },
+    "version": { "const": 1 },
+    "generation_width": { "type": "integer", "minimum": 256, "maximum": 8192 },
+    "generation_height": { "type": "integer", "minimum": 256, "maximum": 8192 },
+    "performer_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["area_ratio", "hero_share", "roles"],
+      "properties": {
+        "area_ratio": { "type": "number", "minimum": 0.25, "maximum": 2 },
+        "hero_share": { "type": "number", "minimum": 0.2, "maximum": 0.8 },
+        "roles": { "const": ["performer_hero", "performer_sheet"] }
+      }
+    },
+    "product_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["area_ratio", "independent_from_performer_budget", "role"],
+      "properties": {
+        "area_ratio": { "type": "number", "minimum": 0.1, "maximum": 1.5 },
+        "independent_from_performer_budget": { "const": true },
+        "role": { "const": "product_sheet" }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        { "$ref": "#/$defs/hero" },
+        { "$ref": "#/$defs/performerSheet" },
+        { "$ref": "#/$defs/productSheet" }
+      ],
+      "items": false
+    },
+    "director_batch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "width", "height", "aspect_policy", "role_order"],
+      "properties": {
+        "count": { "const": 3 },
+        "width": { "type": "integer", "minimum": 256, "maximum": 8192 },
+        "height": { "type": "integer", "minimum": 256, "maximum": 8192 },
+        "aspect_policy": { "const": "preserve_then_neutral_pad" },
+        "role_order": { "const": ["performer_hero", "performer_sheet", "product_sheet"] }
+      }
+    },
+    "identity_product_combined_sheet": { "const": false },
+    "ready": { "const": true }
+  },
+  "$defs": {
+    "baseAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["picture_tag", "role", "sha256", "prepared_role_sha256", "width", "height", "pixel_area_budget", "upscaled"],
+      "properties": {
+        "picture_tag": { "enum": ["<Picture 1>", "<Picture 2>", "<Picture 3>"] },
+        "role": { "enum": ["performer_hero", "performer_sheet", "product_sheet"] },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "prepared_role_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "width": { "type": "integer", "minimum": 1, "maximum": 8192 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 8192 },
+        "pixel_area_budget": { "type": "integer", "minimum": 1 },
+        "upscaled": { "const": false }
+      }
+    },
+    "hero": {
+      "allOf": [
+        { "$ref": "#/$defs/baseAsset" },
+        { "properties": { "picture_tag": { "const": "<Picture 1>" }, "role": { "const": "performer_hero" } } }
+      ]
+    },
+    "performerSheet": {
+      "allOf": [
+        { "$ref": "#/$defs/baseAsset" },
+        { "properties": { "picture_tag": { "const": "<Picture 2>" }, "role": { "const": "performer_sheet" } } }
+      ]
+    },
+    "productSheet": {
+      "allOf": [
+        { "$ref": "#/$defs/baseAsset" },
+        { "properties": { "picture_tag": { "const": "<Picture 3>" }, "role": { "const": "product_sheet" } } }
+      ]
+    }
+  }
+}

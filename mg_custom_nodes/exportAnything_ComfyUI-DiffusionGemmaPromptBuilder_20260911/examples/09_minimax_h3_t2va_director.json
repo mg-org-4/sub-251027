@@ -1,0 +1,2400 @@
+{
+    "id": "7fb07ba2-cbd8-4a52-b924-59cab6d2aeb3",
+    "revision": 0,
+    "last_node_id": 329,
+    "last_link_id": 483,
+    "nodes": [
+        {
+            "id": 312,
+            "type": "PrimitiveStringMultiline",
+            "pos": [
+                0,
+                0
+            ],
+            "size": [
+                500,
+                320
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "STRING",
+                    "type": "STRING",
+                    "links": [
+                        454
+                    ]
+                }
+            ],
+            "properties": {
+                "cnr_id": "comfy-core",
+                "ver": "0.24.0",
+                "Node name for S&R": "PrimitiveStringMultiline"
+            },
+            "widgets_values": [
+                "Create a 20-second realistic live-action action-trailer sequence at post-rain dusk. A coat-wearing protagonist escapes pursuers by sprinting and leaping across wet skyscraper rooftops; make every jump fluid and dangerous. Use hard cuts on musical beats, distinct camera angles, wind, footsteps, city ambience, and a restrained cinematic score. Preserve premium practical-film texture, anamorphic depth, volumetric city fog, and natural body motion. No text, subtitles, logos, animation, or overly-CG rendering."
+            ],
+            "title": "1. Creative brief"
+        },
+        {
+            "id": 325,
+            "type": "PrimitiveFloat",
+            "pos": [
+                0,
+                355
+            ],
+            "size": [
+                320,
+                80
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+                {
+                    "localized_name": "value",
+                    "name": "value",
+                    "type": "FLOAT",
+                    "widget": {
+                        "name": "value"
+                    },
+                    "link": null
+                }
+            ],
+            "outputs": [
+                {
+                    "localized_name": "FLOAT",
+                    "name": "FLOAT",
+                    "type": "FLOAT",
+                    "links": [
+                        473,
+                        474
+                    ]
+                }
+            ],
+            "title": "2. Duration seconds (shared)",
+            "properties": {
+                "cnr_id": "comfy-core",
+                "ver": "0.7.0",
+                "Node name for S&R": "PrimitiveFloat",
+                "enableTabs": false,
+                "tabWidth": 65,
+                "tabXOffset": 10,
+                "hasSecondTab": false,
+                "secondTabText": "Send Back",
+                "secondTabOffset": 80,
+                "secondTabWidth": 65
+            },
+            "widgets_values": [
+                20
+            ],
+            "color": "#223322",
+            "bgcolor": "#355335"
+        },
+        {
+            "id": 320,
+            "type": "DiffusionGemmaModelLoader",
+            "pos": [
+                0,
+                480
+            ],
+            "size": [
+                500,
+                320
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "model_config",
+                    "type": "DG_MODEL_CONFIG",
+                    "links": [
+                        457
+                    ]
+                },
+                {
+                    "name": "runtime_status_json",
+                    "type": "STRING",
+                    "links": []
+                }
+            ],
+            "properties": {
+                "Node name for S&R": "DiffusionGemmaModelLoader"
+            },
+            "widgets_values": [
+                "C:\\ComfyUI\\app\\models\\LLM\\diffusiongemma-26B-A4B-it-NVFP4",
+                "transformers_inprocess",
+                "auto",
+                "modelopt_nvfp4",
+                true,
+                "unload_after_run",
+                "20.0 GB - safe practical",
+                0.35
+            ],
+            "title": "3. Load Director (unloads before H3)"
+        },
+        {
+            "id": 313,
+            "type": "DiffusionGemmaContextHub",
+            "pos": [
+                560,
+                0
+            ],
+            "size": [
+                420,
+                344
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+                {
+                    "name": "user_prompt",
+                    "type": "STRING",
+                    "link": 454
+                },
+                {
+                    "name": "image",
+                    "shape": 7,
+                    "type": "IMAGE",
+                    "link": null
+                },
+                {
+                    "name": "video",
+                    "shape": 7,
+                    "type": "VIDEO",
+                    "link": null
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "gemma_context",
+                    "type": "DG_CONTEXT",
+                    "links": [
+                        458,
+                        461
+                    ]
+                },
+                {
+                    "name": "context_json",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "context_preview",
+                    "type": "STRING",
+                    "links": []
+                }
+            ],
+            "properties": {
+                "Node name for S&R": "DiffusionGemmaContextHub"
+            },
+            "widgets_values": [
+                1,
+                60,
+                60,
+                "trim",
+                false,
+                "",
+                "video_recreation"
+            ],
+            "title": "4. Prompt context"
+        },
+        {
+            "id": 314,
+            "type": "DiffusionGemmaMiniMaxH3TargetProfile",
+            "pos": [
+                560,
+                400
+            ],
+            "size": [
+                440,
+                620
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "inputs": [
+                {
+                    "localized_name": "target_duration_seconds",
+                    "name": "target_duration_seconds",
+                    "type": "FLOAT",
+                    "widget": {
+                        "name": "target_duration_seconds"
+                    },
+                    "link": 473
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "target_profile_config",
+                    "type": "DG_TARGET_PROFILE_CONFIG",
+                    "links": [
+                        459,
+                        462
+                    ]
+                },
+                {
+                    "name": "target_profile_json",
+                    "type": "STRING",
+                    "links": null
+                }
+            ],
+            "properties": {
+                "Node name for S&R": "DiffusionGemmaMiniMaxH3TargetProfile"
+            },
+            "widgets_values": [
+                "t2va",
+                20,
+                "auto_scene_audio",
+                "",
+                "auto",
+                12,
+                "auto",
+                2,
+                "",
+                "auto",
+                ""
+            ],
+            "title": "5. MiniMax-H3 T2VA target profile"
+        },
+        {
+            "id": 315,
+            "type": "DiffusionGemmaCoTGenerator",
+            "pos": [
+                1040,
+                0
+            ],
+            "size": [
+                430,
+                304
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+                {
+                    "name": "model_config",
+                    "type": "DG_MODEL_CONFIG",
+                    "link": 457
+                },
+                {
+                    "name": "gemma_context",
+                    "type": "DG_CONTEXT",
+                    "link": 458
+                },
+                {
+                    "name": "target_profile_config",
+                    "type": "DG_TARGET_PROFILE_CONFIG",
+                    "link": 459
+                },
+                {
+                    "name": "grounding_guard_config",
+                    "shape": 7,
+                    "type": "DG_GROUNDING_GUARD_CONFIG",
+                    "link": 480
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "final_json",
+                    "type": "STRING",
+                    "links": [
+                        460
+                    ]
+                },
+                {
+                    "name": "reasoning_text",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "raw_response",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "metadata_json",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "grounding_status",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "grounding_report_json",
+                    "type": "STRING",
+                    "links": null
+                }
+            ],
+            "properties": {
+                "Node name for S&R": "DiffusionGemmaCoTGenerator"
+            },
+            "widgets_values": [
+                0.45,
+                "cinematic",
+                0.7,
+                "on",
+                1280,
+                "reuse"
+            ],
+            "title": "6. Write strict H3 prompt"
+        },
+        {
+            "id": 316,
+            "type": "DiffusionGemmaJSONSplitter",
+            "pos": [
+                1040,
+                350
+            ],
+            "size": [
+                430,
+                510
+            ],
+            "flags": {},
+            "order": 6,
+            "mode": 0,
+            "inputs": [
+                {
+                    "name": "final_json",
+                    "type": "STRING",
+                    "link": 460
+                },
+                {
+                    "name": "gemma_context",
+                    "shape": 7,
+                    "type": "DG_CONTEXT",
+                    "link": 461
+                },
+                {
+                    "name": "target_profile_config",
+                    "shape": 7,
+                    "type": "DG_TARGET_PROFILE_CONFIG",
+                    "link": 462
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "ltx_prompt",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "ideogram_prompt",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "negative_prompt",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "aspect_ratio",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "metadata_json",
+                    "type": "STRING",
+                    "links": [
+                        479,
+                        483
+                    ]
+                },
+                {
+                    "name": "scene_segments_json",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "local_prompts",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "segment_lengths",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "is_valid",
+                    "type": "BOOLEAN",
+                    "links": null
+                },
+                {
+                    "name": "resolution_selector_preset",
+                    "type": "STRING",
+                    "links": null
+                },
+                {
+                    "name": "resolution_width",
+                    "type": "INT",
+                    "links": [
+                        475
+                    ]
+                },
+                {
+                    "name": "resolution_height",
+                    "type": "INT",
+                    "links": [
+                        476
+                    ]
+                },
+                {
+                    "name": "ready_for_generation",
+                    "type": "BOOLEAN",
+                    "links": [
+                        482
+                    ]
+                },
+                {
+                    "name": "minimax_h3_prompt",
+                    "type": "STRING",
+                    "links": [
+                        477,
+                        478
+                    ]
+                }
+            ],
+            "properties": {
+                "Node name for S&R": "DiffusionGemmaJSONSplitter"
+            },
+            "widgets_values": [
+                "",
+                0.4,
+                32
+            ],
+            "title": "7. Route H3 prompt + resolution"
+        },
+        {
+            "id": 105,
+            "type": "4f4334ed-1aa4-5860-b237-56c863ab42d6",
+            "pos": [
+                1550,
+                0
+            ],
+            "size": [
+                515,
+                880
+            ],
+            "flags": {},
+            "order": 7,
+            "mode": 0,
+            "inputs": [
+                {
+                    "name": "first_frame",
+                    "shape": 7,
+                    "type": "IMAGE",
+                    "link": null
+                },
+                {
+                    "name": "last_frame",
+                    "shape": 7,
+                    "type": "IMAGE",
+                    "link": null
+                },
+                {
+                    "name": "prompt",
+                    "type": "STRING",
+                    "widget": {
+                        "name": "prompt"
+                    },
+                    "link": 481
+                },
+                {
+                    "name": "width",
+                    "type": "INT",
+                    "widget": {
+                        "name": "width"
+                    },
+                    "link": 475
+                },
+                {
+                    "name": "height",
+                    "type": "INT",
+                    "widget": {
+                        "name": "height"
+                    },
+                    "link": 476
+                },
+                {
+                    "label": "duration",
+                    "name": "value_1",
+                    "type": "FLOAT",
+                    "widget": {
+                        "name": "value_1"
+                    },
+                    "link": 474
+                },
+                {
+                    "label": "audio_vae",
+                    "name": "vae_name_1",
+                    "type": "COMBO",
+                    "widget": {
+                        "name": "vae_name_1"
+                    },
+                    "link": null
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "VIDEO",
+                    "type": "VIDEO",
+                    "links": [
+                        194
+                    ]
+                }
+            ],
+            "properties": {
+                "cnr_id": "comfy-core",
+                "ver": "0.30.1",
+                "previewExposures": []
+            },
+            "widgets_values": [
+                "",
+                864,
+                480,
+                20,
+                42,
+                "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+                "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+                "minimax_h3_video_vae_fp16.safetensors",
+                "minimax_h3_audio_vae_fp32.safetensors"
+            ],
+            "title": "8. Native MiniMax-H3 T2VA \u2014 25 steps"
+        },
+        {
+            "id": 92,
+            "type": "SaveVideo",
+            "pos": [
+                2110,
+                0
+            ],
+            "size": [
+                550,
+                420
+            ],
+            "flags": {},
+            "order": 8,
+            "mode": 0,
+            "inputs": [
+                {
+                    "name": "video",
+                    "type": "VIDEO",
+                    "link": 194
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "video",
+                    "type": "VIDEO",
+                    "links": null
+                }
+            ],
+            "properties": {
+                "cnr_id": "comfy-core",
+                "ver": "0.30.1",
+                "Node name for S&R": "SaveVideo"
+            },
+            "widgets_values": [
+                "video/minimax_h3/diffusiongemma_director_t2va",
+                "mp4",
+                "h264"
+            ],
+            "title": "9. Save generated video"
+        },
+        {
+            "id": 326,
+            "type": "PreviewAny",
+            "pos": [
+                2110,
+                460
+            ],
+            "size": [
+                550,
+                340
+            ],
+            "flags": {},
+            "order": 9,
+            "mode": 0,
+            "inputs": [
+                {
+                    "name": "source",
+                    "type": "*",
+                    "link": 478
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "STRING",
+                    "type": "STRING",
+                    "links": null
+                }
+            ],
+            "title": "Generated MiniMax-H3 prompt",
+            "properties": {
+                "cnr_id": "comfy-core",
+                "ver": "0.15.1",
+                "Node name for S&R": "PreviewAny",
+                "enableTabs": false,
+                "tabWidth": 65,
+                "tabXOffset": 10,
+                "hasSecondTab": false,
+                "secondTabText": "Send Back",
+                "secondTabOffset": 80,
+                "secondTabWidth": 65
+            },
+            "widgets_values": [
+                null,
+                null,
+                null
+            ],
+            "color": "#2a363b",
+            "bgcolor": "#3f5159"
+        },
+        {
+            "id": 327,
+            "type": "PreviewAny",
+            "pos": [
+                2110,
+                830
+            ],
+            "size": [
+                550,
+                300
+            ],
+            "flags": {},
+            "order": 10,
+            "mode": 0,
+            "inputs": [
+                {
+                    "name": "source",
+                    "type": "*",
+                    "link": 479
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "STRING",
+                    "type": "STRING",
+                    "links": null
+                }
+            ],
+            "title": "H3 validation / blocked reasons",
+            "properties": {
+                "cnr_id": "comfy-core",
+                "ver": "0.15.1",
+                "Node name for S&R": "PreviewAny",
+                "enableTabs": false,
+                "tabWidth": 65,
+                "tabXOffset": 10,
+                "hasSecondTab": false,
+                "secondTabText": "Send Back",
+                "secondTabOffset": 80,
+                "secondTabWidth": 65
+            },
+            "widgets_values": [
+                null,
+                null,
+                null
+            ],
+            "color": "#2a363b",
+            "bgcolor": "#3f5159"
+        },
+        {
+            "id": 118,
+            "type": "MarkdownNote",
+            "pos": [
+                0,
+                1220
+            ],
+            "size": [
+                1600,
+                390
+            ],
+            "flags": {},
+            "order": 11,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+                "# DiffusionGemma Director \u2192 native MiniMax-H3 (T2VA)\n\n1. Replace the creative brief at upper left.\n2. Set Duration seconds. The same value feeds the Director profile and native H3 frame calculation.\n3. Queue the workflow. DiffusionGemma unloads after writing the H3 prompt, freeing VRAM before video generation.\n\nThis sample is set to 20 seconds and 25 sampling steps. At 24 fps, 20 seconds resolves to 481 valid H3 frames (about 20.04 seconds) because H3 uses a 17k+5 temporal grid.\n\nThe Director's dedicated minimax_h3_prompt output branches to Generated MiniMax-H3 prompt for inspection and passes through the Generation Gate before MiniMaxH3ImageToVideo. The gate also receives readiness and splitter metadata, so a strict grounding failure cannot reach H3. H3 validation / blocked reasons displays the splitter metadata. Resolution outputs feed width and height at 0.4 MP, multiple 32, 16:9.\n\nShort clips in the 4\u201315 second range remain a useful creative default, but this native path is not artificially clamped to that range. Its node accepts up to 3600 frames. Longer clips require proportionally more generation time and VRAM."
+            ],
+            "color": "#222",
+            "bgcolor": "#000",
+            "title": "How this sample works"
+        },
+        {
+            "id": 328,
+            "type": "DiffusionGemmaGroundingGuardSettings",
+            "pos": [
+                560,
+                990
+            ],
+            "size": [
+                420,
+                220
+            ],
+            "flags": {},
+            "order": 12,
+            "mode": 0,
+            "inputs": [
+                {
+                    "name": "external_evidence_json",
+                    "shape": 7,
+                    "type": "STRING",
+                    "link": null
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "grounding_guard_config",
+                    "type": "DG_GROUNDING_GUARD_CONFIG",
+                    "links": [
+                        480
+                    ]
+                },
+                {
+                    "name": "config_json",
+                    "type": "STRING",
+                    "links": null
+                }
+            ],
+            "properties": {
+                "Node name for S&R": "DiffusionGemmaGroundingGuardSettings"
+            },
+            "widgets_values": [
+                "strict",
+                true,
+                "checkpoint_defaults",
+                0,
+                    "fixed",
+                    false,
+                    "diffusiongemma_grounding",
+                    "auto"
+            ],
+            "title": "Strict Grounding Guard"
+        },
+        {
+            "id": 329,
+            "type": "DiffusionGemmaGenerationGate",
+            "pos": [
+                1510,
+                900
+            ],
+            "size": [
+                515,
+                120
+            ],
+            "flags": {},
+            "order": 13,
+            "mode": 0,
+            "inputs": [
+                {
+                    "name": "prompt",
+                    "type": "STRING",
+                    "link": 477
+                },
+                {
+                    "name": "ready_for_generation",
+                    "type": "BOOLEAN",
+                    "link": 482
+                },
+                {
+                    "name": "metadata_json",
+                    "shape": 7,
+                    "type": "STRING",
+                    "link": 483
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "prompt",
+                    "type": "STRING",
+                    "links": [
+                        481
+                    ]
+                }
+            ],
+            "properties": {
+                "Node name for S&R": "DiffusionGemmaGenerationGate"
+            },
+            "title": "Fail closed before expensive H3 render"
+        }
+    ],
+    "links": [
+        [
+            194,
+            105,
+            0,
+            92,
+            0,
+            "VIDEO"
+        ],
+        [
+            454,
+            312,
+            0,
+            313,
+            0,
+            "STRING"
+        ],
+        [
+            457,
+            320,
+            0,
+            315,
+            0,
+            "DG_MODEL_CONFIG"
+        ],
+        [
+            458,
+            313,
+            0,
+            315,
+            1,
+            "DG_CONTEXT"
+        ],
+        [
+            459,
+            314,
+            0,
+            315,
+            2,
+            "DG_TARGET_PROFILE_CONFIG"
+        ],
+        [
+            460,
+            315,
+            0,
+            316,
+            0,
+            "STRING"
+        ],
+        [
+            461,
+            313,
+            0,
+            316,
+            1,
+            "DG_CONTEXT"
+        ],
+        [
+            462,
+            314,
+            0,
+            316,
+            2,
+            "DG_TARGET_PROFILE_CONFIG"
+        ],
+        [
+            473,
+            325,
+            0,
+            314,
+            0,
+            "FLOAT"
+        ],
+        [
+            474,
+            325,
+            0,
+            105,
+            5,
+            "FLOAT"
+        ],
+        [
+            475,
+            316,
+            10,
+            105,
+            3,
+            "INT"
+        ],
+        [
+            476,
+            316,
+            11,
+            105,
+            4,
+            "INT"
+        ],
+        [
+            477,
+            316,
+            13,
+            329,
+            0,
+            "STRING"
+        ],
+        [
+            478,
+            316,
+            13,
+            326,
+            0,
+            "STRING"
+        ],
+        [
+            479,
+            316,
+            4,
+            327,
+            0,
+            "STRING"
+        ],
+        [
+            480,
+            328,
+            0,
+            315,
+            3,
+            "DG_GROUNDING_GUARD_CONFIG"
+        ],
+        [
+            481,
+            329,
+            0,
+            105,
+            2,
+            "STRING"
+        ],
+        [
+            482,
+            316,
+            12,
+            329,
+            1,
+            "BOOLEAN"
+        ],
+        [
+            483,
+            316,
+            4,
+            329,
+            2,
+            "STRING"
+        ]
+    ],
+    "groups": [
+        {
+            "id": 1,
+            "title": "INPUTS",
+            "bounding": [
+                -40,
+                -40,
+                570,
+                880
+            ],
+            "color": "#3f789e",
+            "font_size": 24,
+            "flags": {}
+        },
+        {
+            "id": 2,
+            "title": "DIFFUSIONGEMMA DIRECTOR \u2014 MINIMAX-H3",
+            "bounding": [
+                520,
+                -40,
+                990,
+                1040
+            ],
+            "color": "#8b5a2b",
+            "font_size": 24,
+            "flags": {}
+        },
+        {
+            "id": 3,
+            "title": "NATIVE MINIMAX-H3 GENERATION",
+            "bounding": [
+                1510,
+                -40,
+                1190,
+                1200
+            ],
+            "color": "#557755",
+            "font_size": 24,
+            "flags": {}
+        }
+    ],
+    "definitions": {
+        "subgraphs": [
+            {
+                "id": "4f4334ed-1aa4-5860-b237-56c863ab42d6",
+                "version": 1,
+                "state": {
+                    "lastGroupId": 6,
+                    "lastNodeId": 324,
+                    "lastLinkId": 472,
+                    "lastRerouteId": 0
+                },
+                "revision": 2,
+                "config": {},
+                "name": "Text to Video + Audio (MiniMax H3, SageAttention)",
+                "inputNode": {
+                    "id": -10,
+                    "bounding": [
+                        -2560,
+                        4720,
+                        128,
+                        268
+                    ]
+                },
+                "outputNode": {
+                    "id": -20,
+                    "bounding": [
+                        670,
+                        4780,
+                        128,
+                        68
+                    ]
+                },
+                "inputs": [
+                    {
+                        "id": "d6eaa195-2266-4016-b7ed-b2d17a3e53c2",
+                        "name": "first_frame",
+                        "type": "IMAGE",
+                        "linkIds": [
+                            195
+                        ],
+                        "pos": [
+                            -2456,
+                            4744
+                        ]
+                    },
+                    {
+                        "id": "03b95567-f496-4279-9d38-989dd34fa882",
+                        "name": "last_frame",
+                        "type": "IMAGE",
+                        "linkIds": [
+                            196
+                        ],
+                        "pos": [
+                            -2456,
+                            4764
+                        ]
+                    },
+                    {
+                        "id": "d7302ca7-24ed-44c4-8ac9-736540dab7fb",
+                        "name": "prompt",
+                        "type": "STRING",
+                        "linkIds": [
+                            197
+                        ],
+                        "pos": [
+                            -2456,
+                            4784
+                        ]
+                    },
+                    {
+                        "id": "709e2d94-3172-496f-ad86-7d672f3df568",
+                        "name": "width",
+                        "type": "INT",
+                        "linkIds": [
+                            200
+                        ],
+                        "pos": [
+                            -2456,
+                            4804
+                        ]
+                    },
+                    {
+                        "id": "8205b85b-19bb-47f6-8418-89cd42940c1d",
+                        "name": "height",
+                        "type": "INT",
+                        "linkIds": [
+                            201
+                        ],
+                        "pos": [
+                            -2456,
+                            4824
+                        ]
+                    },
+                    {
+                        "id": "a40e5e96-4307-4a8e-a4f8-13a27d4bc9d3",
+                        "name": "value_1",
+                        "type": "FLOAT",
+                        "linkIds": [
+                            206
+                        ],
+                        "label": "duration",
+                        "pos": [
+                            -2456,
+                            4844
+                        ]
+                    },
+                    {
+                        "id": "9f8734bc-c2b3-43b0-911e-e89560e8b777",
+                        "name": "noise_seed",
+                        "type": "INT",
+                        "linkIds": [
+                            207
+                        ],
+                        "pos": [
+                            -2456,
+                            4864
+                        ]
+                    },
+                    {
+                        "id": "9a6d2811-673c-47e0-aa94-dda7c83621e4",
+                        "name": "unet_name",
+                        "type": "COMBO",
+                        "linkIds": [
+                            221
+                        ],
+                        "pos": [
+                            -2456,
+                            4884
+                        ]
+                    },
+                    {
+                        "id": "7100a787-5536-4002-840b-1d2fd071010a",
+                        "name": "clip_name",
+                        "type": "COMBO",
+                        "linkIds": [
+                            227
+                        ],
+                        "pos": [
+                            -2456,
+                            4904
+                        ]
+                    },
+                    {
+                        "id": "d40632fd-e0ae-4319-b85d-5479db4d6e11",
+                        "name": "vae_name",
+                        "type": "COMBO",
+                        "linkIds": [
+                            223
+                        ],
+                        "pos": [
+                            -2456,
+                            4924
+                        ]
+                    },
+                    {
+                        "id": "2992852c-4b20-439a-8771-c866ec1996e6",
+                        "name": "vae_name_1",
+                        "type": "COMBO",
+                        "linkIds": [
+                            224
+                        ],
+                        "label": "audio_vae",
+                        "pos": [
+                            -2456,
+                            4944
+                        ]
+                    }
+                ],
+                "outputs": [
+                    {
+                        "id": "adb2611c-e490-4fca-8067-b718c992f8cc",
+                        "name": "VIDEO",
+                        "type": "VIDEO",
+                        "linkIds": [
+                            168
+                        ],
+                        "localized_name": "VIDEO",
+                        "pos": [
+                            694,
+                            4804
+                        ]
+                    }
+                ],
+                "widgets": [],
+                "nodes": [
+                    {
+                        "id": 11,
+                        "type": "VAELoader",
+                        "pos": [
+                            -2020,
+                            4970
+                        ],
+                        "size": [
+                            639.984375,
+                            70
+                        ],
+                        "flags": {},
+                        "order": 4,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "vae_name",
+                                "name": "vae_name",
+                                "type": "COMBO",
+                                "widget": {
+                                    "name": "vae_name"
+                                },
+                                "link": 223
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "VAE",
+                                "name": "VAE",
+                                "type": "VAE",
+                                "links": [
+                                    8,
+                                    190
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "VAELoader",
+                            "models": [
+                                {
+                                    "name": "minimax_h3_video_vae_fp16.safetensors",
+                                    "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors",
+                                    "directory": "vae"
+                                }
+                            ]
+                        },
+                        "widgets_values": [
+                            "minimax_h3_video_vae_fp16.safetensors"
+                        ]
+                    },
+                    {
+                        "id": 24,
+                        "type": "VAELoader",
+                        "pos": [
+                            -2020,
+                            5100
+                        ],
+                        "size": [
+                            650,
+                            70
+                        ],
+                        "flags": {},
+                        "order": 10,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "vae_name",
+                                "name": "vae_name",
+                                "type": "COMBO",
+                                "widget": {
+                                    "name": "vae_name"
+                                },
+                                "link": 224
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "VAE",
+                                "name": "VAE",
+                                "type": "VAE",
+                                "links": [
+                                    23
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "VAELoader",
+                            "models": [
+                                {
+                                    "name": "minimax_h3_audio_vae_fp32.safetensors",
+                                    "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors",
+                                    "directory": "vae"
+                                }
+                            ]
+                        },
+                        "widgets_values": [
+                            "minimax_h3_audio_vae_fp32.safetensors"
+                        ]
+                    },
+                    {
+                        "id": 23,
+                        "type": "VAEDecodeAudio",
+                        "pos": [
+                            -50,
+                            4880
+                        ],
+                        "size": [
+                            229.984375,
+                            59.984375
+                        ],
+                        "flags": {
+                            "collapsed": false
+                        },
+                        "order": 9,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "samples",
+                                "name": "samples",
+                                "type": "LATENT",
+                                "link": 226
+                            },
+                            {
+                                "localized_name": "vae",
+                                "name": "vae",
+                                "type": "VAE",
+                                "link": 23
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "AUDIO",
+                                "name": "AUDIO",
+                                "type": "AUDIO",
+                                "links": [
+                                    166
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "VAEDecodeAudio"
+                        },
+                        "widgets_values": []
+                    },
+                    {
+                        "id": 10,
+                        "type": "VAEDecode",
+                        "pos": [
+                            -50,
+                            4760
+                        ],
+                        "size": [
+                            229.984375,
+                            59.984375
+                        ],
+                        "flags": {
+                            "collapsed": false
+                        },
+                        "order": 3,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "samples",
+                                "name": "samples",
+                                "type": "LATENT",
+                                "link": 225
+                            },
+                            {
+                                "localized_name": "vae",
+                                "name": "vae",
+                                "type": "VAE",
+                                "link": 8
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "IMAGE",
+                                "name": "IMAGE",
+                                "type": "IMAGE",
+                                "links": [
+                                    167
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "VAEDecode"
+                        },
+                        "widgets_values": []
+                    },
+                    {
+                        "id": 17,
+                        "type": "KSamplerSelect",
+                        "pos": [
+                            -790,
+                            4910
+                        ],
+                        "size": [
+                            369.984375,
+                            70
+                        ],
+                        "flags": {},
+                        "order": 0,
+                        "mode": 0,
+                        "inputs": [],
+                        "outputs": [
+                            {
+                                "localized_name": "SAMPLER",
+                                "name": "SAMPLER",
+                                "type": "SAMPLER",
+                                "links": [
+                                    16
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "KSamplerSelect"
+                        },
+                        "widgets_values": [
+                            "res_multistep"
+                        ]
+                    },
+                    {
+                        "id": 9,
+                        "type": "BasicScheduler",
+                        "pos": [
+                            -790,
+                            5030
+                        ],
+                        "size": [
+                            369.984375,
+                            129.984375
+                        ],
+                        "flags": {},
+                        "order": 2,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "model",
+                                "name": "model",
+                                "type": "MODEL",
+                                "link": 229
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "SIGMAS",
+                                "name": "SIGMAS",
+                                "type": "SIGMAS",
+                                "links": [
+                                    18
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "BasicScheduler"
+                        },
+                        "widgets_values": [
+                            "simple",
+                            25,
+                            1.0
+                        ]
+                    },
+                    {
+                        "id": 14,
+                        "type": "SamplerCustomAdvanced",
+                        "pos": [
+                            -360,
+                            4820
+                        ],
+                        "size": [
+                            229.984375,
+                            139.984375
+                        ],
+                        "flags": {},
+                        "order": 6,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "noise",
+                                "name": "noise",
+                                "type": "NOISE",
+                                "link": 40
+                            },
+                            {
+                                "localized_name": "guider",
+                                "name": "guider",
+                                "type": "GUIDER",
+                                "link": 12
+                            },
+                            {
+                                "localized_name": "sampler",
+                                "name": "sampler",
+                                "type": "SAMPLER",
+                                "link": 16
+                            },
+                            {
+                                "localized_name": "sigmas",
+                                "name": "sigmas",
+                                "type": "SIGMAS",
+                                "link": 18
+                            },
+                            {
+                                "localized_name": "latent_image",
+                                "name": "latent_image",
+                                "type": "LATENT",
+                                "link": 188
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "output",
+                                "name": "output",
+                                "type": "LATENT",
+                                "links": [
+                                    225,
+                                    226
+                                ]
+                            },
+                            {
+                                "localized_name": "denoised_output",
+                                "name": "denoised_output",
+                                "type": "LATENT",
+                                "links": null
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "SamplerCustomAdvanced"
+                        },
+                        "widgets_values": []
+                    },
+                    {
+                        "id": 16,
+                        "type": "BasicGuider",
+                        "pos": [
+                            -790,
+                            4800
+                        ],
+                        "size": [
+                            359.984375,
+                            59.984375
+                        ],
+                        "flags": {},
+                        "order": 8,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "model",
+                                "name": "model",
+                                "type": "MODEL",
+                                "link": 230
+                            },
+                            {
+                                "localized_name": "conditioning",
+                                "name": "conditioning",
+                                "type": "CONDITIONING",
+                                "link": 187
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "GUIDER",
+                                "name": "GUIDER",
+                                "type": "GUIDER",
+                                "links": [
+                                    12
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "BasicGuider"
+                        },
+                        "widgets_values": []
+                    },
+                    {
+                        "id": 6,
+                        "type": "UNETLoader",
+                        "pos": [
+                            -2020,
+                            4630
+                        ],
+                        "size": [
+                            639.984375,
+                            89.984375
+                        ],
+                        "flags": {},
+                        "order": 1,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "unet_name",
+                                "name": "unet_name",
+                                "type": "COMBO",
+                                "widget": {
+                                    "name": "unet_name"
+                                },
+                                "link": 221
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "MODEL",
+                                "name": "MODEL",
+                                "type": "MODEL",
+                                "links": [
+                                    228
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "UNETLoader",
+                            "models": [
+                                {
+                                    "name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+                                    "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+                                    "directory": "diffusion_models"
+                                }
+                            ]
+                        },
+                        "widgets_values": [
+                            "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+                            "default"
+                        ]
+                    },
+                    {
+                        "id": 13,
+                        "type": "CLIPLoader",
+                        "pos": [
+                            -2020,
+                            4780
+                        ],
+                        "size": [
+                            639.984375,
+                            120
+                        ],
+                        "flags": {},
+                        "order": 5,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "clip_name",
+                                "name": "clip_name",
+                                "type": "COMBO",
+                                "widget": {
+                                    "name": "clip_name"
+                                },
+                                "link": 227
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "CLIP",
+                                "name": "CLIP",
+                                "type": "CLIP",
+                                "links": [
+                                    189
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "CLIPLoader",
+                            "models": [
+                                {
+                                    "name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+                                    "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+                                    "directory": "text_encoders"
+                                }
+                            ]
+                        },
+                        "widgets_values": [
+                            "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+                            "minimax",
+                            "default"
+                        ]
+                    },
+                    {
+                        "id": 15,
+                        "type": "RandomNoise",
+                        "pos": [
+                            -790,
+                            4660
+                        ],
+                        "size": [
+                            359.984375,
+                            89.984375
+                        ],
+                        "flags": {},
+                        "order": 7,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "noise_seed",
+                                "name": "noise_seed",
+                                "type": "INT",
+                                "widget": {
+                                    "name": "noise_seed"
+                                },
+                                "link": 207
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "NOISE",
+                                "name": "NOISE",
+                                "type": "NOISE",
+                                "links": [
+                                    40
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "RandomNoise"
+                        },
+                        "widgets_values": [
+                            42,
+                            "randomize"
+                        ]
+                    },
+                    {
+                        "id": 91,
+                        "type": "CreateVideo",
+                        "pos": [
+                            260,
+                            4790
+                        ],
+                        "size": [
+                            269.984375,
+                            109.984375
+                        ],
+                        "flags": {},
+                        "order": 11,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "images",
+                                "name": "images",
+                                "type": "IMAGE",
+                                "link": 167
+                            },
+                            {
+                                "localized_name": "audio",
+                                "name": "audio",
+                                "shape": 7,
+                                "type": "AUDIO",
+                                "link": 166
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "VIDEO",
+                                "name": "VIDEO",
+                                "type": "VIDEO",
+                                "links": [
+                                    168
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "CreateVideo"
+                        },
+                        "widgets_values": [
+                            24,
+                            8
+                        ]
+                    },
+                    {
+                        "id": 104,
+                        "type": "MiniMaxH3ImageToVideo",
+                        "pos": [
+                            -1290,
+                            4650
+                        ],
+                        "size": [
+                            409.984375,
+                            509.984375
+                        ],
+                        "flags": {},
+                        "order": 12,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "clip",
+                                "name": "clip",
+                                "type": "CLIP",
+                                "link": 189
+                            },
+                            {
+                                "localized_name": "vae",
+                                "name": "vae",
+                                "type": "VAE",
+                                "link": 190
+                            },
+                            {
+                                "localized_name": "first_frame",
+                                "name": "first_frame",
+                                "shape": 7,
+                                "type": "IMAGE",
+                                "link": 195
+                            },
+                            {
+                                "localized_name": "last_frame",
+                                "name": "last_frame",
+                                "shape": 7,
+                                "type": "IMAGE",
+                                "link": 196
+                            },
+                            {
+                                "localized_name": "prompt",
+                                "name": "prompt",
+                                "type": "STRING",
+                                "widget": {
+                                    "name": "prompt"
+                                },
+                                "link": 197
+                            },
+                            {
+                                "localized_name": "width",
+                                "name": "width",
+                                "type": "INT",
+                                "widget": {
+                                    "name": "width"
+                                },
+                                "link": 200
+                            },
+                            {
+                                "localized_name": "height",
+                                "name": "height",
+                                "type": "INT",
+                                "widget": {
+                                    "name": "height"
+                                },
+                                "link": 201
+                            },
+                            {
+                                "localized_name": "length",
+                                "name": "length",
+                                "type": "INT",
+                                "widget": {
+                                    "name": "length"
+                                },
+                                "link": 199
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "positive",
+                                "name": "positive",
+                                "type": "CONDITIONING",
+                                "links": [
+                                    187
+                                ]
+                            },
+                            {
+                                "localized_name": "LATENT",
+                                "name": "LATENT",
+                                "type": "LATENT",
+                                "links": [
+                                    188
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "MiniMaxH3ImageToVideo"
+                        },
+                        "widgets_values": [
+                            "",
+                            864,
+                            480,
+                            481
+                        ]
+                    },
+                    {
+                        "id": 107,
+                        "type": "ComfyMathExpression",
+                        "pos": [
+                            -1710,
+                            5300
+                        ],
+                        "size": [
+                            359.984375,
+                            159.984375
+                        ],
+                        "flags": {
+                            "collapsed": false
+                        },
+                        "order": 13,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "label": "a",
+                                "localized_name": "values.a",
+                                "name": "values.a",
+                                "type": "FLOAT,INT,BOOLEAN",
+                                "link": 205
+                            },
+                            {
+                                "label": "b",
+                                "localized_name": "values.b",
+                                "name": "values.b",
+                                "shape": 7,
+                                "type": "FLOAT,INT,BOOLEAN",
+                                "link": null
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "FLOAT",
+                                "name": "FLOAT",
+                                "type": "FLOAT",
+                                "links": null
+                            },
+                            {
+                                "localized_name": "INT",
+                                "name": "INT",
+                                "type": "INT",
+                                "links": [
+                                    199
+                                ]
+                            },
+                            {
+                                "localized_name": "BOOL",
+                                "name": "BOOL",
+                                "type": "BOOLEAN",
+                                "links": null
+                            }
+                        ],
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "ComfyMathExpression"
+                        },
+                        "widgets_values": [
+                            "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17"
+                        ]
+                    },
+                    {
+                        "id": 111,
+                        "type": "PrimitiveFloat",
+                        "pos": [
+                            -2020,
+                            5300
+                        ],
+                        "size": [
+                            269.984375,
+                            70
+                        ],
+                        "flags": {},
+                        "order": 14,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "value",
+                                "name": "value",
+                                "type": "FLOAT",
+                                "widget": {
+                                    "name": "value"
+                                },
+                                "link": 206
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "FLOAT",
+                                "name": "FLOAT",
+                                "type": "FLOAT",
+                                "links": [
+                                    205
+                                ]
+                            }
+                        ],
+                        "title": "Float (duration)",
+                        "properties": {
+                            "cnr_id": "comfy-core",
+                            "ver": "0.30.1",
+                            "Node name for S&R": "PrimitiveFloat"
+                        },
+                        "widgets_values": [
+                            2
+                        ]
+                    },
+                    {
+                        "id": 119,
+                        "type": "RHMiniMaxH3SageAttentionPatch",
+                        "pos": [
+                            -1291.1626922066582,
+                            5296.506970111788
+                        ],
+                        "size": [
+                            419.984375,
+                            99.984375
+                        ],
+                        "flags": {},
+                        "order": 15,
+                        "mode": 0,
+                        "inputs": [
+                            {
+                                "localized_name": "model",
+                                "name": "model",
+                                "type": "MODEL",
+                                "link": 228
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "localized_name": "model",
+                                "name": "model",
+                                "type": "MODEL",
+                                "links": [
+                                    229,
+                                    230
+                                ]
+                            }
+                        ],
+                        "properties": {
+                            "aux_id": "HM-RunningHub/ComfyUI_RH_MinMaxH3",
+                            "ver": "445fccb8f4e2d2a866d446a6e5589dddc5f0ec6a",
+                            "Node name for S&R": "RHMiniMaxH3SageAttentionPatch"
+                        },
+                        "widgets_values": [
+                            true
+                        ]
+                    }
+                ],
+                "groups": [
+                    {
+                        "id": 1,
+                        "title": "Models",
+                        "bounding": [
+                            -2050,
+                            4540,
+                            700,
+                            670
+                        ],
+                        "color": "#3f789e",
+                        "flags": {}
+                    },
+                    {
+                        "id": 2,
+                        "title": "Sampling",
+                        "bounding": [
+                            -810,
+                            4540,
+                            690,
+                            670
+                        ],
+                        "color": "#3f789e",
+                        "flags": {}
+                    },
+                    {
+                        "id": 3,
+                        "title": "Conditioning",
+                        "bounding": [
+                            -1320,
+                            4540,
+                            480,
+                            670
+                        ],
+                        "color": "#3f789e",
+                        "flags": {}
+                    },
+                    {
+                        "id": 4,
+                        "title": "Decoding and create video",
+                        "bounding": [
+                            -90,
+                            4540,
+                            670,
+                            670
+                        ],
+                        "color": "#3f789e",
+                        "flags": {}
+                    },
+                    {
+                        "id": 5,
+                        "title": "Bundled SageAttention backend",
+                        "bounding": [
+                            -1320,
+                            5220,
+                            480,
+                            220
+                        ],
+                        "color": "#6f4b9e",
+                        "flags": {}
+                    }
+                ],
+                "links": [
+                    {
+                        "id": 23,
+                        "origin_id": 24,
+                        "origin_slot": 0,
+                        "target_id": 23,
+                        "target_slot": 1,
+                        "type": "VAE"
+                    },
+                    {
+                        "id": 8,
+                        "origin_id": 11,
+                        "origin_slot": 0,
+                        "target_id": 10,
+                        "target_slot": 1,
+                        "type": "VAE"
+                    },
+                    {
+                        "id": 40,
+                        "origin_id": 15,
+                        "origin_slot": 0,
+                        "target_id": 14,
+                        "target_slot": 0,
+                        "type": "NOISE"
+                    },
+                    {
+                        "id": 12,
+                        "origin_id": 16,
+                        "origin_slot": 0,
+                        "target_id": 14,
+                        "target_slot": 1,
+                        "type": "GUIDER"
+                    },
+                    {
+                        "id": 16,
+                        "origin_id": 17,
+                        "origin_slot": 0,
+                        "target_id": 14,
+                        "target_slot": 2,
+                        "type": "SAMPLER"
+                    },
+                    {
+                        "id": 18,
+                        "origin_id": 9,
+                        "origin_slot": 0,
+                        "target_id": 14,
+                        "target_slot": 3,
+                        "type": "SIGMAS"
+                    },
+                    {
+                        "id": 188,
+                        "origin_id": 104,
+                        "origin_slot": 1,
+                        "target_id": 14,
+                        "target_slot": 4,
+                        "type": "LATENT"
+                    },
+                    {
+                        "id": 187,
+                        "origin_id": 104,
+                        "origin_slot": 0,
+                        "target_id": 16,
+                        "target_slot": 1,
+                        "type": "CONDITIONING"
+                    },
+                    {
+                        "id": 167,
+                        "origin_id": 10,
+                        "origin_slot": 0,
+                        "target_id": 91,
+                        "target_slot": 0,
+                        "type": "IMAGE"
+                    },
+                    {
+                        "id": 166,
+                        "origin_id": 23,
+                        "origin_slot": 0,
+                        "target_id": 91,
+                        "target_slot": 1,
+                        "type": "AUDIO"
+                    },
+                    {
+                        "id": 189,
+                        "origin_id": 13,
+                        "origin_slot": 0,
+                        "target_id": 104,
+                        "target_slot": 0,
+                        "type": "CLIP"
+                    },
+                    {
+                        "id": 190,
+                        "origin_id": 11,
+                        "origin_slot": 0,
+                        "target_id": 104,
+                        "target_slot": 1,
+                        "type": "VAE"
+                    },
+                    {
+                        "id": 168,
+                        "origin_id": 91,
+                        "origin_slot": 0,
+                        "target_id": -20,
+                        "target_slot": 0,
+                        "type": "VIDEO"
+                    },
+                    {
+                        "id": 195,
+                        "origin_id": -10,
+                        "origin_slot": 0,
+                        "target_id": 104,
+                        "target_slot": 2,
+                        "type": "IMAGE"
+                    },
+                    {
+                        "id": 196,
+                        "origin_id": -10,
+                        "origin_slot": 1,
+                        "target_id": 104,
+                        "target_slot": 3,
+                        "type": "IMAGE"
+                    },
+                    {
+                        "id": 197,
+                        "origin_id": -10,
+                        "origin_slot": 2,
+                        "target_id": 104,
+                        "target_slot": 4,
+                        "type": "STRING"
+                    },
+                    {
+                        "id": 199,
+                        "origin_id": 107,
+                        "origin_slot": 1,
+                        "target_id": 104,
+                        "target_slot": 7,
+                        "type": "INT"
+                    },
+                    {
+                        "id": 200,
+                        "origin_id": -10,
+                        "origin_slot": 3,
+                        "target_id": 104,
+                        "target_slot": 5,
+                        "type": "INT"
+                    },
+                    {
+                        "id": 201,
+                        "origin_id": -10,
+                        "origin_slot": 4,
+                        "target_id": 104,
+                        "target_slot": 6,
+                        "type": "INT"
+                    },
+                    {
+                        "id": 205,
+                        "origin_id": 111,
+                        "origin_slot": 0,
+                        "target_id": 107,
+                        "target_slot": 0,
+                        "type": "FLOAT"
+                    },
+                    {
+                        "id": 206,
+                        "origin_id": -10,
+                        "origin_slot": 5,
+                        "target_id": 111,
+                        "target_slot": 0,
+                        "type": "FLOAT"
+                    },
+                    {
+                        "id": 207,
+                        "origin_id": -10,
+                        "origin_slot": 6,
+                        "target_id": 15,
+                        "target_slot": 0,
+                        "type": "INT"
+                    },
+                    {
+                        "id": 221,
+                        "origin_id": -10,
+                        "origin_slot": 7,
+                        "target_id": 6,
+                        "target_slot": 0,
+                        "type": "COMBO"
+                    },
+                    {
+                        "id": 223,
+                        "origin_id": -10,
+                        "origin_slot": 9,
+                        "target_id": 11,
+                        "target_slot": 0,
+                        "type": "COMBO"
+                    },
+                    {
+                        "id": 224,
+                        "origin_id": -10,
+                        "origin_slot": 10,
+                        "target_id": 24,
+                        "target_slot": 0,
+                        "type": "COMBO"
+                    },
+                    {
+                        "id": 225,
+                        "origin_id": 14,
+                        "origin_slot": 0,
+                        "target_id": 10,
+                        "target_slot": 0,
+                        "type": "LATENT"
+                    },
+                    {
+                        "id": 226,
+                        "origin_id": 14,
+                        "origin_slot": 0,
+                        "target_id": 23,
+                        "target_slot": 0,
+                        "type": "LATENT"
+                    },
+                    {
+                        "id": 227,
+                        "origin_id": -10,
+                        "origin_slot": 8,
+                        "target_id": 13,
+                        "target_slot": 0,
+                        "type": "COMBO"
+                    },
+                    {
+                        "id": 228,
+                        "origin_id": 6,
+                        "origin_slot": 0,
+                        "target_id": 119,
+                        "target_slot": 0,
+                        "type": "MODEL"
+                    },
+                    {
+                        "id": 229,
+                        "origin_id": 119,
+                        "origin_slot": 0,
+                        "target_id": 9,
+                        "target_slot": 0,
+                        "type": "MODEL"
+                    },
+                    {
+                        "id": 230,
+                        "origin_id": 119,
+                        "origin_slot": 0,
+                        "target_id": 16,
+                        "target_slot": 0,
+                        "type": "MODEL"
+                    }
+                ],
+                "extra": {}
+            }
+        ]
+    },
+    "config": {},
+    "extra": {
+        "frontendVersion": "1.47.12",
+        "VHS_latentpreview": false,
+        "VHS_latentpreviewrate": 0,
+        "VHS_MetadataImage": true,
+        "VHS_KeepIntermediate": true,
+        "workflow_note": "Director-to-native-H3 example: one shared duration (20 seconds), 25 sampling steps, H3 prompt output 13.",
+        "seed_widgets": {
+            "105": 42
+        },
+        "ds": {
+            "scale": 0.55,
+            "offset": [
+                190,
+                120
+            ]
+        }
+    },
+    "version": 0.4,
+    "seed_widgets": {
+        "105": 4
+    }
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exportanything.dev/schemas/advertisement_h3_plan.schema.json",
+  "title": "DiffusionGemma Advertisement H3 Plan",
+  "type": "object",
+  "required": ["schema", "version", "campaign_id", "advertisement_contract_sha256", "plan_sha256", "fps", "source_native_shot_count", "effective_generation_lane_count", "lanes", "ready"],
+  "properties": {
+    "schema": {"const": "diffusiongemma.advertisement_h3_plan"},
+    "version": {"const": 1},
+    "campaign_id": {"$ref": "#/$defs/sha256"},
+    "advertisement_contract_sha256": {"$ref": "#/$defs/sha256"},
+    "plan_sha256": {"$ref": "#/$defs/sha256"},
+    "fps": {"const": 24},
+    "source_native_shot_count": {"type": "integer", "minimum": 1},
+    "effective_generation_lane_count": {"type": "integer", "minimum": 1, "maximum": 4},
+    "lanes": {
+      "type": "array", "minItems": 1, "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["lane_index", "start_seconds", "duration_seconds", "retained_master_frames", "generated_h3_frames", "source_native_shot_indices", "product_presence", "entry_state", "exit_state", "boundary_mode", "reference_picture_tags", "relay_required", "prompt", "prompt_sha256", "ready"],
+        "properties": {
+          "lane_index": {"type": "integer", "minimum": 1, "maximum": 4},
+          "duration_seconds": {"type": "number", "minimum": 5, "maximum": 15},
+          "retained_master_frames": {"type": "integer", "minimum": 1},
+          "generated_h3_frames": {"type": "integer", "minimum": 1},
+          "boundary_mode": {"enum": ["project_start", "hard_cut", "match_state", "relay_continuity", "practical_transition"]},
+          "reference_picture_tags": {"type": "array", "contains": {"const": "<Picture 3>"}},
+          "relay_required": {"type": "boolean"},
+          "prompt": {"type": "string", "minLength": 1},
+          "prompt_sha256": {"$ref": "#/$defs/sha256"},
+          "ready": {"const": true}
+        }
+      }
+    },
+    "ready": {"const": true}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

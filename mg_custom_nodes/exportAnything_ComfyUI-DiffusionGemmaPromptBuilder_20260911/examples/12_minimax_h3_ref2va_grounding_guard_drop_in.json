@@ -1,0 +1,689 @@
+{
+  "id": "b8df0325-397b-415e-8a99-6d35babff3f1",
+  "revision": 0,
+  "last_node_id": 156,
+  "last_link_id": 18,
+  "nodes": [
+    {
+      "id": 116,
+      "type": "MarkdownNote",
+      "pos": [0, 980],
+      "size": [3950, 560],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "# MiniMax H3 Ref2VA Grounding Guard — drop-in module\n\n**Copy the three colored groups into your existing MiniMax H3 Ref2VA workflow.**\n\n1. Replace the brief and both images. Keep the image order identical everywhere: `<Picture 1>` is the identity reference and `<Picture 2>` is the environment/style reference. If you use only one image, remove Picture 2 from both the batch and manifest.\n2. Connect the output of **8. CONNECT THIS OUTPUT** to the native `MiniMaxH3ReferenceToVideo` **prompt** input. Do not connect the splitter prompt directly; that bypasses fail-closed protection.\n3. Feed the same original images—not the resized analysis batch—to the native H3 `ref_image_1`, `ref_image_2`, ... sockets in exactly the same order.\n4. Share **Duration seconds** with your existing H3 frame-count math. You may also connect the splitter's width/height outputs to the matching H3 inputs.\n5. For identity + control video, connect your existing `VIDEO` object to **reference_video**, add one `<Video 1>: [dg:action,motion,camera,temporal,composition] ...` manifest line, and keep sending the decoded frames/audio through your existing H3 Ref2VA inputs.\n\nStrict mode blocks transport mismatch, malformed evidence, refusal, uncertainty, or insufficient role coverage before the expensive H3 render. The status and report previews explain the decision. The batch is for DiffusionGemma inspection only; the original references still drive MiniMax."
+      ],
+      "color": "#222",
+      "bgcolor": "#000",
+      "title": "How to plug this into MiniMax H3 Ref2VA"
+    },
+    {
+      "id": 138,
+      "type": "PrimitiveStringMultiline",
+      "pos": [0, 0],
+      "size": [500, 320],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [1]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.24.0",
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "Create a coherent cinematic sequence using the supplied references. Preserve <Picture 1> only for the protagonist's identity, appearance, wardrobe, accessories, and distinguishing traits. Use <Picture 2> only for the environment, palette, lighting, composition, and visual style; do not transfer any pictured subject identity. Maintain stable character design, clear action and reaction, deliberate camera movement, synchronized impacts, and a resolved final frame. No subtitles, logos, or watermarks."
+      ],
+      "title": "1. Creative brief"
+    },
+    {
+      "id": 132,
+      "type": "PrimitiveFloat",
+      "pos": [0, 370],
+      "size": [330, 70],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [11]
+        }
+      ],
+      "title": "2. Duration seconds — share with H3",
+      "properties": {
+        "Node name for S&R": "PrimitiveFloat"
+      },
+      "widgets_values": [20],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 137,
+      "type": "LoadImage",
+      "pos": [540, 0],
+      "size": [290, 330],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [2]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": ["example.png", "image"],
+      "title": "2a. <Picture 1> — identity"
+    },
+    {
+      "id": 148,
+      "type": "LoadImage",
+      "pos": [540, 310],
+      "size": [290, 330],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [3]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": ["example.png", "image"],
+      "title": "2b. <Picture 2> — environment + style"
+    },
+    {
+      "id": 147,
+      "type": "BatchImagesNode",
+      "pos": [540, 650],
+      "size": [300, 130],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "image0",
+          "localized_name": "images.image0",
+          "name": "images.image0",
+          "type": "IMAGE",
+          "link": 2
+        },
+        {
+          "label": "image1",
+          "localized_name": "images.image1",
+          "name": "images.image1",
+          "type": "IMAGE",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [4]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.24.0",
+        "Node name for S&R": "BatchImagesNode"
+      },
+      "title": "Analyze references in native order"
+    },
+    {
+      "id": 142,
+      "type": "DiffusionGemmaModelLoader",
+      "pos": [1120, 0],
+      "size": [500, 320],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model_config",
+          "type": "DG_MODEL_CONFIG",
+          "links": [5]
+        },
+        {
+          "name": "runtime_status_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaModelLoader"
+      },
+      "widgets_values": [
+        "C:\\ComfyUI\\app\\models\\LLM\\diffusiongemma-26B-A4B-it-NVFP4",
+        "transformers_inprocess",
+        "auto",
+        "modelopt_nvfp4",
+        true,
+        "unload_after_run",
+        "20.0 GB - safe practical",
+        0.35
+      ],
+      "title": "3. Load Director — unloads before H3"
+    },
+    {
+      "id": 143,
+      "type": "DiffusionGemmaH3ReferenceContext",
+      "pos": [1660, 0],
+      "size": [470, 590],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "user_prompt",
+          "type": "STRING",
+          "link": 1
+        },
+        {
+          "name": "reference_images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 4
+        },
+        {
+          "name": "reference_video",
+          "shape": 7,
+          "type": "VIDEO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "gemma_context",
+          "type": "DG_CONTEXT",
+          "links": [6, 9]
+        },
+        {
+          "name": "context_json",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "context_preview",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaH3ReferenceContext"
+      },
+      "widgets_values": [
+        "<Picture 1>: [dg:identity,appearance,color] protagonist identity, face, body, silhouette, colors, wardrobe, accessories, and distinguishing traits; preserve exactly across every shot; this is a full-sequence reference, not a first or last frame.\n<Picture 2>: [dg:environment,lighting,color,composition] environment, production design, palette, lighting, composition, and visual style; do not copy any pictured person or creature identity; this is a full-sequence reference, not a keyframe.",
+        1,
+        60,
+        60,
+        "trim",
+        ""
+      ],
+      "title": "4. Ordered H3 reference context"
+    },
+    {
+      "id": 144,
+      "type": "DiffusionGemmaMiniMaxH3TargetProfile",
+      "pos": [1120, 380],
+      "size": [470, 620],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "target_duration_seconds",
+          "name": "target_duration_seconds",
+          "type": "FLOAT",
+          "widget": {
+            "name": "target_duration_seconds"
+          },
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "target_profile_config",
+          "type": "DG_TARGET_PROFILE_CONFIG",
+          "links": [7, 10]
+        },
+        {
+          "name": "target_profile_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaMiniMaxH3TargetProfile"
+      },
+      "widgets_values": [
+        "ref2va",
+        20,
+        "auto_scene_audio",
+        "",
+        "auto",
+        12,
+        "auto",
+        2,
+        "",
+        "auto",
+        ""
+      ],
+      "title": "5. MiniMax-H3 Ref2VA target profile"
+    },
+    {
+      "id": 152,
+      "type": "DiffusionGemmaGroundingGuardSettings",
+      "pos": [1660, 640],
+      "size": [470, 290],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "external_evidence_json",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "grounding_guard_config",
+          "type": "DG_GROUNDING_GUARD_CONFIG",
+          "links": [15]
+        },
+        {
+          "name": "config_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaGroundingGuardSettings"
+      },
+      "widgets_values": [
+        "strict",
+        true,
+        "checkpoint_defaults",
+        0,
+        "fixed",
+        false,
+        "diffusiongemma_grounding",
+        "auto"
+      ],
+      "title": "5b. Strict Grounding Guard"
+    },
+    {
+      "id": 145,
+      "type": "DiffusionGemmaCoTGenerator",
+      "pos": [2200, 0],
+      "size": [430, 304],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model_config",
+          "type": "DG_MODEL_CONFIG",
+          "link": 5
+        },
+        {
+          "name": "gemma_context",
+          "type": "DG_CONTEXT",
+          "link": 6
+        },
+        {
+          "name": "target_profile_config",
+          "type": "DG_TARGET_PROFILE_CONFIG",
+          "link": 7
+        },
+        {
+          "name": "grounding_guard_config",
+          "shape": 7,
+          "type": "DG_GROUNDING_GUARD_CONFIG",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "final_json",
+          "type": "STRING",
+          "links": [8]
+        },
+        {
+          "name": "reasoning_text",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "raw_response",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "metadata_json",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "grounding_status",
+          "type": "STRING",
+          "links": [17]
+        },
+        {
+          "name": "grounding_report_json",
+          "type": "STRING",
+          "links": [18]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaCoTGenerator"
+      },
+      "widgets_values": [0.45, "cinematic", 0.7, "on", 2048, "reuse"],
+      "title": "6. Build verified Ref2VA prompt"
+    },
+    {
+      "id": 146,
+      "type": "DiffusionGemmaJSONSplitter",
+      "pos": [2200, 350],
+      "size": [430, 510],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "final_json",
+          "type": "STRING",
+          "link": 8
+        },
+        {
+          "name": "gemma_context",
+          "shape": 7,
+          "type": "DG_CONTEXT",
+          "link": 9
+        },
+        {
+          "name": "target_profile_config",
+          "shape": 7,
+          "type": "DG_TARGET_PROFILE_CONFIG",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {"name": "ltx_prompt", "type": "STRING", "links": null},
+        {"name": "ideogram_prompt", "type": "STRING", "links": null},
+        {"name": "negative_prompt", "type": "STRING", "links": null},
+        {"name": "aspect_ratio", "type": "STRING", "links": null},
+        {"name": "metadata_json", "type": "STRING", "links": [14]},
+        {"name": "scene_segments_json", "type": "STRING", "links": null},
+        {"name": "local_prompts", "type": "STRING", "links": null},
+        {"name": "segment_lengths", "type": "STRING", "links": null},
+        {"name": "is_valid", "type": "BOOLEAN", "links": null},
+        {"name": "resolution_selector_preset", "type": "STRING", "links": null},
+        {"name": "resolution_width", "type": "INT", "links": null},
+        {"name": "resolution_height", "type": "INT", "links": null},
+        {"name": "ready_for_generation", "type": "BOOLEAN", "links": [13]},
+        {"name": "minimax_h3_prompt", "type": "STRING", "links": [12]}
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaJSONSplitter"
+      },
+      "widgets_values": ["", 0.4, 32],
+      "title": "7. Route H3 prompt + resolution"
+    },
+    {
+      "id": 151,
+      "type": "DiffusionGemmaGenerationGate",
+      "pos": [2700, 0],
+      "size": [550, 150],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 12
+        },
+        {
+          "name": "ready_for_generation",
+          "type": "BOOLEAN",
+          "link": 13
+        },
+        {
+          "name": "metadata_json",
+          "shape": 7,
+          "type": "STRING",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [16]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaGenerationGate"
+      },
+      "title": "8. CONNECT THIS OUTPUT → MiniMax H3 prompt",
+      "color": "#5b2222",
+      "bgcolor": "#8b3333"
+    },
+    {
+      "id": 149,
+      "type": "PreviewAny",
+      "pos": [3320, 0],
+      "size": [590, 270],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Gated MiniMax-H3 prompt — safe handoff",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.15.1",
+        "Node name for S&R": "PreviewAny",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [null, null, null],
+      "color": "#244d3b",
+      "bgcolor": "#356e55"
+    },
+    {
+      "id": 150,
+      "type": "PreviewAny",
+      "pos": [2700, 220],
+      "size": [550, 240],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Grounding status",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.15.1",
+        "Node name for S&R": "PreviewAny",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [null, null, null],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 156,
+      "type": "PreviewAny",
+      "pos": [2700, 510],
+      "size": [1210, 350],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Grounding report — evidence, retry, and blocked reasons",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.15.1",
+        "Node name for S&R": "PreviewAny",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [null, null, null],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    }
+  ],
+  "links": [
+    [1, 138, 0, 143, 0, "STRING"],
+    [2, 137, 0, 147, 0, "IMAGE"],
+    [3, 148, 0, 147, 1, "IMAGE"],
+    [4, 147, 0, 143, 1, "IMAGE"],
+    [5, 142, 0, 145, 0, "DG_MODEL_CONFIG"],
+    [6, 143, 0, 145, 1, "DG_CONTEXT"],
+    [7, 144, 0, 145, 2, "DG_TARGET_PROFILE_CONFIG"],
+    [8, 145, 0, 146, 0, "STRING"],
+    [9, 143, 0, 146, 1, "DG_CONTEXT"],
+    [10, 144, 0, 146, 2, "DG_TARGET_PROFILE_CONFIG"],
+    [11, 132, 0, 144, 0, "FLOAT"],
+    [12, 146, 13, 151, 0, "STRING"],
+    [13, 146, 12, 151, 1, "BOOLEAN"],
+    [14, 146, 4, 151, 2, "STRING"],
+    [15, 152, 0, 145, 3, "DG_GROUNDING_GUARD_CONFIG"],
+    [16, 151, 0, 149, 0, "STRING"],
+    [17, 145, 4, 150, 0, "STRING"],
+    [18, 145, 5, 156, 0, "STRING"]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "INPUTS — brief, duration, ordered references",
+      "bounding": [-40, -40, 1100, 900],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "DIFFUSIONGEMMA — verified Ref2VA prompt",
+      "bounding": [1080, -40, 1580, 940],
+      "color": "#8a6f3d",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "SAFE MINIMAX HANDOFF — use only the gate output",
+      "bounding": [2670, -40, 1280, 940],
+      "color": "#6a4c93",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.75,
+      "offset": [-20, 80]
+    },
+    "frontendVersion": "1.47.11",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "workflow_note": "Splice-ready DiffusionGemma strict Grounding Guard front-end for MiniMax H3 Ref2VA. Copy the three groups, keep reference order synchronized, and connect only the Generation Gate output to the native H3 prompt input."
+  },
+  "version": 0.4
+}

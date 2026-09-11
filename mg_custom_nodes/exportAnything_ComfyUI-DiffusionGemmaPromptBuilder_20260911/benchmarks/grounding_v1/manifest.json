@@ -1,0 +1,2052 @@
+{
+  "schema_version": "dg-grounding-benchmark/1",
+  "name": "DiffusionGemma Grounding Guard Benchmark v1",
+  "description": "Thirty offline grounding cases: 10 public synthetic images, 8 public synthetic APNG videos, 6 private clean placeholders, and 6 private known-failure placeholders. Holdout allocation is 2/10 images, 2/8 videos (nearest whole case to 20% of eight), 1/6 private clean, and 1/6 private known-failure. No result files are generated.",
+  "seeds": [
+    17,
+    101,
+    809
+  ],
+  "cases": [
+    {
+      "id": "img_01_shape_real",
+      "category": "synthetic_image",
+      "fixture": "fixtures/images/img_01_shape_real.png",
+      "fixture_sha256": "9d16636a0f5d18faf78b19778f3ed2cbe05db4d327c6f49491408a488bbd5c8f",
+      "result": "results/img_01_shape_real.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "h3_ref2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "red_square",
+          "claim": "A red square is on the left.",
+          "aliases": [
+            "crimson square",
+            "red block"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        },
+        {
+          "id": "blue_circle",
+          "claim": "A blue circle is on the right.",
+          "aliases": [
+            "blue disk",
+            "azure circle"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        },
+        {
+          "id": "square_left_of_circle",
+          "claim": "The red square is left of the blue circle.",
+          "aliases": [
+            "square precedes circle"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "green_triangle",
+          "claim": "A green triangle is present.",
+          "aliases": [
+            "green three-sided shape"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "circle_left_of_square",
+          "claim": "The blue circle is left of the red square.",
+          "aliases": [
+            "reversed spatial order"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "image_shape_swap",
+      "counterfactual_variant": "real",
+      "notes": ""
+    },
+    {
+      "id": "img_02_shape_neutral",
+      "category": "synthetic_image",
+      "fixture": "fixtures/images/img_02_shape_neutral.png",
+      "fixture_sha256": "5f17363af868663abbc379ce575f97853ab3cc7962d86e414ca8e0c957983b86",
+      "result": "results/img_02_shape_neutral.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "h3_ref2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "neutral_gray_field",
+          "claim": "The image is a neutral gray field with one faint horizontal band.",
+          "aliases": [
+            "gray calibration field"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "red_square",
+          "claim": "A red square is present.",
+          "aliases": [
+            "crimson square"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "blue_circle",
+          "claim": "A blue circle is present.",
+          "aliases": [
+            "blue disk"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "image_shape_swap",
+      "counterfactual_variant": "neutral",
+      "notes": ""
+    },
+    {
+      "id": "img_03_shape_unrelated",
+      "category": "synthetic_image",
+      "fixture": "fixtures/images/img_03_shape_unrelated.png",
+      "fixture_sha256": "3d9645f721fa74b3d8f67f3e65a65bc4bb7aeccc0bbca00cc5d2fbc321441537",
+      "result": "results/img_03_shape_unrelated.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "h3_ref2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "green_triangle",
+          "claim": "A green triangle is above a yellow diamond.",
+          "aliases": [
+            "green three-sided shape"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        },
+        {
+          "id": "yellow_diamond",
+          "claim": "A yellow diamond is below a green triangle.",
+          "aliases": [
+            "yellow rhombus"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        },
+        {
+          "id": "triangle_above_diamond",
+          "claim": "The triangle is above the diamond.",
+          "aliases": [
+            "triangle over diamond"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "red_square",
+          "claim": "A red square is present.",
+          "aliases": [
+            "crimson square"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "blue_circle",
+          "claim": "A blue circle is present.",
+          "aliases": [
+            "blue disk"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "image_shape_swap",
+      "counterfactual_variant": "unrelated",
+      "notes": ""
+    },
+    {
+      "id": "img_04_count_three",
+      "category": "synthetic_image",
+      "fixture": "fixtures/images/img_04_count_three.png",
+      "fixture_sha256": "53f01854eaaa242223451886253936015a2d93164b0360b3b4005ae6516c07dc",
+      "result": "results/img_04_count_three.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "ideogram",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "three_circles",
+          "claim": "Exactly three circles appear.",
+          "aliases": [
+            "three disks",
+            "count of three"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        },
+        {
+          "id": "orange_circles",
+          "claim": "All three circles are orange.",
+          "aliases": [
+            "orange disks"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "four_circles",
+          "claim": "Four circles appear.",
+          "aliases": [
+            "count of four"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "mixed_circle_colors",
+          "claim": "The circles have different colors.",
+          "aliases": [
+            "multicolor circles"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": ""
+    },
+    {
+      "id": "img_05_color_pair",
+      "category": "synthetic_image",
+      "fixture": "fixtures/images/img_05_color_pair.png",
+      "fixture_sha256": "35166828ad90bb035b2019fd48090bca92943a2ab36c5408d2112a491df4d1cc",
+      "result": "results/img_05_color_pair.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "ltx",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "violet_rectangle",
+          "claim": "A large violet rectangle fills the center.",
+          "aliases": [
+            "purple rectangle"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        },
+        {
+          "id": "cyan_square_inside",
+          "claim": "A cyan square sits inside the violet rectangle.",
+          "aliases": [
+            "turquoise inner square"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "cyan_outside",
+          "claim": "The cyan square is outside the violet rectangle.",
+          "aliases": [
+            "separate cyan square"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "orange_background",
+          "claim": "The background is orange.",
+          "aliases": [
+            "orange field"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": ""
+    },
+    {
+      "id": "img_06_text_north7",
+      "category": "synthetic_image",
+      "fixture": "fixtures/images/img_06_text_north7.png",
+      "fixture_sha256": "3822a169ffc429be4f67a7b7f1054efb29054380d2c0637e2adc485746298f06",
+      "result": "results/img_06_text_north7.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "ideogram",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "text_north_7",
+          "claim": "The image reads NORTH 7.",
+          "aliases": [
+            "NORTH seven",
+            "NORTH 7"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "text_south_1",
+          "claim": "The image reads SOUTH 1.",
+          "aliases": [
+            "SOUTH one"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "no_text",
+          "claim": "The image contains no text.",
+          "aliases": [
+            "blank sign"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "block_font"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": ""
+    },
+    {
+      "id": "img_07_spatial_above",
+      "category": "synthetic_image",
+      "fixture": "fixtures/images/img_07_spatial_above.png",
+      "fixture_sha256": "c6ca8fbd005bdbd58aa6d962d22eca32a37e244b52d650dc87b8719a5f7bd6c6",
+      "result": "results/img_07_spatial_above.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "h3_t2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "red_circle_above",
+          "claim": "A red circle is above a blue rectangle.",
+          "aliases": [
+            "red disk over blue bar"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        },
+        {
+          "id": "blue_rectangle_below",
+          "claim": "A blue rectangle is below the red circle.",
+          "aliases": [
+            "blue bar under red disk"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "red_circle_below",
+          "claim": "The red circle is below the rectangle.",
+          "aliases": [
+            "reversed vertical order"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": ""
+    },
+    {
+      "id": "img_08_occlusion",
+      "category": "synthetic_image",
+      "fixture": "fixtures/images/img_08_occlusion.png",
+      "fixture_sha256": "57850e4626091ae8420cf2443103fff757a1782070eff8b2f4852c7496cff674",
+      "result": "results/img_08_occlusion.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "h3_ref2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "teal_circle_front",
+          "claim": "A teal circle overlaps in front of a yellow square.",
+          "aliases": [
+            "teal disk occludes yellow square"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        },
+        {
+          "id": "yellow_square_partial",
+          "claim": "The yellow square is partially visible behind the circle.",
+          "aliases": [
+            "partly occluded square"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "separate_shapes",
+          "claim": "The shapes do not overlap.",
+          "aliases": [
+            "no occlusion"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "square_in_front",
+          "claim": "The yellow square is in front of the teal circle.",
+          "aliases": [
+            "reversed occlusion"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": ""
+    },
+    {
+      "id": "img_09_size_holdout",
+      "category": "synthetic_image",
+      "fixture": "fixtures/images/img_09_size_holdout.png",
+      "fixture_sha256": "946a14f39053121dc2b35037759d00105ae1dfa94666cc15b8a46b3ddea241ae",
+      "result": "results/img_09_size_holdout.json",
+      "private": false,
+      "holdout": true,
+      "target_profile": "ltx",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "large_black_star",
+          "claim": "A large black star is on the left.",
+          "aliases": [
+            "big dark star"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        },
+        {
+          "id": "small_red_star",
+          "claim": "A small red star is on the right.",
+          "aliases": [
+            "tiny crimson star"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        },
+        {
+          "id": "black_star_larger",
+          "claim": "The black star is larger than the red star.",
+          "aliases": [
+            "left star is bigger"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "equal_star_size",
+          "claim": "The stars are equal in size.",
+          "aliases": [
+            "same-size stars"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": ""
+    },
+    {
+      "id": "img_10_grid_holdout",
+      "category": "synthetic_image",
+      "fixture": "fixtures/images/img_10_grid_holdout.png",
+      "fixture_sha256": "76b06e2ec989b918937ca80aec1493010c41093f5ce29cb1eee6fa0c2bed8299",
+      "result": "results/img_10_grid_holdout.json",
+      "private": false,
+      "holdout": true,
+      "target_profile": "ideogram",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "four_grid_blocks",
+          "claim": "Four colored blocks form a two-by-two grid.",
+          "aliases": [
+            "2x2 colored grid"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        },
+        {
+          "id": "grid_color_order",
+          "claim": "The grid is red/green on top and blue/yellow below.",
+          "aliases": [
+            "red green blue yellow order"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "three_grid_blocks",
+          "claim": "Only three blocks appear.",
+          "aliases": [
+            "three-cell grid"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "single_row",
+          "claim": "All blocks are in one row.",
+          "aliases": [
+            "one-row layout"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": ""
+    },
+    {
+      "id": "vid_01_motion_original",
+      "category": "synthetic_video",
+      "fixture": "fixtures/videos/vid_01_motion_original.png",
+      "fixture_sha256": "2a250bfc6c2a70f78ccce762a1ed75bc3da1de7f237d604c98acd48c1c450cb7",
+      "result": "results/vid_01_motion_original.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "ltx",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "red_circle_moves_right",
+          "claim": "The red circle moves smoothly from left to right.",
+          "aliases": [
+            "disk travels rightward"
+          ],
+          "frame_indices": [
+            0,
+            2,
+            5
+          ],
+          "timecodes": [
+            0.0,
+            0.5,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        },
+        {
+          "id": "starts_left_ends_right",
+          "claim": "It starts at the left edge and ends at the right edge.",
+          "aliases": [
+            "left opening, right ending"
+          ],
+          "frame_indices": [
+            0,
+            5
+          ],
+          "timecodes": [
+            0.0,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "red_circle_moves_left",
+          "claim": "The red circle moves right to left.",
+          "aliases": [
+            "disk travels leftward"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "red_circle_static",
+          "claim": "The red circle remains still.",
+          "aliases": [
+            "stationary disk"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "video_motion_order",
+      "counterfactual_variant": "original",
+      "notes": ""
+    },
+    {
+      "id": "vid_02_motion_reversed",
+      "category": "synthetic_video",
+      "fixture": "fixtures/videos/vid_02_motion_reversed.png",
+      "fixture_sha256": "644f2baf15086de8b359eaa8c52c812b034617771c3c75237a09df2470b3c774",
+      "result": "results/vid_02_motion_reversed.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "ltx",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "red_circle_moves_left",
+          "claim": "The red circle moves smoothly from right to left.",
+          "aliases": [
+            "disk travels leftward"
+          ],
+          "frame_indices": [
+            0,
+            2,
+            5
+          ],
+          "timecodes": [
+            0.0,
+            0.5,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        },
+        {
+          "id": "starts_right_ends_left",
+          "claim": "It starts at the right edge and ends at the left edge.",
+          "aliases": [
+            "right opening, left ending"
+          ],
+          "frame_indices": [
+            0,
+            5
+          ],
+          "timecodes": [
+            0.0,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "red_circle_moves_right",
+          "claim": "The red circle moves left to right.",
+          "aliases": [
+            "disk travels rightward"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "video_motion_order",
+      "counterfactual_variant": "reversed",
+      "notes": ""
+    },
+    {
+      "id": "vid_03_motion_shuffled",
+      "category": "synthetic_video",
+      "fixture": "fixtures/videos/vid_03_motion_shuffled.png",
+      "fixture_sha256": "7b75520223ebcd4ce1c7eb15e26fa88b73f45fb507b2328703b57f973a46ac8f",
+      "result": "results/vid_03_motion_shuffled.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "h3_t2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "red_circle_jumps_nonmonotonic",
+          "claim": "The red circle jumps back and forth in non-monotonic order.",
+          "aliases": [
+            "shuffled circle positions"
+          ],
+          "frame_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "timecodes": [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "smooth_left_to_right",
+          "claim": "The red circle moves smoothly left to right.",
+          "aliases": [
+            "monotonic rightward motion"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "smooth_right_to_left",
+          "claim": "The red circle moves smoothly right to left.",
+          "aliases": [
+            "monotonic leftward motion"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "video_motion_order",
+      "counterfactual_variant": "shuffled",
+      "notes": ""
+    },
+    {
+      "id": "vid_04_motion_frozen",
+      "category": "synthetic_video",
+      "fixture": "fixtures/videos/vid_04_motion_frozen.png",
+      "fixture_sha256": "76b3537ab58ed6f2c0bc49cf7ffe4fe456bf0b07f0a454fc659f4999fe228276",
+      "result": "results/vid_04_motion_frozen.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "h3_t2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "red_circle_static_left",
+          "claim": "The red circle stays fixed on the left for every frame.",
+          "aliases": [
+            "frozen first frame",
+            "stationary left disk"
+          ],
+          "frame_indices": [
+            0,
+            2,
+            5
+          ],
+          "timecodes": [
+            0.0,
+            0.5,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "red_circle_moves_right",
+          "claim": "The red circle travels to the right.",
+          "aliases": [
+            "rightward motion"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "video_motion_order",
+      "counterfactual_variant": "frozen_first_frame",
+      "notes": ""
+    },
+    {
+      "id": "vid_05_box_opens",
+      "category": "synthetic_video",
+      "fixture": "fixtures/videos/vid_05_box_opens.png",
+      "fixture_sha256": "7a64bb30f860822871f02732404c996801079b0c3b5b003c3d45ef9505a0a5dc",
+      "result": "results/vid_05_box_opens.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "h3_ref2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "box_closed_opening",
+          "claim": "The box lid is closed at the opening.",
+          "aliases": [
+            "closed initial box"
+          ],
+          "frame_indices": [
+            0
+          ],
+          "timecodes": [
+            0.0
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        },
+        {
+          "id": "box_lid_rises",
+          "claim": "The hinged lid rises over time.",
+          "aliases": [
+            "box opens"
+          ],
+          "frame_indices": [
+            1,
+            3,
+            5
+          ],
+          "timecodes": [
+            0.25,
+            0.75,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        },
+        {
+          "id": "box_open_ending",
+          "claim": "The box is open at the ending.",
+          "aliases": [
+            "open final box"
+          ],
+          "frame_indices": [
+            5
+          ],
+          "timecodes": [
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "box_closes",
+          "claim": "The box starts open and closes.",
+          "aliases": [
+            "lid lowers"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "box_static",
+          "claim": "The lid never moves.",
+          "aliases": [
+            "unchanged closed box"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": ""
+    },
+    {
+      "id": "vid_06_camera_pan",
+      "category": "synthetic_video",
+      "fixture": "fixtures/videos/vid_06_camera_pan.png",
+      "fixture_sha256": "bf13fb976eaecee95dd5dc580af8ac5dd2bde863de213f16cfe4a06d294bf3eb",
+      "result": "results/vid_06_camera_pan.json",
+      "private": false,
+      "holdout": false,
+      "target_profile": "ltx",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "background_tracks_left",
+          "claim": "Colored background posts translate left across the frame.",
+          "aliases": [
+            "scene slides left"
+          ],
+          "frame_indices": [
+            0,
+            2,
+            5
+          ],
+          "timecodes": [
+            0.0,
+            0.5,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        },
+        {
+          "id": "center_reticle_fixed",
+          "claim": "The black center reticle remains fixed.",
+          "aliases": [
+            "stationary crosshair"
+          ],
+          "frame_indices": [
+            0,
+            5
+          ],
+          "timecodes": [
+            0.0,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        },
+        {
+          "id": "simulated_pan_right",
+          "claim": "The sequence simulates a camera pan to the right.",
+          "aliases": [
+            "rightward camera pan"
+          ],
+          "frame_indices": [
+            0,
+            2,
+            5
+          ],
+          "timecodes": [
+            0.0,
+            0.5,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "static_camera_scene",
+          "claim": "The background remains fixed.",
+          "aliases": [
+            "no camera motion"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "pan_left",
+          "claim": "The sequence simulates a pan left.",
+          "aliases": [
+            "leftward camera pan"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "synthetic_camera_motion"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": ""
+    },
+    {
+      "id": "vid_07_light_change_holdout",
+      "category": "synthetic_video",
+      "fixture": "fixtures/videos/vid_07_light_change_holdout.png",
+      "fixture_sha256": "c27e83023c22ed037d2ba439caf936c48f77a8ab4dd670815812bada62c7d062",
+      "result": "results/vid_07_light_change_holdout.json",
+      "private": false,
+      "holdout": true,
+      "target_profile": "h3_t2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "red_light_opening",
+          "claim": "The red traffic light is active at the opening.",
+          "aliases": [
+            "initial red signal"
+          ],
+          "frame_indices": [
+            0
+          ],
+          "timecodes": [
+            0.0
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        },
+        {
+          "id": "yellow_light_middle",
+          "claim": "The yellow light is active in the middle.",
+          "aliases": [
+            "middle amber signal"
+          ],
+          "frame_indices": [
+            2,
+            3
+          ],
+          "timecodes": [
+            0.5,
+            0.75
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        },
+        {
+          "id": "green_light_ending",
+          "claim": "The green light is active at the ending.",
+          "aliases": [
+            "final green signal"
+          ],
+          "frame_indices": [
+            5
+          ],
+          "timecodes": [
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "green_to_red",
+          "claim": "The sequence changes from green to red.",
+          "aliases": [
+            "reverse signal order"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "all_lights_active",
+          "claim": "All three lights are active together.",
+          "aliases": [
+            "simultaneous signals"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": ""
+    },
+    {
+      "id": "vid_08_triangle_down_holdout",
+      "category": "synthetic_video",
+      "fixture": "fixtures/videos/vid_08_triangle_down_holdout.png",
+      "fixture_sha256": "85310a5b984711faf2a4cfd787c94a32bdbe84aa45c52039521eb55ad6294fa2",
+      "result": "results/vid_08_triangle_down_holdout.json",
+      "private": false,
+      "holdout": true,
+      "target_profile": "h3_ref2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "blue_triangle_moves_down",
+          "claim": "A blue triangle moves from the top toward the bottom.",
+          "aliases": [
+            "downward triangle motion"
+          ],
+          "frame_indices": [
+            0,
+            2,
+            5
+          ],
+          "timecodes": [
+            0.0,
+            0.5,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        },
+        {
+          "id": "triangle_orientation_constant",
+          "claim": "The triangle keeps the same downward-pointing orientation.",
+          "aliases": [
+            "orientation unchanged"
+          ],
+          "frame_indices": [
+            0,
+            5
+          ],
+          "timecodes": [
+            0.0,
+            1.25
+          ],
+          "metric_tags": [
+            "supported_fact",
+            "temporal_order"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "blue_triangle_moves_up",
+          "claim": "The blue triangle moves upward.",
+          "aliases": [
+            "upward triangle motion"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        },
+        {
+          "id": "triangle_rotates",
+          "claim": "The triangle rotates while moving.",
+          "aliases": [
+            "spinning triangle"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "none"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": ""
+    },
+    {
+      "id": "private_clean_01",
+      "category": "private_clean",
+      "fixture": "private/private_clean/private_clean_01.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_clean_01.json",
+      "private": true,
+      "holdout": false,
+      "target_profile": "ltx",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_clean_01_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 1"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_clean_01_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 1"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "clean_control"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    },
+    {
+      "id": "private_clean_02",
+      "category": "private_clean",
+      "fixture": "private/private_clean/private_clean_02.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_clean_02.json",
+      "private": true,
+      "holdout": false,
+      "target_profile": "h3_t2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_clean_02_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 2"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_clean_02_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 2"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "clean_control"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    },
+    {
+      "id": "private_clean_03",
+      "category": "private_clean",
+      "fixture": "private/private_clean/private_clean_03.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_clean_03.json",
+      "private": true,
+      "holdout": false,
+      "target_profile": "h3_ref2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_clean_03_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 3"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_clean_03_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 3"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "clean_control"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    },
+    {
+      "id": "private_clean_04",
+      "category": "private_clean",
+      "fixture": "private/private_clean/private_clean_04.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_clean_04.json",
+      "private": true,
+      "holdout": false,
+      "target_profile": "ideogram",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_clean_04_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 4"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_clean_04_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 4"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "clean_control"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    },
+    {
+      "id": "private_clean_05",
+      "category": "private_clean",
+      "fixture": "private/private_clean/private_clean_05.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_clean_05.json",
+      "private": true,
+      "holdout": false,
+      "target_profile": "ltx",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_clean_05_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 5"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_clean_05_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 5"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "clean_control"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    },
+    {
+      "id": "private_clean_06",
+      "category": "private_clean",
+      "fixture": "private/private_clean/private_clean_06.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_clean_06.json",
+      "private": true,
+      "holdout": true,
+      "target_profile": "h3_ref2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_clean_06_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 6"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_clean_06_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 6"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "clean_control"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    },
+    {
+      "id": "private_failure_01",
+      "category": "private_known_failure",
+      "fixture": "private/private_known_failure/private_failure_01.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_failure_01.json",
+      "private": true,
+      "holdout": false,
+      "target_profile": "ltx",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_failure_01_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 1"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_failure_01_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 1"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "known_silent_refusal"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    },
+    {
+      "id": "private_failure_02",
+      "category": "private_known_failure",
+      "fixture": "private/private_known_failure/private_failure_02.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_failure_02.json",
+      "private": true,
+      "holdout": false,
+      "target_profile": "h3_t2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_failure_02_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 2"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_failure_02_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 2"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "known_silent_refusal"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    },
+    {
+      "id": "private_failure_03",
+      "category": "private_known_failure",
+      "fixture": "private/private_known_failure/private_failure_03.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_failure_03.json",
+      "private": true,
+      "holdout": false,
+      "target_profile": "h3_ref2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_failure_03_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 3"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_failure_03_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 3"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "known_silent_refusal"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    },
+    {
+      "id": "private_failure_04",
+      "category": "private_known_failure",
+      "fixture": "private/private_known_failure/private_failure_04.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_failure_04.json",
+      "private": true,
+      "holdout": false,
+      "target_profile": "ideogram",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_failure_04_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 4"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_failure_04_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 4"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "known_silent_refusal"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    },
+    {
+      "id": "private_failure_05",
+      "category": "private_known_failure",
+      "fixture": "private/private_known_failure/private_failure_05.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_failure_05.json",
+      "private": true,
+      "holdout": false,
+      "target_profile": "ltx",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_failure_05_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 5"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_failure_05_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 5"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "known_silent_refusal"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    },
+    {
+      "id": "private_failure_06",
+      "category": "private_known_failure",
+      "fixture": "private/private_known_failure/private_failure_06.media",
+      "fixture_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result": "results/private_failure_06.json",
+      "private": true,
+      "holdout": true,
+      "target_profile": "h3_ref2va",
+      "seeds": [
+        17,
+        101,
+        809
+      ],
+      "expected_facts": [
+        {
+          "id": "private_failure_06_expected_fact",
+          "claim": "Local annotator must replace this with a verified source fact before running.",
+          "aliases": [
+            "local expected fact slot 6"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "supported_fact"
+          ]
+        }
+      ],
+      "prohibited_facts": [
+        {
+          "id": "private_failure_06_prohibited_fact",
+          "claim": "Local annotator must replace this with a known unsupported claim before running.",
+          "aliases": [
+            "local prohibited fact slot 6"
+          ],
+          "frame_indices": [],
+          "timecodes": [],
+          "metric_tags": [
+            "unsupported_fact"
+          ]
+        }
+      ],
+      "ambiguity_labels": [
+        "private_media",
+        "requires_local_annotation",
+        "known_silent_refusal"
+      ],
+      "counterfactual_group": "",
+      "counterfactual_variant": "",
+      "notes": "Placeholder only: before running, replace the zero hash and generic fact annotations with the locally verified private media hash/facts. Never commit the private media or result data."
+    }
+  ]
+}

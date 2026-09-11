@@ -1,0 +1,2637 @@
+{
+  "177": {
+    "inputs": {
+      "value": "Create a polished 30-second vertical 9:16 social advertisement for the fictional nonalcoholic sparkling botanical beverage GLOWBLOOM YUZU PEAR, aimed at trend-conscious adults in their twenties. The adult woman in Pictures 1 and 2 is the only semantic Subject. Preserve her exact identity, short textured black bob, cobalt cropped jacket, cream ribbed top, tangerine wide-leg trousers, white sneakers, natural proportions, and warm realistic skin. The slim orange GLOWBLOOM can is an ordinary recurring hand prop, not a second Subject: never assign the can <Subject 2> or any separate semantic label. When visible, keep its orange satin aluminum, acid-lime botanical linework, deep-blue vertical GLOWBLOOM wordmark, and YUZU PEAR flavor line as faithfully as the model allows. Do not create another person, another outfit, another package, or alcohol cues.\n\nCampaign idea: BRIGHTEN THE IN-BETWEEN. This is an editorial lifestyle/product spot, not an EDM club video. Do not render campaign headlines, captions, legal copy, or floating typography; only the physical can label may be visible.\n\nUse exactly 8 shots with an intentional hard visual transition at exactly 00:15.000. Shot 1, 0–3s: extreme macro of the cold can on a cobalt plinth, tab opening, citrus mist and condensation, controlled macro push. Shot 2, 3–6.5s: the woman steps in and lifts the can, short lateral track ending on her unobstructed face and the label. Shot 3, 6.5–10.5s: she walks through a cream, ultramarine, and tangerine studio set while the camera tracks beside her with coherent foreground parallax. Shot 4, 10.5–15s: she passes behind a translucent tangerine panel; it fills frame as a practical hard wipe. Shot 5, 15–18.5s: the wipe reveals a sunlit urban rooftop where the same woman continues walking; use a brief controlled semicircular arc. Shot 6, 18.5–22.5s: close product-and-hands moment with condensation and a relaxed sip; no speaking, singing, mouthing, or dancing. Shot 7, 22.5–27s: she places the can on a chrome cafe table; use a slow 45-degree product arc with city reflections and coherent parallax. Shot 8, 27–30s: final blue-hour woman-and-can composition, label toward camera, settling into a stable medium product portrait for later end-card typography.\n\nUse polished editorial product photography, analog-flash texture, real fabric and skin, chrome reflections, a golden-hour-to-blue-hour progression, electric tangerine, acid lime, deep ultramarine, and warm cream. Camera movement may be expressive but physically coherent; no dizzying continuous swirl, chaotic whip chain, or impossible compound path.\n\nSoundtrack is instrumental only at approximately 104 BPM: percussive alt-pop and neo-soul with rubbery bass guitar, crisp hand percussion, bright mallet accents, and subtle glassy synth texture. No lyrics, singing, speech, rap, dialogue, four-on-the-floor EDM beat, festival drop, or nightclub ambience. The woman performs natural commercial actions and never mouths the soundtrack."
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "1b. Creative brief — describe motion from the supplied frame"
+    }
+  },
+  "178": {
+    "inputs": {
+      "value": 30.0
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "2. FAST TEST VIDEO duration — 5s default; configurable for production"
+    }
+  },
+  "179": {
+    "inputs": {
+      "image": "diffusiongemma_campaigns/glowbloom_20260823/glowbloom_hero_identity.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "3a. Picture 1 — primary full-body / wardrobe identity authority"
+    }
+  },
+  "182": {
+    "inputs": {
+      "model_path": "C:\\ComfyUI\\app\\models\\LLM\\diffusiongemma-26B-A4B-it-NVFP4",
+      "backend": "transformers_inprocess",
+      "dtype": "auto",
+      "quantization": "modelopt_nvfp4",
+      "local_files_only": true,
+      "unload_policy": "unload_after_run",
+      "max_memory_gb": "20.0 GB - safe practical",
+      "temperature": 0.35
+    },
+    "class_type": "DiffusionGemmaModelLoader",
+    "_meta": {
+      "title": "4a. Load DiffusionGemma Director — unload before native H3"
+    }
+  },
+  "183": {
+    "inputs": {
+      "sample_fps": 1.0,
+      "max_duration_seconds": 60.0,
+      "max_frames": 60,
+      "overlong_policy": "trim",
+      "include_image_with_video": false,
+      "visual_description": "Picture 1 is the sole adult campaign Subject, her full wardrobe, target composition, and the orange GLOWBLOOM can as an ordinary recurring prop. Picture 2 is multi-panel identity evidence for that same woman in the same wardrobe. All panels depict one Subject; the can is not a second Subject and the sheet layout must not transfer.",
+      "media_synthesis_mode": "video_recreation",
+      "user_prompt": [
+        "177",
+        0
+      ],
+      "image": [
+        "179",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaContextHub",
+    "_meta": {
+      "title": "4. Song-planning Context Hub — source image context"
+    }
+  },
+  "185": {
+    "inputs": {
+      "mode": "off",
+      "retry_on_uncertain": true,
+      "sampling_profile": "checkpoint_defaults",
+      "seed": 26082301,
+      "save_detailed_trace": false,
+      "trace_subfolder": "diffusiongemma_grounding",
+      "evidence_token_budget": "auto"
+    },
+    "class_type": "DiffusionGemmaGroundingGuardSettings",
+    "_meta": {
+      "title": "5b. H3 Grounding Guard — audit comparison baseline"
+    }
+  },
+  "186": {
+    "inputs": {
+      "temperature": 0.35,
+      "creativity_mode": "cinematic",
+      "creative_strength": 0.7,
+      "thinking_mode": "off",
+      "max_new_tokens": 2048,
+      "director_cache_mode": "reuse",
+      "model_config": [
+        "182",
+        0
+      ],
+      "gemma_context": [
+        "674",
+        0
+      ],
+      "target_profile_config": [
+        "673",
+        0
+      ],
+      "grounding_guard_config": [
+        "185",
+        0
+      ],
+      "measured_audio_report_json": [
+        "612",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaCoTGenerator",
+    "_meta": {
+      "title": "6. Build grounded MiniMax-H3 Ref2VA production prompt"
+    }
+  },
+  "187": {
+    "inputs": {
+      "fallback_prompt": "",
+      "resolution_megapixels": 0.4,
+      "resolution_multiple": 32,
+      "resolution_aspect_ratio": "9:16 (Portrait Widescreen)",
+      "final_json": [
+        "186",
+        0
+      ],
+      "gemma_context": [
+        "674",
+        0
+      ],
+      "target_profile_config": [
+        "673",
+        0
+      ],
+      "resolution_aspect_ratio_override": [
+        "676",
+        2
+      ]
+    },
+    "class_type": "DiffusionGemmaJSONSplitter",
+    "_meta": {
+      "title": "7. Route H3 prompt + resolution — FAST TEST defaults to 0.4 MP"
+    }
+  },
+  "188": {
+    "inputs": {
+      "prompt": [
+        "187",
+        13
+      ],
+      "ready_for_generation": [
+        "187",
+        12
+      ],
+      "metadata_json": [
+        "187",
+        4
+      ]
+    },
+    "class_type": "DiffusionGemmaBranchGenerationGate",
+    "_meta": {
+      "title": "8. Isolated MiniMax-H3 prompt generation gate"
+    }
+  },
+  "189": {
+    "inputs": {
+      "source": [
+        "188",
+        1
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "MiniMax-H3 branch gate status"
+    }
+  },
+  "190": {
+    "inputs": {
+      "source": [
+        "186",
+        4
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "Grounding status"
+    }
+  },
+  "191": {
+    "inputs": {
+      "source": [
+        "186",
+        5
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "Grounding report"
+    }
+  },
+  "418": {
+    "inputs": {
+      "seed": 347267244880142
+    },
+    "class_type": "SeedNode",
+    "_meta": {
+      "title": "H3 root seed — video only; does not regenerate the locked song"
+    }
+  },
+  "556": {
+    "inputs": {
+      "root_seed": [
+        "590",
+        0
+      ],
+      "rhythm_mode": [
+        "589",
+        1
+      ],
+      "lyric_density": "auto",
+      "candidate_count": [
+        "589",
+        2
+      ],
+      "blueprint_json": [
+        "578",
+        0
+      ],
+      "song_duration_seconds": [
+        "562",
+        0
+      ]
+    },
+    "class_type": "SplatStageBlueprintRouter",
+    "_meta": {
+      "title": "SONG BLUEPRINT ROUTER — exact passthrough + audition provenance"
+    }
+  },
+  "557": {
+    "inputs": {
+      "source": [
+        "556",
+        12
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "LEGACY SPLATSTAGE REPORT — full-song clock does not drive H3 duration"
+    }
+  },
+  "558": {
+    "inputs": {
+      "unet_name": "acestep_v1.5_turbo.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "ACE-Step 1.5 Turbo Model"
+    }
+  },
+  "559": {
+    "inputs": {
+      "clip_name1": "qwen_0.6b_ace15.safetensors",
+      "clip_name2": "qwen_4b_ace15.safetensors",
+      "type": "ace",
+      "device": "default"
+    },
+    "class_type": "DualCLIPLoader",
+    "_meta": {
+      "title": "ACE-Step Text Encoders"
+    }
+  },
+  "560": {
+    "inputs": {
+      "vae_name": "ace_1.5_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "ACE-Step VAE"
+    }
+  },
+  "562": {
+    "inputs": {
+      "value": 30.0
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "ACE FULL SONG DURATION — independent from video duration"
+    }
+  },
+  "565": {
+    "inputs": {
+      "seconds": [
+        "562",
+        0
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyAceStep1.5LatentAudio",
+    "_meta": {
+      "title": "Shared full-song ACE latent — candidates are seed-independent"
+    }
+  },
+  "568": {
+    "inputs": {
+      "audio": [
+        "610",
+        0
+      ]
+    },
+    "class_type": "PreviewAudio",
+    "_meta": {
+      "title": "SELECTED FULL SONG — decoded QC winner"
+    }
+  },
+  "569": {
+    "inputs": {
+      "start_index": [
+        "610",
+        1
+      ],
+      "duration": [
+        "178",
+        0
+      ],
+      "audio": [
+        "610",
+        0
+      ]
+    },
+    "class_type": "TrimAudioDuration",
+    "_meta": {
+      "title": "QC-SELECTED EXCERPT — suggested start + master video duration"
+    }
+  },
+  "577": {
+    "inputs": {
+      "anything": [
+        "569",
+        0
+      ]
+    },
+    "class_type": "easy cleanGpuUsed",
+    "_meta": {
+      "title": "Unload ACE models before Director and H3 conditioning"
+    }
+  },
+  "578": {
+    "inputs": {
+      "root_seed": [
+        "590",
+        0
+      ],
+      "duration_seconds": [
+        "562",
+        0
+      ],
+      "aspect_ratio": "9:16",
+      "temperature": 0.35,
+      "max_new_tokens": 2048,
+      "production_mode": [
+        "589",
+        0
+      ],
+      "model_config": [
+        "182",
+        0
+      ],
+      "gemma_context": [
+        "183",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaSplatStagePlanner",
+    "_meta": {
+      "title": "SONG + VIDEO BLUEPRINT — shared production concept / fixed full-song clock"
+    }
+  },
+  "585": {
+    "inputs": {
+      "source": [
+        "556",
+        4
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "BLUEPRINT LYRICS"
+    }
+  },
+  "589": {
+    "inputs": {
+      "production_concept": "Joint video-safe plan",
+      "audition_candidate_count": 2
+    },
+    "class_type": "DiffusionGemmaMusicProductionConcept",
+    "_meta": {
+      "title": "PRODUCTION CONCEPT — audition 2–4, or one source/joint song"
+    }
+  },
+  "590": {
+    "inputs": {
+      "seed": 26082301
+    },
+    "class_type": "SeedNode",
+    "_meta": {
+      "title": "Song plan / audition root — independent from LTX seed"
+    }
+  },
+  "591": {
+    "inputs": {
+      "root_seed": [
+        "590",
+        0
+      ],
+      "production_concept": [
+        "589",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaSongSeedFanout",
+    "_meta": {
+      "title": "ACE candidate seeds — deterministic / concept-aware"
+    }
+  },
+  "592": {
+    "inputs": {
+      "mode": "Compose new"
+    },
+    "class_type": "DiffusionGemmaACEReferenceMode",
+    "_meta": {
+      "title": "ACE SOURCE MODE — Compose new / optional Cover reference"
+    }
+  },
+  "609": {
+    "inputs": {
+      "a": [
+        "556",
+        6
+      ]
+    },
+    "class_type": "CM_IntToFloat",
+    "_meta": {
+      "title": "Requested BPM → numeric QC expectation"
+    }
+  },
+  "610": {
+    "inputs": {
+      "candidate_count": [
+        "737",
+        4
+      ],
+      "selection_mode": "auto_select",
+      "expected_bpm": [
+        "737",
+        5
+      ],
+      "excerpt_duration_seconds": [
+        "178",
+        0
+      ],
+      "minimum_score": 0.52,
+      "locked_waveform_sha256": "",
+      "locked_start_seconds": -1.0,
+      "candidate_1": [
+        "737",
+        0
+      ],
+      "candidate_2": [
+        "737",
+        1
+      ],
+      "candidate_3": [
+        "737",
+        2
+      ],
+      "candidate_4": [
+        "737",
+        3
+      ],
+      "source_policy": [
+        "737",
+        8
+      ]
+    },
+    "class_type": "DiffusionGemmaAudioCandidateSelector",
+    "_meta": {
+      "title": "MUSIC INPUT + QC — ACE candidates or uploaded-song verification"
+    }
+  },
+  "611": {
+    "inputs": {
+      "mode": "sync_safe",
+      "final_audio": [
+        "577",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaLTXAudioGuide",
+    "_meta": {
+      "title": "H3 AUDIO GUIDE — sync-safe conditioning / pristine final master"
+    }
+  },
+  "612": {
+    "inputs": {
+      "anything": [
+        "610",
+        3
+      ]
+    },
+    "class_type": "easy cleanGpuUsed",
+    "_meta": {
+      "title": "Unload ACE after QC — pass compact measurements to H3 Director"
+    }
+  },
+  "613": {
+    "inputs": {
+      "audio": [
+        "611",
+        1
+      ]
+    },
+    "class_type": "PreviewAudio",
+    "_meta": {
+      "title": "FINAL SOUNDTRACK EXCERPT — pristine assembly audio"
+    }
+  },
+  "614": {
+    "inputs": {
+      "source": [
+        "610",
+        4
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "FULL MUSIC QC AUDIT — candidate measurements, rejection reasons + advisories"
+    }
+  },
+  "615": {
+    "inputs": {
+      "source": [
+        "610",
+        5
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "MUSIC QC STATUS — must pass before Director + LTX"
+    }
+  },
+  "616": {
+    "inputs": {
+      "source": [
+        "610",
+        2
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "SELECTED SONG SHA-256 — copy when using lock-by-hash"
+    }
+  },
+  "621": {
+    "inputs": {
+      "performance_mode": "Natural / audio-led sync",
+      "song_duration_seconds": [
+        "737",
+        7
+      ],
+      "excerpt_start_seconds": [
+        "610",
+        1
+      ],
+      "excerpt_duration_seconds": [
+        "178",
+        0
+      ],
+      "ltx_prompt": [
+        "188",
+        0
+      ],
+      "lyrics": [
+        "737",
+        6
+      ],
+      "performance_mode_override": [
+        "675",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaLTXPerformancePrompt",
+    "_meta": {
+      "title": "INTERNAL LYRIC CANDIDATE WINDOW — mode comes only from H3 PERFORMANCE MODE"
+    }
+  },
+  "622": {
+    "inputs": {
+      "source": [
+        "621",
+        1
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "H3 PERFORMANCE LYRIC WINDOW — empty in dance/music-sync mode"
+    }
+  },
+  "624": {
+    "inputs": {
+      "value": "Use the selected instrumental song as the exact soundtrack and timing authority. Synchronize edits, product reveals, hand actions, steps, practical transitions, and physically coherent camera accents to measured rhythm, phrasing, dynamics, and recovery intervals. Performance is natural commercial acting only: no dancing, singing, speaking, mouthing, or forced lip sync. Preserve the requested short lateral tracks, practical color wipe, controlled semicircular arc, controlled product arc, and coherent parallax. Keep camera energy polished and legible rather than chaotic."
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "1a. Creative brief — H3 audio/performance guidance"
+    }
+  },
+  "651": {
+    "inputs": {
+      "filename_prefix": "diffusiongemma_campaigns/glowbloom_20260823/glowbloom_30s_ad_v2_relay",
+      "format": "mp4",
+      "codec": "h264",
+      "codec.encoding": "auto",
+      "video": [
+        "664",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "FINAL MINIMAX-H3 MUSIC VIDEO — locked ACE master"
+    }
+  },
+  "653": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "MiniMax-H3 video VAE"
+    }
+  },
+  "654": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "MiniMax-H3 audio VAE — conditioning encoder only"
+    }
+  },
+  "661": {
+    "inputs": {
+      "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "MiniMax-H3 Ref2VA — pruned INT8 fast-test model"
+    }
+  },
+  "662": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "MiniMax-H3 Qwen vision-language encoder"
+    }
+  },
+  "664": {
+    "inputs": {
+      "fps": 24.0,
+      "bit_depth": 8,
+      "images": [
+        "679",
+        0
+      ],
+      "audio": [
+        "679",
+        1
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "Mux exact ACE master with exact-length assembled H3 frames"
+    }
+  },
+  "673": {
+    "inputs": {
+      "generation_mode": "ref2va",
+      "target_duration_seconds": [
+        "178",
+        0
+      ],
+      "audio_mode": "auto_scene_audio",
+      "audio_guidance": [
+        "675",
+        1
+      ],
+      "shot_count": "custom",
+      "custom_shot_count": 8,
+      "dialogue_mode": "off",
+      "dialogue_line_count": 2,
+      "dialogue_guidance": "",
+      "negative_prompt_mode": "auto",
+      "negative_prompt_guidance": "No extra people, duplicate subject, identity drift, masculinization, alternate face, alternate hairstyle, alternate wardrobe, alternate package, malformed can, alcohol cues, nightclub, concert, dance choreography, lip sync, singing, speaking, open mouth performance, floating text, captions, invented logos, chaotic continuous orbit, dizzying swirl, whip-chain camera, impossible compound camera path, flicker, or discontinuous product placement.",
+      "shot_count_override": 0
+    },
+    "class_type": "DiffusionGemmaMiniMaxH3TargetProfile",
+    "_meta": {
+      "title": "H3 TARGET PROFILE — native shots inside each generated video"
+    }
+  },
+  "674": {
+    "inputs": {
+      "reference_manifest": [
+        "724",
+        0
+      ],
+      "sample_fps": 1.0,
+      "max_duration_seconds": 60.0,
+      "max_frames": 60,
+      "overlong_policy": "trim",
+      "visual_description": "Picture 1 is the sole adult campaign Subject, her full wardrobe, target composition, and the orange GLOWBLOOM can as an ordinary recurring prop. Picture 2 is multi-panel identity evidence for that same woman in the same wardrobe. All panels depict one Subject; the can is not a second Subject and the sheet layout must not transfer.",
+      "reference_manifest_preset": "custom",
+      "expected_subject_count": 1,
+      "user_prompt": [
+        "177",
+        0
+      ],
+      "reference_images": [
+        "722",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaH3ReferenceContext",
+    "_meta": {
+      "title": "5a. MiniMax-H3 ordered reference context — Pictures 1+2 + Audio 1"
+    }
+  },
+  "675": {
+    "inputs": {
+      "performance_mode": "Natural / audio-led sync",
+      "base_audio_guidance": [
+        "624",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaMusicVideoPerformanceMode",
+    "_meta": {
+      "title": "H3 PERFORMANCE MODE — one authoritative control / Natural default"
+    }
+  },
+  "676": {
+    "inputs": {
+      "production_duration_seconds": [
+        "178",
+        0
+      ],
+      "aspect_ratio": "9:16",
+      "excerpt_start_seconds": [
+        "610",
+        1
+      ],
+      "excerpt_duration_seconds": [
+        "178",
+        0
+      ],
+      "generation_model": "MiniMax H3 Ref2VA",
+      "deliverables_json": "{\"primary\":\"9:16 master\",\"adaptations\":[\"16:9\",\"1:1\"]}",
+      "max_h3_shot_seconds": 15.0,
+      "creative_brief": [
+        "177",
+        0
+      ],
+      "master_audio_sha256": [
+        "610",
+        2
+      ],
+      "lyrics": [
+        "737",
+        6
+      ]
+    },
+    "class_type": "DiffusionGemmaProjectMasterContract",
+    "_meta": {
+      "title": "PROJECT MASTER CONTRACT — duration, song hash, format + H3 generation-lane budget"
+    }
+  },
+  "677": {
+    "inputs": {
+      "excerpt_start_seconds": [
+        "610",
+        1
+      ],
+      "excerpt_duration_seconds": [
+        "178",
+        0
+      ],
+      "preferred_shot_seconds": 7.0,
+      "min_shot_seconds": 5.0,
+      "max_shot_seconds": [
+        "676",
+        8
+      ],
+      "identity_picture_count": 2,
+      "continuity_relay_mode": "Previous lane tail",
+      "measured_audio_report_json": [
+        "612",
+        0
+      ],
+      "base_h3_prompt": [
+        "188",
+        0
+      ],
+      "performance_mode": [
+        "675",
+        0
+      ],
+      "project_manifest_json": [
+        "676",
+        0
+      ],
+      "lyrics": [
+        "621",
+        1
+      ],
+      "reference_manifest": [
+        "724",
+        0
+      ],
+      "timed_lyrics_report_json": [
+        "733",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaAudioAwareMultiShotPlanner",
+    "_meta": {
+      "title": "AUDIO-AWARE H3 MULTI-LANE PLAN — evidence-preferred / deterministic fallback"
+    }
+  },
+  "678": {
+    "inputs": {
+      "root_seed": [
+        "418",
+        0
+      ],
+      "project_manifest_json": [
+        "676",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaH3ShotSeedFanout",
+    "_meta": {
+      "title": "H3 GENERATION-LANE SEEDS — deterministic root/project/lane fanout"
+    }
+  },
+  "679": {
+    "inputs": {
+      "target_duration_seconds": [
+        "178",
+        0
+      ],
+      "fps": 24.0,
+      "final_audio": [
+        "611",
+        1
+      ],
+      "plan_json": [
+        "677",
+        0
+      ],
+      "shot_1_images": [
+        "710:656",
+        0
+      ],
+      "shot_2_images": [
+        "710:688",
+        0
+      ],
+      "shot_3_images": [
+        "710:696",
+        0
+      ],
+      "shot_4_images": [
+        "710:704",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaH3ShotAssembler",
+    "_meta": {
+      "title": "LOCKED-SONG H3 ASSEMBLY — lazy lanes, exact frames, pristine audio"
+    }
+  },
+  "680": {
+    "inputs": {
+      "format_policy": "Master + social adaptations",
+      "cutdown_policy": "Plan 15s + 6s cutdowns",
+      "safe_area_percent": 10,
+      "project_manifest_json": [
+        "676",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaMultiFormatDeliveryPlanner",
+    "_meta": {
+      "title": "MULTI-FORMAT DELIVERY — honest master/adaptation/cutdown plan"
+    }
+  },
+  "681": {
+    "inputs": {
+      "start_index": [
+        "677",
+        5
+      ],
+      "duration": [
+        "677",
+        6
+      ],
+      "audio": [
+        "611",
+        0
+      ]
+    },
+    "class_type": "TrimAudioDuration",
+    "_meta": {
+      "title": "H3 GENERATION LANE 1 AUDIO — relative sync-safe guide slice"
+    }
+  },
+  "683": {
+    "inputs": {
+      "start_index": [
+        "677",
+        10
+      ],
+      "duration": [
+        "677",
+        11
+      ],
+      "audio": [
+        "611",
+        0
+      ]
+    },
+    "class_type": "TrimAudioDuration",
+    "_meta": {
+      "title": "H3 GENERATION LANE 2 AUDIO — relative sync-safe guide slice"
+    }
+  },
+  "691": {
+    "inputs": {
+      "start_index": [
+        "677",
+        15
+      ],
+      "duration": [
+        "677",
+        16
+      ],
+      "audio": [
+        "611",
+        0
+      ]
+    },
+    "class_type": "TrimAudioDuration",
+    "_meta": {
+      "title": "H3 GENERATION LANE 3 AUDIO — relative sync-safe guide slice"
+    }
+  },
+  "699": {
+    "inputs": {
+      "start_index": [
+        "677",
+        20
+      ],
+      "duration": [
+        "677",
+        21
+      ],
+      "audio": [
+        "611",
+        0
+      ]
+    },
+    "class_type": "TrimAudioDuration",
+    "_meta": {
+      "title": "H3 GENERATION LANE 4 AUDIO — relative sync-safe guide slice"
+    }
+  },
+  "705": {
+    "inputs": {
+      "source": [
+        "676",
+        6
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "PROJECT CONTRACT STATUS"
+    }
+  },
+  "706": {
+    "inputs": {
+      "source": [
+        "677",
+        0
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "AUDIO-AWARE H3 SHOT PLAN"
+    }
+  },
+  "707": {
+    "inputs": {
+      "source": [
+        "677",
+        1
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "H3 SHOT PLAN STATUS"
+    }
+  },
+  "708": {
+    "inputs": {
+      "source": [
+        "679",
+        3
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "LOCKED-SONG ASSEMBLY STATUS"
+    }
+  },
+  "709": {
+    "inputs": {
+      "source": [
+        "680",
+        0
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "MULTI-FORMAT DELIVERY MANIFEST — plan only"
+    }
+  },
+  "712": {
+    "inputs": {
+      "reuse_threshold": 0.2,
+      "start_percent": 0.15,
+      "end_percent": 0.95,
+      "verbose": true,
+      "model": [
+        "715",
+        0
+      ]
+    },
+    "class_type": "EasyCache",
+    "_meta": {
+      "title": "EXPERIMENT DISABLED — EasyCache is bypassed for four-step Turbo"
+    }
+  },
+  "713": {
+    "inputs": {
+      "lora_name": "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors",
+      "strength_model": 0.75,
+      "model": [
+        "661",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "Official Ref2VA Turbo LoRA — preserved b430 strength 0.60"
+    }
+  },
+  "715": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "713",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "SageAttention auto — compile disabled"
+    }
+  },
+  "716": {
+    "inputs": {
+      "shift_video": 12.0,
+      "shift_audio": 3.0,
+      "model": [
+        "712",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3SigmaShift",
+    "_meta": {
+      "title": "H3 Turbo sigma shifts — video 12 / audio 3"
+    }
+  },
+  "721": {
+    "inputs": {
+      "image": "diffusiongemma_campaigns/glowbloom_20260823/glowbloom_identity_product_contact_sheet.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "3b. Picture 2 — generated multi-view identity sheet (same performer)"
+    }
+  },
+  "722": {
+    "inputs": {
+      "images.image0": [
+        "179",
+        0
+      ],
+      "images.image1": [
+        "721",
+        0
+      ]
+    },
+    "class_type": "BatchImagesNode",
+    "_meta": {
+      "title": "Director analysis batch — Picture 1 then Picture 2"
+    }
+  },
+  "723": {
+    "inputs": {
+      "generation_width": [
+        "187",
+        10
+      ],
+      "generation_height": [
+        "187",
+        11
+      ],
+      "combined_reference_area_ratio": 1.0,
+      "reference_1_share": 0.4,
+      "reference_image_1": [
+        "179",
+        0
+      ],
+      "reference_image_2": [
+        "721",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaH3ReferencePairPrep",
+    "_meta": {
+      "title": "H3 dual identity budget — Pictures 1+2 share one frame area"
+    }
+  },
+  "724": {
+    "inputs": {
+      "value": "<Picture 1>: [dg:identity,appearance,object,color,composition] primary identity, full body, wardrobe, composition, and ordinary recurring GLOWBLOOM prop authority for the same woman; the can is not a separate Subject.\n<Picture 2>: [dg:identity,appearance] multi-panel identity evidence for the same Subject only and the same woman in the same wardrobe; the same can is supporting prop evidence, not a separate Subject. Do not transfer its layout or grid, seams, backgrounds, or pose sequence, and do not treat its panels as separate people.\n<Audio 1>: [dg:audio,rhythm] locked instrumental soundtrack timing reference."
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "H3 REFERENCE MANIFEST — shared Director + relay contract"
+    }
+  },
+  "731": {
+    "inputs": {
+      "chunk_length": 10.0,
+      "chunk_overlap": 0.5,
+      "chunk_fade_shape": "half_sine",
+      "audio": [
+        "611",
+        1
+      ]
+    },
+    "class_type": "FL_Audio_Separation",
+    "_meta": {
+      "title": "VOCAL STEM — Demucs separation (Lyrics mode only)"
+    }
+  },
+  "732": {
+    "inputs": {
+      "model_size": "large-v3-turbo",
+      "download_missing": false
+    },
+    "class_type": "Load Whisper (mtb)",
+    "_meta": {
+      "title": "WHISPER LARGE-V3-TURBO — local / Lyrics mode only"
+    }
+  },
+  "733": {
+    "inputs": {
+      "song_duration_seconds": [
+        "737",
+        7
+      ],
+      "excerpt_start_seconds": [
+        "610",
+        1
+      ],
+      "excerpt_duration_seconds": [
+        "178",
+        0
+      ],
+      "language": "en",
+      "minimum_alignment_confidence": 0.55,
+      "final_audio": [
+        "611",
+        1
+      ],
+      "performance_mode": [
+        "675",
+        0
+      ],
+      "lyrics": [
+        "737",
+        6
+      ],
+      "master_audio_sha256": [
+        "610",
+        2
+      ],
+      "vocal_stem": [
+        "731",
+        3
+      ],
+      "whisper_pipeline": [
+        "732",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaTimedLyricsAnalyzer",
+    "_meta": {
+      "title": "TIMED LYRICS — audio-gated alignment / safe Natural fallback"
+    }
+  },
+  "734": {
+    "inputs": {
+      "source": [
+        "733",
+        1
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "TIMED LYRICS STATUS — timing-ready or explicit Natural fallback"
+    }
+  },
+  "735": {
+    "inputs": {
+      "source": [
+        "733",
+        3
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "ALIGNED VOCAL EVENTS — excerpt-relative, never a lyric guess"
+    }
+  },
+  "736": {
+    "inputs": {
+      "audio_file": "diffusiongemma_campaigns/glowbloom_20260823/glowbloom_104bpm_instrumental.flac"
+    },
+    "class_type": "DiffusionGemmaUploadSong",
+    "_meta": {
+      "title": "UPLOAD SONG — choose a local audio file (Upload mode only)"
+    }
+  },
+  "737": {
+    "inputs": {
+      "source_mode": "Upload song",
+      "uploaded_expected_bpm": 104.0,
+      "uploaded_lyrics": "",
+      "generated_candidate_count": [
+        "589",
+        2
+      ],
+      "generated_expected_bpm": [
+        "609",
+        0
+      ],
+      "generated_lyrics": [
+        "556",
+        4
+      ],
+      "generated_duration_seconds": [
+        "562",
+        0
+      ],
+      "generated_candidate_1": [
+        "623:567",
+        0
+      ],
+      "generated_candidate_2": [
+        "623:597",
+        0
+      ],
+      "generated_candidate_3": [
+        "623:602",
+        0
+      ],
+      "generated_candidate_4": [
+        "623:607",
+        0
+      ],
+      "uploaded_audio": [
+        "736",
+        0
+      ],
+      "uploaded_duration_seconds": [
+        "736",
+        1
+      ],
+      "uploaded_waveform_sha256": [
+        "736",
+        2
+      ],
+      "uploaded_status": [
+        "736",
+        3
+      ],
+      "uploaded_ready": [
+        "736",
+        4
+      ]
+    },
+    "class_type": "DiffusionGemmaSongSourceRouter",
+    "_meta": {
+      "title": "SONG SOURCE — Generate with ACE-Step / Upload song"
+    }
+  },
+  "623:561": {
+    "inputs": {
+      "tags": [
+        "556",
+        3
+      ],
+      "lyrics": [
+        "556",
+        4
+      ],
+      "seed": [
+        "591",
+        0
+      ],
+      "bpm": [
+        "556",
+        6
+      ],
+      "duration": [
+        "562",
+        0
+      ],
+      "timesignature": [
+        "556",
+        8
+      ],
+      "language": [
+        "556",
+        9
+      ],
+      "keyscale": [
+        "556",
+        10
+      ],
+      "generate_audio_codes": [
+        "592",
+        0
+      ],
+      "cfg_scale": 2.0,
+      "temperature": 0.72,
+      "top_p": 0.9,
+      "top_k": 0,
+      "min_p": 0.0,
+      "clip": [
+        "559",
+        0
+      ]
+    },
+    "class_type": "TextEncodeAceStepAudio1.5",
+    "_meta": {
+      "title": "ACE Candidate A — ACE 4B LM / temperature 0.72"
+    }
+  },
+  "623:563": {
+    "inputs": {
+      "shift": 3.0,
+      "model": [
+        "558",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "ACE AuraFlow Sampling"
+    }
+  },
+  "623:564": {
+    "inputs": {
+      "conditioning": [
+        "623:593",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Candidate A negative conditioning"
+    }
+  },
+  "623:566": {
+    "inputs": {
+      "seed": [
+        "591",
+        0
+      ],
+      "steps": 8,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "model": [
+        "623:563",
+        0
+      ],
+      "positive": [
+        "623:593",
+        0
+      ],
+      "negative": [
+        "623:564",
+        0
+      ],
+      "latent_image": [
+        "565",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "ACE Candidate A — 8-step Turbo / CFG 1"
+    }
+  },
+  "623:567": {
+    "inputs": {
+      "samples": [
+        "623:566",
+        0
+      ],
+      "vae": [
+        "560",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "Decode ACE Candidate A"
+    }
+  },
+  "623:593": {
+    "inputs": {
+      "conditioning": [
+        "623:561",
+        0
+      ],
+      "mode_token": [
+        "592",
+        1
+      ]
+    },
+    "class_type": "DiffusionGemmaACECoverConditioning",
+    "_meta": {
+      "title": "Candidate A — lazy Cover reference gate"
+    }
+  },
+  "623:594": {
+    "inputs": {
+      "tags": [
+        "556",
+        3
+      ],
+      "lyrics": [
+        "556",
+        4
+      ],
+      "seed": [
+        "591",
+        1
+      ],
+      "bpm": [
+        "556",
+        6
+      ],
+      "duration": [
+        "562",
+        0
+      ],
+      "timesignature": [
+        "556",
+        8
+      ],
+      "language": [
+        "556",
+        9
+      ],
+      "keyscale": [
+        "556",
+        10
+      ],
+      "generate_audio_codes": [
+        "592",
+        0
+      ],
+      "cfg_scale": 2.0,
+      "temperature": 0.72,
+      "top_p": 0.9,
+      "top_k": 0,
+      "min_p": 0.0,
+      "clip": [
+        "559",
+        0
+      ]
+    },
+    "class_type": "TextEncodeAceStepAudio1.5",
+    "_meta": {
+      "title": "ACE Candidate B — ACE 4B LM / temperature 0.72"
+    }
+  },
+  "623:595": {
+    "inputs": {
+      "conditioning": [
+        "623:598",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Candidate B negative conditioning"
+    }
+  },
+  "623:596": {
+    "inputs": {
+      "seed": [
+        "591",
+        1
+      ],
+      "steps": 8,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "model": [
+        "623:563",
+        0
+      ],
+      "positive": [
+        "623:598",
+        0
+      ],
+      "negative": [
+        "623:595",
+        0
+      ],
+      "latent_image": [
+        "565",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "ACE Candidate B — 8-step Turbo / CFG 1"
+    }
+  },
+  "623:597": {
+    "inputs": {
+      "samples": [
+        "623:596",
+        0
+      ],
+      "vae": [
+        "560",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "Decode ACE Candidate B"
+    }
+  },
+  "623:598": {
+    "inputs": {
+      "conditioning": [
+        "623:594",
+        0
+      ],
+      "mode_token": [
+        "592",
+        1
+      ]
+    },
+    "class_type": "DiffusionGemmaACECoverConditioning",
+    "_meta": {
+      "title": "Candidate B — lazy Cover reference gate"
+    }
+  },
+  "623:599": {
+    "inputs": {
+      "tags": [
+        "556",
+        3
+      ],
+      "lyrics": [
+        "556",
+        4
+      ],
+      "seed": [
+        "591",
+        2
+      ],
+      "bpm": [
+        "556",
+        6
+      ],
+      "duration": [
+        "562",
+        0
+      ],
+      "timesignature": [
+        "556",
+        8
+      ],
+      "language": [
+        "556",
+        9
+      ],
+      "keyscale": [
+        "556",
+        10
+      ],
+      "generate_audio_codes": [
+        "592",
+        0
+      ],
+      "cfg_scale": 2.0,
+      "temperature": 0.72,
+      "top_p": 0.9,
+      "top_k": 0,
+      "min_p": 0.0,
+      "clip": [
+        "559",
+        0
+      ]
+    },
+    "class_type": "TextEncodeAceStepAudio1.5",
+    "_meta": {
+      "title": "ACE Candidate C — ACE 4B LM / temperature 0.72"
+    }
+  },
+  "623:600": {
+    "inputs": {
+      "conditioning": [
+        "623:603",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Candidate C negative conditioning"
+    }
+  },
+  "623:601": {
+    "inputs": {
+      "seed": [
+        "591",
+        2
+      ],
+      "steps": 8,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "model": [
+        "623:563",
+        0
+      ],
+      "positive": [
+        "623:603",
+        0
+      ],
+      "negative": [
+        "623:600",
+        0
+      ],
+      "latent_image": [
+        "565",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "ACE Candidate C — 8-step Turbo / CFG 1"
+    }
+  },
+  "623:602": {
+    "inputs": {
+      "samples": [
+        "623:601",
+        0
+      ],
+      "vae": [
+        "560",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "Decode ACE Candidate C"
+    }
+  },
+  "623:603": {
+    "inputs": {
+      "conditioning": [
+        "623:599",
+        0
+      ],
+      "mode_token": [
+        "592",
+        1
+      ]
+    },
+    "class_type": "DiffusionGemmaACECoverConditioning",
+    "_meta": {
+      "title": "Candidate C — lazy Cover reference gate"
+    }
+  },
+  "623:604": {
+    "inputs": {
+      "tags": [
+        "556",
+        3
+      ],
+      "lyrics": [
+        "556",
+        4
+      ],
+      "seed": [
+        "591",
+        3
+      ],
+      "bpm": [
+        "556",
+        6
+      ],
+      "duration": [
+        "562",
+        0
+      ],
+      "timesignature": [
+        "556",
+        8
+      ],
+      "language": [
+        "556",
+        9
+      ],
+      "keyscale": [
+        "556",
+        10
+      ],
+      "generate_audio_codes": [
+        "592",
+        0
+      ],
+      "cfg_scale": 2.0,
+      "temperature": 0.72,
+      "top_p": 0.9,
+      "top_k": 0,
+      "min_p": 0.0,
+      "clip": [
+        "559",
+        0
+      ]
+    },
+    "class_type": "TextEncodeAceStepAudio1.5",
+    "_meta": {
+      "title": "ACE Candidate D — ACE 4B LM / temperature 0.72"
+    }
+  },
+  "623:605": {
+    "inputs": {
+      "conditioning": [
+        "623:608",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Candidate D negative conditioning"
+    }
+  },
+  "623:606": {
+    "inputs": {
+      "seed": [
+        "591",
+        3
+      ],
+      "steps": 8,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0,
+      "model": [
+        "623:563",
+        0
+      ],
+      "positive": [
+        "623:608",
+        0
+      ],
+      "negative": [
+        "623:605",
+        0
+      ],
+      "latent_image": [
+        "565",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "ACE Candidate D — 8-step Turbo / CFG 1"
+    }
+  },
+  "623:607": {
+    "inputs": {
+      "samples": [
+        "623:606",
+        0
+      ],
+      "vae": [
+        "560",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "Decode ACE Candidate D"
+    }
+  },
+  "623:608": {
+    "inputs": {
+      "conditioning": [
+        "623:604",
+        0
+      ],
+      "mode_token": [
+        "592",
+        1
+      ]
+    },
+    "class_type": "DiffusionGemmaACECoverConditioning",
+    "_meta": {
+      "title": "Candidate D — lazy Cover reference gate"
+    }
+  },
+  "710:656": {
+    "inputs": {
+      "samples": [
+        "710:659",
+        0
+      ],
+      "vae": [
+        "653",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "H3 GENERATION LANE 1 video frames"
+    }
+  },
+  "710:657": {
+    "inputs": {
+      "sampler_name": "euler_ancestral"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "Shared H3 sampler — preserved b430 res_multistep"
+    }
+  },
+  "710:658": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 7,
+      "denoise": 1.0,
+      "model": [
+        "716",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "Shared H3 schedule — preserved b430 simple / 8 steps"
+    }
+  },
+  "710:659": {
+    "inputs": {
+      "noise": [
+        "710:663",
+        0
+      ],
+      "guider": [
+        "710:660",
+        0
+      ],
+      "sampler": [
+        "710:657",
+        0
+      ],
+      "sigmas": [
+        "710:658",
+        0
+      ],
+      "latent_image": [
+        "710:667",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "H3 GENERATION LANE 1 sampler"
+    }
+  },
+  "710:660": {
+    "inputs": {
+      "model": [
+        "716",
+        0
+      ],
+      "conditioning": [
+        "710:717",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "H3 GENERATION LANE 1 guider"
+    }
+  },
+  "710:663": {
+    "inputs": {
+      "noise_seed": [
+        "678",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "H3 GENERATION LANE 1 deterministic noise"
+    }
+  },
+  "710:665": {
+    "inputs": {
+      "expression": "max(0, round((a + b) * 24) - round(a * 24) - 1)",
+      "values.a": [
+        "677",
+        5
+      ],
+      "values.b": [
+        "677",
+        6
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "LANE 1 RETAINED CUT — continuity frame index"
+    }
+  },
+  "710:667": {
+    "inputs": {
+      "prompt": [
+        "677",
+        4
+      ],
+      "width": [
+        "187",
+        10
+      ],
+      "height": [
+        "187",
+        11
+      ],
+      "length": [
+        "677",
+        7
+      ],
+      "ref_image_size": "match",
+      "clip": [
+        "662",
+        0
+      ],
+      "vae": [
+        "653",
+        0
+      ],
+      "audio_vae": [
+        "654",
+        0
+      ],
+      "ref_images.ref_image_0": [
+        "723",
+        0
+      ],
+      "ref_images.ref_image_1": [
+        "723",
+        1
+      ],
+      "ref_audios.ref_audio_0": [
+        "681",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "H3 GENERATION LANE 1 — Pictures 1+2 identity + Audio 1"
+    }
+  },
+  "710:682": {
+    "inputs": {
+      "batch_index": [
+        "710:665",
+        1
+      ],
+      "length": 1,
+      "image": [
+        "710:656",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "LANE 1 TAIL — optional continuity-only Picture 3 source"
+    }
+  },
+  "710:684": {
+    "inputs": {
+      "prompt": [
+        "677",
+        9
+      ],
+      "width": [
+        "187",
+        10
+      ],
+      "height": [
+        "187",
+        11
+      ],
+      "length": [
+        "677",
+        12
+      ],
+      "ref_image_size": "match",
+      "clip": [
+        "662",
+        0
+      ],
+      "vae": [
+        "653",
+        0
+      ],
+      "audio_vae": [
+        "654",
+        0
+      ],
+      "ref_images.ref_image_0": [
+        "723",
+        0
+      ],
+      "ref_images.ref_image_1": [
+        "723",
+        1
+      ],
+      "ref_images.ref_image_2": [
+        "710:726",
+        0
+      ],
+      "ref_audios.ref_audio_0": [
+        "683",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "H3 GENERATION LANE 2 — Pictures 1+2 identity + optional Picture 3 relay + Audio 1"
+    }
+  },
+  "710:685": {
+    "inputs": {
+      "noise_seed": [
+        "678",
+        1
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "H3 GENERATION LANE 2 deterministic noise"
+    }
+  },
+  "710:686": {
+    "inputs": {
+      "model": [
+        "716",
+        0
+      ],
+      "conditioning": [
+        "710:718",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "H3 GENERATION LANE 2 guider"
+    }
+  },
+  "710:687": {
+    "inputs": {
+      "noise": [
+        "710:685",
+        0
+      ],
+      "guider": [
+        "710:686",
+        0
+      ],
+      "sampler": [
+        "710:657",
+        0
+      ],
+      "sigmas": [
+        "710:658",
+        0
+      ],
+      "latent_image": [
+        "710:684",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "H3 GENERATION LANE 2 sampler"
+    }
+  },
+  "710:688": {
+    "inputs": {
+      "samples": [
+        "710:687",
+        0
+      ],
+      "vae": [
+        "653",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "H3 GENERATION LANE 2 video frames"
+    }
+  },
+  "710:689": {
+    "inputs": {
+      "expression": "max(0, round((a + b) * 24) - round(a * 24) - 1)",
+      "values.a": [
+        "677",
+        10
+      ],
+      "values.b": [
+        "677",
+        11
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "LANE 2 RETAINED CUT — continuity frame index"
+    }
+  },
+  "710:690": {
+    "inputs": {
+      "batch_index": [
+        "710:689",
+        1
+      ],
+      "length": 1,
+      "image": [
+        "710:688",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "LANE 2 TAIL — optional continuity-only Picture 3 source"
+    }
+  },
+  "710:692": {
+    "inputs": {
+      "prompt": [
+        "677",
+        14
+      ],
+      "width": [
+        "187",
+        10
+      ],
+      "height": [
+        "187",
+        11
+      ],
+      "length": [
+        "677",
+        17
+      ],
+      "ref_image_size": "match",
+      "clip": [
+        "662",
+        0
+      ],
+      "vae": [
+        "653",
+        0
+      ],
+      "audio_vae": [
+        "654",
+        0
+      ],
+      "ref_images.ref_image_0": [
+        "723",
+        0
+      ],
+      "ref_images.ref_image_1": [
+        "723",
+        1
+      ],
+      "ref_images.ref_image_2": [
+        "710:728",
+        0
+      ],
+      "ref_audios.ref_audio_0": [
+        "691",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "H3 GENERATION LANE 3 — Pictures 1+2 identity + optional Picture 3 relay + Audio 1"
+    }
+  },
+  "710:693": {
+    "inputs": {
+      "noise_seed": [
+        "678",
+        2
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "H3 GENERATION LANE 3 deterministic noise"
+    }
+  },
+  "710:694": {
+    "inputs": {
+      "model": [
+        "716",
+        0
+      ],
+      "conditioning": [
+        "710:719",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "H3 GENERATION LANE 3 guider"
+    }
+  },
+  "710:695": {
+    "inputs": {
+      "noise": [
+        "710:693",
+        0
+      ],
+      "guider": [
+        "710:694",
+        0
+      ],
+      "sampler": [
+        "710:657",
+        0
+      ],
+      "sigmas": [
+        "710:658",
+        0
+      ],
+      "latent_image": [
+        "710:692",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "H3 GENERATION LANE 3 sampler"
+    }
+  },
+  "710:696": {
+    "inputs": {
+      "samples": [
+        "710:695",
+        0
+      ],
+      "vae": [
+        "653",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "H3 GENERATION LANE 3 video frames"
+    }
+  },
+  "710:697": {
+    "inputs": {
+      "expression": "max(0, round((a + b) * 24) - round(a * 24) - 1)",
+      "values.a": [
+        "677",
+        15
+      ],
+      "values.b": [
+        "677",
+        16
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "LANE 3 RETAINED CUT — continuity frame index"
+    }
+  },
+  "710:698": {
+    "inputs": {
+      "batch_index": [
+        "710:697",
+        1
+      ],
+      "length": 1,
+      "image": [
+        "710:696",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "LANE 3 TAIL — optional continuity-only Picture 3 source"
+    }
+  },
+  "710:700": {
+    "inputs": {
+      "prompt": [
+        "677",
+        19
+      ],
+      "width": [
+        "187",
+        10
+      ],
+      "height": [
+        "187",
+        11
+      ],
+      "length": [
+        "677",
+        22
+      ],
+      "ref_image_size": "match",
+      "clip": [
+        "662",
+        0
+      ],
+      "vae": [
+        "653",
+        0
+      ],
+      "audio_vae": [
+        "654",
+        0
+      ],
+      "ref_images.ref_image_0": [
+        "723",
+        0
+      ],
+      "ref_images.ref_image_1": [
+        "723",
+        1
+      ],
+      "ref_images.ref_image_2": [
+        "710:730",
+        0
+      ],
+      "ref_audios.ref_audio_0": [
+        "699",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "H3 GENERATION LANE 4 — Pictures 1+2 identity + optional Picture 3 relay + Audio 1"
+    }
+  },
+  "710:701": {
+    "inputs": {
+      "noise_seed": [
+        "678",
+        3
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "H3 GENERATION LANE 4 deterministic noise"
+    }
+  },
+  "710:702": {
+    "inputs": {
+      "model": [
+        "716",
+        0
+      ],
+      "conditioning": [
+        "710:720",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "H3 GENERATION LANE 4 guider"
+    }
+  },
+  "710:703": {
+    "inputs": {
+      "noise": [
+        "710:701",
+        0
+      ],
+      "guider": [
+        "710:702",
+        0
+      ],
+      "sampler": [
+        "710:657",
+        0
+      ],
+      "sigmas": [
+        "710:658",
+        0
+      ],
+      "latent_image": [
+        "710:700",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "H3 GENERATION LANE 4 sampler"
+    }
+  },
+  "710:704": {
+    "inputs": {
+      "samples": [
+        "710:703",
+        0
+      ],
+      "vae": [
+        "653",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "H3 GENERATION LANE 4 video frames"
+    }
+  },
+  "710:717": {
+    "inputs": {
+      "value": [
+        "710:667",
+        0
+      ]
+    },
+    "class_type": "FL_UnloadAllModels",
+    "_meta": {
+      "title": "H3 LANE 1 — release encoder/VAEs after conditioning"
+    }
+  },
+  "710:718": {
+    "inputs": {
+      "value": [
+        "710:684",
+        0
+      ]
+    },
+    "class_type": "FL_UnloadAllModels",
+    "_meta": {
+      "title": "H3 LANE 2 — release encoder/VAEs after conditioning"
+    }
+  },
+  "710:719": {
+    "inputs": {
+      "value": [
+        "710:692",
+        0
+      ]
+    },
+    "class_type": "FL_UnloadAllModels",
+    "_meta": {
+      "title": "H3 LANE 3 — release encoder/VAEs after conditioning"
+    }
+  },
+  "710:720": {
+    "inputs": {
+      "value": [
+        "710:700",
+        0
+      ]
+    },
+    "class_type": "FL_UnloadAllModels",
+    "_meta": {
+      "title": "H3 LANE 4 — release encoder/VAEs after conditioning"
+    }
+  },
+  "710:725": {
+    "inputs": {
+      "upscale_method": "area",
+      "megapixels": 0.064,
+      "resolution_steps": 16,
+      "image": [
+        "710:682",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "H3 LANE 2 — cap optional Picture 3 relay near 0.068 MP"
+    }
+  },
+  "710:726": {
+    "inputs": {
+      "lane_index": 2,
+      "shot_plan_json": [
+        "677",
+        0
+      ],
+      "relay_image": [
+        "710:725",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaH3RelayReferenceGate",
+    "_meta": {
+      "title": "H3 LANE 2 — optional prior-tail Picture 3 gate"
+    }
+  },
+  "710:727": {
+    "inputs": {
+      "upscale_method": "area",
+      "megapixels": 0.064,
+      "resolution_steps": 16,
+      "image": [
+        "710:690",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "H3 LANE 3 — cap optional Picture 3 relay near 0.068 MP"
+    }
+  },
+  "710:728": {
+    "inputs": {
+      "lane_index": 3,
+      "shot_plan_json": [
+        "677",
+        0
+      ],
+      "relay_image": [
+        "710:727",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaH3RelayReferenceGate",
+    "_meta": {
+      "title": "H3 LANE 3 — optional prior-tail Picture 3 gate"
+    }
+  },
+  "710:729": {
+    "inputs": {
+      "upscale_method": "area",
+      "megapixels": 0.064,
+      "resolution_steps": 16,
+      "image": [
+        "710:698",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "H3 LANE 4 — cap optional Picture 3 relay near 0.068 MP"
+    }
+  },
+  "710:730": {
+    "inputs": {
+      "lane_index": 4,
+      "shot_plan_json": [
+        "677",
+        0
+      ],
+      "relay_image": [
+        "710:729",
+        0
+      ]
+    },
+    "class_type": "DiffusionGemmaH3RelayReferenceGate",
+    "_meta": {
+      "title": "H3 LANE 4 — optional prior-tail Picture 3 gate"
+    }
+  }
+}

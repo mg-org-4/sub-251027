@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exportanything.dev/schemas/advertisement_master_contract.schema.json",
+  "title": "DiffusionGemma Advertisement Master Contract",
+  "type": "object",
+  "required": [
+    "schema", "version", "campaign_id", "contract_sha256", "parent_project_id",
+    "upstream_contracts", "brand_name", "product_name", "production_duration_seconds",
+    "fps", "master_aspect_ratio", "audio_lock", "reference_assets", "subject_retention",
+    "h3_planning", "end_card", "mandatory_copy", "requested_deliverables"
+  ],
+  "properties": {
+    "schema": {"const": "diffusiongemma.advertisement_master_contract"},
+    "version": {"const": 1},
+    "campaign_id": {"$ref": "#/$defs/sha256"},
+    "contract_sha256": {"$ref": "#/$defs/sha256"},
+    "parent_project_id": {"type": "string", "minLength": 1},
+    "upstream_contracts": {
+      "type": "object",
+      "required": ["campaign_contract_sha256", "reference_contract_sha256", "soundtrack_contract_sha256"],
+      "properties": {
+        "campaign_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_contract_sha256": {"$ref": "#/$defs/sha256"},
+        "soundtrack_contract_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "brand_name": {"type": "string", "minLength": 1},
+    "product_name": {"type": "string", "minLength": 1},
+    "production_duration_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 60},
+    "fps": {"const": 24},
+    "master_aspect_ratio": {"type": "string", "pattern": "^[0-9]+:[0-9]+$"},
+    "audio_lock": {
+      "type": "object",
+      "required": ["waveform_sha256", "excerpt_duration_seconds", "soundtrack_content_mode"],
+      "properties": {
+        "waveform_sha256": {"$ref": "#/$defs/sha256"},
+        "excerpt_duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "soundtrack_content_mode": {"enum": ["instrumental", "vocal"]}
+      }
+    },
+    "reference_assets": {
+      "type": "object",
+      "required": ["picture_1_performer_hero_sha256", "picture_2_performer_contact_sheet_sha256", "picture_3_product_package_sha256", "picture_4_role"]
+    },
+    "subject_retention": {
+      "type": "object",
+      "required": ["<Subject 1>", "<Subject 2>"]
+    },
+    "h3_planning": {
+      "type": "object",
+      "required": ["native_shot_count", "generation_lane_count", "maximum_lane_seconds", "boundary_mode"],
+      "properties": {
+        "native_shot_count": {"type": "integer", "minimum": 1},
+        "generation_lane_count": {"type": "integer", "minimum": 1, "maximum": 4},
+        "maximum_lane_seconds": {"type": "number", "minimum": 5, "maximum": 15},
+        "boundary_mode": {"enum": ["hard_cut", "match_state", "relay_continuity", "practical_transition"]}
+      }
+    },
+    "end_card": {
+      "type": "object",
+      "required": ["duration_seconds", "frame_count", "mode"],
+      "properties": {
+        "duration_seconds": {"type": "number", "minimum": 0},
+        "frame_count": {"type": "integer", "minimum": 0},
+        "mode": {"const": "replace_master_tail"}
+      }
+    },
+    "mandatory_copy": {"type": "object"},
+    "requested_deliverables": {"type": ["object", "array"]}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

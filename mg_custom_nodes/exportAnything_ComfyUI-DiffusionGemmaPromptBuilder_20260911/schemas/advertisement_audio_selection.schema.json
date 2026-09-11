@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "diffusiongemma.advertisement_audio_selection@1",
+  "title": "DiffusionGemma Advertisement Audio Selection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "settings",
+    "lock",
+    "candidates",
+    "selected_candidate_index",
+    "selected_waveform_sha256",
+    "selection_lock_token",
+    "status",
+    "ready"
+  ],
+  "properties": {
+    "schema": { "const": "diffusiongemma.advertisement_audio_selection" },
+    "version": { "const": 1 },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_count",
+        "selection_mode",
+        "expected_bpm",
+        "excerpt_duration_seconds",
+        "minimum_score",
+        "source_policy",
+        "soundtrack_content_mode",
+        "content_evidence_policy"
+      ],
+      "properties": {
+        "candidate_count": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "selection_mode": { "enum": ["auto_select", "lock_candidate_1", "lock_candidate_2", "lock_candidate_3", "lock_candidate_4", "lock_by_hash"] },
+        "expected_bpm": { "type": "number", "minimum": 0, "maximum": 300 },
+        "excerpt_duration_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 600 },
+        "minimum_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "source_policy": { "enum": ["minimax_music3", "ace_step", "uploaded_song"] },
+        "soundtrack_content_mode": { "enum": ["instrumental", "vocal"] },
+        "content_evidence_policy": { "enum": ["vocal_proxy_required", "vocal_proxy_not_required"] }
+      }
+    },
+    "lock": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["active", "requested_waveform_sha256", "requested_start_seconds", "satisfied", "failure_reason"],
+      "properties": {
+        "active": { "type": "boolean" },
+        "requested_waveform_sha256": { "type": "string", "maxLength": 64 },
+        "requested_start_seconds": { "type": "number", "minimum": -1 },
+        "satisfied": { "type": "boolean" },
+        "failure_reason": { "type": "string" }
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["index", "present", "passed", "failures", "advisories"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 1, "maximum": 4 },
+          "present": { "type": "boolean" },
+          "passed": { "type": "boolean" },
+          "failures": { "type": "array", "items": { "type": "string" } },
+          "advisories": { "type": "array", "items": { "type": "string" } },
+          "analysis": { "type": "object" },
+          "error": { "type": "string" }
+        }
+      }
+    },
+    "selected_candidate_index": { "type": "integer", "minimum": 1, "maximum": 4 },
+    "selected_waveform_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "selection_lock_token": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "status": { "type": "string", "minLength": 1 },
+    "ready": { "const": true }
+  }
+}

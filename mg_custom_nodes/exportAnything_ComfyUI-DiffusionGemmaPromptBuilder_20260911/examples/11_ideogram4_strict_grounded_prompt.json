@@ -1,0 +1,722 @@
+{
+  "id": "dff2f35e-730d-4cf2-8dc8-ideogramstrict",
+  "revision": 0,
+  "last_node_id": 11,
+  "last_link_id": 13,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        500,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.24.0",
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "Turn the supplied reference image into a polished editorial poster concept. Preserve every observable subject, color, garment, object, and spatial relationship from the reference. Add a restrained graphic-design treatment and include the exact headline requested by the target profile; do not invent additional people, products, logos, or background objects."
+      ],
+      "title": "1. Grounded Ideogram brief"
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        0,
+        350
+      ],
+      "size": [
+        500,
+        360
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ],
+      "title": "2. Replace with source image"
+    },
+    {
+      "id": 3,
+      "type": "DiffusionGemmaModelLoader",
+      "pos": [
+        0,
+        760
+      ],
+      "size": [
+        500,
+        320
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model_config",
+          "type": "DG_MODEL_CONFIG",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "runtime_status_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaModelLoader"
+      },
+      "widgets_values": [
+        "C:\\ComfyUI\\app\\models\\LLM\\diffusiongemma-26B-A4B-it-NVFP4",
+        "transformers_inprocess",
+        "auto",
+        "modelopt_nvfp4",
+        true,
+        "unload_after_run",
+        "20.0 GB - safe practical",
+        0.35
+      ],
+      "title": "3. Load DiffusionGemma"
+    },
+    {
+      "id": 4,
+      "type": "DiffusionGemmaContextHub",
+      "pos": [
+        560,
+        0
+      ],
+      "size": [
+        470,
+        460
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "user_prompt",
+          "type": "STRING",
+          "link": 1
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 2
+        },
+        {
+          "name": "video",
+          "shape": 7,
+          "type": "VIDEO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "gemma_context",
+          "type": "DG_CONTEXT",
+          "links": [
+            4,
+            7
+          ]
+        },
+        {
+          "name": "context_json",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "context_preview",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaContextHub"
+      },
+      "widgets_values": [
+        1,
+        60,
+        60,
+        "trim",
+        true,
+        "",
+        "video_recreation"
+      ],
+      "title": "4. Image-grounded context"
+    },
+    {
+      "id": 5,
+      "type": "DiffusionGemmaIdeogram4TargetProfile",
+      "pos": [
+        560,
+        500
+      ],
+      "size": [
+        470,
+        390
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "target_profile_config",
+          "type": "DG_TARGET_PROFILE_CONFIG",
+          "links": [
+            6,
+            8
+          ]
+        },
+        {
+          "name": "target_profile_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaIdeogram4TargetProfile"
+      },
+      "widgets_values": [
+        "4:3",
+        "editorial poster illustration",
+        "DIFFUSION GEMMA",
+        true,
+        "auto",
+        ""
+      ],
+      "title": "5. Ideogram 4 target profile"
+    },
+    {
+      "id": 6,
+      "type": "DiffusionGemmaGroundingGuardSettings",
+      "pos": [
+        1090,
+        0
+      ],
+      "size": [
+        450,
+        300
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "external_evidence_json",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "grounding_guard_config",
+          "type": "DG_GROUNDING_GUARD_CONFIG",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "config_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaGroundingGuardSettings"
+      },
+      "widgets_values": [
+        "strict",
+        true,
+        "checkpoint_defaults",
+        0,
+        "fixed",
+        false,
+        "diffusiongemma_grounding",
+        "auto"
+      ],
+      "title": "6. Strict Grounding Guard"
+    },
+    {
+      "id": 7,
+      "type": "DiffusionGemmaCoTGenerator",
+      "pos": [
+        1090,
+        350
+      ],
+      "size": [
+        450,
+        340
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model_config",
+          "type": "DG_MODEL_CONFIG",
+          "link": 3
+        },
+        {
+          "name": "gemma_context",
+          "type": "DG_CONTEXT",
+          "link": 4
+        },
+        {
+          "name": "target_profile_config",
+          "type": "DG_TARGET_PROFILE_CONFIG",
+          "link": 6
+        },
+        {
+          "name": "grounding_guard_config",
+          "shape": 7,
+          "type": "DG_GROUNDING_GUARD_CONFIG",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "final_json",
+          "type": "STRING",
+          "links": [
+            9
+          ]
+        },
+        {
+          "name": "reasoning_text",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "raw_response",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "metadata_json",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "grounding_status",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "grounding_report_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaCoTGenerator"
+      },
+      "widgets_values": [
+        0.45,
+        "faithful",
+        0.35,
+        "on",
+        1280,
+        "reuse"
+      ],
+      "title": "7. Verify evidence, then compile"
+    },
+    {
+      "id": 8,
+      "type": "DiffusionGemmaJSONSplitter",
+      "pos": [
+        1600,
+        0
+      ],
+      "size": [
+        450,
+        560
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "final_json",
+          "type": "STRING",
+          "link": 9
+        },
+        {
+          "name": "gemma_context",
+          "shape": 7,
+          "type": "DG_CONTEXT",
+          "link": 7
+        },
+        {
+          "name": "target_profile_config",
+          "shape": 7,
+          "type": "DG_TARGET_PROFILE_CONFIG",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "ltx_prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "ideogram_prompt",
+          "type": "STRING",
+          "links": [
+            10
+          ]
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "aspect_ratio",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "metadata_json",
+          "type": "STRING",
+          "links": [
+            12
+          ]
+        },
+        {
+          "name": "scene_segments_json",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "local_prompts",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "segment_lengths",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "is_valid",
+          "type": "BOOLEAN",
+          "links": null
+        },
+        {
+          "name": "resolution_selector_preset",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "resolution_width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "resolution_height",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "ready_for_generation",
+          "type": "BOOLEAN",
+          "links": [
+            11
+          ]
+        },
+        {
+          "name": "minimax_h3_prompt",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaJSONSplitter"
+      },
+      "widgets_values": [
+        "",
+        1,
+        8
+      ],
+      "title": "8. Route Ideogram prompt"
+    },
+    {
+      "id": 9,
+      "type": "DiffusionGemmaGenerationGate",
+      "pos": [
+        2110,
+        0
+      ],
+      "size": [
+        500,
+        130
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 10
+        },
+        {
+          "name": "ready_for_generation",
+          "type": "BOOLEAN",
+          "link": 11
+        },
+        {
+          "name": "metadata_json",
+          "shape": 7,
+          "type": "STRING",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DiffusionGemmaGenerationGate"
+      },
+      "title": "9. Fail closed before Ideogram"
+    },
+    {
+      "id": 10,
+      "type": "PreviewAny",
+      "pos": [
+        2110,
+        180
+      ],
+      "size": [
+        500,
+        360
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.15.1",
+        "Node name for S&R": "PreviewAny",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        null,
+        null,
+        null
+      ],
+      "title": "Harmless gated Ideogram prompt preview"
+    },
+    {
+      "id": 11,
+      "type": "MarkdownNote",
+      "pos": [
+        1090,
+        740
+      ],
+      "size": [
+        1520,
+        340
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "# Strict Ideogram prompt routing\n\nReplace `example.png` before queueing. Strict mode first verifies the image evidence, then compiles the Ideogram prompt from the validated ledger. The JSON Splitter routes `ideogram_prompt`, `ready_for_generation`, and metadata into the Generation Gate. This example intentionally ends at a harmless preview sink; connect the gate output to your local Ideogram-compatible consumer only after validating that consumer separately.\n\nNo cloud call is included in this workflow. A strict grounding failure leaves no downstream prompt."
+      ],
+      "color": "#222",
+      "bgcolor": "#000",
+      "title": "Acceptance workflow notes"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      4,
+      0,
+      "STRING"
+    ],
+    [
+      2,
+      2,
+      0,
+      4,
+      1,
+      "IMAGE"
+    ],
+    [
+      3,
+      3,
+      0,
+      7,
+      0,
+      "DG_MODEL_CONFIG"
+    ],
+    [
+      4,
+      4,
+      0,
+      7,
+      1,
+      "DG_CONTEXT"
+    ],
+    [
+      5,
+      6,
+      0,
+      7,
+      3,
+      "DG_GROUNDING_GUARD_CONFIG"
+    ],
+    [
+      6,
+      5,
+      0,
+      7,
+      2,
+      "DG_TARGET_PROFILE_CONFIG"
+    ],
+    [
+      7,
+      4,
+      0,
+      8,
+      1,
+      "DG_CONTEXT"
+    ],
+    [
+      8,
+      5,
+      0,
+      8,
+      2,
+      "DG_TARGET_PROFILE_CONFIG"
+    ],
+    [
+      9,
+      7,
+      0,
+      8,
+      0,
+      "STRING"
+    ],
+    [
+      10,
+      8,
+      1,
+      9,
+      0,
+      "STRING"
+    ],
+    [
+      11,
+      8,
+      12,
+      9,
+      1,
+      "BOOLEAN"
+    ],
+    [
+      12,
+      8,
+      4,
+      9,
+      2,
+      "STRING"
+    ],
+    [
+      13,
+      9,
+      0,
+      10,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "definitions": {
+    "subgraphs": []
+  },
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.15"
+  },
+  "version": 0.4
+}

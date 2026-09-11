@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exportanything.dev/schemas/advertisement_delivery_manifest.schema.json",
+  "title": "DiffusionGemma Advertisement Delivery Manifest",
+  "type": "object",
+  "required": ["schema", "version", "campaign_id", "advertisement_contract_sha256", "master", "cutdowns", "adaptations", "honesty_policy", "ready", "manifest_sha256"],
+  "properties": {
+    "schema": {"const": "diffusiongemma.advertisement_delivery_manifest"},
+    "version": {"const": 1},
+    "campaign_id": {"$ref": "#/$defs/sha256"},
+    "advertisement_contract_sha256": {"$ref": "#/$defs/sha256"},
+    "master": {"type": "object", "required": ["status", "duration_seconds", "frame_count", "pixel_sha256", "audio_sha256"], "properties": {"status": {"const": "rendered"}}},
+    "cutdowns": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "object", "required": ["id", "status", "duration_seconds", "frame_count", "audio_sample_count"], "properties": {"status": {"const": "rendered"}}}},
+    "adaptations": {"type": "array", "items": {"type": "object", "required": ["request", "aspect_ratio", "status", "reason"], "properties": {"status": {"enum": ["planned_not_rendered", "not_applicable_same_as_master", "impossible_invalid_aspect"]}}}},
+    "honesty_policy": {"type": "string", "minLength": 1},
+    "ready": {"const": true},
+    "manifest_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

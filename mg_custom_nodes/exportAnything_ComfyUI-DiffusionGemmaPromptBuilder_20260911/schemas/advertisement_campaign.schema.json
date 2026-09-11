@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "diffusiongemma.advertisement_campaign_contract@1",
+  "title": "DiffusionGemma Advertisement Campaign Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "campaign_name",
+    "brand",
+    "audience",
+    "objective",
+    "copy",
+    "claims",
+    "timeline",
+    "deliverables",
+    "exact_copy_sha256",
+    "ready"
+  ],
+  "properties": {
+    "schema": { "const": "diffusiongemma.advertisement_campaign_contract" },
+    "version": { "const": 1 },
+    "campaign_name": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "brand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["brand_name", "product_name", "variant_name"],
+      "properties": {
+        "brand_name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "product_name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "variant_name": { "type": "string", "maxLength": 120 }
+      }
+    },
+    "audience": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "objective": { "type": "string", "minLength": 1, "maxLength": 1500 },
+    "copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "brand_name",
+        "product_name",
+        "variant_name",
+        "headline",
+        "call_to_action",
+        "legal_line",
+        "offer_text",
+        "price_text",
+        "approved_claims",
+        "render_policy"
+      ],
+      "properties": {
+        "brand_name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "product_name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "variant_name": { "type": "string", "maxLength": 120 },
+        "headline": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "call_to_action": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "legal_line": { "type": "string", "maxLength": 1000 },
+        "offer_text": { "type": "string", "maxLength": 300 },
+        "price_text": { "type": "string", "maxLength": 120 },
+        "approved_claims": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+        },
+        "render_policy": { "const": "deterministic_finishing_overlay" }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "status", "evidence"],
+        "properties": {
+          "text": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "status": { "enum": ["approved", "draft", "prohibited"] },
+          "evidence": { "type": "string", "maxLength": 1000 }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "status": { "const": "approved" } }, "required": ["status"] },
+            "then": { "properties": { "evidence": { "minLength": 1 } } }
+          }
+        ]
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["duration_seconds", "aspect_ratio", "end_card"],
+      "properties": {
+        "duration_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 },
+        "aspect_ratio": { "enum": ["9:16", "16:9", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"] },
+        "end_card": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start_seconds", "duration_seconds", "render_status"],
+          "properties": {
+            "start_seconds": { "type": "number", "minimum": 0, "maximum": 60 },
+            "duration_seconds": { "type": "number", "minimum": 0, "maximum": 10 },
+            "render_status": { "const": "contracted_not_rendered" }
+          }
+        }
+      }
+    },
+    "deliverables": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "adaptations", "cutdowns_seconds", "render_status"],
+      "properties": {
+        "primary": { "enum": ["9:16", "16:9", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"] },
+        "adaptations": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 8,
+          "items": { "enum": ["9:16", "16:9", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"] }
+        },
+        "cutdowns_seconds": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 8,
+          "items": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 }
+        },
+        "render_status": { "const": "requested_not_rendered" }
+      }
+    },
+    "exact_copy_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "ready": { "const": true }
+  }
+}

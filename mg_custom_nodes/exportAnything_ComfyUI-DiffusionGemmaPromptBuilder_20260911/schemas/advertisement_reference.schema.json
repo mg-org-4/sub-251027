@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "diffusiongemma.advertisement_reference_contract@1",
+  "title": "DiffusionGemma Advertisement Reference Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "slot_policy",
+    "subjects",
+    "picture_slots",
+    "relay",
+    "reference_manifest",
+    "reference_manifest_sha256",
+    "expected_subject_count",
+    "ready"
+  ],
+  "properties": {
+    "schema": { "const": "diffusiongemma.advertisement_reference_contract" },
+    "version": { "const": 1 },
+    "slot_policy": { "enum": ["performer_2_product_1_relay_1", "performer_1_product_1_relay_1", "performer_2_product_1_relay_off"] },
+    "subjects": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["subject_tag", "role", "description", "retention_attributes"],
+        "properties": {
+          "subject_tag": { "enum": ["<Subject 1>", "<Subject 2>"] },
+          "role": { "enum": ["performer", "product_package"] },
+          "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "retention_attributes": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "exact_package_copy": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 32,
+            "items": { "type": "string", "minLength": 1, "maxLength": 160 }
+          },
+          "copy_fidelity_policy": { "const": "qa_required_not_guaranteed_by_generation" }
+        }
+      }
+    },
+    "picture_slots": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["picture_tag", "role", "subject_tag", "retention", "description", "non_transfer"],
+        "properties": {
+          "picture_tag": { "enum": ["<Picture 1>", "<Picture 2>", "<Picture 3>"] },
+          "role": { "enum": ["performer_primary", "performer_supplemental", "product_package"] },
+          "subject_tag": { "enum": ["<Subject 1>", "<Subject 2>"] },
+          "retention": { "const": "fully_preserved" },
+          "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "reference_kind": { "enum": ["single_packshot", "product_contact_sheet"] },
+          "non_transfer": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 8,
+            "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+          }
+        }
+      }
+    },
+    "relay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "picture_tag", "role", "manifest_reservation"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "picture_tag": { "enum": ["", "<Picture 3>", "<Picture 4>"] },
+        "role": { "const": "previous_lane_pose_spatial_lighting_motion_only_not_identity_or_product" },
+        "manifest_reservation": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "reference_manifest": { "type": "string", "minLength": 1, "maxLength": 10000 },
+    "reference_manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "expected_subject_count": { "const": 2 },
+    "ready": { "const": true }
+  }
+}

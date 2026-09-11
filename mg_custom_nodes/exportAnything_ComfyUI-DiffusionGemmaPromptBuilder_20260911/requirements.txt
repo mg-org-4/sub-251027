@@ -1,0 +1,8 @@
+accelerate>=1.14.0
+comfy-kitchen>=0.2.10
+jsonschema>=4.26.0
+numpy>=1.26.0
+Pillow>=10.0.0
+safetensors>=0.7.0
+tqdm>=4.67.0
+transformers>=5.12.1

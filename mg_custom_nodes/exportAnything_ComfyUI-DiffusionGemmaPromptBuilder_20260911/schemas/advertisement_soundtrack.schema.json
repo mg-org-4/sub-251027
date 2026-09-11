@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "diffusiongemma.advertisement_soundtrack_contract@1",
+  "title": "DiffusionGemma Advertisement Soundtrack Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "requested_content_mode",
+    "effective_content_mode",
+    "music3",
+    "voice_over",
+    "content_evidence_policy",
+    "ready"
+  ],
+  "properties": {
+    "schema": { "const": "diffusiongemma.advertisement_soundtrack_contract" },
+    "version": { "const": 1 },
+    "requested_content_mode": { "enum": ["instrumental", "vocal", "auto"] },
+    "effective_content_mode": { "enum": ["instrumental", "vocal"] },
+    "music3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caption", "tagged_lyrics", "bpm", "time_signature", "language", "target_duration_seconds", "generation_duration_seconds", "selection_headroom_seconds"],
+      "properties": {
+        "caption": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "tagged_lyrics": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "bpm": { "type": "number", "minimum": 0, "maximum": 300 },
+        "time_signature": { "enum": ["2", "3", "4", "6"] },
+        "language": { "type": "string", "minLength": 2, "maxLength": 16 },
+        "target_duration_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 },
+        "generation_duration_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 },
+        "selection_headroom_seconds": { "type": "number", "minimum": 0, "maximum": 5 }
+      }
+    },
+    "voice_over": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "included_in_motion_guide", "included_in_final_mix"],
+      "properties": {
+        "policy": { "enum": ["none", "separate_non_diegetic"] },
+        "included_in_motion_guide": { "const": false },
+        "included_in_final_mix": { "type": "boolean" }
+      }
+    },
+    "content_evidence_policy": { "enum": ["vocal_proxy_required", "vocal_proxy_not_required"] },
+    "ready": { "const": true }
+  }
+}

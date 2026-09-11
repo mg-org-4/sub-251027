@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "diffusiongemma.advertisement_audio_mix@1",
+  "title": "DiffusionGemma Advertisement Audio Mix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "soundtrack_contract_sha256",
+    "duration_seconds",
+    "sample_rate",
+    "sample_count",
+    "duration_alignment",
+    "channels",
+    "batch_count",
+    "voice_over",
+    "ducking",
+    "levels",
+    "motion_guide_sha256",
+    "final_mix_sha256",
+    "motion_guide_policy",
+    "final_mix_policy",
+    "ready"
+  ],
+  "properties": {
+    "schema": { "const": "diffusiongemma.advertisement_audio_mix" },
+    "version": { "const": 1 },
+    "soundtrack_contract_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "duration_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 },
+    "sample_rate": { "type": "integer", "minimum": 1, "maximum": 384000 },
+    "sample_count": { "type": "integer", "minimum": 1 },
+    "duration_alignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_sample_count", "target_sample_count", "right_padding_samples", "rounding_tolerance_samples", "policy"],
+      "properties": {
+        "source_sample_count": { "type": "integer", "minimum": 1 },
+        "target_sample_count": { "type": "integer", "minimum": 1 },
+        "right_padding_samples": { "type": "integer", "minimum": 0 },
+        "rounding_tolerance_samples": { "type": "integer", "minimum": 1 },
+        "policy": { "const": "right_pad_at_most_one_millisecond_then_exact_crop" }
+      }
+    },
+    "channels": { "type": "integer", "minimum": 1, "maximum": 32 },
+    "batch_count": { "type": "integer", "minimum": 1, "maximum": 64 },
+    "voice_over": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "connected", "start_seconds", "included_in_motion_guide", "included_in_final_mix", "activity_fraction_signal_proxy"],
+      "properties": {
+        "policy": { "enum": ["none", "separate_non_diegetic"] },
+        "connected": { "type": "boolean" },
+        "start_seconds": { "type": "number", "minimum": 0, "maximum": 60 },
+        "included_in_motion_guide": { "const": false },
+        "included_in_final_mix": { "type": "boolean" },
+        "activity_fraction_signal_proxy": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "ducking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ducking_db", "attack_ms", "release_ms", "minimum_applied_gain", "algorithm"],
+      "properties": {
+        "ducking_db": { "type": "number", "minimum": -30, "maximum": 0 },
+        "attack_ms": { "type": "number", "minimum": 0, "maximum": 1000 },
+        "release_ms": { "type": "number", "minimum": 0, "maximum": 3000 },
+        "minimum_applied_gain": { "type": "number", "minimum": 0, "maximum": 1 },
+        "algorithm": { "const": "20ms_absolute_level_proxy_with_bounded_attack_release_smoothing" }
+      }
+    },
+    "levels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "motion_guide_sample_peak_dbfs",
+        "pre_ceiling_final_mix_sample_peak_dbfs",
+        "final_mix_sample_peak_dbfs",
+        "peak_ceiling_dbfs",
+        "global_attenuation_db",
+        "final_clipped_sample_fraction",
+        "lufs",
+        "true_peak"
+      ],
+      "properties": {
+        "motion_guide_sample_peak_dbfs": { "type": "number", "minimum": -120, "maximum": 24 },
+        "pre_ceiling_final_mix_sample_peak_dbfs": { "type": "number", "minimum": -120, "maximum": 24 },
+        "final_mix_sample_peak_dbfs": { "type": "number", "minimum": -120, "maximum": 0.001 },
+        "peak_ceiling_dbfs": { "type": "number", "minimum": -12, "maximum": 0 },
+        "global_attenuation_db": { "type": "number", "minimum": -120, "maximum": 0.001 },
+        "final_clipped_sample_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+        "lufs": { "const": "not_measured" },
+        "true_peak": { "const": "not_measured" }
+      }
+    },
+    "motion_guide_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "final_mix_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "motion_guide_policy": { "const": "music_only_never_non_diegetic_voice_over" },
+    "final_mix_policy": { "const": "music_plus_optional_separate_non_diegetic_voice_over" },
+    "ready": { "const": true }
+  }
+}

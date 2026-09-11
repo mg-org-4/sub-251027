@@ -1,0 +1,263 @@
+{
+  "schema_version": "dg-ltx25-long-horizon-benchmark/1",
+  "name": "LTX-2.5 experimental long-horizon duration benchmark v1",
+  "description": "Controlled 5, 20, and 60 second I2V cases comparing a bare brief, the current Director contract, Experimental Long Horizon, and the same long-horizon prompt with structural conditioning.",
+  "execution_status": "protocol_only_unexecuted",
+  "asset_requirements": [
+    "mushroom_tableau_first_frame",
+    "mushroom_tableau_depth_5s",
+    "mushroom_tableau_depth_20s",
+    "mushroom_tableau_depth_60s"
+  ],
+  "results": [],
+  "seed_pairs": [
+    {
+      "stage_1": 17,
+      "stage_2": 42
+    },
+    {
+      "stage_1": 101,
+      "stage_2": 420
+    },
+    {
+      "stage_1": 809,
+      "stage_2": 421
+    }
+  ],
+  "variant_order": [
+    "bare",
+    "current_director",
+    "long_horizon",
+    "long_horizon_structural"
+  ],
+  "cases": [
+    {
+      "id": "i2v_tableau_5s",
+      "mode": "image_to_video",
+      "duration_seconds": 5.0,
+      "fps": 24,
+      "frames": 121,
+      "brief": "Create a mind-bending shot grounded in the supplied first frame.",
+      "critical_anchors": [
+        "woman in a blue dress",
+        "chair",
+        "brick fireplace"
+      ],
+      "terminal_composition": "A slightly wider elevated view holds on the unchanged anchor group.",
+      "expected_auto_long_horizon_active": false,
+      "fixed_generation_control": {
+        "model": "ltx-2.5-22b-distilled",
+        "text_encoder": "gemma4-12b-with-projection",
+        "precision": "int8-convrot",
+        "width": 1344,
+        "height": 768,
+        "sampler": "euler_ancestral",
+        "scheduler": "bong_tangent",
+        "stage_1_steps": 12,
+        "stage_2_steps": 3,
+        "video_cfg": 1.0,
+        "audio_cfg": 1.0,
+        "negative_prompt": "cuts, transitions, optical zoom, object duplication, subject replacement, subtitles, captions, logos, watermarks",
+        "prompt_enhancer": false,
+        "first_frame_asset_id": "mushroom_tableau_first_frame"
+      },
+      "variants": {
+        "bare": {
+          "prompt_producer": "bare_brief",
+          "long_horizon_mode": "off",
+          "prompt": "Create a mind-bending shot grounded in the supplied first frame.",
+          "structural_conditioning": "first_frame"
+        },
+        "current_director": {
+          "prompt_producer": "diffusiongemma_current_ltx_contract",
+          "long_horizon_mode": "off",
+          "prompt": "A wide shot begins from the exact supplied first-frame viewpoint, preserving the woman in a sleeveless blue dress beside the chair and brick fireplace in the surreal mushroom meadow. The camera slowly dollies backward and rises while keeping the woman centered. She brushes one mushroom stalk as the fire flickers and the grass moves in a light breeze. Natural parallax reveals more rooted mushrooms, accompanied by fireplace crackle, wind, and restrained lo-fi trip-hop. The camera finishes on a slightly wider elevated composition.",
+          "structural_conditioning": "first_frame"
+        },
+        "long_horizon": {
+          "prompt_producer": "diffusiongemma_experimental_long_horizon",
+          "long_horizon_mode": "on",
+          "prompt": "An eye-level wide shot begins from the supplied first frame, preserving the woman in the blue dress beside the chair and brick fireplace as the critical anchor group. Initially, for a brief opening moment, the camera holds while the flame flickers and grass moves in a light breeze. It then commits to one smooth backward-and-upward physical move with a fixed wide-angle lens, keeping the anchor group centered through natural parallax. Through most of the take, the surrounding rooted mushrooms are revealed by travel rather than growth or duplication, and steady wind and fireplace crackle continue. The woman, blue dress, chair, brickwork, mushroom colors, daylight, and relative positions remain stable, while only the surrounding field enters the widening frame. Wind, flame crackle, and distant birds persist as one seamless audio bed without any change of source or tempo. Only near the end does the movement decelerate into a wider elevated composition and hold on the unchanged tableau.",
+          "structural_conditioning": "first_frame"
+        },
+        "long_horizon_structural": {
+          "prompt_producer": "diffusiongemma_experimental_long_horizon",
+          "long_horizon_mode": "on",
+          "prompt": "An eye-level wide shot begins from the supplied first frame, preserving the woman in the blue dress beside the chair and brick fireplace as the critical anchor group. Initially, for a brief opening moment, the camera holds while the flame flickers and grass moves in a light breeze. It then commits to one smooth backward-and-upward physical move with a fixed wide-angle lens, keeping the anchor group centered through natural parallax. Through most of the take, the surrounding rooted mushrooms are revealed by travel rather than growth or duplication, and steady wind and fireplace crackle continue. The woman, blue dress, chair, brickwork, mushroom colors, daylight, and relative positions remain stable, while only the surrounding field enters the widening frame. Wind, flame crackle, and distant birds persist as one seamless audio bed without any change of source or tempo. Only near the end does the movement decelerate into a wider elevated composition and hold on the unchanged tableau.",
+          "structural_conditioning": "first_frame_plus_depth",
+          "structural_asset_id": "mushroom_tableau_depth_5s"
+        }
+      },
+      "rubric": {
+        "phase_names": [
+          "establish",
+          "commit",
+          "sustain_reveal",
+          "settle_hold"
+        ],
+        "min_words": 150,
+        "max_words": 200,
+        "sentence_range": [
+          4,
+          8
+        ],
+        "max_cuts": 0,
+        "require_one_paragraph": true,
+        "forbid_timecodes": true,
+        "diagnostics_block_generation": false
+      }
+    },
+    {
+      "id": "i2v_tableau_20s",
+      "mode": "image_to_video",
+      "duration_seconds": 20.0,
+      "fps": 24,
+      "frames": 481,
+      "brief": "Create a mind-bending shot grounded in the supplied first frame.",
+      "critical_anchors": [
+        "woman in a blue dress",
+        "chair",
+        "brick fireplace"
+      ],
+      "terminal_composition": "A wide elevated view holds on the unchanged anchor group within the larger meadow.",
+      "expected_auto_long_horizon_active": false,
+      "fixed_generation_control": {
+        "model": "ltx-2.5-22b-distilled",
+        "text_encoder": "gemma4-12b-with-projection",
+        "precision": "int8-convrot",
+        "width": 1344,
+        "height": 768,
+        "sampler": "euler_ancestral",
+        "scheduler": "bong_tangent",
+        "stage_1_steps": 12,
+        "stage_2_steps": 3,
+        "video_cfg": 1.0,
+        "audio_cfg": 1.0,
+        "negative_prompt": "cuts, transitions, optical zoom, object duplication, subject replacement, subtitles, captions, logos, watermarks",
+        "prompt_enhancer": false,
+        "first_frame_asset_id": "mushroom_tableau_first_frame"
+      },
+      "variants": {
+        "bare": {
+          "prompt_producer": "bare_brief",
+          "long_horizon_mode": "off",
+          "prompt": "Create a mind-bending shot grounded in the supplied first frame.",
+          "structural_conditioning": "first_frame"
+        },
+        "current_director": {
+          "prompt_producer": "diffusiongemma_current_ltx_contract",
+          "long_horizon_mode": "off",
+          "prompt": "A wide shot begins from the exact supplied first-frame viewpoint, preserving the woman in a sleeveless blue dress beside the chair and brick fireplace in the surreal mushroom meadow. The camera holds briefly, then slowly dollies backward and rises while keeping the original tableau centered. She brushes one mushroom stalk as the fire flickers, embers lift, and the grass moves in a light breeze. The camera continues its retreat across the meadow, revealing more rooted mushrooms through natural parallax. Fireplace crackle, wind, distant birds, and restrained lo-fi trip-hop remain synchronized with the scene. The camera finishes on a wider elevated composition that frames the anchor group against the distant fields.",
+          "structural_conditioning": "first_frame"
+        },
+        "long_horizon": {
+          "prompt_producer": "diffusiongemma_experimental_long_horizon",
+          "long_horizon_mode": "on",
+          "prompt": "An eye-level wide shot begins exactly from the supplied first frame, preserving the woman in the blue dress, chair, and brick fireplace as the critical anchor group. During the opening moment, the camera holds while the fire flickers and a light breeze moves her hair, dress, and nearby grass. It then commits to one stabilized backward-and-upward physical path with a fixed wide-angle lens and a gentle downward tilt that keeps the group centered. Through most of the take, that motion continues at an even pace, revealing the already rooted mushroom meadow through natural parallax while subject identities, counts, colors, and relative positions remain stable. Fireplace crackle, soft wind, distant birds, and restrained lo-fi trip-hop form one continuous audio identity without an abrupt change in source, volume, or musical tempo. Only near the end does the camera decelerate into a wide elevated composition, settle, and hold on the unchanged tableau within the larger field.",
+          "structural_conditioning": "first_frame"
+        },
+        "long_horizon_structural": {
+          "prompt_producer": "diffusiongemma_experimental_long_horizon",
+          "long_horizon_mode": "on",
+          "prompt": "An eye-level wide shot begins exactly from the supplied first frame, preserving the woman in the blue dress, chair, and brick fireplace as the critical anchor group. During the opening moment, the camera holds while the fire flickers and a light breeze moves her hair, dress, and nearby grass. It then commits to one stabilized backward-and-upward physical path with a fixed wide-angle lens and a gentle downward tilt that keeps the group centered. Through most of the take, that motion continues at an even pace, revealing the already rooted mushroom meadow through natural parallax while subject identities, counts, colors, and relative positions remain stable. Fireplace crackle, soft wind, distant birds, and restrained lo-fi trip-hop form one continuous audio identity without an abrupt change in source, volume, or musical tempo. Only near the end does the camera decelerate into a wide elevated composition, settle, and hold on the unchanged tableau within the larger field.",
+          "structural_conditioning": "first_frame_plus_depth",
+          "structural_asset_id": "mushroom_tableau_depth_20s"
+        }
+      },
+      "rubric": {
+        "phase_names": [
+          "establish",
+          "commit",
+          "sustain_reveal",
+          "settle_hold"
+        ],
+        "min_words": 150,
+        "max_words": 200,
+        "sentence_range": [
+          4,
+          8
+        ],
+        "max_cuts": 0,
+        "require_one_paragraph": true,
+        "forbid_timecodes": true,
+        "diagnostics_block_generation": false
+      }
+    },
+    {
+      "id": "i2v_tableau_60s",
+      "mode": "image_to_video",
+      "duration_seconds": 60.0,
+      "fps": 24,
+      "frames": 1441,
+      "brief": "Create a mind-bending shot grounded in the supplied first frame.",
+      "critical_anchors": [
+        "woman in a blue dress",
+        "chair",
+        "brick fireplace"
+      ],
+      "terminal_composition": "An extreme-wide elevated view holds with the original anchor group still readable at the visual center.",
+      "expected_auto_long_horizon_active": true,
+      "fixed_generation_control": {
+        "model": "ltx-2.5-22b-distilled",
+        "text_encoder": "gemma4-12b-with-projection",
+        "precision": "int8-convrot",
+        "width": 1344,
+        "height": 768,
+        "sampler": "euler_ancestral",
+        "scheduler": "bong_tangent",
+        "stage_1_steps": 12,
+        "stage_2_steps": 3,
+        "video_cfg": 1.0,
+        "audio_cfg": 1.0,
+        "negative_prompt": "cuts, transitions, optical zoom, object duplication, subject replacement, subtitles, captions, logos, watermarks",
+        "prompt_enhancer": false,
+        "first_frame_asset_id": "mushroom_tableau_first_frame"
+      },
+      "variants": {
+        "bare": {
+          "prompt_producer": "bare_brief",
+          "long_horizon_mode": "off",
+          "prompt": "Create a mind-bending shot grounded in the supplied first frame.",
+          "structural_conditioning": "first_frame"
+        },
+        "current_director": {
+          "prompt_producer": "diffusiongemma_current_ltx_contract",
+          "long_horizon_mode": "off",
+          "prompt": "A wide shot captures a surreal outdoor space where a woman with long dark hair, wearing a sleeveless blue dress, stands with her back to the camera facing a blue upholstered chair and a patterned rug. Surrounded by numerous oversized fantasy mushrooms with red, white, and blue spotted caps, the scene overlooks a vast green agricultural landscape under a clear sky. To the right, a brick fireplace contains a crackling orange fire. The lighting is bright and even, casting soft shadows on the grey-toned floor. The camera starts at a static eye-level wide-angle perspective, then begins a slow, cinematic dolly-out and slight upward tilt, moving away from the woman. As the woman reaches out to gently touch the stalk of a large white mushroom, the mushrooms begin to vibrate slightly with a magical shimmering light. The fire in the fireplace flickers intensely, sending embers dancing into the air. The camera continues its retreat, revealing more of the surreal field of mushrooms as they begin to sway gently in an invisible breeze. A lofi trip hop beat plays in the background, layered with the rhythmic crackle of the fire and the soft rustle of wind through the giant fungi. The shot ends on a wider composition, framing the entire surreal arrangement against the backdrop of the distant fields.",
+          "structural_conditioning": "first_frame"
+        },
+        "long_horizon": {
+          "prompt_producer": "diffusiongemma_experimental_long_horizon",
+          "long_horizon_mode": "on",
+          "prompt": "An eye-level wide shot begins exactly from the supplied first frame, preserving the woman in the blue dress, chair, and brick fireplace as the critical anchor group. During the opening five seconds, the camera holds while the fire flickers and a light breeze moves her hair, dress, and nearby grass. It then commits gradually to one stabilized backward-and-upward physical path with a fixed wide-angle lens, using a gentle downward tilt to keep the group centered. Through most of the take, the camera sustains that direction at an even speed, revealing the already rooted mushroom meadow through natural parallax rather than growth, appearance, or duplication. The woman, chair, fireplace, and nearby mushrooms retain their identities, proportions, colors, and relative positions while increasingly distant scenery supplies the visual development. Fireplace crackle, soft wind, distant birds, and restrained lo-fi trip-hop continue as one unbroken audio environment. Only during the final nine seconds does the movement decelerate into an extreme-wide elevated composition, ease to a stop, and hold with the original tableau still readable at the visual center.",
+          "structural_conditioning": "first_frame"
+        },
+        "long_horizon_structural": {
+          "prompt_producer": "diffusiongemma_experimental_long_horizon",
+          "long_horizon_mode": "on",
+          "prompt": "An eye-level wide shot begins exactly from the supplied first frame, preserving the woman in the blue dress, chair, and brick fireplace as the critical anchor group. During the opening five seconds, the camera holds while the fire flickers and a light breeze moves her hair, dress, and nearby grass. It then commits gradually to one stabilized backward-and-upward physical path with a fixed wide-angle lens, using a gentle downward tilt to keep the group centered. Through most of the take, the camera sustains that direction at an even speed, revealing the already rooted mushroom meadow through natural parallax rather than growth, appearance, or duplication. The woman, chair, fireplace, and nearby mushrooms retain their identities, proportions, colors, and relative positions while increasingly distant scenery supplies the visual development. Fireplace crackle, soft wind, distant birds, and restrained lo-fi trip-hop continue as one unbroken audio environment. Only during the final nine seconds does the movement decelerate into an extreme-wide elevated composition, ease to a stop, and hold with the original tableau still readable at the visual center.",
+          "structural_conditioning": "first_frame_plus_depth",
+          "structural_asset_id": "mushroom_tableau_depth_60s"
+        }
+      },
+      "rubric": {
+        "phase_names": [
+          "establish",
+          "commit",
+          "sustain_reveal",
+          "settle_hold"
+        ],
+        "min_words": 150,
+        "max_words": 200,
+        "sentence_range": [
+          4,
+          8
+        ],
+        "max_cuts": 0,
+        "require_one_paragraph": true,
+        "forbid_timecodes": true,
+        "diagnostics_block_generation": false
+      }
+    }
+  ]
+}

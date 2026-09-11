@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.diffusiongemma/prompt_packet.schema.json",
+  "title": "DiffusionGemma Prompt Packet",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["ltx_prompt", "ideogram_prompt", "negative_prompt", "scene_segments", "metadata"],
+  "properties": {
+    "ltx_prompt": {"type": "string"},
+    "ideogram_prompt": {
+      "oneOf": [
+        {"type": "string"},
+        {"type": "object"}
+      ]
+    },
+    "minimax_h3_prompt": {"type": "string"},
+    "negative_prompt": {"type": "string"},
+    "scene_segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["index", "duration_seconds", "prompt"],
+        "properties": {
+          "index": {"type": "integer", "minimum": 0},
+          "duration_seconds": {"type": "number", "minimum": 0},
+          "prompt": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "json_parse_valid": {"type": "boolean"},
+        "model_output_json_parse_valid": {"type": "boolean"},
+        "splitter_input_json_valid": {"type": "boolean"},
+        "deterministic_transport_repair": {"type": "boolean"},
+        "deterministic_transport_repairs": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "host_structural_repairs": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "salvage_warning": {"type": "string"},
+        "used_template_fallback": {"type": "boolean"},
+        "ready_for_generation": {"type": "boolean"},
+        "blocked_reasons": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "ltx_generation_mode_requested": {
+          "enum": ["auto", "text_to_video", "image_to_video", "first_last_frame"]
+        },
+        "ltx_generation_mode_effective": {
+          "enum": ["text_to_video", "image_to_video", "first_last_frame", "legacy_video"]
+        },
+        "ltx_generation_mode_inference": {"type": "string"},
+        "ltx25_contract": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["schema", "effective_mode", "planning_duration_seconds", "ready", "reasons", "warnings", "complexity"],
+          "properties": {
+            "schema": {"const": "dg-ltx25-contract/1"},
+            "requested_mode": {
+              "enum": ["auto", "text_to_video", "image_to_video", "first_last_frame"]
+            },
+            "effective_mode": {
+              "enum": ["text_to_video", "image_to_video", "first_last_frame", "legacy_video"]
+            },
+            "planning_duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+            "ready": {"type": "boolean"},
+            "reasons": {"type": "array", "items": {"type": "string"}},
+            "warnings": {"type": "array", "items": {"type": "string"}},
+            "complexity": {"type": "object", "additionalProperties": true}
+          }
+        },
+        "minimax_h3_dialogue_mode": {
+          "enum": ["auto", "required", "off"]
+        },
+        "minimax_h3_dialogue_line_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "minimax_h3_dialogue_actual_line_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minimax_h3_dialogue_guidance": {"type": "string"},
+        "minimax_h3_dialogue_contract_scope": {
+          "const": "structural_presence_count_markup"
+        },
+        "minimax_h3_dialogue_contract_satisfied": {"type": "boolean"},
+        "grounding_status": {
+          "enum": ["not_run", "not_applicable", "grounded", "uncertain", "refused", "transport_error"]
+        },
+        "grounding_guard": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["schema", "analysis_status", "decision", "blocked_reasons"],
+          "properties": {
+            "schema": {"const": "dg-grounding-report/1"},
+            "analysis_status": {
+              "enum": ["not_run", "not_applicable", "grounded", "uncertain", "refused", "transport_error"]
+            },
+            "decision": {"enum": ["disabled", "not_applicable", "pass", "warn", "block"]},
+            "grounding_guard_would_block": {"type": "boolean"},
+            "blocked_reasons": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "director_cache": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["schema", "mode", "hit", "status"],
+          "properties": {
+            "schema": {"const": "dg-director-cache/2"},
+            "mode": {"enum": ["reuse", "refresh", "off"]},
+            "hit": {"type": "boolean"},
+            "status": {"type": "string"},
+            "key": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
+        "director_runtime": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "schema",
+            "model_load_seconds",
+            "nvfp4_bridge_seconds",
+            "media_preprocess_seconds",
+            "multimodal_prefill_seconds",
+            "generation_seconds",
+            "grounding_validation_seconds",
+            "grounding_attempt_count",
+            "generated_token_count",
+            "generated_character_count",
+            "model_unload_seconds",
+            "total_director_seconds",
+            "peak_vram_mb",
+            "cache_hit",
+            "calls"
+          ],
+          "properties": {
+            "schema": {"const": "dg-director-runtime/1"},
+            "model_load_seconds": {"type": "number", "minimum": 0},
+            "nvfp4_bridge_seconds": {"type": "number", "minimum": 0},
+            "media_preprocess_seconds": {"type": "number", "minimum": 0},
+            "multimodal_prefill_seconds": {"type": "number", "minimum": 0},
+            "generation_seconds": {"type": "number", "minimum": 0},
+            "grounding_validation_seconds": {"type": "number", "minimum": 0},
+            "grounding_attempt_count": {"type": "integer", "minimum": 0},
+            "generated_token_count": {"type": "integer", "minimum": 0},
+            "generated_character_count": {"type": "integer", "minimum": 0},
+            "model_unload_seconds": {"type": "number", "minimum": 0},
+            "total_director_seconds": {"type": "number", "minimum": 0},
+            "peak_vram_mb": {"type": "integer", "minimum": 0},
+            "cache_hit": {"type": "boolean"},
+            "calls": {"type": "array", "items": {"type": "object"}}
+          }
+        },
+        "media_synthesis_mode": {
+          "enum": ["video_recreation", "image_identity_video_control"]
+        },
+        "image_role": {"type": "string"},
+        "video_role": {"type": "string"},
+        "reference_image_count": {"type": "integer", "minimum": 0},
+        "reference_image_backend_attached": {"type": "boolean"},
+        "reference_image_resized_for_video_control": {"type": "boolean"},
+        "reference_image_resize_mode": {"type": "string"},
+        "reference_image_original_width": {"type": "integer", "minimum": 0},
+        "reference_image_original_height": {"type": "integer", "minimum": 0},
+        "reference_image_backend_width": {"type": "integer", "minimum": 0},
+        "reference_image_backend_height": {"type": "integer", "minimum": 0},
+        "video_sampled_frame_count": {"type": "integer", "minimum": 0},
+        "synthesis_contract": {"type": "string"},
+        "ltx25_context_schema": {"const": "dg-ltx25-contract/1"},
+        "ltx_generation_mode_hint": {
+          "enum": ["text_to_video", "image_to_video", "first_last_frame"]
+        },
+        "ltx_first_frame_attached": {"type": "boolean"},
+        "ltx_last_frame_attached": {"type": "boolean"},
+        "ltx_frame_pair_attached": {"type": "boolean"},
+        "ltx_frame_roles": {
+          "type": "array",
+          "items": {"enum": ["first_frame", "last_frame"]}
+        },
+        "media": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "source": {"type": "string"},
+            "pixel_tensor_present": {"type": "boolean"},
+            "pixels_sent_to_backend": {"type": "boolean"},
+            "pixel_transport_confirmed": {"type": "boolean"},
+            "media_synthesis_mode": {
+              "enum": ["video_recreation", "image_identity_video_control"]
+            },
+            "image_role": {"type": "string"},
+            "video_role": {"type": "string"},
+            "reference_image_count": {"type": "integer", "minimum": 0},
+            "reference_image_backend_attached": {"type": "boolean"},
+            "reference_image_resized_for_video_control": {"type": "boolean"},
+            "reference_image_resize_mode": {"type": "string"},
+            "reference_image_original_width": {"type": "integer", "minimum": 0},
+            "reference_image_original_height": {"type": "integer", "minimum": 0},
+            "reference_image_backend_width": {"type": "integer", "minimum": 0},
+            "reference_image_backend_height": {"type": "integer", "minimum": 0},
+            "video_sampled_frame_count": {"type": "integer", "minimum": 0},
+            "synthesis_contract": {"type": "string"},
+            "ltx25_context_schema": {"const": "dg-ltx25-contract/1"},
+            "ltx_generation_mode_hint": {
+              "enum": ["text_to_video", "image_to_video", "first_last_frame"]
+            },
+            "ltx_first_frame_attached": {"type": "boolean"},
+            "ltx_last_frame_attached": {"type": "boolean"},
+            "ltx_frame_pair_attached": {"type": "boolean"},
+            "ltx_frame_roles": {
+              "type": "array",
+              "items": {"enum": ["first_frame", "last_frame"]}
+            },
+            "image_roles": {"type": "array", "items": {"type": "string"}},
+            "visual_grounding_mode": {
+              "enum": ["none", "metadata_only", "visual_description", "pixels", "verified_ledger"]
+            },
+            "visual_description": {"type": "string"}
+          }
+        },
+        "model_reported_media": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "splatstage.show_blueprint@1",
+  "title": "SplatStage Show Blueprint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "project_title",
+    "creative_summary",
+    "music",
+    "performer",
+    "background",
+    "fx",
+    "editing",
+    "finish"
+  ],
+  "properties": {
+    "schema": {
+      "const": "splatstage.show_blueprint"
+    },
+    "version": {
+      "const": 1
+    },
+    "project_title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "creative_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "music": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ace_tags",
+        "vocal_mode",
+        "lyrics",
+        "bpm",
+        "key",
+        "time_signature",
+        "language"
+      ],
+      "properties": {
+        "ace_tags": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1200
+        },
+        "vocal_mode": {
+          "enum": [
+            "vocal_hook",
+            "instrumental"
+          ]
+        },
+        "lyrics": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "bpm": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 300
+        },
+        "key": {
+          "enum": [
+            "C major",
+            "C# major",
+            "Db major",
+            "D major",
+            "D# major",
+            "Eb major",
+            "E major",
+            "F major",
+            "F# major",
+            "Gb major",
+            "G major",
+            "G# major",
+            "Ab major",
+            "A major",
+            "A# major",
+            "Bb major",
+            "B major",
+            "C minor",
+            "C# minor",
+            "Db minor",
+            "D minor",
+            "D# minor",
+            "Eb minor",
+            "E minor",
+            "F minor",
+            "F# minor",
+            "Gb minor",
+            "G minor",
+            "G# minor",
+            "Ab minor",
+            "A minor",
+            "A# minor",
+            "Bb minor",
+            "B minor"
+          ]
+        },
+        "time_signature": {
+          "enum": [
+            "2",
+            "3",
+            "4",
+            "6"
+          ]
+        },
+        "language": {
+          "enum": [
+            "ar",
+            "az",
+            "bg",
+            "bn",
+            "ca",
+            "cs",
+            "da",
+            "de",
+            "el",
+            "en",
+            "es",
+            "fa",
+            "fi",
+            "fr",
+            "he",
+            "hi",
+            "hr",
+            "ht",
+            "hu",
+            "id",
+            "is",
+            "it",
+            "ja",
+            "ko",
+            "la",
+            "lt",
+            "ms",
+            "ne",
+            "nl",
+            "no",
+            "pa",
+            "pl",
+            "pt",
+            "ro",
+            "ru",
+            "sa",
+            "sk",
+            "sr",
+            "sv",
+            "sw",
+            "ta",
+            "te",
+            "th",
+            "tl",
+            "tr",
+            "uk",
+            "ur",
+            "vi",
+            "yue",
+            "zh",
+            "unknown"
+          ]
+        }
+      }
+    },
+    "performer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "positive_prompt",
+        "negative_prompt",
+        "segmentation_prompt"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "positive_prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "negative_prompt": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "segmentation_prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 320
+        }
+      }
+    },
+    "background": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "positive_prompt",
+        "negative_prompt"
+      ],
+      "properties": {
+        "positive_prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "negative_prompt": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      }
+    },
+    "fx": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "positive_prompt",
+        "negative_prompt",
+        "blend_mode",
+        "key_mode",
+        "opacity"
+      ],
+      "properties": {
+        "positive_prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "negative_prompt": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "blend_mode": {
+          "enum": [
+            "screen",
+            "add",
+            "overlay"
+          ]
+        },
+        "key_mode": {
+          "enum": [
+            "luminance",
+            "none"
+          ]
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 1.0
+        }
+      }
+    },
+    "editing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "background_density",
+        "fx_density",
+        "music_reactivity"
+      ],
+      "properties": {
+        "background_density": {
+          "enum": [
+            "calm",
+            "musical",
+            "energetic"
+          ]
+        },
+        "fx_density": {
+          "enum": [
+            "calm",
+            "musical",
+            "energetic"
+          ]
+        },
+        "music_reactivity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      }
+    },
+    "finish": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "style_preset"
+      ],
+      "properties": {
+        "style_preset": {
+          "enum": [
+            "broadcast_clean",
+            "cable_access",
+            "late_night_vhs",
+            "damaged_tape"
+          ]
+        }
+      }
+    }
+  }
+}

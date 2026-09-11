@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.agents/
+.codex/
+.codex_qa/
+.venv/
+venv/
+output/
+temp/
+tmp/
+runtime_artifacts/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,30 @@
+[project]
+name = "diffusiongemma-prompt-builder"
+version = "0.2.0"
+description = "DiffusionGemma Director prompt authoring, measured-audio controls, synchronized video planning, and governed MiniMax-H3 advertisement production for ComfyUI."
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+dependencies = [
+    "accelerate>=1.14.0",
+    "comfy-kitchen>=0.2.10",
+    "jsonschema>=4.26.0",
+    "numpy>=1.26.0",
+    "Pillow>=10.0.0",
+    "safetensors>=0.7.0",
+    "tqdm>=4.67.0",
+    "transformers>=5.12.1",
+]
+classifiers = [
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Environment :: GPU :: NVIDIA CUDA",
+]
+
+[project.urls]
+Repository = "https://github.com/exportAnything/ComfyUI-DiffusionGemmaPromptBuilder"
+"Bug Tracker" = "https://github.com/exportAnything/ComfyUI-DiffusionGemmaPromptBuilder/issues"
+
+[tool.comfy]
+PublisherId = "exportanything"
+DisplayName = "DiffusionGemma Prompt Builder"
+requires-comfyui = ">=0.30.1"

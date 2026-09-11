@@ -1,0 +1,27 @@
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.agents/
+.codex/
+.git/
+.github/
+docs/
+tests/
+benchmarks/
+tools/
+GITHUB_RELEASE_CHECKLIST.md
+temp/
+tmp/
+runtime_artifacts/
+
+# Keep GitHub demo media out of the Comfy Registry install archive.
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.avi
+*.gif
+
+.DS_Store
+Thumbs.db

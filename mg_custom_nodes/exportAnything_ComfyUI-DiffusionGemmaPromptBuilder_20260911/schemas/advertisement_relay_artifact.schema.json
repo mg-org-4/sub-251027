@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exportanything.dev/schemas/advertisement_relay_artifact.schema.json",
+  "title": "DiffusionGemma Advertisement Relay Artifact",
+  "type": "object",
+  "required": ["schema", "version", "campaign_id", "plan_sha256", "artifact_id", "completed_lane_index", "next_lane_index", "picture_tag", "pixel_sha256", "shape", "filename", "file_sha256", "persistent"],
+  "properties": {
+    "schema": {"const": "diffusiongemma.advertisement_relay_artifact"},
+    "version": {"const": 1},
+    "campaign_id": {"$ref": "#/$defs/sha256"},
+    "plan_sha256": {"$ref": "#/$defs/sha256"},
+    "artifact_id": {"$ref": "#/$defs/sha256"},
+    "picture_tag": {"const": "<Picture 4>"},
+    "pixel_sha256": {"$ref": "#/$defs/sha256"},
+    "shape": {"type": "array", "prefixItems": [{"const": 1}, {"type": "integer", "minimum": 1}, {"type": "integer", "minimum": 1}, {"const": 3}], "minItems": 4, "maxItems": 4},
+    "filename": {"type": "string", "pattern": "^[0-9a-f]{64}\\.safetensors$"},
+    "file_sha256": {"$ref": "#/$defs/sha256"},
+    "persistent": {"const": true}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

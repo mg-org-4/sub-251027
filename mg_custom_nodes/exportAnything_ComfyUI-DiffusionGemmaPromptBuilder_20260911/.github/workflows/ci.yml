@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Python unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install unit-test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+          python -m pip install "jsonschema>=4.26.0" "numpy>=1.26.0" "Pillow>=10.0.0" "safetensors>=0.7.0"
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+
+  schema-readiness:
+    name: Schema readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DG_PROGRESS: "0"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install schema-test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "jsonschema>=4.26.0"
+
+      - name: Run readiness and schema smoke
+        run: python scripts/smoke_prompt_builder.py
+
+  javascript:
+    name: JavaScript tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Check shipped JavaScript syntax
+        run: node --check web/js/model_loader.js
+
+      - name: Run JavaScript tests
+        run: node --test tests/*.mjs

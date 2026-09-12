@@ -1,0 +1,771 @@
+import { app } from "../../scripts/app.js";
+
+/**
+ * Unified SAM3 Prompt Collector Widget — Fixed responsive implementation
+ *
+ * Goals preserved:
+ * - Same node type hook: TBGSAM3PromptCollector
+ * - Same widget names / JSON payloads
+ * - Same background image message usage: message.bg_image[0]
+ * - Same functionality: points, boxes, right-click/shift negative, B toggle, Esc reset, Undo, Clear
+ *
+ * Fixes:
+ * - Canvas/image aspect ratio is preserved from the displayed CSS width
+ * - Click and drag coordinates map correctly to the displayed image
+ * - Preview box drawing does not trigger a full layout loop
+ * - No forced min-width on wrapper/canvas that fights ComfyUI layout
+ * - Bitmap size is synced to CSS size with DPR scaling
+ */
+
+app.registerExtension({
+  name: "Comfy.SAM3.PromptCollector",
+
+  async beforeRegisterNodeDef(nodeType, nodeData, app) {
+    if ((nodeType?.comfyClass || nodeData?.name) !== "TBGSAM3PromptCollector") return;
+
+    const onNodeCreated = nodeType.prototype.onNodeCreated;
+
+    nodeType.prototype.onNodeCreated = function () {
+      const ret = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
+      const node = this;
+
+      const DEBUG = false;
+      function dbg(...args) {
+        if (DEBUG) console.log("[SAM3 PromptCollector]", ...args);
+      }
+
+      // ── Find widgets ────────────────────────────────────────────────
+      const positivePointsWidget = node.widgets?.find((w) => w.name === "positive_points");
+      const negativePointsWidget = node.widgets?.find((w) => w.name === "negative_points");
+      const positiveBoxesWidget = node.widgets?.find((w) => w.name === "positive_boxes");
+      const negativeBoxesWidget = node.widgets?.find((w) => w.name === "negative_boxes");
+
+      // ── DOM ─────────────────────────────────────────────────────────
+      const keyboardWrapper = document.createElement("div");
+      keyboardWrapper.tabIndex = 0;
+      keyboardWrapper.className = "h-full w-full";
+      keyboardWrapper.style.cssText = `
+        position: relative;
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        overflow: visible;
+        box-sizing: border-box;
+        background: var(--comfy-input-bg, #222);
+        border: 1px solid var(--border-color, #4e4e4e);
+        border-radius: 8px;
+        padding: 4px;
+        outline: none;
+      `;
+
+      // ── Header row ─────────────────────────────────────────────────
+      const headerRow = document.createElement("div");
+      headerRow.style.cssText = `
+        position: relative;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        width: 100%;
+        max-width: 100%;
+        min-height: 26px;
+        margin-bottom: 4px;
+        box-sizing: border-box;
+        overflow: visible;
+        font-family: Inter, Arial, sans-serif;
+      `;
+      keyboardWrapper.appendChild(headerRow);
+
+      // ── Tooltip ────────────────────────────────────────────────────
+      const tooltipEl = document.createElement("div");
+      tooltipEl.style.cssText = `
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        z-index: 10000;
+        background: var(--comfy-menu-bg, #1c1c1c);
+        color: #ccc;
+        border: 1px solid var(--border-color, #4e4e4e);
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 11px;
+        line-height: 1.5;
+        font-family: Inter, Arial, sans-serif;
+        white-space: normal;
+        max-width: 260px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        pointer-events: none;
+      `;
+      tooltipEl.innerHTML = `
+        <div style="font-weight:bold;color:#fff;margin-bottom:3px;">SAM3 Selector Controls</div>
+        <div>🖱️ <b>Left click</b> canvas → positive point</div>
+        <div>🖱️ <b>Right click</b> or <b>Shift+click</b> → negative</div>
+        <div>⌨️ <b>B</b> key → toggle Point ↔ Box</div>
+        <div>⌨️ <b>Esc</b> → reset to Point positive</div>
+        <div>🔘 <b>Buttons</b> → set mode (Point/Box)</div>
+      `;
+      headerRow.appendChild(tooltipEl);
+
+      let tooltipTimer = null;
+      const TOOLTIP_DELAY_MS = 400;
+
+      function showTooltip() {
+        if (tooltipTimer) clearTimeout(tooltipTimer);
+        tooltipTimer = setTimeout(() => {
+          tooltipEl.style.display = "block";
+          tooltipTimer = null;
+        }, TOOLTIP_DELAY_MS);
+      }
+
+      function hideTooltip() {
+        if (tooltipTimer) {
+          clearTimeout(tooltipTimer);
+          tooltipTimer = null;
+        }
+        tooltipEl.style.display = "none";
+      }
+
+      // Mode badge
+      const modeBadge = document.createElement("div");
+      modeBadge.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: var(--comfy-input-bg, #222);
+        color: #aaa;
+        border: 1px solid var(--border-color, #4e4e4e);
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: 12px;
+        line-height: 1.4;
+        user-select: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 0 0 auto;
+        min-width: 0;
+        box-sizing: border-box;
+      `;
+
+      const modeDot = document.createElement("span");
+      modeDot.id = "sam3-mode-dot";
+      modeDot.style.cssText = `
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #0f0;
+        flex-shrink: 0;
+      `;
+      modeBadge.appendChild(modeDot);
+
+      const modeLabel = document.createElement("span");
+      modeLabel.id = "sam3-mode-label";
+      modeLabel.style.cssText = `
+        overflow: hidden;
+        text-overflow: ellipsis;
+      `;
+      modeBadge.appendChild(modeLabel);
+      headerRow.appendChild(modeBadge);
+
+      // Mode selector
+      const modeSelector = document.createElement("div");
+      modeSelector.style.cssText = `
+        display: inline-flex;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid var(--border-color, #4e4e4e);
+        flex-shrink: 0;
+      `;
+
+      function createModeButton(mode, label) {
+        const btn = document.createElement("button");
+        btn.textContent = label;
+        btn.dataset.mode = mode;
+        btn.style.cssText = `
+          background: var(--comfy-input-bg, #262729);
+          color: #8a8a8a;
+          border: none;
+          padding: 1px 6px;
+          font-size: 10px;
+          font-family: Inter, Arial, sans-serif;
+          cursor: pointer;
+          height: 20px;
+          box-sizing: border-box;
+          line-height: 1.4;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: background 0.15s, color 0.15s;
+          white-space: nowrap;
+        `;
+        if (label !== "Point") {
+          btn.style.borderLeft = "1px solid var(--border-color, #4e4e4e)";
+        }
+        btn.onmouseenter = () => {
+          if (btn.dataset.active !== "1") btn.style.background = "#333";
+        };
+        btn.onmouseleave = () => {
+          if (btn.dataset.active !== "1") btn.style.background = "var(--comfy-input-bg, #262729)";
+        };
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          currentMode = mode;
+          currentPolarity = "positive";
+          updateModeIndicator();
+          scheduleLayoutAndRedraw("switch-mode");
+        };
+        return btn;
+      }
+
+      const pointBtn = createModeButton("point", "Point");
+      const boxBtn = createModeButton("box", "Box");
+
+      modeSelector.appendChild(pointBtn);
+      modeSelector.appendChild(boxBtn);
+      headerRow.appendChild(modeSelector);
+
+      // Action buttons
+      const buttonsRow = document.createElement("div");
+      buttonsRow.style.cssText = `
+        display: inline-flex;
+        flex-direction: row;
+        gap: 4px;
+        flex-shrink: 0;
+      `;
+      headerRow.appendChild(buttonsRow);
+
+      modeSelector.addEventListener("mouseenter", (e) => e.stopPropagation());
+      modeSelector.addEventListener("mouseleave", (e) => e.stopPropagation());
+      buttonsRow.addEventListener("mouseenter", (e) => e.stopPropagation());
+      buttonsRow.addEventListener("mouseleave", (e) => e.stopPropagation());
+      headerRow.addEventListener("mouseenter", showTooltip);
+      headerRow.addEventListener("mouseleave", hideTooltip);
+
+      const undoButton = document.createElement("button");
+      undoButton.textContent = "Undo";
+      undoButton.style.cssText = `
+        background: var(--comfy-input-bg, #262729);
+        color: #8a8a8a;
+        border: none;
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-size: 12px;
+        font-family: Inter, Arial, sans-serif;
+        cursor: pointer;
+        min-width: 30px;
+        height: 20px;
+        box-sizing: border-box;
+        line-height: 1.4;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+      `;
+      undoButton.onmouseenter = () => { undoButton.style.background = "#333"; };
+      undoButton.onmouseleave = () => { undoButton.style.background = "var(--comfy-input-bg, #262729)"; };
+      buttonsRow.appendChild(undoButton);
+
+      const clearButton = document.createElement("button");
+      clearButton.textContent = "Clear";
+      clearButton.style.cssText = `
+        background: var(--comfy-input-bg, #262729);
+        color: #8a8a8a;
+        border: none;
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-size: 12px;
+        font-family: Inter, Arial, sans-serif;
+        cursor: pointer;
+        min-width: 30px;
+        height: 20px;
+        box-sizing: border-box;
+        line-height: 1.4;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+      `;
+      clearButton.onmouseenter = () => { clearButton.style.background = "#333"; };
+      clearButton.onmouseleave = () => { clearButton.style.background = "var(--comfy-input-bg, #262729)"; };
+      buttonsRow.appendChild(clearButton);
+
+      // Canvas
+      const canvas = document.createElement("canvas");
+      canvas.style.border = "1px solid var(--border-color, #4e4e4e)";
+      canvas.style.cursor = "crosshair";
+      canvas.style.backgroundColor = "var(--comfy-input-bg, #222)";
+      canvas.style.display = "block";
+      canvas.style.width = "100%";
+      canvas.style.maxWidth = "100%";
+      canvas.style.boxSizing = "border-box";
+      canvas.style.borderRadius = "4px";
+      canvas.style.height = "150px";
+      const ctx = canvas.getContext("2d");
+      keyboardWrapper.appendChild(canvas);
+
+      // ── State ────────────────────────────────────────────────────────
+      let backgroundImage = null;
+      let positivePoints = [];
+      let negativePoints = [];
+      let positiveBoxes = [];
+      let negativeBoxes = [];
+      let isDrawingBox = false;
+      let boxStartX = 0;
+      let boxStartY = 0;
+      let currentMode = "point";
+      let currentPolarity = "positive";
+
+      // ── Layout state ────────────────────────────────────────────────
+      let lastStableTotalH = 200;
+      let rafLayoutScheduled = false;
+
+      function computeHeaderHeight() {
+        const style = getComputedStyle(headerRow);
+        const mb = parseFloat(style.marginBottom) || 0;
+        const h = Math.ceil(headerRow.getBoundingClientRect().height + mb);
+        return Math.max(h, 32);
+      }
+
+      function getCanvasDisplaySize() {
+        const wrapperStyle = getComputedStyle(keyboardWrapper);
+        const padL = parseFloat(wrapperStyle.paddingLeft) || 0;
+        const padR = parseFloat(wrapperStyle.paddingRight) || 0;
+
+        const availableW = Math.max(1, Math.floor((keyboardWrapper.clientWidth || 0) - padL - padR));
+        const cssW = availableW;
+
+        let cssH = 150;
+        if (backgroundImage && backgroundImage.width && backgroundImage.height) {
+          const aspect = backgroundImage.width / backgroundImage.height;
+          cssH = Math.max(64, Math.round(cssW / aspect));
+        }
+
+        return { cssW, cssH };
+      }
+
+      function syncCanvasBitmapToDisplay() {
+        const { cssW, cssH } = getCanvasDisplaySize();
+
+        // Use inline width/height on canvas instead of CSS for the bitmap size.
+        // This avoids the browser's CSS layout engine during event handlers,
+        // which can cause a forced synchronous layout that temporarily shrinks
+        // the wrapper width and makes LiteGraph collapse the node width.
+        canvas.width = Math.max(1, Math.round(cssW * (window.devicePixelRatio || 1)));
+        canvas.height = Math.max(1, Math.round(cssH * (window.devicePixelRatio || 1)));
+
+        ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+
+        // Update CSS size to match the bitmap (no layout recalc needed since
+        // the inline width/height already drive the canvas display size).
+        canvas.style.width = `${cssW}px`;
+        canvas.style.height = `${cssH}px`;
+
+        // Compute header height without getComputedStyle to avoid forced layout.
+        // headerRow has min-height: 26px, margin-bottom: 4px, and flex content.
+        // We measure via getBoundingClientRect which is read-only and does not
+        // force a layout recalculation when the element's styles are already settled.
+        const headerH = Math.max(
+          Math.ceil(headerRow.getBoundingClientRect().height) + 4, // margin-bottom
+          32
+        );
+        lastStableTotalH = Math.max(headerH + cssH + 16, 100);
+
+        return { cssW, cssH, dpr: window.devicePixelRatio || 1 };
+      }
+
+      // ── Helpers ──────────────────────────────────────────────────────
+      const safeParse = (val) => {
+        if (!val || typeof val !== "string") return [];
+        try {
+          const parsed = JSON.parse(val);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          console.warn("[SAM3 PromptCollector] Failed to parse widget JSON:", e);
+          return [];
+        }
+      };
+
+      function maybeNormalizeToUnit(arr, imgW, imgH) {
+        if (!imgW || !imgH) return arr;
+        for (const item of arr) {
+          if ("x1" in item) {
+            if (item.x1 > 1 || item.y1 > 1 || item.x2 > 1 || item.y2 > 1) {
+              item.x1 = item.x1 / imgW;
+              item.y1 = item.y1 / imgH;
+              item.x2 = item.x2 / imgW;
+              item.y2 = item.y2 / imgH;
+            }
+          } else if (item.x > 1 || item.y > 1) {
+            item.x = item.x / imgW;
+            item.y = item.y / imgH;
+          }
+        }
+        return arr;
+      }
+
+      function loadFromWidgets() {
+        positivePoints = safeParse(positivePointsWidget?.value);
+        negativePoints = safeParse(negativePointsWidget?.value);
+        positiveBoxes = safeParse(positiveBoxesWidget?.value);
+        negativeBoxes = safeParse(negativeBoxesWidget?.value);
+
+        if (backgroundImage) {
+          maybeNormalizeToUnit(positivePoints, backgroundImage.width, backgroundImage.height);
+          maybeNormalizeToUnit(negativePoints, backgroundImage.width, backgroundImage.height);
+          maybeNormalizeToUnit(positiveBoxes, backgroundImage.width, backgroundImage.height);
+          maybeNormalizeToUnit(negativeBoxes, backgroundImage.width, backgroundImage.height);
+        }
+      }
+
+      function updateWidgets() {
+        if (positivePointsWidget) positivePointsWidget.value = JSON.stringify(positivePoints);
+        if (negativePointsWidget) negativePointsWidget.value = JSON.stringify(negativePoints);
+        if (positiveBoxesWidget) positiveBoxesWidget.value = JSON.stringify(positiveBoxes);
+        if (negativeBoxesWidget) negativeBoxesWidget.value = JSON.stringify(negativeBoxes);
+      }
+
+      function updateModeIndicator() {
+        const modeText = `${currentMode.toUpperCase()} ${currentPolarity.charAt(0).toUpperCase() + currentPolarity.slice(1)}`;
+        if (modeLabel) modeLabel.textContent = modeText;
+
+        if (modeDot) {
+          if (currentMode === "point") {
+            modeDot.style.background = currentPolarity === "positive" ? "#0f0" : "#f00";
+          } else {
+            modeDot.style.background = currentPolarity === "positive" ? "#0ff" : "#f00";
+          }
+        }
+
+        const allSwitches = [pointBtn, boxBtn];
+        allSwitches.forEach((btn) => {
+          const isMatch = btn.dataset.mode === currentMode;
+          btn.dataset.active = isMatch ? "1" : "";
+          btn.style.background = isMatch ? "#4a90d9" : "var(--comfy-input-bg, #262729)";
+          btn.style.color = isMatch ? "#fff" : "#8a8a8a";
+        });
+      }
+
+      updateModeIndicator();
+
+      function toNormalizedCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
+          y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)),
+        };
+      }
+
+      function drawOverlays(cssW, cssH) {
+        ctx.lineWidth = Math.max(1.5, cssW / 300);
+        ctx.setLineDash([]);
+
+        ctx.strokeStyle = "#00ffff";
+        positiveBoxes.forEach((box) => {
+          ctx.strokeRect(
+            box.x1 * cssW,
+            box.y1 * cssH,
+            (box.x2 - box.x1) * cssW,
+            (box.y2 - box.y1) * cssH
+          );
+        });
+
+        ctx.strokeStyle = "#ff0000";
+        negativeBoxes.forEach((box) => {
+          ctx.strokeRect(
+            box.x1 * cssW,
+            box.y1 * cssH,
+            (box.x2 - box.x1) * cssW,
+            (box.y2 - box.y1) * cssH
+          );
+        });
+
+        const dotRadius = Math.max(3, cssW / 150);
+
+        ctx.fillStyle = "#00ff00";
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        positivePoints.forEach((pt) => {
+          ctx.beginPath();
+          ctx.arc(pt.x * cssW, pt.y * cssH, dotRadius, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+        });
+
+        ctx.fillStyle = "#ff0000";
+        negativePoints.forEach((pt) => {
+          ctx.beginPath();
+          ctx.arc(pt.x * cssW, pt.y * cssH, dotRadius, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+        });
+      }
+
+      function drawCanvasContent(previewBox = null) {
+        const { cssW, cssH } = syncCanvasBitmapToDisplay();
+
+        ctx.clearRect(0, 0, cssW, cssH);
+
+        if (backgroundImage) {
+          ctx.drawImage(backgroundImage, 0, 0, cssW, cssH);
+        }
+
+        drawOverlays(cssW, cssH);
+
+        if (previewBox) {
+          ctx.strokeStyle = previewBox.isNegative ? "#ff0000" : "#00ffff";
+          ctx.lineWidth = Math.max(1.5, cssW / 300);
+          ctx.setLineDash([5, 5]);
+          ctx.strokeRect(
+            previewBox.x1 * cssW,
+            previewBox.y1 * cssH,
+            (previewBox.x2 - previewBox.x1) * cssW,
+            (previewBox.y2 - previewBox.y1) * cssH
+          );
+          ctx.setLineDash([]);
+        }
+      }
+
+      function redraw(reason = "direct") {
+        dbg("redraw", reason);
+        drawCanvasContent();
+        node.setDirtyCanvas(true, false);
+      }
+
+      function scheduleLayoutAndRedraw(reason) {
+        dbg("scheduleLayoutAndRedraw", reason);
+        if (rafLayoutScheduled) return;
+        rafLayoutScheduled = true;
+        requestAnimationFrame(() => {
+          rafLayoutScheduled = false;
+          redraw(reason);
+        });
+      }
+
+      // ── Mouse events ─────────────────────────────────────────────────
+      function blockEvent(e) {
+        if (e.target === canvas || canvas.contains(e.target)) return;
+        if (e.target === pointBtn || e.target === boxBtn || e.target === undoButton || e.target === clearButton) return;
+        if (headerRow.contains(e.target)) return;
+        e.stopPropagation();
+      }
+
+      keyboardWrapper.addEventListener("pointerdown", blockEvent, { capture: true });
+      keyboardWrapper.addEventListener("mousedown", blockEvent, { capture: true });
+      keyboardWrapper.addEventListener("click", blockEvent, { capture: true });
+
+      keyboardWrapper.addEventListener("wheel", (e) => {
+        const target = app.canvasEl || document.querySelector("#graph-canvas");
+        if (target) {
+          target.dispatchEvent(new WheelEvent("wheel", {
+            clientX: e.clientX,
+            clientY: e.clientY,
+            deltaY: e.deltaY,
+            deltaX: e.deltaX,
+            bubbles: true,
+            cancelable: true,
+          }));
+        }
+      }, { passive: true });
+
+      canvas.addEventListener("mousedown", (e) => {
+        keyboardWrapper.focus();
+        const { x, y } = toNormalizedCoords(e);
+
+        if (currentMode === "box") {
+          const isNegative = e.button === 2 || e.shiftKey;
+          currentPolarity = isNegative ? "negative" : "positive";
+          updateModeIndicator();
+          isDrawingBox = true;
+          boxStartX = x;
+          boxStartY = y;
+        } else {
+          const isNegative = e.button === 2 || e.shiftKey;
+          currentPolarity = isNegative ? "negative" : "positive";
+          updateModeIndicator();
+
+          const point = { x, y };
+          if (isNegative) negativePoints.push(point);
+          else positivePoints.push(point);
+
+          updateWidgets();
+          drawCanvasContent();
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+      });
+
+      canvas.addEventListener("mousemove", (e) => {
+        if (!isDrawingBox) return;
+
+        const { x, y } = toNormalizedCoords(e);
+        drawCanvasContent({
+          x1: Math.min(boxStartX, x),
+          y1: Math.min(boxStartY, y),
+          x2: Math.max(boxStartX, x),
+          y2: Math.max(boxStartY, y),
+          isNegative: currentPolarity === "negative",
+        });
+
+        e.preventDefault();
+        e.stopPropagation();
+      });
+
+      function finishBox(e) {
+        if (!isDrawingBox) return;
+
+        const { x, y } = toNormalizedCoords(e);
+        const box = {
+          x1: Math.min(boxStartX, x),
+          y1: Math.min(boxStartY, y),
+          x2: Math.max(boxStartX, x),
+          y2: Math.max(boxStartY, y),
+        };
+
+        const minSize = 0.005;
+        if (Math.abs(box.x2 - box.x1) >= minSize && Math.abs(box.y2 - box.y1) >= minSize) {
+          if (currentPolarity === "positive") positiveBoxes.push(box);
+          else negativeBoxes.push(box);
+          updateWidgets();
+        }
+
+        isDrawingBox = false;
+        drawCanvasContent();
+
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      canvas.addEventListener("mouseup", finishBox);
+      canvas.addEventListener("mouseleave", (e) => {
+        if (isDrawingBox && (e.buttons & 1 || e.buttons & 2)) {
+          finishBox(e);
+        }
+      });
+
+      canvas.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }, { passive: false });
+
+      keyboardWrapper.addEventListener("keydown", (e) => {
+        const k = e.key.toLowerCase();
+        if (k === "b") {
+          currentMode = currentMode === "point" ? "box" : "point";
+          currentPolarity = "positive";
+          updateModeIndicator();
+          scheduleLayoutAndRedraw("toggle-mode");
+        } else if (e.key === "Escape") {
+          currentMode = "point";
+          currentPolarity = "positive";
+          updateModeIndicator();
+          scheduleLayoutAndRedraw("escape-mode");
+        }
+      });
+
+      clearButton.onclick = (e) => {
+        e.stopPropagation();
+        positivePoints = [];
+        negativePoints = [];
+        positiveBoxes = [];
+        negativeBoxes = [];
+        updateWidgets();
+        drawCanvasContent();
+      };
+
+      undoButton.onclick = (e) => {
+        e.stopPropagation();
+        if (negativePoints.length > 0) negativePoints.pop();
+        else if (positivePoints.length > 0) positivePoints.pop();
+        else if (negativeBoxes.length > 0) negativeBoxes.pop();
+        else if (positiveBoxes.length > 0) positiveBoxes.pop();
+
+        updateWidgets();
+        drawCanvasContent();
+      };
+
+      function applyBackgroundFromMessage(message) {
+        dbg("applyBackgroundFromMessage", !!message?.bg_image?.[0]);
+        if (!message || !message.bg_image || !message.bg_image[0]) return;
+
+        const img = new Image();
+        img.onload = () => {
+          backgroundImage = img;
+          maybeNormalizeToUnit(positivePoints, img.width, img.height);
+          maybeNormalizeToUnit(negativePoints, img.width, img.height);
+          maybeNormalizeToUnit(positiveBoxes, img.width, img.height);
+          maybeNormalizeToUnit(negativeBoxes, img.width, img.height);
+
+          scheduleLayoutAndRedraw("image-onload");
+        };
+        img.onerror = (err) => console.warn("[SAM3 PromptCollector] background image error", err);
+        img.src = "data:image/jpeg;base64," + message.bg_image[0];
+      }
+
+      const resizeObserver = new ResizeObserver(() => {
+        scheduleLayoutAndRedraw("resize-observer");
+      });
+
+      const domWidget = node.addDOMWidget("canvas", "canvas", keyboardWrapper, {
+        serialize: false,
+        getHeight() {
+          return lastStableTotalH;
+        },
+        getMinHeight() {
+          return 80;
+        },
+        afterResize() {
+          // Redraw when the node is resized so canvas matches new dimensions
+          scheduleLayoutAndRedraw("after-resize");
+        },
+        getValue() {
+          return "";
+        },
+        setValue() {},
+      });
+
+      // Enforce a stable minimum width so the node never collapses.
+      // DOMWidgetImpl.computeLayoutSize() returns minWidth: 0, which allows
+      // LiteGraph to shrink the node to near-zero when the wrapper briefly
+      // reports a smaller width during a forced layout recalculation.
+      const origComputeSize = nodeType.prototype.computeSize;
+      nodeType.prototype.computeSize = function () {
+        const [w, h] = origComputeSize ? origComputeSize.apply(this, arguments) : [0, 0];
+        return [Math.max(w, 200), h];
+      };
+
+      dbg("DOM widget registered", !!domWidget);
+
+      requestAnimationFrame(() => {
+        if (keyboardWrapper.parentElement) {
+          resizeObserver.observe(keyboardWrapper.parentElement);
+        }
+        scheduleLayoutAndRedraw("initial-layout");
+      });
+
+      loadFromWidgets();
+      applyBackgroundFromMessage(node.lastMessage);
+      scheduleLayoutAndRedraw("initial");
+
+      const origOnExecuted = node.onExecuted;
+      node.onExecuted = function (message) {
+        if (origOnExecuted) origOnExecuted.apply(this, arguments);
+        loadFromWidgets();
+        applyBackgroundFromMessage(message);
+      };
+
+      const origOnRemoved = node.onRemoved;
+      node.onRemoved = function () {
+        if (origOnRemoved) origOnRemoved.apply(this, arguments);
+        resizeObserver.disconnect();
+        if (tooltipTimer) clearTimeout(tooltipTimer);
+      };
+
+      return ret;
+    };
+  },
+});

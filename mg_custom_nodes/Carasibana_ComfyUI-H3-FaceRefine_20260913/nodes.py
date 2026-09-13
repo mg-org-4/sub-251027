@@ -326,6 +326,56 @@ def _continuity_cost(box, last):
     return d + abs(sz - last[2]) * 2.0
 
 
+# How far the subject may move between resolved frames, as a multiple of its face height.
+# A face further away than this is someone else: the step is refused and the frame is
+# left unresolved rather than handed to whoever is nearest. Only applied in a shot that
+# holds more than one face at some point; with nobody else in shot there is no one to
+# confuse the subject with.
+_REACH = 0.75
+# Extra reach per frame since the subject was last resolved, and the most that can add.
+# Small on purpose: a long gap must not grow the reach out to a neighbouring face.
+_REACH_PER_FRAME = 0.05
+_REACH_GAP_MAX = 0.25
+# Resolved frames the subject's typical face height is taken over. A face box shrinks as
+# the head turns away or is covered, and the reach must not shrink with it.
+_REACH_HISTORY = 12
+
+
+def _within_reach(box, last, gap: int, height: float = 0.0) -> bool:
+    """Whether `box` can be the subject last resolved at `last` (cx, cy, face height),
+    `gap` frames earlier. `height` is the subject's typical recent face height."""
+    cx, cy = (box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0
+    grow = min(_REACH_PER_FRAME * max(int(gap) - 1, 0), _REACH_GAP_MAX)
+    reach = (_REACH + grow) * max(float(last[2]), float(height), 1.0)
+    return ((cx - last[0]) ** 2 + (cy - last[1]) ** 2) ** 0.5 <= reach
+
+
+def _typical_height(heights) -> float:
+    """Median of the subject's recent face heights; 0 when there are none."""
+    h = sorted(heights[-_REACH_HISTORY:])
+    return float(h[len(h) // 2]) if h else 0.0
+
+
+def _holds_crowd(all_boxes, a: int, b: int) -> bool:
+    """Whether any frame in [a, b) holds more than one face."""
+    return any(len(all_boxes[j]) > 1 for j in range(max(0, a), min(b, len(all_boxes))))
+
+
+def _frame_ranges(frames) -> str:
+    """[3, 4, 5, 9] -> "3-5, 9"."""
+    out, run = [], []
+    for f in sorted(frames):
+        if run and f == run[-1] + 1:
+            run.append(f)
+            continue
+        if run:
+            out.append(run)
+        run = [f]
+    if run:
+        out.append(run)
+    return ", ".join(str(r[0]) if len(r) == 1 else f"{r[0]}-{r[-1]}" for r in out)
+
+
 def _build_clip_anchor(emb, images, all_boxes, max_samples=24):
     """Average embedding of the subject, taken from the CLIP ITSELF.
 
@@ -392,7 +442,7 @@ def _track_continuity(all_boxes, start_frame: int, start_idx: int) -> list[int]:
 
     Pure geometry over boxes that are already detected, so it costs nothing, which is
     what makes it usable as a PRE-pass: it says which box is the subject on every frame
-    before any embedding work happens.
+    before any embedding work happens. A frame with no face within reach stays -1.
     """
     B = len(all_boxes)
     track = [-1] * B
@@ -401,14 +451,21 @@ def _track_continuity(all_boxes, start_frame: int, start_idx: int) -> list[int]:
     track[start_frame] = start_idx
     q = all_boxes[start_frame][start_idx]
     last = ((q[0] + q[2]) / 2.0, (q[1] + q[3]) / 2.0, q[3] - q[1])
+    last_i, heights = start_frame, [last[2]]
+    crowd = _holds_crowd(all_boxes, start_frame, B)
     for i in range(start_frame + 1, B):
         boxes = all_boxes[i]
-        if not boxes:
+        near = [j for j in range(len(boxes))
+                if not crowd or _within_reach(boxes[j], last, i - last_i,
+                                              _typical_height(heights))]
+        if not near:
             continue
-        k = min(range(len(boxes)), key=lambda j: _continuity_cost(boxes[j], last))
+        k = min(near, key=lambda j: _continuity_cost(boxes[j], last))
         track[i] = k
         q = boxes[k]
         last = ((q[0] + q[2]) / 2.0, (q[1] + q[3]) / 2.0, q[3] - q[1])
+        last_i = i
+        heights.append(last[2])
     return track
 
 
@@ -418,19 +475,26 @@ def _track_back(all_boxes, lock, box_i, stop):
     Forward continuity abandons everything before the frame the subject was named on,
     leaving it to interpolation. Once the subject IS named, those earlier frames are
     the same person walking backwards, so plain geometry resolves them. Never crosses
-    `stop`, which is the shot boundary.
+    `stop`, which is the shot boundary. A frame with no face within reach is left out.
     """
     out = {}
     q = all_boxes[lock][box_i]
     last = ((q[0] + q[2]) / 2.0, (q[1] + q[3]) / 2.0, q[3] - q[1])
+    last_i, heights = lock, [last[2]]
+    crowd = _holds_crowd(all_boxes, stop, lock + 1)
     for i in range(lock - 1, stop - 1, -1):
         boxes = all_boxes[i]
-        if not boxes:
+        near = [j for j in range(len(boxes))
+                if not crowd or _within_reach(boxes[j], last, last_i - i,
+                                              _typical_height(heights))]
+        if not near:
             continue
-        k = min(range(len(boxes)), key=lambda j: _continuity_cost(boxes[j], last))
+        k = min(near, key=lambda j: _continuity_cost(boxes[j], last))
         out[i] = k
         q = boxes[k]
         last = ((q[0] + q[2]) / 2.0, (q[1] + q[3]) / 2.0, q[3] - q[1])
+        last_i = i
+        heights.append(last[2])
     return out
 
 
@@ -458,7 +522,9 @@ def _shot_anchors(emb, images, all_boxes, segs, forced, n, threshold):
         # person - worth sampling, since clean frames are scarce in a crowd.
         for f, k in _track_back(all_boxes, lock, forced[lock], a).items():
             tr[f] = k
-        anchor, _used = _anchor_from_track(emb, images, all_boxes, tr, max_samples=budget)
+        _pb = all_boxes[lock][forced[lock]]
+        anchor, _used = _anchor_from_track(emb, images, all_boxes, tr, max_samples=budget,
+                                           min_face=min(32.0, 0.9 * (_pb[3] - _pb[1])))
         per.append(anchor)
 
     have = [(k, e) for k, e in enumerate(per) if e is not None]
@@ -1412,8 +1478,10 @@ class H3FaceTrackCrop:
                         seed = _rank_boxes(all_boxes[index_lock], all_confs[index_lock],
                                            W, H, select, X, Y)[select_index]
                         _tr = _track_continuity(all_boxes, index_lock, seed)
-                        ref_emb, used = _anchor_from_track(embedder, images,
-                                                           all_boxes, _tr)
+                        _sb = all_boxes[index_lock][seed]
+                        ref_emb, used = _anchor_from_track(
+                            embedder, images, all_boxes, _tr,
+                            min_face=min(32.0, 0.9 * (_sb[3] - _sb[1])))
                     print(f"[H3FaceRefine] identity anchor built from the selected subject "
                           f"({used} unambiguous frames)" if ref_emb is not None else
                           "[H3FaceRefine] no clean frames to anchor the selected subject - "
@@ -1463,6 +1531,14 @@ class H3FaceTrackCrop:
         lock_frame = index_lock if ranking_picks else first_face
 
         last = None   # (cx, cy, size) of the subject on the previous resolved frame
+        last_i = -1   # the frame `last` was resolved on
+        heights = []  # the subject's face heights on frames resolved since the last cut
+        lost = []     # frames holding faces, none of them within reach of the subject
+        crowd = [False] * B
+        for _a, _b in segs:
+            _c = _holds_crowd(all_boxes, _a, _b)
+            for _j in range(max(0, _a), min(B, _b)):
+                crowd[_j] = _c
         seg_starts = {int(x) for x, _ in segs}
 
         # Where each frame's shot locks on: per shot with a face_pick, otherwise the
@@ -1502,6 +1578,7 @@ class H3FaceTrackCrop:
                 # A cut ends continuity - "nearest box to where the subject was" means
                 # nothing once the camera has changed shot.
                 last = None
+                heights = []
             if i in absent_frames:
                 continue
             boxes = all_boxes[i]
@@ -1523,7 +1600,7 @@ class H3FaceTrackCrop:
                 # Before this shot's lock, resolved by continuity run backwards from it.
                 b = boxes[backfill[i]]
                 n_cont += 1
-            elif len(boxes) == 1:
+            elif last is None and len(boxes) == 1:
                 b = boxes[0]
                 n_cont += 1
             elif last is None:
@@ -1549,36 +1626,56 @@ class H3FaceTrackCrop:
                     b = boxes[ranked[min(select_index, len(ranked) - 1)]]
                     n_cont += 1
             else:
-                # Continuity first: the nearest box to where the subject was, penalised for
-                # size change. Cheap and correct while people stay separated.
-                ranked = sorted(boxes, key=lambda q: _continuity_cost(q, last))
-                best, second = ranked[0], ranked[1]
-                c0, c1 = _continuity_cost(best, last), _continuity_cost(second, last)
-
-                # AMBIGUOUS when two candidates are similarly plausible, or their boxes
-                # overlap - exactly when continuity alone picks the wrong person. Only then
-                # is the embedding worth computing.
-                conflict = (c1 < c0 * 2.0) or (_iou(best, second) > 0.2)
-
-                if conflict and ref_emb is not None:
-                    n_conflict += 1
-                    near = [q for q in boxes if _continuity_cost(q, last) < c0 * 3.0] or boxes
-                    cands = [c for c in embedder.embed(images[i:i + 1], near)
-                             if any(_iou(c[0], q) > 0.3 for q in near)]
-                    k, score = embedder.best_match(cands, ref_emb)
-                    if k is not None:
-                        ident_scores.append(score)
-                    if k is not None and score >= ident_threshold:
-                        b = cands[k][0]
-                        n_ident += 1
-                if b is None:
-                    # No conflict, or the embedding was not confident enough. Embeddings
-                    # degrade on profiles and occlusion - precisely where the subject is
-                    # hardest to hold - so continuity is the safer default there.
-                    b = best
+                # Only faces within reach of where the subject was can continue it.
+                if crowd[i]:
+                    _h = _typical_height(heights)
+                    reach = [q for q in boxes if _within_reach(q, last, i - last_i, _h)]
+                else:
+                    reach = boxes
+                if not reach:
+                    # The subject's face is not detected here, or is too far from where it
+                    # was to be the same person. The frame stays unresolved and fades out
+                    # of the composite; the subject is picked up again when a face
+                    # reappears within reach of where it was lost.
+                    lost.append(i)
+                    continue
+                elif len(reach) == 1:
+                    b = reach[0]
                     n_cont += 1
+                else:
+                    # Continuity first: the nearest box to where the subject was, penalised
+                    # for size change. Cheap and correct while people stay separated.
+                    ranked = sorted(reach, key=lambda q: _continuity_cost(q, last))
+                    best, second = ranked[0], ranked[1]
+                    c0, c1 = _continuity_cost(best, last), _continuity_cost(second, last)
+
+                    # AMBIGUOUS when two candidates are similarly plausible, or their boxes
+                    # overlap - exactly when continuity alone picks the wrong person. Only
+                    # then is the embedding worth computing.
+                    conflict = (c1 < c0 * 2.0) or (_iou(best, second) > 0.2)
+
+                    if conflict and ref_emb is not None:
+                        n_conflict += 1
+                        near = ([q for q in reach if _continuity_cost(q, last) < c0 * 3.0]
+                                or reach)
+                        cands = [c for c in embedder.embed(images[i:i + 1], near)
+                                 if any(_iou(c[0], q) > 0.3 for q in near)]
+                        k, score = embedder.best_match(cands, ref_emb)
+                        if k is not None:
+                            ident_scores.append(score)
+                        if k is not None and score >= ident_threshold:
+                            b = cands[k][0]
+                            n_ident += 1
+                    if b is None:
+                        # No conflict, or the embedding was not confident enough. Embeddings
+                        # degrade on profiles and occlusion - precisely where the subject is
+                        # hardest to hold - so continuity is the safer default there.
+                        b = best
+                        n_cont += 1
 
             last = ((b[0]+b[2])/2.0, (b[1]+b[3])/2.0, b[3]-b[1])
+            last_i = i
+            heights.append(last[2])
             cx[i] = (b[0] + b[2]) / 2.0
             cy[i] = (b[1] + b[3]) / 2.0
             sz[i] = b[3] - b[1]          # face HEIGHT: more stable than width as the head turns
@@ -1608,6 +1705,8 @@ class H3FaceTrackCrop:
         # the dropout warning while smoothing that error into the frames after the lock.
         no_face = np.array([not b for b in all_boxes], dtype=bool)
         sz_seed = _interp_gaps_seg(sz, valid, segs)
+        cx_seed = _interp_gaps_seg(cx, valid, segs)
+        cy_seed = _interp_gaps_seg(cy, valid, segs)
         if fallback_detector != "none" and no_face.any():
             try:
                 bmodel = _load_detector(fallback_detector)
@@ -1619,7 +1718,11 @@ class H3FaceTrackCrop:
                     cls = (res.boxes.cls.tolist() if getattr(res.boxes, "cls", None) is not None
                            else [0] * len(bb))
                     people = [q for q, cc in zip(bb, cls) if int(cc) == 0] or bb
-                    p = max(people, key=lambda q: (q[2] - q[0]) * (q[3] - q[1]))
+                    # The body whose head lands nearest where the subject is expected. In
+                    # a group the largest body is often someone else.
+                    _hd = fallback_head_frac * max(sz_seed[i], 8.0)
+                    p = min(people, key=lambda q: ((q[0] + q[2]) / 2.0 - cx_seed[i]) ** 2
+                            + (q[1] + _hd - cy_seed[i]) ** 2)
                     cx[i] = (p[0] + p[2]) / 2.0
                     cy[i] = p[1] + fallback_head_frac * max(sz_seed[i], 8.0)
                     sz[i] = sz_seed[i]
@@ -1985,6 +2088,8 @@ class H3FaceTrackCrop:
             lockdesc = f"locked on at frame {lock_frame} of {B}"
 
         render_line = f"rendering: {K} of {B} frames  [{drop_note}]\n" if drop_note else ""
+        lost_line = (f"lost: {len(lost)} frame(s) held faces but none within reach of the "
+                     f"subject ({_frame_ranges(lost)}) - left unresolved\n" if lost else "")
         report = (
             f"subject: {'from face_pick, one per shot' if forced else _sel_desc}"
             f"{'' if (ranking_picks or forced) else ' (ignored - identity_reference decides)'}, "
@@ -1996,6 +2101,7 @@ class H3FaceTrackCrop:
             f"{cutline}"
             f"tracking: {n_cont} by continuity, {n_conflict} ambiguous "
             f"({n_ident} resolved by face identity)\n"
+            f"{lost_line}"
             f"{identline}"
             f"{render_line}"
             f"frames={B}  face={found} ({found/B*100:.0f}%)  "

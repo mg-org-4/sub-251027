@@ -37,6 +37,29 @@ or the refined face boils.
 
 ---
 
+## What's new in 1.1.2
+
+**[H3 Face Track + Crop](#h3-face-track--crop) no longer jumps to another person when it loses the
+subject.** When the subject's face stopped being detected - a head turned away, a spin, a face
+covered - while anyone else was in shot, the tracker moved onto the nearest other face and stayed
+there, and the report still counted every frame as found. It now only carries the subject onto a
+face within reach of where they just were. Frames with no such face are left unresolved: the crop is
+interpolated across them and the composite fades out, so they keep their original pixels. The
+subject is picked up again when their face reappears near where it was lost. Frames before a shot's
+lock-on are filled back under the same rule, and shots that never hold more than one face track
+exactly as before. See [When the subject is lost](#choosing-which-face).
+
+**The report says when the subject was lost.** A new `lost:` line counts those frames and lists
+their ranges, and `face=` and `dropout runs` include them, instead of reporting every frame as found.
+In `preview` those frames are drawn red - see [Reading `preview`](#h3-face-track--crop).
+
+**`fallback_detector` uses the body nearest where the subject's head should be**, rather than the
+largest body in frame.
+
+Nothing needs rewiring, and saved workflows load unchanged.
+
+---
+
 ## What's new in 1.1.0
 
 **[H3 Load Video + Face Select](#h3-load-video--face-select) is new.** It loads the video, finds
@@ -258,7 +281,7 @@ the clip a second time.
 1. **Point it at your video** — **Browse…** copies a file into ComfyUI's `input`, or paste any
    absolute path, since source footage usually lives elsewhere.
 2. **Set `cut_detection` to `auto (pyscenedetect)`** if the clip has hard cuts, so it is split into shots.
-3. **Click `Pick faces`.** The dialog scans once, then shows a frame per shot with every face
+3. **Click `Pick faces`.** The dialogue scans once, then shows a frame per shot with every face
    outlined and numbered. Choose your subject in each one and press **Use these** — see
    [Pick faces](#pick-faces).
 4. **Queue.**
@@ -375,7 +398,7 @@ know that, so you tell it.
 every shot with each face outlined and numbered, and writes your answer — one index per shot —
 into `confirmed_pick`.
 
-<img src="screenshots/Pick%20Faces%20UI.png" alt="The Pick faces dialog" width="640">
+<img src="screenshots/Pick%20Faces%20UI.png" alt="The Pick faces dialogue" width="640">
 
 Under each frame is a chip per detected face, plus **not in this shot**. The green chip is the
 current pick, and the numbers on the chips are the numbers drawn on the boxes.
@@ -391,7 +414,7 @@ hand-picked equivalent of `absent_shots` on the tracker.
 <img src="screenshots/Pick%20Faces%20UI%20-%20Multiple%20Faces.png" alt="Choosing between four faces" width="640">
 
 **Across a cut the numbering is not stable.** A cut renumbers everyone, so the person who was face
-`1` before it may be face `3` after. That is the whole reason the dialog asks per shot rather than
+`1` before it may be face `3` after. That is the whole reason the dialogue asks per shot rather than
 once: it is where you say *"these differently-numbered faces are the same person"*, which no
 ranking rule can work out for itself. The row along the top keeps your picks side by side so you
 can check them against each other.
@@ -405,19 +428,19 @@ can check them against each other.
 | **Clear** | Empties every pick, to start over |
 
 **Neither button will run while a render is going.** Both refuse rather than compete with the
-sampler for the GPU. The scan dialog offers a *Scan anyway* escape if you want it regardless;
+sampler for the GPU. The scan dialogue offers a *Scan anyway* escape if you want it regardless;
 **Preview coordinates** has none and simply declines until the queue is clear.
 
-Scanning is cached: reopening the dialog reports *reused the previous scan* and is immediate. The
+Scanning is cached: reopening the dialogue reports *reused the previous scan* and is immediate. The
 scan is redone when the video, the detector, the confidence, the frame range or the cut settings
 change, because every one of those changes the shots the picks describe. That cache belongs to the
-dialog alone — when the graph runs, the node detects the clip again for the render itself. What is
+dialogue alone — when the graph runs, the node detects the clip again for the render itself. What is
 saved is the *tracker* repeating it, not the node. For the same reason
 `confirmed_pick` is dropped automatically when they change, rather than being left pointing at
 faces that have been renumbered underneath it.
 
 Once picked, the button on the node names the choice, so the graph stays readable without
-reopening the dialog:
+reopening the dialogue:
 
 <img src="screenshots/H3%20Load%20Video%20%2B%20Face%20Select%20-%20Multiple%20Scenes.png" alt="Picks named on the node" width="340">
 
@@ -434,7 +457,7 @@ point can be confirmed against the person you meant before anything is rendered.
 
 The point does **not** have to land on a face. The nearest face *centre* wins at any distance, so
 putting it roughly where the subject stands is enough. This preview sits on the node rather than in
-a dialog deliberately: the picture belongs beside the fields being edited, and a second dialog would
+a dialogue deliberately: the picture belongs beside the fields being edited, and a second dialogue would
 read as a second way of choosing a face by hand, which `manual` already is.
 
 
@@ -463,7 +486,7 @@ emits a constant-size batch of crops plus the `transform` needed to paste result
 | `identity_track` *(opt)* | `True` | Hold one subject through a crowd. Continuity decides most frames; the identity embedding is consulted only when two candidates are similarly plausible or their boxes overlap. |
 | `identity_threshold` *(opt)* | `0.28` | Minimum score to accept a face as the reference person. Below it, the frame falls back to continuity, which is what carries tracking through profiles and occlusion. The scale depends on `identity_model` — **set `0` to use whichever default the chosen model recommends.** |
 | `select` *(opt)* | `largest_face` | Which face is the subject. `largest_face`, `smallest_face`, `left_most`, `right_most`, `top_most`, `bottom_most`, `centre_most`, `closest_to_xy`, `detector_score`. See [Choosing which face](#choosing-which-face). |
-| `fallback_detector` *(opt)* | `none` | Used only on frames where the face detector finds nothing. A person/body model gives a real head position from the top of the body box, which beats interpolating blindly. |
+| `fallback_detector` *(opt)* | `none` | Used only on frames where the face detector finds nothing. A person/body model gives a real head position from the top of the body box, which beats interpolating blindly. With several people in frame it uses the body whose head lands nearest where the subject is expected. |
 | `fallback_head_frac` *(opt)* | `0.5` | Head centre as a multiple of face height below the top of the person box. 0.5 suits a head seen from behind. |
 | `select_index` *(opt)* | `0` | Which face in that ranking to track. `0` is the first, `1` the second, and so on. |
 | `identity_model` *(opt)* | `insightface` | Which model decides two faces are the same person. `insightface` for photographed faces, `clip_vision` or `ccip` for anime and other non-photographic material. See [Anime and other non-photographic material](#anime-and-other-non-photographic-material). |
@@ -481,10 +504,22 @@ emits a constant-size batch of crops plus the `transform` needed to paste result
 |---|---|
 | `crops` | `H3 Inject Video Latent` → `images`, and `H3 Face Mask (SAM)` → `crops` |
 | `transform` | `H3 Face Stitch Back`, `H3 Per-Frame Denoise`, `H3 Face Mask (SAM)` |
-| `preview` | Optional: a debug view of the tracked boxes |
-| `report` | Text summary: detections, gaps, magnification warnings |
+| `preview` | Optional: the video with the crop box drawn on every frame, colour-coded by how the subject was placed. See **Reading `preview`** below |
+| `report` | Text summary: detections, gaps, frames where the subject was lost, magnification warnings |
 | `canvas_w` / `canvas_h` | **Must** be wired to the H3 node's `width` / `height` |
 | `frame_count` | The number of frames actually **rendered**, which is fewer than the clip when `absent_shots` drops a shot. Wire to the H3 node's `length` so it follows the video |
+
+> **Reading `preview`.** Every frame carries the crop box, coloured by how the tracker placed it:
+>
+> | Colour | Meaning |
+> |---|---|
+> | green | the subject's face was detected on this frame and followed |
+> | yellow | no face was detected; the head was placed from the body box found by `fallback_detector` |
+> | red | no position for the subject on this frame - the face was not detected, or the subject was lost - so the box is interpolated from the frames either side |
+>
+> The composite fades out across yellow and red stretches, so those frames keep their original
+> pixels. With `select` = `closest_to_xy` and no `face_pick`, an amber crosshair also marks `X`, `Y`.
+> Saving `preview` as a video is the quickest way to check a track before spending a render on it.
 
 > **Wire the canvas, don't type it.** In the `auto_*` modes this node chooses the size. If the H3
 > node's `width`/`height` disagree, the latent shapes differ and injection refuses.
@@ -557,6 +592,15 @@ Whichever wins only decides *where each shot starts*. From there the subject is 
 continuity - the nearest box to where they were, penalised for size change - and the identity
 embedding is consulted only when two candidates are equally plausible or their boxes overlap.
 On a typical video that is a couple of frames out of hundreds, and the report counts them.
+
+**When the subject is lost.** In a shot with more than one face, continuity only carries the subject
+onto a face within about three quarters of their own face height of where they just were, a little
+more after a gap. When their face stops being detected and no face is within that reach, those
+frames are left unresolved rather than handed to whoever is nearest: the crop is interpolated across
+them, `preview` draws them red, the composite fades out so they keep their original pixels, and the
+report lists them on its `lost:` line. The subject is picked up again when a face reappears within
+reach of where they were lost. A subject who moves further than that while their face is hidden -
+walking behind someone and out the other side - is not followed to the new position.
 
 So a reference and a reviewed pick are not in conflict: the pick chooses the person, and the
 reference still anchors the tie-breaking.

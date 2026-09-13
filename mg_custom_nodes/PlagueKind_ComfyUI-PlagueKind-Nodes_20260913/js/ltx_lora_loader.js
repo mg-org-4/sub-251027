@@ -65,10 +65,14 @@ app.registerExtension({
         nodeType.prototype.onNodeCreated = function () {
             orig?.apply(this, arguments);
             const node = this;
-            const ROW_H = 40;
-            const BTN_H = 60;
+            // Real min height is driven by the DOM widget's own computeSize
+            // (set below, from container.scrollHeight) rather than a guessed
+            // row-count formula -- guessed heights drift from reality as soon
+            // as rows wrap (narrow nodes, mobile) and clip the container's
+            // bottom padding.
             function minHeight() {
-                return Math.max(MIN_SIZE[1], (slots.length * ROW_H) + BTN_H);
+                const natural = node.computeSize();
+                return Math.max(MIN_SIZE[1], natural[1]);
             }
             node.onResize = function (size) {
                 size[0] = Math.max(MIN_SIZE[0], size[0]);
@@ -107,9 +111,17 @@ app.registerExtension({
             } catch {}
             const container = document.createElement("div");
             Object.assign(container.style, {
-                display: "flex", flexDirection: "column", gap: "4px",
-                width: "100%", padding: "4px", boxSizing: "border-box",
-                fontFamily: "var(--font)", color: "var(--fg-color)"
+                display: "flex", flexDirection: "column", gap: "6px",
+                width: "100%", padding: "8px", boxSizing: "border-box",
+                fontFamily: "var(--font)", color: "var(--fg-color)",
+                // The overlay's bounding box can end up a few px off from
+                // where the canvas/header actually renders (most visible in
+                // ComfyUI's Vue-node mode, which offsets the node body by
+                // the header height in a way this DOM overlay isn't told
+                // about). Making empty container space click-through means
+                // that mismatch can never swallow a header/collapse click -
+                // only the actual controls (rows, add button) opt back in.
+                pointerEvents: "none"
             });
             const inputStyle = `
             background: var(--comfy-input-bg);
@@ -127,9 +139,28 @@ app.registerExtension({
                 _rafPending = true;
                 requestAnimationFrame(() => {
                     _rafPending = false;
-                    const targetH = Math.max(minHeight(), container.scrollHeight + 20);
+                    // node.computeSize() sums every widget's own computeSize(),
+                    // including uiWidget's below (real container.scrollHeight) --
+                    // so this always matches actual DOM content, not a guess.
+                    const natural = node.computeSize();
+                    // Always snap to what the content actually needs (not
+                    // Math.max'd against the node's current size) - that's
+                    // what lets removing a row shrink the node back down
+                    // instead of only ever being able to grow.
+                    const targetH = Math.max(MIN_SIZE[1], natural[1]);
                     node.setSize([Math.max(node.size[0], MIN_SIZE[0]), targetH]);
+                    (app.canvas || node.graph?.list_of_graphcanvas?.[0])?.setDirty(true, true);
                 });
+            }
+            // On workflow load, _origConfigure applies whatever size was
+            // last saved (which can be stale/oversized) and this runs once
+            // to correct it - but if that single pass lands before the
+            // node's real layout has settled, the wrong value just sticks
+            // with nothing to re-check it. This adds a delayed second pass
+            // as a safety net for that race.
+            function scheduleResize() {
+                syncSize();
+                setTimeout(syncSize, 50);
             }
             function refreshAllDisplayNames() {
                 for (const s of slots) s.refreshDisplayName?.();
@@ -328,7 +359,7 @@ app.registerExtension({
                 // so a stale/partial row doesn't silently default a slider to 0
                 data = { on: true, lora: "None", str: 1.0, v: 1.0, a: 1.0, t: 1.0, ...data };
                 const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;min-height:28px;background:var(--comfy-menu-bg);padding:4px;border-radius:4px;border:1px solid var(--border-color);transition:all 0.15s ease;box-sizing:border-box;";
+                row.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;min-height:28px;background:var(--comfy-menu-bg);padding:4px;border-radius:4px;border:1px solid var(--border-color);transition:all 0.15s ease;box-sizing:border-box;pointer-events:auto;";
 
                 const handle = document.createElement("div");
                 handle.textContent = "⋮";
@@ -566,7 +597,7 @@ app.registerExtension({
             }
             const addBtn = document.createElement("button");
             addBtn.textContent = "＋ Add LoRA";
-            addBtn.style.cssText = inputStyle + "width:100%;cursor:pointer;font-weight:bold;transition:all 0.1s ease;";
+            addBtn.style.cssText = inputStyle + "width:100%;cursor:pointer;font-weight:bold;transition:all 0.1s ease;pointer-events:auto;";
 
             addBtn.addEventListener("mouseenter", () => {
                 addBtn.style.background = "var(--comfy-menu-bg)";
@@ -579,9 +610,21 @@ app.registerExtension({
 
             addBtn.onclick = () => addSlot();
             container.appendChild(addBtn);
-            node.addDOMWidget("lora_ui", "HTML", container);
+            const uiWidget = node.addDOMWidget("lora_ui", "HTML", container);
+            // Without this, LiteGraph reserves its default ~fixed slot height
+            // for the widget and node.computeSize() never reflects the real
+            // content -- that's what was clipping the bottom padding and
+            // making the node refuse to grow/shrink with the row count.
+            uiWidget.computeSize = (width) => {
+                // Mirror the same "-4 hides it" trick already used for
+                // stackWidget above: when the node is collapsed, report a
+                // near-zero size so the DOM overlay actually disappears
+                // instead of hanging below the collapsed title bar.
+                if (node.flags?.collapsed) return [width, -4];
+                return [width, container.scrollHeight + 4];
+            };
             initialData.forEach(d => addSlot(d));
-            requestAnimationFrame(syncSize);
+            scheduleResize();
             const _origConfigure = node.configure;
             node.configure = function (data) {
                 if (_origConfigure) _origConfigure.call(node, data);
@@ -592,7 +635,7 @@ app.registerExtension({
                     if (stackWidget) stackWidget.value = raw;
                     JSON.parse(raw).forEach(d => addSlot(d));
                 } catch {}
-                requestAnimationFrame(syncSize);
+                scheduleResize();
             };
         };
     }

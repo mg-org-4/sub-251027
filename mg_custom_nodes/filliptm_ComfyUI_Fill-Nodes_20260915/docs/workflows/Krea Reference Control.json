@@ -1,0 +1,1400 @@
+{
+  "id": "5bd60493-e0d7-4989-9741-0545a2fbcc98",
+  "revision": 0,
+  "last_node_id": 75,
+  "last_link_id": 129,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        0,
+        -240
+      ],
+      "size": [
+        330,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "unet_name",
+          "name": "unet_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "unet_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "weight_dtype",
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            117,
+            122
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "unet_name": true,
+            "weight_dtype": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "krea2_turbo_fp8_scaled.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+        "weight_dtype": "default"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        1250,
+        570
+      ],
+      "size": [
+        300,
+        65
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "samples",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 128
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        740,
+        -240
+      ],
+      "size": [
+        330,
+        82
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "vae_name",
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "VAE",
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "vae_name": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen\\qwen_image_vae.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "qwen\\qwen_image_vae.safetensors"
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 6,
+      "type": "EmptyLatentImage",
+      "pos": [
+        790,
+        840
+      ],
+      "size": [
+        325,
+        115
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "batch_size",
+          "name": "batch_size",
+          "type": "INT",
+          "widget": {
+            "name": "batch_size"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            127
+          ]
+        }
+      ],
+      "title": "Empty Latent",
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "width": true,
+            "height": true,
+            "batch_size": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        1024,
+        1536,
+        1
+      ],
+      "widgets_values_named": {
+        "width": 1024,
+        "height": 1536,
+        "batch_size": 1
+      },
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 26,
+      "type": "PreviewImage",
+      "pos": [
+        1600,
+        0
+      ],
+      "size": [
+        560,
+        850
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        360,
+        -240
+      ],
+      "size": [
+        330,
+        112
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip_name",
+          "name": "clip_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type",
+          "name": "type",
+          "type": "COMBO",
+          "widget": {
+            "name": "type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "device",
+          "name": "device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            118
+          ]
+        }
+      ],
+      "title": "Load Text Encoder",
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "clip_name": true,
+            "type": true,
+            "device": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen3vl_4b_fp8_scaled.safetensors",
+        "krea2",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+        "type": "krea2",
+        "device": "default"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 17,
+      "type": "LoadImage",
+      "pos": [
+        0,
+        310
+      ],
+      "size": [
+        310,
+        390
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "choose file to upload",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            115
+          ]
+        },
+        {
+          "localized_name": "MASK",
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "title": "REFERENCE A ? illustration style",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "39608cb44de598af983ead19b19b92f9.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "39608cb44de598af983ead19b19b92f9.jpg",
+        "upload": "image"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 66,
+      "type": "LoadImage",
+      "pos": [
+        0,
+        800
+      ],
+      "size": [
+        310,
+        430
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "choose file to upload",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            129
+          ]
+        },
+        {
+          "localized_name": "MASK",
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "title": "REFERENCE B ? palette",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "30e68d82475b606908f9c17de48fc024.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "30e68d82475b606908f9c17de48fc024.jpg",
+        "upload": "image"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 21,
+      "type": "FL_PromptBasic",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        690,
+        230
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "prepend",
+          "name": "prepend",
+          "type": "STRING",
+          "widget": {
+            "name": "prepend"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "append",
+          "name": "append",
+          "type": "STRING",
+          "widget": {
+            "name": "append"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "STRING",
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            119
+          ]
+        }
+      ],
+      "title": "SCENE — describe the image you want",
+      "properties": {
+        "Node name for S&R": "FL_PromptBasic",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "a women sitting on a park bench eating ice cream",
+        "",
+        ""
+      ],
+      "widgets_values_named": {
+        "prepend": "a women sitting on a park bench eating ice cream",
+        "prompt": "",
+        "append": ""
+      },
+      "color": "#16727c",
+      "bgcolor": "#4F0074"
+    },
+    {
+      "id": 68,
+      "type": "FL_KreaReference",
+      "pos": [
+        355,
+        310
+      ],
+      "size": [
+        365,
+        390
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 115
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "role",
+          "name": "role",
+          "type": "COMBO",
+          "widget": {
+            "name": "role"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "weight",
+          "name": "weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "resolution",
+          "name": "resolution",
+          "type": "COMBO",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "start",
+          "name": "start",
+          "type": "FLOAT",
+          "widget": {
+            "name": "start"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "end",
+          "name": "end",
+          "type": "FLOAT",
+          "widget": {
+            "name": "end"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "fade",
+          "name": "fade",
+          "type": "FLOAT",
+          "widget": {
+            "name": "fade"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "reference_mode",
+          "name": "reference_mode",
+          "type": "COMBO",
+          "widget": {
+            "name": "reference_mode"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "reference",
+          "name": "reference",
+          "type": "FL_KREA_REFERENCE",
+          "links": [
+            120
+          ]
+        }
+      ],
+      "title": "A — linework and texture",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "Node name for S&R": "FL_KreaReference"
+      },
+      "widgets_values": [
+        true,
+        "style",
+        1,
+        512,
+        0,
+        1,
+        0,
+        "context"
+      ],
+      "widgets_values_named": {
+        "enabled": true,
+        "role": "style",
+        "weight": 1,
+        "resolution": 512,
+        "start": 0,
+        "end": 1,
+        "fade": 0,
+        "reference_mode": "context"
+      },
+      "color": "#233b40",
+      "bgcolor": "#304e54"
+    },
+    {
+      "id": 69,
+      "type": "FL_KreaReference",
+      "pos": [
+        355,
+        800
+      ],
+      "size": [
+        365,
+        390
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 129
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "role",
+          "name": "role",
+          "type": "COMBO",
+          "widget": {
+            "name": "role"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "weight",
+          "name": "weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "resolution",
+          "name": "resolution",
+          "type": "COMBO",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "start",
+          "name": "start",
+          "type": "FLOAT",
+          "widget": {
+            "name": "start"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "end",
+          "name": "end",
+          "type": "FLOAT",
+          "widget": {
+            "name": "end"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "fade",
+          "name": "fade",
+          "type": "FLOAT",
+          "widget": {
+            "name": "fade"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "reference_mode",
+          "name": "reference_mode",
+          "type": "COMBO",
+          "widget": {
+            "name": "reference_mode"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "reference",
+          "name": "reference",
+          "type": "FL_KREA_REFERENCE",
+          "links": [
+            121
+          ]
+        }
+      ],
+      "title": "B — palette only",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "Node name for S&R": "FL_KreaReference"
+      },
+      "widgets_values": [
+        true,
+        "palette",
+        0.5,
+        512,
+        0,
+        1,
+        0,
+        "context"
+      ],
+      "widgets_values_named": {
+        "enabled": true,
+        "role": "palette",
+        "weight": 0.5,
+        "resolution": 512,
+        "start": 0,
+        "end": 1,
+        "fade": 0,
+        "reference_mode": "context"
+      },
+      "color": "#233b40",
+      "bgcolor": "#304e54"
+    },
+    {
+      "id": 70,
+      "type": "FL_KreaReferenceGuider",
+      "pos": [
+        790,
+        0
+      ],
+      "size": [
+        395,
+        280
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 117
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 118
+        },
+        {
+          "label": "reference_0",
+          "localized_name": "references.reference_0",
+          "name": "references.reference_0",
+          "shape": 7,
+          "type": "FL_KREA_REFERENCE",
+          "link": 120
+        },
+        {
+          "label": "reference_1",
+          "localized_name": "references.reference_1",
+          "name": "references.reference_1",
+          "shape": 7,
+          "type": "FL_KREA_REFERENCE",
+          "link": 121
+        },
+        {
+          "label": "reference_2",
+          "localized_name": "references.reference_2",
+          "name": "references.reference_2",
+          "shape": 7,
+          "type": "FL_KREA_REFERENCE",
+          "link": null
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 119
+        },
+        {
+          "localized_name": "influence",
+          "name": "influence",
+          "type": "FLOAT",
+          "widget": {
+            "name": "influence"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "GUIDER",
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            124
+          ]
+        }
+      ],
+      "title": "REFERENCE MIX — start here",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "Node name for S&R": "FL_KreaReferenceGuider"
+      },
+      "widgets_values": [
+        "",
+        0.7
+      ],
+      "widgets_values_named": {
+        "prompt": "",
+        "influence": 0.7
+      },
+      "color": "#233b40",
+      "bgcolor": "#304e54"
+    },
+    {
+      "id": 71,
+      "type": "RandomNoise",
+      "pos": [
+        790,
+        370
+      ],
+      "size": [
+        325,
+        90
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "noise_seed",
+          "name": "noise_seed",
+          "type": "INT",
+          "widget": {
+            "name": "noise_seed"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "NOISE",
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            123
+          ]
+        }
+      ],
+      "title": "FIXED SEED — compare settings",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "Node name for S&R": "RandomNoise"
+      },
+      "widgets_values": [
+        193328989555475,
+        "fixed"
+      ],
+      "widgets_values_named": {
+        "noise_seed": 193328989555475,
+        "control_after_generate": "fixed"
+      },
+      "color": "#233b40",
+      "bgcolor": "#304e54"
+    },
+    {
+      "id": 72,
+      "type": "BasicScheduler",
+      "pos": [
+        790,
+        520
+      ],
+      "size": [
+        325,
+        130
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 122
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "SIGMAS",
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            126
+          ]
+        }
+      ],
+      "title": "KREA TURBO — 8 steps",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "Node name for S&R": "BasicScheduler"
+      },
+      "widgets_values": [
+        "simple",
+        8,
+        1
+      ],
+      "widgets_values_named": {
+        "scheduler": "simple",
+        "steps": 8,
+        "denoise": 1
+      },
+      "color": "#233b40",
+      "bgcolor": "#304e54"
+    },
+    {
+      "id": 73,
+      "type": "KSamplerSelect",
+      "pos": [
+        790,
+        710
+      ],
+      "size": [
+        325,
+        60
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "sampler_name",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "SAMPLER",
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            125
+          ]
+        }
+      ],
+      "title": "EULER",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler"
+      ],
+      "widgets_values_named": {
+        "sampler_name": "euler"
+      },
+      "color": "#233b40",
+      "bgcolor": "#304e54"
+    },
+    {
+      "id": 74,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        1250,
+        350
+      ],
+      "size": [
+        300,
+        150
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "noise",
+          "name": "noise",
+          "type": "NOISE",
+          "link": 123
+        },
+        {
+          "localized_name": "guider",
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 124
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 125
+        },
+        {
+          "localized_name": "sigmas",
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 126
+        },
+        {
+          "localized_name": "latent_image",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 127
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "output",
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            128
+          ]
+        },
+        {
+          "localized_name": "denoised_output",
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "title": "GENERATE — independent references",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "Node name for S&R": "SamplerCustomAdvanced"
+      },
+      "color": "#233b40",
+      "bgcolor": "#304e54"
+    },
+    {
+      "id": 75,
+      "type": "MarkdownNote",
+      "pos": [
+        1250,
+        740
+      ],
+      "size": [
+        310,
+        425
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "REFERENCE CONTROLS",
+      "properties": {},
+      "widgets_values": [
+        "## Start\nEdit SCENE and keep the seed fixed. Run.\n\n**Influence** controls the total reference effect. **Weight** controls each reference’s strength (0.05 = 5%, 1 = full before Influence). Strengths add without normalization. Disable B to test A alone.\n\n**Context** reduces copied layouts by keeping image-informed text states. **Full** also supplies visual tokens for stronger resemblance. Neither guarantees identity or grid removal.\n\nAdd another FL Krea Reference and connect it to the next growing socket.\n\nTwo references usually take three model evaluations per sampling evaluation.\n\nAdvanced: start/end use full diffusion progress; fade softens their edges."
+      ],
+      "widgets_values_named": {
+        "text": "## Start\nEdit SCENE and keep the seed fixed. Run.\n\n**Influence** controls the total reference effect. **Weight** controls each reference’s share. Disable B to test A alone.\n\n**Context** reduces copied layouts by keeping image-informed text states. **Full** also supplies visual tokens for stronger resemblance. Neither guarantees identity or grid removal.\n\nAdd another FL Krea Reference and connect it to the next growing socket.\n\nTwo references usually take three model evaluations per sampling evaluation.\n\nAdvanced: start/end use full diffusion progress; fade softens their edges."
+      },
+      "color": "#233b40",
+      "bgcolor": "#304e54"
+    }
+  ],
+  "links": [
+    [
+      8,
+      3,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      21,
+      8,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ],
+    [
+      115,
+      17,
+      0,
+      68,
+      0,
+      "IMAGE"
+    ],
+    [
+      117,
+      1,
+      0,
+      70,
+      0,
+      "MODEL"
+    ],
+    [
+      118,
+      2,
+      0,
+      70,
+      1,
+      "CLIP"
+    ],
+    [
+      119,
+      21,
+      0,
+      70,
+      5,
+      "STRING"
+    ],
+    [
+      120,
+      68,
+      0,
+      70,
+      2,
+      "FL_KREA_REFERENCE"
+    ],
+    [
+      121,
+      69,
+      0,
+      70,
+      3,
+      "FL_KREA_REFERENCE"
+    ],
+    [
+      122,
+      1,
+      0,
+      72,
+      0,
+      "MODEL"
+    ],
+    [
+      123,
+      71,
+      0,
+      74,
+      0,
+      "NOISE"
+    ],
+    [
+      124,
+      70,
+      0,
+      74,
+      1,
+      "GUIDER"
+    ],
+    [
+      125,
+      73,
+      0,
+      74,
+      2,
+      "SAMPLER"
+    ],
+    [
+      126,
+      72,
+      0,
+      74,
+      3,
+      "SIGMAS"
+    ],
+    [
+      127,
+      6,
+      0,
+      74,
+      4,
+      "LATENT"
+    ],
+    [
+      128,
+      74,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      129,
+      66,
+      0,
+      69,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5,
+      "offset": [
+        160,
+        520
+      ]
+    },
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "frontendVersion": "1.45.20",
+    "VHS_latentpreview": true,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

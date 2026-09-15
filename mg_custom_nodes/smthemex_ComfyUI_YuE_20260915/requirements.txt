@@ -1,0 +1,10 @@
+torch
+omegaconf
+torchaudio
+einops
+numpy
+transformers
+sentencepiece
+tqdm
+mir_eval
+pretty_midi

@@ -747,7 +747,7 @@
         "name": "模型"
       },
       "preset": {
-        "name": "加速档位预设"
+        "name": "加速方式"
       }
     },
     "outputs": {
@@ -763,7 +763,7 @@
         "name": "模型"
       },
       "sage_preset": {
-        "name": "Sage加速模式"
+        "name": "加速方式"
       },
       "blocks_to_swap": {
         "name": "模型分块数量"
@@ -5821,6 +5821,37 @@
       "2": {
         "name": "提示词"
       }
+    }
+  },
+  "XB_ImagePromptPreset": {
+    "display_name": "XB-BOX - 🖼️ 生图提示词预设",
+    "inputs": {
+      "output_lang": { "name": "输出语言" },
+      "preset_mode": { "name": "预设模式" },
+      "latent_kind": { "name": "空latent类型" },
+      "three_view_text": { "name": "人物三视图预设句" },
+      "aspect_ratio": { "name": "画幅比例" },
+      "width": { "name": "宽度" },
+      "height": { "name": "高度" },
+      "batch_size": { "name": "生成数量" },
+      "internal_prompt": { "name": "节点内提示词" },
+      "manager_settings": { "name": "节点配置" }
+    },
+    "outputs": {
+      "0": { "name": "提示词" },
+      "1": { "name": "空latent" }
+    }
+  },
+  "XB_PlaySound": {
+    "display_name": "XB-BOX - 🔊 播放声音",
+    "inputs": {
+      "any": { "name": "任意输入" },
+      "mode": { "name": "播放模式" },
+      "volume": { "name": "音量" },
+      "file": { "name": "声音文件" }
+    },
+    "outputs": {
+      "0": { "name": "任意输出" }
     }
   }
 }

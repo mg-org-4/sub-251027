@@ -2,7 +2,15 @@
 XB_Sage_BlockSwap — Sage + 分块 黄金搭档
 
 将 XB_SageAttentionAccelerator（Sage注意力加速）与 XB_UNetBlockSwap（物理分块交换）
-合并为一个节点，实现两个节点串联的效果：先挂载 Sage 加速补丁，再做分块显存优化。
+合并为一个节点，实现两个节点串联的效果：先挂载注意力加速补丁，再做分块显存优化。
+
+加速方式:
+  - 关闭:                   仅分块不加速
+  - 自动:                   KJNodes auto 逻辑 (sageattn 默认参数)
+  - pytorch attention:      融合官方 ModelAttentionBackend — 原生 SDPA
+  - comfy kitchen attention: 融合官方 ModelAttentionBackend — INT8 量化注意力
+  - Nvidia-Sage / AMD-RDNA4-Sage 2.2:  KJNodes auto 逻辑
+  - 内置模式 A~D / 自定模式 A~C:        自定义 sage_config 参数
 """
 
 import gc
@@ -73,6 +81,9 @@ class XB_Sage_BlockSwap:
         "自定模式 C (机智启动器)": {'M': 64,  'N': 128, 'GROUP': 96, 'WAVE': 2, 'WARP': 2, 'NSTAGES': 1},
     }
 
+    # 融合官方 ModelAttentionBackend 的两个后端
+    _OFFICIAL_BACKENDS = ("pytorch attention", "comfy kitchen attention")
+
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -81,6 +92,8 @@ class XB_Sage_BlockSwap:
                 "sage_preset": ([
                     "关闭",
                     "自动",
+                    "pytorch attention",
+                    "comfy kitchen attention",
                     "Nvidia-Sage",
                     "AMD-RDNA4-Sage 2.2",
                     "内置模式 A (128x128x32)",
@@ -90,7 +103,7 @@ class XB_Sage_BlockSwap:
                     "自定模式 A (机智启动器)",
                     "自定模式 B (机智启动器)",
                     "自定模式 C (机智启动器)",
-                ], {"default": "关闭", "tooltip": "SageAttention 加速模式。关闭=仅分块不加速。"}),
+                ], {"default": "关闭", "tooltip": "注意力加速方式。关闭=仅分块不加速。\npytorch attention / comfy kitchen attention 融合官方 ModelAttentionBackend 节点。"}),
                 "blocks_to_swap": ("INT", {
                     "default": 10,
                     "min": 0,
@@ -212,10 +225,38 @@ class XB_Sage_BlockSwap:
             return model
 
     def _do_sage_patch(self, model: ModelPatcher, preset: str) -> ModelPatcher:
+        # 融合官方 ModelAttentionBackend
+        if preset in self._OFFICIAL_BACKENDS:
+            return self._sage_official_backend(model, preset)
         if preset in ("自动", "Nvidia-Sage", "AMD-RDNA4-Sage 2.2"):
             return self._sage_auto_mode(model)
         else:
             return self._sage_config_mode(model, preset)
+
+    # ── 融合官方 ModelAttentionBackend ──
+
+    def _sage_official_backend(self, model: ModelPatcher, preset: str) -> ModelPatcher:
+        """融合官方 ModelAttentionBackend 节点 (pytorch / comfy kitchen attention)。"""
+        import comfy.ldm.modules.attention as attn_mod
+
+        backend_name = "comfy_kitchen_int8" if preset == "comfy kitchen attention" else "pytorch"
+        attention_function = attn_mod.get_attention_function(backend_name, None)
+
+        if attention_function is None:
+            print(f"\033[93m[XB Sage+分块]\033[0m: '{preset}' 当前不可用 "
+                  f"(需 Nvidia/AMD GPU 且安装 comfy_kitchen)，已回退 pytorch attention")
+            attention_function = attn_mod.get_attention_function("pytorch")
+            preset = "pytorch attention (回退)"
+
+        m = model.clone()
+        if "transformer_options" not in m.model_options:
+            m.model_options["transformer_options"] = {}
+        # 必须用官方 setter: 它会正确传递 container_function (INT8 kernel 依赖)
+        m.set_model_optimized_attention(attention_function)
+
+        print(f"\033[96m[XB Sage+分块]\033[0m: 注意力引擎切换至 \033[92m{preset}\033[0m "
+              f"(官方 ModelAttentionBackend)")
+        return m
 
     # ── 自动模式（KJNodes auto 逻辑） ──
 

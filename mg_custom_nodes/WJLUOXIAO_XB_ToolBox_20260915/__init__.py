@@ -155,12 +155,20 @@ try:
     from .cosyvoice3.nodes.speaker_clone import XB_CosyVoice3_SpeakerClone
     from .cosyvoice3.nodes.speaker_instruct2 import XB_CosyVoice3_SpeakerInstruct2
 
+    # ── 生图提示词预设（提示词 + 空latent 一体化）──
+    from .nodes_image_prompt_preset import XB_ImagePromptPreset
+
+    # ── 播放声音（复刻 pysssss PlaySound，自带音频资源）──
+    from .nodes_play_sound import XB_PlaySound
+
     NODE_CLASS_MAPPINGS = { 
         "XB_VRAM_Calculator": XB_VRAM_Calculator,
         "XB_ChunkVisualization": XB_ChunkVisualization,
         "XTX_Data_Radar": XTX_Data_Radar,
         "XB_VideoParamsMaster": XB_VideoParamsMaster,
         "XB_ImageParamsMaster": XB_ImageParamsMaster, 
+        "XB_ImagePromptPreset": XB_ImagePromptPreset,
+        "XB_PlaySound": XB_PlaySound,
         "XB_MasterParameter": XB_MasterParameter,
         "XB_VideoLoader": XB_VideoLoader,
         "XB_VideoCombine": XB_VideoCombine,
@@ -327,6 +335,8 @@ try:
         "XTX_Data_Radar": "XB-BOX - Data Radar",
         "XB_VideoParamsMaster": "XB-BOX - Video Params Master", 
         "XB_ImageParamsMaster": "XB-BOX - Image Params Master",
+        "XB_ImagePromptPreset": "XB-BOX - Image Prompt Preset",
+        "XB_PlaySound": "XB-BOX - 🔊 播放声音",
         "XB_MasterParameter": "XB-BOX - Master Parameter",
         "XB_VideoLoader": "XB-BOX - 🎬 视频加载器（修复预览BUG）",
         "XB_VideoCombine": "XB-BOX - 🎬 视频拼接输出",

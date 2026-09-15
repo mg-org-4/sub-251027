@@ -343,5 +343,24 @@
   },
   "XB_RoleSceneDispatcher": {
     "display_name": "XB-llama - 🎬 Role Scene Dispatcher"
+  },
+  "XB_ImagePromptPreset": {
+    "display_name": "XB-BOX - 🖼️ Image Prompt Preset",
+    "inputs": {
+      "output_lang": { "name": "Output Language" },
+      "preset_mode": { "name": "Preset Mode" },
+      "latent_kind": { "name": "Empty Latent Type" },
+      "three_view_text": { "name": "3-View Preset Text" },
+      "aspect_ratio": { "name": "Aspect Ratio" },
+      "width": { "name": "Width" },
+      "height": { "name": "Height" },
+      "batch_size": { "name": "Batch Size" },
+      "internal_prompt": { "name": "Internal Prompt" },
+      "manager_settings": { "name": "Node Config" }
+    },
+    "outputs": {
+      "0": { "name": "Prompt" },
+      "1": { "name": "Empty Latent" }
+    }
   }
 }

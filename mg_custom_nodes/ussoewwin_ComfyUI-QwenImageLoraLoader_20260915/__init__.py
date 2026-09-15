@@ -2,7 +2,7 @@ import logging
 import os
 
 # Version information - must be at module level for ComfyUI Manager
-__version__ = "2.6.2"
+__version__ = "2.6.4"
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -67,15 +67,19 @@ except Exception as e:
     logger.error(f"Error importing/applying Nunchaku monkey patch: {e}")
 # -----------------------------------------
 
-# --- SAM3 segmentation-head scalp patch (upstream PR #15979 parity) ---
+# --- rgthree logo route guard (self-defense until rgthree-comfy#763 lands) ---
 try:
-    from .patches.sam3_seg_features_scalp_patch import apply_sam3_seg_features_scalp_patch
-    if apply_sam3_seg_features_scalp_patch():
-        logger.info("Applied SAM3 seg_features scalp patch (empty-mask fix).")
+    from .patches.rgthree_logo_route_guard import apply_rgthree_logo_guard
+    if apply_rgthree_logo_guard():
+        logger.info("Applied rgthree logo route guard (non-SVG payloads use the bundled logo).")
     else:
-        logger.debug("SAM3 seg_features scalp patch not applied (SAM3 not available).")
+        logger.debug(
+            "rgthree logo route guard: rgthree-comfy not loaded yet; retrying at every prompt."
+        )
 except Exception as e:
-    logger.debug(f"Error importing/applying SAM3 seg_features scalp patch: {e}")
+    logger.debug(f"Error importing/applying rgthree logo route guard: {e}")
+# -----------------------------------------
+
 # -----------------------------------------
 
 # Nunchaku-dependent LoRA nodes are registered only when nunchaku is available

@@ -265,6 +265,9 @@ const DEFAULT_MINIMAX_H3_SETTINGS = {
   two_pass_latent_upscale_scale: 2,
   two_pass_latent_upscaler_name: "minimax_h3_latent_upscaler_3d_bf16.safetensors",
   two_pass_use_te_speed: true,
+  two_pass_use_feedforward: false,
+  two_pass_use_block_sparse_attention: false,
+  two_pass_use_fast_vae_decode: false,
   two_pass_te_speed_processing_control: 0.07,
   two_pass_te_speed_start_percent: 0.1,
   two_pass_te_speed_end_percent: 0.9,
@@ -308,23 +311,23 @@ const DEFAULT_MINIMAX_H3_SETTINGS = {
   three_pass_pass3_scheduler: "beta",
   three_pass_pass3_seed: 69,
   three_pass_pass3_te_speed: false,
-  advanced_two_pass_vram_preset: "12gb",
-  advanced_two_pass_defaults_version: 2,
+  advanced_two_pass_vram_preset: "custom",
+  advanced_two_pass_defaults_version: 3,
   advanced_two_pass_tile_size_mode: "rows_cols",
   advanced_two_pass_tile_width: 512,
   advanced_two_pass_tile_height: 512,
   advanced_two_pass_grid_rows: 3,
   advanced_two_pass_grid_cols: 5,
-  advanced_two_pass_chunk_length: 85,
+  advanced_two_pass_chunk_length: 272,
   advanced_two_pass_temporal_overlap: 17,
   advanced_two_pass_anchor_strength: 0.999,
   advanced_two_pass_spatial_w_overlap: 128,
   advanced_two_pass_spatial_h_overlap: 128,
-  advanced_two_pass_fade_width: 64,
-  advanced_two_pass_fade_height: 64,
+  advanced_two_pass_fade_width: 160,
+  advanced_two_pass_fade_height: 128,
   advanced_two_pass_min_tile_size: 256,
-  advanced_two_pass_overlap_mode: "later",
-  advanced_two_pass_overlap_blend: "linear",
+  advanced_two_pass_overlap_mode: "earlier",
+  advanced_two_pass_overlap_blend: "smoothstep",
   advanced_two_pass_upscaler_device: "cuda",
   advanced_two_pass_upscaler_precision: "bf16",
   advanced_two_pass_pass1_megapixels: 0.4,
@@ -464,7 +467,26 @@ function normalizeMiniMaxH3VideoPurpose(value) {
 function cloneMiniMaxH3Settings(value = {}) {
   const source = value && typeof value === "object" ? value : {};
   const hasCurrentTwoPassDefaults = Number(source.two_pass_defaults_version || 0) >= 1;
-  const hasCurrentAdvancedTwoPassDefaults = Number(source.advanced_two_pass_defaults_version || 0) >= 2;
+  const hasCurrentAdvancedTwoPassDefaults = Number(source.advanced_two_pass_defaults_version || 0) >= 3;
+  const legacyAdvancedDefaults = {
+    advanced_two_pass_vram_preset: "12gb",
+    advanced_two_pass_tile_size_mode: "rows_cols",
+    advanced_two_pass_chunk_length: 85,
+    advanced_two_pass_temporal_overlap: 17,
+    advanced_two_pass_anchor_strength: 0.999,
+    advanced_two_pass_spatial_w_overlap: 128,
+    advanced_two_pass_spatial_h_overlap: 128,
+    advanced_two_pass_fade_width: 64,
+    advanced_two_pass_fade_height: 64,
+    advanced_two_pass_min_tile_size: 256,
+    advanced_two_pass_overlap_mode: "later",
+    advanced_two_pass_overlap_blend: "linear",
+  };
+  const shouldMigrateLegacyAdvancedDefaults = !hasCurrentAdvancedTwoPassDefaults
+    && Object.entries(legacyAdvancedDefaults).every(([key, value]) => (
+      source[key] == null || String(source[key]) === String(value)
+    ));
+  const advancedSource = shouldMigrateLegacyAdvancedDefaults ? {} : source;
   const sourceLoras = Array.isArray(source.loras)
     ? source.loras
     : Array.from({ length: 4 }, (_, index) => ({
@@ -538,6 +560,9 @@ function cloneMiniMaxH3Settings(value = {}) {
       : DEFAULT_MINIMAX_H3_SETTINGS.two_pass_latent_upscale_scale))),
     two_pass_latent_upscaler_name: String(source.two_pass_latent_upscaler_name || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_latent_upscaler_name),
     two_pass_use_te_speed: Boolean(source.two_pass_use_te_speed ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_use_te_speed),
+    two_pass_use_feedforward: Boolean(source.two_pass_use_feedforward ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_use_feedforward),
+    two_pass_use_block_sparse_attention: Boolean(source.two_pass_use_block_sparse_attention ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_use_block_sparse_attention),
+    two_pass_use_fast_vae_decode: Boolean(source.two_pass_use_fast_vae_decode ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_use_fast_vae_decode),
     two_pass_te_speed_processing_control: Math.max(0, Math.min(1, Number(source.two_pass_te_speed_processing_control ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_te_speed_processing_control))),
     two_pass_te_speed_start_percent: Math.max(0, Math.min(1, Number(source.two_pass_te_speed_start_percent ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_te_speed_start_percent))),
     two_pass_te_speed_end_percent: Math.max(0, Math.min(1, Number(source.two_pass_te_speed_end_percent ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_te_speed_end_percent))),
@@ -546,29 +571,29 @@ function cloneMiniMaxH3Settings(value = {}) {
     two_pass_te_speed_device: String(source.two_pass_te_speed_device || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_te_speed_device),
     two_pass_final_resize_method: String(source.two_pass_final_resize_method || DEFAULT_MINIMAX_H3_SETTINGS.two_pass_final_resize_method),
     two_pass_output_crf: Math.max(0, Math.min(100, Math.trunc(Number(source.two_pass_output_crf ?? DEFAULT_MINIMAX_H3_SETTINGS.two_pass_output_crf)))),
-    advanced_two_pass_vram_preset: ["8gb", "12gb", "16gb", "24gb", "custom"].includes(String(source.advanced_two_pass_vram_preset || "").toLowerCase())
-      ? String(source.advanced_two_pass_vram_preset).toLowerCase()
+    advanced_two_pass_vram_preset: ["8gb", "12gb", "16gb", "24gb", "custom"].includes(String(advancedSource.advanced_two_pass_vram_preset || "").toLowerCase())
+      ? String(advancedSource.advanced_two_pass_vram_preset).toLowerCase()
       : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_vram_preset,
-    advanced_two_pass_tile_size_mode: ["specific_size", "rows_cols"].includes(String(source.advanced_two_pass_tile_size_mode || "").toLowerCase())
-      ? String(source.advanced_two_pass_tile_size_mode).toLowerCase()
+    advanced_two_pass_tile_size_mode: ["specific_size", "rows_cols"].includes(String(advancedSource.advanced_two_pass_tile_size_mode || "").toLowerCase())
+      ? String(advancedSource.advanced_two_pass_tile_size_mode).toLowerCase()
       : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_tile_size_mode,
-    advanced_two_pass_tile_width: Math.max(32, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_tile_width ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_tile_width)))),
-    advanced_two_pass_tile_height: Math.max(32, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_tile_height ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_tile_height)))),
-    advanced_two_pass_grid_rows: Math.max(1, Math.min(9, Math.trunc(Number(source.advanced_two_pass_grid_rows ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_grid_rows)))),
-    advanced_two_pass_grid_cols: Math.max(1, Math.min(9, Math.trunc(Number(source.advanced_two_pass_grid_cols ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_grid_cols)))),
-    advanced_two_pass_chunk_length: Math.max(17, Math.min(100000, Math.trunc(Number(source.advanced_two_pass_chunk_length ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_chunk_length)))),
-    advanced_two_pass_temporal_overlap: Math.max(0, Math.min(100000, Math.trunc(Number(source.advanced_two_pass_temporal_overlap ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_temporal_overlap)))),
-    advanced_two_pass_anchor_strength: Math.max(0, Math.min(1, Number(source.advanced_two_pass_anchor_strength ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_anchor_strength))),
-    advanced_two_pass_spatial_w_overlap: Math.max(0, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_spatial_w_overlap ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_spatial_w_overlap)))),
-    advanced_two_pass_spatial_h_overlap: Math.max(0, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_spatial_h_overlap ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_spatial_h_overlap)))),
-    advanced_two_pass_fade_width: Math.max(0, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_fade_width ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_fade_width)))),
-    advanced_two_pass_fade_height: Math.max(0, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_fade_height ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_fade_height)))),
-    advanced_two_pass_min_tile_size: Math.max(0, Math.min(16384, Math.trunc(Number(source.advanced_two_pass_min_tile_size ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_min_tile_size)))),
-    advanced_two_pass_overlap_mode: ["earlier", "later"].includes(String(source.advanced_two_pass_overlap_mode || "").toLowerCase())
-      ? String(source.advanced_two_pass_overlap_mode).toLowerCase()
+    advanced_two_pass_tile_width: Math.max(32, Math.min(16384, Math.trunc(Number(advancedSource.advanced_two_pass_tile_width ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_tile_width)))),
+    advanced_two_pass_tile_height: Math.max(32, Math.min(16384, Math.trunc(Number(advancedSource.advanced_two_pass_tile_height ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_tile_height)))),
+    advanced_two_pass_grid_rows: Math.max(1, Math.min(9, Math.trunc(Number(advancedSource.advanced_two_pass_grid_rows ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_grid_rows)))),
+    advanced_two_pass_grid_cols: Math.max(1, Math.min(9, Math.trunc(Number(advancedSource.advanced_two_pass_grid_cols ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_grid_cols)))),
+    advanced_two_pass_chunk_length: Math.max(17, Math.min(100000, Math.trunc(Number(advancedSource.advanced_two_pass_chunk_length ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_chunk_length)))),
+    advanced_two_pass_temporal_overlap: Math.max(0, Math.min(100000, Math.trunc(Number(advancedSource.advanced_two_pass_temporal_overlap ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_temporal_overlap)))),
+    advanced_two_pass_anchor_strength: Math.max(0, Math.min(1, Number(advancedSource.advanced_two_pass_anchor_strength ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_anchor_strength))),
+    advanced_two_pass_spatial_w_overlap: Math.max(0, Math.min(16384, Math.trunc(Number(advancedSource.advanced_two_pass_spatial_w_overlap ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_spatial_w_overlap)))),
+    advanced_two_pass_spatial_h_overlap: Math.max(0, Math.min(16384, Math.trunc(Number(advancedSource.advanced_two_pass_spatial_h_overlap ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_spatial_h_overlap)))),
+    advanced_two_pass_fade_width: Math.max(0, Math.min(16384, Math.trunc(Number(advancedSource.advanced_two_pass_fade_width ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_fade_width)))),
+    advanced_two_pass_fade_height: Math.max(0, Math.min(16384, Math.trunc(Number(advancedSource.advanced_two_pass_fade_height ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_fade_height)))),
+    advanced_two_pass_min_tile_size: Math.max(0, Math.min(16384, Math.trunc(Number(advancedSource.advanced_two_pass_min_tile_size ?? DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_min_tile_size)))),
+    advanced_two_pass_overlap_mode: ["earlier", "later"].includes(String(advancedSource.advanced_two_pass_overlap_mode || "").toLowerCase())
+      ? String(advancedSource.advanced_two_pass_overlap_mode).toLowerCase()
       : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_overlap_mode,
-    advanced_two_pass_overlap_blend: ["linear", "smoothstep", "overwrite", "midpoint"].includes(String(source.advanced_two_pass_overlap_blend || "").toLowerCase())
-      ? String(source.advanced_two_pass_overlap_blend).toLowerCase()
+    advanced_two_pass_overlap_blend: ["linear", "smoothstep", "overwrite", "midpoint"].includes(String(advancedSource.advanced_two_pass_overlap_blend || "").toLowerCase())
+      ? String(advancedSource.advanced_two_pass_overlap_blend).toLowerCase()
       : DEFAULT_MINIMAX_H3_SETTINGS.advanced_two_pass_overlap_blend,
     advanced_two_pass_upscaler_device: ["cuda", "cpu"].includes(String(source.advanced_two_pass_upscaler_device || "").toLowerCase())
       ? String(source.advanced_two_pass_upscaler_device).toLowerCase()
@@ -6321,6 +6346,9 @@ function openBuilder(node) {
   ], DEFAULT_MINIMAX_H3_SETTINGS.ref_image_size);
   const miniMaxTwoPassLatentUpscalerPicker = makeSearchableLoraPicker(DEFAULT_MINIMAX_H3_SETTINGS.two_pass_latent_upscaler_name);
   const miniMaxTwoPassUseTeSpeed = makeCheckbox("Use TE-Speed-MiniMaxH3 (OSS)", DEFAULT_MINIMAX_H3_SETTINGS.two_pass_use_te_speed);
+  const miniMaxTwoPassUseFeedforward = makeCheckbox("Use FeedForward (lower VRAM for longer scenes)", DEFAULT_MINIMAX_H3_SETTINGS.two_pass_use_feedforward);
+  const miniMaxTwoPassUseBlockSparseAttention = makeCheckbox("Use Block Sparse Attention (faster)", DEFAULT_MINIMAX_H3_SETTINGS.two_pass_use_block_sparse_attention);
+  const miniMaxTwoPassUseFastVaeDecode = makeCheckbox("Use Fast Batched VAE Decode (batch size 8)", DEFAULT_MINIMAX_H3_SETTINGS.two_pass_use_fast_vae_decode);
   const miniMaxTwoPassTeProcessingControl = makeInput(String(DEFAULT_MINIMAX_H3_SETTINGS.two_pass_te_speed_processing_control), "number");
   miniMaxTwoPassTeProcessingControl.min = "0"; miniMaxTwoPassTeProcessingControl.max = "1"; miniMaxTwoPassTeProcessingControl.step = "0.01";
   const miniMaxTwoPassTeStart = makeInput(String(DEFAULT_MINIMAX_H3_SETTINGS.two_pass_te_speed_start_percent), "number");
@@ -6348,6 +6376,9 @@ function openBuilder(node) {
     makeField("Reference image sizing", miniMaxTwoPassRefImageSize, "Controls the MiniMax H3 reference-conditioning image-size mode. Default: max."),
     makeField("Latent upscaler model", miniMaxTwoPassLatentUpscalerPicker.wrapper),
     miniMaxTwoPassUseTeSpeed.wrapper,
+    miniMaxTwoPassUseFeedforward.wrapper,
+    miniMaxTwoPassUseBlockSparseAttention.wrapper,
+    miniMaxTwoPassUseFastVaeDecode.wrapper,
     ...twoPassControls.map((item) => item.section),
     makeSettingsSection("TE-Speed Advanced", [
       makeField("Processing control", miniMaxTwoPassTeProcessingControl),
@@ -7679,6 +7710,22 @@ function openBuilder(node) {
     return mode;
   }
 
+  function clearMiniMaxImageReferenceStartFrameOnModeSwitch(segment, targetMode) {
+    if (normalizeMiniMaxH3Mode(targetMode) !== "reference_to_video") return;
+    if (miniMaxH3ModeForSegment(segment) !== "image_reference_to_video") return;
+    const sceneLocked = Boolean(segment?.use_scene_minimax_h3_settings);
+    const targets = (sceneLocked ? [segment] : allEditableSegments()).filter((item) => (
+      item
+      && segmentTrack(item) !== "overlay"
+      && !(!sceneLocked && item.use_scene_minimax_h3_settings)
+      && miniMaxH3ModeForSegment(item) === "image_reference_to_video"
+    ));
+    for (const item of targets) {
+      item.minimax_h3_scene_image_use = "off";
+      item.minimax_h3_use_scene_image_as_start_frame = false;
+    }
+  }
+
   function syncMiniMaxReferenceButtons() {
     const segment = activeSegment();
     const miniMaxProject = normalizeProjectVideoEngine(state.projectVideoEngine) === "minimax_h3";
@@ -7767,6 +7814,9 @@ function openBuilder(node) {
       two_pass_use_te_speed: state.miniMaxH3ThreePassEnabled
         ? miniMaxAdvancedUseTeSpeed.input.checked
         : miniMaxTwoPassUseTeSpeed.input.checked,
+      two_pass_use_feedforward: miniMaxTwoPassUseFeedforward.input.checked,
+      two_pass_use_block_sparse_attention: miniMaxTwoPassUseBlockSparseAttention.input.checked,
+      two_pass_use_fast_vae_decode: miniMaxTwoPassUseFastVaeDecode.input.checked,
       two_pass_te_speed_processing_control: miniMaxTwoPassTeProcessingControl.value,
       two_pass_te_speed_start_percent: miniMaxTwoPassTeStart.value,
       two_pass_te_speed_end_percent: miniMaxTwoPassTeEnd.value,
@@ -8488,6 +8538,9 @@ function openBuilder(node) {
     miniMaxAdvancedLatentUpscalerPicker.input.value = settings.two_pass_latent_upscaler_name;
     miniMaxTwoPassUseTeSpeed.input.checked = Boolean(settings.two_pass_use_te_speed);
     miniMaxAdvancedUseTeSpeed.input.checked = Boolean(settings.two_pass_use_te_speed);
+    miniMaxTwoPassUseFeedforward.input.checked = Boolean(settings.two_pass_use_feedforward);
+    miniMaxTwoPassUseBlockSparseAttention.input.checked = Boolean(settings.two_pass_use_block_sparse_attention);
+    miniMaxTwoPassUseFastVaeDecode.input.checked = Boolean(settings.two_pass_use_fast_vae_decode);
     miniMaxTwoPassTeProcessingControl.value = String(settings.two_pass_te_speed_processing_control);
     miniMaxTwoPassTeStart.value = String(settings.two_pass_te_speed_start_percent);
     miniMaxTwoPassTeEnd.value = String(settings.two_pass_te_speed_end_percent);
@@ -12855,7 +12908,7 @@ function openBuilder(node) {
     state.builderStoryLayer = normalizeBuilderStoryLayer(data.builderStoryLayer || data.builder_story_layer || {});
     state.builderStoryboardDefaults = normalizeBuilderStoryboardDefaults(data.builderStoryboardDefaults || data.builder_storyboard_defaults || {});
     state.autoBuildPreparation = normalizeAutoBuildPreparation(data.autoBuildPreparation || data.auto_build_preparation || {});
-    state.lyricMapper = normalizeLyricMapper(data.lyricMapper || data.lyric_mapper || state.lyricMapper);
+    state.lyricMapper = normalizeLyricMapper(data.lyricMapper || data.lyric_mapper || {});
     state.zEnhanceSettings = data.zEnhanceSettings || state.zEnhanceSettings;
     state.videoModelMode = data.videoModelMode || data.video_model_mode || state.videoModelMode || "i2v";
     state.i2vVideoSettings = cloneI2VVideoSettings(data.i2vVideoSettings || state.i2vVideoSettings);
@@ -16942,6 +16995,10 @@ function openBuilder(node) {
   function setMiniMaxH3SeedRandom(segment = activeSegment()) {
     const settings = miniMaxH3SettingsForSegment(segment);
     settings.seed = randomSeedValue();
+    settings.two_pass_pass1_seed = randomSeedValue();
+    settings.two_pass_pass2_seed = randomSeedValue();
+    settings.advanced_two_pass_pass1_seed = randomSeedValue();
+    settings.advanced_two_pass_pass2_seed = randomSeedValue();
     if (segment?.use_scene_minimax_h3_settings) {
       segment.minimax_h3_settings = cloneMiniMaxH3Settings(settings);
       segment.minimax_h3_mode = segment.minimax_h3_settings.video_mode;
@@ -25404,8 +25461,8 @@ function openBuilder(node) {
     }
     if (String(options.referenceLyrics || "").trim()) {
       state.lyricMapper = normalizeLyricMapper({
-        ...state.lyricMapper,
         source_text: String(options.referenceLyrics || "").trim(),
+        lines: [],
       });
     }
     let progress = null;
@@ -46547,6 +46604,9 @@ Chrome vault corridor = Sealed industrial passage...</pre>
         latent_upscale_scale: twoPass ? miniMaxSettings.two_pass_latent_upscale_scale : undefined,
         latent_upscaler_name: (twoPass || threePass) ? miniMaxSettings.two_pass_latent_upscaler_name : undefined,
         two_pass_use_te_speed: (twoPass || threePass) ? miniMaxSettings.two_pass_use_te_speed : undefined,
+        two_pass_use_feedforward: twoPass ? miniMaxSettings.two_pass_use_feedforward : undefined,
+        two_pass_use_block_sparse_attention: twoPass ? miniMaxSettings.two_pass_use_block_sparse_attention : undefined,
+        two_pass_use_fast_vae_decode: twoPass ? miniMaxSettings.two_pass_use_fast_vae_decode : undefined,
         te_speed_processing_control: (twoPass || threePass) ? miniMaxSettings.two_pass_te_speed_processing_control : undefined,
         te_speed_start_percent: (twoPass || threePass) ? miniMaxSettings.two_pass_te_speed_start_percent : undefined,
         te_speed_end_percent: (twoPass || threePass) ? miniMaxSettings.two_pass_te_speed_end_percent : undefined,
@@ -50264,6 +50324,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     state.flowGptBrowserSettings = defaultFlowGptBrowserSettings();
     state.ernieImageSettings = defaultErnieImageSettings();
     state.krea2TwoPassSettings = defaultKrea2TwoPassSettings();
+    state.lyricMapper = defaultLyricMapper();
     state.useFluxGlobalImageIngredients = false;
     state.fluxGlobalImageIngredients = [];
     state.fluxReferenceBuilder = defaultFluxReferenceBuilder();
@@ -58043,6 +58104,9 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     miniMaxAdvancedUseTeSpeed.input,
     miniMaxTwoPassLatentScale,
     miniMaxTwoPassUseTeSpeed.input,
+    miniMaxTwoPassUseFeedforward.input,
+    miniMaxTwoPassUseBlockSparseAttention.input,
+    miniMaxTwoPassUseFastVaeDecode.input,
     miniMaxTwoPassTeProcessingControl,
     miniMaxTwoPassTeStart,
     miniMaxTwoPassTeEnd,
@@ -58074,7 +58138,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     const preset = {
       "8gb": { tile: 352, chunk: 51 },
       "12gb": { tile: 512, chunk: 85 },
-      "16gb": { tile: 576, chunk: 119 },
+      "16gb": { tile: 576, chunk: 272 },
       "24gb": { tile: 672, chunk: 153 },
     }[miniMaxAdvancedVramPreset.value];
     if (!preset) return;
@@ -58085,10 +58149,12 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     miniMaxAdvancedTemporalOverlap.value = "17";
     miniMaxAdvancedSpatialWOverlap.value = "128";
     miniMaxAdvancedSpatialHOverlap.value = "128";
-    miniMaxAdvancedFadeWidth.value = "32";
-    miniMaxAdvancedFadeHeight.value = "32";
+    miniMaxAdvancedFadeWidth.value = "128";
+    miniMaxAdvancedFadeHeight.value = "128";
     miniMaxAdvancedMinTileSize.value = "256";
     miniMaxAdvancedAnchorStrength.value = "0.999";
+    miniMaxAdvancedOverlapMode.value = "earlier";
+    miniMaxAdvancedOverlapBlend.value = "smoothstep";
     persistMiniMaxSettings();
   });
   for (const control of [
@@ -58166,6 +58232,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
       const segment = requireActiveSegment();
       if (!segment) return;
       pushHistory();
+      clearMiniMaxImageReferenceStartFrameOnModeSwitch(segment, button.dataset.minimaxH3Mode);
       state.miniMaxH3TwoPassEnabled = button.dataset.minimaxH3Mode === "image_reference_to_video";
       state.miniMaxH3ThreePassEnabled = false;
       setMiniMaxH3ModeForSegment(segment, button.dataset.minimaxH3Mode);
@@ -58177,6 +58244,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     const segment = requireActiveSegment();
     if (!segment) return;
     pushHistory();
+    clearMiniMaxImageReferenceStartFrameOnModeSwitch(segment, "reference_to_video");
     state.miniMaxH3TwoPassEnabled = true;
     state.miniMaxH3ThreePassEnabled = false;
     setMiniMaxH3ModeForSegment(segment, "reference_to_video");
@@ -58187,6 +58255,7 @@ Chrome vault corridor = Sealed industrial passage...</pre>
     const segment = requireActiveSegment();
     if (!segment) return;
     pushHistory();
+    clearMiniMaxImageReferenceStartFrameOnModeSwitch(segment, "reference_to_video");
     state.miniMaxH3TwoPassEnabled = false;
     state.miniMaxH3ThreePassEnabled = true;
     setMiniMaxH3ModeForSegment(segment, "reference_to_video");

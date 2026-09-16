@@ -887,6 +887,58 @@ class QwenVLBase:
             quant_config = None
             quant = Quantization.FP16
 
+        # Patch: some Qwen3-VL configs have rope_scaling=None which crashes
+        # transformers. Applies to both BnB and FP16/FP32 paths.
+        # NOTE: qwen3_5 is a NEW hybrid architecture (linear+full attention)
+        # supported natively only by transformers>=5.2.0. It must NOT be
+        # aliased to qwen3_vl: the architectures are different and the load
+        # fails or produces a broken model.
+        import json
+        from pathlib import Path
+
+        cfg_path = Path(model_path) / "config.json"
+        try:
+            # Repair configs corrupted by an earlier qwen3_5->qwen3_vl
+            # aliasing attempt written to disk.
+            if cfg_path.exists():
+                cfg_dict = json.loads(cfg_path.read_text())
+                archs = " ".join(str(a) for a in cfg_dict.get("architectures", []))
+                if cfg_dict.get("model_type") == "qwen3_vl" and "Qwen3_5" in archs:
+                    cfg_dict["model_type"] = "qwen3_5_moe" if "Moe" in archs else "qwen3_5"
+                    cfg_path.write_text(json.dumps(cfg_dict, indent=2))
+                    print(f"[QwenVL] Restored config.json model_type -> {cfg_dict['model_type']}")
+        except Exception as e:
+            print(f"[QwenVL] config.json repair check skipped: {e}")
+
+        config_patch = {}
+        try:
+            from transformers import AutoConfig
+            cfg = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
+            if hasattr(cfg, "text_config") and getattr(cfg.text_config, "rope_scaling", "missing") is None:
+                cfg.text_config.rope_scaling = {"rope_type": "default", "mrope_section": [24, 20, 20], "mrope_interleaved": True}
+                config_patch["config"] = cfg
+                print("[QwenVL] Patched rope_scaling=None in text_config")
+            elif getattr(cfg, "rope_scaling", "missing") is None:
+                cfg.rope_scaling = {"rope_type": "default", "mrope_section": [24, 20, 20], "mrope_interleaved": True}
+                config_patch["config"] = cfg
+                print("[QwenVL] Patched rope_scaling=None in config")
+        except (ValueError, KeyError) as e:
+            model_type = ""
+            try:
+                if cfg_path.exists():
+                    model_type = json.loads(cfg_path.read_text()).get("model_type", "")
+            except Exception:
+                pass
+            if model_type.startswith(("qwen3_5", "qwen3.5")):
+                raise ValueError(
+                    f"Model '{model_name}' uses the '{model_type}' architecture, which "
+                    "requires transformers>=5.2.0 (this environment has an older "
+                    "release). Upgrade transformers or use the GGUF variant of this model."
+                ) from e
+            print(f"[QwenVL] rope_scaling pre-check skipped: {e}")
+        except Exception as e:
+            print(f"[QwenVL] rope_scaling pre-check skipped: {e}")
+
         if quant_config is not None:
             # Bnb path: hand the model directly to the target device.
             bnb_device_map = device if device.startswith("cuda") else "auto"
@@ -896,6 +948,7 @@ class QwenVLBase:
                 "attn_implementation": actual_attn_impl,
                 "use_safetensors": True,
                 "low_cpu_mem_usage": True,
+                **config_patch,
             }
             print(f"[QwenVL] 🔧 BnB load_kwargs device_map={bnb_device_map}")
             self.model = AutoModelForVision2Seq.from_pretrained(model_path, **load_kwargs).eval()
@@ -907,56 +960,8 @@ class QwenVLBase:
                 "attn_implementation": actual_attn_impl,
                 "use_safetensors": True,
                 "low_cpu_mem_usage": True,
+                **config_patch,
             }
-            # Patch: some Qwen3-VL configs have rope_scaling=None which crashes
-            # transformers. Also handle qwen3_5 model_type not yet in CONFIG_MAPPING.
-            try:
-                import json
-                from pathlib import Path
-                from transformers import AutoConfig
-                cfg = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
-                if hasattr(cfg, "text_config") and getattr(cfg.text_config, "rope_scaling", "missing") is None:
-                    cfg.text_config.rope_scaling = {"mrope_section": [24, 20, 20], "mrope_type": "mrope"}
-                    load_kwargs["config"] = cfg
-                    print("[QwenVL] Patched rope_scaling=None in text_config")
-                elif getattr(cfg, "rope_scaling", "missing") is None:
-                    cfg.rope_scaling = {"mrope_section": [24, 20, 20], "mrope_type": "mrope"}
-                    load_kwargs["config"] = cfg
-                    print("[QwenVL] Patched rope_scaling=None in config")
-            except (ValueError, KeyError) as e:
-                # Fallback: if model_type (e.g. qwen3_5) is not recognized, try
-                # patching the config.json to use qwen3_vl which is architecturally
-                # compatible for VL models in the Qwen3 family.
-                print(f"[QwenVL] AutoConfig failed ({e}), trying config.json patch...")
-                try:
-                    cfg_path = Path(model_path) / "config.json"
-                    if cfg_path.exists():
-                        import json as _json
-                        cfg_dict = _json.loads(cfg_path.read_text())
-                        original_type = cfg_dict.get("model_type", "")
-                        if original_type in ("qwen3_5", "qwen3.5"):
-                            cfg_dict["model_type"] = "qwen3_vl"
-                            # Also patch text_config if present
-                            if "text_config" in cfg_dict and isinstance(cfg_dict["text_config"], dict):
-                                tc = cfg_dict["text_config"]
-                                if tc.get("model_type") in ("qwen3_5", "qwen3.5"):
-                                    tc["model_type"] = "qwen3"
-                                if tc.get("rope_scaling") is None:
-                                    tc["rope_scaling"] = {"mrope_section": [24, 20, 20], "mrope_type": "mrope"}
-                            if cfg_dict.get("rope_scaling") is None:
-                                cfg_dict["rope_scaling"] = {"mrope_section": [24, 20, 20], "mrope_type": "mrope"}
-                            # Write patched config
-                            cfg_path.write_text(_json.dumps(cfg_dict, indent=2))
-                            print(f"[QwenVL] Patched config.json: {original_type} -> qwen3_vl")
-                            # Reload config
-                            from transformers import AutoConfig
-                            cfg = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
-                            load_kwargs["config"] = cfg
-                            load_kwargs["trust_remote_code"] = True
-                except Exception as e2:
-                    print(f"[QwenVL] config.json patch also failed: {e2}")
-            except Exception as e:
-                print(f"[QwenVL] rope_scaling pre-check skipped: {e}")
             self.model = AutoModelForVision2Seq.from_pretrained(model_path, **load_kwargs).eval()
 
             if device != "cpu" and torch.cuda.is_available():
@@ -1036,58 +1041,69 @@ class QwenVLBase:
         repetition_penalty,
         model_name="",
         video=None,
+        enable_thinking=False,
     ):
         # Memory optimization: clear cache before generation
         ensure_cuda_vram_headroom("QwenVL", min_free_gb=1.0, min_free_ratio=0.08)
 
+        def prepare_image(image, name="image"):
+            if isinstance(image, Image.Image):
+                print(f"[QwenVL] {name} provided as PIL image, size={image.size}")
+                return image
+            if hasattr(image, "dim"):
+                if image.dim() == 4 and image.shape[0] > 1:
+                    print(f"[QwenVL] {name.upper()} input contains {image.shape[0]} items; using the first item only.")
+                img_mean = image.mean().item()
+                print(f"[QwenVL] {name} pixel mean: {img_mean:.4f} (0.0 = black placeholder)")
+                if img_mean < 0.001:
+                    print(f"[QwenVL] WARNING: {name} appears to be a black placeholder! Skipping.")
+                    return None
+                return self.tensor_to_pil(image)
+            return None
+
         conversation = [{"role": "user", "content": []}]
 
         # --- Image 1: single reference image ---
-        if image is not None:
-            if image.dim() == 4 and image.shape[0] > 1:
-                print(f"[QwenVL] IMAGE input contains {image.shape[0]} items; using the first item only.")
-            img_mean = image.mean().item()
-            print(f"[QwenVL] image pixel mean: {img_mean:.4f} (0.0 = black placeholder)")
-            if img_mean < 0.001:
-                print(f"[QwenVL] WARNING: image appears to be a black placeholder! Skipping.")
-            else:
-                conversation[0]["content"].append({"type": "image", "image": self.tensor_to_pil(image)})
+        pil_image = prepare_image(image, "image")
+        if pil_image is not None:
+            conversation[0]["content"].append({"type": "image", "image": pil_image})
 
         # --- Image 2: single reference image (same as image, NOT video) ---
-        if image2 is not None:
-            img2_mean = image2.mean().item()
-            print(f"[QwenVL] image2 pixel mean: {img2_mean:.4f} (0.0 = black placeholder)")
-            if img2_mean < 0.001:
-                print(f"[QwenVL] WARNING: image2 appears to be a black placeholder! Skipping.")
-            else:
-                if image2.dim() == 4 and image2.shape[0] > 1:
-                    print(f"[QwenVL] IMAGE2 input contains {image2.shape[0]} items; using the first item only.")
-                conversation[0]["content"].append({"type": "image", "image": self.tensor_to_pil(image2)})
+        pil_image2 = prepare_image(image2, "image2")
+        if pil_image2 is not None:
+            conversation[0]["content"].append({"type": "image", "image": pil_image2})
 
         # --- Video: multi-frame input with frame_count sampling ---
         if video is not None:
-            vid_mean = video.mean().item()
-            print(f"[QwenVL] video pixel mean: {vid_mean:.4f} (0.0 = black placeholder)")
-            if vid_mean < 0.001:
-                print(f"[QwenVL] WARNING: video appears to be a black placeholder! Skipping.")
+            if isinstance(video, list) and all(isinstance(frame, Image.Image) for frame in video):
+                frames = video
+                print(f"[QwenVL] Video: {len(frames)} PIL frames provided")
+            elif hasattr(video, "mean"):
+                vid_mean = video.mean().item()
+                print(f"[QwenVL] video pixel mean: {vid_mean:.4f} (0.0 = black placeholder)")
+                if vid_mean < 0.001:
+                    print(f"[QwenVL] WARNING: video appears to be a black placeholder! Skipping.")
+                    frames = []
+                else:
+                    frames = [self.tensor_to_pil(frame) for frame in video]
+                    print(f"[QwenVL] Video: {video.shape[0]} total frames, sampled {len(frames)} frames (frame_count={frame_count})")
             else:
-                frames = [self.tensor_to_pil(frame) for frame in video]
-                if len(frames) > frame_count:
-                    idx = np.linspace(0, len(frames) - 1, frame_count, dtype=int)
-                    frames = [frames[i] for i in idx]
-                print(f"[QwenVL] Video: {video.shape[0]} total frames, sampled {len(frames)} frames (frame_count={frame_count})")
-                for frame in frames:
-                    conversation[0]["content"].append({"type": "image", "image": frame})
+                frames = []
+            if len(frames) > frame_count:
+                idx = np.linspace(0, len(frames) - 1, frame_count, dtype=int)
+                frames = [frames[i] for i in idx]
+            for frame in frames:
+                conversation[0]["content"].append({"type": "image", "image": frame})
 
         num_images = sum(1 for item in conversation[0]["content"] if item.get("type") == "image")
         print(f"[QwenVL] Total images passed to model: {num_images}")
-        conversation[0]["content"].append({"type": "text", "text": ("/no_think\n" if getattr(self, "is_qwen35", False) else "") + prompt_text})
-        
+        conversation[0]["content"].append({"type": "text", "text": ("/no_think\n" if getattr(self, "is_qwen35", False) and not enable_thinking else "") + prompt_text})
+
         # --- Qwen3.5 Heretic Logic: Template ---
         is_qwen35 = getattr(self, "is_qwen35", False)
         chat_kwargs = {}
         if is_qwen35:
-            chat_kwargs["enable_thinking"] = False
+            chat_kwargs["enable_thinking"] = bool(enable_thinking)
 
         # Optimize chat template for memory efficiency
         chat = self.processor.apply_chat_template(
@@ -1164,10 +1180,17 @@ class QwenVLBase:
         text = self.tokenizer.decode(outputs[0, input_len:], skip_special_tokens=True)
         return text.strip()
 
-    def run(self, model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt=False, camera_tag="None", video=None):
+    def run(self, model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt=False, camera_tag="None", video=None, passthrough=False):
         torch.manual_seed(seed)
         
         global LAST_SAVED_PROMPT
+        
+        # Passthrough mode: skip model loading entirely, return custom_prompt as-is.
+        # Used when the chat (or an external tool) already generated the final
+        # prompt in the target format — avoids redundant Qwen inference.
+        if passthrough:
+            print(f"[QwenVL] Passthrough mode ON — skipping model load, returning custom_prompt directly ({len(custom_prompt or '')} chars)")
+            return (custom_prompt or "",)
         
         # Simple keep last prompt logic
         if keep_last_prompt:
@@ -1325,6 +1348,7 @@ class AILab_QwenVL(QwenVLBase):
                 "keep_model_loaded": ("BOOLEAN", {"default": True, "tooltip": TOOLTIPS["keep_model_loaded"]}),
                 "seed": ("INT", {"default": 1, "min": 1, "max": 2**32 - 1, "tooltip": TOOLTIPS["seed"] + "\n\n💡 Cache Info: Prompts are cached automatically. Use the same inputs (model, preset, custom prompt, image/image2/video) to reuse cached prompts and avoid regeneration.\n\n🔒 Fixed Seed Mode: Set seed = 1 to ignore image/image2/video changes and only use text-based caching. Perfect for keeping the same prompt regardless of media input variations."}),
                 "keep_last_prompt": ("BOOLEAN", {"default": False, "tooltip": "Keep the last generated prompt instead of creating a new one"}),
+                "passthrough": ("BOOLEAN", {"default": False, "tooltip": "Skip Qwen model loading and return custom_prompt directly. Use when the chat already generated the final prompt — saves VRAM and inference time."}),
             },
             "optional": {
                 "image": ("IMAGE", {"tooltip": "First reference image (single image). For R2VA this is Picture 1."}),
@@ -1339,8 +1363,8 @@ class AILab_QwenVL(QwenVLBase):
     FUNCTION = "process"
     CATEGORY = "QwenVL-Mod"
 
-    def process(self, model_name, quantization, preset_prompt, camera_tag, custom_prompt, attention_mode, max_tokens, keep_model_loaded, seed, keep_last_prompt=False, image=None, image2=None, video=None, frame_count=16):
-        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, 0.6, 0.9, 1, 1.2, seed, keep_model_loaded, attention_mode, False, "auto", keep_last_prompt, camera_tag, video=video)
+    def process(self, model_name, quantization, preset_prompt, camera_tag, custom_prompt, attention_mode, max_tokens, keep_model_loaded, seed, keep_last_prompt=False, passthrough=False, image=None, image2=None, video=None, frame_count=16):
+        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, 0.6, 0.9, 1, 1.2, seed, keep_model_loaded, attention_mode, False, "auto", keep_last_prompt, camera_tag, video=video, passthrough=passthrough)
 
 class AILab_QwenVL_Advanced(QwenVLBase):
     @classmethod
@@ -1373,6 +1397,7 @@ class AILab_QwenVL_Advanced(QwenVLBase):
                 "keep_model_loaded": ("BOOLEAN", {"default": True, "tooltip": TOOLTIPS["keep_model_loaded"]}),
                 "seed": ("INT", {"default": 1, "min": 1, "max": 2**32 - 1, "tooltip": TOOLTIPS["seed"] + "\n\n💡 Cache Info: Prompts are cached automatically. Use same inputs (model, preset, custom prompt, image/image2/video) to reuse cached prompts and avoid regeneration.\n\n🔒 Fixed Seed Mode: Set seed = 1 to ignore image/image2/video changes and only use text-based caching. Perfect for keeping the same prompt regardless of media input variations."}),
                 "keep_last_prompt": ("BOOLEAN", {"default": False, "tooltip": "Keep last generated prompt instead of creating a new one"}),
+                "passthrough": ("BOOLEAN", {"default": False, "tooltip": "Skip Qwen model loading and return custom_prompt directly. Use when the chat already generated the final prompt — saves VRAM and inference time."}),
             },
             "optional": {
                 "image": ("IMAGE", {"tooltip": "First reference image (single image). For R2VA this is Picture 1."}),
@@ -1387,8 +1412,8 @@ class AILab_QwenVL_Advanced(QwenVLBase):
     FUNCTION = "process"
     CATEGORY = "QwenVL-Mod"
 
-    def process(self, model_name, quantization, attention_mode, use_torch_compile, device, preset_prompt, camera_tag, custom_prompt, max_tokens, temperature, top_p, num_beams, repetition_penalty, keep_model_loaded, seed, keep_last_prompt, image=None, image2=None, video=None, frame_count=16):
-        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt, camera_tag, video=video)
+    def process(self, model_name, quantization, attention_mode, use_torch_compile, device, preset_prompt, camera_tag, custom_prompt, max_tokens, temperature, top_p, num_beams, repetition_penalty, keep_model_loaded, seed, keep_last_prompt, passthrough=False, image=None, image2=None, video=None, frame_count=16):
+        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt, camera_tag, video=video, passthrough=passthrough)
 
 NODE_CLASS_MAPPINGS = {
     "AILab_QwenVL": AILab_QwenVL,

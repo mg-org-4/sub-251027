@@ -141,6 +141,10 @@ def find_function_spans(
         if text[at_paren:after_first_paren] == "(":
             end = find_closing_paren(text, after_first_paren)
             if end < 0:
+                # Unclosed paren: skip past this match so the loop terminates
+                idx += match.end()
+                text = text[match.end() :]
+                match = rex.search(text)
                 continue
             args = parse_strings(text[after_first_paren:end], defaults)
             end += 1
@@ -275,6 +279,10 @@ def lora_name_to_file(name: str) -> str | None:
     search = [f for f in filenames if all(p in f for p in parts)]
     if len(search) == 1:
         return search[0]
+    elif len(search) > 1:
+        if len(search) > 4:
+            search[4] = "..."
+        log.warning("Ignored LoRA search 's%'; matched more than one file: %s", name, ", ".join(search[:5]))
 
     return None
 

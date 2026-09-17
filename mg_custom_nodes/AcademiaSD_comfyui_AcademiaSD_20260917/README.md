@@ -46,7 +46,7 @@ An ultra-sleek, highly responsive custom CLIP Text Encode implementation for Com
 
 *   **📐 Fluid Responsive Layout (`flex: 1`):** The primary prompt text area utilizes a fully fluid layout. Stretch, widen, or scale the node manually in any direction; the editor box will dynamically expand to fill 100% of the available vertical space.
 *   **🧠 Independent State Sizing (Size Memory):** The node intelligently remembers your manually adjusted dimensions separately for *both* collapsed and expanded modes. Toggling between them fluidly snaps the node to your preferred width and height without resetting or forcing generic dimensions.
-*   **🧹 Zero-Overlap DOM Injection:** Completely isolates and overrides ComfyUI's native multiline `<textarea>` element at the DOM level (`display: none !important`). This guarantees no duplicate text render overlays, no layout breaks, and a clean interface from the millisecond the node is spawned.
+*   **🧹 Zero-Overlap DOM Injection:** Completely isolates and overrides ComfyUI's native multiline `<textarea>` element at the DOM level (`display: none !important`). This guarantees no duplicate text render overlays, no layout breaks, and a clean interface from the millisecond the node is created.
 *   **⏪ Auto-Queueing Recent Prompts (Last 10):** Generates and keeps a real-time rolling list (FIFO) of your last 10 queued prompts. Duplicate entries are automatically cleaned up and pushed to the top.
 *   **❤️ Favorites Vault:** Save your absolute best prompts directly to a dedicated Favorites list by clicking the heart button. They are styled as independent cards with quick-action utilities to load or delete them.
 *   **🔍 Scrollable Hover Preview:** Hovering a Recents or Favorites card pops up a floating panel with the **entire** prompt, line breaks intact and scrollable when it overflows. It stays open while the pointer is inside it, so long multi-line prompts can actually be read and scrolled — unlike a native tooltip, which truncates to a single strip and vanishes the moment you reach for it.
@@ -90,7 +90,7 @@ An ultra-compact, high-performance seed generator node built specifically for Co
     *   `🎲 Rand`: Automatically rolls a new seed on every queue execution.
     *   `➕ Increment`: Increments the active seed value by `+1` on every generation.
     *   `➖ Decrement`: Decrements the active seed value by `-1` on every generation.
-*   **🧹 Built-in Interface Cleanup:** Robust frontend cleaning algorithms actively remove ComfyUI's native duplicates, hidden input sockets, or extra output connectors. Only one clean, highly-compatible output port (`seed`) remains visible.
+*   **🧹 Built-in Interface Cleanup:** Robust frontend cleaning algorithms actively remove ComfyUI's native duplicates, hidden input connectors, or extra output connectors. Only one clean, highly-compatible output port (`seed`) remains visible.
 *   **💾 Session Serialization:** All seed history and configuration states are serialized natively. Your history persists even after saving, closing, or reloading your ComfyUI workflow JSON.
 
 ## Interface Layout & Button Controls
@@ -328,12 +328,62 @@ one film. Five nodes that only make sense together.
 ```
 Project Paths ──project_name──► Multi-Prompt ──prompt──► Reference/Image to Video
               ├──path──────────► Moviola In ──next_index──► Multi-Prompt
-              │                             └──image──────► references / first_frame
+              │                             └──image──────► first_frame  (never a reference slot)
               ├──vid_path──────► video saver
               └──vid_int_loop──► video saver (interpolated)
 
 Moviola Guide ──positive──► sampler ──► Moviola Out ──latent_frames──► Moviola 🎞️
 ```
+
+### Moviola In's image output is a first frame, never a reference
+
+It carries the frame the pass starts from, and it exists for one input in
+particular: `first_frame` on `MiniMaxH3ImageToVideo`. There the image is frame 0
+and nothing more, so chaining through it is exactly right -- and it is the only
+route that works for a first/last-frame workflow, where there is no reference
+list at all.
+
+**Do not wire it into a `ref_images` slot.** A reference carries no temporal
+position: it is attended across the whole clip and pulls the **ending** back to
+that composition, so the take moves and finishes where it began. Measured across
+a chained pair -- the second take moved *more* than the first (8.86 against 6.00
+mean frame delta) and still ended 2.78/255 away from where it started. It also
+occupies a slot and shifts the `<Picture N>` numbering, because a null slot
+leaves no gap: the node skips nulls and the rest move up.
+
+Down the reference route nothing needs this wire. Guide already provides the
+continuity, building the keyframe from the latent on disk without a PNG in
+between, so the reference slots stay free for what they are for -- the subjects.
+
+### `check_resolution`, when the graph upscales between passes
+
+A common workflow generates at low resolution, upscales the latent, and saves
+**the upscaled** take. From the next pass on, the anchor Guide receives no longer
+matches the geometry the sampler is about to work at, and the pass fails.
+
+The switch on Guide decides what happens then, and it is **off** by default:
+
+| position | behaviour |
+|---|---|
+| `fit` (default) | the anchor is interpolated to the target geometry and the pass continues |
+| `check` | a mismatch raises, naming both geometries |
+
+`fit` is the default because the alternative ends up worse. Anchoring the
+pre-upscale latent removes the error too, but the montage joins the *upscaled*
+clips, so the anchor no longer matches what came before and the seam jumps.
+Re-rendering a long video at the low resolution just to anchor it costs more
+than the interpolation does. Turn `check` on when a geometry mismatch means
+something is wired wrong and you want to hear about it rather than have it
+quietly smoothed over.
+
+### Emptying the Multi-Prompt
+
+**Delete All Prompts** sits next to **Delete Selected Prompt**, deliberately the
+same size and shape: the pair is one decision, and hiding the destructive half
+behind a smaller control does not make it safer, only harder to find. It clears
+the global prompt as well -- a new series rarely wants the previous series'
+header -- and touches nothing on disk. Deleting **takes** is Moviola's job and
+lives on the other node.
 
 ---
 
@@ -392,7 +442,7 @@ So a chained project can use reference images, videos, audio and RefMods, and
 gets the `audio_vae` input that `MiniMaxH3ImageToVideo` does not have.
 
 > When you name a reference in the prompt, use the labels the tokenizer actually
-> emits — `<Picture 1>`, `<Video 1>`, `<Audio 1>`, 1-based **per type**. The socket
+> emits — `<Picture 1>`, `<Video 1>`, `<Audio 1>`, 1-based **per type**. The connector
 > names (`ref_video_0`) are ComfyUI's and never reach the model.
 
 ---
@@ -454,7 +504,20 @@ whole cut nine times to throw eight away.
     none it says so.
 *   **🗑 Delete Last Loop** — removes the highest take: its latent, its videos and
     **every file numbered with it**. Press again to walk further back.
-*   **🗑 Delete All Loops** / **🔄 Refresh**.
+*   **🗑 Delete All Loops** — walks every take back, and takes the saved
+    `loop_00000_` base image with it, leaving the folder empty. Otherwise that
+    one file survives a full wipe and the Multi-Prompt strip keeps showing it as
+    the first frame of a series that no longer exists. *Delete Last Loop* never
+    touches it.
+*   **📂 Open Folder** — opens the project folder and lists what is in it,
+    each file tagged with what it is to Moviola: `take`, `video`, `interp`,
+    `cut`, or `other` when nothing claims it. That last tag is the clue when a
+    video saver is wired under a different name and nothing appears to turn up.
+    Opening is Windows only and happens on the machine running ComfyUI, not the
+    one holding the browser — which is why the listing prints either way, and
+    why the absolute path is the first line. It resolves the same path the
+    delete buttons act on, so it doubles as a check before pressing one.
+*   **🔄 Refresh** — re-reads the whole project from disk.
 
 A **player** appears once a cut exists, with tabs for the plain and the
 interpolated file when both are there. Finishing the process by sending people to

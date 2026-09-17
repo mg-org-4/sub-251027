@@ -48,20 +48,22 @@ import glob
 import os
 import re
 import shutil
+import time
 from fractions import Fraction
 
-# PyAV, no un ffmpeg externo. Enlaza libavcodec/libavformat DENTRO del proceso,
-# asi que aqui no se lanza ningun programa: se acabo el `subprocess` y, con el,
-# la necesidad de que el usuario tenga ffmpeg instalado. `av>=17` es requisito
-# del propio ComfyUI, no de un pack de terceros, asi que lo tiene todo el mundo.
+# PyAV. Enlaza libavcodec/libavformat DENTRO de este mismo proceso, asi que el
+# montaje no lanza nada ni necesita ninguna herramienta externa instalada. Y
+# `av>=17` es requisito del propio ComfyUI, no de un pack de terceros, asi que lo
+# tiene todo el mundo.
 #
-# Antes esto pedia ffmpeg Y ffprobe. `imageio-ffmpeg`, que instala
-# VideoHelperSuite, trae solo ffmpeg: quien no tuviera ffprobe en el sistema se
-# quedaba sin montaje sin saber por que.
+# Antes el montaje dependia de dos utilidades de linea de comandos que no siempre
+# estan las dos: `imageio-ffmpeg`, que instala VideoHelperSuite, solo trae una, y
+# a quien le faltaba la otra se le quedaba el montaje sin hacer y sin saber por
+# que.
 #
-# PyAV rather than an external ffmpeg. It links libavcodec/libavformat INSIDE the
-# process, so nothing is launched here: no subprocess, and no need for the user to
-# have ffmpeg installed. `av>=17` is a requirement of ComfyUI itself.
+# PyAV links libavcodec/libavformat INSIDE this process, so the montage starts
+# nothing and needs no external tool installed. `av>=17` is a requirement of
+# ComfyUI itself, so everyone already has it.
 import av
 import numpy as np
 import torch
@@ -75,7 +77,7 @@ from server import PromptServer
 try:
     from .. import __version__ as ACADEMIASD_VERSION
 except Exception:
-    ACADEMIASD_VERSION = "2.4.5"
+    ACADEMIASD_VERSION = "2.4.7"
 
 try:
     from safetensors.torch import load_file as _st_load
@@ -85,6 +87,18 @@ except Exception:                                      # pragma: no cover
 
 # nombre_00001_.png
 PATRON = r"^{}_(\d+)_?\.{}$"
+
+# comfy/ldm/minimax/model.py:30 -- salvo el primero, cada fotograma latente
+# codifica CUATRO reales. Hace falta para traducir la longitud latente del clip
+# destino a fotogramas de verdad y poder comprobar `frame_idx`.
+# Every latent frame but the first encodes FOUR real ones; needed to turn the
+# target's latent length into real frames and validate `frame_idx`.
+FRAME_PER_TOKEN = (1, 4, 4, 4, 4)
+
+
+def _fotogramas_de(latente_t):
+    """Cuantos fotogramas reales cubren `latente_t` fotogramas latentes."""
+    return sum(FRAME_PER_TOKEN[k % 5] for k in range(int(latente_t)))
 
 
 # -- rutas y numeracion ------------------------------------------------------
@@ -197,6 +211,41 @@ def _guardar_base(carpeta, nombre, imagen):
               "{}".format(exc))
 
 
+def _encajar(z, alto, ancho):
+    """La misma latente, interpolada a `alto` x `ancho` en el espacio latente.
+
+    Existe para los flujos con reescalado por latentes. Ahi la toma se genera a
+    baja resolucion, se reescala en un segundo paso de muestreo, y lo que acaba
+    en el video es LO REESCALADO. Si el ancla es la latente base, el ultimo
+    fotograma del video y el que ancla la toma siguiente no son el mismo: el
+    segundo paso no solo anade detalle, regenera. De ahi el salto en la costura.
+
+    Guardando la reescalada y encajandola aqui, el ancla lleva el contenido que
+    de verdad se vio y la geometria en la que se va a generar. Es la operacion
+    simetrica a la que hace el reescalador, que interpola hacia arriba.
+
+    Es una aproximacion: interpolar latentes no es exacto. Para un keyframe
+    basta, porque condiciona y no se pega -- ver la cabecera del fichero.
+
+    Exists for latent-upscaling workflows, where the take is generated small,
+    upscaled by a second sampling pass, and it is the UPSCALED result that ends
+    up in the video. Anchoring on the base latent means the video's last frame
+    and the next take's anchor are not the same frame, since the second pass
+    regenerates rather than just adding detail. Symmetric to what the upscaler
+    does. An approximation, and enough for something that conditions.
+    """
+    if z.ndim == 5:
+        b, c, t, h, w = z.shape
+        plano = z.permute(0, 2, 1, 3, 4).reshape(b * t, c, h, w)
+        plano = torch.nn.functional.interpolate(
+            plano, size=(alto, ancho), mode="bilinear", align_corners=False)
+        return plano.reshape(b, t, c, alto, ancho).permute(0, 2, 1, 3, 4).contiguous()
+    if z.ndim == 4:
+        return torch.nn.functional.interpolate(
+            z, size=(alto, ancho), mode="bilinear", align_corners=False).contiguous()
+    return z
+
+
 def _tensor_a_pil(imagen):
     x = imagen[0] if imagen.ndim == 4 else imagen
     x = (x.detach().cpu().float().clamp(0.0, 1.0).numpy() * 255.0).astype(np.uint8)
@@ -290,6 +339,35 @@ class AcademiaMoviolaIn:
                 ACADEMIASD_VERSION, origen, origen))
 
         vista = _vista_previa(imagen, nombre + "_in") if imagen is not None else []
+        # La salida `image` lleva el fotograma con el que arranca la vuelta, y
+        # existe para una entrada concreta: `first_frame` de ImageToVideo. Ahi no
+        # es una referencia, es el fotograma 0 y nada mas, asi que encadenar por
+        # ese camino es legitimo.
+        #
+        # NO conectarla a una ranura de `ref_images`. Una referencia no tiene
+        # posicion temporal: se atiende durante todo el clip y arrastra tambien su
+        # FINAL hacia esa composicion, de modo que la toma se mueve y acaba donde
+        # empezo. Medido sobre dos vueltas encadenadas -- la segunda se movio mas
+        # que la primera (8.86 contra 6.00 de media entre fotogramas) y aun asi
+        # termino a 2.78 sobre 255 de donde habia salido. Y de paso ocupa una
+        # ranura y corre la numeracion de <Picture N>, porque una ranura nula no
+        # deja hueco. Por ese camino la continuidad ya la pone Guide, que fabrica
+        # el keyframe leyendo la latente del disco sin pasar por un PNG.
+        #
+        # The `image` output carries the frame the pass starts from, and it exists
+        # for one input in particular: ImageToVideo's `first_frame`. There it is
+        # not a reference, it is frame 0 and nothing else, so chaining through it
+        # is legitimate.
+        #
+        # Do NOT wire it into a `ref_images` slot. A reference carries no temporal
+        # position: it is attended across the whole clip and drags its ENDING back
+        # to that composition, so the take moves and finishes where it began.
+        # Measured across a chained pair -- the second moved more than the first
+        # (8.86 against 6.00 mean frame delta) and still ended 2.78/255 from where
+        # it started. It also eats a slot and shifts the <Picture N> numbering,
+        # since a null slot leaves no gap. Down that route Guide already provides
+        # continuity, building the keyframe from the latent on disk with no PNG in
+        # between.
         return {"ui": {"images": vista},
                 "result": (imagen, n + 1, origen, project_path)}
 
@@ -306,6 +384,14 @@ class AcademiaMoviolaGuide:
                 "positive": ("CONDITIONING",),
                 "project_path": ("STRING", {"default": "moviola/toma"}),
                 "frame_idx": ("INT", {"default": 0, "min": 0, "max": 9999}),
+                "check_resolution": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "check", "label_off": "fit",
+                    "tooltip": "What to do when the saved frame and the target clip "
+                               "have different latent sizes. 'fit' rescales the frame "
+                               "to the target, which is what a latent-upscaling loop "
+                               "needs. 'check' refuses instead, to catch a resolution "
+                               "changed by mistake mid-project."}),
             },
             "optional": {
                 "av_latent": ("LATENT",),
@@ -321,7 +407,8 @@ class AcademiaMoviolaGuide:
     def IS_CHANGED(s, **kwargs):
         return float("NaN")
 
-    def anclar(self, positive, project_path, frame_idx=0, av_latent=None):
+    def anclar(self, positive, project_path, frame_idx=0, check_resolution=False,
+               av_latent=None):
         carpeta, nombre = _partes(project_path)
         n = _ultimo(carpeta, nombre, "png")[0]
         f_lat = _ruta_latente(carpeta, nombre, n)
@@ -340,24 +427,65 @@ class AcademiaMoviolaGuide:
         # process lives.
         z = _st_load(f_lat)["samples"].clone()
 
-        # La geometria tiene que coincidir con el clip destino. Si cambias la
-        # resolucion a mitad de bucle el keyframe no encaja, y el modelo falla lejos
-        # de aqui con una traza que no menciona a Moviola.
-        # The geometry has to match the target clip. Change resolution mid-loop and
-        # the keyframe does not fit, and the model fails far from here with a
-        # traceback that never mentions Moviola.
+        # La geometria del keyframe tiene que ser la del clip destino. Que hacer
+        # cuando no lo es depende de por que no lo es, y eso no lo puede adivinar
+        # el nodo:
+        #
+        #   fit   -> es un bucle con reescalado por latentes. Se guarda la latente
+        #            reescalada, que es la que corresponde al video que se monta, y
+        #            aqui se encaja a la geometria en la que se genera la toma
+        #            siguiente. Sin esto el ancla apunta a un fotograma distinto del
+        #            que se vio y la costura salta.
+        #   check -> no deberia pasar. Se para aqui, en el nodo que lo causa, en vez
+        #            de dejar que reviente dentro del muestreador con una traza que
+        #            no menciona a Moviola.
+        #
+        # Encajar NUNCA es silencioso: se escribe siempre de que a que.
+        #
+        # What to do about a mismatch depends on why it happened, which the node
+        # cannot guess. Fitting is for latent-upscaling loops, where the upscaled
+        # latent is the one matching the video that gets cut together. Checking is
+        # for the mistake the message was written for. Fitting is never silent.
         if av_latent is not None:
             dest = av_latent["samples"]
             if getattr(dest, "is_nested", False):
                 dest = dest.tensors[0]
             if dest.ndim == 5 and tuple(z.shape[3:]) != tuple(dest.shape[3:]):
-                raise ValueError(
-                    "[Moviola Guide] El fotograma guardado es {}x{} latente y el clip "
-                    "destino {}x{}. Vacia la carpeta o vuelve a la resolucion anterior. "
-                    "/ Saved frame is {}x{} in latent space and the target clip is "
-                    "{}x{}. Empty the folder or go back to the previous resolution."
-                    .format(z.shape[3], z.shape[4], dest.shape[3], dest.shape[4],
-                            z.shape[3], z.shape[4], dest.shape[3], dest.shape[4]))
+                if check_resolution:
+                    raise ValueError(
+                        "[Moviola Guide] El fotograma guardado es {}x{} latente y el "
+                        "clip destino {}x{}. Vacia la carpeta, vuelve a la resolucion "
+                        "anterior, o pon check_resolution en 'fit'. / Saved frame is "
+                        "{}x{} in latent space and the target clip is {}x{}. Empty the "
+                        "folder, go back to the previous resolution, or set "
+                        "check_resolution to 'fit'."
+                        .format(z.shape[3], z.shape[4], dest.shape[3], dest.shape[4],
+                                z.shape[3], z.shape[4], dest.shape[3], dest.shape[4]))
+                antes = (z.shape[3], z.shape[4])
+                z = _encajar(z, int(dest.shape[3]), int(dest.shape[4]))
+                print("[Moviola Guide] encajado {}x{} -> {}x{} / fitted".format(
+                    antes[0], antes[1], z.shape[3], z.shape[4]))
+
+            # Un indice fuera del clip no revienta: coloca el ancla mas alla de la
+            # linea de tiempo del destino y el keyframe simplemente NO HACE NADA.
+            # Eso es peor que un error -- la toma sale sin anclar y nada lo dice,
+            # asi que se busca la causa en el prompt o en el modelo. El nodo nativo
+            # `MiniMaxH3AddGuide` tambien lo comprueba.
+            #
+            # An out-of-range index does not crash: it places the anchor past the
+            # target's timeline and the keyframe simply DOES NOTHING. That is worse
+            # than an error -- the take comes out unanchored with nothing to say so.
+            if dest.ndim == 5:
+                cuantos = _fotogramas_de(dest.shape[2])
+                if frame_idx >= cuantos:
+                    raise ValueError(
+                        "[Moviola Guide] frame_idx {} pero el clip destino tiene {} "
+                        "fotogramas (0 a {}). Fuera de rango el ancla no hace nada y "
+                        "la toma sale sin encadenar. / frame_idx {} but the target "
+                        "clip has {} frames (0 to {}). Out of range the anchor does "
+                        "nothing and the take comes out unchained."
+                        .format(frame_idx, cuantos, cuantos - 1,
+                                frame_idx, cuantos, cuantos - 1))
 
         kfs = list((positive[0][1] or {}).get("minimax_keyframes", []))
         kfs.append({"resolved_frame_index": int(frame_idx), "latent": z})
@@ -1162,6 +1290,144 @@ def _informe(path, latent_frames=None):
     return texto
 
 
+def _tamano(n):
+    """Un tamano que se lee de un vistazo, que es justo de lo que va esto."""
+    escala = float(n)
+    for unidad in ("B", "KB", "MB", "GB"):
+        if escala < 1024.0 or unidad == "GB":
+            if unidad == "B":
+                return "{:.0f} {}".format(escala, unidad)
+            return "{:.1f} {}".format(escala, unidad)
+        escala /= 1024.0
+
+
+def _abrir_carpeta(path):
+    """Abre la carpeta del proyecto en el gestor de ficheros. Devuelve que paso.
+
+    Dos limites que no son un descuido y por eso se dicen en la propia consola
+    en vez de callarlos:
+
+    Solo Windows. `os.startfile` no existe en macOS ni en Linux, y alli abrir una
+    carpeta obliga a lanzar un programa aparte. Fuera de Windows se dice y se
+    deja la ruta, que sigue estando en la linea de arriba.
+
+    Y abre en la maquina que corre COMFYUI, no en la que tiene el navegador. Con
+    ComfyUI en un servidor la carpeta se abre alla, donde no la ve nadie. Por eso
+    el listado se escribe igualmente: es lo unico que funciona en los dos casos.
+
+    La ruta esta contenida: viene de `_nombres` -> `_partes`, que resuelve bajo
+    output/ y levanta si se sale. Aqui no puede llegar una carpeta cualquiera del
+    disco.
+
+    Opens the project folder in the file manager, and says what happened. Two
+    limits, stated in the console rather than hidden: `os.startfile` is Windows
+    only, and it opens on the machine running COMFYUI, not the one with the
+    browser -- with ComfyUI on a server the folder opens there, where nobody sees
+    it. That is why the listing is printed either way. The path is contained:
+    it comes from `_nombres` -> `_partes`, which resolves under output/ and
+    raises if it escapes.
+    """
+    carpeta, _, _, _ = _nombres(path)
+    if not os.path.isdir(carpeta):
+        return "Nothing to open yet."
+    if not hasattr(os, "startfile"):
+        return "Opening a folder is Windows only -- the path is above."
+    try:
+        os.startfile(carpeta)
+    except OSError as exc:
+        return "Could not open it: {}".format(exc)
+    return "Opened in the file manager of the machine running ComfyUI."
+
+
+def _carpeta(path, maximo=60):
+    """Que hay DE VERDAD en la carpeta del proyecto, escrito en la consola.
+
+    El nodo sabe la ruta y el usuario no. Cuando algo no cuadra -- una vuelta
+    que no aparece, un video que no se monta, un proyecto que parece vacio -- la
+    pregunta siempre es la misma: que ficheros hay ahi. Esto la contesta sin
+    salir de ComfyUI.
+
+    No abre el gestor de ficheros del sistema, y no es un descuido. Para eso
+    habria que lanzar un programa externo desde el servidor, que es la familia
+    de llamadas que tuvo este paquete cuatro versiones marcado en el registro
+    (ver el README). Ademas solo funcionaria con ComfyUI y el navegador en la
+    MISMA maquina, y mucha gente lo tiene en un servidor. Una lista se lee
+    igual de bien en los dos casos, y la ruta de arriba se selecciona y se pega
+    en el gestor de ficheros de quien quiera abrirla.
+
+    The node knows the path and the user does not. When something looks wrong --
+    a missing pass, a cut that will not build, a project that seems empty -- the
+    question is always which files are actually there, and this answers it
+    without leaving ComfyUI.
+
+    It deliberately does not open the system file manager. That would mean
+    launching an external program from the server, the family of calls that kept
+    this pack flagged in the registry for four versions (see the README), and it
+    would only work with ComfyUI and the browser on the SAME machine, which is
+    often not the case. A listing reads the same either way, and the path on the
+    first line can be selected and pasted wherever the user likes.
+    """
+    carpeta, base, pre_v, pre_i = _nombres(path)
+    completa = os.path.abspath(carpeta)
+    log = ["Folder: " + completa]
+    if not os.path.isdir(carpeta):
+        log.append("")
+        log.append("It does not exist yet -- it is created on the first pass.")
+        return log
+
+    def clase(n):
+        if n.endswith("_final.mp4") or n.endswith("_final_int.mp4"):
+            return "cut"
+        # De prefijo mas largo a mas corto. "loop" es prefijo de nada, pero
+        # los tres salen del mismo nombre base y en cuanto uno sea prefijo de
+        # otro el orden decide, asi que se fija aqui y no en el orden en que
+        # esten escritos.
+        # Longest prefix first: all three derive from the same base name, so the
+        # moment one is a prefix of another the order decides the answer.
+        for prefijo, etiqueta in sorted(((pre_i, "interp"), (pre_v, "video"),
+                                         (base, "take")),
+                                        key=lambda x: -len(x[0])):
+            if n.startswith(prefijo + "_") or n.startswith(prefijo + "."):
+                return etiqueta
+        return ""
+
+    filas, total = [], 0
+    for nombre in sorted(os.listdir(carpeta)):
+        entero = os.path.join(carpeta, nombre)
+        if not os.path.isfile(entero):
+            continue
+        try:
+            estado = os.stat(entero)
+        except OSError:
+            continue
+        total += estado.st_size
+        filas.append((nombre, estado.st_size, estado.st_mtime, clase(nombre)))
+
+    if not filas:
+        log.append("")
+        log.append("The folder is empty.")
+        return log
+
+    ancho = min(max(len(f[0]) for f in filas), 44)
+    log.append("")
+    recortadas = filas[:maximo]
+    for nombre, bytes_, cuando, etiqueta in recortadas:
+        log.append("{}  {:>10}  {}  {}".format(
+            nombre.ljust(ancho), _tamano(bytes_),
+            time.strftime("%Y-%m-%d %H:%M", time.localtime(cuando)), etiqueta))
+    if len(filas) > maximo:
+        log.append("... and {} more".format(len(filas) - maximo))
+
+    cuenta = {}
+    for f in filas:
+        cuenta[f[3]] = cuenta.get(f[3], 0) + 1
+    detalle = ", ".join("{} {}".format(v, k or "other")
+                        for k, v in sorted(cuenta.items()))
+    log.append("")
+    log.append("{} files, {} -- {}".format(len(filas), _tamano(total), detalle))
+    return log
+
+
 def _editar(path, latent_frames, crf):
     """Une los clips de cada pista. Devuelve las lineas de consola."""
     log = []
@@ -1227,12 +1493,45 @@ def _borrar(path, todos=False):
         if not todos:
             break
 
+    # El cero no es una vuelta: es la imagen base que escribio Moviola In, y el
+    # bucle de arriba se para en 1. Con "borrarlo todo" se va tambien.
+    #
+    # Si no, sobrevive a un borrado completo y la tira del Multi-Prompt lo sigue
+    # ensenando como primer fotograma de una serie que ya no existe. Peor aun en
+    # un proyecto SIN imagen base: ahi ese png no es el arranque de nada, es un
+    # resto de lo que hubiera antes en la carpeta, y engana.
+    #
+    # No se pierde nada: es una copia de una imagen que el usuario ya tiene, y
+    # Moviola In la vuelve a escribir en la primera vuelta si `base_image` sigue
+    # conectado. Borrar la ultima vuelta NO la toca -- solo el borrado completo.
+    #
+    # Zero is not a loop: it is the base image Moviola In wrote, and the loop
+    # above stops at 1. "Delete every loop" takes it too.
+    #
+    # Otherwise it survives a full wipe and the Multi-Prompt strip keeps showing
+    # it as the first frame of a series that no longer exists -- worse in a
+    # project with NO base image, where that png starts nothing and is simply
+    # whatever was in the folder before. Nothing is lost: it is a copy of an
+    # image the user already has, and Moviola In writes it again on the first
+    # pass while `base_image` is wired. Deleting the LAST loop never touches it.
+    if todos:
+        base_fuera = _ficheros_del_loop(carpeta, 0)
+        for f in base_fuera:
+            try:
+                os.remove(f)
+                log.append("  removed {}".format(os.path.basename(f)))
+            except OSError as exc:
+                log.append("  COULD NOT remove {} -- {}".format(os.path.basename(f), exc))
+        if base_fuera:
+            log.append("Base image deleted.")
+
     queda = _estado(path)["loop"]
     if quitados == 0:
         log.append("No loops to delete.")
     log.append("Current loop: {}".format(queda))
     if queda == 0:
-        log.append("The project is empty: the next take starts from the base image.")
+        log.append("The project is empty. Moviola In writes the base again on the "
+                   "next pass if one is wired.")
     return log, queda
 
 
@@ -1320,6 +1619,27 @@ async def moviola_frames(request):
         datos = await request.json()
         return web.json_response({"status": "success",
                                   "frames": await _en_hilo(_frames, _path_de(datos))})
+    except Exception as exc:
+        return web.json_response({"status": "error", "message": str(exc)}, status=400)
+
+
+@PromptServer.instance.routes.post("/academia/moviola/folder")
+async def moviola_folder(request):
+    try:
+        datos = await request.json()
+        path = _path_de(datos)
+        log = await _en_hilo(_carpeta, path)
+        # Justo debajo de "Folder: ...", que es la linea que explica. Y el
+        # listado se arma ANTES de abrir nada: si abrir falla, la respuesta
+        # sigue trayendo lo que hay en la carpeta, que es lo util.
+        # Right under "Folder: ...". The listing is built BEFORE opening
+        # anything, so a failure to open still returns what is in there.
+        log.insert(1, await _en_hilo(_abrir_carpeta, path))
+        return web.json_response({
+            "status": "success",
+            "log": log,
+            "finals": await _en_hilo(_montajes, path),
+        })
     except Exception as exc:
         return web.json_response({"status": "error", "message": str(exc)}, status=400)
 

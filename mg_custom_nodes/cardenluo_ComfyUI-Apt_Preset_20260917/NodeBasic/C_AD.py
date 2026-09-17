@@ -1541,7 +1541,23 @@ def _materialize_audio_input(audio):
     os.makedirs(temp_dir, exist_ok=True)
     stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     path = os.path.join(temp_dir, f"apt_media_trim_input_{stamp}.wav")
-    torchaudio.save(path, waveform.detach().cpu(), int(sample_rate))
+    ffmpeg_ok, ffmpeg_path = check_ffmpeg()
+    if not ffmpeg_ok:
+        raise RuntimeError("缺少 FFmpeg，无法保存临时音频。")
+    waveform = waveform.detach().to(device="cpu", dtype=torch.float32)
+    channels = int(waveform.shape[0])
+    pcm = waveform.transpose(0, 1).contiguous().numpy().tobytes()
+    cmd = [
+        ffmpeg_path, "-hide_banner", "-loglevel", "error", "-y",
+        "-f", "f32le", "-ar", str(int(sample_rate)), "-ac", str(channels),
+        "-i", "pipe:0", "-c:a", "pcm_s16le", path,
+    ]
+    result = subprocess.run(cmd, input=pcm, capture_output=True)
+    if result.returncode != 0:
+        if os.path.isfile(path):
+            os.remove(path)
+        error = (result.stderr or result.stdout or b"").decode("utf-8", errors="replace").strip()
+        raise RuntimeError(error[-1600:] if error else "FFmpeg failed to save temporary audio")
     return path
 
 

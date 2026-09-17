@@ -2166,7 +2166,14 @@ def _stage_save_checkpoint_data(stage_info, data, bridge):
     filename = _stage_checkpoint_filename(stage_index, bridge)
     path = os.path.join(run_dir, filename)
     saved_key = f"checkpoint_saved_{bridge}"
-    if stage_info.get(saved_key, False) and os.path.isfile(path):
+    state = _stage_load_state(run_dir)
+    restart_single_stage = (
+        total == 1
+        and stage_index == 0
+        and state is not None
+        and state.get("complete", False)
+    )
+    if stage_info.get(saved_key, False) and os.path.isfile(path) and not restart_single_stage:
         return
 
     tensors, descriptor = _stage_encode_payload(data, "auto")
@@ -2182,8 +2189,7 @@ def _stage_save_checkpoint_data(stage_info, data, bridge):
         if os.path.isfile(temp_path):
             os.remove(temp_path)
 
-    state = _stage_load_state(run_dir)
-    if state is None:
+    if state is None or restart_single_stage:
         if stage_index != 0:
             raise ValueError("flow_stage_end: previous stage state is missing")
         state = {

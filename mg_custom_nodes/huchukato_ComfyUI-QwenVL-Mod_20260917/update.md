@@ -1,14 +1,105 @@
 # ComfyUI-QwenVL Update Log
 
-## Unreleased (2026/09/16)
+## Version 2.7.12 (2026/09/16)
 
-**Qwen Workflow Chat**
+- Strengthened image-enhancer chat instructions: Qwen Chat must inspect the provided image pixels to understand how the requested action applies and read the target node's current `preset_prompt` value and supplied prompt-writing guide.
+- The chat must emit an English `set_widget_value` enhancer directive for the target prompt instead of copying the user's message, while the inner QwenVL remains responsible for full image analysis and final preset formatting.
+- Pixel inspection by the chat is explicitly limited to interpreting the requested action, preventing it from inventing or duplicating visual scene details.
+
+## Version 2.7.11 (2026/09/16)
+
+- Added the `image2` input to `AILab_QwenVL_GGUF` and `AILab_QwenVL_GGUF_Advanced`, matching the HF nodes: `image` is Picture 1 and `image2` is Picture 2 for R2VA workflows.
+- The second image is encoded after the first and before sampled video frames, and its hash participates in the prompt cache key via the combined image2/video hash slot.
+- Added the same reference-image tooltips used by the HF nodes.
+
+## Version 2.7.10 (2026/09/16)
+
+- Image-enhancer routing now keeps a valid English action directive written by the chat model instead of always overwriting it with the raw user message, so Qwen Chat translates and refines the request instead of copying it verbatim.
+- Execution-only confirmations are detected with a bilingual command vocabulary (verbs, objects, fillers) instead of a fixed phrase list, covering variants such as "Run it", "Genera", "Ok", and "Esegui il video con il prompt precedente".
+- Bare confirmations and pre-formatted preset prompts emitted by the model are still replaced with the last descriptive user request, and `passthrough` remains forced to false for image-enhancer workflows.
+
+## Version 2.7.9 (2026/09/16)
+
+- Added deterministic I2VA action normalization before queueing: the latest user request is always written to the active inner enhancer's prompt widget and `passthrough` is always forced to false.
+- Missing prompt actions are inserted automatically, while hallucinated pre-formatted chat prompts are replaced with the raw user intent.
+
+## Version 2.7.8 (2026/09/16)
+
+- Image-to-video workflows with an exposed preset enhancer now receive a short action-only prompt from Qwen Chat and run the internal QwenVL with `passthrough=false`.
+- The internal workflow node analyzes the actual reference image and applies the full preset, avoiding visual details hallucinated by the chat model.
+- Passthrough remains available for workflows without image input.
+
+## Version 2.7.7 (2026/09/16)
+
+- Moved backend, model, token, temperature, and thinking controls into a compact Settings panel opened with a gear button.
+- The Settings panel is collapsed by default, remembers its state, and is disabled during inference.
+
+## Version 2.7.6 (2026/09/16)
+
+- Added a secure recursive output-image endpoint for Qwen Chat Assets, including images saved in nested folders such as `output/PMP/...`.
+- Assets are sorted by modification time and limited to supported image formats and paths contained inside the ComfyUI output directory.
+
+## Version 2.7.5 (2026/09/16)
+
+- Fixed the ComfyUI Assets gallery endpoint to use `/internal/files/output` without the `/api` prefix.
+
+## Version 2.7.4 (2026/09/16)
+
+**ComfyUI Assets Picker**
+
+- Added a localized ComfyUI Assets gallery for selecting recent images directly from the ComfyUI output folder.
+- Selected assets are sent to Qwen as the priority reference and synchronized with the workflow when a `LoadImageOutput` node is available.
+- Workflows with multiple `LoadImageOutput` nodes show an explicit target-node choice instead of guessing.
+- Output images selected by `LoadImageOutput` are now recognized correctly during automatic workflow image collection.
+
+## Version 2.7.3 (2026/09/16)
+
+**Deterministic MiniMax I2VA Reference Binding**
+
+- MiniMax H3 image-to-video prompts using passthrough now receive the mandatory `<Picture 1>` binding automatically when images are present, even if the chat model omits it.
+- The exact final prompt sent to the workflow is echoed back after an automatic correction.
+- Prompt guidance now treats reference pixels as authoritative and forbids invented identity, appearance, clothing, framing, environment, lighting, or style details that conflict with the source image.
+
+## Version 2.7.2 (2026/09/16)
+
+**Qwen Chat Execution Follow-up Fix**
+
+- Added a localized `Generate video` fallback choice when Qwen updates a prompt but omits `queue_workflow`.
+- Assistant messages and choice labels now follow the language of the latest user message, while generated workflow prompts remain in English.
+- Prevented responses from claiming that execution started when no queue action was emitted.
+
+## Version 2.7.1 (2026/09/16)
+
+**Qwen Chat MiniMax H3 Routing Fix**
+
+- Generated image and video prompts are now written in English unless another prompt language is explicitly requested.
+- Nodes exposing both `preset_prompt` and `passthrough` now use the passthrough route first: the final preset-formatted prompt is written to the node's actual exposed prompt widget and `passthrough` is enabled.
+- Added graph-specific routing guidance with the exact node ID and exposed prompt widget, preventing omission of the prompt or passthrough actions on promoted subgraph inputs.
+- Queue responses no longer ask for execution confirmation after already adding `queue_workflow`.
+
+## Version 2.7.0 (2026/09/16)
+
+**Qwen Workflow Chat, Image Attachments, Guided Workflow Actions, and Qwen 3.8 Models**
+
+### Qwen Workflow Chat
 
 - Added a native ComfyUI sidebar chat powered by selectable local HF/Transformers or GGUF Qwen models.
 - Added structured workflow inspection, validated widget updates, node enable/bypass actions, and autonomous queue execution when requested.
-- Added optional chat-model unload before queueing memory-intensive workflows.
+- Added clickable response choices, retry recovery for malformed model JSON, and clean message extraction when a response cannot be fully parsed.
+- Added preset-aware prompt routing: enhancer subgraphs receive raw user intent, while accessible top-level Qwen nodes can receive final prompts through passthrough.
+- Added workflow image analysis and a direct image attachment control with preview, removal, resizing, and priority over workflow images.
+- Added a repeat-last-message button, busy spinner, refined message layout, and persistent English/Italian interface switch.
+- Set `Qwen3.8-9B-heretic-uncensored.Q8_0.gguf` as the default GGUF chat model, with automatic fallback when unavailable.
+- Chat inference defaults to 1024 max tokens and temperature 0.2; thinking mode automatically raises the token budget to at least 4096.
+- Chat models are now always unloaded from memory before queueing memory-intensive workflows.
 - Added browser-local conversation/preferences persistence, bounded context, backend inference locking, and explicit unload API.
 - Restricted automation to an allowlisted action protocol; arbitrary code, filesystem, network, graph creation, connection, and deletion operations are not supported.
+
+### Models and Diagnostics
+
+- Added Qwen 3.5 and Qwen 3.8 heretic, uncensored, and thinking model options for HF and GGUF backends.
+- Replaced an unavailable private Qwen 3.8 repository with the public `petruhonk/Qwen3.8-9B-Distill-uncensored-heretic` checkpoint.
+- Reduced repeated cache lookup debug output so generation, image processing, model loading, and failure events remain visible in ComfyUI logs.
 
 ## Version 2.6 (2026/09/03)
 

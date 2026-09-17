@@ -52,6 +52,113 @@ def plan(rows, *, duration_frames, tail=22, window=362):
     )
 
 
+class LongVidPositionedGuidesV2RegressionTests(unittest.TestCase):
+    def test_cross_window_image_slot_is_not_reinjected_and_generated_bridge_opens_next_window(self):
+        rows = [image_row(i + 1, i * 102, 102, "start" if i == 0 else "continuous") for i in range(4)]
+        result = plan(rows, duration_frames=408, tail=0)
+
+        self.assertEqual(result["task_mode"], "longvid_guides")
+        self.assertEqual(result["backend_revision"], "r42-positioned-guides-v4-pure-shotboard-prompts")
+        self.assertEqual(result["continuation_mode"], "longvid_positioned_guides_v4_pure_shotboard_prompts_bridge")
+        self.assertEqual([chunk["timeline_start_frame"] for chunk in result["chunks"]], [0, 362])
+        image_ids = [
+            [guide["id"] for guide in chunk["guides"] if guide["kind"] == "image"]
+            for chunk in result["chunks"]
+        ]
+        self.assertEqual(image_ids, [["pose_1", "pose_2", "pose_3", "pose_4"], ["pose_4__terminal_reanchor"]])
+        self.assertEqual([chunk["task_mode"] for chunk in result["chunks"]], ["t2va", "i2va"])
+        self.assertEqual([chunk["uses_bridge_first_frame"] for chunk in result["chunks"]], [False, True])
+        self.assertEqual([chunk["trim_head_frames"] for chunk in result["chunks"]], [0, 1])
+        self.assertEqual(
+            result["chunks"][0]["prompt"],
+            "One uninterrupted continuous action.\n\n"
+            "Continuous action pose 1.\n\nContinuous action pose 2.\n\n"
+            "Continuous action pose 3.\n\nContinuous action pose 4.",
+        )
+        self.assertEqual(result["chunks"][1]["prompt"], "Continuous action pose 4.")
+        for forbidden in (
+            "[LONGVID", "Timeline guide at", "authored visual checkpoint",
+            "technical window", "immediately preceding generated frame",
+        ):
+            self.assertNotIn(forbidden.lower(), result["chunks"][0]["prompt"].lower())
+            self.assertNotIn(forbidden.lower(), result["chunks"][1]["prompt"].lower())
+        second = result["chunks"][1]
+        terminal = [guide for guide in second["guides"] if guide.get("terminal_reanchor")]
+        self.assertEqual(len(terminal), 1)
+        self.assertEqual(terminal[0]["local_frame"], 45)
+        self.assertEqual(terminal[0]["global_frame"], 407)
+        self.assertEqual(second["unique_frames"], 46)
+        self.assertEqual(second["frame_count"], 56)
+        self.assertEqual(second["trim_head_frames"], 1)
+        self.assertEqual(second["creative_prompt"], "Continuous action pose 4.")
+        self.assertNotIn("One uninterrupted continuous action.", second["creative_prompt"])
+        self.assertTrue(second["positioned_guides_v2"]["terminal_reanchor"])
+        self.assertFalse(second["positioned_guides_v2"]["labels_in_conditioning"])
+
+    def test_ui_labels_never_enter_conditioning_text(self):
+        rows = [
+            image_row(1, 0, 102, "start"),
+            image_row(2, 102, 102, "continuous"),
+            image_row(3, 204, 102, "continuous"),
+            image_row(4, 306, 102, "continuous"),
+        ]
+        labels = [
+            "SECRET CAMERA LABEL A",
+            "SECRET ARC LABEL B",
+            "SECRET PAN LABEL C",
+            "SECRET END LABEL D",
+        ]
+        for row, label in zip(rows, labels):
+            row["label"] = label
+
+        result = plan(rows, duration_frames=408, tail=0)
+        conditioning = "\n".join(chunk["prompt"] for chunk in result["chunks"])
+        for label in labels:
+            self.assertNotIn(label, conditioning)
+        for index in range(1, 5):
+            self.assertIn(f"Continuous action pose {index}.", conditioning)
+
+    def test_positioned_guides_prompt_contains_only_shotboard_prompt_fields(self):
+        rows = [
+            image_row(1, 0, 120, "start"),
+            image_row(2, 120, 120, "continuous"),
+            image_row(3, 240, 120, "continuous"),
+        ]
+        rows[0]["label"] = "DO NOT CONDITION LABEL ONE"
+        rows[1]["label"] = "DO NOT CONDITION LABEL TWO"
+        rows[2]["label"] = "DO NOT CONDITION LABEL THREE"
+        rows[0]["camera"] = "DO NOT CONDITION CAMERA METADATA"
+        rows[1]["note"] = "DO NOT CONDITION NOTE METADATA"
+
+        result = plan(rows, duration_frames=360, tail=0)
+        self.assertEqual(len(result["chunks"]), 1)
+        expected = (
+            "One uninterrupted continuous action.\n\n"
+            "Continuous action pose 1.\n\nContinuous action pose 2.\n\n"
+            "Continuous action pose 3."
+        )
+        self.assertEqual(result["chunks"][0]["prompt"], expected)
+        self.assertFalse(result["chunks"][0]["positioned_guides_v2"]["hardcoded_conditioning_text"])
+        self.assertEqual(result["chunks"][0]["positioned_guides_v2"]["transition_contract_lines"], 0)
+
+    def test_authored_guide_exactly_on_chunk_boundary_remains_opening_authority(self):
+        rows = [
+            image_row(1, 0, 100, "start"),
+            image_row(2, 362, 46, "continuous"),
+        ]
+        result = plan(rows, duration_frames=408, tail=0)
+        second = result["chunks"][1]
+        images = [guide for guide in second["guides"] if guide["kind"] == "image"]
+
+        self.assertEqual(len(images), 1)
+        self.assertEqual(images[0]["id"], "pose_2")
+        self.assertEqual(images[0]["local_frame"], 0)
+        self.assertEqual(second["task_mode"], "t2va")
+        self.assertFalse(second["uses_bridge_first_frame"])
+        self.assertEqual(second["trim_head_frames"], 0)
+        self.assertEqual(second["positioned_guides_v2"]["opening_authority"], "authored_guide")
+
+
 class LongVidMotionContextRegressionTests(unittest.TestCase):
     def test_legacy_workflow_defaults_to_proven_r37_full_window(self):
         result = CORE.build_shotplan(

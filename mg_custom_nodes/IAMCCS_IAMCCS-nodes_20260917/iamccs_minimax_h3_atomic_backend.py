@@ -984,6 +984,9 @@ def _load_fused_turbo_preview_model(shotplan: dict[str, Any]):
     name = str(settings.get("model_name", "") or "").strip()
     if not name or not folder_paths.get_full_path("diffusion_models", name):
         raise ValueError("Fused Fast H3 model is unavailable in diffusion_models")
+    if "convrot" in name.lower():
+        model = _node_class("UNETLoader")().load_unet(unet_name=name, weight_dtype="default")[0]
+        return model, f"Fused Fast H3 ConvRot | native UNETLoader | {name}"
     try:
         import sageattention  # noqa: F401
         from triton.runtime.build import get_cc
@@ -1633,9 +1636,10 @@ class IAMCCS_MiniMaxH3AtomicModelRouter:
             chunk = _chunk(shotplan, segment_index)
             task = _effective_task(shotplan, chunk)
             fused_task = str(task).lower()
-            if fused_task != "t2va":
+            supported = {"t2va", "i2va", "fl2va", "ref2va"} if "convrot" in str(_fused_turbo_settings(shotplan).get("model_name", "")).lower() else {"t2va"}
+            if fused_task not in supported:
                 raise ValueError(
-                    "Fused Fast H3 supports T2VA only; "
+                    "The selected fused checkpoint does not support this task; "
                     f"the resolved chunk requested {fused_task}."
                 )
             model, report = _load_fused_turbo_preview_model(shotplan)
@@ -1800,6 +1804,33 @@ class IAMCCS_MiniMaxH3AtomicConditioningBackend:
             )
         planned_first = _load_image(str(chunk.get("first_image", "")))
         planned_last = _load_image(str(chunk.get("last_image", "")))
+
+        positioned_bridge = bool(
+            chunk.get("uses_bridge_first_frame")
+            and str(shotplan.get("task_mode", "") or "").strip().lower() == "longvid_guides"
+            and int(segment_index) > 0
+        )
+        if positioned_bridge and planned_first is None and not torch.is_tensor(first_frame_override):
+            if torch.is_tensor(bridge_frame):
+                planned_first = bridge_frame[:1]
+                bridge_source = "socket"
+            else:
+                planned_first = _load_flf_bridge(str(render_id or ""))
+                bridge_source = "saved_last_frame"
+            if planned_first is None:
+                raise RuntimeError(
+                    "LongVid Positioned Guides V2 needs the immediately preceding generated bridge frame "
+                    f"for continuation chunk {int(segment_index) + 1}, but none was found. "
+                    "Start from chunk 1 and keep the Native Checkpoint queue/render_id path intact."
+                )
+            LOG.info(
+                "MiniMax H3 Positioned Guides V2 bridge opening | segment=%d/%d | source=%s | render=%s",
+                int(segment_index) + 1,
+                len(shotplan.get("chunks", [])),
+                bridge_source,
+                str(render_id or "") or "none",
+            )
+
         # FL2VA keeps the timeline's explicit shared boundary authoritative:
         # A->B is followed by B->C.  Older plans may still carry
         # ``uses_bridge_first_frame=true`` from the short-lived legacy parity
@@ -2126,12 +2157,21 @@ class IAMCCS_MiniMaxH3AtomicConditioningBackend:
         applied_guides: list[str] = []
         if isinstance(guide_events, list):
             native_context_frames = int(native_av_context.get("context_frames", 0)) if isinstance(native_av_context, dict) else 0
+            positioned_bridge_head = (
+                max(0, int(chunk.get("trim_head_frames", 0) or 0))
+                if shotboard_task == "longvid_guides" and bool(chunk.get("uses_bridge_first_frame"))
+                else 0
+            )
             for guide in guide_events:
                 if not isinstance(guide, dict):
                     continue
                 kind = str(guide.get("kind", "")).strip().lower()
                 source_path = str(guide.get("source_path", "")).strip()
-                local_frame = max(0, int(guide.get("local_frame", 0))) + native_context_frames
+                local_frame = (
+                    max(0, int(guide.get("local_frame", 0)))
+                    + native_context_frames
+                    + positioned_bridge_head
+                )
                 guide_id = str(guide.get("id", "guide")).strip() or "guide"
                 if kind == "image":
                     image = _load_image(source_path)
@@ -2193,12 +2233,15 @@ class IAMCCS_MiniMaxH3AtomicConditioningBackend:
             motion_tail = int(motion_state["carry"]["ref_video"].shape[0])
             motion_report = f"decoded_frame_reference_motion_carry motion_tail={motion_tail}f"
         execution_task = task
-        if shotboard_task == "longvid_guides" and task == "t2va":
-            execution_task = (
-                "t2va (LongVid positioned guides + locked AudioBoard AV)"
-                if str(shotplan.get("audio_mode", "")) == "h3_custom_audio_drive"
-                else "t2va (LongVid positioned guides)"
-            )
+        if shotboard_task == "longvid_guides" and task in {"t2va", "i2va"}:
+            if task == "i2va" and positioned_bridge:
+                execution_task = "i2va (LongVid Positioned Guides V2 + generated bridge opening)"
+            else:
+                execution_task = (
+                    "t2va (LongVid positioned guides + locked AudioBoard AV)"
+                    if str(shotplan.get("audio_mode", "")) == "h3_custom_audio_drive"
+                    else "t2va (LongVid Positioned Guides V2)"
+                )
         elif shotboard_task == "longvid_ref2vid_lipsync" and task.startswith("ref2va"):
             execution_task = "ref2va (LongVid positioned guides + locked AudioBoard LipSync)"
         LOG.info(
@@ -2332,9 +2375,10 @@ class IAMCCS_MiniMaxH3GenerationBackendV2:
         sampling_source = str(sampling.get("source", "backend_legacy_fallback"))
         fused_turbo = _fused_turbo_settings(shotplan)
         fused_turbo_active = _is_fused_turbo_preview(shotplan)
+        fused_convrot = fused_turbo_active and "convrot" in str(fused_turbo.get("model_name", "")).lower()
         if fused_turbo_active:
-            if str(sampler_name).lower() != "euler" or float(denoise) != 1.0:
-                raise ValueError("Fused Fast H3 requires the visible profile values: Euler and denoise 1.0")
+            if str(sampler_name).lower() != ("res_multistep" if fused_convrot else "euler") or float(denoise) != 1.0:
+                raise ValueError(f"Fused Fast H3 requires {'res_multistep' if fused_convrot else 'Euler'} and denoise 1.0")
             if abs(float(shift_video) - 12.0) > 1e-6 or abs(float(shift_audio) - 3.0) > 1e-6:
                 raise ValueError("Fused Fast H3 requires the visible profile shifts: video 12.0 and audio 3.0")
         actual_seed = chunk_seed(sampling, chunk_index, seed, seed_stride)
@@ -2416,7 +2460,7 @@ class IAMCCS_MiniMaxH3GenerationBackendV2:
         noise = RandomNoise.execute(noise_seed=actual_seed)[0]
         guider = BasicGuider.execute(model=active_model, conditioning=positive)[0]
         sampler_report = str(sampler_name)
-        if fused_turbo_active:
+        if fused_turbo_active and not fused_convrot:
             sigma_map = {
                 "4_step": "0.9999166, 0.9728326, 0.9230769, 0.8, 0.0",
                 "6_step": "0.9999166, 0.9868421, 0.9638554, 0.9230769, 0.8695652, 0.8, 0.0",
@@ -2510,6 +2554,37 @@ class IAMCCS_MiniMaxH3GenerationBackendV2:
             sampled = {key: value for key, value in sampled.items() if key != FACE_SWAP_LATENT}
         if not torch.is_tensor(native_frames) or native_frames.ndim != 4 or native_frames.shape[0] < 1:
             raise RuntimeError("MiniMax H3 video VAE returned no frames")
+        if (
+            str(shotplan.get("task_mode", "") or "").strip().lower() == "longvid_guides"
+            and isinstance(chunk.get("positioned_guides_v2"), dict)
+            and bool(chunk["positioned_guides_v2"].get("enabled"))
+        ):
+            visible_frames = max(1, int(chunk.get("unique_frames", 0) or 0))
+            head_frames = max(0, int(chunk.get("trim_head_frames", 0) or 0))
+            planned_decoded_frames = visible_frames + head_frames
+            decoded_before_crop = int(native_frames.shape[0])
+            if decoded_before_crop < planned_decoded_frames:
+                raise RuntimeError(
+                    "LongVid Positioned Guides decoded fewer frames than its Shotboard-visible contract "
+                    f"({decoded_before_crop}/{planned_decoded_frames})."
+                )
+            if decoded_before_crop > planned_decoded_frames:
+                native_frames = native_frames[:planned_decoded_frames, ...]
+                if isinstance(native_audio, dict) and torch.is_tensor(native_audio.get("waveform")):
+                    native_audio = dict(native_audio)
+                    sample_rate = max(1, int(native_audio.get("sample_rate", 32000)))
+                    target_samples = max(1, int(round(planned_decoded_frames * sample_rate / H3_FPS)))
+                    native_audio["waveform"] = native_audio["waveform"][..., :target_samples]
+                LOG.info(
+                    "MiniMax H3 Positioned Guides V3 editorial crop | chunk=%d/%d | decoded=%df -> planned=%df "
+                    "(visible=%df + bridge_head=%df)",
+                    int(chunk_index) + 1,
+                    len(shotplan.get("chunks", [])),
+                    decoded_before_crop,
+                    planned_decoded_frames,
+                    visible_frames,
+                    head_frames,
+                )
         expected_width = max(1, int(shotplan.get("width", native_frames.shape[2]) or native_frames.shape[2]))
         expected_height = max(1, int(shotplan.get("height", native_frames.shape[1]) or native_frames.shape[1]))
         decoded_width = int(native_frames.shape[2])

@@ -151,7 +151,6 @@ py/Text_Loader_Crawl.py
 py/Text_Rows_Crawl.py
 py/Textbox.py
 py/Tile_Checker.py
-py/Unsloth_Studio_Bridge.py
 py/VAE_Decode_Last_Frame.py
 py/Video_Duration_Calculator.py
 py/Video_Loader_Crawl.py

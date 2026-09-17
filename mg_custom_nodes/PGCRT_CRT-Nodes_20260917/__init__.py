@@ -1,7 +1,7 @@
 """
 @author: CRT
 @title: CRT-Nodes
-@version: 2.19.0
+@version: 2.20.0
 @project: "https://github.com/PGCRT/CRT-Nodes",
 @description: Set of nodes for ComfyUI
 https://discord.gg/8wYS9MBQqp
@@ -170,8 +170,6 @@ if True:
     )
     from .py.Isolate_CLIPSeg import CRT_IsolateInputCLIPSeg
     from .py.ERNIE_Image_Aesthetic_Scorer import ErnieImageAestheticScore
-    from .py.Unsloth_Studio_Bridge import UnslothLLM
-    from .py.Unsloth_Thinking_Display import CRT_UnslothThinkingDisplay
     from .py.AutoDL_Nodes import (
         NODE_CLASS_MAPPINGS as CRT_AUTODL_NODE_CLASS_MAPPINGS,
         NODE_DISPLAY_NAME_MAPPINGS as CRT_AUTODL_NODE_DISPLAY_NAME_MAPPINGS,
@@ -358,8 +356,6 @@ NODE_CLASS_MAPPINGS = {
     "CRT_IsolateOutput": CRT_IsolateOutput,
     "CRT_IsolateInputCLIPSeg": CRT_IsolateInputCLIPSeg,
     "ErnieImageAestheticScore": ErnieImageAestheticScore,
-    "UnslothLLM": UnslothLLM,
-    "CRT_UnslothThinkingDisplay": CRT_UnslothThinkingDisplay,
     "CRTVAEDecodeLastFrame": CRTVAEDecodeLastFrame,
     "CRT_DepthAnything3": CRT_DepthAnything3,
     "CRT_MarigoldV2Depth": CRT_MarigoldV2Depth,
@@ -484,8 +480,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CRT_IsolateOutput": "Isolate Output (CRT)",
     "CRT_IsolateInputCLIPSeg": "Isolate Input CLIPSeg (CRT)",
     "ErnieImageAestheticScore": "ERNIE Image Aesthetic Score (CRT)",
-    "UnslothLLM": "Unsloth Studio Bridge (CRT)",
-    "CRT_UnslothThinkingDisplay": "Unsloth Studio Bridge Thinking Display (CRT)",
     "CRTVAEDecodeLastFrame": "VAE Decode Last Frame (CRT)",
     "CRT_DepthAnything3": "Fast Depth Anything v3 (CRT)",
     "CRT_MarigoldV2Depth": "Heavy Depth Marigold v2 (CRT)",

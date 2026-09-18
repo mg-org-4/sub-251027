@@ -77,7 +77,7 @@ from server import PromptServer
 try:
     from .. import __version__ as ACADEMIASD_VERSION
 except Exception:
-    ACADEMIASD_VERSION = "2.4.7"
+    ACADEMIASD_VERSION = "2.4.8"
 
 try:
     from safetensors.torch import load_file as _st_load
@@ -279,6 +279,44 @@ class AcademiaMoviolaIn:
         return {
             "required": {
                 "project_path": ("STRING", {"default": "moviola/toma"}),
+                # Elige QUE imagen sale por `image`, no si sale. El cable se queda
+                # puesto en los dos casos, asi que el mismo grafo sirve para las
+                # dos formas de encadenar.
+                #
+                # `new frame` -- sale lo que el nodo acaba de leer: la base en la
+                #     vuelta 1 y el ultimo fotograma generado de la 2 en adelante.
+                #     Es lo que encadena por `first_frame`, donde la imagen fija el
+                #     fotograma 0 y tiene que avanzar en cada vuelta.
+                #
+                # `pass through` -- sale la MISMA imagen que entro por
+                #     `base_image`, vuelta tras vuelta, sin tocar el disco. Es lo
+                #     que hace falta en una ranura de referencia: ahi la imagen
+                #     dice COMO ES el sujeto y debe ser la misma toda la serie. Si
+                #     ahi entrara el fotograma generado, cada vuelta cambiaria de
+                #     referencia y ademas arrastraria el final del clip hacia esa
+                #     composicion, porque una referencia se atiende durante todo el
+                #     clip. Por esa via la continuidad la pone Guide con el
+                #     keyframe.
+                #
+                # Sin nada conectado a `base_image`, `pass through` saca None y no
+                # es un error: es el caso normal de una serie que arranca solo con
+                # el prompt.
+                #
+                # Picks WHICH image leaves through `image`, not whether one does.
+                # The wire stays connected either way, so one graph serves both
+                # ways of chaining. `new frame`: what the node just read -- the
+                # base on pass 1, the last generated frame from pass 2 on -- which
+                # is what chains through `first_frame`, where the image fixes frame
+                # 0 and must advance every pass. `pass through`: the SAME image
+                # that came in through `base_image`, pass after pass, never
+                # touching disk -- what a reference slot needs, since there the
+                # image says WHAT THE SUBJECT LOOKS LIKE and must stay the same all
+                # series. With nothing wired to `base_image`, `pass through` yields
+                # None and that is not an error: it is the ordinary case of a
+                # series starting from the prompt alone.
+                "image_out": ("BOOLEAN", {"default": True,
+                                          "label_on": "new frame",
+                                          "label_off": "pass through"}),
             },
             "optional": {
                 "base_image": ("IMAGE",),
@@ -303,7 +341,7 @@ class AcademiaMoviolaIn:
         # Reads from disk, which changes between runs though the inputs do not.
         return float("NaN")
 
-    def servir(self, project_path, base_image=None):
+    def servir(self, project_path, image_out=True, base_image=None):
         carpeta, nombre = _partes(project_path)
         n, fichero = _ultimo(carpeta, nombre, "png")
 
@@ -368,8 +406,12 @@ class AcademiaMoviolaIn:
         # since a null slot leaves no gap. Down that route Guide already provides
         # continuity, building the keyframe from the latent on disk with no PNG in
         # between.
+        # La vista previa se pinta igual con la salida cerrada: enseña lo que el
+        # nodo ha leido, que es informacion util aunque no salga por el cable.
+        # The preview is drawn either way: it shows what the node read, which is
+        # worth seeing even when nothing leaves through the wire.
         return {"ui": {"images": vista},
-                "result": (imagen, n + 1, origen, project_path)}
+                "result": (imagen if image_out else base_image, n + 1, origen, project_path)}
 
 
 # -- GUIDE -------------------------------------------------------------------
@@ -506,6 +548,34 @@ class AcademiaMoviolaOut:
             "required": {
                 "project_path": ("STRING", {"default": "moviola/toma"}),
                 "latent_frames": ("INT", {"default": 1, "min": 1, "max": 8}),
+                # Cuantos fotogramas ANTES del final se guarda. 0 es el ultimo,
+                # que es lo de siempre; 4 es el cuarto antes del final.
+                #
+                # Para que sirve: el clip siguiente no arranca en el ultimo
+                # fotograma de este, arranca ANTES y va a parar a el. Medido en
+                # dos costuras seguidas, el fotograma 4 del clip nuevo es el que
+                # reproduce el ultimo del anterior, asi que su fotograma 0
+                # equivale a cuatro antes del final. Cuando esta imagen alimenta
+                # `first_frame`, darle el ultimo le dice al modelo que el
+                # fotograma 0 es algo que el keyframe coloca en el 4: dos ordenes
+                # peleandose. El desplazamiento las pone de acuerdo.
+                #
+                # El valor que sale de la cuenta es `_fotogramas_de(lf) - 1`:
+                # 0 con latent_frames 1, 4 con 2, 8 con 3. Se deja a mano y a 0
+                # por defecto porque solo esta medido el caso de 2.
+                #
+                # How many frames BEFORE the end to save. 0 is the last one, the
+                # long-standing behaviour. The next clip does not start on this
+                # clip's last frame, it starts EARLIER and arrives at it: measured
+                # across two consecutive seams, frame 4 of the new clip is the one
+                # reproducing the previous last frame. When this image feeds
+                # `first_frame`, handing over the last frame tells the model that
+                # frame 0 is something the keyframe places at frame 4 -- two
+                # orders fighting. The offset makes them agree. The derived value
+                # is `_fotogramas_de(lf) - 1`; left manual and at 0 because only
+                # latent_frames = 2 has been measured.
+                "frames_back": ("INT", {"default": -1, "min": -1, "max": 32,
+                                       "tooltip": "-1 derives it from latent_frames, which is what you want. 0 keeps the last frame."}),
             },
             "optional": {
                 "images": ("IMAGE",),
@@ -533,7 +603,8 @@ class AcademiaMoviolaOut:
     def IS_CHANGED(s, **kwargs):
         return float("NaN")
 
-    def guardar(self, project_path, latent_frames=1, images=None, latent=None):
+    def guardar(self, project_path, latent_frames=1, frames_back=0,
+                images=None, latent=None):
         if images is None and latent is None:
             raise ValueError("[Moviola Out] Conecta images, latent o ambos. "
                              "/ Connect images, latent or both.")
@@ -549,7 +620,38 @@ class AcademiaMoviolaOut:
             # siguiente, y guardar los demas llenaria el disco sin aportar nada.
             # Only the LAST frame: it is the one that chains into the next take,
             # and keeping the rest would fill the disk for nothing.
-            ultimo = images[-1:]
+            # -1 lo deduce de `latent_frames`, que esta en el widget de arriba.
+            # El keyframe ocupa los primeros `lf` tokens del clip NUEVO, y ahi el
+            # token 0 decodifica un fotograma y el resto cuatro, asi que el clip
+            # nuevo arranca `_fotogramas_de(lf) - 1` fotogramas antes del final
+            # del anterior. Comprobado: 4 con latent_frames 2 y 8 con 3, que es
+            # donde cayo el hoyo al montar esas series.
+            #
+            # -1 derives it from `latent_frames`, the widget just above. The
+            # keyframe takes the first `lf` tokens of the NEW clip, where token 0
+            # decodes one frame and the rest four, so the new clip starts
+            # `_fotogramas_de(lf) - 1` frames before the previous ending.
+            # Verified: 4 at latent_frames 2 and 8 at 3, which is where the dip
+            # landed when those series were joined.
+            atras = int(frames_back)
+            if atras < 0:
+                atras = max(0, _fotogramas_de(int(latent_frames)) - 1)
+            total = int(images.shape[0])
+            if atras >= total:
+                # Pedir mas atras de lo que dura el clip no puede saltar al clip
+                # anterior, que no esta aqui: se avisa y se coge el primero.
+                # Asking further back than the clip lasts cannot reach into the
+                # previous clip, which is not here: say so and take the first.
+                print("[Moviola Out] frames_back {} pero el clip tiene {} "
+                      "fotogramas; se coge el primero / clip has only {} frames, "
+                      "taking the first".format(atras, total, total))
+                atras = total - 1
+            ultimo = images[total - 1 - atras:total - atras]
+            if atras:
+                print("[Moviola Out] guardando {} fotogramas antes del final{} "
+                      "/ saving {} frames before the end".format(
+                          atras, " (de latent_frames)" if int(frames_back) < 0 else "",
+                          atras))
             _tensor_a_pil(ultimo).save(base + ".png", compress_level=4)
             ui = _vista_previa(ultimo, nombre + "_out")
 
@@ -622,6 +724,14 @@ class AcademiaMoviolaOut:
 VENTANA_BUSQUEDA = 20       # fotogramas del clip nuevo que se exploran
 FPS_POR_DEFECTO = 24.0      # solo si el contenedor no declara ninguno
 HUNDIMIENTO = 0.6           # el minimo debe bajar a esto de los hombros de la V
+OBJETIVO = 1.15             # cuanto debe saltar la union, en pasos normales
+BUSCA_TRAS_HOYO = 8         # hasta donde se busca a partir del fondo
+DISOLVENCIA = 4             # fotogramas que se mezclan cuando no hay corte bueno
+UMBRAL_DISOLVER = 1.6       # a partir de este salto, mezclar en vez de cortar
+SEGUNDOS_SUAVE = 10.0       # ventana de la media movil del brillo
+TOPE_SUAVE = 0.18           # cuanto se deja corregir un fotograma
+VENTANA_PENDIENTE = 25      # fotogramas para medir la pendiente del brillo
+SIERRA_GRANDE = 8.0         # a partir de aqui, 'smooth' compensa
 FRAMES_POR_LATENTE = 4      # FRAME_PER_TOKEN = (1, 4, 4, 4, 4)
 
 # prefijo_00001<lo que sea>.mp4
@@ -841,16 +951,33 @@ def _perfil(a, b, etq=""):
     anterior. Una V de verdad se hunde muy por debajo de sus dos hombros; si no
     lo hace, el plano esta casi quieto y el minimo es ruido.
     """
-    fa = _ultimos_fotogramas(a, 2)
+    # Se decodifican mas fotogramas del final de A de los que hacen falta para
+    # el perfil, pero solo se GUARDA su brillo: tres numeros por fotograma en
+    # vez de la imagen. Con dos no se puede medir una pendiente, y guardar
+    # veinticinco imagenes por costura se comeria la memoria en una serie larga.
+    #
+    # More frames are decoded from A's tail than the profile needs, but only
+    # their brightness is KEPT -- three numbers each instead of the image. Two
+    # frames cannot give a slope, and keeping twenty-five images per seam would
+    # eat memory on a long series.
+    todos = _ultimos_fotogramas(a, VENTANA_PENDIENTE)
     fb = _fotogramas(b, 0, VENTANA_BUSQUEDA + 1)
-    if len(fa) < 2 or len(fb) < 2:
+    if len(todos) < 2 or len(fb) < 2:
         return None
+    brillo_a = [float(np.mean(x)) for x in todos]
+    brillo_b = [float(np.mean(x)) for x in fb]
+    fa = todos[-2:]
     difs = [_dif(fa[1], x) for x in fb]
     k = min(range(len(difs)), key=lambda i: difs[i])
     mov = (_dif(fa[0], fa[1]) + _dif(fb[k], fb[min(k + 1, len(fb) - 1)])) / 2.0
     hombros = min(difs[0], difs[-1])
-    return {"k": k, "dif": difs[k], "mov": mov,
-            "clara": difs[k] < HUNDIMIENTO * hombros, "fa": fa, "fb": fb}
+    # `difs` entera y no solo su minimo: elegir el corte necesita ver la SUBIDA
+    # que viene despues del fondo, no donde esta el fondo.
+    # The whole of `difs`, not just its minimum: picking the cut needs to see the
+    # CLIMB after the bottom, not where the bottom is.
+    return {"k": k, "dif": difs[k], "mov": mov, "difs": difs,
+            "clara": difs[k] < HUNDIMIENTO * hombros, "fa": fa, "fb": fb,
+            "brillo_a": brillo_a, "brillo_b": brillo_b}
 
 
 def _recorte_esperado(latent_frames, fps):
@@ -864,7 +991,65 @@ def _recorte_esperado(latent_frames, fps):
     return reales * 2 if fps > 36 else reales
 
 
-def _decidir_recortes(perfiles, esperado):
+def _elegir_corte(p):
+    """Donde cortar una costura: el fotograma en que se REANUDA el movimiento.
+
+    El fondo de la curva es el fotograma que REPITE, y hasta ahora se cortaba
+    siempre uno despues. Eso vale cuando el fondo es agudo, pero no cuando es
+    plano: un fotograma mas alla sigues encima de la repeticion y la union se
+    queda corta -- el paron.
+
+    Un fondo se vuelve plano cuando el clip nuevo reproduce el final del
+    anterior sin precision, y eso pasa de forma sistematica en UNA costura: la
+    primera. El primer clip es el unico que se genera sin keyframe, porque
+    todavia no hay latente en disco, asi que el segundo lo repite peor que el
+    tercero al segundo. Medido en dos series seguidas, la primera costura
+    cortando en el fondo+1 daba 0,49 y 0,71 veces el movimiento normal, mientras
+    las demas quedaban entre 0,99 y 1,04.
+
+    Asi que no se cuenta: se busca. De entre los fotogramas que siguen al fondo,
+    el que deje la union saltando lo que salta un fotograma cualquiera de esa
+    zona. Donde el fondo es agudo la subida es rapida y el elegido vuelve a ser
+    el de siempre, asi que las costuras que ya iban bien no se mueven.
+
+    Where to cut a seam: the frame at which the movement RESUMES.
+
+    The bottom of the curve is the frame that REPEATS, and until now the cut was
+    always one past it. That works while the bottom is sharp; it does not when
+    the bottom is flat, because one frame on you are still sitting on the repeat
+    and the join falls short -- the stall.
+
+    A bottom goes flat when the new clip reproduces the previous ending
+    imprecisely, and that happens systematically at ONE seam: the first. The
+    first clip is the only one generated without a keyframe, since no latent is
+    on disk yet, so the second reproduces it worse than the third does the
+    second. Measured across two consecutive series, the first seam cut at
+    bottom+1 gave 0.49 and 0.71 times the normal motion while the others landed
+    between 0.99 and 1.04.
+
+    So it is searched for rather than counted. Among the frames after the bottom,
+    the one whose join moves as much as any ordinary frame of that stretch does.
+    Where the bottom is sharp the climb is steep and the winner is the same frame
+    as before, so the seams that already worked do not move.
+    """
+    k = p["k"]
+    difs = p.get("difs") or []
+    mov = p.get("mov") or 0.0
+    # Sin movimiento con el que comparar no hay objetivo posible: se cae en la
+    # regla de siempre. / With no motion to compare against there is no target:
+    # fall back to the long-standing rule.
+    if mov <= 1e-6 or len(difs) < k + 2:
+        return k + 1
+    fin = min(k + BUSCA_TRAS_HOYO, len(difs) - 1)
+    candidatos = range(k + 1, fin + 1)
+    if not candidatos:
+        return k + 1
+    # NUNCA el fondo: ese es el fotograma repetido, y conservarlo para en seco.
+    # NEVER the bottom itself: that frame is the repeat, and keeping it stalls.
+    return min(candidatos, key=lambda c: abs(difs[c] / mov - OBJETIVO))
+
+
+def _decidir_recortes(perfiles, esperado, fijo=None):
     """Cuantos fotogramas quita cada costura.
 
     El minimo NO es donde cortar: es el fotograma que REPITE, el que mas se
@@ -877,40 +1062,136 @@ def _decidir_recortes(perfiles, esperado):
     copian la mediana de las que si tienen V. Si ninguna la tiene, se usa
     `latent_frames` como guia.
     """
-    claras = sorted(p["k"] for p in perfiles if p and p["clara"])
-    if claras:
-        comun = claras[len(claras) // 2] + 1
+    # Un recorte impuesto a mano se aplica tal cual y no se mide nada. Existe
+    # para comprobar la regla, no para usarlo a diario: la medida acierta costura
+    # a costura y un numero fijo no puede.
+    # A hand-set trim is applied as is and nothing is measured. It exists to check
+    # the rule, not for daily use: measuring gets each seam right and one number
+    # cannot.
+    if fijo is not None and fijo >= 0:
+        return [int(fijo)] * len(perfiles)
+
+    elegidos = {}
+    for i, p in enumerate(perfiles):
+        if p and p["clara"]:
+            elegidos[i] = _elegir_corte(p)
+    if elegidos:
+        orden = sorted(elegidos.values())
+        comun = orden[len(orden) // 2]
     else:
         comun = max(1, int(esperado))
-    return [((p["k"] + 1) if (p and p["clara"]) else comun) for p in perfiles]
+    return [elegidos.get(i, comun) for i in range(len(perfiles))]
 
 
 def claras_hay(perfiles):
     return any(p and p["clara"] for p in perfiles)
 
 
-def _medir(rutas, latent_frames, log):
+def _medir(rutas, latent_frames, log, fijo=None):
     perfiles = [_perfil(rutas[i], rutas[i + 1], "s{}".format(i))
                 for i in range(len(rutas) - 1)]
-    esperado = _recorte_esperado(latent_frames, _fps(rutas[0]))
-    recortes = _decidir_recortes(perfiles, esperado)
+    fps_pista = _fps(rutas[0])
+    esperado = _recorte_esperado(latent_frames, fps_pista)
+    recortes = _decidir_recortes(perfiles, esperado, fijo)
 
     salida = []
     for i, (p, n_rec) in enumerate(zip(perfiles, recortes)):
         if p is None:
-            salida.append((n_rec, [1.0, 1.0, 1.0]))
+            salida.append((n_rec, [1.0, 1.0, 1.0], 0))
             continue
+        # El ratio se escribe porque es lo que dice si la union sirve, y no se
+        # deducia de los otros dos numeros.
+        # The ratio is printed because it is what says whether the join works,
+        # and it could not be worked out from the other two numbers.
+        difs, mov = p.get("difs") or [], p.get("mov") or 0.0
+        razon = difs[n_rec] / mov if (mov > 1e-6 and n_rec < len(difs)) else None
+        # Una costura que salta mucho mas que un fotograma normal no tiene corte
+        # bueno: no existe el fotograma que empalme. Ahi se mezcla en vez de
+        # cortar, y la mezcla sale gratis porque los fotogramas con los que se
+        # cruza son los del rebobinado, que se iban a tirar de todas formas. No
+        # cruza dos momentos distintos de la accion: cruza dos versiones del
+        # MISMO momento, que es por lo que cuatro fotogramas bastan y no se lee
+        # como una transicion.
+        #
+        # Nunca mas larga que el recorte, porque son esos mismos fotogramas los
+        # que la alimentan. Y el doble menos uno si el clip va interpolado, por
+        # lo de siempre: el interpolador intercala, no duplica.
+        #
+        # A seam that jumps far more than an ordinary frame has no good cut --
+        # the frame that would join does not exist. There it is blended instead,
+        # and the blend is free because the frames it crosses with are the
+        # rewind, thrown away anyway. It does not cross two different moments of
+        # the action: it crosses two renderings of the SAME moment, which is why
+        # four frames are enough and it does not read as a transition.
+        #
+        # Never longer than the trim, since those are the frames feeding it. And
+        # 2n-1 on an interpolated clip, for the usual reason.
+        largo = (DISOLVENCIA * 2 - 1) if fps_pista > 36 else DISOLVENCIA
+        dis = min(largo, n_rec) if (razon is not None and razon >= UMBRAL_DISOLVER) else 0
         # La exposicion se mide contra el fotograma que SOBREVIVE al recorte. Con
         # ocho descartados, medirla contra el 0 calcula la ganancia de una imagen
         # que se tira y el cambio de tono sobrevive a la correccion.
         sup = p["fb"][min(n_rec, len(p["fb"]) - 1)]
-        salida.append((n_rec, _ganancia(p["fa"][1], sup)))
-        log.append("   seam {} -> {}   dip at {}{}   trim {}".format(
-            i + 1, i + 2, p["k"], "" if p["clara"] else " (flat, copied)", n_rec))
+        salida.append((n_rec, _ganancia(p["fa"][1], sup), dis))
+        marca = "   {:.2f}x".format(razon) if razon is not None else ""
+        if dis:
+            marca += "   blend {}".format(dis)
+        log.append("   seam {} -> {}   dip at {}{}   trim {}{}".format(
+            i + 1, i + 2, p["k"], "" if p["clara"] else " (flat, copied)",
+            n_rec, marca))
     if perfiles and not claras_hay(perfiles):
         log.append("   no clear dip anywhere: fell back to latent_frames "
                    "({} frames)".format(esperado))
+    _sierra(perfiles, recortes, fps_pista, log)
     return salida
+
+
+def _pendiente(brillos, fps):
+    """Niveles por segundo, o None si no hay con que medirla."""
+    if not brillos or len(brillos) < 4:
+        return None
+    y = np.asarray(brillos, dtype=np.float64)
+    x = np.arange(len(y)) / float(fps)
+    return float(np.polyfit(x, y, 1)[0])
+
+
+def _sierra(perfiles, recortes, fps, log):
+    """Cuanto rompe el brillo en cada costura, y con eso que modo conviene.
+
+    El brillo de un clip no es plano: sube al arrancar y va cayendo. Al
+    encadenar, el valor empalma -- de eso se encarga la ganancia -- pero la
+    PENDIENTE cambia de golpe, y eso se ve como un latido en vez de como un
+    escalon. Cuanto vale ese salto decide si merece la pena el modo 'smooth',
+    que lo quita pero a cambio puede aplanar un cambio de luz real.
+
+    Medido: con latent_frames 3 los saltos fueron 18,0 y 7,1 y 'smooth'
+    mejoraba claramente; con 2 fueron 4,4 y 0,4 y 1,4, y salia perdiendo.
+
+    How hard the brightness breaks at each seam, and which mode that calls for.
+    A clip's brightness is not flat: it rises at the start and falls away. When
+    chained the value joins -- the gain sees to that -- but the SLOPE changes
+    abruptly, which reads as a pulse rather than a step. How big that jump is
+    decides whether 'smooth' is worth it, since it removes the pulse but can
+    flatten a real change of light.
+    """
+    saltos = []
+    for p, n_rec in zip(perfiles, recortes):
+        if not p:
+            continue
+        antes = _pendiente(p.get("brillo_a"), fps)
+        despues = _pendiente((p.get("brillo_b") or [])[n_rec:], fps)
+        if antes is None or despues is None:
+            continue
+        saltos.append(abs(despues - antes))
+    if not saltos:
+        return
+    peor = max(saltos)
+    if peor >= SIERRA_GRANDE:
+        consejo = "large -- try deflicker 'smooth'"
+    else:
+        consejo = "small -- 'per clip' is enough"
+    log.append("   brightness sawtooth: {}  ({})".format(
+        " / ".join("{:.1f}".format(x) for x in saltos), consejo))
 
 
 # -- audio -------------------------------------------------------------------
@@ -1045,10 +1326,132 @@ def _escribir_audio(sal, flujo, pista, rate):
 
 # -- el montaje --------------------------------------------------------------
 
-def _montar(rutas, destino, latent_frames, crf, log):
+def _curva_brillo(rutas, recorta, disolver):
+    """El brillo por canal de cada fotograma DE SALIDA, en orden.
+
+    Se recorre igual que al escribir -- mismos recortes, misma retencion para
+    las mezclas -- pero guardando solo tres numeros por fotograma en vez de la
+    imagen. La media de una mezcla se puede componer sin tener los pixeles
+    delante, porque mezclar es lineal: la media de (1-a)*A + a*B es
+    (1-a)*media(A) + a*media(B). Por eso esta pasada no gasta memoria.
+
+    The per-channel brightness of every OUTPUT frame, in order. Walked exactly
+    as the writing pass walks it -- same trims, same hold-back for the blends --
+    keeping three numbers per frame instead of the image. A blend's mean can be
+    composed without the pixels, because blending is linear.
+    """
+    curva = []
+    retenidas = []
+    for i, r in enumerate(rutas):
+        n_entra = len(retenidas)
+        n_sale = disolver[i + 1] if i + 1 < len(rutas) else 0
+        desde = recorta[i] - n_entra
+        c = _abrir(r)
+        if c is None:
+            retenidas = []
+            continue
+        try:
+            v = c.streams.video[0]
+            v.thread_type = "AUTO"
+            cola = []
+            for idx, f in enumerate(c.decode(v)):
+                if idx < desde:
+                    continue
+                m = f.to_ndarray(format="rgb24").astype(np.float32).mean(axis=(0, 1))
+                if idx < recorta[i]:
+                    k = idx - desde
+                    alfa = (k + 1.0) / (n_entra + 1.0)
+                    m = (1.0 - alfa) * retenidas[k] + alfa * m
+                cola.append(m)
+                if len(cola) > n_sale:
+                    curva.append(cola.pop(0))
+            retenidas = cola
+        finally:
+            c.close()
+    curva.extend(retenidas)
+    return np.array(curva) if curva else None
+
+
+def _ganancias_suaves(curva, fps):
+    """Cuanto multiplicar cada fotograma para que el brillo vaya liso.
+
+    El objetivo no es una constante: es la propia curva pasada por una media
+    movil de unos diez segundos. Asi se conserva lo que la escena hace de verdad
+    -- apagarse poco a poco -- y se quita el diente de sierra, cuyo periodo es
+    el de un clip. Corregir contra una recta aplanaria tambien los cambios de
+    luz legitimos.
+
+    El tope existe porque una correccion grande sube el ruido y puede quemar
+    altas luces. Si un tramo pide mas de lo que se le deja, se queda como esta:
+    mejor un trozo algo apagado que un trozo sucio.
+
+    The target is not a constant: it is the curve itself through a moving
+    average of about ten seconds. That keeps what the scene actually does --
+    fading gradually -- and removes the sawtooth, whose period is one clip.
+    The cap exists because a large correction lifts noise and can burn
+    highlights: better a slightly dark stretch than a dirty one.
+    """
+    n = len(curva)
+    w = max(3, int(fps * SEGUNDOS_SUAVE)) | 1
+    if n < 3:
+        return np.ones_like(curva)
+    m = w // 2
+    ext = np.concatenate([np.repeat(curva[:1], m, axis=0), curva,
+                          np.repeat(curva[-1:], m, axis=0)])
+    acum = np.cumsum(ext, axis=0)
+    acum = np.concatenate([np.zeros((1, curva.shape[1])), acum])
+    objetivo = (acum[w:] - acum[:-w]) / float(w)
+    # UNA ganancia para los tres canales, sacada de la luminancia.
+    #
+    # Corregir cada canal contra su propia curva convierte un estabilizador de
+    # brillo en uno de color: cuando la escena cambia de tono de verdad -- unas
+    # brasas, una luz calida -- la correccion pelea con ella y mete un viraje.
+    # Medido sobre una serie, por canal el tono se desviaba un 1,94% de media y
+    # hasta un 8,06%, que se ve como un cambio de color donde no hay costura.
+    # Con una sola ganancia el tono no se puede mover, porque las proporciones
+    # entre canales quedan intactas, y se sigue alisando 3,6 veces mejor que sin
+    # tocar nada.
+    #
+    # ONE gain for all three channels, taken from luminance. Correcting each
+    # channel against its own curve turns a brightness stabiliser into a colour
+    # one: when the scene genuinely shifts hue the correction fights it. Measured
+    # on one series, per-channel moved the hue 1.94% on average and up to 8.06%,
+    # visible as a colour change away from any seam. A single gain cannot move
+    # the hue at all, since the ratios between channels survive untouched.
+    peso = np.array([0.2126, 0.7152, 0.0722])          # BT.709
+    luz = np.maximum(curva @ peso, 1e-6)
+    g = (objetivo @ peso) / luz
+    g = np.clip(g, 1.0 - TOPE_SUAVE, 1.0 + TOPE_SUAVE)
+    return np.repeat(g[:, None], 3, axis=1)
+
+
+def _montar(rutas, destino, latent_frames, crf, log, fijo=None,
+            suave=False):
     """Une los clips corrigiendo las tres costuras, sin salir del proceso."""
-    dec = _medir(rutas, latent_frames, log)
+    dec = _medir(rutas, latent_frames, log, fijo)
     recorta = [0] + [d[0] for d in dec]
+    # disolver[i] es la mezcla de la costura que hay ANTES del clip i.
+    # disolver[i] is the blend of the seam BEFORE clip i.
+    disolver = [0] + [(d[2] if len(d) > 2 else 0) for d in dec]
+
+    # Con `suave` la correccion deja de ser una constante por clip y pasa a ser
+    # una por fotograma, asi que las ganancias acumuladas NO se aplican: se
+    # sustituyen. Hace falta una pasada previa para conocer el brillo de todo
+    # antes de escribir nada.
+    #
+    # With `suave` the correction stops being one constant per clip and becomes
+    # one per frame, so the accumulated gains are not applied -- they are
+    # replaced. A first pass is needed to know the whole brightness before
+    # anything is written.
+    curva = _curva_brillo(rutas, recorta, disolver) if suave else None
+    suaves = None
+    if curva is not None and len(curva) > 2:
+        suaves = _ganancias_suaves(curva, _fps(rutas[0]))
+        log.append("   smooth exposure: {} frames, correction {:.3f}..{:.3f}".format(
+            len(curva), float(suaves.min()), float(suaves.max())))
+    elif suave:
+        log.append("   smooth exposure: could not read the brightness, "
+                   "falling back to per-clip gain")
 
     # La correccion de exposicion se ACUMULA: cada clip se iguala al anterior,
     # que a su vez ya viene igualado al suyo. Corrigiendo solo contra el vecino
@@ -1106,35 +1509,69 @@ def _montar(rutas, destino, latent_frames, crf, log):
             ao.layout = "stereo"
 
         escritos = 0
+
+        def emitir(arr):
+            """Un fotograma ya en RGB float al fichero."""
+            if suaves is not None and emitir.n < len(suaves):
+                s = suaves[emitir.n]
+                arr = np.stack([arr[..., c] * s[c] for c in range(3)], -1)
+            f = av.VideoFrame.from_ndarray(
+                np.clip(arr, 0, 255).astype(np.uint8), format="rgb24")
+            f.pts = emitir.n
+            f.time_base = base_t
+            emitir.n += 1
+            for p in vo.encode(f):
+                sal.mux(p)
+        emitir.n = 0
+
+        # Los ultimos fotogramas del clip anterior, retenidos sin escribir para
+        # poder cruzarlos con los primeros del siguiente. Vacio = corte en seco.
+        # The previous clip's last frames, held back unwritten so they can cross
+        # with the next clip's first ones. Empty = a hard cut.
+        retenidos = []
         for i, r in enumerate(rutas):
             g = gan[i]
-            toca = max(abs(x - 1.0) for x in g) >= 0.005
+            # Con la correccion por fotograma la de por clip sobra: aplicar las
+            # dos seria corregir dos veces. / With the per-frame correction the
+            # per-clip one is redundant: applying both corrects twice.
+            toca = (suaves is None) and max(abs(x - 1.0) for x in g) >= 0.005
+            n_entra = len(retenidos)          # mezcla de ESTA costura
+            n_sale = disolver[i + 1] if i + 1 < len(rutas) else 0
+            desde = recorta[i] - n_entra
             c = _abrir(r)
             if c is None:
+                retenidos = []
                 continue
             try:
                 v = c.streams.video[0]
                 v.thread_type = "AUTO"
+                cola = []
                 for idx, f in enumerate(c.decode(v)):
-                    if idx < recorta[i]:
+                    if idx < desde:
                         continue
+                    arr = f.to_ndarray(format="rgb24").astype(np.float32)
                     if toca:
-                        arr = f.to_ndarray(format="rgb24").astype(np.float32)
                         arr[..., 0] *= g[0]
                         arr[..., 1] *= g[1]
                         arr[..., 2] *= g[2]
-                        f = av.VideoFrame.from_ndarray(
-                            np.clip(arr, 0, 255).astype(np.uint8), format="rgb24")
-                    else:
-                        f = av.VideoFrame.from_ndarray(
-                            f.to_ndarray(format="rgb24"), format="rgb24")
-                    f.pts = escritos
-                    f.time_base = base_t
-                    escritos += 1
-                    for p in vo.encode(f):
-                        sal.mux(p)
+                    if idx < recorta[i]:
+                        # Fotograma de mezcla: pesa cada vez mas el clip nuevo.
+                        # A blend frame: the new clip weighs more each step.
+                        k = idx - desde
+                        alfa = (k + 1.0) / (n_entra + 1.0)
+                        arr = (1.0 - alfa) * retenidos[k] + alfa * arr
+                    cola.append(arr)
+                    if len(cola) > n_sale:
+                        emitir(cola.pop(0))
+                # Lo que queda en la cola son los de la costura siguiente.
+                retenidos = cola
             finally:
                 c.close()
+        # El ultimo clip no tiene costura detras: lo retenido se escribe.
+        # The last clip has no seam after it: whatever is held goes out.
+        for arr in retenidos:
+            emitir(arr)
+        escritos = emitir.n
         for p in vo.encode():
             sal.mux(p)
 
@@ -1428,14 +1865,24 @@ def _carpeta(path, maximo=60):
     return log
 
 
-def _editar(path, latent_frames, crf):
+def _editar(path, latent_frames, crf, fijo=None, fijo_int=None, suave=False):
     """Une los clips de cada pista. Devuelve las lineas de consola."""
     log = []
     carpeta, base, pre_v, pre_i = _nombres(path)
     titulo = _titulo(carpeta, base)
     hecho = []
-    for etiqueta, prefijo, sufijo in (("video", pre_v, "_final"),
-                                      ("interpolated", pre_i, "_final_int")):
+    # Cada pista lleva su recorte forzado. NO puede ser el mismo numero: el
+    # interpolador no duplica los fotogramas, los intercala, asi que un clip de
+    # 124 sale con 247 y no con 248. Un rebobinado de n fotogramas reales ocupa
+    # 2n-1 interpolados -- 5 se corresponde con 9, no con 10.
+    #
+    # Each track carries its own forced trim, and it cannot be the same number:
+    # interpolation inserts frames rather than duplicating them, so a 124-frame
+    # clip comes out at 247, not 248. A rewind of n real frames spans 2n-1
+    # interpolated ones -- 5 pairs with 9, not 10.
+    for etiqueta, prefijo, sufijo, forzado in (("video", pre_v, "_final", fijo),
+                                               ("interpolated", pre_i, "_final_int",
+                                                fijo_int)):
         clips = _clips(carpeta, prefijo)
         if not clips:
             log.append('{}: nothing found (looked for "{}_#####.mp4").'.format(
@@ -1450,7 +1897,7 @@ def _editar(path, latent_frames, crf):
         log.append("{}: joining {} clips ({} seams)".format(
             etiqueta, len(rutas), len(rutas) - 1))
         try:
-            _montar(rutas, destino, latent_frames, crf, log)
+            _montar(rutas, destino, latent_frames, crf, log, forzado, suave)
         except Exception as exc:
             log.append("{}: FAILED -- {}".format(etiqueta, exc))
             continue
@@ -1651,7 +2098,28 @@ async def moviola_edit(request):
         path = _path_de(datos)
         lf = int(datos.get("latent_frames") or 1)
         crf = max(0, min(51, int(datos.get("crf") or 18)))
-        log, _ = await _en_hilo(_editar, path, lf, crf)
+        # -1, o ausente, significa medir. El `or` no vale aqui porque 0 es un
+        # recorte legitimo: no recortar nada.
+        # -1, or absent, means measure. `or` will not do, because 0 is a valid
+        # trim: take nothing off.
+        # En automatico los dos recortes fijos NI SE MIRAN. Se ignoran en vez de
+        # borrarlos para que los valores de prueba sigan escritos en el nodo:
+        # alternar entre medir y un corte fijo es un clic, no volver a teclear.
+        #
+        # In auto the two forced trims are NOT EVEN READ. They are ignored rather
+        # than cleared so the values under test stay written in the node: moving
+        # between measuring and a fixed cut is one click, not retyping.
+        auto = bool(datos.get("auto_trim", True))
+
+        def forzado(clave):
+            if auto:
+                return None
+            crudo = datos.get(clave)
+            return None if crudo is None else max(-1, min(64, int(crudo)))
+
+        log, _ = await _en_hilo(_editar, path, lf, crf,
+                                forzado("trim"), forzado("trim_int"),
+                                bool(datos.get("deflicker", False)))
         log.append("")
         log.append(await _en_hilo(_informe, path, lf))
         return web.json_response({"status": "success", "log": log,
@@ -1696,6 +2164,46 @@ class AcademiaMoviola:
                                           "tooltip": "Same value as Moviola Out. Only a "
                                                      "guide: it is used where a seam is too "
                                                      "still to measure."}),
+                # ORDEN: los widgets NUEVOS van al FINAL de este diccionario.
+                # ComfyUI guarda sus valores en un workflow como una lista
+                # POSICIONAL, asi que meter uno en medio corre todos los de
+                # detras y cada widget hereda el valor del vecino. Paso al meter
+                # `deflicker` aqui: trim, trim_int y crf aparecieron cambiados en
+                # un grafo ya guardado. Se queda donde esta porque moverlo ahora
+                # volveria a descolocar los que ya se corrigieron a mano.
+                #
+                # ORDER: NEW widgets go at the END of this dict. ComfyUI stores
+                # their values in a workflow as a POSITIONAL list, so inserting
+                # one in the middle shifts everything after it and each widget
+                # inherits its neighbour's value. It happened adding `deflicker`
+                # here. It stays put because moving it now would shift again the
+                # ones already corrected by hand.
+                "deflicker": ("BOOLEAN", {"default": False, "label_on": "smooth",
+                                          "label_off": "per clip",
+                                          "tooltip": "Exposure correction. 'per clip' "
+                                                     "matches each seam with one gain "
+                                                     "per clip. 'smooth' corrects every "
+                                                     "frame toward a smoothed brightness "
+                                                     "curve, which also removes each "
+                                                     "clip's own drift."}),
+                "auto_trim": ("BOOLEAN", {"default": True, "label_on": "auto",
+                                          "label_off": "fixed",
+                                          "tooltip": "In auto every seam is measured "
+                                                     "and the two trims below are "
+                                                     "ignored, keeping their values for "
+                                                     "when you switch back."}),
+                "trim": ("INT", {"default": -1, "min": -1, "max": 64, "step": 1,
+                                 "tooltip": "Plain track. -1 measures every seam, "
+                                            "which is what you want. Any other value "
+                                            "forces that many frames off every seam -- "
+                                            "there to check the rule against a fixed "
+                                            "cut."}),
+                "trim_int": ("INT", {"default": -1, "min": -1, "max": 128, "step": 1,
+                                     "tooltip": "Same, for the interpolated track, "
+                                                "which needs its own number: "
+                                                "interpolation inserts frames rather "
+                                                "than duplicating them, so a trim of n "
+                                                "here is 2n-1 -- 5 pairs with 9."}),
                 "crf": ("INT", {"default": 18, "min": 0, "max": 51, "step": 1,
                                 "tooltip": "x264 quality of the joined file. Raise it for a "
                                            "smaller file; 16 is near-transparent, 24 is "
@@ -1713,7 +2221,19 @@ class AcademiaMoviola:
     def IS_CHANGED(s, **kwargs):
         return float("nan")
 
-    def refrescar(self, path, latent_frames=1, crf=18, unique_id=None):
+    # Los ajustes de montaje se ACEPTAN y no se usan. Ejecutar este nodo solo
+    # refresca el estado; montar es cosa de los botones, que mandan estos mismos
+    # valores por la ruta de API. Pero ComfyUI entrega TODA entrada declarada
+    # como argumento, asi que una firma que no las nombre revienta el grafo -- y
+    # no al pulsar un boton, sino en mitad de una serie.
+    #
+    # The montage settings are ACCEPTED and unused. Running this node only
+    # refreshes state; joining belongs to the buttons, which send these same
+    # values through the API route. But ComfyUI hands over every declared input
+    # as an argument, so a signature that does not name them breaks the graph --
+    # and not on a button press, but part-way through a series.
+    def refrescar(self, path, latent_frames=1, deflicker=False, auto_trim=True,
+                  trim=-1, trim_int=-1, crf=18, unique_id=None):
         try:
             texto = _informe(path, latent_frames)
         except Exception as exc:

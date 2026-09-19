@@ -2,7 +2,7 @@
 
   <img src="https://github.com/Gourieff/Assets/raw/main/sd-webui-reactor/ReActor_logo_NEW_RU.png?raw=true" alt="logo" width="180px"/>
 
-  ![Version](https://img.shields.io/badge/версия_нода-0.7.0-brightgreen?style=for-the-badge&labelColor=darkgreen)
+  ![Version](https://img.shields.io/badge/версия_нода-0.7.1_beta1-green?style=for-the-badge&labelColor=darkgreen)
 
   <a href="https://boosty.to/artgourieff" target="_blank">
     <img src="https://lovemet.ru/img/boosty.jpg" width="108" alt="Поддержать проект на Boosty"/>
@@ -45,6 +45,14 @@
 <a name="latestupdate">
 
 ## Что нового в последнем обновлении
+
+### 0.7.1 <sub><sup>BETA1</sup></sub>
+
+- **Новый узел `DLSS5 Frame Enhancer`**. Новейшая технология DLSS 5 от NVIDIA для улучшения качества изображения (кадра целиком или лиц по маске).<br><u>Следуйте [инструкции по установке](https://github.com/Gourieff/ComfyUI-ReActor/blob/main/r_dlssnr/dll/README.md).</u><br><pre>Интеграция работает в изолированном Host-режиме, что полностью исключает конфликты с CUDA-контекстом ComfyUI.<br>Огромная благодарность автору проекта [Merserk/dlss5-visual-enhancer](https://github.com/Merserk/dlss5-visual-enhancer) за C++ обертку (neuroframe_engine.dll и neuroframe_caller.dll), которая легла в основу вычислительного моста для данного узла.<br>Также благодарность Gemini 3.1 Pro (через [Google Gemini](https://gemini.google.com/app)) за ассистирование и помощь.</pre><u>Требования:</u><br>
+-- Windows 10/11<br>
+-- NVIDIA display driver >= 616.x<br>
+-- NVIDIA RTX 40/50-series GPU<br>
+(совместимость с более старыми сериями RTX не подтверждена)
 
 ### 0.7.0
 
@@ -297,6 +305,7 @@ Basic workflow [💾](https://github.com/Gourieff/Assets/blob/main/comfyui-react
   - ReActorImageDublicator (Сделать из одного изображения несколько дубликатов)
   - ImageRGBA2RGB (Конвертировать RGBA в RGB)
   - ReActorUnload (Выгрузить модели РеАктора из VRAM)
+  - DLSS5FrameEnhancer (Улучшение детализации кадра с NVIDIA DLSS 5)
 
 Соедините все необходимые слоты (slots) и запустите очередь (query).
 

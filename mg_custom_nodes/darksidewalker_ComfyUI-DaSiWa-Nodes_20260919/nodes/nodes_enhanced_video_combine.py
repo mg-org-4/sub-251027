@@ -216,8 +216,8 @@ def _pingpong_frames(images, pingpong):
     return torch.cat((images, images[1:-1].flip(0)), dim=0)
 
 
-def _format_filename_prefix(filename_prefix):
-    """Expand ComfyUI-style date placeholders before requesting an output path."""
+def _format_filename_prefix(filename_prefix, seed=None):
+    """Expand supported output-name placeholders without changing unknown tokens."""
     now = datetime.datetime.now()
 
     def replace_date(match):
@@ -228,7 +228,8 @@ def _format_filename_prefix(filename_prefix):
         fmt = fmt.replace("mm", "%M").replace("ss", "%S")
         return now.strftime(fmt)
 
-    return re.sub(r"%date(?::([^%]+))?%", replace_date, filename_prefix)
+    formatted = re.sub(r"%date(?::([^%]+))?%", replace_date, filename_prefix)
+    return formatted.replace("%seed%", str(int(seed))) if seed is not None else formatted
 
 
 def _output_filename(filename, counter, extension, has_audio):
@@ -362,7 +363,7 @@ class DaSiWa_EnhancedVideoCombine:
                 "log_level": (["Standard", "Verbose"], {"default": "Standard", "description": "Legacy workflow compatibility; logging is always concise."}),
                 "pingpong": ("BOOLEAN", {"default": False, "description": "Append the interior frames in reverse order for seamless forward/reverse playback."}),
                 "save_metadata": ("BOOLEAN", {"default": True, "description": "Embed ComfyUI prompt and workflow metadata for workflow-aware video loaders."}),
-                "filename_prefix": ("STRING", {"default": "video_%date:hhmmss%", "description": "Output path/name prefix. Supports %date% and formatted dates such as video/%date:yyyy-MM-dd%/%date:hhmmss%."}),
+                "filename_prefix": ("STRING", {"default": "video_%date:hhmmss%", "description": "Output path/name prefix. Supports %seed%, %date%, and formatted dates such as video/%date:yyyy-MM-dd%/%date:hhmmss%. Connect the optional seed input to expand %seed%."}),
                 "save_output": ("BOOLEAN", {"default": True}),
                 "pass_frames": ("BOOLEAN", {"default": False, "description": "Return the encoded frame sequence for downstream processing."}),
                 "crop_to_audio": ("BOOLEAN", {"default": False, "description": "When audio is connected, end the output video at the audio duration."}),
@@ -373,6 +374,7 @@ class DaSiWa_EnhancedVideoCombine:
             },
             "optional": {
                 "audio": ("AUDIO", {"description": "Optional ComfyUI audio to mux into the encoded video."}),
+                "seed": ("INT", {"forceInput": True, "description": "Optional generation seed used to expand %seed% in filename_prefix."}),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -398,8 +400,8 @@ class DaSiWa_EnhancedVideoCombine:
     def combine(
         self, images, frame_rate, codec, container, bit_depth, quality, pingpong,
         save_metadata, filename_prefix, save_output, pass_frames, crop_to_audio=False, audio_codec="Auto",
-        audio_bitrate="192k", log_level="Standard", save_first_frame=False, save_last_frame=False, audio=None, prompt=None,
-        extra_pnginfo=None,
+        audio_bitrate="192k", log_level="Standard", save_first_frame=False, save_last_frame=False, audio=None, seed=None,
+        prompt=None, extra_pnginfo=None,
     ):
         if images.ndim != 4 or images.shape[-1] < 3:
             raise ValueError("images must be an IMAGE batch shaped [frames, height, width, channels] with RGB channels.")
@@ -421,7 +423,7 @@ class DaSiWa_EnhancedVideoCombine:
         output_dir = folder_paths.get_output_directory() if save_output else folder_paths.get_temp_directory()
         output_type = "output" if save_output else "temp"
         height, width = images.shape[1:3]
-        filename_prefix = _format_filename_prefix(filename_prefix)
+        filename_prefix = _format_filename_prefix(filename_prefix, seed=seed)
         output_folder, filename, counter, subfolder, _ = folder_paths.get_save_image_path(filename_prefix, output_dir, width, height)
         metadata = _metadata_file(prompt, extra_pnginfo) if save_metadata else None
         audio_data, audio_duration = _audio_file(audio)
@@ -491,12 +493,14 @@ class DaSiWa_EnhancedVideoCombine:
         animated_settings = _animated_image_settings(selected_container)
         mime_types = {"WebM": "video/webm", "MKV": "video/x-matroska", "MP4": "video/mp4", **{name: settings[2] for name, settings in _ANIMATED_IMAGE_SETTINGS.items()}}
         output_mime_type = mime_types[selected_container]
-        assets = [{"filename": os.path.basename(output_path), "subfolder": subfolder, "type": output_type, "format": output_mime_type, "width": width, "height": height, "codec": selected_codec, "bit_depth": selected_bit_depth, "container": selected_container}]
-        assets.extend(
+        main_asset = {"filename": os.path.basename(output_path), "subfolder": subfolder, "type": output_type, "format": output_mime_type, "width": width, "height": height, "codec": selected_codec, "bit_depth": selected_bit_depth, "container": selected_container}
+        frame_assets = [
             {"filename": os.path.basename(path), "subfolder": subfolder, "type": output_type, "format": "image/png", "width": width, "height": height}
             for path in frame_exports
-        )
-        ui = {"images": assets}
+        ]
+        # Real video containers (WebM/MKV/MP4) aren't PIL-openable images: only animated
+        # image formats (GIF/WebP/AVIF) belong in "images", or /view 500s trying to decode them.
+        ui = {"images": ([main_asset] if animated_settings else []) + frame_assets}
         if not animated_settings:
             ui["gifs"] = [{"filename": os.path.basename(output_path), "subfolder": subfolder, "type": output_type, "format": output_mime_type, "codec": selected_codec, "bit_depth": selected_bit_depth, "container": selected_container, "width": width, "height": height, "fps": frame_rate}]
         _log(f"Output: {output_path} ({selected_codec}, {encoder}, {selected_bit_depth}-bit).")

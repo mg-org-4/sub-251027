@@ -42,8 +42,8 @@ export const KEYWORDS = {
   PixaromaLoadVideo: "mp4 movie frames clip import video size resolution dimensions",
   PixaromaLoadVideoFrame: "still grab frame single picture screenshot",
   PixaromaFirstLastFrame: "first last frame start end continue continuation extend chain join carry on next video ending beginning still grab last frame from video",
-  PixaromaSaveMp4: "export video render encode movie mp4 h264 audio fade click tick pop start onset resave re-save size resolution dimensions length duration",
-  PixaromaSaveVideo: "export video render encode movie mp4 h264 h265 hevc 10 bit 10bit ten bit colour color depth banding gradient smooth quality crf bitrate folder subfolders filename tokens counter name fps duration frames seconds length trim audio soundtrack player preview scrub settings gear hide buttons master grade edit audio fade click tick pop start onset",
+  PixaromaSaveMp4: "export video render encode movie mp4 h264 audio fade click tick pop start onset resave re-save size resolution dimensions length duration volume loud loudness sound level mute muted silence silent speaker too loud turn down",
+  PixaromaSaveVideo: "export video render encode movie mp4 h264 h265 hevc 10 bit 10bit ten bit colour color depth banding gradient smooth quality crf bitrate folder subfolders filename tokens counter name fps duration frames seconds length trim audio soundtrack player preview scrub settings gear hide buttons master grade edit audio fade click tick pop start onset volume loud loudness sound level mute muted silence silent speaker too loud turn down",
   PixaromaSaveText: "save text txt export write disk file collect collection gather accumulate keep store log history journal notebook remember lost losing prompts prompt list library archive append add each run every run batch llm generated prompts edit copy clear folder filename counter separator blank line timestamp reuse later",
   PixaromaPauseImage: "stop check gate review approve interrupt",
 
@@ -75,6 +75,7 @@ export const KEYWORDS = {
   PixaromaSliders: "slider knob dashboard remote control panel",
   PixaromaSeed: "random fixed number sampler noise",
   PixaromaNumber: "int float value amount",
+  PixaromaNumberPick: "number pick picker buttons chips presets preset whole number int integer decimal float value steps batch size cfg denoise strength fps frame rate quick set favourite numbers click instead of typing one number switch between values control knob",
   PixaromaDuration: "duration seconds length how long video length frames frame count fps frame rate clip length 5 seconds 10 seconds convert seconds to frames how many frames minimax h3 wan hunyuan ltx 4n+1 8n+1 17n+5 multiple of 4 plus 1 length must be math expression formula video too short video too long sampler rejected frame count",
   // ── Sound ──
   PixaromaLoadAudio: "audio sound music song track wav mp3 flac ogg m4a load audio open audio import audio waveform wave shape see the sound trim cut clip chop shorten crop audio start at start time offset pick the chorus drag select selection window play preview listen upload voice speech dialogue voiceover narration soundtrack backing track how long silence pad loop repeat",

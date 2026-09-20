@@ -1,0 +1,58 @@
+ComfyUI-H3-Continuum V3.8X2 / package 3.8.3 — package validation record
+
+Status: local commit/push preparation PASS. No commit, push, tag, GitHub Release,
+or Registry publication is authorized or performed by this record.
+
+Public surface: exactly nine nodes
+- H3 Continuum Sampler V3.8
+- H3 Continuum Reference Audios
+- H3 Continuum Finalize
+- H3 Continuum Load Image
+- H3 Continuum Load Audio
+- H3 Continuum Load Video
+- H3 Continuum Second Pass
+- H3 Continuum Reference Images
+- Decode Cache Helper
+
+Official V3.8X2 workflows
+- MiniMax_H3_Continuum_V38X2.json / .zip
+- MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json / .zip
+- Both names contain the same graph. Each ZIP contains only its correspondingly
+  named JSON. The JSON SHA-256 is
+  6c445d62979632bc1a801b1c28dbd639c23b51cc156ebae18837baaa757e592b.
+
+Reference Image 1–9 resource gate
+- Tested system: NVIDIA GeForce RTX 5060 Ti 16 GB / RAM 64 GB.
+- Tested run: 512 x 608, 3 x 5 seconds, Full Run, Spectrum Off, LoRA Off,
+  Sage Attention, Balanced 22-frame continuity.
+- Nine test references were reduced to about 0.30 MP each.
+- Sampling used about 15.0–15.5 GiB of the available 16,311 MiB VRAM.
+- This is a high-resource configuration with little 16 GB headroom. Pre-resize
+  source-image copies to about 0.30 MP before loading all nine. Larger inputs,
+  output sizes, wrappers, or concurrent workloads may require more VRAM/RAM.
+
+Decode Cache Helper boundary
+- It can reuse Decode only when latent contents, shape, dtype, decode metadata,
+  VAE identity, and a process-local cache entry all match.
+- It does not accelerate Sampling. A first MISS can be slower.
+- The measured 20%+ reductions are configuration-specific observations, not an
+  unconditional speed guarantee.
+
+Preparation verification
+- Full CPU suite: 1,367 passed / 1 skipped / 0 failed.
+- Frontend Review Queue: 46/46 PASS.
+- Workflow JSON structure: 32 nodes / 38 links / zero broken saved links.
+- Workflow aliases: byte-identical JSON; ZIP payload parity required.
+- Development and Registry manifests: regenerated after documentation and
+  workflow bytes were finalized; final hash verification is part of the
+  commit-ready Gate.
+
+Registry package policy
+- Include production runtime modules and only the explicitly re-included tools,
+  documents, and four V3.8X2 workflow files from .comfyignore.
+- Exclude tests, internal AGENTS/PROJECT_STATE/WORKLOG files, development
+  MANIFEST.sha256, historical workflow files, caches, and unrelated ZIPs from
+  the Registry payload.
+- MANIFEST.sha256 covers the prepared source tree except itself and the three
+  internal project-state files. REGISTRY_MANIFEST.sha256 covers the actual
+  Registry payload except itself.

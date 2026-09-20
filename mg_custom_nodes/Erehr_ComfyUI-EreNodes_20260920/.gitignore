@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project
+audit/
+references/
+.codegraph/
+CLAUDE.md

@@ -86,9 +86,20 @@ const CSS = `
 .asd-pm-card { flex: 0 0 auto; width: 108px; cursor: pointer; border-radius: 7px;
     border: 2px solid transparent; background: #171717; overflow: hidden;
     transition: border-color .15s, transform .12s; }
-.asd-pm-card:hover { border-color: #55606e; transform: translateY(-1px); }
-.asd-pm-card.sel { border-color: #4a8fe0; }
-.asd-pm-thumb { width: 100%; height: 61px; display: block; object-fit: cover;
+/* El borde dice el ESTADO y el anillo dice cual esta seleccionada. Antes los
+   dos usaban el borde y solo cabia uno de los dos mensajes. */
+.asd-pm-card:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.asd-pm-card.falta { border-color: #7a2f2f; }
+.asd-pm-card.curso { border-color: #c79a1e; animation: asd-pm-late 1.1s ease-in-out infinite; }
+.asd-pm-card.hecho { border-color: #2f7d3a; }
+.asd-pm-card.sel { box-shadow: 0 0 0 2px #4a8fe0; }
+@keyframes asd-pm-late { 50% { border-color: #6b5410; } }
+/* contain y no cover: la ficha ya tiene la forma del material, asi que
+   normalmente coinciden, pero la imagen base la trae el usuario y puede tener
+   otra proporcion, y recortarla seria esconder parte de lo que eligio.
+   OJO: esto es CSS dentro de una plantilla de JavaScript, asi que aqui NO
+   puede haber acentos graves -- cierran la cadena y tumban el fichero entero. */
+.asd-pm-thumb { width: 100%; height: 61px; display: block; object-fit: contain;
     background: #0e0e0e; }
 .asd-pm-vacio { width: 100%; height: 61px; display: flex; align-items: center;
     justify-content: center; background: #131313;
@@ -97,6 +108,9 @@ const CSS = `
     padding: 4px 6px; font-size: 10.5px; color: #9a9a9a; font-family: Consolas, monospace; }
 .asd-pm-card.sel .asd-pm-pie { color: #cfe3ff; background: #22303f; }
 .asd-pm-aviso { color: #6f6f6f; font-size: 9px; }
+.asd-pm-play { color: #7fae86; font-size: 9px; letter-spacing: .5px; }
+.asd-pm-dur { color: #8a8a8a; font-size: 9px; margin-left: auto;
+    padding-right: 4px; font-variant-numeric: tabular-nums; }
 
 .asd-pm-add { flex: 0 0 auto; width: 44px; border-radius: 7px; border: 2px dashed #3f3f3f;
     background: #171717; color: #7b7b7b; cursor: pointer; font-size: 19px;
@@ -534,13 +548,34 @@ app.registerExtension({
                 }
                 try {
                     const r = await pedirJSON("/academia/moviola/frames", { path });
-                    const m = {};
+                    const m = {}, v = {};
                     if (r.status === "success") {
                         for (const f of r.frames || []) m[f.n] = f;
+                        for (const c of r.clips || []) v[c.n] = c;
                     }
                     _this.frames = m;
+                    _this.clips = v;
+                    // La ruta se guarda porque la tarjeta 1 la necesita para pedir
+                    // su fotograma, y el sello cambia solo cuando cambia la serie:
+                    // sin el, cada repintado -- y hay uno por cada clic en la tira --
+                    // volveria a decodificar el clip en el servidor.
+                    //
+                    // The path is kept because card 1 needs it to ask for its frame,
+                    // and the stamp changes only when the series does: without it
+                    // every repaint, and there is one per click on the strip, would
+                    // decode the clip again on the server.
+                    _this._rutaTira = path;
+                    _this._selloTira = Object.keys(m).length * 1000
+                        + Object.keys(v).length;
+                    for (const c of Object.values(v)) {
+                        if (c.ancho > 0 && c.alto > 0) {
+                            _this.relacion = c.ancho / c.alto;
+                            break;
+                        }
+                    }
                 } catch (e) {
                     _this.frames = {};
+                    _this.clips = {};
                 }
                 _this.renderTira();
             };
@@ -560,6 +595,23 @@ app.registerExtension({
             const ZOOM_MIN = 0.7, ZOOM_MAX = 2.6, ANCHO_CARTA = 108, ALTO_THUMB = 61;
             if (typeof this.tiraZoom !== "number") this.tiraZoom = 1;
 
+            // La ficha toma la forma del CLIP: apaisado en un proyecto 16:9 y
+            // vertical en uno 9:16. Asi no hay que elegir entre recortar -- que
+            // deja un vertical en una tira inservible -- y encoger para que quepa
+            // entero, que desperdicia media ficha. Sin clips todavia se usa la
+            // proporcion de siempre.
+            //
+            // The card takes the CLIP's shape, so there is no choosing between
+            // cropping, which makes a vertical take useless in a strip, and
+            // shrinking to fit, which wastes half the card. With no clips yet the
+            // long-standing ratio is used.
+            const RELACION_POR_DEFECTO = ANCHO_CARTA / ALTO_THUMB;
+            const altoMiniatura = () => {
+                const z = _this.tiraZoom;
+                const rel = _this.relacion || RELACION_POR_DEFECTO;
+                return Math.max(24, Math.round((ANCHO_CARTA * z) / rel));
+            };
+
             const aplicarZoom = () => {
                 const z = _this.tiraZoom;
                 etqZoom.innerText = Math.round(z * 100) + "%";
@@ -568,7 +620,7 @@ app.registerExtension({
                 for (const card of tira.querySelectorAll(".asd-pm-card")) {
                     card.style.width = Math.round(ANCHO_CARTA * z) + "px";
                     const vis = card.querySelector(".asd-pm-thumb, .asd-pm-vacio");
-                    if (vis) vis.style.height = Math.round(ALTO_THUMB * z) + "px";
+                    if (vis) vis.style.height = altoMiniatura() + "px";
                 }
                 const mas = tira.querySelector(".asd-pm-add");
                 if (mas) mas.style.width = Math.round(44 * z) + "px";
@@ -584,8 +636,25 @@ app.registerExtension({
             btnMenos.addEventListener("click", () => cambiarZoom(-0.2));
             btnMas.addEventListener("click", () => cambiarZoom(0.2));
 
+            // La ultima vuelta que existe en el disco. `frames` viene indexado
+            // por el numero del fichero, y el 0 es la imagen base, que no es una
+            // vuelta: por eso se descarta. / The last take that exists on disk.
+            // `frames` is keyed by file number and 0 is the base image, which is
+            // not a take, so it is dropped.
+            this.ultimaVuelta = () => {
+                let ult = 0;
+                for (const k of Object.keys(_this.frames || {})) {
+                    const n = parseInt(k, 10);
+                    if (Number.isFinite(n) && n > ult) ult = n;
+                }
+                return ult;
+            };
+
             this.renderTira = () => {
                 clamp();
+                for (const c of tira.querySelectorAll(".asd-pm-card")) {
+                    if (typeof c._asdQuitarVideo === "function") c._asdQuitarVideo();
+                }
                 tira.innerHTML = "";
                 _this.promptState.forEach((item, idx) => {
                     // El fotograma que ARRANCA la vuelta N es el ultimo de la N-1.
@@ -595,16 +664,55 @@ app.registerExtension({
                     // zero, which only exists when there was a base image.
                     const f = _this.frames[idx];
                     const card = document.createElement("div");
-                    card.className = "asd-pm-card" + (idx === _this.loopSel ? " sel" : "");
-                    card.title = f ? f.filename : (idx === 0 ? "starts from the prompt alone"
-                                                             : "not generated yet");
-                    if (f) {
+                    // Verde: la vuelta ya existe en el disco. Amarillo: es la que
+                    // se esta generando ahora. Rojo: aun no esta.
+                    //
+                    // OJO con la numeracion, que no es la misma para la imagen y
+                    // para el estado. La tarjeta N ENSENA el fotograma con el que
+                    // ARRANCA -- el final de la vuelta anterior, `loop_{N-1}` --
+                    // pero su estado lo decide `loop_{N}`, que es su propio
+                    // resultado. Por eso al borrar la ultima vuelta la tarjeta
+                    // siguiente se queda sin imagen y la anterior se pone roja.
+                    //
+                    // Green: the take exists on disk. Yellow: it is the one being
+                    // generated. Red: not there yet. Mind the numbering, which
+                    // differs for the picture and for the state: card N SHOWS the
+                    // frame it STARTS from, the previous take's last, `loop_{N-1}`,
+                    // while its state is decided by `loop_{N}`, its own result.
+                    const hecho = (idx + 1) <= _this.ultimaVuelta();
+                    const curso = !hecho && _this._generando
+                        && (idx + 1) === _this.ultimaVuelta() + 1;
+                    card.className = "asd-pm-card "
+                        + (hecho ? "hecho" : (curso ? "curso" : "falta"))
+                        + (idx === _this.loopSel ? " sel" : "");
+                    card.title = (hecho ? "generated" : (curso ? "generating now"
+                                                               : "not generated yet"))
+                        + (f ? "  -- starts from " + f.filename
+                             : (idx === 0 ? "  -- starts from its own first frame" : ""));
+                    // La vuelta 1 no tiene anterior de la que tomar el arranque, asi
+                    // que lo saca de su PROPIO clip. Antes ensenaba la imagen de
+                    // referencia, que es de donde parte el modelo pero no lo que se
+                    // ve al empezar, o un hueco negro en una serie sin imagen base.
+                    // Mientras esa vuelta no exista se sigue ensenando lo que haya.
+                    //
+                    // Take 1 has no previous take to borrow its start from, so it
+                    // takes it from its OWN clip. It used to show the reference
+                    // image, which is what the model departs from but not what is
+                    // on screen at the start, or a black gap in a series with no
+                    // base image. Until that take exists, whatever is there is
+                    // still shown.
+                    const propio = idx === 0 && (_this.clips || {})[1];
+                    if (f || propio) {
                         const img = document.createElement("img");
                         img.className = "asd-pm-thumb";
                         img.loading = "lazy";
-                        img.src = api.apiURL(`/view?filename=${encodeURIComponent(f.filename)}`
-                            + `&subfolder=${encodeURIComponent(f.subfolder)}&type=output`
-                            + `&t=${Date.now()}`);
+                        img.src = propio
+                            ? api.apiURL(`/academia/moviola/arranque`
+                                + `?path=${encodeURIComponent(_this._rutaTira || "")}`
+                                + `&n=1&t=${_this._selloTira || 0}`)
+                            : api.apiURL(`/view?filename=${encodeURIComponent(f.filename)}`
+                                + `&subfolder=${encodeURIComponent(f.subfolder)}&type=output`
+                                + `&t=${Date.now()}`);
                         card.appendChild(img);
                     } else {
                         const hueco = document.createElement("div");
@@ -621,6 +729,96 @@ app.registerExtension({
                     av.innerText = f ? "" : (idx === 0 ? "t2v" : "—");
                     pie.append(num, av);
                     card.appendChild(pie);
+                    // La miniatura ya esta puesta y las dos ramas de arriba la
+                    // llaman distinto -- `img` o `hueco` --, asi que se localiza
+                    // por su clase en vez de recordarla.
+                    // The thumbnail is already in place and the two branches above
+                    // name it differently, so it is looked up by class.
+                    const vis = card.querySelector(".asd-pm-thumb, .asd-pm-vacio");
+
+                    // El clip de ESTA tarjeta es el de su propia vuelta, no el
+                    // de la imagen que ensena: la tarjeta N arranca en el final
+                    // de la N-1 pero el video que le corresponde es el N.
+                    //
+                    // This card's clip is its own take's, not the one the picture
+                    // belongs to: card N starts from take N-1's last frame, but
+                    // the video that is card N is take N.
+                    const clip = (_this.clips || {})[idx + 1];
+                    if (clip && vis) {
+                        const pie2 = pie;
+                        // La duracion va ANTES de la flecha: lo que se lee de
+                        // izquierda a derecha es numero de vuelta, cuanto dura y
+                        // que se puede reproducir.
+                        // The duration goes BEFORE the arrow, so left to right it
+                        // reads as take number, how long it is, and that it plays.
+                        if (clip.segundos > 0) {
+                            const dur = document.createElement("span");
+                            dur.className = "asd-pm-dur";
+                            dur.innerText = clip.segundos.toFixed(1) + "s";
+                            dur.title = clip.fotogramas + " frames";
+                            pie2.appendChild(dur);
+                        }
+                        const marca = document.createElement("span");
+                        marca.className = "asd-pm-play";
+                        marca.innerText = "\u25b6";
+                        pie2.appendChild(marca);
+
+                        // Con retardo: barrer la tira con el raton no debe
+                        // disparar una descarga por tarjeta. Y el video SUSTITUYE
+                        // al fotograma en su sitio, heredando su clase y su alto,
+                        // para que el zoom lo siga tratando igual.
+                        //
+                        // Delayed: sweeping the strip must not fire one download
+                        // per card. And the video REPLACES the frame in place,
+                        // inheriting its class and height, so zoom keeps treating
+                        // it the same.
+                        let temporizador = null, video = null;
+                        const quitar = () => {
+                            if (temporizador) { clearTimeout(temporizador); temporizador = null; }
+                            if (video) {
+                                try { video.pause(); } catch (e) {}
+                                if (video.parentNode) video.parentNode.replaceChild(vis, video);
+                                video.removeAttribute("src");
+                                video = null;
+                            }
+                        };
+                        card.addEventListener("mouseenter", () => {
+                            if (video || temporizador) return;
+                            temporizador = setTimeout(() => {
+                                temporizador = null;
+                                if (!vis.parentNode) return;
+                                video = document.createElement("video");
+                                // SIEMPRE `asd-pm-thumb`, nunca la clase de lo que
+                                // sustituye: el hueco de una vuelta sin fotograma
+                                // es un `asd-pm-vacio` sin `object-fit`, y copiarla
+                                // hacia que el primer clip se viera con otro
+                                // criterio que los demas.
+                                // ALWAYS `asd-pm-thumb`, never the class of what it
+                                // replaces: an empty card's placeholder has no
+                                // `object-fit`, and copying it made the first clip
+                                // display by different rules than the rest.
+                                video.className = "asd-pm-thumb";
+                                video.style.height = altoMiniatura() + "px";
+                                video.muted = true;
+                                video.loop = true;
+                                video.autoplay = true;
+                                video.playsInline = true;
+                                video.src = api.apiURL(
+                                    `/view?filename=${encodeURIComponent(clip.filename)}`
+                                    + `&subfolder=${encodeURIComponent(clip.subfolder)}&type=output`);
+                                vis.parentNode.replaceChild(video, vis);
+                                const p = video.play();
+                                if (p && p.catch) p.catch(() => {});
+                            }, 250);
+                        });
+                        card.addEventListener("mouseleave", quitar);
+                        // Al repintar la tira las tarjetas viejas se tiran enteras,
+                        // asi que no hace falta desmontar nada mas: lo unico que
+                        // podria sobrevivir es el temporizador, y lo para el
+                        // `mouseleave` que el propio navegador dispara al quitarlas.
+                        card._asdQuitarVideo = quitar;
+                    }
+
                     card.addEventListener("click", () => {
                         _this.loopSel = idx;
                         _this.renderTira();
@@ -894,9 +1092,22 @@ app.registerExtension({
             // the backend when the whole run finishes, which is when the file is
             // actually there.
             const alTerminar = () => {
+                _this._generando = false;
                 if (_this.cargarFrames) _this.cargarFrames();
+                else if (_this.renderTira) _this.renderTira();
             };
+            // `execution_error` tambien apaga el amarillo: si no, una vuelta que
+            // revienta deja la tarjeta parpadeando para siempre.
+            // `execution_error` clears the yellow too: without it, a pass that
+            // blows up leaves the card blinking for ever.
+            const alEmpezar = () => {
+                _this._generando = true;
+                if (_this.renderTira) _this.renderTira();
+            };
+            api.addEventListener("execution_start", alEmpezar);
             api.addEventListener("execution_success", alTerminar);
+            api.addEventListener("execution_error", alTerminar);
+            api.addEventListener("execution_interrupted", alTerminar);
 
             const onRemoved = this.onRemoved;
             this.onRemoved = function () {
@@ -906,7 +1117,10 @@ app.registerExtension({
                 // fotogramas de un proyecto que ya no se esta mirando.
                 // Left behind, every deleted node keeps a listener asking for
                 // frames of a project nobody is looking at.
-                api.removeEventListener("execution_success", alTerminar);
+                api.removeEventListener("execution_start", alEmpezar);
+            api.removeEventListener("execution_success", alTerminar);
+            api.removeEventListener("execution_error", alTerminar);
+            api.removeEventListener("execution_interrupted", alTerminar);
                 if (onRemoved) onRemoved.apply(this, arguments);
             };
 

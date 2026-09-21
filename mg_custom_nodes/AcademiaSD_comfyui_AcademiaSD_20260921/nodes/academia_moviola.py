@@ -47,6 +47,7 @@ import asyncio
 import glob
 import os
 import re
+import io
 import shutil
 import time
 from fractions import Fraction
@@ -77,7 +78,7 @@ from server import PromptServer
 try:
     from .. import __version__ as ACADEMIASD_VERSION
 except Exception:
-    ACADEMIASD_VERSION = "2.4.8"
+    ACADEMIASD_VERSION = "2.4.9"
 
 try:
     from safetensors.torch import load_file as _st_load
@@ -732,6 +733,7 @@ SEGUNDOS_SUAVE = 10.0       # ventana de la media movil del brillo
 TOPE_SUAVE = 0.18           # cuanto se deja corregir un fotograma
 VENTANA_PENDIENTE = 25      # fotogramas para medir la pendiente del brillo
 SIERRA_GRANDE = 8.0         # a partir de aqui, 'smooth' compensa
+ANCHO_MINIATURA = 512       # ancho maximo del fotograma que va a la tira
 FRAMES_POR_LATENTE = 4      # FRAME_PER_TOKEN = (1, 4, 4, 4, 4)
 
 # prefijo_00001<lo que sea>.mp4
@@ -792,7 +794,7 @@ def _info(ruta):
     """
     c = _abrir(ruta)
     if c is None:
-        return (FPS_POR_DEFECTO, 0.0, 0, False, 0, 0)
+        return (FPS_POR_DEFECTO, 0.0, 0, False, 0, 0, 0, 0)
     try:
         v = c.streams.video[0] if c.streams.video else None
         a = c.streams.audio[0] if c.streams.audio else None
@@ -801,10 +803,16 @@ def _info(ruta):
         n = int(v.frames or 0) if v else 0
         if not n and fps > 0 and dur:
             n = int(round(dur * fps))
+        # El ancho y el alto van al FINAL de la tupla a proposito: todo el que
+        # la usa lo hace por indice, asi que anadir por detras no mueve nada.
+        # Width and height go at the END on purpose: every caller indexes into
+        # this tuple, so appending disturbs nobody.
         return (fps if fps > 1.0 else FPS_POR_DEFECTO, dur, n,
-                a is not None, int(a.rate) if a else 0, int(a.channels) if a else 0)
+                a is not None, int(a.rate) if a else 0, int(a.channels) if a else 0,
+                int(v.codec_context.width) if v else 0,
+                int(v.codec_context.height) if v else 0)
     except Exception:
-        return (FPS_POR_DEFECTO, 0.0, 0, False, 0, 0)
+        return (FPS_POR_DEFECTO, 0.0, 0, False, 0, 0, 0, 0)
     finally:
         c.close()
 
@@ -2039,6 +2047,48 @@ def _frames(path):
     return salida
 
 
+def _vistas(path):
+    """El clip de cada vuelta, para que la tira pueda reproducirlos.
+
+    OJO con la numeracion, que no coincide con la de `_frames`: el fichero
+    `loop_00003_.png` es el FINAL de la vuelta 3 y por tanto el arranque de la 4,
+    mientras que `vid_loop_00003.mp4` es la vuelta 3 entera. Aqui se devuelve
+    indexado por la vuelta que el clip ES, y quien pinte que lo case con la
+    tarjeta que toque.
+
+    Mind the numbering, which is not the same as `_frames`: `loop_00003_.png` is
+    the END of take 3 and so the start of take 4, while `vid_loop_00003.mp4` is
+    take 3 itself. This returns them keyed by the take the clip IS.
+    """
+    carpeta, _, pre_v, _ = _nombres(path)
+    if not os.path.isdir(carpeta):
+        return []
+    raiz = os.path.abspath(folder_paths.get_output_directory())
+    sub = os.path.relpath(carpeta, raiz).replace("\\", "/")
+    if sub == ".":
+        sub = ""
+    # La duracion sale de la CABECERA del contenedor, no de decodificar: son
+    # milisegundos por fichero y permite ensenarla en la tira. Y hace falta
+    # decirla, porque el sistema no obliga a que todas las vueltas duren lo
+    # mismo -- `length` se puede cambiar entre una y otra.
+    #
+    # The duration comes from the container HEADER, not from decoding: a few
+    # milliseconds per file. It is worth showing, because nothing forces every
+    # take to last the same -- `length` can change between them.
+    salida = []
+    for n, r in _clips(carpeta, pre_v):
+        # Una sola lectura de cabecera por fichero: abrirla dos veces para
+        # sacar la duracion y luego el tamano seria pagar el doble por lo mismo.
+        # One header read per file: opening it twice, once for the duration and
+        # again for the size, would pay twice for the same thing.
+        datos = _info(r)
+        dur, cuantos, ancho, alto = datos[1], datos[2], datos[6], datos[7]
+        salida.append({"n": n, "filename": os.path.basename(r), "subfolder": sub,
+                       "segundos": round(float(dur), 2), "fotogramas": int(cuantos),
+                       "ancho": int(ancho), "alto": int(alto)})
+    return salida
+
+
 def _montajes(path):
     """Los ficheros ya montados que existan, para el reproductor."""
     carpeta, base, _, _ = _nombres(path)
@@ -2060,12 +2110,72 @@ def _montajes(path):
     return salida
 
 
+@PromptServer.instance.routes.get("/academia/moviola/arranque")
+async def moviola_arranque(request):
+    """El fotograma 0 de un clip, como PNG, sin dejar nada en el disco.
+
+    Existe por la PRIMERA vuelta y solo por ella. Las demas ensenan el ultimo
+    fotograma de la anterior, que ya esta guardado como `loop_#####.png`; la
+    primera no tiene anterior, asi que hasta ahora ensenaba la imagen de
+    referencia -- que no es de donde arranca -- o un hueco negro cuando la serie
+    empezaba solo con el prompt.
+
+    Se decodifica y se devuelve en la respuesta en vez de escribir un fichero:
+    la carpeta del proyecto es del usuario y no debe llenarse de miniaturas que
+    el no ha pedido. Y se manda el fotograma, no el clip entero, que para una
+    tarjeta de cien pixeles seria bajarse varios megas.
+
+    Frame 0 of a clip as a PNG, leaving nothing on disk. It exists for the FIRST
+    take and only for it: every other card shows the previous take's last frame,
+    already saved, while the first has no previous one and until now showed the
+    reference image -- which is not where it starts -- or a black gap.
+
+    Decoded and returned in the response rather than written out: the project
+    folder belongs to the user and should not fill with thumbnails nobody asked
+    for. And it sends the frame, not the whole clip, which for a hundred-pixel
+    card would be several megabytes.
+    """
+    try:
+        path = str(request.query.get("path") or "")
+        n = int(request.query.get("n") or 1)
+        carpeta, _, pre_v, _ = _nombres(path)
+        elegido = None
+        for num, ruta in _clips(carpeta, pre_v):
+            if num == n:
+                elegido = ruta
+                break
+        if elegido is None:
+            return web.Response(status=404, text="no clip")
+        fs = await _en_hilo(_fotogramas, elegido, 0, 1)
+        if not fs:
+            return web.Response(status=404, text="cannot decode")
+        im = Image.fromarray(np.clip(fs[0], 0, 255).astype(np.uint8))
+        # Se manda una miniatura, no el fotograma a tamano real: la tarjeta mide
+        # unos cien pixeles y a todo zoom no pasa de trescientos, asi que un PNG
+        # de 1280 de ancho serian mas de novecientos kilobytes para pintar algo
+        # diez veces menor.
+        # A thumbnail, not the full-size frame: the card is about a hundred pixels
+        # and never past three hundred at full zoom, so a 1280-wide PNG would be
+        # most of a megabyte to draw something ten times smaller.
+        if im.width > ANCHO_MINIATURA:
+            alto = max(1, round(im.height * ANCHO_MINIATURA / float(im.width)))
+            im = im.resize((ANCHO_MINIATURA, alto), Image.LANCZOS)
+        buf = io.BytesIO()
+        im.save(buf, format="PNG")
+        return web.Response(body=buf.getvalue(), content_type="image/png",
+                            headers={"Cache-Control": "no-cache"})
+    except Exception as exc:
+        return web.Response(status=400, text=str(exc))
+
+
 @PromptServer.instance.routes.post("/academia/moviola/frames")
 async def moviola_frames(request):
     try:
         datos = await request.json()
+        path = _path_de(datos)
         return web.json_response({"status": "success",
-                                  "frames": await _en_hilo(_frames, _path_de(datos))})
+                                  "frames": await _en_hilo(_frames, path),
+                                  "clips": await _en_hilo(_vistas, path)})
     except Exception as exc:
         return web.json_response({"status": "error", "message": str(exc)}, status=400)
 

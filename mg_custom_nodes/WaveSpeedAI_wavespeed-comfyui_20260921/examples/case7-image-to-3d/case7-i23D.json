@@ -1,5 +1,5 @@
 {
-  "id": "2bef7222-21f4-42ff-862d-df75216903c4",
+  "id": "d60a9091-2654-4b2a-9f96-1dda111ee385",
   "revision": 0,
   "last_node_id": 3,
   "last_link_id": 3,
@@ -8,12 +8,12 @@
       "id": 1,
       "type": "WaveSpeedAIPredictor",
       "pos": [
-        6774.044473546868,
-        -4117.99558161674
+        7771.5197206208295,
+        -4619.348933541285
       ],
       "size": [
         800,
-        826
+        1250
       ],
       "flags": {},
       "order": 1,
@@ -25,7 +25,7 @@
           "widget": {
             "name": "image_2"
           },
-          "link": 2
+          "link": 3
         }
       ],
       "outputs": [
@@ -33,7 +33,7 @@
           "name": "output_url",
           "type": "*",
           "links": [
-            3
+            2
           ]
         }
       ],
@@ -42,9 +42,20 @@
       },
       "widgets_values": [
         "",
-        "/api/v3/google/nano-banana-pro/edit",
-        "{\"prompt\":\"Keep the original composition, camera angle, and object positions exactly the same.\\nTransform the entire image into a hand-painted oil painting style.\\n\\nThick brush strokes, visible paint texture,\\ndramatic color contrast, expressive lighting,\\nfine art illustration style, painterly look,\\nall elements rendered as a painting, not photorealistic.\\nGlobal style transformation, not just the character.\",\"image_0\":\"\",\"image_1\":\"\",\"image_2\":\"\",\"image_3\":\"\",\"image_4\":\"\",\"aspect_ratio\":\"1:1\",\"resolution\":\"2k\",\"output_format\":\"png\"}",
-        "{\"prompt\":{\"type\":\"string\"},\"images\":{\"type\":\"string\",\"isArray\":true,\"itemType\":\"string\"},\"aspect_ratio\":{\"type\":\"string\",\"options\":[\"1:1\",\"3:2\",\"2:3\",\"3:4\",\"4:3\",\"4:5\",\"5:4\",\"9:16\",\"16:9\",\"21:9\"]},\"resolution\":{\"type\":\"string\",\"options\":[\"1k\",\"2k\",\"4k\"]},\"output_format\":{\"type\":\"string\",\"options\":[\"png\",\"jpeg\"]}}",
+        "/api/v3/hyper3d/rodin-v2/image-to-3d",
+        "{\"prompt\":\"Create a high-quality 3D model of the character.\\nRealistic proportions, detailed clothing,\\ncyberpunk futuristic outfit,\\nclean topology, suitable for real-time rendering\",\"image_0\":\"\",\"image_1\":\"\",\"image_2\":\"\",\"image_3\":\"\",\"image_4\":\"\",\"material\":\"PBR\",\"quality_and_mesh\":\"4k_Quad\",\"geometry_file_format\":\"glb\",\"addons\":\"HighPack\",\"ta_pose\":false,\"use_original_alpha\":false,\"preview_render\":false,\"seed\":21689}",
+        "{\"prompt\":{\"type\":\"string\"},\"images\":{\"type\":\"string\",\"isArray\":true,\"itemType\":\"string\"},\"material\":{\"type\":\"string\",\"options\":[\"PBR\",\"All\",\"Shaded\"]},\"quality_and_mesh\":{\"type\":\"string\",\"options\":[\"4k_Quad\",\"8k_Quad\",\"18k_Quad\",\"50k_Quad\",\"2K_Triangle\",\"20K_Triangle\",\"250K_Triangle\",\"500K_Triangle\"]},\"geometry_file_format\":{\"type\":\"string\",\"options\":[\"glb\",\"fbx\",\"obj\",\"stl\",\"usdz\"]},\"addons\":{\"type\":\"string\",\"options\":[\"HighPack\"]},\"bbox_condition\":{\"type\":\"string\",\"isArray\":true,\"itemType\":\"string\"},\"ta_pose\":{\"type\":\"boolean\"},\"use_original_alpha\":{\"type\":\"boolean\"},\"preview_render\":{\"type\":\"boolean\"},\"seed\":{\"type\":\"number\"}}",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
         "",
         "",
         "",
@@ -57,21 +68,31 @@
         ""
       ],
       "wavespeed": {
-        "modelId": "google/nano-banana-pro/edit",
+        "modelId": "hyper3d/rodin-v2/image-to-3d",
         "apiPath": "",
-        "category": "image-to-image",
+        "category": "image-to-3d",
         "parameterValues": {
-          "prompt": "Keep the original composition, camera angle, and object positions exactly the same.\nTransform the entire image into a hand-painted oil painting style.\n\nThick brush strokes, visible paint texture,\ndramatic color contrast, expressive lighting,\nfine art illustration style, painterly look,\nall elements rendered as a painting, not photorealistic.\nGlobal style transformation, not just the character.",
+          "prompt": "Create a high-quality 3D model of the character.\nRealistic proportions, detailed clothing,\ncyberpunk futuristic outfit,\nclean topology, suitable for real-time rendering",
           "image_0": "",
           "image_1": "",
           "image_2": "",
           "image_3": "",
           "image_4": "",
-          "aspect_ratio": "1:1",
-          "resolution": "2k",
-          "output_format": "png"
+          "material": "PBR",
+          "quality_and_mesh": "4k_Quad",
+          "geometry_file_format": "glb",
+          "addons": "HighPack",
+          "bbox_condition_0": "",
+          "bbox_condition_1": "",
+          "bbox_condition_2": "",
+          "bbox_condition_3": "",
+          "bbox_condition_4": "",
+          "ta_pose": false,
+          "use_original_alpha": false,
+          "preview_render": false,
+          "seed": 21689
         },
-        "requestJsonValue": "{\"prompt\":\"Keep the original composition, camera angle, and object positions exactly the same.\\nTransform the entire image into a hand-painted oil painting style.\\n\\nThick brush strokes, visible paint texture,\\ndramatic color contrast, expressive lighting,\\nfine art illustration style, painterly look,\\nall elements rendered as a painting, not photorealistic.\\nGlobal style transformation, not just the character.\",\"image_0\":\"\",\"image_1\":\"\",\"image_2\":\"\",\"image_3\":\"\",\"image_4\":\"\",\"aspect_ratio\":\"1:1\",\"resolution\":\"2k\",\"output_format\":\"png\"}",
+        "requestJsonValue": "{\"prompt\":\"Create a high-quality 3D model of the character.\\nRealistic proportions, detailed clothing,\\ncyberpunk futuristic outfit,\\nclean topology, suitable for real-time rendering\",\"image_0\":\"\",\"image_1\":\"\",\"image_2\":\"\",\"image_3\":\"\",\"image_4\":\"\",\"material\":\"PBR\",\"quality_and_mesh\":\"4k_Quad\",\"geometry_file_format\":\"glb\",\"addons\":\"HighPack\",\"ta_pose\":false,\"use_original_alpha\":false,\"preview_render\":false,\"seed\":21689}",
         "savedInputs": [
           {
             "name": "prompt",
@@ -97,7 +118,7 @@
           {
             "name": "image_2",
             "type": "*",
-            "link": 2,
+            "link": 3,
             "isExpandedArrayItem": true,
             "parentArray": "images",
             "arrayIndex": 2
@@ -119,17 +140,42 @@
             "arrayIndex": 4
           },
           {
-            "name": "aspect_ratio",
+            "name": "material",
             "type": "*",
             "link": null
           },
           {
-            "name": "resolution",
+            "name": "quality_and_mesh",
             "type": "*",
             "link": null
           },
           {
-            "name": "output_format",
+            "name": "geometry_file_format",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "addons",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "ta_pose",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "use_original_alpha",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "preview_render",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "seed",
             "type": "*",
             "link": null
           }
@@ -140,12 +186,12 @@
       "id": 2,
       "type": "LoadImage",
       "pos": [
-        6162.65232445977,
-        -4110.4987477549075
+        7299.8369056996,
+        -4110.493148518203
       ],
       "size": [
-        558.390625,
-        775.515625
+        373.65625,
+        590.78125
       ],
       "flags": {},
       "order": 0,
@@ -156,7 +202,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            2
+            3
           ]
         },
         {
@@ -177,12 +223,12 @@
       "id": 3,
       "type": "WaveSpeedAI Preview",
       "pos": [
-        7794.102485314214,
-        -4117.973101908983
+        8787.367171066335,
+        -4618.281171402856
       ],
       "size": [
-        679.125,
-        759.09375
+        959.984375,
+        1602.8125
       ],
       "flags": {},
       "order": 2,
@@ -191,7 +237,7 @@
         {
           "name": "input_url",
           "type": "*",
-          "link": 3
+          "link": 2
         }
       ],
       "outputs": [
@@ -215,8 +261,8 @@
       "wavespeed_preview": {
         "media_data": [
           {
-            "type": "image",
-            "url": "https://d1q70pf5vjeyhc.cloudfront.net/predictions/356017ea9dd740238c9cd082cde3c6c7/1.png"
+            "type": "3d",
+            "url": "https://raw.githubusercontent.com/WaveSpeedAI/wavespeed-comfyui/afdf9ff3a73ef972c7d0f82ed5f8d55258cff30d/examples/case7-image-to-3d/case7.glb"
           }
         ]
       }
@@ -225,29 +271,29 @@
   "links": [
     [
       2,
-      2,
-      0,
-      1,
-      0,
-      "IMAGE"
-    ],
-    [
-      3,
       1,
       0,
       3,
       0,
       "*"
+    ],
+    [
+      3,
+      2,
+      0,
+      1,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.5131581182307067,
+      "scale": 0.5131581182307069,
       "offset": [
-        -4912.793656566765,
-        4428.654197738844
+        -6290.552187552946,
+        4860.582603911937
       ]
     },
     "workflowRendererVersion": "Vue",

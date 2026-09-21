@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # Actions are pinned to commit SHAs; this keeps the pins moving.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # One pull request per run instead of one per action.
+    groups:
+      actions:
+        patterns: ['*']

@@ -71,10 +71,10 @@ class ChatProtocolTests(unittest.TestCase):
         self.assertIn('"id":1', prompt)
         self.assertIn("set_widget_value", prompt)
         self.assertIn("images", prompt)
-        self.assertIn("Final generated image and video prompts MUST be in English", prompt)
-        self.assertIn("MUST use the same language as the latest user message", prompt)
-        self.assertIn("IMAGE + PRESET ENHANCER", prompt)
-        self.assertIn("If queue_workflow is present, state that execution was started", prompt)
+        self.assertIn("Workflow prompt text must be English", prompt)
+        self.assertIn("mirror the LATEST user message language", prompt)
+        self.assertIn("MiniMax H3 video sampler", prompt)
+        self.assertIn("include queue_workflow in the same response", prompt)
 
     def test_prompt_identifies_exact_promoted_passthrough_target(self):
         graph = {"nodes": [{"id": 105, "widgets": [
@@ -97,10 +97,14 @@ class ChatProtocolTests(unittest.TestCase):
         self.assertIn("Image pixels are provided", prompt)
         self.assertIn("Inspect the provided image pixels to understand how the requested action applies", prompt)
         self.assertIn('currently selects preset "MiniMax H3 NSFW (5s)"', prompt)
-        self.assertIn("follow that preset's supplied PROMPT WRITING GUIDE", prompt)
+        self.assertIn("IGNORE any full prompt-writing guide for that preset", prompt)
+        self.assertIn("the inner QwenVL node will use it to build the final prompt", prompt)
         self.assertIn('You MUST set node 105 widget "prompt" to a concise English action directive', prompt)
         self.assertIn('set node 105 widget "passthrough" to false', prompt)
-        self.assertIn("inner QwenVL must analyze the image and create it", prompt)
+        self.assertIn("inner QwenVL must analyze the image and create the final preset prompt", prompt)
+        # The full MiniMax format guide must not leak into the chat prompt for an image enhancer.
+        self.assertNotIn("integrated_multimodal_description:", prompt)
+        self.assertNotIn("overall_soundscape:", prompt)
 
     def test_selects_previous_intent_after_execution_confirmation(self):
         descriptive = "Create a five-second video where she opens the dress"
@@ -201,11 +205,118 @@ class ChatProtocolTests(unittest.TestCase):
         self.assertTrue(enforced["actions"][0]["value"].startswith(MINIMAX_I2VA_BINDING))
         self.assertIn(MINIMAX_I2VA_BINDING, enforced["message"])
 
+    def test_skips_minimax_binding_when_passthrough_set_false(self):
+        """When the action set flips passthrough to false, do not prepend the I2VA binding
+        even if the workflow snapshot still has passthrough=true."""
+        result = {
+            "message": "Prompt generated.",
+            "actions": [
+                {"type": "set_widget_value", "node_id": 105, "widget": "prompt", "value": "the woman touches her nipple"},
+                {"type": "set_widget_value", "node_id": 105, "widget": "passthrough", "value": False},
+                {"type": "queue_workflow"},
+            ],
+            "choices": [],
+            "thinking": "",
+        }
+        graph = {"nodes": [{"id": 105, "title": "Image to Video (MiniMax H3)", "widgets": [
+            {"name": "prompt", "value": ""},
+            {"name": "preset_prompt", "value": "🎬 MiniMax H3 NSFW (5s)"},
+            {"name": "passthrough", "value": True},
+        ]}]}
+        enforced = enforce_image_reference_bindings(result, graph, True)
+        self.assertNotIn(MINIMAX_I2VA_BINDING, enforced["actions"][0]["value"])
+        self.assertNotIn(MINIMAX_I2VA_BINDING, enforced["message"])
+
     def test_validates_images(self):
         import base64
         valid = base64.b64encode(b"fake-image-data").decode("ascii")
         self.assertEqual(len(validate_images([valid, "not-valid", 123])), 1)
         self.assertEqual(len(validate_images([valid, valid, valid, valid])), 3)
+
+    def test_video_frames_use_higher_limit(self):
+        import base64
+        frame = base64.b64encode(b"frame").decode("ascii")
+        self.assertEqual(len(validate_images([frame] * 5, 4)), 4)
+        self.assertEqual(len(validate_images([frame] * 5)), 3)
+
+    def test_prompt_mentions_video_frames(self):
+        prompt = build_prompt([{"role": "user", "content": "make it faster"}], {"nodes": []}, has_video=True)
+        self.assertIn("VIDEO INPUT", prompt)
+        prompt_no_video = build_prompt([{"role": "user", "content": "hi"}], {"nodes": []})
+        self.assertNotIn("VIDEO INPUT", prompt_no_video)
+
+    def _jpeg_b64(self):
+        import base64
+        import io
+        from PIL import Image
+        buffer = io.BytesIO()
+        Image.new("RGB", (8, 8), (128, 64, 32)).save(buffer, "JPEG")
+        return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+    def test_hf_chat_forwards_video_frames(self):
+        class FakeQuantization:
+            Q8 = types.SimpleNamespace(value="q8")
+
+        class FakeBase:
+            def load_model(self, *args):
+                pass
+
+            def generate(self, *args, **kwargs):
+                self.kwargs = kwargs
+                self.frame_count = args[3]
+                return '{"message":"ok","actions":[]}'
+
+        previous = sys.modules.get("AILab_QwenVL")
+        sys.modules["AILab_QwenVL"] = types.SimpleNamespace(
+            HF_ALL_MODELS={"test-model": {}},
+            Quantization=FakeQuantization,
+            QwenVLBase=FakeBase,
+        )
+        try:
+            runtime = ChatRuntime()
+            frames = [self._jpeg_b64() for _ in range(4)]
+            result = runtime.chat("hf", "test-model", [{"role": "user", "content": "make it faster"}], {"nodes": []}, {}, video=frames)
+            self.assertEqual(result["message"], "ok")
+            instance = runtime._instances["hf"]
+            self.assertEqual(len(instance.kwargs["video"]), 4)
+            self.assertEqual(instance.frame_count, 4)
+        finally:
+            if previous is None:
+                sys.modules.pop("AILab_QwenVL", None)
+            else:
+                sys.modules["AILab_QwenVL"] = previous
+
+    def test_gguf_chat_reencodes_video_frames_as_images(self):
+        class FakeBase:
+            def _load_model(self, *args):
+                pass
+
+            def _invoke(self, system, prompt, images_b64, *args, **kwargs):
+                self.images_b64 = images_b64
+                return '{"message":"ok","actions":[]}'
+
+        previous = sys.modules.get("AILab_QwenVL_GGUF")
+        sys.modules["AILab_QwenVL_GGUF"] = types.SimpleNamespace(
+            GGUF_VL_CATALOG={"models": {"test-gguf": {}}},
+            QwenVLGGUFBase=FakeBase,
+        )
+        try:
+            runtime = ChatRuntime()
+            frames = [self._jpeg_b64() for _ in range(4)]
+            result = runtime.chat("gguf", "test-gguf", [{"role": "user", "content": "make it faster"}], {"nodes": []}, {}, video=frames)
+            self.assertEqual(result["message"], "ok")
+            instance = runtime._instances["gguf"]
+            self.assertEqual(len(instance.images_b64), 4)
+            # Frames must round-trip as valid base64 strings (not raw bytes)
+            import base64
+            for item in instance.images_b64:
+                self.assertIsInstance(item, str)
+                base64.b64decode(item, validate=True)
+        finally:
+            if previous is None:
+                sys.modules.pop("AILab_QwenVL_GGUF", None)
+            else:
+                sys.modules["AILab_QwenVL_GGUF"] = previous
 
     def test_lists_nested_output_images(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -214,8 +325,9 @@ class ChatProtocolTests(unittest.TestCase):
             (root / "PMP" / "2026-09-16").mkdir(parents=True)
             (root / "PMP" / "2026-09-16" / "nested.webp").write_bytes(b"webp")
             (root / "ignored.mp4").write_bytes(b"video")
+            (root / "ignored.txt").write_text("text")
             assets = list_output_images(root)
-        self.assertEqual(set(assets), {"root.png [output]", "PMP/2026-09-16/nested.webp [output]"})
+        self.assertEqual(set(assets), {"root.png [output]", "PMP/2026-09-16/nested.webp [output]", "ignored.mp4 [output]"})
 
     def test_hf_runtime_reuses_and_unloads_model(self):
         class FakeQuantization:

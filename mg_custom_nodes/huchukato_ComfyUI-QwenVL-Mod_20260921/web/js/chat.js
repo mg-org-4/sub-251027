@@ -13,9 +13,9 @@ const TRANSLATIONS = {
         completed: "Operation completed.", applied: "Applied", rejected: "Rejected", ready: "Ready",
         aborted: "Request stopped. Backend inference may still be running.", loadingModels: "Loading models…",
         modelsUnavailable: "Models unavailable: {error}", backend: "Backend", model: "Model", maxTokens: "Max tokens",
-        temperature: "Temperature", attach: "Attach image", send: "Send", repeat: "Repeat", repeatTitle: "Resend the latest user message",
-        stop: "Stop", newChat: "New chat", initializing: "Initializing…", preparingImage: "Preparing image…",
-        imageAttached: "Image attached: it will be used instead of workflow images", nothingToRepeat: "No message to repeat",
+        temperature: "Temperature", attach: "Attach image or video", send: "Send", repeat: "Repeat", repeatTitle: "Resend the latest user message",
+        stop: "Stop", newChat: "New chat", initializing: "Initializing…", preparingImage: "Preparing image…", preparingVideo: "Extracting video frames…",
+        imageAttached: "Image attached: it will be used instead of workflow images", videoAttached: "Video attached: sampled frames will be sent to Qwen", attachedVideo: "Attached video", nothingToRepeat: "No message to repeat",
         newConversation: "New conversation", placeholder: "Example: set 25 steps in KSampler and run the workflow",
         unloadError: "Unable to unload the chat model from memory", workflowQueued: "workflow added to the queue",
         invalidNumber: "{widget}: invalid numeric value", invalidBoolean: "{widget}: invalid boolean value",
@@ -25,9 +25,10 @@ const TRANSLATIONS = {
         unsupportedAction: "action {action} is not allowed", unknown: "unknown",
         generateVideo: "Generate video", generateVideoSend: "Generate the video", assets: "ComfyUI Assets",
         assetsTitle: "Select a ComfyUI output", assetsLoading: "Loading output images…", assetsEmpty: "No output images found.",
-        assetsError: "Unable to load ComfyUI Assets: {error}", close: "Close", selectTarget: "Select the Load Image (from Outputs) node",
+        assetsError: "Unable to load ComfyUI Assets: {error}", close: "Close", selectTarget: "Select the Load Media / Load Image (from Outputs) node",
         assetChatOnly: "Asset selected for Qwen. Add a Load Image (from Outputs) node to sync it with the workflow.",
         assetSynced: "Asset selected for Qwen and loaded into node {node}.", settings: "Settings", showSettings: "Show settings", hideSettings: "Hide settings",
+        config: "Config", configAuto: "Auto (chat decides)", capability: "Livepeer", capabilityAuto: "Any capability",
     },
     it: {
         empty: "Chiedimi di analizzare o modificare i parametri del workflow aperto.", user: "Tu", thinking: "Pensiero",
@@ -38,9 +39,9 @@ const TRANSLATIONS = {
         completed: "Operazione completata.", applied: "Applicato", rejected: "Rifiutato", ready: "Pronto",
         aborted: "Attesa interrotta. L’inferenza backend potrebbe essere ancora in corso.", loadingModels: "Caricamento modelli…",
         modelsUnavailable: "Modelli non disponibili: {error}", backend: "Backend", model: "Modello", maxTokens: "Max tokens",
-        temperature: "Temperatura", attach: "Allega immagine", send: "Invia", repeat: "Ripeti", repeatTitle: "Reinvia l'ultimo messaggio utente",
-        stop: "Stop", newChat: "Nuova chat", initializing: "Inizializzazione…", preparingImage: "Preparazione dell’immagine…",
-        imageAttached: "Immagine allegata: sarà usata al posto di quelle del workflow", nothingToRepeat: "Nessun messaggio da ripetere",
+        temperature: "Temperatura", attach: "Allega immagine o video", send: "Invia", repeat: "Ripeti", repeatTitle: "Reinvia l'ultimo messaggio utente",
+        stop: "Stop", newChat: "Nuova chat", initializing: "Inizializzazione…", preparingImage: "Preparazione dell’immagine…", preparingVideo: "Estrazione frame del video…",
+        imageAttached: "Immagine allegata: sarà usata al posto di quelle del workflow", videoAttached: "Video allegato: i frame campionati saranno inviati a Qwen", attachedVideo: "Video allegato", nothingToRepeat: "Nessun messaggio da ripetere",
         newConversation: "Nuova conversazione", placeholder: "Es: imposta 25 step nel KSampler e avvia il workflow",
         unloadError: "Impossibile scaricare il modello chat dalla memoria", workflowQueued: "workflow aggiunto alla coda",
         invalidNumber: "{widget}: valore numerico non valido", invalidBoolean: "{widget}: valore booleano non valido",
@@ -50,9 +51,10 @@ const TRANSLATIONS = {
         unsupportedAction: "azione {action} non consentita", unknown: "sconosciuta",
         generateVideo: "Genera video", generateVideoSend: "Genera il video", assets: "Risorse ComfyUI",
         assetsTitle: "Seleziona un output ComfyUI", assetsLoading: "Caricamento immagini di output…", assetsEmpty: "Nessuna immagine di output trovata.",
-        assetsError: "Impossibile caricare le Risorse ComfyUI: {error}", close: "Chiudi", selectTarget: "Seleziona il nodo Carica Immagine da Output",
+        assetsError: "Impossibile caricare le Risorse ComfyUI: {error}", close: "Chiudi", selectTarget: "Seleziona il nodo Load Media / Carica Immagine da Output",
         assetChatOnly: "Risorsa selezionata per Qwen. Aggiungi un nodo Carica Immagine da Output per sincronizzarla con il workflow.",
         assetSynced: "Risorsa selezionata per Qwen e caricata nel nodo {node}.", settings: "Impostazioni", showSettings: "Mostra impostazioni", hideSettings: "Nascondi impostazioni",
+        config: "Config", configAuto: "Auto (decide la chat)", capability: "Livepeer", capabilityAuto: "Qualsiasi capability",
     },
 };
 const DEFAULT_STATE = {
@@ -63,6 +65,8 @@ const DEFAULT_STATE = {
     maxTokens: 1024,
     temperature: 0.2,
     thinking: false,
+    config: "auto",
+    capability: "auto",
     messages: [],
 };
 
@@ -70,6 +74,7 @@ let state = loadState();
 let controller = null;
 let elements = {};
 let attachedImage = null;
+let attachedVideo = null;
 
 function t(key, values = {}) {
     let text = TRANSLATIONS[state.language]?.[key] ?? TRANSLATIONS.en[key] ?? key;
@@ -146,9 +151,10 @@ function serializeValue(value) {
     return String(value ?? "").slice(0, 1000);
 }
 
-function snapshotGraph() {
-    const nodes = (app.graph?._nodes || []).slice(0, 200).map((node) => ({
-        id: node.id,
+function serializeGraphNode(node, prefix) {
+    const id = prefix ? `${prefix}:${node.id}` : node.id;
+    const result = [{
+        id,
         type: node.type || node.comfyClass || "",
         title: node.title || "",
         mode: node.mode ?? 0,
@@ -163,8 +169,19 @@ function snapshotGraph() {
                 values: Array.isArray(widget.options.values) ? widget.options.values.slice(0, 200).map(serializeValue) : undefined,
             } : undefined,
         })),
-    }));
-    return { nodes };
+    }];
+    for (const inner of (node.subgraph?._nodes || []).slice(0, 200)) {
+        result.push(...serializeGraphNode(inner, String(id)));
+    }
+    return result;
+}
+
+function snapshotGraph() {
+    const nodes = [];
+    for (const node of (app.graph?._nodes || []).slice(0, 200)) {
+        nodes.push(...serializeGraphNode(node, ""));
+    }
+    return { nodes: nodes.slice(0, 400) };
 }
 
 function collectImageInputs() {
@@ -232,6 +249,7 @@ async function fetchWorkflowImage(input) {
 }
 
 async function collectImagePayload() {
+    if (attachedVideo) return [];
     if (attachedImage) return [attachedImage.base64];
     const inputs = collectImageInputs();
     if (!inputs.length) return [];
@@ -249,15 +267,26 @@ async function collectImagePayload() {
 function renderAttachment() {
     if (!elements.attachment) return;
     elements.attachment.replaceChildren();
-    elements.attachment.classList.toggle("visible", Boolean(attachedImage));
-    if (!attachedImage) return;
-    const preview = createElement("img", "qwen-chat-attachment-preview");
-    preview.src = attachedImage.previewUrl;
-    preview.alt = attachedImage.name;
+    const attached = attachedImage || attachedVideo;
+    elements.attachment.classList.toggle("visible", Boolean(attached));
+    if (!attached) return;
+    let preview;
+    if (attachedVideo) {
+        preview = createElement("video", "qwen-chat-attachment-preview");
+        preview.src = attachedVideo.previewUrl;
+        preview.muted = true;
+        preview.loop = true;
+        preview.autoplay = true;
+        preview.playsInline = true;
+    } else {
+        preview = createElement("img", "qwen-chat-attachment-preview");
+        preview.src = attachedImage.previewUrl;
+        preview.alt = attachedImage.name;
+    }
     const details = createElement("div", "qwen-chat-attachment-details");
     details.append(
-        createElement("strong", "", attachedImage.name),
-        createElement("span", "", t("imagePriority")),
+        createElement("strong", "", attached.name),
+        createElement("span", "", attachedVideo ? t("videoAttached") : t("imagePriority")),
     );
     elements.removeAttachment = createElement("button", "qwen-chat-attachment-remove", t("remove"));
     elements.removeAttachment.type = "button";
@@ -267,12 +296,65 @@ function renderAttachment() {
 
 function clearAttachment() {
     if (attachedImage?.previewUrl) URL.revokeObjectURL(attachedImage.previewUrl);
+    if (attachedVideo?.previewUrl) URL.revokeObjectURL(attachedVideo.previewUrl);
     attachedImage = null;
+    attachedVideo = null;
     if (elements.fileInput) elements.fileInput.value = "";
     renderAttachment();
 }
 
+const VIDEO_FRAME_COUNT = 4;
+
+async function extractVideoFrames(blob, maxFrames = VIDEO_FRAME_COUNT) {
+    const url = URL.createObjectURL(blob);
+    try {
+        const video = document.createElement("video");
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = "auto";
+        video.src = url;
+        await new Promise((resolve, reject) => {
+            video.onloadeddata = resolve;
+            video.onerror = () => reject(new Error(t("imageError")));
+        });
+        const scale = Math.min(1, 768 / Math.max(video.videoWidth, video.videoHeight));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(2, Math.round(video.videoWidth * scale));
+        canvas.height = Math.max(2, Math.round(video.videoHeight * scale));
+        const ctx = canvas.getContext("2d");
+        const duration = video.duration || 1;
+        const frames = [];
+        for (let index = 0; index < maxFrames; index++) {
+            const target = Math.min((duration * index) / Math.max(1, maxFrames - 1), duration - 0.05);
+            await new Promise((resolve) => {
+                video.onseeked = resolve;
+                video.currentTime = Math.max(0, target);
+            });
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const frame = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+            if (frame) frames.push(await blobToBase64(frame));
+        }
+        if (!frames.length) throw new Error(t("imageError"));
+        return frames;
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}
+
+async function attachVideo(file) {
+    const frames = await extractVideoFrames(file);
+    if (attachedImage?.previewUrl) URL.revokeObjectURL(attachedImage.previewUrl);
+    attachedImage = null;
+    attachedVideo = {
+        frames,
+        previewUrl: URL.createObjectURL(file),
+        name: file.name || t("attachedVideo"),
+    };
+    renderAttachment();
+}
+
 async function attachImage(file) {
+    if (file?.type?.startsWith("video/")) return attachVideo(file);
     if (!file?.type?.startsWith("image/")) throw new Error(t("invalidImage"));
     const resized = await resizeImage(file);
     if (!resized) throw new Error(t("imageError"));
@@ -282,6 +364,8 @@ async function attachImage(file) {
         name: file.name || t("attachedImage"),
     };
     if (attachedImage?.previewUrl) URL.revokeObjectURL(attachedImage.previewUrl);
+    if (attachedVideo?.previewUrl) URL.revokeObjectURL(attachedVideo.previewUrl);
+    attachedVideo = null;
     attachedImage = image;
     renderAttachment();
 }
@@ -299,8 +383,21 @@ function parseOutputAsset(value) {
 function loadImageOutputNodes() {
     return (app.graph?._nodes || []).filter((node) => {
         const type = node.type || node.comfyClass || "";
-        return type === "LoadImageOutput" && (node.widgets || []).some((widget) => widget.name === "image");
+        const names = (node.widgets || []).map((widget) => widget.name);
+        return (type === "LoadImageOutput" && names.includes("image"))
+            || (type === "QwenVL_LoadMedia" && names.includes("media"));
     });
+}
+
+function syncAssetNode(node, value) {
+    const widget = (node.widgets || []).find((item) => item.name === "media" || item.name === "image");
+    if (!widget) return;
+    const previousValue = widget.value;
+    widget.value = value;
+    widget.callback?.(value, app.canvas, node);
+    node.onWidgetChanged?.(widget.name, value, previousValue, widget);
+    node.setDirtyCanvas?.(true, true);
+    app.graph?.setDirtyCanvas?.(true, true);
 }
 
 function closeAssets() {
@@ -310,7 +407,22 @@ function closeAssets() {
 async function useOutputAsset(asset, node = null) {
     const response = await api.fetchApi(asset.route);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const resized = await resizeImage(await response.blob());
+    const blob = await response.blob();
+    if (node) syncAssetNode(node, asset.value);
+    if (/\.(mp4|webm|mov)$/i.test(asset.filename)) {
+        attachedVideo = {
+            frames: await extractVideoFrames(blob),
+            previewUrl: URL.createObjectURL(blob),
+            name: asset.filename,
+        };
+        if (attachedImage?.previewUrl) URL.revokeObjectURL(attachedImage.previewUrl);
+        attachedImage = null;
+        renderAttachment();
+        closeAssets();
+        setStatus(node ? t("assetSynced", { node: node.id }) : t("videoAttached"));
+        return;
+    }
+    const resized = await resizeImage(blob);
     if (!resized) throw new Error(t("imageError"));
     if (attachedImage?.previewUrl) URL.revokeObjectURL(attachedImage.previewUrl);
     attachedImage = {
@@ -318,15 +430,6 @@ async function useOutputAsset(asset, node = null) {
         previewUrl: URL.createObjectURL(resized),
         name: asset.filename,
     };
-    if (node) {
-        const widget = (node.widgets || []).find((item) => item.name === "image");
-        const previousValue = widget.value;
-        widget.value = asset.value;
-        widget.callback?.(asset.value, app.canvas, node);
-        node.onWidgetChanged?.(widget.name, asset.value, previousValue, widget);
-        node.setDirtyCanvas?.(true, true);
-        app.graph?.setDirtyCanvas?.(true, true);
-    }
     renderAttachment();
     closeAssets();
     setStatus(node ? t("assetSynced", { node: node.id }) : t("assetChatOnly"));
@@ -359,7 +462,7 @@ async function openAssets() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const values = await response.json();
         const assets = (Array.isArray(values) ? values : [])
-            .filter((value) => /\.(png|jpe?g|webp)\s+\[output\]$/i.test(String(value)))
+            .filter((value) => /\.(png|jpe?g|webp|mp4|webm|mov)\s+\[output\]$/i.test(String(value)))
             .slice(0, 100)
             .map(parseOutputAsset);
         elements.assetGrid.replaceChildren();
@@ -369,10 +472,12 @@ async function openAssets() {
         }
         for (const asset of assets) {
             const button = createElement("button", "qwen-chat-asset");
-            const image = createElement("img");
+            const isVideo = /\.(mp4|webm|mov)$/i.test(asset.filename);
+            const image = createElement(isVideo ? "video" : "img");
             image.src = asset.url;
             image.loading = "lazy";
             image.alt = asset.filename;
+            if (isVideo) { image.muted = true; image.playsInline = true; }
             button.append(image, createElement("span", "", asset.filename));
             button.addEventListener("click", () => chooseOutputAsset(asset).catch((error) => setStatus(error.message || String(error), true)));
             elements.assetGrid.append(button);
@@ -383,7 +488,14 @@ async function openAssets() {
 }
 
 function findNode(nodeId) {
-    return app.graph?.getNodeById?.(nodeId) || (app.graph?._nodes || []).find((node) => String(node.id) === String(nodeId));
+    let graph = app.graph;
+    let node = null;
+    for (const part of String(nodeId).split(":")) {
+        node = graph?.getNodeById?.(part) || (graph?._nodes || []).find((item) => String(item.id) === part);
+        if (!node) return null;
+        graph = node.subgraph;
+    }
+    return node;
 }
 
 function normalizeWidgetValue(widget, value) {
@@ -479,13 +591,50 @@ function setBusy(busy) {
     elements.status?.classList.toggle("busy", busy);
 }
 
+function livepeerCapabilities() {
+    try {
+        for (const node of snapshotGraph().nodes) {
+            const widgets = node.widgets || [];
+            const capability = widgets.find((w) => w.name === "capability");
+            if (!capability) continue;
+            const custom = widgets.find((w) => w.name === "custom_capability");
+            if (!custom) continue;
+            return (capability.options?.values || []).filter((v) => v !== "auto");
+        }
+    } catch {}
+    return [];
+}
+
+function refreshCapabilitySelector() {
+    if (!elements.capability) return;
+    const caps = livepeerCapabilities();
+    elements.capability.parentElement.style.display = caps.length ? "" : "none";
+    const current = elements.capability.value || state.capability;
+    elements.capability.replaceChildren();
+    const auto = createElement("option", "", t("capabilityAuto"));
+    auto.value = "auto";
+    elements.capability.append(auto);
+    for (const cap of caps) {
+        const option = createElement("option", "", cap);
+        option.value = cap;
+        elements.capability.append(option);
+    }
+    elements.capability.value = caps.includes(current) ? current : "auto";
+}
+
 async function sendMessage() {
-    const content = elements.input.value.trim();
-    if (!content || controller) return;
-    if (!state.model) {
+    const rawText = elements.input.value.trim();
+    refreshCapabilitySelector();
+    const capability = elements.capability?.value || "auto";
+    const config = elements.config?.value || "auto";
+    const hasDirective = capability !== "auto" || config !== "auto";
+    if (controller || (!rawText && !hasDirective)) return;
+    if (!state.model && !hasDirective) {
         setStatus(t("selectModel"), true);
         return;
     }
+    const configLabels = { native: "Native", "10eros": "10Eros", turbo: "Turbo LoRA" };
+    const content = rawText || `⚙️ ${capability !== "auto" ? capability : configLabels[config] || config}`;
     state.messages.push({ role: "user", content });
     state.messages = state.messages.slice(-20);
     elements.input.value = "";
@@ -500,7 +649,7 @@ async function sendMessage() {
     } catch (error) {
         console.warn("[QwenChat] image collection failed:", error);
     }
-    if (attachedImage && images.length) {
+    if ((attachedImage && images.length) || attachedVideo) {
         setStatus(t("analyzingAttachment"));
     } else if (images.length) {
         setStatus(t("analyzingWorkflowImages", { count: images.length }));
@@ -518,6 +667,8 @@ async function sendMessage() {
                 messages: state.messages,
                 graph: snapshotGraph(),
                 images,
+                video: attachedVideo?.frames || [],
+                directives: { capability, config, text: rawText },
                 options: {
                     max_tokens: state.maxTokens,
                     temperature: state.temperature,
@@ -617,6 +768,9 @@ function buildSidebar(container) {
         .qwen-chat-thinking summary { cursor:pointer; font-size:11px; user-select:none; }
         .qwen-chat-thinking pre { max-height:220px; overflow:auto; margin:8px 0 0; padding:9px; border-radius:8px; white-space:pre-wrap; background:rgba(0,0,0,.16); }
         .qwen-chat-input { width:100%; min-height:92px; resize:vertical; line-height:1.4; }
+        .qwen-chat-selectors { display:flex; gap:7px; }
+        .qwen-chat-selectors label { display:flex; align-items:center; gap:6px; flex:1; min-width:0; font-size:11px; opacity:.78; }
+        .qwen-chat-selectors select { flex:1; min-width:0; font-size:12px; padding:5px 7px; }
         .qwen-chat-attachment { display:none; align-items:center; gap:10px; padding:8px; border:1px solid rgba(109,124,255,.32); border-radius:11px; background:rgba(109,124,255,.08); }
         .qwen-chat-attachment.visible { display:flex; }
         .qwen-chat-attachment-preview { width:52px; height:52px; flex:0 0 52px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,.12); }
@@ -634,7 +788,7 @@ function buildSidebar(container) {
         .qwen-chat-assets-grid { min-height:120px; overflow:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:9px; padding:2px; }
         .qwen-chat-assets-heading { grid-column:1/-1; padding:18px; text-align:center; opacity:.7; }
         .qwen-chat-asset { min-width:0; display:flex; flex-direction:column; gap:6px; padding:6px!important; cursor:pointer; text-align:left; }
-        .qwen-chat-asset img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:6px; background:#111; }
+        .qwen-chat-asset img,.qwen-chat-asset video { width:100%; aspect-ratio:1; object-fit:cover; border-radius:6px; background:#111; }
         .qwen-chat-asset span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10px; }
         .qwen-chat-asset-target { grid-column:1/-1; cursor:pointer; text-align:left; }
         .qwen-chat-actions { display:grid; grid-template-columns:1.35fr 1fr 1fr 1fr; gap:7px; }
@@ -707,10 +861,26 @@ function buildSidebar(container) {
     elements.input = createElement("textarea", "qwen-chat-input");
     elements.input.placeholder = t("placeholder");
     elements.attachment = createElement("div", "qwen-chat-attachment");
+    const selectors = createElement("div", "qwen-chat-selectors");
+    elements.config = createElement("select");
+    for (const [value, label] of [["auto", t("configAuto")], ["native", "Native"], ["10eros", "10Eros"], ["turbo", "Turbo LoRA"]]) {
+        const option = createElement("option", "", label);
+        option.value = value;
+        elements.config.append(option);
+    }
+    elements.config.value = state.config;
+    elements.config.title = "MiniMax H3 sampler config";
+    elements.capability = createElement("select");
+    elements.capability.title = "Livepeer capability";
+    const configLabel = createElement("label");
+    configLabel.append(createElement("span", "", t("config")), elements.config);
+    const capabilityLabel = createElement("label");
+    capabilityLabel.append(createElement("span", "", t("capability")), elements.capability);
+    selectors.append(configLabel, capabilityLabel);
     const composerTools = createElement("div", "qwen-chat-composer-tools");
     elements.fileInput = createElement("input", "qwen-chat-file");
     elements.fileInput.type = "file";
-    elements.fileInput.accept = "image/*";
+    elements.fileInput.accept = "image/*,video/*";
     elements.attach = createElement("button", "qwen-chat-attach", t("attach"));
     elements.attach.type = "button";
     elements.assetsButton = createElement("button", "qwen-chat-assets-button", t("assets"));
@@ -733,15 +903,24 @@ function buildSidebar(container) {
     assetHeader.append(createElement("span", "", t("assetsTitle")), assetClose);
     assetPanel.append(assetHeader, elements.assetGrid);
     elements.assetModal.append(assetPanel);
-    root.append(topbar, controls, elements.messages, elements.input, elements.attachment, composerTools, actions, elements.status, elements.assetModal);
+    root.append(topbar, controls, elements.messages, elements.input, elements.attachment, selectors, composerTools, actions, elements.status, elements.assetModal);
     container.append(root);
     renderAttachment();
+    refreshCapabilitySelector();
     elements.settingsToggle.addEventListener("click", () => {
         state.settingsOpen = !state.settingsOpen;
         controls.classList.toggle("open", state.settingsOpen);
         elements.settingsToggle.classList.toggle("active", state.settingsOpen);
         elements.settingsToggle.title = t(state.settingsOpen ? "hideSettings" : "showSettings");
         elements.settingsToggle.setAttribute("aria-expanded", String(state.settingsOpen));
+        saveState();
+    });
+    elements.config.addEventListener("change", () => {
+        state.config = elements.config.value;
+        saveState();
+    });
+    elements.capability.addEventListener("change", () => {
+        state.capability = elements.capability.value;
         saveState();
     });
     elements.backend.addEventListener("change", () => {
@@ -777,10 +956,11 @@ function buildSidebar(container) {
         const file = elements.fileInput.files?.[0];
         if (!file) return;
         elements.attach.disabled = true;
-        setStatus(t("preparingImage"));
+        const isVideo = file.type?.startsWith("video/");
+        setStatus(t(isVideo ? "preparingVideo" : "preparingImage"));
         try {
             await attachImage(file);
-            setStatus(t("imageAttached"));
+            setStatus(t(isVideo ? "videoAttached" : "imageAttached"));
         } catch (error) {
             clearAttachment();
             setStatus(error.message || String(error), true);

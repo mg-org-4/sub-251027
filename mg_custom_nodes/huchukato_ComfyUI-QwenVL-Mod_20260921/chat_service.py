@@ -14,28 +14,42 @@ MAX_MESSAGES = 20
 MAX_MESSAGE_CHARS = 12000
 MAX_GRAPH_NODES = 200
 MAX_CHAT_IMAGES = 3
+MAX_VIDEO_FRAMES = 4
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 ALLOWED_ACTIONS = {"set_widget_value", "set_node_mode", "queue_workflow"}
 MINIMAX_I2VA_BINDING = "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced."
 
-BASE_SYSTEM_PROMPT = """You are Qwen Workflow Assistant inside ComfyUI. Answer the user and, only when requested, control the currently open workflow using the supplied snapshot.
-The "message" text and choice labels MUST use the same language as the latest user message. Do not switch to English merely because workflow prompt text must be English.
-If images or videos are loaded in the workflow inputs, their pixel content is also provided to you; refer to them when the user mentions "the image", "this image", or similar.
-Return exactly one JSON object — no preamble, no text before or after it — with this schema:
-{"message":"short answer to the user","actions":[{"type":"set_widget_value","node_id":1,"widget":"steps","value":25},{"type":"set_node_mode","node_id":2,"mode":"bypass"},{"type":"queue_workflow"}],"choices":[{"label":"option A","send":"the user message sent when option A is clicked"}]}
-Allowed action types are set_widget_value, set_node_mode, and queue_workflow. set_node_mode accepts only bypass or enable. Never invent node IDs or widget names. Do not emit code, filesystem, shell, network, node creation, connection, deletion, or arbitrary JavaScript actions. If the request cannot be completed with the available actions, explain why in message and return an empty actions array.
-When the user asks to generate N images or a batch of N, look for a "batch_size" or "batch" widget on the main generation node (the node with seed/steps/cfg/sampler_name — typically the sampler or the all-in-one generation node). Do NOT set batch_size on upscaler nodes (UpscalerTensorrt, LoadUpscalerTensorrtModel, UltimateSDUpscale, etc.) — that controls the upscaling batch, not the image count. If no batch_size exists on the generation node, explain that the workflow generates one image per run and ask if they want to queue it multiple times.
-Final generated image and video prompts MUST be in English unless the user explicitly requests another prompt language. An instruction sent to an active inner preset enhancer must be a concise English action directive, because that enhancer analyzes the image and formats the final prompt. The surrounding assistant message must use the user's language.
-When you set a text or prompt widget, repeat the complete new value verbatim inside message so the user can read it.
-PROMPT ROUTING — inspect the widgets exposed on the SAME target node and apply the first matching case:
-1. IMAGE + PRESET ENHANCER: when image pixels are provided and the image-to-video target exposes both "preset_prompt" and "passthrough", inspect the provided image pixels to understand the visible subject and how the requested motion applies, and read the target node's CURRENT "preset_prompt" value and its supplied PROMPT WRITING GUIDE. You MUST emit a set_widget_value action for the exposed prompt widget containing a concise English enhancer directive (1-3 sentences) derived from the latest substantive user request and appropriate for that selected preset: state only the requested motion/action and duration, optionally ending with "Preserve the reference image exactly and change only this action." Never copy the user message verbatim — always translate and clarify it. Skip execution-only follow-ups such as "Execute the video" and use the preceding descriptive request. Set "passthrough" to false. The inner QwenVL performs the full image analysis and formats the final prompt using the selected preset. Your pixel inspection is only for understanding the requested action: never describe or invent identity, appearance, clothing, environment, lighting, or framing, never add Picture reference lines, and never pre-format the final preset prompt.
-2. PASSTHROUGH WITHOUT IMAGE: when no image pixels are provided and the target exposes "passthrough", write the complete final English prompt into the actual exposed prompt widget ("prompt", "custom_prompt", or "prompt_text") and set "passthrough" to true. A promoted outer "prompt" may feed an inner "custom_prompt"; always use the exposed name.
-3. PRESET WITHOUT PASSTHROUGH: if the target exposes "preset_prompt" but not "passthrough", write a concise English intent into its exposed prompt widget so the inaccessible inner enhancer applies the preset.
-4. DIRECT PROMPT: otherwise write the complete final English prompt into the actual exposed generation widget.
-When the user asks you to draft or show a prompt without executing, write the fully formatted English preset prompt inside "message" for them to read and do not queue the workflow.
-When the user asks to generate, run, execute, or queue, apply every required widget update and include queue_workflow in the same response. If queue_workflow is present, state that execution was started; NEVER ask whether to execute now and NEVER offer an execute choice. If you set a prompt but do not include queue_workflow, do not claim execution started: ask whether to execute and provide an execute choice.
-Emit choices only when you genuinely need the user to pick between alternatives before acting (for example mutually exclusive generation modes). Put the question in message, give each choice a short label, and set send to the exact user message that should be sent back when the choice is clicked. Do not act on the ambiguous parameter until the user answers; omit choices when you can act directly. "choices" is a TOP-LEVEL field of the JSON object, a sibling of "message" and "actions" — never nest it inside an action object. Always close every bracket and brace.
-When writing a prompt into a workflow, target the widget that actually feeds generation: the promoted "prompt" (or "custom_prompt"/"prompt_text") widget on the generation/subgraph node. NEVER write prompts into display/viewer nodes such as easy showAnything, ShowText, or MarkdownNote — they only preview text and change nothing."""
+BASE_SYSTEM_PROMPT = """You are Qwen Workflow Assistant inside ComfyUI. Answer the user and, only when requested, control the open workflow using the supplied snapshot.
+LANGUAGE: "message" and choice labels must mirror the LATEST user message language. Workflow prompt text must be English.
+OUTPUT: return exactly one JSON object, no text outside it:
+{"message":"reply","actions":[{"type":"set_widget_value","node_id":1,"widget":"steps","value":25},{"type":"queue_workflow"}],"choices":[{"label":"A","send":"text for A"}]}
+Allowed actions: set_widget_value, set_node_mode (bypass/enable only), queue_workflow. Never invent node IDs or widget names. Never emit code, shell, filesystem, JS, or connection actions.
+When asked to generate/run/queue, apply every required widget update and include queue_workflow in the same response. Never ask "execute now?" after queue_workflow. If you only set a prompt without queue_workflow, do not claim execution started.
+Choices are top-level, only when truly ambiguous. Always close braces.
+---
+WORKFLOW TARGETS (pick the FIRST matching case for the node you are controlling):
+1. MiniMax H3 video sampler (exposes unet_name + preset_prompt + passthrough):
+   - If the request says "use Native", "Config C", "use 10Eros", "Config A" etc., FIRST update the sampler widgets, then write only the action into the "prompt" widget.
+   - Config mapping:
+     * Native / Config C → unet_name="minimax_h3_fl2va_pruned_nvfp4_convrot_int8.safetensors", steps=20, sampler_name="res_multistep", scheduler="simple", shift_video=12, shift_audio=3
+     * 10Eros / Config A → unet_name="10Eros_Max_h3_TURBO-hybrid_beta3_int8_convrot_skip_edges.safetensors", steps=8, sampler_name="euler", scheduler="simple", shift_video=6, shift_audio=3
+     * Turbo LoRA / Config B → steps=8, sampler_name="euler", scheduler="simple", shift_video=6, shift_audio=3 (LoRA toggle is manual)
+   - If a different duration is requested, set "value_1" to that number of seconds.
+   - For the prompt: remove config words and duration. Write only a short English action description.
+   - EXAMPLE: user says "generate a 5s video, use Native: rhythmic hip sway, subtle back and forth"
+     Actions: value_1=5; unet_name=minimax...; steps=20; sampler_name=res_multistep; shift_video=12; shift_audio=3; prompt="rhythmic hip sway, subtle back and forth"; passthrough=false; queue_workflow.
+   - EXAMPLE: user says "use 10Eros: slow caressing on thigh, static camera"
+     Actions: unet_name=10Eros...; steps=8; sampler_name=euler; shift_video=6; prompt="slow caressing on thigh, static camera"; passthrough=false; queue_workflow.
+   - NEVER copy "use Native", "use 10Eros", "generate", "5s video" into the prompt widget.
+   - NEVER describe the image yourself (clothes, face, room, light); the inner QwenVL model will see the image and describe it. You only provide the action.
+2. Livepeer Render node (type contains "Livepeer", exposes capability + duration):
+   - Write one English shot-native prompt into its "prompt" widget. Update capability, duration, aspect_ratio to match the request.
+   - For images select an image capability from the dropdown (flux-schnell, flux-dev, etc.); for video select a video capability. Keep custom_capability empty unless the user names a model not in the dropdown.
+   - NEVER bypass the Livepeer render node or the media loader.
+3. Passthrough node (has passthrough but NO image pixels): write the complete final English prompt into the actual prompt widget and set passthrough=true.
+4. Direct prompt: write the complete final English prompt into the generation widget.
+When you set a text/prompt widget, repeat the new value verbatim in "message" so the user sees it.
+Only write prompts into real generation widgets (prompt/custom_prompt/prompt_text). NEVER write into display nodes like ShowText, easy showAnything, or MarkdownNote."""
 
 _LT = chr(60)
 _GT = chr(62)
@@ -144,7 +158,7 @@ def list_output_images(output_dir, limit=500):
     for path in root.rglob("*"):
         try:
             resolved = path.resolve()
-            if not resolved.is_relative_to(root) or not resolved.is_file() or resolved.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+            if not resolved.is_relative_to(root) or not resolved.is_file() or resolved.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".webm", ".mov"}:
                 continue
             images.append((resolved.stat().st_mtime, resolved.relative_to(root).as_posix()))
         except (OSError, ValueError):
@@ -153,11 +167,11 @@ def list_output_images(output_dir, limit=500):
     return [f"{relative} [output]" for _, relative in images[:max(1, min(int(limit), 2000))]]
 
 
-def validate_images(images):
+def validate_images(images, limit=MAX_CHAT_IMAGES):
     if not isinstance(images, list):
         return []
     result = []
-    for item in images[:MAX_CHAT_IMAGES]:
+    for item in images[:limit]:
         if not isinstance(item, str):
             continue
         try:
@@ -291,6 +305,42 @@ def select_workflow_intent(messages):
     return intent if intent is not None else (last_user or "")
 
 
+_CONFIG_PHRASE = re.compile(
+    r"\b(?:use|using|with|in|switch(?:ing)?\s+to|usa|metti|passa\s+a)\s+"
+    r"(?:the\s+)?(?:native|10\s*eros(?:-max)?|eros|turbo(?:\s*lora)?|config\s*[abc]|sol[-\s]?attn)"
+    r"(?:\s+(?:mode|config|preset|model|version))?",
+    re.IGNORECASE,
+)
+_GENERATION_PREFIX = re.compile(
+    r"^\s*(?:please\s+)?(?:generate|creates?|makes?|render|animate|produce|do|genera|crea|fai)\s+"
+    r"(?:a\s+|an\s+|the\s+|this\s+|me\s+|one\s+|un\s+|una\s+|il\s+)?\s*"
+    r"\d*\s*(?:sec(?:ond)?s?|s)?\s*"
+    r"(?:second\s+|new\s+)?(?:video|clip|animation|scene)?\s*"
+    r"(?:of|with|showing|where|di|con)?[:,]?\s*",
+    re.IGNORECASE,
+)
+_DURATION_MENTION = re.compile(r"\b\d+\s*(?:s|sec(?:ond)?s?|secondi?)\b(?:\s*(?:video|clip|animation))?", re.IGNORECASE)
+_MEDIA_WORD = re.compile(r"\b(?:video|clip|animation|scene)\b", re.IGNORECASE)
+
+
+def _clean_action_directive(text):
+    """Strip routing keywords and generation meta from a directive so the
+    enhancer only receives the scene action (e.g. 'use native' and
+    'generate a 5s video' never reach the prompt widget). Returns an empty
+    string when nothing but meta remains."""
+    if not isinstance(text, str):
+        return ""
+    cleaned = _CONFIG_PHRASE.sub("", text).strip(" ,;:-").lstrip(".")
+    cleaned = _GENERATION_PREFIX.sub("", cleaned, count=1).strip(" ,;:-").lstrip(".")
+    cleaned = _GENERATION_PREFIX.sub("", cleaned, count=1).strip(" ,;:-").lstrip(".")
+    cleaned = _DURATION_MENTION.sub("", cleaned)
+    cleaned = _MEDIA_WORD.sub("", cleaned)
+    cleaned = re.sub(r"\s*[,;:]\s*", ", ", cleaned)
+    cleaned = re.sub(r"(?:,\s*){2,}", ", ", cleaned)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).lstrip(" ,;:.-").rstrip(" ,;:-")
+    return cleaned
+
+
 def enforce_image_enhancer_routing(result, graph, messages, has_images):
     if not has_images or not any(action.get("type") == "queue_workflow" for action in result.get("actions", [])):
         return result
@@ -313,23 +363,29 @@ def enforce_image_enhancer_routing(result, graph, messages, has_images):
         selected = candidates
     node, prompt_widget = selected[0]
     node_id = node.get("id")
-    intent = select_workflow_intent(messages)
+    intent = _clean_action_directive(select_workflow_intent(messages))
     actions = result.get("actions", [])
     prompt_action = next((action for action in actions if str(action.get("node_id")) == str(node_id) and action.get("widget") in {"prompt", "custom_prompt", "prompt_text"}), None)
     if prompt_action is not None and _is_enhancer_instruction(prompt_action.get("value")):
-        intent = prompt_action["value"].strip()
-    if prompt_action is None:
-        queue_index = next((index for index, action in enumerate(actions) if action.get("type") == "queue_workflow"), len(actions))
-        prompt_action = {"type": "set_widget_value", "node_id": node_id}
-        actions.insert(queue_index, prompt_action)
-    prompt_action.update({"widget": prompt_widget, "value": intent})
+        intent = _clean_action_directive(prompt_action["value"].strip())
+    if not intent:
+        # Only config keywords (e.g. "use native") — leave the existing prompt
+        if prompt_action is not None:
+            actions.remove(prompt_action)
+    else:
+        if prompt_action is None:
+            queue_index = next((index for index, action in enumerate(actions) if action.get("type") == "queue_workflow"), len(actions))
+            prompt_action = {"type": "set_widget_value", "node_id": node_id}
+            actions.insert(queue_index, prompt_action)
+        prompt_action.update({"widget": prompt_widget, "value": intent})
     passthrough_action = next((action for action in actions if str(action.get("node_id")) == str(node_id) and action.get("widget") == "passthrough"), None)
     if passthrough_action:
         passthrough_action["value"] = False
     else:
         queue_index = next((index for index, action in enumerate(actions) if action.get("type") == "queue_workflow"), len(actions))
         actions.insert(queue_index, {"type": "set_widget_value", "node_id": node_id, "widget": "passthrough", "value": False})
-    result["message"] = f'{result.get("message", "").rstrip()}\n\nWorkflow enhancer instruction:\n{intent}'.strip()
+    if intent:
+        result["message"] = f'{result.get("message", "").rstrip()}\n\nWorkflow enhancer instruction:\n{intent}'.strip()
     return result
 
 
@@ -337,10 +393,12 @@ def enforce_image_reference_bindings(result, graph, has_images):
     if not has_images:
         return result
     nodes = {str(node.get("id")): node for node in graph.get("nodes", [])}
-    passthrough_actions = {
-        str(action.get("node_id"))
+    # Use the passthrough value that the action set will write, not the snapshot's
+    # old widget value, so a fresh passthrough=false does not get a binding line.
+    passthrough_values = {
+        str(action.get("node_id")): action.get("value")
         for action in result.get("actions", [])
-        if action.get("type") == "set_widget_value" and action.get("widget") == "passthrough" and action.get("value") is True
+        if action.get("type") == "set_widget_value" and action.get("widget") == "passthrough"
     }
     amended = []
     for action in result.get("actions", []):
@@ -353,7 +411,7 @@ def enforce_image_reference_bindings(result, graph, has_images):
         widgets = {widget.get("name"): widget.get("value") for widget in node.get("widgets", []) if isinstance(widget, dict)}
         preset = str(widgets.get("preset_prompt", ""))
         title = f'{node.get("title", "")} {node.get("type", "")}'.lower()
-        passthrough = str(action.get("node_id")) in passthrough_actions or widgets.get("passthrough") is True
+        passthrough = passthrough_values.get(str(action.get("node_id")), widgets.get("passthrough") is True)
         if "minimax h3 nsfw (" not in preset.lower() or "image to video" not in title or not passthrough:
             continue
         action["value"] = f"{MINIMAX_I2VA_BINDING}\n\n{value.lstrip()}"
@@ -363,9 +421,30 @@ def enforce_image_reference_bindings(result, graph, has_images):
     return result
 
 
-def _preset_guides(graph, messages):
+def _has_image_enhancer_target(graph):
+    """True if the workflow exposes an image-to-video node that has a preset
+    enhancer (preset_prompt + passthrough + a prompt widget). In that case the
+    chat must not write a fully formatted video prompt itself."""
+    for node in graph.get("nodes", []):
+        widgets = {widget.get("name"): widget.get("value") for widget in node.get("widgets", []) if isinstance(widget, dict)}
+        prompt_widget = next((name for name in ("prompt", "custom_prompt", "prompt_text") if name in widgets), None)
+        if not prompt_widget or "preset_prompt" not in widgets or "passthrough" not in widgets:
+            continue
+        title = f'{node.get("title", "")} {node.get("type", "")}'.lower()
+        if "image to video" in title:
+            return True
+    return False
+
+
+def _preset_guides(graph, messages, has_images=False):
     """Collect prompt-writing guides for presets selected in the workflow's
-    widgets or named in the last user message."""
+    widgets or named in the last user message.
+
+    When an image-enhancer target exists, the chat is only the first stage of a
+    two-stage pipeline: it must write a concise action directive, while the
+    inner QwenVL node applies the preset and formats the final prompt. Full
+    format guides for video presets are therefore suppressed to avoid confusing
+    the chat into outputting a complete MiniMax/LTX/Wan prompt."""
     module = sys.modules.get("AILab_QwenVL")
     guides = getattr(module, "SYSTEM_PROMPTS", None) or {}
     if not guides:
@@ -383,6 +462,12 @@ def _preset_guides(graph, messages):
         wanted.update(name for name in guides if f"({match.group(1)}s)" in name)
     if not wanted:
         return ""
+    # Suppress full-format video guides when the chat must only feed the enhancer.
+    if has_images and _has_image_enhancer_target(graph):
+        video_prefixes = ("🎬 MiniMax", "🎞️ MiniMax", "🔄 MiniMax", "🎥 LTX", "🔀 LTX", "🎵 LTX", "📹 Wan", "🔄 Wan", "📖 Wan")
+        wanted = {name for name in wanted if not any(name.startswith(prefix) for prefix in video_prefixes)}
+        if not wanted:
+            return ""
     parts = "\n\n".join(f"### {name}\n{guides[name]}" for name in sorted(wanted))
     return (
         "\n\nPROMPT WRITING GUIDES - when writing or editing a prompt for a node "
@@ -437,9 +522,10 @@ def _chat_guides_for(graph, has_images=False):
         if image_enhancer:
             parts.append(
                 f'### Exact image-enhancer target\nImage pixels are provided. Node {node.get("id")} exposes "{prompt_widget}", "preset_prompt", and "passthrough". '
-                f'Inspect the provided image pixels to understand how the requested action applies. The node currently selects preset "{widgets.get("preset_prompt", "")}"; follow that preset\'s supplied PROMPT WRITING GUIDE. '
-                f'You MUST set node {node.get("id")} widget "{prompt_widget}" to a concise English action directive derived from the latest substantive request (skip execute-only confirmations; never copy it verbatim), '
-                f'set node {node.get("id")} widget "passthrough" to false, then queue. Do not write the final preset prompt: the inner QwenVL must analyze the image and create it.'
+                f'Inspect the provided image pixels to understand how the requested action applies. The node currently selects preset "{widgets.get("preset_prompt", "")}". '
+                f'IGNORE any full prompt-writing guide for that preset above: the inner QwenVL node will use it to build the final prompt. '
+                f'You MUST set node {node.get("id")} widget "{prompt_widget}" to a concise English action directive derived from the latest substantive request (skip execute-only confirmations; never copy it verbatim; never add the "For the target video..." binding line; never write integrated_multimodal_description/sections). '
+                f'set node {node.get("id")} widget "passthrough" to false, then queue. The inner QwenVL must analyze the image and create the final preset prompt.'
             )
         else:
             parts.append(
@@ -455,12 +541,192 @@ def _chat_guides_for(graph, has_images=False):
     )
 
 
-def build_prompt(messages, graph, enable_thinking=False, has_images=False):
+def build_prompt(messages, graph, enable_thinking=False, has_images=False, has_video=False):
     history = "\n".join(f"{item['role'].upper()}: {item['content']}" for item in messages)
     snapshot = json.dumps(graph, ensure_ascii=False, separators=(",", ":"))
-    instruction = BASE_SYSTEM_PROMPT + _preset_guides(graph, messages) + _chat_guides_for(graph, has_images)
+    instruction = BASE_SYSTEM_PROMPT + _preset_guides(graph, messages, has_images) + _chat_guides_for(graph, has_images)
     instruction += THINKING_INSTRUCTION if enable_thinking else NO_THINKING_INSTRUCTION
+    if has_video:
+        instruction += "\nVIDEO INPUT: sampled frames from a video clip are attached to the latest user message. Treat them as the clip itself when the user asks to review, critique, or refine a generated video."
     return f"{instruction}\n\nWORKFLOW SNAPSHOT:\n{snapshot}\n\nCONVERSATION:\n{history}\n\nJSON RESPONSE:"
+
+
+_EXPLICIT_USE = re.compile(r"^\s*(?:use|usa)\s+([a-z0-9][\w.\-]*)[.:,;\s]\s*(.*)$", re.IGNORECASE | re.DOTALL)
+
+
+def _capability_result(graph, capability, prompt, text):
+    """Apply capability + prompt + duration/aspect-ratio + queue on the Livepeer
+    render node. `prompt` is the scene text to write; `text` is the full user
+    message used for duration/ratio/language detection."""
+    for node in graph.get("nodes", []):
+        title = f'{node.get("title", "")} {node.get("type", "")}'.lower()
+        if "livepeer" not in title:
+            continue
+        widgets = {w.get("name"): w for w in node.get("widgets", []) if isinstance(w, dict)}
+        if "capability" not in widgets or "prompt" not in widgets:
+            continue
+        options = (widgets["capability"].get("options") or {}).get("values") or []
+        lookup = {str(o).lower(): o for o in options}
+        actions = []
+        if capability.lower() in lookup:
+            actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "capability", "value": lookup[capability.lower()]})
+            if widgets.get("custom_capability", {}).get("value"):
+                actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "custom_capability", "value": ""})
+        elif "-" in capability and capability.lower() != "auto" and "custom_capability" in widgets:
+            actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "custom_capability", "value": capability})
+        else:
+            return None
+        if prompt:
+            actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "prompt", "value": prompt[:4000]})
+        duration = re.search(r"\b(\d{1,2})\s*(?:sec(?:ond)?s?|s|secondi?)\b", text, re.IGNORECASE)
+        if duration and "duration" in widgets:
+            actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "duration", "value": max(3, min(15, int(duration.group(1))))})
+        ratio = re.search(r"\b(16:9|9:16|1:1|3:2|2:3|4:3|3:4|2\.35:1)\b", text)
+        if ratio and "aspect_ratio" in widgets:
+            actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "aspect_ratio", "value": ratio.group(1)})
+        actions.append({"type": "queue_workflow"})
+        if re.match(r"^\s*(usa|passa|metti|fai|genera|crea)\b", text, re.IGNORECASE):
+            message = f"⚙️ {capability} — workflow in coda."
+        else:
+            message = f"⚙️ {capability} — workflow queued."
+        return {"message": message, "actions": actions, "choices": []}
+    return None
+
+
+def _explicit_capability_request(messages, graph):
+    """Deterministic `use <capability> <prompt>` shortcut: when the workflow has
+    a Livepeer render node, apply capability + prompt + queue locally without
+    calling the chat model. Returns None when the name is not a Livepeer
+    capability (e.g. "use native" is a MiniMax config) or no render node exists."""
+    last_user = _last_user_message(messages)
+    match = _EXPLICIT_USE.match(last_user)
+    if not match:
+        return None
+    capability = match.group(1).rstrip(".:,;")
+    prompt = (match.group(2) or "").strip()
+    return _capability_result(graph, capability, prompt, last_user)
+
+
+_CONFIG_TRIGGER = re.compile(
+    r"\b(?:use|usa|switch\s+to|passa\s+a|metti|set|con)\s+(?:the\s+|il\s+|la\s+)?"
+    r"(native|10\s*eros(?:[-\s]?max)?|turbo(?:\s*lora)?|config\s*[abc])\b",
+    re.IGNORECASE,
+)
+
+_MINIMAX_CONFIGS = {
+    "native": {
+        "unet_needle": "fl2va_pruned",
+        "unet_fallback": "minimax_h3_fl2va_pruned_nvfp4_convrot_int8.safetensors",
+        "values": {"steps": 20, "sampler_name": "res_multistep", "scheduler": "simple", "shift_video": 12, "shift_audio": 3},
+    },
+    "10eros": {
+        "unet_needle": "10eros",
+        "unet_fallback": "10Eros_Max_h3_TURBO-hybrid_beta3_int8_convrot_skip_edges.safetensors",
+        "values": {"steps": 8, "sampler_name": "euler", "scheduler": "simple", "shift_video": 6, "shift_audio": 3},
+    },
+    "turbo": {
+        "unet_needle": "fl2va_pruned",
+        "unet_fallback": "minimax_h3_fl2va_pruned_nvfp4_convrot_int8.safetensors",
+        "values": {"steps": 8, "sampler_name": "euler", "scheduler": "simple", "shift_video": 6, "shift_audio": 3},
+        "lora_mode": "enable",
+    },
+}
+# Turbo LoRA must be bypassed for Native/10Eros (fused in the 10Eros checkpoint)
+_MINIMAX_LORA_MODE = {"native": "bypass", "10eros": "bypass", "turbo": "enable"}
+
+
+def _last_user_message(messages):
+    for item in reversed(messages or []):
+        if item.get("role") == "user" and isinstance(item.get("content"), str) and item["content"].strip():
+            return item["content"].strip()
+    return ""
+
+
+def _widget_options(widget):
+    return (widget.get("options") or {}).get("values") or []
+
+
+def _match_option(widget, needle):
+    for option in _widget_options(widget):
+        if needle in str(option).lower():
+            return option
+    return None
+
+
+def _minimax_result(graph, config_key, text):
+    """Apply a MiniMax H3 sampler config + optional cleaned scene directive +
+    queue on the enhancer node. `text` is the raw user message (duration is
+    parsed from it, the cleaned remainder becomes the prompt directive)."""
+    for node in graph.get("nodes", []):
+        widgets = {w.get("name"): w for w in node.get("widgets", []) if isinstance(w, dict)}
+        if not {"unet_name", "preset_prompt", "passthrough"}.issubset(widgets):
+            continue
+        config = _MINIMAX_CONFIGS[config_key]
+        actions = []
+        unet_widget = widgets["unet_name"]
+        if config["unet_needle"]:
+            unet = _match_option(unet_widget, config["unet_needle"]) or config["unet_fallback"]
+            actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "unet_name", "value": unet})
+        for name, value in config["values"].items():
+            widget = widgets.get(name)
+            if widget is None:
+                continue
+            options = _widget_options(widget)
+            if options and str(value) not in [str(o) for o in options]:
+                match = _match_option(widget, str(value).lower())
+                if match is None:
+                    continue
+                value = match
+            actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": name, "value": value})
+        duration = re.search(r"\b(\d{1,2})\s*(?:sec(?:ond)?s?|s|secondi?)\b", text, re.IGNORECASE)
+        if duration:
+            seconds = int(duration.group(1))
+            if "value_1" in widgets:
+                actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "value_1", "value": seconds})
+            preset_match = _match_option(widgets["preset_prompt"], f"({seconds}s)")
+            if preset_match:
+                actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "preset_prompt", "value": preset_match})
+        directive = _clean_action_directive(text)
+        if directive and "prompt" in widgets:
+            actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "prompt", "value": directive})
+        lora_mode = config.get("lora_mode") or _MINIMAX_LORA_MODE.get(config_key)
+        prefix = f'{node["id"]}:'
+        if lora_mode:
+            target_mode = 0 if lora_mode == "enable" else 4
+            for inner in graph.get("nodes", []):
+                inner_id = str(inner.get("id", ""))
+                if not inner_id.startswith(prefix) or "lora" not in str(inner.get("type", "")).lower():
+                    continue
+                if inner.get("mode", 0) != target_mode:
+                    actions.append({"type": "set_node_mode", "node_id": inner["id"], "mode": lora_mode})
+        actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "passthrough", "value": False})
+        actions.append({"type": "queue_workflow"})
+        label = {"native": "Native", "10eros": "10Eros", "turbo": "Turbo LoRA"}[config_key]
+        if re.match(r"^\s*(usa|passa|metti|fai|genera|crea)\b", text, re.IGNORECASE):
+            message = f"⚙️ MiniMax H3 → {label}. Workflow in coda."
+        else:
+            message = f"⚙️ MiniMax H3 → {label}. Workflow queued."
+        return {"message": message, "actions": actions, "choices": []}
+    return None
+
+
+def _explicit_minimax_request(messages, graph):
+    """Deterministic MiniMax config switch ("use native/10Eros/turbo", "config A/B/C"):
+    applies sampler widgets + duration + cleaned action locally, no LLM call."""
+    last_user = _last_user_message(messages)
+    trigger = _CONFIG_TRIGGER.search(last_user)
+    if not trigger:
+        return None
+    raw = trigger.group(1).lower()
+    if "native" in raw or raw.rstrip() == "config c":
+        config_key = "native"
+    elif "eros" in raw or raw.rstrip() == "config a":
+        config_key = "10eros"
+    elif "turbo" in raw or raw.rstrip() == "config b":
+        config_key = "turbo"
+    else:
+        return None
+    return _minimax_result(graph, config_key, last_user)
 
 
 class ChatRuntime:
@@ -476,10 +742,24 @@ class ChatRuntime:
         gguf_models = sorted(((getattr(gguf, "GGUF_VL_CATALOG", {}) or {}).get("models") or {}).keys()) if gguf else []
         return {"hf": hf_models, "gguf": gguf_models}
 
-    def chat(self, backend, model_name, messages, graph, options, images=None):
+    def chat(self, backend, model_name, messages, graph, options, images=None, video=None, directives=None):
         messages = validate_messages(messages)
         graph = validate_graph(graph)
         images = validate_images(images or [])
+        video = validate_images(video or [], MAX_VIDEO_FRAMES)
+        directives = directives if isinstance(directives, dict) else {}
+        sel_capability = str(directives.get("capability") or "auto")
+        sel_config = str(directives.get("config") or "auto")
+        sel_text = str(directives.get("text") or "")
+        explicit = None
+        if sel_capability != "auto":
+            explicit = _capability_result(graph, sel_capability, sel_text, sel_text)
+        if explicit is None and sel_config in _MINIMAX_CONFIGS:
+            explicit = _minimax_result(graph, sel_config, sel_text)
+        if explicit is None:
+            explicit = _explicit_capability_request(messages, graph) or _explicit_minimax_request(messages, graph)
+        if explicit is not None:
+            return explicit
         available = self.models().get(backend)
         if available is None:
             raise ValueError("backend must be hf or gguf")
@@ -495,9 +775,9 @@ class ChatRuntime:
             # Thinking consumes tokens before the JSON reply; a small budget
             # truncates the response after the reasoning and no JSON is emitted.
             options["max_tokens"] = max(int(options.get("max_tokens", 1024)), 4096)
-        prompt = build_prompt(messages, graph, enable_thinking, bool(images))
+        prompt = build_prompt(messages, graph, enable_thinking, bool(images), bool(video))
         with self._lock:
-            text = self._generate(backend, model_name, prompt, options, enable_thinking, images)
+            text = self._generate(backend, model_name, prompt, options, enable_thinking, images, video)
         result = parse_model_response(text)
         if result.pop("parsed"):
             result = enforce_image_enhancer_routing(result, graph, messages, bool(images))
@@ -509,21 +789,21 @@ class ChatRuntime:
             {"role": "assistant", "content": (text or "")[:2000]},
             {"role": "user", "content": "Your reply was not a JSON object. Return ONLY the JSON object described in the system instructions — no preamble, no extra text."},
         ]
-        retry_prompt = build_prompt(retry_messages, graph, enable_thinking, bool(images))
+        retry_prompt = build_prompt(retry_messages, graph, enable_thinking, bool(images), bool(video))
         with self._lock:
-            retry_text = self._generate(backend, model_name, retry_prompt, options, enable_thinking, images)
+            retry_text = self._generate(backend, model_name, retry_prompt, options, enable_thinking, images, video)
         retry_result = parse_model_response(retry_text)
         if retry_result.pop("parsed"):
             retry_result = enforce_image_enhancer_routing(retry_result, graph, messages, bool(images))
             return enforce_image_reference_bindings(retry_result, graph, bool(images))
         return result
 
-    def _generate(self, backend, model_name, prompt, options, enable_thinking, images):
+    def _generate(self, backend, model_name, prompt, options, enable_thinking, images, video=None):
         if backend == "hf":
-            return self._chat_hf(model_name, prompt, options, enable_thinking, images)
-        return self._chat_gguf(model_name, prompt, options, enable_thinking, images)
+            return self._chat_hf(model_name, prompt, options, enable_thinking, images, video)
+        return self._chat_gguf(model_name, prompt, options, enable_thinking, images, video)
 
-    def _chat_hf(self, model_name, prompt, options, enable_thinking=False, images=None):
+    def _chat_hf(self, model_name, prompt, options, enable_thinking=False, images=None, video=None):
         module = sys.modules["AILab_QwenVL"]
         instance = self._instances.get("hf")
         if instance is None:
@@ -540,18 +820,20 @@ class ChatRuntime:
         pil_images = _decode_images(images or [])
         image = pil_images[0] if len(pil_images) > 0 else None
         image2 = pil_images[1] if len(pil_images) > 1 else None
+        pil_frames = _decode_images(video or [])
         return instance.generate(
-            prompt, image, image2, 1,
+            prompt, image, image2, len(pil_frames) or 1,
             int(options.get("max_tokens", 1024)),
             float(options.get("temperature", 0.2)),
             float(options.get("top_p", 0.9)),
             1,
             float(options.get("repetition_penalty", 1.05)),
             model_name=model_name,
+            video=pil_frames or None,
             enable_thinking=enable_thinking,
         )
 
-    def _chat_gguf(self, model_name, prompt, options, enable_thinking=False, images=None):
+    def _chat_gguf(self, model_name, prompt, options, enable_thinking=False, images=None, video=None):
         module = sys.modules["AILab_QwenVL_GGUF"]
         instance = self._instances.get("gguf")
         if instance is None:
@@ -567,8 +849,8 @@ class ChatRuntime:
             options.get("top_k"),
             options.get("pool_size"),
         )
-        valid = validate_images(images or [])
-        images_b64 = [base64.b64encode(data).decode("ascii") for data in valid]
+        # `images`/`video` arrive already validated to bytes by chat()
+        images_b64 = [base64.b64encode(data).decode("ascii") for data in (images or []) + (video or [])]
         return instance._invoke(
             SYSTEM_PROMPT,
             prompt,

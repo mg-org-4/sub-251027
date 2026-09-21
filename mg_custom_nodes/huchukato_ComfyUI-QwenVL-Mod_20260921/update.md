@@ -1,5 +1,57 @@
 # ComfyUI-QwenVL Update Log
 
+## Version 2.8.8 (2026/09/21)
+
+- Turbo config now actually toggles the Turbo LoRA: the graph snapshot includes subgraph inner nodes (qualified ids like "105:213"), findNode resolves them, and the MiniMax configs emit set_node_mode on LoraLoader nodes inside the enhancer subgraph — Turbo enables it, Native/10Eros bypass it (10Eros has TURBO fused).
+- Turbo also resets unet_name to the NVFP4 checkpoint — 10Eros + Turbo LoRA stacking is forbidden.
+## Version 2.8.7 (2026/09/21)
+
+- Selector dropdowns no longer inject "use &lt;config&gt;" into the chat text: the Config / Livepeer pickers are sent as a separate `directives` field and applied deterministically server-side, so the user message (and the prompt widget) stays clean.
+- Fixed duration regex matching "s" before "seconds" ("5 seconds" left "econds" in the prompt); also widened the capability-path duration parser to seconds/secondi.
+- System prompt: MiniMax action now targets the "prompt" widget (was preset_prompt, inconsistent with the deterministic path).
+## Version 2.8.6 (2026/09/21)
+
+- Fixed directive cleaning when the config command is separated by a period ("use native. generate a 5s video, ..."): the leftover leading dot blocked the generation-prefix stripper, leaving "generate a," fragments in the prompt. Leading dots are now stripped after each cleaning stage; legitimate trailing periods are preserved.
+
+## Version 2.8.5 (2026/09/21)
+
+- Added selector dropdowns under the chat composer: a **Config** picker (Auto / Native / 10Eros / Turbo LoRA) injects the deterministic MiniMax command, and a **Livepeer** picker is auto-populated from the render node's capability widget — no more typing `use <name>` by hand. Both selectors persist, work with empty prompts (config-only switch), and skip the model check since routing is deterministic.
+- Fixed the explicit `use` parser swallowing the trailing separator ("use nano-banana. <prompt>" kept the dot in the capability name) and directive cleaning stripping legitimate trailing periods.
+
+## Version 2.8.4 (2026/09/21)
+
+- Fixed directive cleaning when a config keyword precedes the request ("usa 10Eros: genera un video di…"): the generation prefix is now stripped after config removal too, so no "genera un di" fragments reach the prompt widget.
+
+## Version 2.8.3 (2026/09/21)
+
+- Added deterministic chat shortcuts that skip the LLM entirely: `use <capability> <prompt>` drives the Livepeer render node directly (dropdown or `custom_capability`, with duration and aspect-ratio parsing), and `use native` / `use 10Eros` / `use turbo` / `config A-B-C` apply the full MiniMax H3 sampler config on the enhancer node — correct widgets every time, instant, and immune to malformed local-model JSON.
+- Config-only requests leave the prompt widget untouched; a cleaned scene directive is written when the message carries one.
+
+## Version 2.8.2 (2026/09/21)
+
+- Image-enhancer directives are now cleaned deterministically: routing keywords ("use native", "use 10Eros", "usa turbo"), generation prefixes ("generate a 5s video", "fai un video") and duration mentions are stripped before the action text reaches the prompt widget, so the inner enhancer receives only the scene action.
+- When the request contains only config keywords, the prompt widget is left untouched instead of receiving the meta text.
+
+## Version 2.8.1 (2026/09/21)
+
+- Rewrote the `/dlstatus.html` download-log page with a multi-line HTML template and `html.escape`, removing the long single-line string that the registry security scanner flagged as minified code.
+
+## Version 2.8.0 (2026/09/21)
+
+- Added `QwenVL_LivepeerRender`: a self-contained node that renders images and videos through the Livepeer Agent network over MCP, with a capability dropdown (image and video models), IMAGE output for still results, static preview for images and animated preview for video, and a `source_video` input that picks a frame from a clip as the i2v reference.
+- Added `QwenVL_LoadMedia` (utils category): a single picker for images and videos in input/output folders with built-in preview, an upload button for videos, and resolution of untagged input-directory names.
+- Qwen Chat now drives the Livepeer render node directly: it routes generation requests through the node (never bypassing it), clears stale `custom_capability` values, bypasses mismatched saver nodes and re-enables the matching one, and supports video attachments with browser-side frame sampling for the refine loop.
+- The chat assets panel lists videos too and syncs the selection with `QwenVL_LoadMedia`; the capability dropdown now includes image-generation models, and a MiniMax H3 config switch (10Eros/Native/Turbo) runs before prompt routing.
+- Added unified HF/GGUF QwenVL nodes with a backend dropdown.
+- Rewrote the chat system prompt: shorter, with concrete examples and MiniMax configuration handled first.
+- Fixed MCP error handling and stopped sending video parameters to image-only capabilities; the chat mirrors the latest user message language and no longer pre-formats enhancer prompts.
+
+## Version 2.7.13 (2026/09/16)
+
+- Fixed `enforce_image_reference_bindings` to use the `passthrough` value from the action set instead of the stale workflow snapshot, so I2VA workflows with `passthrough=false` no longer receive the `For the target video...` binding line in the chat-managed prompt.
+- Suppressed full-format video prompt-writing guides (MiniMax H3, LTX, Wan) from the chat prompt when an image-enhancer target is active, preventing the chat from outputting a complete `integrated_multimodal_description`/`overall_soundscape` prompt.
+- Strengthened the exact-target instruction: the chat must write only a concise English action directive and let the inner QwenVL node build the final preset prompt.
+
 ## Version 2.7.12 (2026/09/16)
 
 - Strengthened image-enhancer chat instructions: Qwen Chat must inspect the provided image pixels to understand how the requested action applies and read the target node's current `preset_prompt` value and supplied prompt-writing guide.

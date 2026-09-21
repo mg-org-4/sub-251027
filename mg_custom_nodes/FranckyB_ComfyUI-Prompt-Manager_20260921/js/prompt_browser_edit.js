@@ -1,5 +1,6 @@
 import { saveComposerCategorySettings } from "./prompt_composer_common.js";
 import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
 
 // Placeholder thumbnail. Defined locally (NOT imported from prompt_manager_advanced.js)
 // to break the module cycle:
@@ -16,26 +17,20 @@ const SYSTEM_PROMPT_CATEGORIES = ["Audio", "Image", "Video", "Other"];
 
 const PROMPT_TYPE_CHOICES = [
     { value: "", label: "None" },
+    { value: "action", label: "Action" },
+    { value: "accessory", label: "Accessory" },
+    { value: "ambience", label: "Ambience" },
     { value: "animal", label: "Animal" },
     { value: "attire", label: "Attire" },
     { value: "background", label: "Background" },
     { value: "camera", label: "Camera" },
     { value: "character", label: "Character" },
-    { value: "color_palette", label: "Color Palette" },
     { value: "composition", label: "Composition" },
     { value: "dialogue", label: "Dialogue" },
-    { value: "expression", label: "Expression" },
-    { value: "lens_artifact", label: "Lens Artifact" },
     { value: "lighting", label: "Lighting" },
-    { value: "mood", label: "Mood" },
-    { value: "motion", label: "Motion" },
-    { value: "pose", label: "Pose" },
     { value: "scene", label: "Scene" },
     { value: "soundscape", label: "Soundscape" },
     { value: "style", label: "Style" },
-    { value: "subject", label: "Subject" },
-    { value: "temporal_flow", label: "Temporal Flow" },
-    { value: "weather", label: "Weather" },
 ];
 
 export function getPromptTypeChoices() {
@@ -72,6 +67,11 @@ const STYLE = {
     accent: "hsl(208 73% 57% / 0.9)",
     accentSoft: "hsl(208 73% 57% / 0.16)",
 };
+
+let _composerLoraPickerCache = null;
+let _composerLoraPickerPromise = null;
+let _composerRefModPickerCache = null;
+let _composerRefModPickerPromise = null;
 
 function el(tag, styles = {}, text = "") {
     const element = document.createElement(tag);
@@ -170,6 +170,367 @@ function createSelect(value, options, styles = {}) {
     return select;
 }
 
+function createNumberInput(value, options = {}, styles = {}) {
+    const input = document.createElement("input");
+    input.type = "number";
+    input.value = String(value ?? "1");
+    if (options.min !== undefined && options.min !== null) input.min = String(options.min);
+    if (options.max !== undefined && options.max !== null) input.max = String(options.max);
+    if (options.step !== undefined && options.step !== null) input.step = String(options.step);
+    input.style.cssText = `
+        width: 84px;
+        padding: 7px 8px;
+        background: ${STYLE.inputBg};
+        border: 1px solid ${STYLE.inputBorder};
+        border-radius: 4px;
+        color: #fff;
+        font-size: 13px;
+        box-sizing: border-box;
+        outline: none;
+    `;
+    Object.assign(input.style, styles);
+    input.addEventListener("focus", () => { input.style.borderColor = STYLE.accent; });
+    input.addEventListener("blur", () => { input.style.borderColor = STYLE.inputBorder; });
+    return input;
+}
+
+function createPickerTrigger(placeholder = "(None)", styles = {}) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.value = "";
+    button.title = placeholder;
+    button.style.cssText = `
+        width: 100%;
+        min-height: 34px;
+        padding: 7px 10px;
+        background: ${STYLE.inputBg};
+        border: 1px solid ${STYLE.inputBorder};
+        border-radius: 4px;
+        color: #fff;
+        font-size: 13px;
+        box-sizing: border-box;
+        outline: none;
+        cursor: pointer;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    `;
+    Object.assign(button.style, styles);
+    button.dataset.placeholder = placeholder;
+    button.setSelectedItem = (item) => {
+        const value = String(item?.value || "").trim();
+        const label = String(item?.pickerLabel || item?.label || item?.name || value || placeholder).trim();
+        button.value = value;
+        button.textContent = value ? label : placeholder;
+        button.title = value ? `${label}${item?.pickerMeta ? `\n${item.pickerMeta}` : ""}` : placeholder;
+        button.style.color = value ? "#fff" : STYLE.textMuted;
+    };
+    button.getSelectedValue = () => String(button.value || "").trim();
+    button.setSelectedItem(null);
+    button.addEventListener("focus", () => { button.style.borderColor = STYLE.accent; });
+    button.addEventListener("blur", () => { button.style.borderColor = STYLE.inputBorder; });
+    return button;
+}
+
+function normalizeAssetWeight(value, defaultValue = 1.0, minimum = null, maximum = null) {
+    const numeric = Number(value);
+    let next = Number.isFinite(numeric) ? numeric : Number(defaultValue);
+    if (minimum !== null) next = Math.max(Number(minimum), next);
+    if (maximum !== null) next = Math.min(Number(maximum), next);
+    return next;
+}
+
+function splitFolderAndName(relativePath) {
+    const normalized = String(relativePath || "").replace(/\\/g, "/").trim();
+    if (!normalized) return { subfolder: "", name: "" };
+    const idx = normalized.lastIndexOf("/");
+    return {
+        subfolder: idx >= 0 ? normalized.substring(0, idx) : "",
+        name: idx >= 0 ? normalized.substring(idx + 1) : normalized,
+    };
+}
+
+function findPickerItemByValue(items, value, fallbackLabel = "") {
+    const normalizedValue = String(value || "").trim();
+    if (!normalizedValue) return null;
+    const list = Array.isArray(items) ? items : [];
+    return list.find((item) => String(item?.value || "").trim() === normalizedValue) || {
+        value: normalizedValue,
+        label: fallbackLabel || normalizedValue,
+        pickerLabel: fallbackLabel || normalizedValue,
+    };
+}
+
+function normalizePickerItems(items, emptyLabel = "(None)") {
+    const list = Array.isArray(items) ? items : [];
+    return [
+        { value: "", label: emptyLabel, pickerLabel: emptyLabel, pickerMeta: "" },
+        ...list.map((item) => ({
+            ...item,
+            value: String(item?.value || "").trim(),
+            label: String(item?.label || item?.name || item?.value || "").trim(),
+            pickerLabel: String(item?.pickerLabel || item?.name || item?.label || item?.value || "").trim(),
+            pickerMeta: String(item?.pickerMeta || item?.label || item?.value || "").trim(),
+        })),
+    ];
+}
+
+function filterPickerItems(items, query) {
+    const tokens = String(query || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (!tokens.length) return [...items];
+    return items.filter((item) => {
+        if (!item?.value) return true;
+        const haystack = `${item.pickerLabel || ""} ${item.pickerMeta || ""} ${item.label || ""} ${item.value || ""}`.toLowerCase();
+        return tokens.every((token) => haystack.includes(token));
+    });
+}
+
+function groupPickerItems(items) {
+    const ungrouped = [];
+    const groups = new Map();
+    for (const item of items) {
+        if (!item?.value) {
+            ungrouped.push(item);
+            continue;
+        }
+        const groupKey = String(item?.group || "").trim();
+        if (!groupKey) {
+            ungrouped.push(item);
+            continue;
+        }
+        if (!groups.has(groupKey)) groups.set(groupKey, []);
+        groups.get(groupKey).push(item);
+    }
+    const sortByLabel = (a, b) => String(a?.pickerLabel || a?.label || a?.value || "")
+        .localeCompare(String(b?.pickerLabel || b?.label || b?.value || ""), undefined, { sensitivity: "base" });
+    ungrouped.sort(sortByLabel);
+    const sortedGroups = [...groups.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: "base" }))
+        .map(([group, entries]) => [group, [...entries].sort(sortByLabel)]);
+    return { ungrouped, sortedGroups };
+}
+
+async function fetchAvailableComposerLoras() {
+    if (Array.isArray(_composerLoraPickerCache)) {
+        return [..._composerLoraPickerCache];
+    }
+    if (_composerLoraPickerPromise) {
+        return await _composerLoraPickerPromise;
+    }
+    _composerLoraPickerPromise = (async () => {
+        try {
+            let rawPaths = [];
+            try {
+                const resp = await api.fetchApi("/object_info/LoraLoader");
+                if (resp?.ok) {
+                    const data = await resp.json();
+                    const options = data?.LoraLoader?.input?.required?.lora_name?.[0];
+                    if (Array.isArray(options)) {
+                        rawPaths = [...new Set(options.map((x) => String(x || "").trim()).filter(Boolean))];
+                    }
+                }
+            } catch {
+                rawPaths = [];
+            }
+
+            if (!rawPaths.length) {
+                const resp = await fetch("/prompt-manager-advanced/available-loras");
+                const data = await resp.json();
+                if (resp.ok && data?.success && Array.isArray(data?.loras)) {
+                    rawPaths = [...new Set(data.loras.map((x) => String(x || "").trim()).filter(Boolean))];
+                }
+            }
+
+            const stripKnownExt = (value) => String(value || "").replace(/\.(safetensors|ckpt|pt|bin|pth)$/i, "");
+
+            const items = [];
+            const seen = new Set();
+            for (const relPath of rawPaths) {
+                const normalizedValue = stripKnownExt(String(relPath || "").replace(/\\/g, "/").trim());
+                if (!normalizedValue) continue;
+                const key = normalizedValue.toLowerCase();
+                if (seen.has(key)) continue;
+                seen.add(key);
+                const meta = splitFolderAndName(normalizedValue);
+                items.push({
+                    value: normalizedValue,
+                    name: meta.name || normalizedValue,
+                    subfolder: meta.subfolder,
+                    label: meta.subfolder ? `${meta.subfolder}/${meta.name}` : (meta.name || normalizedValue),
+                    pickerLabel: meta.name || normalizedValue,
+                    pickerMeta: meta.subfolder ? `${meta.subfolder}/${meta.name}` : normalizedValue,
+                    group: meta.subfolder ? meta.subfolder.replace(/\//g, " - ") : "",
+                });
+            }
+
+            items.sort((a, b) => String(a.label || a.value).localeCompare(String(b.label || b.value), undefined, { sensitivity: "base" }));
+            _composerLoraPickerCache = items;
+            return [...items];
+        } catch (err) {
+            console.warn("[PromptBrowserEdit] Failed to load LoRAs:", err);
+            _composerLoraPickerCache = [];
+            return [];
+        } finally {
+            _composerLoraPickerPromise = null;
+        }
+    })();
+    return await _composerLoraPickerPromise;
+}
+
+async function fetchAvailableComposerRefMods() {
+    if (Array.isArray(_composerRefModPickerCache)) {
+        return [..._composerRefModPickerCache];
+    }
+    if (_composerRefModPickerPromise) {
+        return await _composerRefModPickerPromise;
+    }
+    _composerRefModPickerPromise = (async () => {
+        try {
+            const resp = await api.fetchApi("/object_info/H3RefModLoader");
+            if (!resp?.ok) return [];
+            const data = await resp.json();
+            const options = data?.H3RefModLoader?.input?.required?.mod?.[0];
+            const list = Array.isArray(options) ? options : [];
+            const items = [...new Set(list.map((x) => String(x || "").trim()).filter(Boolean))]
+                .map((value) => {
+                    const meta = splitFolderAndName(value);
+                    return {
+                        value,
+                        label: value,
+                        name: meta.name || value,
+                        pickerLabel: meta.name || value,
+                        pickerMeta: value,
+                        group: meta.subfolder ? meta.subfolder.replace(/\//g, " - ") : "",
+                    };
+                })
+                .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+            _composerRefModPickerCache = items;
+            return [...items];
+        } catch (err) {
+            console.warn("[PromptBrowserEdit] Failed to load RefMods:", err);
+            _composerRefModPickerCache = [];
+            return [];
+        } finally {
+            _composerRefModPickerPromise = null;
+        }
+    })();
+    return await _composerRefModPickerPromise;
+}
+
+function showTextAssetPicker({ title, items, initialValue = "", emptyLabel = "(None)", filterPlaceholder = "Filter..." }) {
+    return new Promise((resolve) => {
+        const overlay = el("div", {
+            position: "fixed",
+            inset: "0",
+            background: "rgba(0, 0, 0, 0.75)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: "10010",
+        });
+
+        const dialog = el("div", {
+            background: STYLE.panel,
+            border: `1px solid ${STYLE.panelBorder}`,
+            borderRadius: "8px",
+            width: "560px",
+            maxWidth: "92vw",
+            maxHeight: "84vh",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+            padding: "16px",
+            boxSizing: "border-box",
+            boxShadow: "0 12px 36px rgba(0, 0, 0, 0.4)",
+        });
+
+        const titleEl = el("div", { color: STYLE.textPrimary, fontSize: "16px", fontWeight: "600" }, title || "Select Item");
+        const filterInput = createInput("", filterPlaceholder);
+        const list = document.createElement("select");
+        list.size = 16;
+        list.style.cssText = `
+            width: 100%;
+            min-height: 280px;
+            background: ${STYLE.inputBg};
+            border: 1px solid ${STYLE.inputBorder};
+            border-radius: 4px;
+            color: #fff;
+            padding: 6px;
+            box-sizing: border-box;
+        `;
+        list.multiple = false;
+        const buttonRow = el("div", { display: "flex", justifyContent: "flex-end", gap: "8px" });
+        const cancelBtn = createButton("Cancel", () => close(null));
+        const selectBtn = createButton("Select", () => close(list.value), { background: "#2b6d3a", borderColor: "#4a9158", color: "#fff" });
+        buttonRow.append(cancelBtn, selectBtn);
+        dialog.append(titleEl, filterInput, list, buttonRow);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        const allItems = normalizePickerItems(items, emptyLabel);
+        const initialItem = findPickerItemByValue(allItems, initialValue, initialValue);
+        const render = () => {
+            const filtered = filterPickerItems(allItems, filterInput.value);
+            const { ungrouped, sortedGroups } = groupPickerItems(filtered);
+            const desiredValue = String(list.value || initialItem?.value || "").trim();
+            list.innerHTML = "";
+
+            for (const item of ungrouped) {
+                const option = document.createElement("option");
+                option.value = item.value;
+                option.textContent = item.pickerLabel || item.label || item.value || emptyLabel;
+                option.title = item.pickerMeta || option.textContent;
+                list.appendChild(option);
+            }
+
+            for (const [groupLabel, entries] of sortedGroups) {
+                const group = document.createElement("optgroup");
+                group.label = groupLabel;
+                list.appendChild(group);
+                for (const item of entries) {
+                    const option = document.createElement("option");
+                    option.value = item.value;
+                    option.textContent = item.pickerLabel || item.label || item.value;
+                    option.title = item.pickerMeta || option.textContent;
+                    group.appendChild(option);
+                }
+            }
+
+            if ([...list.querySelectorAll("option")].some((option) => option.value === desiredValue)) {
+                list.value = desiredValue;
+            } else {
+                list.selectedIndex = 0;
+            }
+        };
+
+        const close = (value) => {
+            document.removeEventListener("keydown", onKeyDown, true);
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            resolve(value);
+        };
+
+        const onKeyDown = (event) => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                close(null);
+            } else if (event.key === "Enter") {
+                event.preventDefault();
+                close(list.value);
+            }
+        };
+
+        list.addEventListener("dblclick", () => close(list.value));
+        filterInput.addEventListener("input", render);
+        overlay.addEventListener("click", (event) => {
+            if (event.target === overlay) close(null);
+        });
+        document.addEventListener("keydown", onKeyDown, true);
+        render();
+        filterInput.focus();
+    });
+}
+
 export function createPromptBrowserEditPanel(options) {
     const {
         node,
@@ -179,6 +540,7 @@ export function createPromptBrowserEditPanel(options) {
         generateThumbnail,
         savePrompt,
         loadPrompts,
+        syncPromptSelection,
         onChange,
         compact,
     } = options || {};
@@ -186,12 +548,14 @@ export function createPromptBrowserEditPanel(options) {
     const EDIT_PANEL_WIDTH = isCompact ? 280 : 320;
     const isSystemPromptsSource = String(endpointPrefix) === "/prompt-generator";
     const isPromptManagerSource = String(endpointPrefix) === "/prompt-manager" || String(endpointPrefix) === "/prompt-manager-advanced";
+    const isComposerSource = !isSystemPromptsSource && !isPromptManagerSource;
 
     const _showInfo = typeof showInfo === "function" ? showInfo : async () => {};
     const _showConfirm = typeof showConfirm === "function" ? showConfirm : async () => false;
     const _generateThumbnail = typeof generateThumbnail === "function" ? generateThumbnail : async () => {};
     const _savePrompt = typeof savePrompt === "function" ? savePrompt : async () => ({ success: false });
     const _loadPrompts = typeof loadPrompts === "function" ? loadPrompts : async () => {};
+    const _syncPromptSelection = typeof syncPromptSelection === "function" ? syncPromptSelection : () => {};
     const _selectPrompt = typeof options?.selectPrompt === "function" ? options.selectPrompt : null;
     const _onChange = typeof onChange === "function" ? onChange : () => {};
 
@@ -200,6 +564,12 @@ export function createPromptBrowserEditPanel(options) {
     let pendingThumbnail = null;
     let loadedThumbnail = null;
     let loadedPromptText = "";
+    let loadedImageLora = "";
+    let loadedImageLoraStrength = 1.0;
+    let loadedVideoLora = "";
+    let loadedVideoLoraStrength = 1.0;
+    let loadedRefMod = "";
+    let loadedRefModWeight = 1.0;
 
     const root = el("div", {
         display: "flex",
@@ -314,7 +684,7 @@ export function createPromptBrowserEditPanel(options) {
 
     // Category Settings / Tools are only meaningful for the compose source;
     // hide them for System Prompts and Prompt Manager prompts.
-    const showCategorySections = !isSystemPromptsSource && !isPromptManagerSource;
+    const showCategorySections = isComposerSource;
     settingsHeader.style.display = showCategorySections ? "flex" : "none";
     settingsBody.style.display = showCategorySections ? settingsBody.style.display : "none";
     toolsHeader.style.display = showCategorySections ? "flex" : "none";
@@ -437,6 +807,10 @@ export function createPromptBrowserEditPanel(options) {
     // Prompt editor section
     const promptNameInput = createInput("", "Prompt name");
     promptBody.appendChild(promptNameInput);
+    promptNameInput.addEventListener("input", () => {
+        _syncPromptSelection(currentCategory, String(promptNameInput.value || "").trim());
+        _onChange();
+    });
 
     // Per-prompt category selector is intentionally hidden for system prompts.
     // With the category-bucket model, the category is the bucket itself, so a
@@ -456,6 +830,111 @@ export function createPromptBrowserEditPanel(options) {
     promptTextArea.style.minHeight = isCompact ? "60px" : "120px";
     promptTextArea.style.flex = "1";
     promptBody.appendChild(promptTextArea);
+
+    const imageLoraRow = el("div", {
+        display: isComposerSource ? "flex" : "none",
+        flexDirection: "column",
+        gap: "4px",
+    });
+    const imageLoraLabel = el("label", { color: STYLE.textMuted, fontSize: "12px" }, "Image LoRA");
+    const imageLoraControls = el("div", { display: "flex", gap: "8px", alignItems: "center" });
+    const imageLoraTrigger = createPickerTrigger("(None)", { flex: "1" });
+    imageLoraTrigger.addEventListener("click", async () => {
+        const loras = await fetchAvailableComposerLoras();
+        const selected = await showTextAssetPicker({
+            title: "Select Image LoRA",
+            items: loras,
+            initialValue: imageLoraTrigger.getSelectedValue(),
+            emptyLabel: "(None)",
+            filterPlaceholder: "Filter LoRAs by one or more keywords...",
+        });
+        if (selected !== null) {
+            imageLoraTrigger.setSelectedItem(findPickerItemByValue(loras, selected));
+            _onChange();
+        }
+    });
+    const imageLoraStrengthInput = createNumberInput(1.0, { step: 0.05 }, { width: "72px" });
+    imageLoraStrengthInput.title = "Image LoRA strength";
+    imageLoraStrengthInput.addEventListener("input", () => _onChange());
+    imageLoraControls.append(imageLoraTrigger, imageLoraStrengthInput);
+    imageLoraRow.append(imageLoraLabel, imageLoraControls);
+    promptBody.appendChild(imageLoraRow);
+
+    const videoLoraRow = el("div", {
+        display: isComposerSource ? "flex" : "none",
+        flexDirection: "column",
+        gap: "4px",
+    });
+    const videoLoraLabel = el("label", { color: STYLE.textMuted, fontSize: "12px" }, "Video LoRA");
+    const videoLoraControls = el("div", { display: "flex", gap: "8px", alignItems: "center" });
+    const videoLoraTrigger = createPickerTrigger("(None)", { flex: "1" });
+    videoLoraTrigger.addEventListener("click", async () => {
+        const loras = await fetchAvailableComposerLoras();
+        const selected = await showTextAssetPicker({
+            title: "Select Video LoRA",
+            items: loras,
+            initialValue: videoLoraTrigger.getSelectedValue(),
+            emptyLabel: "(None)",
+            filterPlaceholder: "Filter LoRAs by one or more keywords...",
+        });
+        if (selected !== null) {
+            videoLoraTrigger.setSelectedItem(findPickerItemByValue(loras, selected));
+            _onChange();
+        }
+    });
+    const videoLoraStrengthInput = createNumberInput(1.0, { step: 0.05 }, { width: "72px" });
+    videoLoraStrengthInput.title = "Video LoRA strength";
+    videoLoraStrengthInput.addEventListener("input", () => _onChange());
+    videoLoraControls.append(videoLoraTrigger, videoLoraStrengthInput);
+    videoLoraRow.append(videoLoraLabel, videoLoraControls);
+    promptBody.appendChild(videoLoraRow);
+
+    const refModRow = el("div", {
+        display: isComposerSource ? "flex" : "none",
+        flexDirection: "column",
+        gap: "4px",
+    });
+    const refModLabel = el("label", { color: STYLE.textMuted, fontSize: "12px" }, "RefMod");
+    const refModControls = el("div", { display: "flex", gap: "8px", alignItems: "center" });
+    const refModTrigger = createPickerTrigger("(None)", { flex: "1" });
+    refModTrigger.addEventListener("click", async () => {
+        const refmods = await fetchAvailableComposerRefMods();
+        const selected = await showTextAssetPicker({
+            title: "Select RefMod",
+            items: refmods,
+            initialValue: refModTrigger.getSelectedValue(),
+            emptyLabel: "(None)",
+            filterPlaceholder: "Filter RefMods by one or more keywords...",
+        });
+        if (selected !== null) {
+            refModTrigger.setSelectedItem(findPickerItemByValue(refmods, selected));
+            _onChange();
+        }
+    });
+    const refModWeightInput = createNumberInput(1.0, { min: 0, max: 10, step: 0.05 }, { width: "72px" });
+    refModWeightInput.title = "RefMod weight";
+    refModWeightInput.addEventListener("input", () => _onChange());
+    refModControls.append(refModTrigger, refModWeightInput);
+    refModRow.append(refModLabel, refModControls);
+    promptBody.appendChild(refModRow);
+
+    const readCurrentImageLoraStrength = () => normalizeAssetWeight(imageLoraStrengthInput.value, 1.0);
+    const readCurrentVideoLoraStrength = () => normalizeAssetWeight(videoLoraStrengthInput.value, 1.0);
+    const readCurrentRefModWeight = () => normalizeAssetWeight(refModWeightInput.value, 1.0, 0.0, 10.0);
+
+    async function refreshComposerAssetChoices(nextValues = null) {
+        if (!isComposerSource) return;
+        const currentImageLoraValue = String(nextValues?.loraImage ?? imageLoraTrigger.getSelectedValue() ?? loadedImageLora ?? "").trim();
+        const currentVideoLoraValue = String(nextValues?.loraVideo ?? videoLoraTrigger.getSelectedValue() ?? loadedVideoLora ?? "").trim();
+        const currentRefModValue = String(nextValues?.refmod ?? refModTrigger.getSelectedValue() ?? loadedRefMod ?? "").trim();
+        const [loras, refmods] = await Promise.all([
+            fetchAvailableComposerLoras(),
+            fetchAvailableComposerRefMods(),
+        ]);
+        imageLoraTrigger.setSelectedItem(findPickerItemByValue(loras, currentImageLoraValue));
+        videoLoraTrigger.setSelectedItem(findPickerItemByValue(loras, currentVideoLoraValue));
+        refModTrigger.setSelectedItem(findPickerItemByValue(refmods, currentRefModValue));
+    }
 
     const editorButtonRow = el("div", {
         display: "flex",
@@ -512,15 +991,36 @@ export function createPromptBrowserEditPanel(options) {
     const generateBtn = createButton("Generate Thumbnail", async () => {
         const category = currentCategory;
         const name = String(promptNameInput.value || "").trim();
+        const text = String(promptTextArea.value || "").trim();
         if (!category || !name) {
             await _showInfo("Missing Prompt", "Please enter a category and prompt name first.");
+            return;
+        }
+        if (!text) {
+            await _showInfo("Missing Prompt Text", "Please enter prompt text before generating a thumbnail.");
+            promptTextArea.focus();
             return;
         }
 
         generateBtn.disabled = true;
         generateBtn.textContent = "Generating...";
         try {
-            const thumbnail = await _generateThumbnail(category, name);
+            const draftPromptData = {
+                prompt: text,
+            };
+            const savedEntry = node?.prompts?.[category]?.[name];
+            if (savedEntry && typeof savedEntry === "object" && savedEntry.workflow_data) {
+                draftPromptData.workflow_data = savedEntry.workflow_data;
+            }
+            if (isComposerSource) {
+                draftPromptData.lora_image = String(imageLoraTrigger.getSelectedValue() || "").trim();
+                draftPromptData.lora_image_strength = readCurrentImageLoraStrength();
+                draftPromptData.lora_video = String(videoLoraTrigger.getSelectedValue() || "").trim();
+                draftPromptData.lora_video_strength = readCurrentVideoLoraStrength();
+                draftPromptData.refmod = String(refModTrigger.getSelectedValue() || "").trim();
+                draftPromptData.refmod_weight = readCurrentRefModWeight();
+            }
+            const thumbnail = await _generateThumbnail(category, name, draftPromptData);
             pendingThumbnail = thumbnail || null;
             updateThumbnailDisplay(pendingThumbnail);
             _onChange();
@@ -594,13 +1094,35 @@ export function createPromptBrowserEditPanel(options) {
 
         const thumbnail = pendingThumbnail || loadedThumbnail;
         const savePayload = { category, name, text, thumbnail };
+        if (isComposerSource) {
+            savePayload.lora_image = String(imageLoraTrigger.getSelectedValue() || "").trim();
+            savePayload.lora_image_strength = readCurrentImageLoraStrength();
+            savePayload.lora_video = String(videoLoraTrigger.getSelectedValue() || "").trim();
+            savePayload.lora_video_strength = readCurrentVideoLoraStrength();
+            savePayload.refmod = String(refModTrigger.getSelectedValue() || "").trim();
+            savePayload.refmod_weight = readCurrentRefModWeight();
+        }
         const result = await _savePrompt(savePayload);
         if (result?.success) {
-            await _loadPrompts(node);
+            if (result?.prompts && typeof result.prompts === "object") {
+                node.prompts = result.prompts;
+            } else {
+                await _loadPrompts(node);
+            }
             currentPromptName = name;
             pendingThumbnail = null;
             const entry = node?.prompts?.[category]?.[name];
             loadedPromptText = entry?.prompt || "";
+            loadedImageLora = String(entry?.lora_image || entry?.lora || "").trim();
+            loadedImageLoraStrength = normalizeAssetWeight(entry?.lora_image_strength ?? entry?.lora_strength, 1.0);
+            loadedVideoLora = String(entry?.lora_video || "").trim();
+            loadedVideoLoraStrength = normalizeAssetWeight(entry?.lora_video_strength, 1.0);
+            loadedRefMod = String(entry?.refmod || "").trim();
+            loadedRefModWeight = normalizeAssetWeight(entry?.refmod_weight, 1.0, 0.0, 10.0);
+            imageLoraStrengthInput.value = String(loadedImageLoraStrength);
+            videoLoraStrengthInput.value = String(loadedVideoLoraStrength);
+            refModWeightInput.value = String(loadedRefModWeight);
+            await refreshComposerAssetChoices({ loraImage: loadedImageLora, loraVideo: loadedVideoLora, refmod: loadedRefMod });
             updateThumbnailDisplay(entry?.thumbnail || null);
             _onChange();
         } else {
@@ -625,10 +1147,26 @@ export function createPromptBrowserEditPanel(options) {
             const originalThumbnail = entry.thumbnail || null;
             if (currentName !== currentPromptName) return true;
             if (currentText !== originalText) return true;
+            if (isComposerSource) {
+                if (String(imageLoraTrigger.getSelectedValue() || "").trim() !== String(entry.lora_image || entry.lora || "").trim()) return true;
+                if (readCurrentImageLoraStrength() !== normalizeAssetWeight(entry.lora_image_strength ?? entry.lora_strength, 1.0)) return true;
+                if (String(videoLoraTrigger.getSelectedValue() || "").trim() !== String(entry.lora_video || "").trim()) return true;
+                if (readCurrentVideoLoraStrength() !== normalizeAssetWeight(entry.lora_video_strength, 1.0)) return true;
+                if (String(refModTrigger.getSelectedValue() || "").trim() !== String(entry.refmod || "").trim()) return true;
+                if (readCurrentRefModWeight() !== normalizeAssetWeight(entry.refmod_weight, 1.0, 0.0, 10.0)) return true;
+            }
             if (pendingThumbnail !== null && pendingThumbnail !== originalThumbnail) return true;
             return false;
         }
 
+        if (isComposerSource) {
+            if (String(imageLoraTrigger.getSelectedValue() || "").trim()) return true;
+            if (String(videoLoraTrigger.getSelectedValue() || "").trim()) return true;
+            if (String(refModTrigger.getSelectedValue() || "").trim()) return true;
+            if (readCurrentImageLoraStrength() !== 1.0) return true;
+            if (readCurrentVideoLoraStrength() !== 1.0) return true;
+            if (readCurrentRefModWeight() !== 1.0) return true;
+        }
         if (currentName || currentText || pendingThumbnail !== null) {
             return true;
         }
@@ -668,11 +1206,31 @@ export function createPromptBrowserEditPanel(options) {
             promptTextArea.value = entry.prompt || "";
             loadedPromptText = entry.prompt || "";
             loadedThumbnail = entry.thumbnail || null;
+            loadedImageLora = String(entry.lora_image || entry.lora || "").trim();
+            loadedImageLoraStrength = normalizeAssetWeight(entry.lora_image_strength ?? entry.lora_strength, 1.0);
+            loadedVideoLora = String(entry.lora_video || "").trim();
+            loadedVideoLoraStrength = normalizeAssetWeight(entry.lora_video_strength, 1.0);
+            loadedRefMod = String(entry.refmod || "").trim();
+            loadedRefModWeight = normalizeAssetWeight(entry.refmod_weight, 1.0, 0.0, 10.0);
+            imageLoraStrengthInput.value = String(loadedImageLoraStrength);
+            videoLoraStrengthInput.value = String(loadedVideoLoraStrength);
+            refModWeightInput.value = String(loadedRefModWeight);
+            await refreshComposerAssetChoices({ loraImage: loadedImageLora, loraVideo: loadedVideoLora, refmod: loadedRefMod });
             updateThumbnailDisplay(loadedThumbnail);
         } else {
             promptTextArea.value = "";
             loadedPromptText = "";
             loadedThumbnail = null;
+            loadedImageLora = "";
+            loadedImageLoraStrength = 1.0;
+            loadedVideoLora = "";
+            loadedVideoLoraStrength = 1.0;
+            loadedRefMod = "";
+            loadedRefModWeight = 1.0;
+            imageLoraStrengthInput.value = "1";
+            videoLoraStrengthInput.value = "1";
+            refModWeightInput.value = "1";
+            await refreshComposerAssetChoices({ loraImage: "", loraVideo: "", refmod: "" });
             updateThumbnailDisplay(null);
         }
 
@@ -717,6 +1275,18 @@ export function createPromptBrowserEditPanel(options) {
         loadedPromptText = "";
         pendingThumbnail = null;
         loadedThumbnail = null;
+        loadedImageLora = "";
+        loadedImageLoraStrength = 1.0;
+        loadedVideoLora = "";
+        loadedVideoLoraStrength = 1.0;
+        loadedRefMod = "";
+        loadedRefModWeight = 1.0;
+        imageLoraStrengthInput.value = "1";
+        videoLoraStrengthInput.value = "1";
+        refModWeightInput.value = "1";
+        if (isComposerSource) {
+            await refreshComposerAssetChoices({ loraImage: "", loraVideo: "", refmod: "" });
+        }
         updateThumbnailDisplay(null);
         currentPromptName = "";
         return true;
@@ -858,6 +1428,9 @@ export function createPromptBrowserEditPanel(options) {
 
     // Initialize the thumbnail area with the placeholder so it never starts empty.
     updateThumbnailDisplay(null);
+    if (isComposerSource) {
+        void refreshComposerAssetChoices();
+    }
 
     return {
         element: root,

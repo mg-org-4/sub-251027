@@ -99,6 +99,24 @@ def _is_hidden_category_entry_key(name):
     return normalized in {"__meta__", "_base_prompt_", "_prompt_prefix_", "_prompt_type_"}
 
 
+def _normalize_optional_string(value):
+    if value is None:
+        return ""
+    return str(value or "").strip()
+
+
+def _normalize_optional_float(value, default=1.0, minimum=None, maximum=None):
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        numeric = float(default)
+    if minimum is not None:
+        numeric = max(float(minimum), numeric)
+    if maximum is not None:
+        numeric = min(float(maximum), numeric)
+    return numeric
+
+
 def _find_prompt_case_insensitive(category_data, name):
     """Return entry dict and canonical name for a prompt in a category."""
     if not isinstance(category_data, dict):
@@ -281,6 +299,14 @@ async def compose_save_prompt(request):
         name = str(data.get("name", "")).strip()
         text = str(data.get("text", "")).strip()
         thumbnail = data.get("thumbnail")
+        lora = data.get("lora", None)
+        lora_strength = data.get("lora_strength", None)
+        lora_image = data.get("lora_image", None)
+        lora_image_strength = data.get("lora_image_strength", None)
+        lora_video = data.get("lora_video", None)
+        lora_video_strength = data.get("lora_video_strength", None)
+        refmod = data.get("refmod", None)
+        refmod_weight = data.get("refmod_weight", None)
 
         if not category or not name:
             return server.web.json_response({"success": False, "error": "Category and name are required"})
@@ -308,6 +334,45 @@ async def compose_save_prompt(request):
             entry["thumbnail"] = thumbnail
         elif existing_prompt.get("thumbnail"):
             entry["thumbnail"] = existing_prompt["thumbnail"]
+        if lora_image is None:
+            if existing_prompt.get("lora_image"):
+                entry["lora_image"] = existing_prompt["lora_image"]
+            elif existing_prompt.get("lora"):
+                entry["lora_image"] = existing_prompt["lora"]
+            if "lora_image_strength" in existing_prompt:
+                entry["lora_image_strength"] = existing_prompt["lora_image_strength"]
+            elif "lora_strength" in existing_prompt:
+                entry["lora_image_strength"] = existing_prompt["lora_strength"]
+        else:
+            normalized_lora_image = _normalize_optional_string(lora_image)
+            if normalized_lora_image:
+                entry["lora_image"] = normalized_lora_image
+                entry["lora_image_strength"] = _normalize_optional_float(lora_image_strength, default=1.0)
+        if lora_video is None:
+            if existing_prompt.get("lora_video"):
+                entry["lora_video"] = existing_prompt["lora_video"]
+            if "lora_video_strength" in existing_prompt:
+                entry["lora_video_strength"] = existing_prompt["lora_video_strength"]
+        else:
+            normalized_lora_video = _normalize_optional_string(lora_video)
+            if normalized_lora_video:
+                entry["lora_video"] = normalized_lora_video
+                entry["lora_video_strength"] = _normalize_optional_float(lora_video_strength, default=1.0)
+        if lora is not None and lora_image is None:
+            normalized_legacy_lora = _normalize_optional_string(lora)
+            if normalized_legacy_lora and not entry.get("lora_image"):
+                entry["lora_image"] = normalized_legacy_lora
+                entry["lora_image_strength"] = _normalize_optional_float(lora_strength, default=1.0)
+        if refmod is None:
+            if existing_prompt.get("refmod"):
+                entry["refmod"] = existing_prompt["refmod"]
+            if "refmod_weight" in existing_prompt:
+                entry["refmod_weight"] = existing_prompt["refmod_weight"]
+        else:
+            normalized_refmod = _normalize_optional_string(refmod)
+            if normalized_refmod:
+                entry["refmod"] = normalized_refmod
+                entry["refmod_weight"] = _normalize_optional_float(refmod_weight, default=1.0, minimum=0.0, maximum=10.0)
         if existing_prompt.get("nsfw"):
             entry["nsfw"] = existing_prompt["nsfw"]
 

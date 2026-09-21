@@ -6,7 +6,13 @@ import { loadComposerPrompts, getComposerEntry, COMPOSER_ENDPOINT_PREFIX } from 
 
 const PARTS_PROP_KEY = "prompt_composer_parts";
 const THUMB_ZOOM_PROP_KEY = "prompt_composer_thumb_zoom";
+const OUTPUT_FORMAT_PROP_KEY = "prompt_composer_output_format";
+const COMPOSE_POSITION_PROP_KEY = "prompt_composer_compose_position";
+const GENERATION_MODE_PROP_KEY = "prompt_composer_generation_mode";
 const PARTS_WIDGET_NAME = "parts_data";
+const OUTPUT_FORMAT_WIDGET_NAME = "output_format";
+const COMPOSE_POSITION_WIDGET_NAME = "compose_position";
+const GENERATION_MODE_WIDGET_NAME = "generation_mode";
 const MIN_NODE_WIDTH = 500;
 const MIN_NODE_HEIGHT = 600;
 const HOLD_TO_DRAG_MS = 140;
@@ -19,9 +25,89 @@ const MAX_THUMB_ZOOM = 1.5;
 const THUMB_ZOOM_STEPS = [0.75, 1.0, 1.25, 1.5];
 const GRID_GAP = 8;
 const CARD_META_HEIGHT = 62;
+const CARD_META_HEIGHT_VIDEO = 36;
 const NODE_CHROME_HEIGHT = 86;
 const SCROLLER_PADDING_TOP = 8;
 const SCROLLER_PADDING_BOTTOM = 24;
+const SUBJECT_NONE = 0;
+const SUBJECT_MIN = 1;
+const SUBJECT_MAX = 16;
+const NON_SUBJECT_PROMPT_TYPES = new Set([
+    "style",
+    "motion",
+    "lighting",
+    "ambience",
+    "composition",
+    "camera",
+    "motion",
+    "soundscape",
+    "dialogue",
+    "weather",
+]);
+const SUBJECT_ACCENTS = [
+    { border: "hsla(8, 84%, 64%, 0.95)", soft: "hsla(8, 84%, 64%, 0.18)", strong: "hsla(8, 84%, 48%, 0.95)", text: "hsl(8, 100%, 96%)" },
+    { border: "hsla(40, 92%, 60%, 0.95)", soft: "hsla(40, 92%, 60%, 0.18)", strong: "hsla(40, 92%, 44%, 0.95)", text: "hsl(48, 100%, 96%)" },
+    { border: "hsla(92, 72%, 56%, 0.95)", soft: "hsla(92, 72%, 56%, 0.18)", strong: "hsla(92, 72%, 40%, 0.95)", text: "hsl(92, 100%, 96%)" },
+    { border: "hsla(155, 72%, 48%, 0.95)", soft: "hsla(155, 72%, 48%, 0.18)", strong: "hsla(155, 72%, 34%, 0.95)", text: "hsl(155, 100%, 96%)" },
+    { border: "hsla(205, 88%, 60%, 0.95)", soft: "hsla(205, 88%, 60%, 0.18)", strong: "hsla(205, 88%, 44%, 0.95)", text: "hsl(205, 100%, 96%)" },
+    { border: "hsla(248, 80%, 68%, 0.95)", soft: "hsla(248, 80%, 68%, 0.18)", strong: "hsla(248, 80%, 52%, 0.95)", text: "hsl(248, 100%, 97%)" },
+    { border: "hsla(294, 72%, 64%, 0.95)", soft: "hsla(294, 72%, 64%, 0.18)", strong: "hsla(294, 72%, 48%, 0.95)", text: "hsl(294, 100%, 97%)" },
+    { border: "hsla(332, 78%, 62%, 0.95)", soft: "hsla(332, 78%, 62%, 0.18)", strong: "hsla(332, 78%, 46%, 0.95)", text: "hsl(332, 100%, 97%)" },
+];
+
+function getWidgetByName(node, name) {
+    return node.widgets?.find((w) => w.name === name) || null;
+}
+
+function hideWidget(widget) {
+    if (!widget) return;
+    widget.type = "converted-widget";
+    widget.computeSize = () => [0, -4];
+    widget.hidden = true;
+    widget.draw = function () {};
+}
+
+function readToggleValue(node, widgetName, propKey, fallbackValue) {
+    const propValue = String(node.properties?.[propKey] ?? "").trim();
+    if (propValue) return propValue;
+    const widgetValue = String(getWidgetByName(node, widgetName)?.value ?? "").trim();
+    return widgetValue || fallbackValue;
+}
+
+function writeToggleValue(node, widgetName, propKey, value) {
+    const normalized = String(value || "").trim();
+    const widget = getWidgetByName(node, widgetName);
+    if (widget) {
+        widget.value = normalized;
+    }
+    node.properties = node.properties || {};
+    node.properties[propKey] = normalized;
+    app.graph.setDirtyCanvas(true, true);
+}
+
+function readOutputFormat(node) {
+    return readToggleValue(node, OUTPUT_FORMAT_WIDGET_NAME, OUTPUT_FORMAT_PROP_KEY, "text");
+}
+
+function writeOutputFormat(node, value) {
+    writeToggleValue(node, OUTPUT_FORMAT_WIDGET_NAME, OUTPUT_FORMAT_PROP_KEY, value);
+}
+
+function readComposePosition(node) {
+    return readToggleValue(node, COMPOSE_POSITION_WIDGET_NAME, COMPOSE_POSITION_PROP_KEY, "before");
+}
+
+function writeComposePosition(node, value) {
+    writeToggleValue(node, COMPOSE_POSITION_WIDGET_NAME, COMPOSE_POSITION_PROP_KEY, value);
+}
+
+function readGenerationMode(node) {
+    return readToggleValue(node, GENERATION_MODE_WIDGET_NAME, GENERATION_MODE_PROP_KEY, "image");
+}
+
+function writeGenerationMode(node, value) {
+    writeToggleValue(node, GENERATION_MODE_WIDGET_NAME, GENERATION_MODE_PROP_KEY, value);
+}
 
 function snapThumbZoom(value) {
     const numeric = Number(value);
@@ -147,6 +233,30 @@ function clampStrength(value) {
     return Math.max(0, Math.min(5, numeric));
 }
 
+function clampSubjectNumber(value, fallback = SUBJECT_MIN) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(SUBJECT_NONE, Math.min(SUBJECT_MAX, Math.round(numeric)));
+}
+
+function padSubjectNumber(value) {
+    if (clampSubjectNumber(value) === SUBJECT_NONE) return "NS";
+    return String(clampSubjectNumber(value)).padStart(2, "0");
+}
+
+function getSubjectAccent(subjectNumber) {
+    const normalized = clampSubjectNumber(subjectNumber);
+    if (normalized === SUBJECT_NONE) {
+        return {
+            border: "rgba(122, 131, 148, 0.88)",
+            soft: "rgba(122, 131, 148, 0.12)",
+            strong: "rgba(80, 88, 104, 0.95)",
+            text: "#eef2f7",
+        };
+    }
+    return SUBJECT_ACCENTS[(normalized - SUBJECT_MIN) % SUBJECT_ACCENTS.length];
+}
+
 function normalizePart(part) {
     const category = String(part?.category || "").trim();
     const promptsInput = Array.isArray(part?.prompts) ? part.prompts : [];
@@ -157,6 +267,87 @@ function normalizePart(part) {
         category,
         prompts,
         strength: clampStrength(part?.strength ?? 1.0),
+        subject_number: clampSubjectNumber(part?.subject_number ?? part?.subject ?? SUBJECT_MIN),
+        subject_locked: !!(part?.subject_locked ?? part?.subject_manual ?? false),
+    };
+}
+
+function resolveSubjectAssignments(parts) {
+    const normalizedParts = Array.isArray(parts) ? parts.map((part) => normalizePart(part)) : [];
+    let currentSubject = SUBJECT_MIN;
+    return normalizedParts.map((part) => {
+        if (part.subject_locked && part.subject_number !== SUBJECT_NONE) {
+            currentSubject = clampSubjectNumber(part.subject_number, currentSubject);
+        }
+        const effectiveSubjectNumber = part.subject_locked && part.subject_number === SUBJECT_NONE
+            ? SUBJECT_NONE
+            : clampSubjectNumber(
+                part.subject_locked ? part.subject_number : currentSubject,
+                currentSubject,
+            );
+        if (effectiveSubjectNumber !== SUBJECT_NONE) {
+            currentSubject = effectiveSubjectNumber;
+        }
+        return {
+            ...part,
+            effective_subject_number: effectiveSubjectNumber,
+        };
+    });
+}
+
+function getInheritedSubjectDefaults(parts) {
+    const resolved = resolveSubjectAssignments(parts);
+    if (!resolved.length) {
+        return { subject_number: SUBJECT_MIN, subject_locked: false };
+    }
+    return {
+        subject_number: resolved[resolved.length - 1].effective_subject_number,
+        subject_locked: false,
+    };
+}
+
+function nextSubjectNumber(value, delta) {
+    const current = clampSubjectNumber(value);
+    const span = SUBJECT_MAX - SUBJECT_MIN + 1;
+    const offset = ((current - SUBJECT_MIN + delta) % span + span) % span;
+    return SUBJECT_MIN + offset;
+}
+
+function getCategoryPromptType(node, category) {
+    const raw = node?.prompts?.[category]?._prompt_type_;
+    return String(raw || "").trim().toLowerCase();
+}
+
+function categoryShouldBeNonSubject(node, category) {
+    return NON_SUBJECT_PROMPT_TYPES.has(getCategoryPromptType(node, category));
+}
+
+function inferPartSubjectState(node, category, basePart = null, inheritedDefaults = null) {
+    if (categoryShouldBeNonSubject(node, category)) {
+        return {
+            subject_number: SUBJECT_NONE,
+            subject_locked: true,
+        };
+    }
+
+    if (basePart && basePart.subject_locked && basePart.subject_number !== SUBJECT_NONE) {
+        return {
+            subject_number: clampSubjectNumber(basePart.subject_number),
+            subject_locked: true,
+        };
+    }
+
+    if (basePart && !basePart.subject_locked && basePart.subject_number !== SUBJECT_NONE) {
+        return {
+            subject_number: clampSubjectNumber(basePart.subject_number),
+            subject_locked: false,
+        };
+    }
+
+    const inherited = inheritedDefaults || { subject_number: SUBJECT_MIN, subject_locked: false };
+    return {
+        subject_number: clampSubjectNumber(inherited.subject_number ?? SUBJECT_MIN),
+        subject_locked: false,
     };
 }
 
@@ -180,7 +371,7 @@ function serializeParts(parts) {
 }
 
 function getPartsWidget(node) {
-    return node.widgets?.find((w) => w.name === PARTS_WIDGET_NAME) || null;
+    return getWidgetByName(node, PARTS_WIDGET_NAME);
 }
 
 function readParts(node) {
@@ -201,13 +392,11 @@ function writeParts(node, parts) {
     app.graph.setDirtyCanvas(true, true);
 }
 
-function ensureHiddenPartsWidget(node) {
-    const widget = getPartsWidget(node);
-    if (!widget) return;
-    widget.type = "converted-widget";
-    widget.computeSize = () => [0, -4];
-    widget.hidden = true;
-    widget.draw = function () {};
+function ensureHiddenComposerWidgets(node) {
+    hideWidget(getPartsWidget(node));
+    hideWidget(getWidgetByName(node, OUTPUT_FORMAT_WIDGET_NAME));
+    hideWidget(getWidgetByName(node, COMPOSE_POSITION_WIDGET_NAME));
+    hideWidget(getWidgetByName(node, GENERATION_MODE_WIDGET_NAME));
 }
 
 function ensureComposerUi(node) {
@@ -227,6 +416,124 @@ function ensureComposerUi(node) {
         overflow: hidden;
         position: relative;
     `;
+
+    const switchRow = document.createElement("div");
+    switchRow.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 24px;
+        margin: 0 0 8px 0;
+        padding: 0 10px;
+        border: 1px solid rgba(78, 90, 108, 0.72);
+        border-radius: 10px;
+        background: rgba(34, 39, 48, 0.98);
+        box-sizing: border-box;
+        flex: 0 0 auto;
+    `;
+
+    const createInlineSwitch = ({ title, leftLabel, rightLabel, getValue, onToggle, isRightActive }) => {
+        const group = document.createElement("div");
+        group.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 0;
+            flex: 1 1 0;
+        `;
+        group.title = title;
+
+        const left = document.createElement("span");
+        left.textContent = leftLabel;
+        left.style.cssText = "font-size: 12px; color: #b9c2ce; white-space: nowrap; user-select: none;";
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.style.cssText = `
+            position: relative;
+            width: 34px;
+            height: 18px;
+            border: 1px solid rgba(116, 131, 154, 0.7);
+            border-radius: 999px;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            flex: 0 0 auto;
+        `;
+
+        const knob = document.createElement("span");
+        knob.style.cssText = `
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #f3f4f6;
+            transition: transform 0.16s ease, background 0.16s ease;
+            pointer-events: none;
+        `;
+        button.appendChild(knob);
+
+        const right = document.createElement("span");
+        right.textContent = rightLabel;
+        right.style.cssText = "font-size: 12px; color: #b9c2ce; white-space: nowrap; user-select: none;";
+
+        const sync = () => {
+            const current = getValue();
+            const active = typeof isRightActive === "function" ? !!isRightActive(current) : false;
+            button.dataset.active = active ? "1" : "0";
+            button.style.background = active ? "#2f6f92" : "transparent";
+            knob.style.transform = active ? "translateX(16px)" : "translateX(0)";
+            left.style.color = active ? "#8d97a5" : "#f3f4f6";
+            right.style.color = active ? "#f3f4f6" : "#8d97a5";
+        };
+
+        button.onclick = (evt) => {
+            evt.preventDefault();
+            evt.stopPropagation();
+            onToggle(getValue());
+            sync();
+            node._composerUiRender?.();
+        };
+
+        group.appendChild(left);
+        group.appendChild(button);
+        group.appendChild(right);
+        return { group, sync };
+    };
+
+    const formatSwitch = createInlineSwitch({
+        title: "Switch Prompt output between text and JSON",
+        leftLabel: "TXT",
+        rightLabel: "JSON",
+        getValue: () => readOutputFormat(node),
+        onToggle: (current) => writeOutputFormat(node, current === "json" ? "text" : "json"),
+        isRightActive: (current) => current === "json",
+    });
+    const positionSwitch = createInlineSwitch({
+        title: "Switch whether composed parts go before or after the incoming prompt",
+        leftLabel: "Before",
+        rightLabel: "After",
+        getValue: () => readComposePosition(node),
+        onToggle: (current) => writeComposePosition(node, current === "after" ? "before" : "after"),
+        isRightActive: (current) => current === "after",
+    });
+    const generationModeSwitch = createInlineSwitch({
+        title: "Switch whether Prompt Composer uses Image or Video LoRAs",
+        leftLabel: "Image",
+        rightLabel: "Video",
+        getValue: () => readGenerationMode(node),
+        onToggle: (current) => writeGenerationMode(node, current === "video" ? "image" : "video"),
+        isRightActive: (current) => current === "video",
+    });
+
+    switchRow.appendChild(formatSwitch.group);
+    switchRow.appendChild(positionSwitch.group);
+    switchRow.appendChild(generationModeSwitch.group);
+    root.appendChild(switchRow);
     let scroller = null;
     const absorbWheel = (evt) => {
         evt.preventDefault();
@@ -350,6 +657,66 @@ function ensureComposerUi(node) {
         };
 
         const parts = readParts(node);
+        const resolvedParts = resolveSubjectAssignments(parts);
+        const resolvedPart = resolvedParts[partIndex] || null;
+
+        addItem(
+            resolvedPart?.effective_subject_number === SUBJECT_NONE
+                ? "Not Subject"
+                : resolvedPart?.subject_locked
+                ? `Subject #${padSubjectNumber(resolvedPart.subject_number)} (custom)`
+                : `Subject #${padSubjectNumber(resolvedPart?.effective_subject_number ?? SUBJECT_MIN)} (auto)`,
+            () => {},
+            true,
+        );
+        addItem("Subject +1", () => {
+            const next = [...parts];
+            if (!next[partIndex]) return;
+            const baseSubject = resolvedPart?.effective_subject_number ?? SUBJECT_MIN;
+            next[partIndex] = normalizePart({
+                ...next[partIndex],
+                subject_number: nextSubjectNumber(baseSubject, 1),
+                subject_locked: true,
+            });
+            writeParts(node, next);
+            render();
+        });
+        addItem("Subject -1", () => {
+            const next = [...parts];
+            if (!next[partIndex]) return;
+            const baseSubject = resolvedPart?.effective_subject_number ?? SUBJECT_MIN;
+            next[partIndex] = normalizePart({
+                ...next[partIndex],
+                subject_number: nextSubjectNumber(baseSubject, -1),
+                subject_locked: true,
+            });
+            writeParts(node, next);
+            render();
+        });
+        addItem("Subject Auto", () => {
+            const next = [...parts];
+            if (!next[partIndex]) return;
+            next[partIndex] = normalizePart({
+                ...next[partIndex],
+                subject_number: resolvedPart?.effective_subject_number === SUBJECT_NONE
+                    ? SUBJECT_MIN
+                    : resolvedPart?.effective_subject_number,
+                subject_locked: false,
+            });
+            writeParts(node, next);
+            render();
+        }, !resolvedPart?.subject_locked || resolvedPart?.effective_subject_number === SUBJECT_NONE);
+        addItem("Not Subject", () => {
+            const next = [...parts];
+            if (!next[partIndex]) return;
+            next[partIndex] = normalizePart({
+                ...next[partIndex],
+                subject_number: SUBJECT_NONE,
+                subject_locked: true,
+            });
+            writeParts(node, next);
+            render();
+        }, resolvedPart?.effective_subject_number === SUBJECT_NONE);
         addItem("Delete", () => {
             const next = parts.filter((_, idx) => idx !== partIndex);
             writeParts(node, next);
@@ -375,12 +742,14 @@ function ensureComposerUi(node) {
 
     const openBrowserForPart = async (index) => {
         const parts = readParts(node);
-        const part = parts[index] || { category: "", prompts: [], strength: 1.0 };
+        const part = parts[index] || { category: "", prompts: [], strength: 1.0, subject_number: SUBJECT_MIN, subject_locked: false };
+        const inheritedSubject = getInheritedSubjectDefaults(parts.slice(0, index));
         const currentPrompt = part.prompts[0] || "";
+        const hasMultiSelection = Array.isArray(part.prompts) && part.prompts.length > 1;
         const selection = await showThumbnailBrowser(node, part.category || "", currentPrompt, {
             title: "Select Prompt Composer Part",
-            multiSelect: true,
-            multiCategorySelect: true,
+            multiSelect: hasMultiSelection,
+            multiCategorySelect: hasMultiSelection,
             endpointPrefix: COMPOSER_ENDPOINT_PREFIX,
             promptOnly: true,
             selectedPrompts: part.prompts,
@@ -397,34 +766,48 @@ function ensureComposerUi(node) {
             const selectedCats = Object.keys(selection.selectionsByCategory);
 
             if (selection.selectionsByCategory[originalCategory]) {
+                const nextCategory = originalCategory;
+                const subjectState = inferPartSubjectState(node, nextCategory, part, inheritedSubject);
                 next[index] = normalizePart({
-                    category: originalCategory,
+                    category: nextCategory,
                     prompts: selection.selectionsByCategory[originalCategory],
                     strength: part.strength,
+                    subject_number: subjectState.subject_number,
+                    subject_locked: subjectState.subject_locked,
                 });
             } else {
                 const firstCat = selectedCats[0];
+                const subjectState = inferPartSubjectState(node, firstCat, part, inheritedSubject);
                 next[index] = normalizePart({
                     category: firstCat,
                     prompts: selection.selectionsByCategory[firstCat],
                     strength: part.strength,
+                    subject_number: subjectState.subject_number,
+                    subject_locked: subjectState.subject_locked,
                 });
             }
 
             const usedCategory = next[index].category;
             for (const cat of selectedCats) {
                 if (cat === usedCategory) continue;
+                const subjectState = inferPartSubjectState(node, cat, next[index], inheritedSubject);
                 next.push(normalizePart({
                     category: cat,
                     prompts: selection.selectionsByCategory[cat],
                     strength: part.strength,
+                    subject_number: subjectState.subject_number,
+                    subject_locked: subjectState.subject_locked,
                 }));
             }
         } else {
+            const nextCategory = selection.category || part.category || "";
+            const subjectState = inferPartSubjectState(node, nextCategory, part, inheritedSubject);
             next[index] = normalizePart({
-                category: selection.category || part.category || "",
+                category: nextCategory,
                 prompts: selection.prompts,
                 strength: part.strength,
+                subject_number: subjectState.subject_number,
+                subject_locked: subjectState.subject_locked,
             });
         }
 
@@ -453,35 +836,41 @@ function ensureComposerUi(node) {
 
     const render = () => {
         const parts = readParts(node);
+        const resolvedParts = resolveSubjectAssignments(parts);
+        const isVideoMode = readGenerationMode(node) === "video";
         const thumbZoom = readThumbZoom(node);
         zoomSlider.value = String(Math.round(thumbZoom * 100));
         syncZoomLabel();
         const minCardWidth = Math.round(THUMB_BASE_WIDTH * thumbZoom);
-        const tileMinHeight = Math.round(minCardWidth * (4 / 3)) + CARD_META_HEIGHT;
+        const metaHeight = isVideoMode ? CARD_META_HEIGHT_VIDEO : CARD_META_HEIGHT;
+        const tileMinHeight = Math.round(minCardWidth * (4 / 3)) + metaHeight;
 
         // Flexible tracks keep rows filled while min width controls scale steps.
         grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${minCardWidth}px, 1fr))`;
         grid.innerHTML = "";
 
-        parts.forEach((part, index) => {
+        resolvedParts.forEach((part, index) => {
             const entry = part.prompts.length > 0
                 ? getComposerEntry(node, part.category, part.prompts[0])
                 : null;
             const thumb = entry?.thumbnail || DEFAULT_THUMBNAIL;
             const multiCount = part.prompts.length;
+            const subjectAccent = getSubjectAccent(part.effective_subject_number);
+            const isSubjectAnchor = !!part.subject_locked && part.effective_subject_number !== SUBJECT_NONE;
 
             const card = document.createElement("div");
-            const cardBorderColor = UI.inputBorder || "#3e495b";
+            const cardBorderColor = subjectAccent.border;
             card.style.cssText = `
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
-                border: 1px solid ${cardBorderColor};
+                border: ${isSubjectAnchor ? 2 : 1}px solid ${cardBorderColor};
                 border-radius: 6px;
-                background: ${UI.cardBg || "#2b3340"};
+                background: linear-gradient(180deg, ${subjectAccent.soft}, ${UI.cardBg || "#2b3340"} 42%);
                 padding: 4px;
                 box-sizing: border-box;
                 min-height: ${tileMinHeight}px;
+                box-shadow: ${isSubjectAnchor ? `0 0 0 1px ${subjectAccent.soft}` : "none"};
             `;
             card.oncontextmenu = (evt) => showPartContextMenu(evt, index);
             card.draggable = false;
@@ -535,7 +924,7 @@ function ensureComposerUi(node) {
             thumbBtn.style.cssText = `
                 width: 100%;
                 aspect-ratio: 3 / 4;
-                border: 1px solid ${UI.accentBorder || "hsl(208 73% 57% / 0.65)"};
+                border: 1px solid ${UI.inputBorder || "#445064"};
                 border-radius: 4px;
                 background-image: url(${thumb});
                 background-size: contain;
@@ -547,6 +936,67 @@ function ensureComposerUi(node) {
                 display: block;
             `;
             thumbBtn.title = "Click to select prompt fragment(s)";
+
+            const subjectBadge = document.createElement("button");
+            subjectBadge.type = "button";
+            subjectBadge.textContent = `#${padSubjectNumber(part.effective_subject_number)}`;
+            subjectBadge.title = part.effective_subject_number === SUBJECT_NONE
+                ? "Not a subject. Click to assign Subject 01, right-click for options."
+                : part.subject_locked
+                ? "Custom subject. Click to advance, Shift-click to go back, right-click for auto mode."
+                : "Auto subject. Click to create a custom subject, right-click for options.";
+            subjectBadge.style.cssText = `
+                position: absolute;
+                left: 4px;
+                top: 4px;
+                min-width: 26px;
+                height: 18px;
+                border-radius: 9px;
+                background: ${part.subject_locked ? subjectAccent.strong : "rgba(15,23,42,0.82)"};
+                border: 1px solid ${subjectAccent.border};
+                color: ${subjectAccent.text};
+                font-size: 10px;
+                line-height: 16px;
+                text-align: center;
+                font-weight: 700;
+                padding: 0 5px;
+                box-sizing: border-box;
+                cursor: pointer;
+            `;
+            subjectBadge.addEventListener("mousedown", (evt) => {
+                evt.stopPropagation();
+            });
+            subjectBadge.addEventListener("mouseup", (evt) => {
+                evt.stopPropagation();
+            });
+            subjectBadge.addEventListener("click", (evt) => {
+                evt.preventDefault();
+                evt.stopPropagation();
+                const delta = evt.shiftKey ? -1 : 1;
+                const next = [...readParts(node)];
+                if (!next[index]) return;
+                const baseSubject = part.effective_subject_number === SUBJECT_NONE ? SUBJECT_MIN : part.effective_subject_number;
+                next[index] = normalizePart({
+                    ...next[index],
+                    subject_number: nextSubjectNumber(baseSubject, delta),
+                    subject_locked: true,
+                });
+                writeParts(node, next);
+                render();
+            });
+            subjectBadge.addEventListener("contextmenu", (evt) => {
+                evt.preventDefault();
+                evt.stopPropagation();
+                const next = [...readParts(node)];
+                if (!next[index]) return;
+                next[index] = normalizePart({
+                    ...next[index],
+                    subject_locked: false,
+                });
+                writeParts(node, next);
+                render();
+            });
+            thumbBtn.appendChild(subjectBadge);
 
             if (multiCount > 1) {
                 const badge = document.createElement("div");
@@ -577,7 +1027,7 @@ function ensureComposerUi(node) {
                 ? `${part.category || "Category"}: (Multi)`
                 : `${part.category || "Category"}: ${primaryName}`;
             label.title = multiCount > 1
-                ? `${part.category || ""}\n${part.prompts.join("\n")}`
+                ? `Subject #${padSubjectNumber(part.effective_subject_number)}\n${part.category || ""}\n${part.prompts.join("\n")}`
                 : label.textContent;
             label.style.cssText = `
                 font-size: 10px;
@@ -591,7 +1041,7 @@ function ensureComposerUi(node) {
             `;
             const strengthRow = document.createElement("div");
             strengthRow.style.cssText = `
-                display: flex;
+                display: ${isVideoMode ? "none" : "flex"};
                 align-items: center;
                 gap: 4px;
             `;
@@ -751,6 +1201,7 @@ function ensureComposerUi(node) {
         addCard.title = "Add prompt part";
         addCard.onclick = async () => {
             const parts = readParts(node);
+            const inheritedSubject = getInheritedSubjectDefaults(parts);
             const selection = await showThumbnailBrowser(node, "", "", {
                 title: "Add Prompt Composer Part",
                 multiSelect: true,
@@ -769,17 +1220,24 @@ function ensureComposerUi(node) {
             const next = [...parts];
             if (selection.selectionsByCategory && Object.keys(selection.selectionsByCategory).length > 0) {
                 for (const [cat, catPrompts] of Object.entries(selection.selectionsByCategory)) {
+                    const subjectState = inferPartSubjectState(node, cat, null, inheritedSubject);
                     next.push(normalizePart({
                         category: cat,
                         prompts: catPrompts,
                         strength: 1.0,
+                        subject_number: subjectState.subject_number,
+                        subject_locked: subjectState.subject_locked,
                     }));
                 }
             } else {
+                const nextCategory = selection.category || "";
+                const subjectState = inferPartSubjectState(node, nextCategory, null, inheritedSubject);
                 next.push(normalizePart({
-                    category: selection.category || "",
+                    category: nextCategory,
                     prompts: selection.prompts,
                     strength: 1.0,
+                    subject_number: subjectState.subject_number,
+                    subject_locked: subjectState.subject_locked,
                 }));
             }
             writeParts(node, next);
@@ -830,8 +1288,14 @@ function ensureComposerUi(node) {
     node._composerUiAttached = true;
     node._composerUiRender = render;
     node._composerUiRefreshHeight = refreshComposerHeight;
+    node._composerUiSyncSwitches = () => {
+        formatSwitch.sync();
+        positionSwitch.sync();
+        generationModeSwitch.sync();
+    };
 
     refreshComposerHeight();
+    node._composerUiSyncSwitches();
     render();
 }
 
@@ -845,11 +1309,20 @@ app.registerExtension({
             const result = onNodeCreated?.apply(this, arguments);
             const node = this;
 
-            ensureHiddenPartsWidget(node);
+            ensureHiddenComposerWidgets(node);
             if (!node.properties) node.properties = {};
             if (node.properties[PARTS_PROP_KEY] === undefined) {
                 const existing = getPartsWidget(node)?.value || "[]";
                 node.properties[PARTS_PROP_KEY] = String(existing || "[]");
+            }
+            if (node.properties[OUTPUT_FORMAT_PROP_KEY] === undefined) {
+                node.properties[OUTPUT_FORMAT_PROP_KEY] = readOutputFormat(node);
+            }
+            if (node.properties[COMPOSE_POSITION_PROP_KEY] === undefined) {
+                node.properties[COMPOSE_POSITION_PROP_KEY] = readComposePosition(node);
+            }
+            if (node.properties[GENERATION_MODE_PROP_KEY] === undefined) {
+                node.properties[GENERATION_MODE_PROP_KEY] = readGenerationMode(node);
             }
 
             node.setSize([
@@ -860,6 +1333,7 @@ app.registerExtension({
             ensureComposerUi(node);
 
             loadComposerPrompts(node).then(() => {
+                node._composerUiSyncSwitches?.();
                 node._composerUiRefreshHeight?.();
                 node._composerUiRender?.();
                 app.graph.setDirtyCanvas(true, true);
@@ -873,7 +1347,7 @@ app.registerExtension({
             const result = onConfigure?.apply(this, arguments);
             const node = this;
 
-            ensureHiddenPartsWidget(node);
+            ensureHiddenComposerWidgets(node);
             ensureComposerUi(node);
 
             const widget = getPartsWidget(node);
@@ -881,7 +1355,12 @@ app.registerExtension({
                 node.properties = node.properties || {};
                 node.properties[PARTS_PROP_KEY] = widget.value;
             }
+            node.properties = node.properties || {};
+            node.properties[OUTPUT_FORMAT_PROP_KEY] = readOutputFormat(node);
+            node.properties[COMPOSE_POSITION_PROP_KEY] = readComposePosition(node);
+            node.properties[GENERATION_MODE_PROP_KEY] = readGenerationMode(node);
 
+            node._composerUiSyncSwitches?.();
             node._composerUiRefreshHeight?.();
             node._composerUiRender?.();
             return result;

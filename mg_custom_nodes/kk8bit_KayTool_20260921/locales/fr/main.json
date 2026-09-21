@@ -1,0 +1,13 @@
+{
+  "settingsCategories": {
+    "🛜 Set/Get": "🛜 Set/Get Réglages",
+    "KayTool Menu": "Menu contextuel",
+    "Browser Tab Icon": "Icône d'onglet du navigateur"
+  },
+  "nodeCategories": {
+    "Image": "Image",
+    "Slider": "Contrôleur de curseur",
+    "Remove BG": "Supprimer l'arrière-plan",
+    "Mask": "Masque"
+  }
+}

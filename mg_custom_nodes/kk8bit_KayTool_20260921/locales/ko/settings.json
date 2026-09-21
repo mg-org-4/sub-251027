@@ -1,0 +1,28 @@
+{
+  "KayTool_ShowSetGetOptions": {
+    "name": "노드 우클릭 메뉴에 '🛜 Set/Get' 옵션 표시"
+  },
+  "KayTool_ShowWorkflowPNG": {
+    "name": "우클릭 메뉴에 'Workflow PNG' 옵션 표시"
+  },
+  "KayTool_ShowStarToMe": {
+    "name": "우클릭 메뉴에 '⭐️ Star to me' 옵션 표시"
+  },
+  "KayTool_WorkflowPNG": {
+    "name": "'Workflow PNG' 내보내기 여백 크기"
+  },
+  "KayTool_SetGetForegroundColor": {
+    "name": "'🛜 Set/Get' 노드 색상 설정"
+  },
+  "KayTool_SetGetBackgroundColor": {
+    "name": "'🛜 Set/Get' 제목 색상 설정"
+  },
+  "KayTool_EnableCustomWebLogo": {
+    "name": "사용자 지정 탭 아이콘 사용",
+    "tooltip": "브라우저 탭 아이콘에만 적용되며 화면 좌측 상단의 ComfyUI 로고는 바뀌지 않습니다."
+  },
+  "KayTool_CustomWebLogo": {
+    "name": "아이콘 이미지 (1MB 미만)",
+    "tooltip": "브라우저 탭 아이콘만 교체하며 인터페이스의 ComfyUI 로고는 바뀌지 않습니다. 1MB 미만."
+  }
+}

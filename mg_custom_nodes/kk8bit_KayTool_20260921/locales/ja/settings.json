@@ -1,0 +1,28 @@
+{
+  "KayTool_ShowSetGetOptions": {
+    "name": "ノード右クリックメニューに「🛜 Set/Get」オプションを表示"
+  },
+  "KayTool_ShowWorkflowPNG": {
+    "name": "右クリックメニューに「Workflow PNG」オプションを表示"
+  },
+  "KayTool_ShowStarToMe": {
+    "name": "右クリックメニューに「⭐️ Star to me」オプションを表示"
+  },
+  "KayTool_WorkflowPNG": {
+    "name": "ワークフローPNGエクスポートの余白サイズ"
+  },
+  "KayTool_SetGetForegroundColor": {
+    "name": "「🛜 Set/Get」ノードの色を調整"
+  },
+  "KayTool_SetGetBackgroundColor": {
+    "name": "「🛜 Set/Get」タイトル色を調整"
+  },
+  "KayTool_EnableCustomWebLogo": {
+    "name": "カスタムのタブアイコンを使う",
+    "tooltip": "ブラウザタブのアイコンのみに適用されます。画面左上の ComfyUI ロゴは変わりません。"
+  },
+  "KayTool_CustomWebLogo": {
+    "name": "アイコン画像（1MB 未満）",
+    "tooltip": "置き換わるのはブラウザタブのアイコンだけで、画面内の ComfyUI ロゴは変わりません。1MB 未満。"
+  }
+}

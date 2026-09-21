@@ -1,0 +1,28 @@
+{
+  "KayTool_ShowSetGetOptions": {
+    "name": "Show '🛜 Set/Get' options in node right-click menu"
+  },
+  "KayTool_ShowWorkflowPNG": {
+    "name": "Show 'Workflow PNG' option in right-click menu"
+  },
+  "KayTool_ShowStarToMe": {
+    "name": "Show '⭐️ Star to me' option in right-click menu"
+  },
+  "KayTool_WorkflowPNG": {
+    "name": "Margin size for Workflow PNG export"
+  },
+  "KayTool_SetGetForegroundColor": {
+    "name": "Set '🛜 Set/Get' Node color"
+  },
+  "KayTool_SetGetBackgroundColor": {
+    "name": "Set '🛜 Set/Get' Title color"
+  },
+  "KayTool_EnableCustomWebLogo": {
+    "name": "Use a custom browser tab icon",
+    "tooltip": "Only affects the browser tab icon (favicon). Turn this off to keep ComfyUI's own icon."
+  },
+  "KayTool_CustomWebLogo": {
+    "name": "Icon image (must be < 1MB)",
+    "tooltip": "Replaces the browser tab icon only, not the ComfyUI logo in the interface. File must be < 1MB."
+  }
+}

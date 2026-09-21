@@ -1,0 +1,13 @@
+{
+  "settingsCategories": {
+    "🛜 Set/Get": "🛜 Set/Get 설정",
+    "KayTool Menu": "KayTool Menu",
+    "Browser Tab Icon": "브라우저 탭 아이콘"
+  },
+  "nodeCategories": {
+    "Image": "이미지",
+    "Slider": "슬라이더",
+    "Remove BG": "배경 제거",
+    "Mask": "마스크"
+  }
+}

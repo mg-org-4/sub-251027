@@ -1,0 +1,28 @@
+{
+  "KayTool_ShowSetGetOptions": {
+    "name": "Показать опции '🛜 Set/Get' в контекстном меню узла"
+  },
+  "KayTool_ShowWorkflowPNG": {
+    "name": "Показать опцию 'Workflow PNG' в контекстном меню"
+  },
+  "KayTool_ShowStarToMe": {
+    "name": "Показать опцию '⭐️ Star to me' в контекстном меню"
+  },
+  "KayTool_WorkflowPNG": {
+    "name": "Размер полей для экспорта 'Workflow PNG'"
+  },
+  "KayTool_SetGetForegroundColor": {
+    "name": "Установить цвет узла '🛜 Set/Get'"
+  },
+  "KayTool_SetGetBackgroundColor": {
+    "name": "Установить цвет заголовка '🛜 Set/Get'"
+  },
+  "KayTool_EnableCustomWebLogo": {
+    "name": "Использовать свой значок вкладки",
+    "tooltip": "Влияет только на значок вкладки браузера, а не на логотип ComfyUI в интерфейсе."
+  },
+  "KayTool_CustomWebLogo": {
+    "name": "Изображение значка (менее 1 МБ)",
+    "tooltip": "Заменяет только значок вкладки браузера, а не логотип ComfyUI в интерфейсе. Менее 1 МБ."
+  }
+}

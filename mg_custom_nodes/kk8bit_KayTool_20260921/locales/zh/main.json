@@ -1,0 +1,17 @@
+{
+    "settingsCategories": {
+      "🛜 Set/Get": "🛜 Set/Get",
+      "KayTool Menu": "右键菜单",
+      "Browser Tab Icon": "浏览器标签页图标",
+      "Workflow PNG": "Workflow PNG",
+      "NodeAlignment": "节点对齐工具栏",
+      "Resource Monitor": "资源监视器",
+      "GuLuLu": "咕噜噜"
+    },
+    "nodeCategories": {
+      "Image": "图像",
+      "Slider": "滑块控制器",
+      "Remove BG": "背景移除",
+      "Mask": "遮罩"
+    }
+  }

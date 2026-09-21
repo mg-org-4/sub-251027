@@ -1,0 +1,28 @@
+{
+  "KayTool_ShowSetGetOptions": {
+    "name": "Afficher les options '🛜 Set/Get' dans le menu contextuel du nœud"
+  },
+  "KayTool_ShowWorkflowPNG": {
+    "name": "Afficher l'option 'Workflow PNG' dans le menu contextuel"
+  },
+  "KayTool_ShowStarToMe": {
+    "name": "Afficher l'option '⭐️ Star to me' dans le menu contextuel"
+  },
+  "KayTool_WorkflowPNG": {
+    "name": "Taille de la marge pour l'exportation Workflow PNG"
+  },
+  "KayTool_SetGetForegroundColor": {
+    "name": "Ajuster la couleur du nœud '🛜 Set/Get'"
+  },
+  "KayTool_SetGetBackgroundColor": {
+    "name": "Ajuster la couleur du titre '🛜 Set/Get'"
+  },
+  "KayTool_EnableCustomWebLogo": {
+    "name": "Utiliser une icône d'onglet personnalisée",
+    "tooltip": "N'affecte que l'icône de l'onglet du navigateur, pas le logo ComfyUI dans l'interface."
+  },
+  "KayTool_CustomWebLogo": {
+    "name": "Image de l'icône (moins de 1 Mo)",
+    "tooltip": "Remplace uniquement l'icône de l'onglet, pas le logo ComfyUI de l'interface. Moins de 1 Mo."
+  }
+}

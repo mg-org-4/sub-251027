@@ -1,5 +1,12 @@
 # Project State
 
+## Timeline Video Experimental — local acceptance PASS, main publication candidate (2026-09-22)
+
+- Based on main `085943ad9cb8023a2042d4d731c83e638361c06e`. The existing `reference_video_1` IMAGE socket is displayed as `Timeline Video Frames`; one optional `video_reference_mode` widget is appended. Missing values default to `Repeat Reference`; `Follow Timeline` is opt-in.
+- Follow selects each physical group's visible output interval, excludes continuation-prefix frames, keeps Terminal Merge ownership, and continues without video reference after source exhaustion. Per-slice identity prevents conditioning/VAE cache reuse across different intervals. Sampling, Seed, SIGMAS, Audio, masks, Run Storage schema, and official V3.8X2 workflow bytes remain unchanged.
+- Local acceptance: full CPU `1424 passed / 1 skipped / 0 failed`; browser save/reload PASS; Follow and Repeat `2 x 5 s` GPU functional runs PASS at 704x416/24fps with synchronized 10-second AV; A/B diverges in Chunk 2; no OOM, NaN, allocation failure, or crash. Manifest/Registry Manifest matched before publication preparation.
+- The feature remains Experimental. It is not exact motion copying, a variable-duration chunk system, or a long-input RAM optimization. Separate Follow/Repeat comparison workflows are source assets; Release/tag and Registry publication remain separate operations.
+
 ## Loader repair full-suite follow-up (2026-09-21)
 
 - Main repair `f8eb40d8b44e54386bcf3c5197c48f0f71daf6df` passed the 46 focused tests. Its first full CI returned 1376 passed, 3 skipped, and one stale pre-migration workflow fingerprint failure in `test_v38x2_decode_cache_integration.py`.

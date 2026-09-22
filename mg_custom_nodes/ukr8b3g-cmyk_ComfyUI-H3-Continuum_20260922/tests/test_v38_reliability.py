@@ -87,11 +87,18 @@ def test_current_v38_public_schema_is_preserved_exactly():
         )
     )
     assert tuple(v38["required"]) == tuple(expected_required)
-    assert list(v38["optional"])[:-2] == list(v37["optional"])
-    assert list(v38["optional"])[-2:] == ["audio_references", "image_references"]
+    assert list(v38["optional"])[:-3] == list(v37["optional"])
+    assert list(v38["optional"])[-3:] == [
+        "audio_references",
+        "image_references",
+        "video_reference_mode",
+    ]
     assert v38["optional"]["audio_references"][0] == (
         "H3_CONTINUUM_AUDIO_REFERENCES"
     )
+    mode_schema = v38["optional"]["video_reference_mode"]
+    assert mode_schema[0] == ("Follow Timeline", "Repeat Reference")
+    assert mode_schema[1]["default"] == "Repeat Reference"
     assert v38.get("hidden") == v37.get("hidden")
     assert tuple(v38["required"])[-8:] == (
         "generation_mode",

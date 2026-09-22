@@ -16,6 +16,7 @@ EXPECTED_PUBLIC_NODE_DISPLAY_NAMES = {
     "H3EasyLoadImage": "H3 Continuum Load Image",
     "H3EasyLoadAudio": "H3 Continuum Load Audio",
     "H3ContinuumLoadVideo": "H3 Continuum Load Video",
+    "H3ContinuumVideoAdapter": "H3 Continuum Video Adapter",
     "H3ContinuumSecondPassV35": "H3 Continuum Second Pass",
     "H3DecodeCacheHelper": "Decode Cache Helper",
 }

@@ -12,6 +12,9 @@ from ComfyUI_H3_Continuum_Join import nodes as root_nodes
 from ComfyUI_H3_Continuum_Join.v3 import driving_nodes
 from ComfyUI_H3_Continuum_Join.v3 import easy_nodes
 from ComfyUI_H3_Continuum_Join.v3 import second_pass_nodes
+from ComfyUI_H3_Continuum_Join.tools.verify_runtime import (
+    EXPECTED_PUBLIC_NODE_DISPLAY_NAMES,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +35,7 @@ PUBLIC_DISPLAY_NAMES = {
 def test_public_export_keeps_legacy_loaders_and_adds_video_adapter():
     assert set(root_nodes.NODE_CLASS_MAPPINGS) == set(PUBLIC_DISPLAY_NAMES)
     assert root_nodes.NODE_DISPLAY_NAME_MAPPINGS == PUBLIC_DISPLAY_NAMES
+    assert EXPECTED_PUBLIC_NODE_DISPLAY_NAMES == PUBLIC_DISPLAY_NAMES
 
 
 def test_labs_and_unreleased_easy_implementations_remain_internal():
@@ -110,6 +114,7 @@ def test_v38_schema_and_serialized_widget_order_are_unchanged():
         "guide",
         "audio_references",
         "image_references",
+        "video_reference_mode",
     ]
 
 

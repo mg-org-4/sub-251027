@@ -44,3 +44,7 @@ examples/workflows/*
 
 # Current loader migration instructions.
 !docs/LOADER_PERSISTENCE_REPAIR.md
+!docs/TIMELINE_VIDEO_EXPERIMENTAL.md
+
+# Local updater receipt; never distribute it as package content.
+.h3-timeline-experimental.json

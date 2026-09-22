@@ -2,13 +2,35 @@
 
 ## Loader persistence repair on main (2026-09-21, after 3.8.3)
 
-The current paired V3.8X2 workflows now use **Core Load Audio** and **Core Load Video -> H3 Continuum Video Adapter**. The adapter has Force Rate (default 24) and IMAGE/AUDIO outputs, but **no Enable switch or file selector**. Core owns video selection/upload/save; the established duration-preserving frame selection is reused and audio is passed unchanged. To disable Video Guide, bypass the adapter or the whole video-input group; do not bypass only Load Video while leaving its required-input adapter active.
+The current paired V3.8X2 workflows now use **Core Load Audio** and **Core Load Video -> H3 Continuum Video Adapter**. The adapter has Force Rate (default 24) and IMAGE/AUDIO outputs, but **no Enable switch or file selector**. Core owns video selection/upload/save; the established duration-preserving frame selection is reused and audio is passed unchanged. To disable Timeline Video guidance, bypass the adapter or the whole video-input group; do not bypass only Load Video while leaving its required-input adapter active.
 
 **H3 Continuum Load Image remains**, including Enable Image. Its mode observer now delegates to inherited Core setters (Issue #23), and no longer replaces the widget collection while drawing or saving. Enable is appended after Core's widgets; Core handles the filename and native Bypass persistence. The older Audio/Video node IDs remain loadable as deprecated compatibility nodes, not as the recommended new-workflow loaders. Ten node IDs are registered including these two legacy nodes. Sampler inputs, generation parameters, Decode Cache, Finalize and existing latent/storage contracts are unchanged.
 
 After updating, restart ComfyUI and reload/refresh the frontend. A workflow that already omitted its filename or saved an incorrect mode cannot recover those missing values: reselect the intended file and Bypass state, then save once. Existing user workflows and saved Takes are not automatically rewritten. Changing upstream node types can legitimately create a new Run Storage revision; preserve the original workflow when resuming accepted runs.
 
 Validation details and limits: [Loader repair record](docs/LOADER_PERSISTENCE_REPAIR.md). CPU/store-model regression tests are not a substitute for the pending Windows Core 0.36.0 / frontend 1.53.6 browser tab-switch acceptance. No Release/tag or Registry publication is implied by this main-branch repair. Older loader screenshots below describe the retained legacy nodes.
+
+## Timeline Video — Experimental on main
+
+The existing video IMAGE input is now displayed as **`Timeline Video Frames`** and has one appended optional control, **`Video Reference Mode`**. Existing workflows and API calls that do not contain the new setting keep the old behavior through the default **`Repeat Reference`** mode.
+
+- **`Repeat Reference`** keeps the legacy Video Guide contract: each physical generation group receives the same bounded prefix from the source. It does not loop or stretch a short source.
+- **`Follow Timeline`** uses the 24 fps source interval corresponding to each physical output group. Continuation-prefix frames are not consumed twice. If the source ends, the remaining groups continue without video reference; a final usable partial interval may receive only H3's short frame-grid padding.
+
+This setting is independent of `Prompt Format = Timeline`. It does not add a new socket or loader, does not use the source video's audio automatically, and does not provide frame-perfect motion copying. The complete decoded IMAGE batch is still held in system memory, so this feature is not a long-input RAM optimization.
+
+Use the existing connection:
+
+```text
+Core Load Video -> H3 Continuum Video Adapter -> Timeline Video Frames
+```
+
+The two comparison workflows are intentionally separate from the unchanged official V3.8X2 workflows:
+
+- [Follow Timeline JSON](examples/workflows/MiniMax_H3_Continuum_V38X2_Timeline_Experimental_Follow.json) | [ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2_Timeline_Experimental_Follow.zip)
+- [Repeat Reference JSON](examples/workflows/MiniMax_H3_Continuum_V38X2_Timeline_Experimental_Repeat.json) | [ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2_Timeline_Experimental_Repeat.zip)
+
+Local acceptance passed with full CPU `1424 passed / 1 skipped / 0 failed`, browser save/reload, and Follow/Repeat `2 x 5 s` GPU runs at 704x416, 24 fps, 240 frames, and 10-second 32 kHz stereo audio. Follow changed to the later source interval for Chunk 2 while Repeat retained the shared prefix; both completed without OOM, NaN, allocation failure, or crash. Peak observed VRAM was about 15.6–15.7 GiB on the tested RTX 5060 Ti 16 GB system, so 16 GB headroom was small. This is a functional mode-separation result, not a universal speed or subjective-quality guarantee. See [Timeline Video Experimental](docs/TIMELINE_VIDEO_EXPERIMENTAL.md).
 
 
 > **V3.8X2** is the product and workflow label for package `3.8.3`. It keeps the V3.8 production sampler and adds optional Reference Images 4–9 plus the built-in Decode Cache Helper. The older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0).
@@ -34,7 +56,7 @@ When using many references, especially all nine, resize copies of the source ima
 
 ### Important: this is not an unconditional new-generation speedup
 
-**Manual cache clear:** normally no action is needed. Press the Helper's "キャッシュをクリア" (Clear cache) button to discard that Helper's cache on the next Queue and run native Decode again. It does not delete immediately or queue automatically. The internal `reset_token` remains serialized for workflow/API compatibility and increments once per click (wrapping to 0 at the INT limit). Creating, loading, or cloning a node does not change it. Without JavaScript, or in API workflows, change `reset_token` through the traditional numeric input.
+**Manual cache clear:** normally no action is needed. Press the Helper's **Clear cache** button (Japanese UI: **キャッシュをクリア**) to discard that Helper's cache on the next Queue and run native Decode again. It does not delete immediately or queue automatically. The internal `reset_token` remains serialized for workflow/API compatibility and increments once per click (wrapping to 0 at the INT limit). Creating, loading, or cloning a node does not change it. Without JavaScript, or in API workflows, change `reset_token` through the traditional numeric input.
 
 **The Helper saves time only when unchanged latents are decoded again. It does not accelerate Sampling.** A first MISS runs native Decode and stores the result; hashing and storage can make that run slower. Generating different latents with a new random seed each time normally produces MISS, so this feature should not be expected to speed up that usage.
 
@@ -50,7 +72,7 @@ The action names themselves do not enable reuse. **Each Video/Audio entry must m
 
 Cache reuse is process-local and does not survive Python restarts. Eviction and VAE identity changes can also cause MISS. Changing mode, RAM/Disk budgets, or `reset_token` clears this implementation's Helper cache. Keeping `reset_token = 0` does not reset it on every Queue.
 
-V3.8X2 ships `H3DecodeCacheHelper` inside this Continuum package. It remains a separate public node under `MiniMax H3/Continuum/Helpers`; no second custom-node addon is needed. The original nine IDs remain registered for compatibility; the loader migration adds H3ContinuumVideoAdapter. Sampler, Finalize, Assembly Plan, Core Decode, and saved Sampler widget/socket contracts are unchanged.
+V3.8X2 ships `H3DecodeCacheHelper` inside this Continuum package. It remains a separate public node under `MiniMax H3/Continuum/Helpers`; no second custom-node addon is needed. The package registers ten IDs, including the Video Adapter and the two deprecated loader compatibility IDs. Sampler, Finalize, Assembly Plan, Core Decode, and the pre-existing saved Sampler widget/socket prefix are unchanged; Timeline Video adds only one optional widget at the end.
 
 Connect Sampler `video_latents` and `audio_latents` plus their native Video/Audio VAE inputs to the Helper, then connect Helper `images` and `audio` to Finalize. Keep the Sampler `assembly_plan` directly connected to Finalize. The [official V3.8X2 workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json) preserves its saved graph and settings. It contains no Core VAE Decode nodes, so returning to Core direct Decode requires adding those two Core nodes and reconnecting Finalize, or loading a prior Core-direct V3.8X workflow. Do not simply remove the Helper and expect automatic rewiring.
 
@@ -148,7 +170,7 @@ The Helper delegates cache MISS entries to native Core Video/Audio Decode. A man
 
 ## Complete V3.8 UI reference
 
-This section covers every user-facing control and socket on the seven public V3.8 nodes. Names such as `Power Lora Loader (rgthree)`, Spectrum, SageAttention, Core VAE Decode, and Core Save Video belong to ComfyUI or another extension. They may be used in a supplied workflow, but they are not Continuum controls.
+This section covers the current ten-node V3.8X2 public surface and the Sampler controls. Names such as `Power Lora Loader (rgthree)`, Spectrum, SageAttention, Core VAE Decode, and Core Save Video belong to ComfyUI or another extension. They may be used in a supplied workflow, but they are not Continuum controls.
 
 ### H3 Continuum Sampler V3.8: required graph inputs
 
@@ -171,7 +193,7 @@ The Sampler returns six outputs: a list of `video_latents`, a list of `audio_lat
 | `last_frame` | Optional final-image constraint for FL2VA | Can trigger a Long Terminal Merge; the final pair may become one atomic review unit |
 | `reference_image_1`–`reference_image_3` | Ordered appearance, identity, subject, or scene references | They never become the implicit size source |
 | `Reference Images (Optional)` | Additional images 4–9 bundled by `H3 Continuum Reference Images` | Empty inputs are skipped; encoding remains in the Sampler |
-| `Video Guide Frames` | A video loader's IMAGE frame batch, applied as a persistent guide | It does not carry the source video's audio; frames are interpreted at 24 fps |
+| `Timeline Video Frames` | The Video Adapter's 24 fps IMAGE frame batch | `Repeat Reference` keeps the legacy shared prefix; experimental `Follow Timeline` selects successive physical output intervals. Source audio is separate. |
 | `Driving Audio` + `Driving Audio VAE` | Original audio timeline used as native guide conditioning | The selected source audio becomes final audio; generated audio and Audio Seam are bypassed |
 | `Reference Audio (Optional)` + `Reference Audio VAE (Optional)` | Legacy single conditioning-only audio reference | Generated audio remains final audio |
 | `Audio References (Optional)` | Ordered bundle from `H3 Continuum Reference Audios` | Do not connect this together with the legacy single Reference Audio path |
@@ -184,6 +206,12 @@ The Sampler returns six outputs: a list of `video_latents`, a list of `audio_lat
 - **First Image** establishes the opening image and is the normal visual starting point for I2VA/FL2VA. It is also the only media input that can drive `Size Source = First Image`.
 - **Last Image** constrains the sequence ending. Leave it `OFF` for T2VA and ordinary I2VA. With a connected Last Image, extending or regenerating the sequence may rebuild the terminal pair.
 - **Reference Images 1–9** guide identity or appearance throughout generation. Inputs 1–3 remain on the Sampler; optional inputs 4–9 are on `H3 Continuum Reference Images`, connected to the Sampler's `Reference Images (Optional)` socket. The helper only bundles images: resizing, hashing, and VAE encoding remain in the existing Sampler path. Empty slots are skipped; Picture numbers follow active slot order after any First/Last Image. Existing three-loader templates still work unchanged.
+
+#### Timeline Video Frames and Video Reference Mode
+
+Connect `Core Load Video` to `H3 Continuum Video Adapter`, then connect Adapter `images` to `Timeline Video Frames`. The Adapter's default `Force Rate = 24` matches the input contract. Connect Adapter `audio` to `Driving Audio` only when that source audio should guide generation and become the final audio.
+
+`Video Reference Mode` is visible only while Timeline Video Frames is connected. `Repeat Reference` is the compatibility default. `Follow Timeline` advances through the source according to the physical visible frames actually added to the output, including Review, Resume, and Terminal Merge grouping. It does not change `Seconds per Chunk`; all chunks still use the Sampler's common duration. See the [experimental contract and limitations](docs/TIMELINE_VIDEO_EXPERIMENTAL.md).
 
 Saved workflows with the earlier direct image 4/5 inputs migrate those links into a bundle after graph loading. Migration preserves the original source links and only removes a legacy input after its new link is verified. If a source is unavailable or its destination is occupied, the legacy link is retained with a warning. Old API prompts remain accepted; supplying both legacy and bundle images for the same slot is an explicit input conflict.
 
@@ -201,7 +229,7 @@ Every `H3 Continuum Load Image` has `Enable Image`. `ON` loads through ComfyUI C
 
 ![Continuum Video and Audio loaders with Enable controls](docs/images/v38-manual/input-video-audio-bypass.png)
 
-- `H3 Continuum Load Video`: `Enable Video`, `Video`, and `Force Rate`. `Force Rate = 0` uses source FPS; a positive value drops/duplicates frames to that rate while preserving nominal duration and audio. Connect `images` to `Video Guide Frames` when visual video guidance is wanted. Connect `audio` to `Driving Audio` only when the source audio should guide and become the final output.
+- New workflows use Core `Load Video` followed by `H3 Continuum Video Adapter`. The Adapter's positive `Force Rate` drops/duplicates frames while preserving nominal duration and passes audio through unchanged. Connect `images` to `Timeline Video Frames`; connect `audio` to `Driving Audio` only when the source audio should guide and become the final output. The legacy `H3 Continuum Load Video` remains registered for compatibility.
 - `H3 Continuum Load Audio`: `Enable Audio` and the audio file. Use it for Driving Audio or Reference Audio according to the socket you connect.
 - The node titled `Audio Switch` in the example image is ComfyUI Core's `If/Else Switch` (`ComfySwitchNode`); `Fast Groups Bypasser (rgthree)` belongs to the rgthree extension. Neither is a Continuum node or a requirement of Continuum. The Continuum loaders already provide their own native ON/OFF controls.
 
@@ -249,7 +277,7 @@ Every `H3 Continuum Load Image` has `Enable Image`. `ON` loads through ComfyUI C
 
 ![Manual Size Source with explicit Width and Height](docs/images/v38-manual/size-source-manual-640.png)
 
-If First Image mode is selected but no usable First Image reaches the Sampler, V3.8 uses the stored Manual Width/Height as a safe fallback and reports the dimensions in `status`. Select `Size Source = Manual` to inspect or edit those values; Width/Height are hidden in the First Image facade. Reference Images and Video Guide never become implicit size sources. The historical `Auto / Landscape / Portrait / Square` values are migration/API compatibility values, not current Main choices.
+If First Image mode is selected but no usable First Image reaches the Sampler, V3.8 uses the stored Manual Width/Height as a safe fallback and reports the dimensions in `status`. Select `Size Source = Manual` to inspect or edit those values; Width/Height are hidden in the First Image facade. Reference Images and Timeline Video Frames never become implicit size sources. The historical `Auto / Landscape / Portrait / Square` values are migration/API compatibility values, not current Main choices.
 
 Size selection is built into the V3.8 Sampler. A separate megapixel, empty-latent, or image-size node is not required for the normal Continuum workflow.
 
@@ -271,7 +299,7 @@ For an audio-only listening diagnostic, use T2VA, `Size Source = Manual`, and a 
 | `Variation Nonce` | Explicit `Regenerate From = Chunk N` | `0`: automatic variation selection with interrupted-run resume; `1` or higher: a fixed variation value. Base Seed and the other generation settings stay unchanged |
 | `Run Name (Optional Override)` | Advanced open and Progress On | Stable name for resume and Render History; blank uses the Sampler's automatic identity |
 | `Reference Image Size` | Advanced open and a Reference Image connected | `Match Output` is practical; `Max Identity` preserves more reference detail and may use more memory |
-| `Video Guide Size` | Advanced open and Video Guide connected | `Efficient — 0.4 MP`, `Balanced — 0.6 MP`, or `Match Output` |
+| `Video Guide Size` | Advanced open and Timeline Video Frames connected | `Efficient — 0.4 MP`, `Balanced — 0.6 MP`, or `Match Output` |
 
 Frontend-managed IDs, selected Take IDs, one-shot review actions, diagnostics, preview, and legacy compatibility values are deliberately not editable as ordinary node widgets. The corresponding settings or action buttons below are the supported interface.
 
@@ -355,7 +383,7 @@ The same graph can be used as the quick Turbo path: disable Spectrum, enable exa
 
 An experimental prefix-amplitude renormalization produced a strong improvement in one `6 × 5 s` run, but a later frozen `4 × 8 s` A/B/C gate did not reproduce the target drift and therefore applied gains of `1.0`; Standard and the experimental arm were bit-exact. The older Compatibility route did not justify replacing Standard and raised a separate boundary-audio concern. The accurate release statement is therefore: **the issue is not proven fixed, the current Standard path is unchanged, and experimental mitigation stays Default Off**. Report the first and worst affected chunk, workflow JSON, prompt, seed, model/LoRA, Steps/SIGMAS, size, Continuity, and Audio Continuity when reproducing it.
 
-> **Support boundary:** The original V3.8 launch surface had seven nodes; this local package also exports Reference Images and Decode Cache Helper. Some retain earlier IDs, including Finalize (`H3ContinuumAssembleSeamV35`) and Second Pass (`H3ContinuumSecondPassV35`); this does not make all older workflows compatible. Use the matching historical Release/tag for unsupported node IDs. See [V3.8 Release and Migration Policy](docs/V38_RELEASE_AND_MIGRATION.md).
+> **Support boundary:** The original V3.8 launch surface had seven nodes. V3.8X2 now exports ten IDs: it adds Reference Images, Decode Cache Helper, and Video Adapter while retaining the deprecated Audio/Video loader IDs for saved-workflow compatibility. Some nodes retain earlier IDs, including Finalize (`H3ContinuumAssembleSeamV35`) and Second Pass (`H3ContinuumSecondPassV35`); this does not make all older workflows compatible. Use the matching historical Release/tag for unsupported node IDs. See [V3.8 Release and Migration Policy](docs/V38_RELEASE_AND_MIGRATION.md).
 
 The accepted 16GB GPU gates reached about `15.5-15.6 GiB` in the most complex cases. Actual use varies by GPU, driver, backend, model precision, resolution, and connected nodes; this is not a universal 16GB guarantee.
 
@@ -712,7 +740,7 @@ Prompt/CLIP figures measure only the conditioning subphase, not total generation
 
 The measured Sage-only production baselines on the tested RTX 5060 Ti 16 GB / 64 GB system were 168.069 seconds for 1×5-second 576×576 T2VA and 379.765 seconds for 3×5-second 640×640 FL2VA Long Terminal Merge. These are configuration-specific baselines, not universal speed guarantees. Sampling remained the dominant cost; Continuum Assemble + Seam stayed below 1%.
 
-> **V3.8.0 is the historical release baseline.** The current publication target is V3.8X2 / package 3.8.3. Historical implementation modules remain in source because V3.8X2 reuses them internally. Only the nine current public nodes are exported, including the earlier IDs retained for those nodes. Use the matching historical Release/tag for workflows requiring other IDs. Still Image Guide remains Experimental.
+> **V3.8.0 is the historical release baseline.** The current publication target is V3.8X2 / package 3.8.3. Historical implementation modules remain in source because V3.8X2 reuses them internally. Only the ten current public node IDs are exported, including the two deprecated loader compatibility IDs. Use the matching historical Release/tag for workflows requiring other IDs. Still Image Guide remains Experimental.
 
 ## V3.5.1 Reference Audio & Compatibility Update
 
@@ -723,7 +751,7 @@ V3.5.1 added two focused features without changing the V3.4 Sampling, Conditioni
 
 The Reference Audio sockets are permanently defined by Python `INPUT_TYPES`. Dynamic socket changes and the UI-only `Hidden / Show` control were removed to prevent workflow save/reload value shifts. Node IDs, backend keys, Sampling, Conditioning, standard Seed handling, and other widgets are unchanged.
 
-In the historical V3.5.1 package, V3.4 node IDs and backend socket keys remained registered for saved-workflow compatibility. V3.4/V3.5 workflows continued to load there; V3.5.1 clarified the displayed input names without rewriting saved links. V3.8 instead uses the seven-node support boundary above.
+In the historical V3.5.1 package, V3.4 node IDs and backend socket keys remained registered for saved-workflow compatibility. V3.4/V3.5 workflows continued to load there; V3.5.1 clarified the displayed input names without rewriting saved links. The original V3.8 launch used a seven-node boundary; current V3.8X2 exports the ten IDs listed in the current guide above.
 
 ### Reference inputs at a glance
 
@@ -866,7 +894,7 @@ For the failed 3 x 5s case, First Pass and the 37T Second Pass group completed. 
 
 ## V3.4 compatibility baseline
 
-The historical V3.5 package retained V3.4 nodes for saved workflows; it did not replace their Node IDs, public sockets, Sampling, Conditioning, Terminal Merge, Assembly, Seam, or Run Storage behavior. Those historical workflows remain available through the corresponding Release/tag. V3.8X2 does not export IDs outside its current nine public nodes, even when their implementation modules remain in source.
+The historical V3.5 package retained V3.4 nodes for saved workflows; it did not replace their Node IDs, public sockets, Sampling, Conditioning, Terminal Merge, Assembly, Seam, or Run Storage behavior. Those historical workflows remain available through the corresponding Release/tag. V3.8X2 does not export IDs outside its current ten public nodes, even when their implementation modules remain in source.
 
 ![H3 Continuum V3.4 workflow overview](docs/images/v34-workflow-overview.png)
 
@@ -988,7 +1016,7 @@ The public nodes focus on normal production controls. Developer diagnostics and 
 
 ### Timeline paths
 
-Experimental Timeline Video and earlier timeline-audio paths remain in historical implementation code but are not exported by V3.8. Open V3.3 workflows with their historical package; new V3.8 workflows should use `Driving Audio` and `Video Guide Frames`.
+The retired V3.3 Timeline Sampler and earlier timeline-audio paths remain historical and are not exported by V3.8X2. The current experimental implementation instead adds `Follow Timeline` to the existing `Timeline Video Frames` input on Sampler V3.8; it does not restore the old node ID. Open V3.3 workflows with their matching historical package.
 
 ## Installation
 
@@ -1005,7 +1033,7 @@ git pull --ff-only origin main
 
 Restart ComfyUI after the update. If the node was installed with ComfyUI Manager, use its **Update** action instead of running `git pull` manually. Do not mix Manager updates and a separate Git checkout for the same installation.
 
-After the backend restart, search for `H3 Continuum Sampler V3.8`. The complete V3.8X2 search surface contains the nine nodes listed above. If they are missing, check the startup console for the `H3 Continuum 3.8.3 loaded` message and any `ComfyUI-H3-Continuum` import error.
+After the backend restart, search for `H3 Continuum Sampler V3.8`. The complete V3.8X2 search surface contains the ten nodes listed above. If they are missing, check the startup console for the `H3 Continuum 3.8.3 loaded` message and any `ComfyUI-H3-Continuum` import error.
 
 Search for H3 Continuum or Continuum in ComfyUI Manager, or install manually:
 
@@ -1315,9 +1343,9 @@ Use a 24 fps source for `Video Guide Frames`. `Load Video (Upload)` may accept f
 
 ## Current validation status
 
-The V3.8X2 public-surface suite checks the exact nine-node export, both official workflow names and matching ZIP payloads, declared external dependencies, Registry exclusions, preserved V3.8 widget/socket order, and presentation-only `Show Advanced Settings` / `Hide Advanced Settings` behavior. Registry payload hashes are recorded in `REGISTRY_MANIFEST.sha256`; source integrity is recorded in `MANIFEST.sha256`.
+The V3.8X2 public-surface suite checks the exact ten-node export, both unchanged official workflow names and matching ZIP payloads, the separate experimental Follow/Repeat workflows, declared external dependencies, Registry exclusions, the preserved V3.8 widget/socket prefix plus the appended mode widget, and presentation-only `Show Advanced Settings` / `Hide Advanced Settings` behavior. Registry payload hashes are recorded in `REGISTRY_MANIFEST.sha256`; source integrity is recorded in `MANIFEST.sha256`.
 
-**Latest V3.8X2 preparation evidence:** the full CPU suite passed **1,367 passed / 1 skipped / 0 failed**. The prior dedicated GPU Functional Gate passed a `3 × 5 second` Review Each Chunk run: Q1–Q3 generated one physical group at a time, and Q4 reused all three groups with `3 reused / 0 generated`. Q3 and Q4 had identical decoded RGB and PCM SHA-256 values. The separate nine-reference Gate is recorded below. These checks confirm functional execution, prefix reuse, AV reconstruction, and the tested nine-reference path; they are not a full subjective image- or audio-quality rating.
+**Latest V3.8X2 preparation evidence:** after the Timeline Video integration, the full CPU suite passed **1,424 passed / 1 skipped / 0 failed**. Browser persistence and Follow/Repeat `2 × 5 second` GPU gates passed; both produced 704×416, 24 fps, 240-frame, 10-second video with 32 kHz stereo audio and no OOM, NaN, allocation failure, or crash. The prior dedicated Review Functional Gate passed a `3 × 5 second` run: Q1–Q3 generated one physical group at a time, and Q4 reused all three groups with `3 reused / 0 generated`; Q3 and Q4 had identical decoded RGB and PCM SHA-256 values. The separate nine-reference Gate is recorded below. These checks confirm functional execution, prefix reuse, AV reconstruction, mode separation, and the tested nine-reference path; they are not a full subjective image- or audio-quality rating.
 
 ### Nine-reference input gate (0.3 MP reference images)
 

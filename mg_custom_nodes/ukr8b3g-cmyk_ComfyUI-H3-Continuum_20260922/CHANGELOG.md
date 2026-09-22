@@ -1,5 +1,15 @@
 # Changelog
 
+## Experimental on main — Unified Timeline Video (2026-09-22)
+
+- Renamed the existing V3.8 video IMAGE input to `Timeline Video Frames` while preserving its internal key and saved links.
+- Added one appended optional `Video Reference Mode`: `Repeat Reference` remains the compatibility default; `Follow Timeline` selects the source interval belonging to each physical output group.
+- Follow mode excludes continuation-prefix frames from source consumption, records each physical slice in the plan, uses slice-specific Video VAE/cache identity, and continues without video reference after source exhaustion.
+- Kept Sampling, Seed, SIGMAS, Audio, masks, continuation grouping, Terminal Merge ownership, Run Storage schema, and the two official V3.8X2 workflows unchanged. Added separate Follow/Repeat comparison workflows.
+- Synchronized the lightweight runtime verifier and README public-surface wording with the already-exported ten-node V3.8X2 surface, including `H3ContinuumVideoAdapter`.
+- Acceptance: full CPU `1424 passed / 1 skipped / 0 failed`; browser save/reload PASS; Follow and Repeat `2 x 5 s` GPU runs PASS at 704x416/24fps with synchronized 10-second audio/video and no OOM, NaN, allocation failure, or crash.
+- This remains Experimental: it is soft H3 conditioning, not exact motion copying, and it does not reduce the RAM needed to hold a long decoded IMAGE batch.
+
 ## Unreleased — Loader persistence repair (2026-09-21)
 
 - Repair Issue #23 by delegating inherited native mode accessors; preserve Enable Image and remove draw/save-time widget collection replacement.

@@ -57,16 +57,9 @@ Current release-hygiene baseline: O1 and AUDIO-R1 are PASS; the public surface i
 - Hi-Res Fix is not part of the new standard workflow. Preserve its historical implementation until cleanup is approved; use Second Pass as the external latent-processor bridge.
 - Keep P1a First Block Cache and P2 boundary-aware Sol-Attn `Deferred`. Keep A5 and A8b `HOLD` under their recorded release contracts. Issue #13 reporter-exact R3 remains the highest Continuation Quality investigation when its required workflow is available.
 
-## H3 completion review handoff
-
-- After every implementation or Gate is complete and its local validation report is ready, send that self-contained completion report to the pinned ChatGPT task titled `H3情報チェック` before starting the next phase.
-- The fixed current destination is task ID `6a94b91e-af7c-83e8-be18-ddc504f690c4` (pinned index 3). A second older task has the same title; do not send to the unpinned duplicate.
-- Wait for and read the review reply, then bring its conclusions and requested corrections back into the active Continuum task as feedback. Treat the reply as review input under the user's authority; preserve the repository rules and request approval where a proposed change expands scope.
-- Do not duplicate a handoff that the user explicitly says they already completed manually. If the destination is unavailable or the reply requires user judgment, stop and report that condition instead of silently skipping the review.
-
 ## A8b and A5 HOLD release contracts
 
-- 2026-09-05 explicit user exception ("許可、許可。"): Issue13 R3B may run one isolated Video-only weak tapered context-noise A/B experiment before reporter-exact R3. This waives only the reporter-exact/independence prerequisite for that diagnostic. Keep Production/source runtime unchanged, Audio/masks/depth/Seed/SIGMAS/grouping unchanged, default OFF bit-exact, and pass CPU/Shadow/Replay before GPU. Restore clean exported prefix after the diagnostic perturbation. No combined interventions, A5 work, public controls, or Production promotion are authorized. General A8b and Release HOLD remain; GPU-audit sharing is limited to the fixed H3情報チェック task.
+- 2026-09-05 explicit user exception ("許可、許可。"): Issue13 R3B may run one isolated Video-only weak tapered context-noise A/B experiment before reporter-exact R3. This waives only the reporter-exact/independence prerequisite for that diagnostic. Keep Production/source runtime unchanged, Audio/masks/depth/Seed/SIGMAS/grouping unchanged, default OFF bit-exact, and pass CPU/Shadow/Replay before GPU. Restore clean exported prefix after the diagnostic perturbation. No combined interventions, A5 work, public controls, or Production promotion are authorized. General A8b and Release HOLD remain. Do not automatically send cross-task audit reports; sending requires a fresh explicit user request.
 
 - A8a is the accepted read-only baseline: full pytest `1041`, Manifest `242/242`, every observer record has `execution_applied=false`, and Production/Sampling/Run Storage/State/Session/Assembly parity is preserved.
 - Keep A8b execution policy on HOLD until one intervention type is specified and approved. Do not change context, transport, mask, latent, or conditioning in combination. Seed, SIGMAS, and physical grouping remain unchanged unless separately approved.
@@ -107,3 +100,9 @@ GPU checks must cover Sage only, Sage+Sol, Sage+Spectrum, and Sage+Sol+Spectrum 
 - Keep H3EasyLoadImage and Enable Image; delegate inherited mode accessors and leave Core widget collections, drawing and serialization intact.
 - New official workflows use Core LoadAudio and Core LoadVideo -> H3ContinuumVideoAdapter. The adapter has no Enable/file/upload UI and reuses the existing frame-rate conversion. Preserve the original Audio/Video IDs as deprecated compatibility nodes; never infer lost filenames or saved OFF states.
 - The approved export exception adds H3ContinuumVideoAdapter to the existing nine-node mapping. Do not change Main Sampler, Sampling, external wrappers, Decode Cache or Run Storage semantics for this repair.
+
+## User-approved Timeline Video experiment (2026-09-22)
+
+- Append one optional `Video Reference Mode` to V38. Missing mode remains `Repeat Reference`; `Follow Timeline` is opt-in and uses each physical group's visible output range without consuming continuation context twice.
+- Preserve grouping, Seed, SIGMAS, Audio, masks, Run Storage schema, Terminal Merge ownership, and the two official V3.8X2 workflow files. Experimental Follow/Repeat templates remain separate comparison assets.
+- Local acceptance passed: full CPU `1424 passed / 1 skipped`, browser save/reload, Follow/Repeat GPU functional runs, A/B mode separation, and Manifest integrity. Keep the feature Experimental; do not describe it as exact motion copying or a long-input RAM optimization.

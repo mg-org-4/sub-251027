@@ -10,6 +10,28 @@
 
 検証範囲は[Loader修正記録](docs/LOADER_PERSISTENCE_REPAIR.md)を参照してください。CPU回帰テストと実ブラウザ確認は別です。Windows Core 0.36.0 / frontend 1.53.6のタブ切替確認は未実施で、Release/tag・Registry公開も別作業です。以下の旧Loader画像は互換ノードの説明です。
 
+## Timeline Video — main上のExperimental機能
+
+従来の動画IMAGE入力を**`Timeline Video Frames`**と表示し、末尾に省略可能な設定**`Video Reference Mode`**を1項目追加しました。新しい設定を持たない既存Workflow／APIは、初期値の**`Repeat Reference`**で従来動作を維持します。
+
+- **`Repeat Reference`**：従来のVideo Guide契約です。各physical生成groupで、同じ先頭側の上限付き参照を使います。短い素材を自動ループ／Stretchしません。
+- **`Follow Timeline`**：各physical出力groupの時間位置に対応する24fps参照区間を使います。Continuationの過去prefixを二重消費しません。素材終了後は動画参照なしで続行し、利用可能な終端区間にはH3 frame-grid整列分だけ短いpaddingを行う場合があります。
+
+これは`Prompt Format = Timeline`とは別の設定です。新しいsocketやLoaderは増やさず、元動画のAudioも自動使用しません。参照動画はsoft conditioningであり、motionをframe単位で完全コピーする機能ではありません。また、decode済みIMAGE batch全体をsystem RAMへ保持するため、長尺入力のRAM削減機能ではありません。
+
+接続は既存のままです。
+
+```text
+Core Load Video → H3 Continuum Video Adapter → Timeline Video Frames
+```
+
+公式V3.8X2 Workflow本体は変更せず、比較用Experimental Workflowを別名で追加しています。
+
+- [Follow Timeline JSON](examples/workflows/MiniMax_H3_Continuum_V38X2_Timeline_Experimental_Follow.json)／[ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2_Timeline_Experimental_Follow.zip)
+- [Repeat Reference JSON](examples/workflows/MiniMax_H3_Continuum_V38X2_Timeline_Experimental_Repeat.json)／[ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2_Timeline_Experimental_Repeat.zip)
+
+ローカル受入ではFull CPU `1424 passed / 1 skipped / 0 failed`、ブラウザ保存・再読込、Follow／Repeatの`2 × 5秒` GPUテストがPASSしました。両方とも704×416、24fps、240フレーム、映像10秒、32kHz stereo音声10秒で、OOM／NaN／allocation failure／crashはありません。FollowはChunk 2で後半区間へ切り替わり、Repeatは同じ先頭側参照を維持しました。RTX 5060 Ti 16 GBで観測した最大VRAMは約15.6～15.7 GiBで、16 GBの余裕は小さい条件です。これは機能・mode分離の受入結果であり、一般的な速度や主観画質の保証ではありません。詳細は[Timeline Video Experimental](docs/TIMELINE_VIDEO_EXPERIMENTAL.md)を参照してください。
+
 
 > **V3.8X2**はpackage `3.8.3`の製品名・Workflow名です。V3.8 Production Samplerを維持し、任意のReference Image 4～9と内蔵Decode Cache Helperを追加しています。旧V3.8.0は[`v3.8.0`タグ](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0)から導入できます。
 
@@ -48,7 +70,7 @@ Reference Image 1～3はSamplerへ直接接続し、任意の4～9は`H3 Continu
 
 キャッシュはPythonプロセス内の利用に限られ、再起動後は再利用しません。上限による退避・破棄やVAE識別情報の変化でもMISSになります。モード、RAM／Disk予算、`reset_token`を変更すると、この実装ではHelperキャッシュをクリアします。`reset_token = 0`を維持することは、毎回リセットする意味ではありません。
 
-`H3DecodeCacheHelper`をContinuumパッケージ内に収録し、UI上は`MiniMax H3/Continuum/Helpers`の独立公開ノードとして残します。インストール対象はContinuumだけです。公開IDはV3.8Xの7件にReference ImagesとHelperを加えた計9件です。Sampler、Finalize、Assembly Plan、Core Decode、Samplerの保存済みwidget/socket契約は変更しません。
+`H3DecodeCacheHelper`をContinuumパッケージ内に収録し、UI上は`MiniMax H3/Continuum/Helpers`の独立公開ノードとして残します。インストール対象はContinuumだけです。現行パッケージはVideo Adapterと互換用旧Audio／Video Loaderを含む計10 IDを登録します。Sampler、Finalize、Assembly Plan、Core Decode、既存Sampler widget/socketの先頭契約は変更せず、Timeline Videoのmode widgetだけをoptional末尾へ追加します。
 
 Samplerの`video_latents`／`audio_latents`と同じVideo／Audio VAEをHelperへ接続し、Helperの`images`／`audio`をFinalizeへ接続します。Samplerの`assembly_plan`はFinalizeへ直接接続したままです。[公式V3.8X2 Workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json)は保存済みgraphと設定を維持します。このgraphにはCore VAE Decodeノードがないため、Core直結へ戻すにはCore Video／Audio Decodeを追加してFinalizeへ再配線するか、旧V3.8XのCore直結graphを開いてください。Helperを単に削除しても自動では戻りません。
 
@@ -99,13 +121,14 @@ V3.8X2 Workflow：[JSON](examples/workflows/MiniMax_H3_Continuum_V38X2.json)／[
 
 H3 Continuumは、長尺映像を最初からやり直さずに生成・確認・部分再生成・再開するProduction Samplerです。V3.8は`Main / Production`と`Advanced`の2層に整理しました。
 
-このローカル版で検索可能なノードは、元のV3.8の7ノードにReference ImagesとDecode Cache Helperを加えた次の9つです。
+現行V3.8X2で検索可能なノードIDは次の10個です。旧Audio／Video Loaderは保存Workflow互換用で、新規WorkflowはCore LoaderとVideo Adapterを使います。
 
 - `H3 Continuum Sampler V3.8`
 - `H3 Continuum Finalize`
 - `H3 Continuum Load Image`
 - `H3 Continuum Load Audio`
 - `H3 Continuum Load Video`
+- `H3 Continuum Video Adapter`
 - `H3 Continuum Second Pass`
 - `H3 Continuum Reference Audios`
 - `H3 Continuum Reference Images`
@@ -119,11 +142,17 @@ V3.8X2公式Workflowの標準経路は`Sampler V3.8 -> Decode Cache Helper -> Fi
 
 `H3 Continuum Reference Audios`は、最大3本の単独Reference Audioを1本の`Audio References (Optional)` socketへまとめます。入力は間を空けずに接続し、Promptでは接続順どおりに`<Audio 1>`、`<Audio 2>`、`<Audio 3>`を使用します。共通のCore Audio VAEで各Audioを個別encodeします。生成後の最終Audioを置換せず、Driving Audio契約も変更しません。既存Workflowは従来の単数`Reference Audio (Optional)`をそのまま使用できますが、単数経路とbundle経路は同時接続しないでください。
 
-> **対応範囲:** 元のV3.8は7ノード、このローカル版はReference ImagesとDecode Cache Helperを加えた9ノードです。Finalizeの`H3ContinuumAssembleSeamV35`、Second Passの`H3ContinuumSecondPassV35`などは旧IDを維持しますが、すべての旧Workflowに互換性があるという意味ではありません。未対応のnode IDには対応するhistorical Release/tagを使用してください。詳細は[V3.8 Release／Migration Policy](docs/V38_RELEASE_AND_MIGRATION.md)を参照してください。
+> **対応範囲:** 元のV3.8 launch surfaceは7ノードでした。現行V3.8X2はReference Images、Decode Cache Helper、Video Adapterを追加し、互換用旧Audio／Video Loaderを含む計10 IDです。Finalizeの`H3ContinuumAssembleSeamV35`、Second Passの`H3ContinuumSecondPassV35`などは旧IDを維持しますが、すべての旧Workflowに互換性があるという意味ではありません。未対応のnode IDには対応するhistorical Release/tagを使用してください。詳細は[V3.8 Release／Migration Policy](docs/V38_RELEASE_AND_MIGRATION.md)を参照してください。
 
 複雑な16GB GPU受入Gateでは約`15.5～15.6 GiB`を使用しました。GPU、driver、backend、model精度、解像度、接続ノードで変動するため、すべての16GB GPUでの動作保証ではありません。
 
 Reference Imageは最大9枚です。Samplerの直入力1～3を維持し、追加4～9は`H3 Continuum Reference Images`のoptional IMAGE入力へ接続して、出力をSamplerの`Reference Images (Optional)`へ渡します。補助ノードは画像を束ねるだけで、Resize・hash・VAE Encodeは既存Sampler経路で実行します。未接続を除き1→9の順に使い、Picture番号はFirst／Last Imageの後に連番で割り当てます。空のbundleは参照なしとなり、旧0～3枚の生成・再利用契約は変わりません。
+
+### Timeline Video Frames／Video Reference Mode
+
+Core `Load Video`を`H3 Continuum Video Adapter`へ接続し、Adapterの`images`をSamplerの`Timeline Video Frames`へ接続します。Adapterの初期値`Force Rate = 24`が入力契約に一致します。元動画Audioもガイド兼最終Audioとして使う場合だけ、Adapterの`audio`を`Driving Audio`へ接続します。
+
+`Video Reference Mode`はTimeline Video Frames接続中だけ表示します。初期値`Repeat Reference`は従来互換、`Follow Timeline`は実際に出力へ追加されるphysical visible framesに合わせて参照区間を進めます。Review、Resume、Terminal Mergeでも同じphysical group契約を使います。チャンクごとの秒数を変える機能ではなく、全チャンクは従来どおりSamplerの共通`Seconds per Chunk`を使います。詳細は[Experimental仕様と制限](docs/TIMELINE_VIDEO_EXPERIMENTAL.md)を参照してください。
 
 以前の4・5直入力を含む保存Workflowは、グラフ読み込み後に元の画像接続をbundleへ移します。新接続を検証した後だけ旧接続口を削除し、接続元が不明・移行先が使用中の場合は警告して元の線を残します。旧API入力も維持しますが、同じ番号の画像を旧直入力とbundleの両方から指定すると入力競合として明示します。既存の3枚loaderテンプレートは上書きせず、そのまま利用できます。
 
@@ -141,7 +170,7 @@ Mainの`Size Source`は次の2択です。
 - `First Image`：接続したFirst Imageの縦横比を維持し、Presetの目標面積から最終Width／Heightを算出します。
 - `Manual`：Width／Heightを32 pixel単位で直接指定します。この場合、Presetは適用しません。
 
-MainのWidth／Heightは`Manual`のときだけ表示・編集できます。`First Image`ではResolutionを表示し、画像の縦横比からサイズを決めます。有効なFirst ImageがSamplerへ届かない場合は、保持しているManual Width／Heightへフォールバックし、その寸法をStatusへ表示します。手動寸法を確認・変更する場合は`Size Source = Manual`を選びます。Reference ImageやVideo Guideからサイズを暗黙取得することはありません。
+MainのWidth／Heightは`Manual`のときだけ表示・編集できます。`First Image`ではResolutionを表示し、画像の縦横比からサイズを決めます。有効なFirst ImageがSamplerへ届かない場合は、保持しているManual Width／Heightへフォールバックし、その寸法をStatusへ表示します。手動寸法を確認・変更する場合は`Size Source = Manual`を選びます。Reference ImageやTimeline Video Framesからサイズを暗黙取得することはありません。
 
 旧V3.8の`Auto / Landscape / Portrait / Square`はWorkflow／API互換用として内部で受け付けます。FrontendはAutoをFirst Imageへ、3つの固定Aspectを同じ解決結果のManual Width／Heightへ移行します。
 
@@ -303,7 +332,7 @@ Prompt/CLIPの数値はconditioning区間だけで、総生成時間ではあり
 
 RTX 5060 Ti 16 GB／RAM 64 GBの検証環境で測定したSage-only Production baselineは、576×576 T2VA 1×5秒が168.069秒、640×640 FL2VA Long Terminal Merge 3×5秒が379.765秒です。環境・設定固有の測定値であり、すべての環境に対する速度保証ではありません。Samplingが最大コストで、Continuum Assemble + Seamは1%未満でした。
 
-**V3.8.0はhistorical release baselineです。現在の公開対象はV3.8X2／package 3.8.3です。** V3.8X2が内部利用する旧module/classはsourceへ維持します。exportするのは現在の公開9ノードだけで、その一部は旧IDを維持しています。それ以外のIDを必要とする旧保存Workflowは、対応するhistorical Release/tagを使用してください。Still Image Guideは引き続きExperimentalです。
+**V3.8.0はhistorical release baselineです。現在の公開対象はV3.8X2／package 3.8.3です。** V3.8X2が内部利用する旧module/classはsourceへ維持します。exportするのは現在の公開10ノードだけで、その一部は互換用の旧IDです。それ以外のIDを必要とする旧保存Workflowは、対応するhistorical Release/tagを使用してください。Still Image Guideは引き続きExperimentalです。
 
 ## V3.5.1 Reference Audio／互換性更新
 
@@ -436,7 +465,7 @@ Registry配布予定の対象もこのJSONとZIPです。依存なしのテン�
 
 ## V3.4互換
 
-V3.4の実装moduleは内部継承とhistorical testのためsourceへ保持しています。V3.8X2からexportするのは現在の公開9ノードに含まれるIDだけです。それ以外のIDを必要とするV3.4保存Workflowは、対応するhistorical packageを使用してください。
+V3.4の実装moduleは内部継承とhistorical testのためsourceへ保持しています。V3.8X2からexportするのは現在の公開10ノードに含まれるIDだけです。それ以外のIDを必要とするV3.4保存Workflowは、対応するhistorical packageを使用してください。
 
 ## V3.4.0 Stable
 
@@ -552,15 +581,15 @@ V3.8はComfyUI 0.34.2で検証しています。以下の歴史的な受入記�
 
 ZIPを展開して、`ComfyUI-H3-Continuum`フォルダーを`ComfyUI/custom_nodes/`へ置き、ComfyUIを再起動します。
 
-再起動後は`H3 Continuum Sampler V3.8`を検索してください。V3.8X2の検索面は上記9ノードです。
+再起動後は`H3 Continuum Sampler V3.8`を検索してください。V3.8X2の検索面は上記10ノードです。
 
 旧`ComfyUI-H3-Continuum-Join`が残っている場合は同時ロードを避けるため削除または退避してください。同梱`install_windows.bat`は旧名・新名の既存フォルダーを日時付きでバックアップします。
 
 ## 検査
 
-現在のV3.8X2 Public Surface suiteは、正確な9 ID export、公式Workflow 2名称と各ZIP内JSONの同一性、外部依存、Registry除外、既存V3.8 widget/socket順、`Show Advanced Settings`／`Hide Advanced Settings`による表示切替を確認します。Registry配布対象のハッシュは`REGISTRY_MANIFEST.sha256`、source側の整合性は`MANIFEST.sha256`で管理します。
+現在のV3.8X2 Public Surface suiteは、正確な10 ID export、変更していない公式Workflow 2名称と各ZIP内JSONの同一性、別名のExperimental Follow／Repeat Workflow、外部依存、Registry除外、既存V3.8 widget/socket先頭契約と末尾追加mode、`Show Advanced Settings`／`Hide Advanced Settings`による表示切替を確認します。Registry配布対象のハッシュは`REGISTRY_MANIFEST.sha256`、source側の整合性は`MANIFEST.sha256`で管理します。
 
-**最新のV3.8X2準備証拠：** Full CPU suiteは**1,367 passed / 1 skipped / 0 failed**です。従来の最終GPU Functional Gateでは`3 × 5秒`のReview Each Chunkを実行し、Q1～Q3はphysical groupを1つずつ生成、Q4は`3 reused / 0 generated`で3 groupすべてを再利用しました。Q3とQ4の復号後RGBおよびPCM SHA-256は一致しています。9枚Reference Imageの別Gateは下記に記録しています。これは実行、prefix再利用、AV再構築、テストした9枚経路の確認であり、画像・音声の総合的な主観品質評価ではありません。
+**最新のV3.8X2準備証拠：** Timeline Video統合後のFull CPU suiteは**1,424 passed / 1 skipped / 0 failed**です。ブラウザ保存・再読込とFollow／Repeatの`2 × 5秒` GPU GateもPASSし、両方とも704×416、24fps、240フレーム、映像10秒、32kHz stereo音声10秒で完走しました。OOM／NaN／allocation failure／crashはありません。従来のReview Functional Gateでは`3 × 5秒`を実行し、Q1～Q3はphysical groupを1つずつ生成、Q4は`3 reused / 0 generated`で全3 groupを再利用し、Q3とQ4の復号後RGB／PCM SHA-256が一致しました。9枚Reference Imageの別Gateは下記に記録しています。これは機能実行、prefix再利用、AV再構築、mode分離、テストした9枚経路の確認であり、画像・音声の総合的な主観品質評価ではありません。
 
 ### 9枚Reference Image入力Gate（0.3 MP参照画像）
 

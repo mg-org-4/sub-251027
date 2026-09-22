@@ -455,6 +455,10 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
         RuntimeCoordinatorError,
     )
     from ..v3.sampling_engine import sample_physical_group
+    from ..video_reference_modes import (
+        FOLLOW_PLAN_KEY, FollowVideoSource, build_follow_group_conditioning,
+    )
+    following_video = isinstance(reference_video_source, FollowVideoSource)
     storage_controller=get_active_run_storage()
     runtime_coordinator=InternalRuntimeCoordinator(
         storage_controller=storage_controller,
@@ -612,7 +616,11 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
     if driving_audio_source is not None:
         reuse_notes.insert(0,"Driving Audio: absolute-time guide slices enabled; original audio is preserved for final output.")
     if reference_video_source is not None:
-        reuse_notes.insert(0,f"Video Reference conditioning: persistent across all chunks, 24 fps, resolved={reference_video_source.target_width}x{reference_video_source.target_height}, frames={reference_video_source.frame_count}.")
+        if following_video:
+            reuse_notes.insert(0, "Timeline Video: Follow Timeline (Experimental), "
+                "24 fps; physical visible intervals; after source end, no video reference.")
+        else:
+            reuse_notes.insert(0,f"Video Reference conditioning: persistent across all chunks, 24 fps, resolved={reference_video_source.target_width}x{reference_video_source.target_height}, frames={reference_video_source.frame_count}.")
         if reference_video_warning: reuse_notes.append(reference_video_warning)
     if timeline_video_source is not None:
         reuse_notes.insert(0,f"Timeline Video conditioning: chunk-local slices, size={timeline_video_source.size_mode}, resolved={timeline_video_source.target_width}x{timeline_video_source.target_height}.")
@@ -677,6 +685,29 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
         # metadata is changed in R3.
         storage_controller.execution_plan=execution_plan
 
+    def follow_group_cache(group_prompt, include_last, start_frame, net_frames):
+        # A new prompt-cache dict per physical interval prevents equal-prompt
+        # chunks from accidentally reusing another interval's Qwen conditioning.
+        group_cache, window = build_follow_group_conditioning(
+            reference_video_source,
+            video_vae,
+            start_frame=int(start_frame),
+            visible_frames=int(net_frames),
+            conditioning_builder=_conditioning_cache,
+            conditioning_kwargs=dict(
+                clip=clip, prompts=[group_prompt], assets=assets,
+                final_has_last_frame=bool(include_last),
+                reference_assets=reference_assets,
+                reference_audio_assets=reference_audio_assets,
+                prompt_conditioning_cache=prompt_conditioning_cache,
+                prompt_cache_event=prompt_cache_events.append,
+            ),
+            cache_enabled=reference_encode_cache,
+            cache_event=reference_encode_cache_events.append,
+        )
+        sampling_reports.append(window.report())
+        return group_cache, window.contract
+
     cache={}
     guide_assets=None
     if len(preserved)<chunks or capture_refine_context:
@@ -723,7 +754,7 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
         if memory_collector is not None and driving_audio_source is not None:
             capture_memory(memory_collector, "finish_phase", phase="conditioning_driving_audio_vae")
         reference_video_assets=None
-        if reference_video_source is not None:
+        if reference_video_source is not None and not following_video:
             from ..reference_video import (
                 encode_reference_video,
                 encode_reference_video_cached,
@@ -743,7 +774,7 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
                 )
             if memory_collector is not None:
                 capture_memory(memory_collector, "finish_phase", phase="conditioning_reference_video_vae")
-        if timeline_video_source is None:
+        if timeline_video_source is None and not following_video:
             if memory_collector is not None:
                 capture_memory(memory_collector, "start_phase", phase="conditioning_prompt_clip")
             planned_normal_indices=tuple(
@@ -829,6 +860,7 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
         if memory_collector is not None:
             capture_memory(memory_collector, "start_phase", phase="group_prepare", physical_group=sequence_index+1, logical_chunks=(sequence_index+1,))
         prompt=prompts[sequence_index]; prompt_hash_value=prompt_hashes[sequence_index]; is_final=sequence_index==chunks-1; effective_reroll_nonce=int(reroll_nonce) if int(reroll_from_chunk)>0 and sequence_index+1>=int(reroll_from_chunk) else 0; seed=derive_chunk_seed(base_seed,sequence_index,effective_reroll_nonce); motion_score=0.0; video_context=None; audio_context=None; context_before=None; context_interop_emitted=False
+        follow_slice_contract = None
         timeline_video_assets=reference_video_assets
         chunk_cache=cache
         if timeline_video_source is not None:
@@ -850,12 +882,21 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
         if previous_state is None:
             include_chunk_last=bool(last_frame is not None and is_final)
             conditioning_key=_conditioning_cache_key(prompt,include_last=include_chunk_last,reference_assets=reference_assets)
-            total_frames=initial_frame_count; latent=empty_h3_latent(width,height,total_frames); conditioning=attach_keyframes(chunk_cache[conditioning_key],frame_count=total_frames,first_latent=chunk_assets.first_latent,last_latent=chunk_assets.last_latent if include_chunk_last else None); clip_index=1; context_frames=0
+            total_frames=initial_frame_count; latent=empty_h3_latent(width,height,total_frames)
+            if following_video:
+                chunk_cache, follow_slice_contract = follow_group_cache(
+                    prompt, include_chunk_last, retained_frames, total_frames,
+                )
+            conditioning=attach_keyframes(chunk_cache[conditioning_key],frame_count=total_frames,first_latent=chunk_assets.first_latent,last_latent=chunk_assets.last_latent if include_chunk_last else None); clip_index=1; context_frames=0
             chunk_plan=make_plan(continuation=False,clip_index=clip_index,total_frames=total_frames,trim_frames=0,width=width,height=height,context_frames=5,state_capacity_frames=largest_context_capacity(total_frames),requested_extend_seconds=chunk_seconds,debug=debug); reason="initial clip"
         else:
             context_frames,motion_score,reason=choose_context_frames(continuity,previous_state); desired_cumulative=int(round((sequence_index+1)*chunk_seconds*FPS)); requested_new_frames=max(1,desired_cumulative-retained_frames); shape=make_extension_shape(context_frames,requested_new_frames/FPS); latent=empty_h3_latent(width,height,shape.total_frames)
             include_chunk_last=bool(last_frame is not None and is_final)
             conditioning_key=_conditioning_cache_key(prompt,include_last=include_chunk_last,reference_assets=reference_assets)
+            if following_video:
+                chunk_cache, follow_slice_contract = follow_group_cache(
+                    prompt, include_chunk_last, retained_frames, shape.net_new_frames,
+                )
             continuation_first_latent=None if continuation_transport in (MASKED_VIDEO_PREFIX_V1,MASKED_AV_PREFIX_22_V1,MASKED_AV_PREFIX_39_V1) else chunk_assets.first_latent
             base_conditioning=attach_keyframes(chunk_cache[conditioning_key],frame_count=shape.total_frames,first_latent=continuation_first_latent,last_latent=chunk_assets.last_latent if include_chunk_last else None)
             if continuation_transport in (MASKED_VIDEO_PREFIX_V1,MASKED_AV_PREFIX_22_V1,MASKED_AV_PREFIX_39_V1):
@@ -903,6 +944,8 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
                 conditioning=prepare_conditioning(base_conditioning,video_context=video_context,audio_context=audio_context,audio_grid_offset=grid_offset,context_frames=context_frames,new_frame_count=shape.total_frames,first_frame_policy=POLICY_REPLACE,preserve_last_frame=True)
                 context_interop_emitted=True
             clip_index=int(previous_state["clip_index"])+1; chunk_plan=make_plan(continuation=True,clip_index=clip_index,total_frames=shape.total_frames,trim_frames=context_frames,width=width,height=height,context_frames=context_frames,state_capacity_frames=largest_context_capacity(shape.net_new_frames),requested_extend_seconds=chunk_seconds,debug=debug)
+        if follow_slice_contract is not None:
+            chunk_plan[FOLLOW_PLAN_KEY] = follow_slice_contract
         if adaptive_observer_event is not None and not reusing_group:
             from ..v3.adaptive_continuity import INITIAL_TRANSPORT
             adaptive_observer_event(
@@ -1106,8 +1149,15 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
             )
         latent=empty_h3_latent(width,height,physical_frames)
         conditioning_key=_conditioning_cache_key(prompt,include_last=True,reference_assets=reference_assets)
+        terminal_cache = cache
+        terminal_follow_slice = None
+        if following_video:
+            terminal_cache, terminal_follow_slice = follow_group_cache(
+                prompt, True, retained_frames,
+                physical_frames - physical_context_frames,
+            )
         base_conditioning=attach_keyframes(
-            cache[conditioning_key],
+            terminal_cache[conditioning_key],
             frame_count=physical_frames,
             first_latent=None if terminal_masked else assets.first_latent,
             last_latent=assets.last_latent,
@@ -1327,6 +1377,8 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
                 clip_index=physical_clip_index+offset
                 context_frames=trim_frames if continuation else 5
                 chunk_plan=make_plan(continuation=continuation,clip_index=clip_index,total_frames=total_frames,trim_frames=trim_frames,width=width,height=height,context_frames=context_frames,state_capacity_frames=largest_context_capacity(total_frames-trim_frames),requested_extend_seconds=chunk_seconds,debug=debug)
+                if terminal_follow_slice is not None:
+                    chunk_plan[FOLLOW_PLAN_KEY] = dict(terminal_follow_slice)
                 logical_latent=latent_from_cpu(video_part,audio_part)
                 logical_seed=int(terminal_seed_plan["logical_entry_seeds"][offset])
                 entry=make_chunk_entry(latent=logical_latent,plan=chunk_plan,prompt=prompts[sequence_index],prompt_hash=prompt_hashes[sequence_index],seed=logical_seed,context_frames=trim_frames,motion_score=motion_score,reused=False)

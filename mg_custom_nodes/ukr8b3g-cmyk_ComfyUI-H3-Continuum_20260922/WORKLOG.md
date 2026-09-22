@@ -1874,3 +1874,9 @@ D:\Codex\_snapshots\ComfyUI-H3-Continuum\pre-rollback-after-00038-fail-20260821_
 - Updated only that expected fingerprint to the user-approved migrated workflow (1B2212B7511FAC0B63DFA6E9F006CD8644C72D08C6945AB0E4ED0E722C97A730); all Decode Cache route and output assertions remain. No runtime or workflow bytes changed in this follow-up.
 - Full isolated CPU/Node suite: 1377 passed, 3 skipped, zero failures/errors. Actions run 35558988542. Source was snapshotted with `tools/snapshot.ps1` before edits; source/Registry manifest hashes verified.
 - Windows deployment, live-browser checks and GPU generation were not performed; fixed H3情報チェック handoff remains pending. No Release/tag/Registry publication.
+
+## Timeline Video Experimental local acceptance and publication preparation (2026-09-22)
+
+- Applied the approved Timeline Video implementation to ComfyUI_W from baseline `085943ad...`. Added `Repeat Reference` compatibility default and opt-in `Follow Timeline` over the existing 24fps IMAGE input, plus slice-specific cache identity and separate comparison workflows. Official V3.8X2 workflow bytes were not changed.
+- Full CPU suite passed `1424 passed / 1 skipped / 0 failed`. Browser save/reload retained Follow mode and the Timeline Video input. Follow and Repeat `2 x 5 s` GPU runs both produced 704x416/24fps/240-frame/10-second video with 32kHz stereo audio; no OOM, NaN, allocation failure, or crash. Chunk-2 A/B SSIM `0.7246` confirmed mode separation after nearly identical Chunk 1.
+- README/README_JA and the experimental contract were updated with wiring, behavior, limits, measured 16GB headroom, and the corrected ten-node V3.8X2 public-surface count. No Release/tag or Registry publish is included in this main commit/push task.

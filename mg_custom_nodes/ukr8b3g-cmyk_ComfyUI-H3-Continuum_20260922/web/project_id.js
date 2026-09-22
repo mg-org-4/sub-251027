@@ -1340,6 +1340,20 @@ function configureIntuitiveV38Ux(node) {
         setWidgetVisible(findWidget(node, LEGACY_RUN_NAME_WIDGET), advanced && storageEnabled);
         setWidgetVisible(findWidget(node, REROLL_NONCE_WIDGET), advanced && explicitRegeneration);
         applyV38WidgetHelp(node);
+        // This is the appended native widget, not another transient proxy.
+        // Core persists its value; visibility never changes the saved mode.
+        const videoMode = findWidget(node, "video_reference_mode");
+        setWidgetVisible(videoMode, videoConnected);
+        if (videoMode) {
+            videoMode.label = "Video Reference Mode";
+            setWidgetTooltip(videoMode, String(videoMode.value) === "Follow Timeline"
+                ? "Experimental: use successive 24 fps source intervals. After the source ends, continue without a video reference. Independent of Prompt Format."
+                : "Legacy Video Guide behavior: reuse the same bounded source prefix on each physical group. This is not source looping or stretching.");
+        }
+        const timelineInput = node.inputs?.find((item) => item.name === "reference_video_1");
+        if (timelineInput) {
+            timelineInput.label = "Timeline Video Frames";
+        }
         moveFacadeWidgetsToFront(node, orderedNames);
         node.__h3ContinuumProductionUxRefresh?.();
         node.setDirtyCanvas?.(true, true);
@@ -1348,6 +1362,7 @@ function configureIntuitiveV38Ux(node) {
     for (const [name, key] of (
         [
             ["prompt_mode", "__h3ContinuumFacadePromptMode"],
+            ["video_reference_mode", "__h3ContinuumFacadeVideoReferenceMode"],
             ["continuity", "__h3ContinuumFacadeContinuity"],
             ["base_seed", "__h3ContinuumFacadeBaseSeed"],
             ["audio_continuity", "__h3ContinuumFacadeAudioContinuity"],

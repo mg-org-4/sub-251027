@@ -227,15 +227,26 @@ class H3ContinuumSamplerV34(H3ContinuumSamplerProduction):
             target_frames=target_frames,
             fps=FPS,
         )
-        reference_video_source = prepare_reference_video_source(
-            reference_video_1,
-            target_frames=align_frame_count_up(
-                int(round(float(kwargs["chunk_seconds"]) * FPS))
-            ),
-            output_width=int(kwargs["width"]),
-            output_height=int(kwargs["height"]),
-            size_mode=str(video_reference_size),
-        )
+        video_reference_mode = kwargs.pop("video_reference_mode", "Repeat Reference")
+        if reference_video_1 is not None and video_reference_mode == "Follow Timeline":
+            from ..video_reference_modes import prepare_follow_video_source
+            reference_video_source = prepare_follow_video_source(
+                reference_video_1,
+                chunk_seconds=float(kwargs["chunk_seconds"]),
+                output_width=int(kwargs["width"]),
+                output_height=int(kwargs["height"]),
+                size_mode=str(video_reference_size),
+            )
+        else:
+            reference_video_source = prepare_reference_video_source(
+                reference_video_1,
+                target_frames=align_frame_count_up(
+                    int(round(float(kwargs["chunk_seconds"]) * FPS))
+                ),
+                output_width=int(kwargs["width"]),
+                output_height=int(kwargs["height"]),
+                size_mode=str(video_reference_size),
+            )
         outputs = super().run(
             reference_audio_1=reference_audio_1,
             reference_audio_vae=reference_audio_vae,
@@ -700,6 +711,22 @@ class H3ContinuumSamplerV38(H3ContinuumSamplerV37):
             {"display_name": "Reference Images (Optional)",
              "tooltip": "Optional Reference Images 4–9 from H3 Continuum Reference Images. Existing slots 1–3 remain first."},
         )
+        # Experimental, appended optional scalar: old API requests may omit it.
+        # Existing required widget positions and all IMAGE sockets are unchanged.
+        from ..video_reference_modes import mode_input_definition
+        optional["video_reference_mode"] = mode_input_definition()
+        video_definition = optional["reference_video_1"]
+        video_options = dict(video_definition[1])
+        video_options.update(
+            display_name="Timeline Video Frames",
+            tooltip=(
+                "24 fps IMAGE frames from the Video Adapter. Follow Timeline "
+                "selects successive physical output intervals; Repeat Reference "
+                "keeps the legacy shared-prefix guide. Source audio is not included. "
+                "Follow is Experimental; this is not a hard motion-copy control."
+            ),
+        )
+        optional["reference_video_1"] = (video_definition[0], video_options)
         schema["optional"] = optional
         return schema
 

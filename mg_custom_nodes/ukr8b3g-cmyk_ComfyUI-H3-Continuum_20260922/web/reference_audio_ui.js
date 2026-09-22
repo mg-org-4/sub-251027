@@ -17,7 +17,10 @@ export function normalizeReferenceAudioLabels(node) {
         return true;
     }
     for (const input of node.inputs || []) {
-        const label = NORMALIZED_INPUT_LABELS[input.name];
+        const label = input.name === "reference_video_1"
+            && node.comfyClass === "H3ContinuumSamplerV38"
+            ? "Timeline Video Frames"
+            : NORMALIZED_INPUT_LABELS[input.name];
         if (label) {
             input.label = label;
         }

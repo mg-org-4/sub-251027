@@ -201,11 +201,18 @@ def test_v38_schema_keeps_legacy_aspect_and_appends_size_source_contract():
             "the normal choice for T2VA or workflows without a First Image."
         ),
     }
-    assert list(v38["optional"])[:-2] == list(v37["optional"])
-    assert list(v38["optional"])[-2:] == ["audio_references", "image_references"]
+    assert list(v38["optional"])[:-3] == list(v37["optional"])
+    assert list(v38["optional"])[-3:] == [
+        "audio_references",
+        "image_references",
+        "video_reference_mode",
+    ]
     assert v38["optional"]["audio_references"][0] == (
         "H3_CONTINUUM_AUDIO_REFERENCES"
     )
+    mode_schema = v38["optional"]["video_reference_mode"]
+    assert mode_schema[0] == ("Follow Timeline", "Repeat Reference")
+    assert mode_schema[1]["default"] == "Repeat Reference"
     assert v38.get("hidden") == v37.get("hidden")
 
 

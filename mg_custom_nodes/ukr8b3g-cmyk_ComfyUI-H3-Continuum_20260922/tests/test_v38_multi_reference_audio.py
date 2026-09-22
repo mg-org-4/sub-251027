@@ -76,9 +76,16 @@ def test_public_helper_and_v38_socket_are_the_only_surface_additions():
     )
     assert H3ContinuumReferenceAudios.RETURN_TYPES == (REFERENCE_AUDIOS_TYPE,)
     assert "audio_references" not in v37["optional"]
-    assert list(v38["optional"])[:-2] == list(v37["optional"])
-    assert list(v38["optional"])[-2:] == ["audio_references", "image_references"]
+    assert list(v38["optional"])[:-3] == list(v37["optional"])
+    assert list(v38["optional"])[-3:] == [
+        "audio_references",
+        "image_references",
+        "video_reference_mode",
+    ]
     assert v38["optional"]["audio_references"][0] == REFERENCE_AUDIOS_TYPE
+    mode_schema = v38["optional"]["video_reference_mode"]
+    assert mode_schema[0] == ("Follow Timeline", "Repeat Reference")
+    assert mode_schema[1]["default"] == "Repeat Reference"
 
 
 def test_helper_preserves_order_and_requires_contiguous_core_numbering():

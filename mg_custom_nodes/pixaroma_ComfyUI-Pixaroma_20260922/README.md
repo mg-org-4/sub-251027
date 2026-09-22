@@ -392,6 +392,17 @@ Master the Pixaroma suite with our video guides and workflow deep-dives:
 
 ## 🛠 Changelog
 
+### **September 22, 2026 · v1.4.159–v1.4.161**
+- **Fixed: Music Prompt Pixaroma closed ComfyUI part way through a run**, on ComfyUI 0.37.0. It writes the caption and the lyrics again.
+- **Fixed: in Prompt Pixaroma the cursor could sit away from the words you typed**, further out the longer the prompt. The box now follows your theme's font exactly.
+- **A file name can end with `_` again.** Type `name_%counter%_` in Save Image Pixaroma and you get `name_001_.png`, so you can add your own words after the number.
+
+### **September 21, 2026 · v1.4.158**
+- **Fixed: the prompt and text nodes used the wrong look for your theme** — white on a dark one, dark on a light one. A new **Node look** setting can force either.
+- **Fixed: Load Audio Pixaroma's file list ran off the screen.** It scrolls now.
+- **Group Switch Pixaroma no longer slows things down while on screen.**
+- **Inpaint Crop Pixaroma follows a Switch**, and stops showing a picture that is no longer wired in.
+
 ### **September 18, 2026 · v1.4.154–v1.4.157**
 - **New node: Number Pick Pixaroma.** One number, picked from buttons you choose yourself. It sends a whole number or a decimal to suit whatever you wire it to.
 - **Volume on the video players.** A speaker on Save Mp4 and Save Video Pixaroma. The level you set is remembered by every Pixaroma video node.

@@ -885,6 +885,10 @@ let _sessionPromptColumnWidthByScope = {
     manager: null,
     composer: null,
 };
+let _sessionTypeRailExpandedByScope = {
+    manager: null,
+    composer: null,
+};
 
 function normalizeBrowserPrefScope(scope) {
     return scope === "composer" ? "composer" : "manager";
@@ -903,6 +907,31 @@ function getCategoryBasePrompt(node, category) {
 function getCategoryPromptType(node, category) {
     const raw = node?.prompts?.[category]?._prompt_type_;
     return typeof raw === "string" ? raw : "";
+}
+
+const PROMPT_TYPE_ICON_URLS = {
+    __all__: new URL("./icons/all.png", import.meta.url).href,
+    __none__: new URL("./icons/none.png", import.meta.url).href,
+    action: new URL("./icons/action.png", import.meta.url).href,
+    accessory: new URL("./icons/accessory.png", import.meta.url).href,
+    ambience: new URL("./icons/ambience.png", import.meta.url).href,
+    animal: new URL("./icons/animal.png", import.meta.url).href,
+    attire: new URL("./icons/attire.png", import.meta.url).href,
+    background: new URL("./icons/background.png", import.meta.url).href,
+    camera: new URL("./icons/camera.png", import.meta.url).href,
+    character: new URL("./icons/character.png", import.meta.url).href,
+    characteristic: new URL("./icons/characteristic.png", import.meta.url).href,
+    composition: new URL("./icons/composition.png", import.meta.url).href,
+    dialogue: new URL("./icons/dialogue.png", import.meta.url).href,
+    expression: new URL("./icons/expression.png", import.meta.url).href,
+    lighting: new URL("./icons/lighting.png", import.meta.url).href,
+    soundscape: new URL("./icons/soundscape.png", import.meta.url).href,
+    style: new URL("./icons/style.png", import.meta.url).href,
+};
+
+function getPromptTypeIconUrl(typeValue) {
+    const key = String(typeValue || "").trim().toLowerCase() || "__all__";
+    return PROMPT_TYPE_ICON_URLS[key] || PROMPT_TYPE_ICON_URLS.__all__;
 }
 
 function showCategoryBasePromptDialog(categoryName, currentValue = "") {
@@ -995,6 +1024,12 @@ function getPromptColumnWidthStorageKey(scope) {
         : "PromptManager.ListPromptColumnWidth";
 }
 
+function getTypeRailExpandedStorageKey(scope) {
+    return normalizeBrowserPrefScope(scope) === "composer"
+        ? "PromptManager.TypeRailExpanded.Composer"
+        : "PromptManager.TypeRailExpanded";
+}
+
 export function getHideNSFW(runtimeApp = app) {
     if (_sessionHideNSFW !== null) return _sessionHideNSFW;
     return runtimeApp?.ui?.settings?.getSettingValue("PromptManager.DefaultHideNSFW");
@@ -1051,6 +1086,22 @@ export function getPromptColumnWidth(scope = "manager", promptOnly = false, fall
 export function setPromptColumnWidth(value, scope = "manager", promptOnly = false) {
     const prefScope = normalizeBrowserPrefScope(scope);
     _sessionPromptColumnWidthByScope[prefScope] = clampPromptColumnWidth(value, promptOnly);
+}
+
+export function getTypeRailExpanded(scope = "manager") {
+    const prefScope = normalizeBrowserPrefScope(scope);
+    const sessionValue = _sessionTypeRailExpandedByScope[prefScope];
+    if (sessionValue !== null) {
+        return sessionValue === true;
+    }
+    const stored = localStorage.getItem(getTypeRailExpandedStorageKey(prefScope));
+    return stored === "true";
+}
+
+export function setTypeRailExpanded(value, scope = "manager") {
+    const prefScope = normalizeBrowserPrefScope(scope);
+    const normalized = value === true;
+    _sessionTypeRailExpandedByScope[prefScope] = normalized;
 }
 
 export function getThumbnailPreviewEnabled(runtimeApp = app) {
@@ -1169,13 +1220,18 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
     const startInMultiSelect = multiSelect && options?.startInMultiSelect !== false;
     const multiCategorySelect = multiSelect && options?.multiCategorySelect === true;
     const clearSelectionOnCategorySwitch = options?.clearSelectionOnCategorySwitch === true;
+    const multiSelectActionMode = String(options?.multiSelectActionMode || "select").trim().toLowerCase();
     const endpointPrefix = typeof options?.endpointPrefix === "string" ? options.endpointPrefix : "/prompt-manager-advanced";
     const showCategoryTypeFilter = endpointPrefix === "/prompt-manager/compose";
+    const initialCategoryTypeFilter = showCategoryTypeFilter
+        ? (String(options?.initialCategoryTypeFilter || "__all__").trim() || "__all__")
+        : "__all__";
     const promptOnly = options?.promptOnly === true;
     const browserPrefScope = normalizeBrowserPrefScope(
         options?.preferenceScope || (promptOnly ? "composer" : "manager")
     );
     const allowEditMode = options?.allowEditMode !== false;
+    const useComposerMultiSelectActions = multiSelectActionMode === "composer-add";
     let editMode = allowEditMode && options?.editMode === true;
     let multiSelectMode = startInMultiSelect;
     let updateSelectButton = () => {};
@@ -1303,22 +1359,31 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
             `pref=${compactBrowserPref}, compact=${compactBrowser}`
         );
         const EDIT_PANEL_WIDTH = compactBrowser ? 280 : 320;
-        const normalBrowserLayout = compactBrowser
+        const TYPE_RAIL_COLLAPSED_WIDTH = showCategoryTypeFilter ? (compactBrowser ? 54 : 60) : 0;
+        const TYPE_RAIL_EXPANDED_WIDTH = showCategoryTypeFilter ? (compactBrowser ? 164 : 176) : 0;
+        const withTypeRailBaseWidth = (layout) => {
+            if (!showCategoryTypeFilter) return layout;
+            return {
+                ...layout,
+                width: layout.width + TYPE_RAIL_COLLAPSED_WIDTH + 10,
+            };
+        };
+        const baseNormalBrowserLayout = compactBrowser
             ? { width: 654, height: 680, cols: 5, itemWidth: 120, gap: 4, thumbWidth: 100, thumbHeight: 132 }
             : {
                 width: 1400, height: 985, iconHeight: 1185,
                 cols: 6, itemWidth: 220, gap: 8, thumbWidth: 200, thumbHeight: 264,
                 iconCols: 11, iconItemWidth: 120, iconGap: 4, iconThumbWidth: 100, iconThumbHeight: 132,
             };
-        const editBrowserLayout = compactBrowser
-            ? { ...normalBrowserLayout,
+        const baseEditBrowserLayout = compactBrowser
+            ? { ...baseNormalBrowserLayout,
                 cols: 3,
                 itemWidth: 110,
                 thumbWidth: 100,
                 thumbHeight: 132,
             }
             : {
-                ...normalBrowserLayout,
+                ...baseNormalBrowserLayout,
                 cols: 6,
                 gap: 4,
                 itemWidth: 170,
@@ -1330,8 +1395,27 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                 iconThumbWidth: 80,
                 iconThumbHeight: 106,
             };
-        let browserLayout = normalBrowserLayout;
+        const normalBrowserLayout = withTypeRailBaseWidth(baseNormalBrowserLayout);
+        const normalBrowserLayoutExpandedRail = showCategoryTypeFilter
+            ? withTypeRailBaseWidth(compactBrowser
+                ? { ...baseNormalBrowserLayout, cols: 5, itemWidth: 108, thumbWidth: 96, thumbHeight: 126, iconCols: 5, iconItemWidth: 108, iconThumbWidth: 88, iconThumbHeight: 116 }
+                : { ...baseNormalBrowserLayout, cols: 6, itemWidth: 200, thumbWidth: 194, thumbHeight: 256, iconCols: 11, iconItemWidth: 104, iconThumbWidth: 86, iconThumbHeight: 114 })
+            : normalBrowserLayout;
+        const editBrowserLayout = withTypeRailBaseWidth(baseEditBrowserLayout);
+        const editBrowserLayoutExpandedRail = showCategoryTypeFilter
+            ? withTypeRailBaseWidth(compactBrowser
+                ? { ...baseEditBrowserLayout, cols: 3, itemWidth: 102, thumbWidth: 98, thumbHeight: 130 }
+                : { ...baseEditBrowserLayout, cols: 6, itemWidth: 152, thumbWidth: 144, thumbHeight: 192, iconCols: 11, iconItemWidth: 82, iconThumbWidth: 72, iconThumbHeight: 96 })
+            : editBrowserLayout;
+        let typeRailExpanded = showCategoryTypeFilter ? getTypeRailExpanded(browserPrefScope) : false;
+        let browserLayout = editMode
+            ? (showCategoryTypeFilter && typeRailExpanded ? editBrowserLayoutExpandedRail : editBrowserLayout)
+            : (showCategoryTypeFilter && typeRailExpanded ? normalBrowserLayoutExpandedRail : normalBrowserLayout);
         const computeMinGridWidth = () => browserLayout.cols * browserLayout.itemWidth + Math.max(0, browserLayout.cols - 1) * browserLayout.gap;
+        const getEditPanelWidth = () => {
+            if (compactBrowser) return 280;
+            return showCategoryTypeFilter && typeRailExpanded ? 314 : 320;
+        };
 
         const dialog = document.createElement("div");
         dialog.style.cssText = `
@@ -1642,11 +1726,18 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
             }
             editPanel.loadCategorySettings(selectedCategory);
         };
+        const getActiveBrowserLayout = () => {
+            if (editMode) {
+                return showCategoryTypeFilter && typeRailExpanded ? editBrowserLayoutExpandedRail : editBrowserLayout;
+            }
+            return showCategoryTypeFilter && typeRailExpanded ? normalBrowserLayoutExpandedRail : normalBrowserLayout;
+        };
         const updateEditModeLayout = () => {
             if (!editPanel) return;
-            browserLayout = editMode ? editBrowserLayout : normalBrowserLayout;
+            browserLayout = getActiveBrowserLayout();
             gridContainer.style.minWidth = `${computeMinGridWidth()}px`;
             gridContainer.style.height = `${browserLayout.height}px`;
+            editPanel.element.style.width = `${getEditPanelWidth()}px`;
             if (editMode) {
                 editPanel.element.style.display = "flex";
                 void syncEditPanelSelection();
@@ -1724,40 +1815,6 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
             align-items: flex-start;
         `;
 
-        const typeFilterSelect = document.createElement("select");
-        typeFilterSelect.style.cssText = `
-            padding: 6px 10px;
-            border-radius: 6px;
-            border: 1px solid ${UI.inputBorder};
-            background: ${UI.buttonBg};
-            color: #aaa;
-            cursor: pointer;
-            font-size: 13px;
-            flex-shrink: 0;
-            outline: none;
-            margin-top: 1px;
-        `;
-        const allTypesOption = document.createElement("option");
-        allTypesOption.value = "__all__";
-        allTypesOption.textContent = "All Types";
-        typeFilterSelect.appendChild(allTypesOption);
-        for (const choice of getPromptTypeChoices()) {
-            const opt = document.createElement("option");
-            opt.value = choice.value;
-            opt.textContent = choice.label;
-            typeFilterSelect.appendChild(opt);
-        }
-        typeFilterSelect.addEventListener("change", () => {
-            categoryTypeFilter = typeFilterSelect.value;
-            rebuildCategoryList();
-            renderContent(searchInput.value);
-        });
-        if (showCategoryTypeFilter) {
-            categoryControls.appendChild(typeFilterSelect);
-        } else {
-            typeFilterSelect.style.display = "none";
-        }
-
         const addCategoryBtn = document.createElement("button");
         addCategoryBtn.textContent = "+";
         addCategoryBtn.title = "New Category";
@@ -1786,10 +1843,13 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                     return;
                 }
                 try {
+                    const promptType = showCategoryTypeFilter && categoryTypeFilter !== "__all__" && categoryTypeFilter !== "__none__"
+                        ? categoryTypeFilter
+                        : "";
                     const resp = await fetch(`${endpointPrefix}/save-category`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ category_name: categoryName, nsfw: result.nsfw })
+                        body: JSON.stringify({ category_name: categoryName, nsfw: result.nsfw, prompt_type: promptType })
                     });
                     const data = await resp.json();
                     if (data.success) {
@@ -1837,7 +1897,7 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
             background: rgba(255, 255, 255, 0.22);
             margin: 0 2px;
             flex-shrink: 0;
-            display: ${showCategoryTypeFilter ? "block" : "none"};
+            display: block;
         `;
 
         categoryBar.appendChild(categoryControls);
@@ -1845,12 +1905,29 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
         categoryBar.appendChild(categoryContainer);
 
         let allCategories = [];
-        let categoryTypeFilter = "__all__";
+        let categoryTypeFilter = initialCategoryTypeFilter;
         let categories = [];
         let selectedSaveName = initialSaveName;
         let categoryButtons = [];
         let editModeLastClickPrompt = "";
         let editModeLastClickAt = 0;
+
+        const promptTypeChoices = getPromptTypeChoices()
+            .filter((choice) => String(choice?.value || "").trim())
+            .map((choice) => ({
+                value: String(choice.value).trim().toLowerCase(),
+                label: choice.label || choice.value,
+                iconUrl: getPromptTypeIconUrl(choice.value),
+            }));
+        const promptTypeFilters = [
+            { value: "__all__", label: "All Types", iconUrl: getPromptTypeIconUrl("__all__") },
+            { value: "__none__", label: "No Type", iconUrl: getPromptTypeIconUrl("__none__") },
+            ...promptTypeChoices,
+        ];
+        const validCategoryTypeValues = new Set(promptTypeFilters.map((choice) => choice.value));
+        categoryTypeFilter = validCategoryTypeValues.has(String(categoryTypeFilter || "").trim().toLowerCase())
+            ? (String(categoryTypeFilter || "__all__").trim().toLowerCase() || "__all__")
+            : "__all__";
 
         const isCategoryNSFW = (cat) => {
             return node.prompts?.[cat]?.["__meta__"]?.nsfw === true;
@@ -1859,8 +1936,10 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
         const applyCategoryTypeFilter = () => {
             if (categoryTypeFilter === "__all__") {
                 categories = [...allCategories];
+            } else if (categoryTypeFilter === "__none__") {
+                categories = allCategories.filter(cat => !String(getCategoryPromptType(node, cat) || "").trim());
             } else {
-                categories = allCategories.filter(cat => (getCategoryPromptType(node, cat) || "") === categoryTypeFilter);
+                categories = allCategories.filter(cat => String(getCategoryPromptType(node, cat) || "").trim().toLowerCase() === categoryTypeFilter);
             }
         };
 
@@ -1891,6 +1970,239 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
 
             setSelectedCategory(newCategory);
             return selectedCategory;
+        };
+
+        let typeRail = null;
+        let typeRailToggle = null;
+        let typeRailButtons = [];
+        let typeRailTooltip = null;
+
+        const ensureTypeRailTooltip = () => {
+            if (typeRailTooltip) return typeRailTooltip;
+            typeRailTooltip = document.createElement("div");
+            typeRailTooltip.style.cssText = `
+                position: fixed;
+                display: none;
+                background: ${UI.panel};
+                border: 1px solid ${UI.accentBorder};
+                border-radius: 8px;
+                color: ${UI.textPrimary || "#ddd"};
+                font-size: 13px;
+                line-height: 1.2;
+                padding: 8px 10px;
+                box-shadow: 0 10px 28px rgba(0,0,0,0.55);
+                z-index: 10003;
+                pointer-events: none;
+                white-space: nowrap;
+            `;
+            document.body.appendChild(typeRailTooltip);
+            return typeRailTooltip;
+        };
+
+        const moveTypeRailTooltip = (x, y) => {
+            if (!typeRailTooltip || typeRailTooltip.style.display === "none") return;
+            const margin = 12;
+            const width = typeRailTooltip.offsetWidth || 120;
+            const height = typeRailTooltip.offsetHeight || 34;
+            let left = x + margin;
+            let top = y + margin;
+            if (left + width > window.innerWidth - 8) {
+                left = Math.max(8, x - width - margin);
+            }
+            if (top + height > window.innerHeight - 8) {
+                top = Math.max(8, y - height - margin);
+            }
+            typeRailTooltip.style.left = `${left}px`;
+            typeRailTooltip.style.top = `${top}px`;
+        };
+
+        const showTypeRailTooltip = (text, x, y) => {
+            const tip = ensureTypeRailTooltip();
+            tip.textContent = text;
+            tip.style.display = "block";
+            moveTypeRailTooltip(x, y);
+        };
+
+        const hideTypeRailTooltip = () => {
+            if (typeRailTooltip) {
+                typeRailTooltip.style.display = "none";
+            }
+        };
+
+        const updateTypeRailButtons = () => {
+            if (!typeRailButtons.length) return;
+            for (const btn of typeRailButtons) {
+                const isSelected = btn.dataset.typeValue === categoryTypeFilter;
+                const labelEl = btn.querySelector(".pm-type-rail-label");
+                const iconEl = btn.querySelector(".pm-type-rail-icon");
+                btn.style.background = isSelected ? "rgba(56, 130, 246, 0.22)" : "transparent";
+                btn.style.borderColor = isSelected ? "rgba(56, 130, 246, 0.85)" : "rgba(95, 103, 115, 0.75)";
+                btn.style.color = isSelected ? "#dbeafe" : "#c7d0db";
+                btn.style.justifyContent = typeRailExpanded ? "flex-start" : "center";
+                btn.style.padding = typeRailExpanded ? "3px 8px" : "2px";
+                btn.title = "";
+                if (labelEl) {
+                    labelEl.style.display = typeRailExpanded ? "block" : "none";
+                }
+                if (iconEl) {
+                    iconEl.style.width = typeRailExpanded ? "32px" : "38px";
+                    iconEl.style.height = typeRailExpanded ? "32px" : "38px";
+                    iconEl.style.minWidth = typeRailExpanded ? "32px" : "38px";
+                }
+            }
+            if (typeRail) {
+                typeRail.style.width = `${typeRailExpanded ? TYPE_RAIL_EXPANDED_WIDTH : TYPE_RAIL_COLLAPSED_WIDTH}px`;
+            }
+            if (typeRailToggle) {
+                typeRailToggle.textContent = typeRailExpanded ? "‹" : "›";
+                typeRailToggle.title = typeRailExpanded ? "Collapse type filters" : "Expand type filters";
+            }
+        };
+
+        const renderTypeRail = () => {
+            if (!showCategoryTypeFilter) return null;
+
+            const rail = document.createElement("div");
+            rail.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                flex: 0 0 auto;
+                width: ${TYPE_RAIL_COLLAPSED_WIDTH}px;
+                min-width: ${TYPE_RAIL_COLLAPSED_WIDTH}px;
+                max-width: ${TYPE_RAIL_EXPANDED_WIDTH}px;
+                margin-right: 10px;
+                border-right: 1px solid ${UI.sectionBorder};
+                padding-right: 8px;
+                overflow: hidden;
+                transition: width 0.16s ease;
+            `;
+
+            const toggleBtn = document.createElement("button");
+            toggleBtn.type = "button";
+            toggleBtn.style.cssText = `
+                width: 100%;
+                height: 34px;
+                border-radius: 8px;
+                border: 1px solid ${UI.inputBorder};
+                background: ${UI.buttonBg};
+                color: #c7d0db;
+                cursor: pointer;
+                font-size: 14px;
+                margin-bottom: 8px;
+                flex-shrink: 0;
+            `;
+
+            const railList = document.createElement("div");
+            railList.className = "pm-type-rail-list";
+            railList.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                overflow-y: auto;
+                min-height: 0;
+                padding-right: 2px;
+                scrollbar-width: thin;
+            `;
+
+            typeRailButtons = promptTypeFilters.map((choice) => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.dataset.typeValue = choice.value;
+                btn.dataset.typeLabel = choice.label;
+                btn.style.cssText = `
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    width: 100%;
+                    min-height: 42px;
+                    padding: 2px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(95, 103, 115, 0.75);
+                    background: transparent;
+                    color: #c7d0db;
+                    cursor: pointer;
+                    font-size: 13px;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    box-sizing: border-box;
+                    transition: background 0.15s ease, border-color 0.15s ease;
+                `;
+
+                const iconEl = document.createElement("img");
+                iconEl.className = "pm-type-rail-icon";
+                iconEl.src = choice.iconUrl;
+                iconEl.alt = choice.label;
+                iconEl.style.cssText = `
+                    width: 38px;
+                    height: 38px;
+                    min-width: 38px;
+                    object-fit: cover;
+                    border-radius: 7px;
+                    display: block;
+                `;
+
+                const labelEl = document.createElement("span");
+                labelEl.className = "pm-type-rail-label";
+                labelEl.textContent = choice.label;
+                labelEl.style.cssText = `
+                    display: none;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                `;
+
+                btn.onmouseover = (evt) => {
+                    if (btn.dataset.typeValue !== categoryTypeFilter) {
+                        btn.style.background = "rgba(255,255,255,0.04)";
+                    }
+                    if (!typeRailExpanded) {
+                        showTypeRailTooltip(choice.label, evt.clientX, evt.clientY);
+                    }
+                };
+                btn.onmousemove = (evt) => {
+                    if (!typeRailExpanded) {
+                        showTypeRailTooltip(choice.label, evt.clientX, evt.clientY);
+                    }
+                };
+                btn.onmouseout = () => {
+                    hideTypeRailTooltip();
+                    updateTypeRailButtons();
+                };
+                btn.onclick = async () => {
+                    hideTypeRailTooltip();
+                    setBlankPromptSelection();
+                    if (editMode && editPanel && typeof editPanel.clearPrompt === "function") {
+                        await editPanel.clearPrompt({ skipConfirm: true });
+                    }
+                    categoryTypeFilter = choice.value;
+                    rebuildCategoryList();
+                    updateTypeRailButtons();
+                    renderContent(searchInput.value);
+                };
+
+                btn.appendChild(iconEl);
+                btn.appendChild(labelEl);
+                railList.appendChild(btn);
+                return btn;
+            });
+
+            toggleBtn.onclick = () => {
+                typeRailExpanded = !typeRailExpanded;
+                setTypeRailExpanded(typeRailExpanded, browserPrefScope);
+                localStorage.setItem(getTypeRailExpandedStorageKey(browserPrefScope), String(typeRailExpanded));
+                browserLayout = getActiveBrowserLayout();
+                gridContainer.style.minWidth = `${computeMinGridWidth()}px`;
+                gridContainer.style.height = `${browserLayout.height}px`;
+                updateTypeRailButtons();
+                renderContent(searchInput.value);
+            };
+
+            rail.appendChild(toggleBtn);
+            rail.appendChild(railList);
+
+            typeRail = rail;
+            typeRailToggle = toggleBtn;
+            updateTypeRailButtons();
+            return rail;
         };
 
         ensureSelectedCategory();
@@ -2366,7 +2678,11 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
 
                 btn.textContent = cat;
 
-                btn.onclick = () => {
+                btn.onclick = async () => {
+                    setBlankPromptSelection();
+                    if (editMode && editPanel && typeof editPanel.clearPrompt === "function") {
+                        await editPanel.clearPrompt({ skipConfirm: true });
+                    }
                     setSelectedCategory(cat);
                     updateCategoryButtons();
                     renderContent(searchInput.value);
@@ -2409,10 +2725,13 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                         return;
                     }
                     try {
+                        const promptType = showCategoryTypeFilter && categoryTypeFilter !== "__all__" && categoryTypeFilter !== "__none__"
+                            ? categoryTypeFilter
+                            : "";
                         const resp = await fetch(`${endpointPrefix}/save-category`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ category_name: categoryName, nsfw: result.nsfw })
+                            body: JSON.stringify({ category_name: categoryName, nsfw: result.nsfw, prompt_type: promptType })
                         });
                         const data = await resp.json();
                         if (data.success) {
@@ -2447,6 +2766,13 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
             overflow: hidden;
         `;
 
+        if (showCategoryTypeFilter) {
+            const typeRailElement = renderTypeRail();
+            if (typeRailElement) {
+                contentRow.appendChild(typeRailElement);
+            }
+        }
+
         // Content container - fixed size so thumbnails never get encroached by bottom toolbar
         const gridContainer = document.createElement("div");
         gridContainer.className = "thumbnail-grid-container";
@@ -2468,8 +2794,16 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
             .category-scroll-bar::-webkit-scrollbar-thumb { background: rgba(74, 138, 212, 0.55); border-radius: 3px; }
             .category-scroll-bar::-webkit-scrollbar-thumb:hover { background: rgba(74, 138, 212, 0.85); }
             .category-scroll-bar::-webkit-scrollbar-corner { background: transparent; }
+            .pm-type-rail-list::-webkit-scrollbar { width: 6px; }
+            .pm-type-rail-list::-webkit-scrollbar-track { background: transparent; }
+            .pm-type-rail-list::-webkit-scrollbar-thumb { background: rgba(74, 138, 212, 0.45); border-radius: 3px; }
+            .pm-type-rail-list::-webkit-scrollbar-thumb:hover { background: rgba(74, 138, 212, 0.75); }
         `;
         document.head.appendChild(style);
+
+        if (typeRail) {
+            updateTypeRailButtons();
+        }
 
         contentRow.appendChild(gridContainer);
 
@@ -2586,7 +2920,7 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                     renderContent(searchInput.value);
                 },
                 compact: compactBrowser,
-                width: EDIT_PANEL_WIDTH,
+                width: getEditPanelWidth(),
             });
             if (!editMode) {
                 editPanel.element.style.display = "none";
@@ -4644,26 +4978,7 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                 cleanup();
             };
 
-            const selectBtn = document.createElement("button");
-            selectBtn.textContent = `Select (${selectedNames.size})`;
-            selectBtn.style.cssText = `
-                background: #2b6d3a;
-                border: 1px solid #4a9158;
-                color: #fff;
-                padding: 7px 14px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 13px;
-                white-space: nowrap;
-            `;
-            updateSelectButton = () => {
-                const count = multiCategorySelect
-                    ? Object.values(selectedByCategory).reduce((sum, set) => sum + set.size, 0)
-                    : selectedNames.size;
-                selectBtn.textContent = `Select (${count})`;
-            };
-            selectBtn.addEventListener("click", (e) => {
-                e.stopPropagation();
+            const buildMultiSelectResult = (selectionMode = "select") => {
                 if (multiCategorySelect && selectedCategory && selectedNames.size > 0) {
                     selectedByCategory[selectedCategory] = selectedNames;
                 }
@@ -4671,6 +4986,7 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                     category: selectedCategory,
                     prompt: "",
                     prompts: [],
+                    selectionMode,
                 };
                 if (multiCategorySelect) {
                     result.selectionsByCategory = {};
@@ -4686,14 +5002,79 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                     result.prompts = Array.from(selectedNames);
                     result.prompt = selectedNames.size > 0 ? Array.from(selectedNames)[0] : "";
                 }
-                resolve(result);
+                return result;
+            };
+
+            const selectBtn = document.createElement("button");
+            selectBtn.textContent = useComposerMultiSelectActions
+                ? `Add as 1 Prompt (${selectedNames.size})`
+                : `Select (${selectedNames.size})`;
+            selectBtn.style.cssText = `
+                background: #2b6d3a;
+                border: 1px solid #4a9158;
+                color: #fff;
+                padding: 7px 14px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 13px;
+                white-space: nowrap;
+            `;
+            updateSelectButton = () => {
+                const count = multiCategorySelect
+                    ? Object.values(selectedByCategory).reduce((sum, set) => sum + set.size, 0)
+                    : selectedNames.size;
+                selectBtn.textContent = useComposerMultiSelectActions
+                    ? `Add as 1 Prompt (${count})`
+                    : `Select (${count})`;
+                selectBtn.disabled = count === 0;
+                selectBtn.style.opacity = count === 0 ? "0.55" : "1";
+                selectBtn.style.cursor = count === 0 ? "default" : "pointer";
+                if (addAllPromptsBtn) {
+                    addAllPromptsBtn.textContent = `Add All Prompts (${count})`;
+                    addAllPromptsBtn.disabled = count === 0;
+                    addAllPromptsBtn.style.opacity = count === 0 ? "0.55" : "1";
+                    addAllPromptsBtn.style.cursor = count === 0 ? "default" : "pointer";
+                }
+            };
+            selectBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (selectBtn.disabled) {
+                    return;
+                }
+                resolve(buildMultiSelectResult(useComposerMultiSelectActions ? "combine" : "select"));
                 cleanup();
             });
+
+            let addAllPromptsBtn = null;
+            if (useComposerMultiSelectActions) {
+                addAllPromptsBtn = document.createElement("button");
+                addAllPromptsBtn.style.cssText = `
+                    background: #2b6d3a;
+                    border: 1px solid #4a9158;
+                    color: #fff;
+                    padding: 7px 14px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 13px;
+                    white-space: nowrap;
+                `;
+                addAllPromptsBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (addAllPromptsBtn.disabled) {
+                        return;
+                    }
+                    resolve(buildMultiSelectResult("split"));
+                    cleanup();
+                });
+            }
 
             selectionTools.appendChild(clearSelectionBtn);
             selectionTools.appendChild(selectAllBtn);
             actionButtons.appendChild(cancelBtn);
             actionButtons.appendChild(selectBtn);
+            if (addAllPromptsBtn) {
+                actionButtons.appendChild(addAllPromptsBtn);
+            }
 
             saveBar.appendChild(selectionTools);
             saveBar.appendChild(actionButtons);
@@ -4701,6 +5082,7 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
             updateSelectionToolbar = () => {
                 saveBar.style.display = (supportsMultiSelect && multiSelectMode) ? "flex" : "none";
             };
+            updateSelectButton();
             updateSelectionToolbar();
         }
 
@@ -4747,6 +5129,10 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                 document.body.removeChild(promptTextTooltip);
             }
             promptTextTooltip = null;
+            if (typeRailTooltip && typeRailTooltip.parentNode) {
+                document.body.removeChild(typeRailTooltip);
+            }
+            typeRailTooltip = null;
             // Clean up any stale preview elements
             const allPreviews = document.querySelectorAll('[data-pm-thumbnail-preview]');
             allPreviews.forEach(p => {

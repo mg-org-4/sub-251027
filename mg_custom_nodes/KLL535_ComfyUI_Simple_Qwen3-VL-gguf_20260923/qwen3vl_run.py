@@ -6,6 +6,7 @@ import os
 import base64
 import time
 import gc
+import importlib
 import numpy as np
 import tempfile
 import traceback
@@ -70,6 +71,17 @@ def _norm_default(value, default):
     except Exception:
         pass
     return value
+
+def _debug_calc_speed(result, exec_time):
+    if exec_time == 0: 
+        return 0, 0
+    usage = result['usage']
+    #prompt_tokens = usage['prompt_tokens']
+    completion_tokens = usage['completion_tokens']
+    #total_tokens = usage['total_tokens']
+    speed = completion_tokens / exec_time
+
+    return completion_tokens, speed
 
 def _parse_strings_list(value):
     """
@@ -167,6 +179,161 @@ def build_prompt(template: str, system: str, user: str):
         # Если метки нет, весь текст идёт до картинок
         return result, ""
 
+# chat_handler из конфига узла -> (класс llama-cpp, требование к версии).
+# Используется и при загрузке mmproj, и для текстового режима, где нужен
+# только chat-шаблон класса.
+_HANDLER_CLASSES = {
+    "gemma4":            ("Gemma4ChatHandler", "Gemma4 requires version v0.3.35 or higher."),
+    "qwen35":            ("Qwen35ChatHandler", "Qwen3.5 requires version v0.3.30 or higher."),
+    "qwen3":             ("Qwen3VLChatHandler", "Qwen3 requires version v0.3.17 or higher."),
+    "qwen3asr":          ("Qwen3ASRChatHandler", None),
+    "qwen25":            ("Qwen25VLChatHandler", None),
+    "generic":           ("GenericMTMDChatHandler", None),
+    "gemma3":            ("Gemma3ChatHandler", None),
+    "llava15":           ("Llava15ChatHandler", None),
+    "llava16":           ("Llava16ChatHandler", None),
+    "moondream":         ("MoondreamChatHandler", None),
+    "minicpmv26":        ("MiniCPMv26ChatHandler", None),
+    "minicpmv45":        ("MiniCPMv45ChatHandler", None),
+    "minicpmv46":        ("MiniCPMV46ChatHandler", None),
+    "glm41v":            ("GLM41VChatHandler", None),
+    "glm46v":            ("GLM46VChatHandler", None),
+    "granite":           ("GraniteDoclingChatHandler", None),
+    "lfm2vl":            ("LFM2VLChatHandler", None),
+    "lfm25vl":           ("LFM25VLChatHandler", None),
+    "paddleocr":         ("PaddleOCRChatHandler", None),
+    "obsidian":          ("ObsidianChatHandler", None),
+    "nanollava":         ("NanoLlavaChatHandler", None),
+    "llama3visionalpha": ("Llama3VisionAlphaChatHandler", None),
+    "step3vl":           ("Step3VLChatHandler", None),
+}
+
+def _resolve_handler_class(chat_handler_type):
+    """
+    Возвращает (класс обработчика, текст ошибки).
+    Класс = None, если тип неизвестен или класса нет в установленной llama-cpp-python.
+    """
+    entry = _HANDLER_CLASSES.get(chat_handler_type)
+    if entry is None:
+        return None, f"Unknown chat handler type: {chat_handler_type}"
+
+    class_name, requires = entry
+    module = importlib.import_module("llama_cpp.llama_chat_format")
+    handler_class = getattr(module, class_name, None)
+    if handler_class is None:
+        message = "You have an outdated version of the llama-cpp-python library."
+        if requires:
+            message = f"{message} {requires}"
+        return None, message
+
+    return handler_class, None
+
+def _handler_options(chat_handler_type, config, add_vision_id):
+    """
+    Опции обработчика, зависящие от его типа.
+
+    llama-cpp складывает их в extra_template_arguments и передаёт в шаблон
+    (llama_multimodal.MTMDChatHandler._render_mtmd_prompt), поэтому в
+    текстовом режиме этот же набор идёт в шаблон напрямую.
+    """
+    if chat_handler_type == "gemma4":
+        return {"enable_thinking": config.get("enable_thinking", False)}
+
+    if chat_handler_type == "qwen35":
+        return {
+            "enable_thinking": config.get("enable_thinking", False),
+            "add_vision_id": add_vision_id,
+        }
+
+    if chat_handler_type == "qwen3":
+        return {
+            "force_reasoning": config.get("force_reasoning", False),
+            "add_vision_id": add_vision_id,
+        }
+
+    if chat_handler_type in ("minicpmv45", "minicpmv46", "glm46v", "step3vl"):
+        return {"enable_thinking": config.get("enable_thinking", True)}
+
+    if chat_handler_type == "granite":
+        return {"controls": config.get("granite_controls", None)}
+
+    return {}
+
+def _build_text_prompt(llm, chat_handler_type, messages, config, add_vision_id, debug):
+    """
+    Готовит промпт текстового режима по chat-шаблону выбранного обработчика.
+
+    Без mmproj обработчик не создаётся, и llama-cpp берёт шаблон из GGUF, а
+    если его там нет - угадывает формат и может свалиться на llama-2. Кроме
+    того, переменные шаблона (enable_thinking и т.п.) через
+    create_chat_completion не проходят: chat_formatter_to_chat_completion_handler
+    вызывает форматтер без **kwargs. Поэтому рендерим сами тем же шаблоном,
+    что использовался бы с mmproj.
+
+    Возвращает (токены промпта, stop-строки шаблона) либо (None, None),
+    если промпт нужно оставить на откуп create_chat_completion.
+    """
+    if not chat_handler_type:
+        return None, None
+
+    # Формат выбран пользователем явно - не подменяем.
+    if _norm_str(config.get("chat_format")) or config.get("chat_format_from_gguf", False):
+        return None, None
+
+    handler_class, handler_error = _resolve_handler_class(chat_handler_type)
+    template = getattr(handler_class, "CHAT_FORMAT", None) if handler_class else None
+    if not isinstance(template, str):
+        print(f"[WARNING] No chat template for chat_handler '{chat_handler_type}'"
+              f"{': ' + handler_error if handler_error else ''}; using the model's own format.",
+              file=sys.stderr)
+        return None, None
+
+    from llama_cpp.llama_chat_format import Jinja2ChatFormatter
+
+    def token_text(token_id):
+        if token_id == -1:
+            return ""
+        return llm.detokenize([token_id], special=True).decode("utf-8", errors="replace")
+
+    eot_token_id = llm.token_eot()
+    formatter = Jinja2ChatFormatter(
+        template=template,
+        eos_token=token_text(llm.token_eos()),
+        bos_token=token_text(llm.token_bos()),
+        stop_token_ids=[t for t in (llm.token_eos(), eot_token_id) if t != -1],
+        special_tokens_map={
+            name: text
+            for name, token_id in (
+                ("eot_token", eot_token_id),
+                ("sep_token", llm.token_sep()),
+                ("nl_token", llm.token_nl()),
+                ("pad_token", llm.token_pad()),
+                ("mask_token", llm.token_mask()),
+            )
+            if token_id != -1 and (text := token_text(token_id))
+        },
+    )
+
+    # Шаблоны GLM ссылаются на константы своего класса, например GLM46V_EOS_TOKEN.
+    template_arguments = {
+        name: value
+        for name, value in vars(handler_class).items()
+        if name.isupper() and name != "CHAT_FORMAT"
+    }
+    template_arguments.update(_handler_options(chat_handler_type, config, add_vision_id))
+
+    result = formatter(messages=messages, **template_arguments)
+    _debug_info(debug, "text prompt", text=f"rendered with {chat_handler_type} chat template", file=sys.stderr)
+
+    # Служебные токены уже расставлены шаблоном, поэтому BOS не добавляем -
+    # так же поступает chat_formatter_to_chat_completion_handler.
+    tokens = llm.tokenize(result.prompt.encode("utf-8"), add_bos=not result.added_special, special=True)
+    return tokens, result.stop
+
+# ============================================================
+# Image helpers (phase 2)
+# ============================================================
+
 def _build_image_content(image_item, quality=95):
 
     # Сценарий 1: image -> в base64
@@ -189,6 +356,10 @@ def _build_image_content(image_item, quality=95):
     else:
         print(f"build_image: Unsupported type: {type(image_item)}", file=sys.stderr)
         return None
+
+# ============================================================
+# Audio helpers (phase 2)
+# ============================================================
 
 def _build_audio_content(audio_item):
 
@@ -219,62 +390,77 @@ def _build_audio_content(audio_item):
         print(f"build_audio: Unsupported type: {type(audio_item)}", file=sys.stderr)
         return None
 
-def _build_video_content(video_input, config):
+# ============================================================
+# Video helpers (phase 2)
+# ============================================================
 
+def _build_video_native(video_item, config, video_num):
+    """Нативный режим MTMD: передаем путь к файлу напрямую."""
+
+    file_path = video_item.get("path")
+    if file_path is None:
+        print(f"[ERROR] Native video path not found", file=sys.stderr)
+        return []
+
+    if not os.path.exists(file_path):
+        print(f"[ERROR] Native video file not found: {file_path}", file=sys.stderr)
+        return []
+
+    abs_path = os.path.abspath(file_path)
+    return [{
+        "type": "video",
+        "video": abs_path
+    }]
+
+def _build_video_as_images(video_item, config, video_num):
+    """Режим изображений: извлекаем кадры и кодируем в base64."""
     max_frames = config.get('max_frames', 24)
     quality = config.get('frame_quality', 75)
-    trim_start = config.get('trim_start', 0.0)
-    trim_duration = config.get('trim_duration', 0.0)
-    frame_id = _norm_default(config.get("add_frame_id", ""), "")
-    
-    # ==========================================
-    # РЕЖИМ 1: Нативное видео в llama.cpp
-    # ==========================================
+    frame_id = config.get("add_frame_id", "").strip()
 
-    # Unsupported
-
-    # ==========================================
-    # РЕЖИМ 2: Прореженные кадры как изображения
-    # ==========================================
-    
-    video_content_items = []
     frames_to_process = []
-    
-    # Сценарий 1: Путь к файлу (Работа через cv2) ---
-    if isinstance(video_input, str):
 
+    file_path = video_item.get("path")
+    np_frames = video_item.get("array")
+
+    if file_path is not None:
+
+        trim_start = video_item.get("trim_start", 0.0)
+        trim_duration = video_item.get("trim_duration", 0.0)
+
+        # Сценарий 1: Путь к файлу (Работа через cv2)
         import cv2
 
-        video_path = video_input
-        if not os.path.exists(video_path):
-            print(f"[ERROR] Video file not found: {video_path}", file=sys.stderr)
+        if not os.path.exists(file_path):
+            print(f"[ERROR] Video file not found: {file_path}", file=sys.stderr)
             return []
             
-        cap = cv2.VideoCapture(video_path)
+        cap = cv2.VideoCapture(file_path)
         if not cap.isOpened():
+            print(f"[ERROR] Failed to open video file: {file_path}", file=sys.stderr)
             return []
             
         fps = cap.get(cv2.CAP_PROP_FPS)
-        if fps <= 0: fps = 30.0
+        if fps <= 0: 
+            fps = 30.0 # Fallback
         
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         if total_frames <= 0:
             cap.release()
             return []
             
-        # Применяем обрезку (trim) из config
         start_frame = int(trim_start * fps)
         if trim_duration > 0:
             end_frame = int((trim_start + trim_duration) * fps)
         else:
             end_frame = total_frames
             
+        # Защита от выхода за границы
         start_frame = max(0, min(start_frame, total_frames - 1))
         end_frame = max(start_frame + 1, min(end_frame, total_frames))
         
         effective_total = end_frame - start_frame
         
-        # Прореживание кадров в пределах обрезанного окна
         if effective_total > max_frames:
             indices = set(np.linspace(0, effective_total - 1, max_frames, dtype=int).tolist())
         else:
@@ -286,74 +472,81 @@ def _build_video_content(video_input, config):
         
         while cap.isOpened() and current_idx < end_frame:
             ret, frame = cap.read()
-            if not ret: break
+            if not ret: 
+                break
             
             if (current_idx - start_frame) in indices:
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frames_to_process.append(frame_rgb)
                 selected_count += 1
-                if selected_count >= max_frames: break
+                if selected_count >= max_frames: 
+                    break
             current_idx += 1
         cap.release()
-        
-    # Сценарий 2: Numpy массив (in-memory)
-    elif isinstance(video_input, np.ndarray):
-        np_frames = video_input
-        # Ожидаем формат (T, H, W, C)
+
+    elif np_frames is not None:
+
+        # Сценарий 2: Numpy массив (in-memory)
         if len(np_frames.shape) != 4:
             print(f"[ERROR] Invalid numpy array shape for video: {np_frames.shape}", file=sys.stderr)
             return []
             
         total_frames = np_frames.shape[0]
-        
-        # Прореживание
         if total_frames > max_frames:
             indices = np.linspace(0, total_frames - 1, max_frames, dtype=int)
             frames_to_process = [np_frames[i] for i in indices]
         else:
             frames_to_process = [np_frames[i] for i in range(total_frames)]
-            
+
     else:
-        print(f"[ERROR] Unsupported video_input type in _build_video_content: {type(video_input)}", file=sys.stderr)
+        print(f"[ERROR] Unsupported video_item type: missing 'path' and 'array'", file=sys.stderr)
         return []
+
+    if not frames_to_process:
+        print(f"[ERROR] No frames extracted from video_item", file=sys.stderr)
+        return []
+
+    video_content_items = []
         
-    num = 0
-    # Кодируем кадры в base64 
+    frame_num = 0
     for frame_rgb in frames_to_process:
         img = Image.fromarray(frame_rgb)
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=quality) 
-        img_bytes = buf.getvalue()
-        b64_data = base64.b64encode(img_bytes).decode("utf-8")
+        b64_data = base64.b64encode(buf.getvalue()).decode("utf-8")
         
         if frame_id:
-            video_content_items.append({"type": "text", "text": frame_id.replace("{num}", str(num))})
+            text = frame_id.replace("{frame_num}", str(frame_num)).replace("{video_num}", str(video_num))
+            video_content_items.append({"type": "text", "text": text})
 
         video_content_items.append({
             "type": "image_url",
             "image_url": {"url": f"data:image/jpeg;base64,{b64_data}"}
         })
-        num += 1
+        frame_num += 1
         
     return video_content_items
 
-def _debug_calc_speed(result, exec_time):
-    if exec_time == 0: 
-        return 0, 0
-    usage = result['usage']
-    #prompt_tokens = usage['prompt_tokens']
-    completion_tokens = usage['completion_tokens']
-    #total_tokens = usage['total_tokens']
-    speed = completion_tokens / exec_time
+def _build_video_content(video_item, config, video_num):
+    """Маршрутизатор видео-контента (Фаза 2)"""
+    if not isinstance(video_item, dict):
+        print("[ERROR] Unsupported video_item type (expected dict)", file=sys.stderr)
+        return []
 
-    return completion_tokens, speed
+    video_mode = config.get("video_mode", "images")
+    if video_mode == "native":
+        return _build_video_native(video_item, config, video_num)
+    else:
+        return _build_video_as_images(video_item, config, video_num)
 
 # =====================================================================
 # INTERRUPTIBLE STREAMING
 # =====================================================================
-def _stream_chat_completion(llm, messages, completion_kwargs, debug=False):
+def _consume_stream(llm, stream, get_chunk_text, completion_kwargs):
     """
-    Streaming-обертка с проверкой прерывания раз в N токенов.
+    Общий цикл чтения стрима: проверка прерывания раз в N токенов и прогресс-бар.
+    get_chunk_text достаёт текст из chunk (формат отличается у chat и raw completion).
+    Возвращает (output, prompt_tokens, completion_tokens).
     """
     collected_content = []
     prompt_tokens = 0
@@ -371,12 +564,6 @@ def _stream_chat_completion(llm, messages, completion_kwargs, debug=False):
         has_comfy = True
     except ImportError:
         has_comfy = False
-
-    stream = llm.create_chat_completion(
-        messages=messages,
-        stream=True,
-        **completion_kwargs
-    )
 
     for chunk in stream:
         tick += 1
@@ -397,8 +584,7 @@ def _stream_chat_completion(llm, messages, completion_kwargs, debug=False):
         if "usage" in chunk and chunk["usage"]:
             prompt_tokens = chunk["usage"].get("prompt_tokens", 0)
 
-        delta = chunk["choices"][0].get("delta", {})
-        content = delta.get("content")
+        content = get_chunk_text(chunk)
         if content:
             collected_content.append(content)
             completion_tokens += 1
@@ -430,15 +616,49 @@ def _stream_chat_completion(llm, messages, completion_kwargs, debug=False):
         sys.stderr.write(bar_line)
         sys.stderr.flush()
 
-    output = "".join(collected_content)
+    return "".join(collected_content), prompt_tokens, completion_tokens
+
+def _stream_usage(prompt_tokens, completion_tokens):
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": prompt_tokens + completion_tokens,
+    }
+
+def _stream_chat_completion(llm, messages, completion_kwargs):
+    """
+    Streaming-обертка для chat completion с проверкой прерывания.
+    """
+    stream = llm.create_chat_completion(
+        messages=messages,
+        stream=True,
+        **completion_kwargs
+    )
+    output, prompt_tokens, completion_tokens = _consume_stream(
+        llm, stream, lambda chunk: chunk["choices"][0].get("delta", {}).get("content"), completion_kwargs
+    )
 
     return {
         "choices": [{"message": {"content": output}}],
-        "usage": {
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": completion_tokens,
-            "total_tokens": prompt_tokens + completion_tokens,
-        }
+        "usage": _stream_usage(prompt_tokens, completion_tokens),
+    }
+
+def _stream_completion(llm, prompt, completion_kwargs):
+    """
+    Streaming-обертка для raw completion с проверкой прерывания.
+    """
+    stream = llm.create_completion(
+        prompt=prompt,
+        stream=True,
+        **completion_kwargs
+    )
+    output, prompt_tokens, completion_tokens = _consume_stream(
+        llm, stream, lambda chunk: chunk["choices"][0].get("text"), completion_kwargs
+    )
+
+    return {
+        "choices": [{"text": output}],
+        "usage": _stream_usage(prompt_tokens, completion_tokens),
     }
 
 def _inference(config):
@@ -555,6 +775,13 @@ def _inference(config):
                     "verbose": verbose,
                 }
 
+                video_ffmpeg_bin_dir = config.get("video_ffmpeg_bin_dir", None)
+                if video_ffmpeg_bin_dir:
+                    handler_kwargs["video_ffmpeg_bin_dir"] = video_ffmpeg_bin_dir
+                    handler_kwargs["video_fps_target"] = config.get("video_fps_target", 1.0)
+                    handler_kwargs["video_timestamp_interval_ms"] = config.get("video_timestamp_interval_ms", 5000)
+                    handler_kwargs["batch_max_tokens"] = config.get("mmproj_batch_max_tokens", 1024)
+
                 if image_min_tokens is not None:
                     handler_kwargs["image_min_tokens"] = image_min_tokens
 
@@ -567,142 +794,21 @@ def _inference(config):
                         handler_kwargs[new_key] = value
                         #print(f"extra chat handler kwargs: {new_key} = {value}", file=sys.stderr)
 
-                extra_handler_kwargs = {}
+                handler_class, handler_error = _resolve_handler_class(chat_handler_type)
+                if handler_class is None:
+                    return {"status": "error", "message": handler_error}, None
 
-                if chat_handler_type == "gemma4":
-                    try:
-                        from llama_cpp.llama_chat_format import Gemma4ChatHandler
-                    except ImportError:
-                        return {"status": "error", "message": "You have an outdated version of the llama-cpp-python library. Gemma4 requires version v0.3.35 or higher."}, None
-                    extra_handler_kwargs = {
-                        "enable_thinking": config.get("enable_thinking", False),
-                    }
-                    chat_handler = Gemma4ChatHandler(**handler_kwargs, **extra_handler_kwargs)
+                extra_handler_kwargs = _handler_options(chat_handler_type, config, add_vision_id)
 
-                elif chat_handler_type == "qwen35":
-                    try:
-                        from llama_cpp.llama_chat_format import Qwen35ChatHandler
-                    except ImportError:
-                        return {"status": "error", "message": "You have an outdated version of the llama-cpp-python library. Qwen3.5 requires version v0.3.30 or higher."}, None
-                    extra_handler_kwargs = {
-                        "enable_thinking": config.get("enable_thinking", False),
-                        "add_vision_id": add_vision_id,
-                    }
-                    chat_handler = Qwen35ChatHandler(**handler_kwargs, **extra_handler_kwargs)
-
-                elif chat_handler_type == "qwen3":
-                    try:
-                        from llama_cpp.llama_chat_format import Qwen3VLChatHandler
-                    except ImportError:
-                        return {"status": "error", "message": "You have an outdated version of the llama-cpp-python library. Qwen3 requires version v0.3.17 or higher."}, None
-                    extra_handler_kwargs = {
-                        "force_reasoning": config.get("force_reasoning", False),
-                        "add_vision_id": add_vision_id,
-                    }
-                    chat_handler = Qwen3VLChatHandler(**handler_kwargs, **extra_handler_kwargs)
-
-                elif chat_handler_type == "qwen3asr":
-                    from llama_cpp.llama_chat_format import Qwen3ASRChatHandler
-                    chat_handler = Qwen3ASRChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "qwen25":
-                    from llama_cpp.llama_chat_format import Qwen25VLChatHandler
-                    chat_handler = Qwen25VLChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "generic":
-                    from llama_cpp.llama_chat_format import GenericMTMDChatHandler
-                    extra_handler_kwargs = {
-                        "mmproj_path": mmproj_path,
-                        "chat_format": chat_format,
-                        "verbose": verbose,
-                    }
-                    chat_handler = GenericMTMDChatHandler(**extra_handler_kwargs)
-
-                elif chat_handler_type == "gemma3":
-                    from llama_cpp.llama_chat_format import Gemma3ChatHandler
-                    chat_handler = Gemma3ChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "llava15":
-                    from llama_cpp.llama_chat_format import Llava15ChatHandler
-                    chat_handler = Llava15ChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "llava16":
-                    from llama_cpp.llama_chat_format import Llava16ChatHandler
-                    chat_handler = Llava16ChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "moondream":
-                    from llama_cpp.llama_chat_format import MoondreamChatHandler
-                    chat_handler = MoondreamChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "minicpmv26":
-                    from llama_cpp.llama_chat_format import MiniCPMv26ChatHandler
-                    chat_handler = MiniCPMv26ChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "minicpmv45":
-                    from llama_cpp.llama_chat_format import MiniCPMv45ChatHandler
-                    extra_handler_kwargs = {
-                        "enable_thinking": config.get("enable_thinking", True),
-                    }
-                    chat_handler = MiniCPMv45ChatHandler(**handler_kwargs, **extra_handler_kwargs)
-
-                elif chat_handler_type == "minicpmv46":
-                    from llama_cpp.llama_chat_format import MiniCPMv46ChatHandler
-                    extra_handler_kwargs = {
-                        "enable_thinking": config.get("enable_thinking", True),
-                    }
-                    chat_handler = MiniCPMv46ChatHandler(**handler_kwargs, **extra_handler_kwargs)
-
-                elif chat_handler_type == "glm41v":
-                    from llama_cpp.llama_chat_format import GLM41VChatHandler
-                    chat_handler = GLM41VChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "glm46v":
-                    from llama_cpp.llama_chat_format import GLM46VChatHandler
-                    extra_handler_kwargs = {
-                        "enable_thinking": config.get("enable_thinking", True),
-                    }
-                    chat_handler = GLM46VChatHandler(**handler_kwargs, **extra_handler_kwargs)
-
-                elif chat_handler_type == "granite":
-                    from llama_cpp.llama_chat_format import GraniteDoclingChatHandler
-                    extra_handler_kwargs = {
-                        "controls": config.get("granite_controls", None),
-                    }
-                    chat_handler = GraniteDoclingChatHandler(**handler_kwargs, **extra_handler_kwargs)
-
-                elif chat_handler_type == "lfm2vl":
-                    from llama_cpp.llama_chat_format import LFM2VLChatHandler
-                    chat_handler = LFM2VLChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "lfm25vl":
-                    from llama_cpp.llama_chat_format import LFM25VLChatHandler
-                    chat_handler = LFM25VLChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "paddleocr":
-                    from llama_cpp.llama_chat_format import PaddleOCRChatHandler
-                    chat_handler = PaddleOCRChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "obsidian":
-                    from llama_cpp.llama_chat_format import ObsidianChatHandler
-                    chat_handler = ObsidianChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "nanollava":
-                    from llama_cpp.llama_chat_format import NanoLlavaChatHandler
-                    chat_handler = NanoLlavaChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "llama3visionalpha":
-                    from llama_cpp.llama_chat_format import Llama3VisionAlphaChatHandler
-                    chat_handler = Llama3VisionAlphaChatHandler(**handler_kwargs)
-
-                elif chat_handler_type == "step3vl":
-                    from llama_cpp.llama_chat_format import Step3VLChatHandler
-                    extra_handler_kwargs = {
-                        "enable_thinking": config.get("enable_thinking", True),
-                    }
-                    chat_handler = Step3VLChatHandler(**handler_kwargs, **extra_handler_kwargs)
-
+                if chat_handler_type == "generic":
+                    # GenericMTMDChatHandler принимает mmproj_path вместо clip_model_path.
+                    chat_handler = handler_class(
+                        mmproj_path=mmproj_path,
+                        chat_format=chat_format,
+                        verbose=verbose,
+                    )
                 else:
-                    return {"status": "error", "message": f"Unknown chat handler type: {chat_handler_type}"}, None
+                    chat_handler = handler_class(**handler_kwargs, **extra_handler_kwargs)
 
                 _debug_print(debug, "create_chat_handler", t0, file=sys.stderr)
 
@@ -1015,15 +1121,15 @@ def _inference(config):
                             content.append(img_content)
 
                     # Пока аудио в raw режиме не работает
-                    #for aud_item in audios:
-                    #    aud_content = _build_audio_content(aud_item)
-                    #    if aud_content is not None:
-                    #        content.append(aud_content)
 
+                    # Нативное видео пока в raw режиме не работает
+                    
+                    num = 0 
                     for path in videos:
-                        frames_items = _build_video_content(path, config)
+                        frames_items = _build_video_content(path, config, num)
                         if frames_items is not None:
                             content.extend(frames_items) 
+                            num += 1
 
                     content.append({"type": "text", "text": text_after})
 
@@ -1033,7 +1139,7 @@ def _inference(config):
 
                     t_inference0 = time.perf_counter()
                     if streaming_mode:
-                        result = _stream_chat_completion(current_cache["llm"], messages, completion_kwargs, debug)
+                        result = _stream_chat_completion(current_cache["llm"], messages, completion_kwargs)
                     else:
                         result = current_cache["llm"].create_chat_completion(messages=messages, **completion_kwargs)
                     t_inference1 = time.perf_counter()
@@ -1049,10 +1155,10 @@ def _inference(config):
                     # Текстовый режим
 
                     t_inference0 = time.perf_counter()
-                    result = current_cache["llm"].create_completion(
-                        prompt=text_before + text_after,
-                        **completion_kwargs
-                    )
+                    if streaming_mode:
+                        result = _stream_completion(current_cache["llm"], text_before + text_after, completion_kwargs)
+                    else:
+                        result = current_cache["llm"].create_completion(prompt=text_before + text_after, **completion_kwargs)
                     t_inference1 = time.perf_counter()
 
                     if debug:
@@ -1071,8 +1177,8 @@ def _inference(config):
                     content = []
 
                     user_prompt_after_content = config.get("user_prompt_after_content", True)
-                    image_id = _norm_default(config.get("add_image_id", ""), "")
-                    audio_id = _norm_default(config.get("add_audio_id", ""), "")
+                    image_id = config.get("add_image_id", "").strip()
+                    audio_id = config.get("add_audio_id", "").strip()
 
                     if not user_prompt_after_content:
                         content.append({"type": "text", "text": user_prompt})
@@ -1095,10 +1201,12 @@ def _inference(config):
                             content.append(aud_content)
                             num += 1     
 
+                    num = 0        
                     for path in videos:
-                        frames_items = _build_video_content(path, config)
+                        frames_items = _build_video_content(path, config, num)
                         if frames_items is not None:
                             content.extend(frames_items) 
+                            num += 1
 
                     if user_prompt_after_content:
                         content.append({"type": "text", "text": user_prompt})
@@ -1113,6 +1221,8 @@ def _inference(config):
                             {"role": "user", "content": content}
                         ]
 
+                    text_prompt, text_prompt_stop = None, None
+
                 else:
                     if system_prompt:
                         messages = [
@@ -1124,22 +1234,34 @@ def _inference(config):
                             {"role": "user", "content": user_prompt}
                         ]
 
+                    text_prompt, text_prompt_stop = _build_text_prompt(
+                        current_cache["llm"], chat_handler_type, messages, config, add_vision_id, debug
+                    )
+
                 _debug_print(debug, f"create message {content_text}", t3, file=sys.stderr)
 
                 # --- Инференс ---
 
                 t_inference0 = time.perf_counter()
-                if streaming_mode:
-                    result = _stream_chat_completion(current_cache["llm"], messages, completion_kwargs, debug)
+                if text_prompt is None:
+                    if streaming_mode:
+                        result = _stream_chat_completion(current_cache["llm"], messages, completion_kwargs)
+                    else:
+                        result = current_cache["llm"].create_chat_completion(messages=messages, **completion_kwargs)
+                    output = result["choices"][0]["message"]["content"]
                 else:
-                    result = current_cache["llm"].create_chat_completion(messages=messages, **completion_kwargs)
+                    if text_prompt_stop:
+                        completion_kwargs["stop"] = completion_kwargs.get("stop", []) + list(text_prompt_stop)
+                    if streaming_mode:
+                        result = _stream_completion(current_cache["llm"], text_prompt, completion_kwargs)
+                    else:
+                        result = current_cache["llm"].create_completion(prompt=text_prompt, **completion_kwargs)
+                    output = result["choices"][0]["text"]
                 t_inference1 = time.perf_counter()
 
                 if debug:
                     completion_tokens, speed = _debug_calc_speed(result, t_inference1 - t_inference0)
                     _debug_print(debug, "inference", t_inference0, text=f"{speed:.2f} tok/sec {completion_tokens} tokens", file=sys.stderr)
-
-                output = result["choices"][0]["message"]["content"]
 
             ### SPECULATIVE ###
             if speculative_enabled and debug:

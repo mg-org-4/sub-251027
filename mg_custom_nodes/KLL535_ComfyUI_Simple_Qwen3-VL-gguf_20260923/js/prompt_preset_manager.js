@@ -1,5 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { showPromptDialog, showConfirmDialog } from "./dialogs.js";
 
 const TARGET_NODE = "Qwen3VL_PromptPresetConfig";
 const SAVE_BUTTON_ACTION = "save";
@@ -302,39 +303,39 @@ async function onSavePreset(node, combo) {
 }
 
 async function onSaveAsPreset(node, combo) {
-    const newName = prompt("Enter new preset name:", combo.value && combo.value !== "None" ? combo.value + "_copy" : "MyPrompt");
-    if (!newName || !newName.trim()) return;
-    const name = newName.trim();
-    const config = collectNodeConfig(node);
-    try {
-        const res = await api.fetchApi("/simpleqwenvl/presets/save", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                type: "prompt",
-                name,
-                config: {
-                    system_prompt: config.system_prompt || "",
-                    user_prompt_template: config.user_prompt_template || ""
-                }
-            }),
-        });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || "Save As failed");
+    const defaultName = combo.value && combo.value !== "None" ? combo.value + "_copy" : "MyPrompt";
+    showPromptDialog("Save preset as", defaultName, async (name) => {
+        const config = collectNodeConfig(node);
+        try {
+            const res = await api.fetchApi("/simpleqwenvl/presets/save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    type: "prompt",
+                    name,
+                    config: {
+                        system_prompt: config.system_prompt || "",
+                        user_prompt_template: config.user_prompt_template || ""
+                    }
+                }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Save As failed");
+            }
+            const data = await res.json();
+            if (data.success) {
+                combo.options.values = data.presets;
+                combo.value = name;
+                setBaselineFromPreset(node, config);
+                if (node._updateSaveButtonStyle) node._updateSaveButtonStyle();
+                app.graph.setDirtyCanvas(true, true);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Save As failed: " + e.message);
         }
-        const data = await res.json();
-        if (data.success) {
-            combo.options.values = data.presets;
-            combo.value = name;
-            setBaselineFromPreset(node, config); 
-            if (node._updateSaveButtonStyle) node._updateSaveButtonStyle();
-            app.graph.setDirtyCanvas(true, true);
-        }
-    } catch (e) {
-        console.error(e);
-        alert("Save As failed: " + e.message);
-    }
+    });
 }
 
 async function onRenamePreset(node, combo) {
@@ -343,40 +344,41 @@ async function onRenamePreset(node, combo) {
         alert("Select a preset to rename first");
         return;
     }
-    const newName = prompt("Enter new name for preset:", current);
-    if (!newName || !newName.trim() || newName === current) return;
-    const name = newName.trim();
-    const config = collectNodeConfig(node);
-    try {
-        const res = await api.fetchApi("/simpleqwenvl/presets/rename", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                type: "prompt",
-                old_name: current,
-                new_name: name,
-                config: {
-                    system_prompt: config.system_prompt || "",
-                    user_prompt_template: config.user_prompt_template || ""
-                }
-            }),
-        });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || "Rename failed");
+
+    showPromptDialog("Rename preset", current, async (name) => {
+        if (name === current) return;
+        const config = collectNodeConfig(node);
+        try {
+            const res = await api.fetchApi("/simpleqwenvl/presets/rename", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    type: "prompt",
+                    old_name: current,
+                    new_name: name,
+                    config: {
+                        system_prompt: config.system_prompt || "",
+                        user_prompt_template: config.user_prompt_template || ""
+                    }
+                }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Rename failed");
+            }
+            const data = await res.json();
+            if (data.success) {
+                combo.options.values = data.presets;
+                combo.value = name;
+                setBaselineFromPreset(node, config);
+                if (node._updateSaveButtonStyle) node._updateSaveButtonStyle();
+                app.graph.setDirtyCanvas(true, true);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Rename failed: " + e.message);
         }
-        const data = await res.json();
-        if (data.success) {
-            combo.options.values = data.presets;
-            combo.value = name;
-            setBaselineFromPreset(node, config); 
-            if (node._updateSaveButtonStyle) node._updateSaveButtonStyle();
-            app.graph.setDirtyCanvas(true, true);
-        }
-    } catch (e) {
-        console.error(e);
-        alert("Rename failed: " + e.message);
-    }
+    });
 }
 
 async function onDeletePreset(node, combo) {
@@ -385,28 +387,34 @@ async function onDeletePreset(node, combo) {
         alert("Nothing to delete");
         return;
     }
-    if (!confirm(`Delete preset "${current}"?`)) return;
-    try {
-        const res = await api.fetchApi("/simpleqwenvl/presets/delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "prompt", name: current }),
-        });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || "Delete failed");
+
+    showConfirmDialog(
+        "Delete preset",
+        `Delete preset "${current}"? This cannot be undone.`,
+        async () => {
+            try {
+                const res = await api.fetchApi("/simpleqwenvl/presets/delete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ type: "prompt", name: current }),
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || "Delete failed");
+                }
+                const data = await res.json();
+                if (data.success) {
+                    combo.options.values = data.presets.length > 0 ? data.presets : ["None"];
+                    combo.value = "None";
+                    combo.callback?.(combo.value);
+                    app.graph.setDirtyCanvas(true, true);
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Delete failed: " + e.message);
+            }
         }
-        const data = await res.json();
-        if (data.success) {
-            combo.options.values = data.presets.length > 0 ? data.presets : ["None"];
-            combo.value = "None";
-            combo.callback?.(combo.value);
-            app.graph.setDirtyCanvas(true, true);
-        }
-    } catch (e) {
-        console.error(e);
-        alert("Delete failed: " + e.message);
-    }
+    );
 }
 
 async function fetchPromptPreset(name) {
@@ -566,76 +574,112 @@ function patchServiceWidgets(node, presetCombo) {
     if (node._serviceWidgetsPatched) return;
     node._serviceWidgetsPatched = true;
 
-    // Сериализация: сохраняем значения + имена виджетов
-    const origSerialize = node.serialize;
-    node.serialize = function () {
-        const data = origSerialize.apply(this);
-        if (data.widgets_values && Array.isArray(data.widgets_values)) {
-            const filteredValues = [];
-            const filteredNames = [];
+    const origOnSerialize = node.onSerialize;
+    node.onSerialize = function (o) {
+        if (origOnSerialize) origOnSerialize.call(this, o);
+        if (o && Array.isArray(o.widgets_values)) {
+            const names = [];
             for (let i = 0; i < this.widgets.length; i++) {
-                if (!this.widgets[i].skipSerialize) {
-                    filteredValues.push(data.widgets_values[i]);
-                    filteredNames.push(this.widgets[i].name);
+                const w = this.widgets[i];
+                if (w && w.name) {
+                    names.push(w.name); // все имена, без skipSerialize
                 }
             }
-            data.widgets_values = filteredValues;
-            data._widget_names = filteredNames;
+            o._widget_names = names;
         }
-        return data;
     };
 
     // Десериализация: восстанавливаем по имени, а не по индексу
     const origConfigure = node.configure;
     node.configure = function (info) {
         const savedValues = info.widgets_values;
-        const savedNames  = info._widget_names;
+        const savedNames = info._widget_names || (info.extensions && info.extensions._widget_names);
 
-        origConfigure.apply(this, arguments);
-
-        // Восстанавливаем значения по именам
-        if (savedValues && Array.isArray(savedValues)) {
-            const targets = this.widgets.filter(w => !w.skipSerialize);
-            if (savedNames && savedNames.length === savedValues.length) {
-                for (let i = 0; i < savedValues.length; i++) {
-                    const name = savedNames[i];
-                    const target = targets.find(w => w.name === name);
-                    if (target) {
-                        target.value = savedValues[i];
-                    }
-                }
-            } 
+        // 1. Снимок фабричных дефолтов — один раз
+        if (!this._factoryDefaults) {
+            this._factoryDefaults = {};
+            for (const w of this.widgets) {
+                if (w && w.name) this._factoryDefaults[w.name] = w.value;
+            }
         }
 
-        // Синхронизация групп — без триггера колбэков
+        // 2. Штатный configure
+        origConfigure.apply(this, arguments);
+
+        // 3. Собираем карту { имя: значение } из того, что есть.
+        let nameMap = null;
+        if (savedValues && savedNames && savedNames.length === savedValues.length) {
+            // Приоритет 1: наш _widget_names + widgets_values (позиционно).
+            nameMap = {};
+            for (let i = 0; i < savedValues.length; i++) {
+                nameMap[savedNames[i]] = savedValues[i];
+            }
+        } else if (info.widgets_values_named) {
+            // Приоритет 2: штатное поле нового ComfyUI — уже карта.
+            nameMap = info.widgets_values_named;
+        }
+
+        // 4. Если карта есть — обновляем по именам.
+        if (nameMap) {
+            // 4a. Сброс в фабричные дефолты.
+            for (const w of this.widgets) {
+                if (!w || !w.name || w.skipSerialize) continue;
+                if (Object.prototype.hasOwnProperty.call(this._factoryDefaults, w.name)) {
+                    w.value = this._factoryDefaults[w.name];
+                }
+            }
+            // 4b. Обновление из карты (всё, чего нет в карте, остаётся дефолтом).
+            for (const w of this.widgets) {
+                if (!w || !w.name || w.skipSerialize) continue;
+                if (Object.prototype.hasOwnProperty.call(nameMap, w.name)) {
+                    w.value = nameMap[w.name];
+                }
+            }
+        }
+
+        // 5. Обновляем группы и кнопки 
         GROUP_HEADERS.forEach(headerName => {
             const widget = this.widgets.find(w => w.name === headerName);
             if (widget) this.toggleGroup(widget, !!widget.value);
         });
-        if (this._groupTogglePanel?.syncState) this._groupTogglePanel.syncState();
+        if (this._groupTogglePanel?.syncState) {
+            this._groupTogglePanel.syncState();
+        }
 
-        // Базовые значения пресета — асинхронно, но БЕЗ сброса виджетов
+        // 6. Обновляем список пресетов с сервера
         setTimeout(async () => {
             try {
                 const resp = await fetch('/simpleqwenvl/presets/list?type=prompt');
-                if (!resp.ok) return;
-                const data = await resp.json();
-                if (!data.presets) return;
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data.presets) {
+                        const oldValue = presetCombo.value;
+                        presetCombo.options.values = data.presets;
+                        if (!data.presets.includes(presetCombo.value)) {
+                            presetCombo.value = "None";
+                            if (oldValue !== "None") {
+                                this._dirty = false;
+                                this._baselineValues = {};
+                            }
+                        }
+                        const presetName = presetCombo.value;
+                        if (presetName && presetName !== "None") {
+                            const cfg = await fetchPromptPreset(presetName);
+                            if (cfg) {
+                                setBaselineFromPreset(this, cfg);
+                            } else {
+                                this._dirty = false;
+                                this._baselineValues = {};
+                            }
+                        } else {
+                            this._dirty = false;
+                            this._baselineValues = {};
+                        }
 
-                presetCombo.options.values = data.presets;
-                if (!data.presets.includes(presetCombo.value)) {
-                    presetCombo.value = "None";
+                        if (this._updateSaveButtonStyle) this._updateSaveButtonStyle();
+                        this.setDirtyCanvas(true, true);
+                    }
                 }
-                const presetName = presetCombo.value;
-                if (presetName && presetName !== "None") {
-                    const cfg = await fetchPromptPreset(presetName);
-                    if (cfg) setBaselineFromPreset(this, cfg);
-                    else { this._dirty = false; this._baselineValues = {}; }
-                } else {
-                    this._dirty = false; this._baselineValues = {};
-                }
-                if (this._updateSaveButtonStyle) this._updateSaveButtonStyle();
-                this.setDirtyCanvas(true, true);
             } catch (e) {
                 console.error("[PromptConfigurator] Failed to refresh presets list:", e);
             }

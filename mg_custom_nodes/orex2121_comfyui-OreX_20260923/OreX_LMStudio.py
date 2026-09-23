@@ -1,0 +1,431 @@
+# -*- coding: utf-8 -*-
+import base64
+import numpy as np
+from PIL import Image
+import os
+import io
+import json
+import hashlib
+import random
+import urllib.request
+import urllib.error
+import urllib.parse
+import re
+import torch
+import threading  # Добавлен для неблокирующей задержки выгрузки модели
+
+# Импортируем менеджер моделей ComfyUI для очистки VRAM
+try:
+    import comfy.model_management as mm
+except ImportError:
+    mm = None
+
+# Импортируем SDK, так как он корректно работает с внутренними каналами LM Studio при выгрузке
+try:
+    import lmstudio as lms
+except ImportError:
+    lms = None
+
+# Глобальный словарь для контроля таймеров выгрузки (предотвращает конфликты при batch-генерации)
+_UNLOAD_TIMERS = {}
+
+# Default models to use
+DEFAULT_LLM = "SELECT A MODEL"
+
+# Предкомпилированные регулярные выражения для скорости
+REASONING_PATTERNS = [
+    re.compile(r'<\|?channel\|?>.*?<\|?channel\|?>', re.DOTALL | re.IGNORECASE),
+    re.compile(r'<(thinking|think|reasoning)>.*?</\1>', re.DOTALL | re.IGNORECASE),
+    re.compile(r'^.*?</(thinking|think|reasoning)>', re.DOTALL | re.IGNORECASE),
+    re.compile(r'^.*?(?:<channel\|>|</channel>)', re.DOTALL | re.IGNORECASE),
+    re.compile(r'<\|?channel\|?>.*$', re.DOTALL | re.IGNORECASE),
+    re.compile(r'<(thinking|think|reasoning)>.*$', re.IGNORECASE),
+    re.compile(r'\[Thinking.*?\]', re.DOTALL | re.IGNORECASE)
+]
+
+# --- SYSTEM PRESETS LOADER ---
+def load_presets():
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    json_path = os.path.join(current_dir, "OreX_Preset_LMStudio_Ollama.json")
+    presets = {"None": ""}
+    
+    if not os.path.exists(json_path):
+        default_data = [
+            {"name": "None", "prompt": ""},
+            {"name": "Детальный анализ", "prompt": "Твоя задача — максимально подробно и детально проанализировать запрос или изображение. Опиши все мелкие детали, контекст и возможные скрытые смыслы."},
+            {"name": "Краткий ответ", "prompt": "Отвечай максимально коротко и по делу, без лишних вступлений и рассуждений. Только суть."}
+        ]
+        try:
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(default_data, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(f"[LMStudio Nodes] Could not create default presets file: {e}")
+            
+    try:
+        if os.path.exists(json_path):
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                for item in data:
+                    if "name" in item and "prompt" in item:
+                        presets[item["name"]] = item["prompt"]
+    except Exception as e:
+        print(f"[LMStudio Nodes] Error loading presets from JSON: {e}")
+        
+    return presets
+
+PRESETS_DICT = load_presets()
+PRESET_NAMES = list(PRESETS_DICT.keys())
+
+def fetch_available_models(default_model):
+    """Fetches available models from LM Studio API."""
+    models = []
+    host = os.environ.get("LMSTUDIO_URL", "http://127.0.0.1:1234")
+    if not host.startswith("http"):
+        host = f"http://{host}"
+    
+    endpoint = f"{host}/v1/models"
+    
+    try:
+        # Принудительно игнорируем системные прокси
+        proxy_handler = urllib.request.ProxyHandler({})
+        opener = urllib.request.build_opener(proxy_handler)
+        
+        req = urllib.request.Request(endpoint)
+        with opener.open(req, timeout=4.0) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            for m in data.get("data", []):
+                m_id = m.get("id")
+                if m_id and m_id not in models:
+                    models.append(m_id)
+    except Exception:
+        pass
+        
+    if default_model in models:
+        models.remove(default_model)
+    models.insert(0, default_model)
+    return models
+
+def check_lmstudio_connection():
+    host = os.environ.get("LMSTUDIO_URL", "http://127.0.0.1:1234")
+    if not host.startswith("http"):
+        host = f"http://{host}"
+    try:
+        proxy_handler = urllib.request.ProxyHandler({})
+        opener = urllib.request.build_opener(proxy_handler)
+        
+        req = urllib.request.Request(f"{host}/v1/models")
+        with opener.open(req, timeout=3.0) as response:
+            pass
+    except Exception as e:
+        raise Exception(f"Cannot connect to LM Studio. Make sure the server is running on port 1234. (Error: {e})")
+
+def api_call_lmstudio(endpoint, payload, timeout_seconds):
+    host = os.environ.get("LMSTUDIO_URL", "http://127.0.0.1:1234")
+    if not host.startswith("http"):
+        host = f"http://{host}"
+    
+    url = f"{host}/v1/{endpoint}"
+    
+    try:
+        proxy_handler = urllib.request.ProxyHandler({})
+        opener = urllib.request.build_opener(proxy_handler)
+        
+        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
+        with opener.open(req, timeout=timeout_seconds) as response:
+            return json.loads(response.read().decode('utf-8'))
+    except urllib.error.URLError as e:
+        raise Exception(f"LM Studio API request failed: {e}")
+
+def unload_lmstudio_model(model_key):
+    """Выгружает модель из VRAM используя SDK или совместимые эндпоинты LM Studio."""
+    print(f"[LMStudio Nodes] ⏳ Attempting to auto-unload model: {model_key}...")
+    
+    if lms is not None:
+        try:
+            with lms.Client() as client:
+                model = client.llm.model(model_key)
+                model.unload()
+            print("[LMStudio Nodes] 🟢 Model unloaded successfully via LM Studio SDK")
+            return
+        except Exception as e:
+            print(f"[LMStudio Nodes] ⚠️ SDK unload attempt failed: {e}. Trying REST API fallback...")
+    else:
+        print("[LMStudio Nodes] ⚠️ 'lmstudio' SDK is not installed. Run 'pip install lmstudio' for best auto-unload support. Trying REST API fallback...")
+
+    host = os.environ.get("LMSTUDIO_URL", "http://127.0.0.1:1234")
+    if not host.startswith("http"):
+        host = f"http://{host}"
+        
+    endpoints_to_try = [
+        (f"{host}/api/v1/models/unload", "POST", json.dumps({"instance_id": model_key}).encode('utf-8'))
+    ]
+    
+    success = False
+    proxy_handler = urllib.request.ProxyHandler({})
+    opener = urllib.request.build_opener(proxy_handler)
+
+    for url, method, data in endpoints_to_try:
+        try:
+            headers = {'Content-Type': 'application/json'} if data else {}
+            req = urllib.request.Request(url, data=data, headers=headers, method=method)
+            
+            with opener.open(req, timeout=2.0) as response:
+                status_code = response.getcode()
+                response_body = response.read().decode('utf-8')
+                
+                is_error = False
+                try:
+                    body_json = json.loads(response_body)
+                    if "error" in body_json:
+                        is_error = True
+                except:
+                    if "error" in response_body.lower() or "unexpected endpoint" in response_body.lower():
+                        is_error = True
+                        
+                if is_error:
+                    continue
+                    
+                if status_code in [200, 204]:
+                    print(f"[LMStudio Nodes] 🟢 Model unloaded successfully via REST {method} {url}")
+                    success = True
+                    break
+        except Exception:
+            continue
+            
+    if not success:
+        print(f"[LMStudio Nodes] 🔴 Warning: Could not automatically unload model {model_key}. Check LM Studio logs.")
+
+def _clean_reasoning_content(content):
+    """Безопасная очистка скрытых размышлений моделей класса DeepSeek R1."""
+    if not content:
+        return ""
+    text = content
+    for pattern in REASONING_PATTERNS:
+        text = pattern.sub('', text)
+    return '\n'.join(line for line in text.splitlines() if line.strip()).strip()
+
+def get_full_b64(pil_img):
+    buffered = io.BytesIO()
+    pil_img.save(buffered, format="JPEG")
+    return base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+def get_b64_preview(pil_img):
+    img_str = get_full_b64(pil_img)
+    return f"{img_str[:10]}...{img_str[-10:]}" if len(img_str) > 23 else img_str
+
+def resize_to_target_megapixels(pil_image, target_megapixels=0.7, debug=False):
+    target_pixels = target_megapixels * 1000000
+    current_pixels = pil_image.width * pil_image.height
+    if current_pixels > target_pixels:
+        scale_factor = (target_pixels / current_pixels) ** 0.5
+        resampling_filter = getattr(Image, 'Resampling', Image).LANCZOS
+        return pil_image.resize((int(pil_image.width * scale_factor), int(pil_image.height * scale_factor)), resampling_filter)
+    return pil_image
+
+# --- NODES IMPLEMENTATION ---
+
+class OreXLMStudio:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "text_input": ("STRING", {"multiline": True, "default": ""}),
+                "system_prompt": ("STRING", {"default": ""}),
+                "system_preset": (PRESET_NAMES, ),
+                "model_key": (fetch_available_models(DEFAULT_LLM), ),
+                "include_reasoning": ("BOOLEAN", {"default": False, "label_on": "🟢 Thinking ON", "label_off": "🔴 Thinking OFF"}),
+                "auto_unload_model": ("BOOLEAN", {"default": True, "label_on": "🟢 Auto Unload ON", "label_off": "🔴 Auto Unload OFF"}),
+                "unload_delay": ("INT", {"default": 0, "min": 0, "max": 3600, "step": 1}),
+                "clean_vram_before": ("BOOLEAN", {"default": False, "label_on": "🟢 Clean VRAM ON", "label_off": "🔴 Clean VRAM OFF"}),
+                "seed": ("INT", {"default": 777, "min": 0, "max": 0xffffffffffffffff}),
+            },
+            "optional": {
+                "image": ("IMAGE",),
+                "context_length": ("INT", {"default": 4096, "min": 0, "max": 131072, "step": 256}), # min изменено на 0
+                "max_tokens": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 256}),
+                "generation_parameters": ("BOOLEAN", {"default": False, "label_on": "🟢 ON", "label_off": "🔴 OFF"}),
+                "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0}),
+                "top_k": ("INT", {"default": 40, "min": 0, "max": 100}),
+                "top_p": ("FLOAT", {"default": 0.95, "min": 0.0, "max": 1.0, "step": 0.05}),
+                "repeat_penalty": ("FLOAT", {"default": 1.1, "min": 0.0, "max": 2.0, "step": 0.05}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("Generated Text", "Request_lmstudio")
+    FUNCTION = "process_input"
+    CATEGORY = "🤫OreX/LLM"
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        m = hashlib.sha256()
+        for k, v in kwargs.items():
+            if k != "image": 
+                m.update(str(v).encode())
+        if kwargs.get("image") is not None:
+            img_mean = kwargs["image"].mean().item()
+            m.update(str(img_mean).encode())
+        return m.hexdigest()
+
+    def process_input(self, text_input, system_prompt, system_preset, model_key, include_reasoning, auto_unload_model, unload_delay, clean_vram_before, seed, image=None, context_length=4096, max_tokens=1024, generation_parameters=False, temperature=0.7, top_k=40, top_p=0.95, repeat_penalty=1.1):
+        global _UNLOAD_TIMERS
+        
+        # Если поступил новый запрос для этой модели, отменяем старый таймер выгрузки (предотвращает Channel Error при Batch-обработке)
+        if model_key in _UNLOAD_TIMERS:
+            try:
+                _UNLOAD_TIMERS[model_key].cancel()
+                del _UNLOAD_TIMERS[model_key]
+                print(f"[LMStudio Nodes] 🛑 Cancelled pending unload timer for {model_key} due to new incoming batch request.")
+            except Exception:
+                pass
+        
+        # Приведение max_tokens к ближайшему кратному 256 (0 = безлимит)
+        user_max_tokens = max_tokens
+        if user_max_tokens == 0:
+            user_max_tokens = -1
+        elif user_max_tokens > 0:
+            user_max_tokens = int(max(256, round(user_max_tokens / 256.0) * 256))
+
+        is_include_reasoning = include_reasoning if isinstance(include_reasoning, bool) else str(include_reasoning).upper() in ["TRUE", "ON"]
+
+        # Если Thinking OFF (скрываем размышления), отключаем лимит (-1), 
+        # чтобы модель гарантированно дописала ответ до конца.
+        # Если Thinking ON (показываем всё), применяем лимит пользователя.
+        if not is_include_reasoning:
+            api_max_tokens = -1
+        else:
+            api_max_tokens = user_max_tokens
+
+        # Исправление логики Boolean для новых параметров
+        is_auto_unload = auto_unload_model if isinstance(auto_unload_model, bool) else str(auto_unload_model).upper() in ["TRUE", "ON"]
+        is_clean_vram = clean_vram_before if isinstance(clean_vram_before, bool) else str(clean_vram_before).upper() in ["TRUE", "ON"]
+        
+        # Очистка VRAM перед генерацией
+        if is_clean_vram and mm is not None:
+            print("[LMStudio Nodes] 🧹 Unloading ComfyUI models to free VRAM before LM Studio inference...")
+            mm.unload_all_models()
+            mm.soft_empty_cache()
+            
+        timeout_seconds = 300
+        use_gen_params = generation_parameters if isinstance(generation_parameters, bool) else str(generation_parameters).upper() in ["TRUE", "ON"]
+        
+        if model_key == "SELECT A MODEL" or not model_key:
+            return ("Error: Please select a model from the list.", json.dumps({"error": "No model selected"}))
+
+        check_lmstudio_connection()
+        has_image = image is not None
+        has_text = text_input is not None and text_input.strip() != ""
+
+        if not has_image and not has_text:
+            msg = "No inputs provided."
+            return (msg, json.dumps({"error": msg}))
+
+        random.seed(seed)
+        preset_value = PRESETS_DICT.get(system_preset, "")
+        final_system_prompt = system_prompt
+        if preset_value.strip():
+            final_system_prompt = f"{system_prompt.strip()}\n{preset_value.strip()}".strip()
+
+        request_log = {
+            "model": model_key, "system_prompt": final_system_prompt,
+            "user_input": text_input if has_text else "[Empty/Image only]", "has_image": has_image,
+            "parameters": {"max_tokens": api_max_tokens, "seed": seed} # Логируем фактическое значение
+        }
+        
+        options = {"max_tokens": api_max_tokens, "seed": seed}
+        if use_gen_params:
+            options.update({
+                "temperature": temperature,
+                "top_p": top_p,
+                "frequency_penalty": repeat_penalty
+            })
+            # Если 0, то мы не шлем context_length в LM Studio
+            if context_length > 0:
+                options["context_length"] = context_length
+
+            request_log["parameters"].update({
+                "context_length": context_length if context_length > 0 else "Auto (LM Studio Default)", 
+                "temperature": temperature, 
+                "top_p": top_p, 
+                "top_k": top_k, 
+                "repeat_penalty": repeat_penalty
+            })
+
+        try:
+            payload = {
+                "model": model_key, "messages": [], "stream": False
+            }
+            payload.update(options)
+
+            if final_system_prompt:
+                payload["messages"].append({"role": "system", "content": final_system_prompt})
+
+            if has_image:
+                tensor_image = image[0].cpu().numpy() if hasattr(image[0], 'cpu') else np.array(image[0])
+                uint8_image = (tensor_image * 255).astype(np.uint8)
+                pil_image = resize_to_target_megapixels(Image.fromarray(uint8_image), 0.7)
+                
+                b64_data = get_full_b64(pil_image)
+                request_log["image_data"] = f"data:image/jpeg;base64,{get_b64_preview(pil_image)}"
+                
+                content_list = []
+                if has_text:
+                    content_list.append({"type": "text", "text": text_input})
+                content_list.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_data}"}})
+                user_msg = {"role": "user", "content": content_list}
+            else:
+                user_msg = {"role": "user", "content": text_input}
+                
+            payload["messages"].append(user_msg)
+
+            # Выполняем генерацию
+            result = api_call_lmstudio("chat/completions", payload, timeout_seconds)
+            message = result.get("choices", [{}])[0].get("message", {})
+            
+            final_content = message.get("content", "")
+            if final_content is None:
+                final_content = ""
+                
+            reasoning_content = message.get("reasoning_content", "")
+            if reasoning_content is None:
+                reasoning_content = ""
+                
+            # Возвращаем размышления обратно в текст, если LM Studio их отделил на уровне API
+            if is_include_reasoning and reasoning_content:
+                final_content = f"<think>\n{reasoning_content}\n</think>\n\n{final_content}"
+
+            if not is_include_reasoning:
+                cleaned_content = _clean_reasoning_content(final_content)
+                # Если после удаления скрытых размышлений текст оказался пустым (например, сбой генерации)
+                if not cleaned_content.strip() and final_content.strip():
+                    final_content = final_content + "\n\n[Внимание: модель сгенерировала только размышления без основного ответа]"
+                else:
+                    final_content = cleaned_content
+
+            res_tuple = (final_content, json.dumps(request_log, indent=2, ensure_ascii=False))
+            
+        except Exception as e:
+            res_tuple = (f"LM Studio error: {str(e)}", json.dumps(request_log, indent=2, ensure_ascii=False))
+            
+        # Запускаем отложенную или моментальную выгрузку, если нужно
+        if is_auto_unload:
+            if unload_delay > 0:
+                print(f"[LMStudio Nodes] 🕒 Scheduling model unload for {model_key} in {unload_delay} seconds...")
+                timer = threading.Timer(unload_delay, unload_lmstudio_model, args=[model_key])
+                _UNLOAD_TIMERS[model_key] = timer
+                timer.start()
+            else:
+                unload_lmstudio_model(model_key)
+            
+        return res_tuple
+
+# ========= REGISTRATION =========
+NODE_CLASS_MAPPINGS = {
+    "OreXLMStudio": OreXLMStudio
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "OreXLMStudio": "🤖 LMStudio (OreX)"
+}
+
+__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

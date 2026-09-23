@@ -1,0 +1,7 @@
+{
+  "nodes": [
+    "MajoorOmniCamDirector",
+    "MajoorOmniCamExtractor",
+    "MajoorOmniCamMonitor"
+  ]
+}

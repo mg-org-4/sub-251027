@@ -1,0 +1,670 @@
+// Scene object creation, selection and inspector operations.
+
+import { refreshAimBoneOptions } from "../aim-constraint.js";
+import { add, applyCameraOrientationEuler, cameraOrientationEuler, clamp, cloneTransform } from "../director/core.js";
+import { confirmAction, promptText } from "../director/ui-services.js";
+import { getLocale, t } from "../i18n.js";
+
+/** Rebuild a <select>'s <option> list only when its content actually changed,
+ * and never while the user is inside it. refreshInspector() runs on every
+ * frame change, so a naive rebuild reallocated these dropdowns 24-120x a
+ * second -- closing an open list and stealing keyboard focus mid-navigation.
+ * A focused select keeps its options untouched and does not even take the new
+ * value; an unfocused one rebuilds only on a signature miss. */
+function syncSelectOptions(select, signature, buildOptions, value) {
+  if (!select) return;
+  if (document.activeElement === select) return;
+  if (select.__omnicamOptionSig !== signature) {
+    select.__omnicamOptionSig = signature;
+    select.replaceChildren(...buildOptions());
+  }
+  select.value = value;
+}
+
+function optionEl(value, label) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  return option;
+}
+import { beginCameraEdit, commitCameraEdit, finishCameraEdit, refreshKeyEditor, selectedKeyframe, updateKeyVisualState } from "../scene.js";
+import { releaseCardMedia, setCardMedia } from "../dom-media.js";
+import { findEditableKey } from "./edit-target.js";
+import { reconstructionBadge } from "./reconstruction-badges.js";
+
+export function addPrimitive(ui, type) {
+  ui.checkpoint("Create object");
+  const id = `${type}_${Date.now().toString(36)}`;
+  const ground = type === "ground";
+  const isHuman = type === "human";
+  const isCard = type === "card";
+  const isCylinder = type === "cylinder";
+  const isTorus = type === "torus";
+  const isPyramid = type === "pyramid";
+  const isSunLight = type === "sun_light";
+  const isPointLight = type === "point_light";
+  const isSpotLight = type === "spot_light";
+
+  let name;
+  if (isHuman) name = t("Human Proxy");
+  else if (isCard) name = t("Card");
+  else if (isCylinder) name = t("Cylinder");
+  else if (isTorus) name = t("Torus");
+  else if (isPyramid) name = t("Pyramide");
+  else if (isSunLight) name = t("Sun light");
+  else if (isPointLight) name = t("Point light");
+  else if (isSpotLight) name = t("Spot light");
+  else name = type[0].toUpperCase() + type.slice(1);
+
+  let size;
+  if (ground) size = [12, 0.1, 12];
+  else if (isHuman) size = [0.7, 1.8, 0.4];
+  else if (isCard) size = [2, 3];
+  else size = [1.5, 1.5, 1.5];
+
+  let position = [0, 0, 0];
+  let rotation = [0, 0, 0];
+  let color = "#8c929b";
+  let intensity;
+  let cast_shadow;
+  let cone_angle;
+  let penumbra;
+
+  if (isSunLight) {
+    position = [5.0, 8.5, 4.0];
+    rotation = [-55, 35, 0];
+    color = "#fff6ec";
+    intensity = 2.2;
+    cast_shadow = true;
+  } else if (isPointLight) {
+    position = [0, 3, 0];
+    color = "#ffffff";
+    intensity = 2.0;
+    cast_shadow = false;
+  } else if (isSpotLight) {
+    position = [0, 4, 0];
+    rotation = [-60, 0, 0];
+    color = "#ffffff";
+    intensity = 3.0;
+    cone_angle = 45;
+    penumbra = 0.25;
+    cast_shadow = true;
+  }
+
+  const object = {
+    id,
+    type,
+    name,
+    position,
+    rotation,
+    size,
+    color,
+    material_mode: ground ? "checker" : "textured",
+    ...(intensity !== undefined ? { intensity } : {}),
+    ...(cast_shadow !== undefined ? { cast_shadow } : {}),
+    ...(cone_angle !== undefined ? { cone_angle } : {}),
+    ...(penumbra !== undefined ? { penumbra } : {}),
+    keyframes: [],
+    enabled: true,
+  };
+  ui.state.objects.push(object);
+  ui.selectedEntity = "object";
+  ui.selectedObjectId = id;
+  ui.selectedObjectIds = new Set([id]);
+  ui.selectedKeyFrame = null;
+  ui.serialize();
+  ui.refreshObjects();
+  ui.refreshKeys();
+  ui.render();
+}
+
+export async function renameObject(ui, id) {
+  const object = ui.state.objects.find((item) => item.id === id);
+  if (!object) return;
+  const name = (await promptText(ui, t("Rename object"), t("Object name"), object.name || object.type))?.trim();
+  if (ui.disposed || !ui.state.objects.includes(object)) return;
+  if (!name || name === object.name) return;
+  ui.checkpoint("Rename object");
+  object.name = name.slice(0, 80);
+  ui.serialize();
+  ui.refreshObjects();
+  ui.refreshKeys();
+  ui.setStatus(t("Object renamed: {value1}", { value1: object.name }));
+}
+
+export function duplicateObject(ui, id) {
+  const source = ui.state.objects.find((item) => item.id === id);
+  if (!source) return;
+  ui.checkpoint("Duplicate object");
+  const copy = JSON.parse(JSON.stringify(source));
+  copy.id = `${source.type}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  copy.name = `${source.name || source.type} Copy`;
+  copy.position = add(copy.position || [0, 0, 0], [0.35, 0, 0.35]);
+  // A duplicated model/card has nothing new to upload -- it points at the
+  // exact file the source already resolved to. Deleting `asset` (as this
+  // used to) orphaned the copy: `restoreAssets` needs it to reconnect the
+  // managed file after a reload, and without registering the live map entry
+  // here too, the duplicate rendered as nothing at all until then. Each
+  // object id still gets its own independent WebGL load and animation mixer
+  // (viewport/resources.js keys `models` by id, not by URL), so two objects
+  // sharing one asset animate and pose completely independently.
+  if ((copy.type === "model" || copy.type === "glb") && ui.modelUrlsById.has(source.id)) {
+    ui.modelUrlsById.set(copy.id, ui.modelUrlsById.get(source.id));
+  } else if (copy.type === "card" && ui.cardMediaById.has(source.id)) {
+    setCardMedia(ui, copy.id, ui.cardMediaById.get(source.id), false, copy.asset || ui.cardMediaAssetById?.get?.(source.id) || "");
+  }
+  ui.state.objects.push(copy);
+  ui.selectedEntity = "object";
+  ui.selectedObjectId = copy.id;
+  ui.selectedObjectIds = new Set([copy.id]);
+  ui.serialize();
+  ui.refreshObjects();
+  ui.refreshKeys();
+  ui.render();
+  ui.setStatus(t("{value1} added", { value1: copy.name }));
+}
+
+export function toggleObject(ui, id) {
+  const object = ui.state.objects.find((item) => item.id === id);
+  if (!object) return;
+  ui.checkpoint(object.enabled === false ? "Show object" : "Hide object");
+  object.enabled = object.enabled === false;
+  ui.serialize();
+  ui.refreshObjects();
+  ui.render();
+  ui.setStatus(t("{value1} {value2}", { value1: object.name || object.type, value2: object.enabled ? "shown" : "hidden" }));
+}
+
+export async function deleteObject(ui, id) {
+  if (id === "subject") return ui.setStatus(t("The subject card cannot be deleted"));
+  const object = ui.state.objects.find((item) => item.id === id);
+  if (!object) return;
+  if (!(await confirmAction(ui, t("Delete object"), t("Delete {value1} and its {value2} keyframe(s)?", { value1: object.name || object.type, value2: (object.keyframes || []).length })))) return;
+  if (ui.disposed || !ui.state.objects.includes(object)) return;
+  ui.checkpoint("Delete object");
+  for (const child of ui.state.objects) if (child.parent_id === id) child.parent_id = null;
+  ui.state.objects = ui.state.objects.filter((item) => item.id !== id);
+  ui.selectedObjectIds?.delete(id);
+  ui.removeObjectResources(id);
+  if (ui.selectedObjectId === id) {
+    ui.selectedEntity = "camera";
+    ui.selectedObjectId = null;
+    ui.selectedKeyFrame = ui.state.keyframes.find((key) => key.frame === ui.frame)?.frame ?? null;
+  }
+  ui.serialize();
+  ui.refreshObjects();
+  ui.refreshKeys();
+  ui.render();
+  ui.setStatus(t("{value1} deleted", { value1: object.name || object.type }));
+}
+
+/**
+ * Delete every object in the outliner multi-selection at once. A single object
+ * (or an empty multi-set with just `selectedObjectId`) falls through to the
+ * per-object `deleteObject` so its wording and confirm are unchanged; two or
+ * more take one confirm, one history checkpoint and one repaint.
+ */
+export async function deleteSelectedObjects(ui) {
+  const ids = [...(ui.selectedObjectIds?.size ? ui.selectedObjectIds : [ui.selectedObjectId])]
+    .filter((id) => id && id !== "subject" && ui.state.objects.some((o) => o.id === id));
+  if (!ids.length) {
+    if (ui.selectedObjectId === "subject") ui.setStatus(t("The subject card cannot be deleted"));
+    return;
+  }
+  if (ids.length === 1) return deleteObject(ui, ids[0]);
+  const prompt = t("Delete {count} objects and their keyframes?").replace("{count}", String(ids.length));
+  if (!(await confirmAction(ui, t("Delete objects"), prompt))) return;
+  if (ui.disposed) return;
+  ui.checkpoint("Delete objects");
+  const doomed = new Set(ids);
+  for (const child of ui.state.objects) if (child.parent_id && doomed.has(child.parent_id)) child.parent_id = null;
+  ui.state.objects = ui.state.objects.filter((item) => !doomed.has(item.id));
+  for (const id of ids) ui.removeObjectResources(id);
+  ui.selectedObjectIds?.clear?.();
+  ui.selectedObjectId = null;
+  ui.selectedEntity = "camera";
+  ui.selectedKeyFrame = ui.state.keyframes.find((key) => key.frame === ui.frame)?.frame ?? null;
+  ui.serialize();
+  ui.refreshObjects();
+  ui.refreshKeys();
+  ui.render();
+  ui.setStatus(t("{count} objects deleted").replace("{count}", String(ids.length)));
+}
+
+export function addMediaCard(ui) {
+  ui.checkpoint("Create media card");
+  const id = `card_${Date.now().toString(36)}`;
+  ui.state.objects.push({
+    id,
+    type: "card",
+    name: `Media Card ${ui.state.objects.filter((item) => item.type === "card").length + 1}`,
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    size: [2, 3],
+    material_mode: "textured",
+    keyframes: [],
+    enabled: true,
+    asset: "",
+  });
+  ui.selectedEntity = "object";
+  ui.selectedObjectId = id;
+  ui.selectedObjectIds = new Set([id]);
+  ui.selectedKeyFrame = null;
+  ui.serialize();
+  ui.refreshObjects();
+  ui.refreshKeys();
+  ui.render();
+  ui.root.querySelector('[data-role="file"]').click();
+}
+
+export function selectedObject(ui) {
+  return (ui.selectedEntity === "object" && ui.state.objects.find((object) => object.id === ui.selectedObjectId)) || null;
+}
+
+/**
+ * Renames the curve-group options for the current subject.
+ *
+ * Keyed by option value, never by index: the previous version assigned
+ * options[0..2] positionally, so adding a fourth group silently shifted every
+ * label by one and the select claimed to show a group it was not showing.
+ *
+ * @param {Function} q root querySelector
+ * @param {Record<string,string>} labels option value -> label
+ */
+function relabelCurveGroups(q, labels) {
+  const select = q('[data-role="curve-group"]');
+  if (!select) return;
+  for (const option of select.options) {
+    const label = labels[option.value];
+    if (label) option.textContent = label;
+  }
+}
+
+export function refreshInspector(ui) {
+  const object = selectedObject(ui);
+  const objectPanel = ui.root.querySelector('[data-role="object-panel"]');
+  if (objectPanel) objectPanel.hidden = !object;
+  const q = (sel) => ui.root.querySelector(sel);
+
+  // Always populate camera panel inputs
+  const activeCamera = ui.activeCameraTrack();
+  const targetSelect = q('[data-role="camera-target-object"]');
+  if (targetSelect) {
+    const currentTarget = activeCamera.target_object_id || ui.state.target_object_id || "";
+    const signature = `T${getLocale()}${ui.state.objects.map((sceneObj) => `${sceneObj.id} ${sceneObj.name || sceneObj.type}`).join("|")}`;
+    syncSelectOptions(targetSelect, signature, () => [
+      optionEl("", t("Manual Target (No Tracking)")),
+      ...ui.state.objects.map((sceneObj) => optionEl(sceneObj.id, `${t("Track:")} ${sceneObj.name || sceneObj.type}`)),
+    ], currentTarget);
+  }
+  refreshAimBoneOptions(ui);
+
+  const values = [...ui.camera.position, ...ui.camera.target, ui.camera.fov, ui.camera.roll || 0, ui.camera.near, ui.camera.far, ...cameraOrientationEuler(ui.camera)];
+  ["camera-px", "camera-py", "camera-pz", "camera-tx", "camera-ty", "camera-tz", "camera-fov", "camera-roll", "camera-near", "camera-far", "camera-rx", "camera-ry", "camera-rz"].forEach((role, index) => {
+    for (const el of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      if (document.activeElement !== el) el.value = String(Math.round(values[index] * 1e4) / 1e4);
+    }
+  });
+  for (const el of ui.root.querySelectorAll('[data-role="camera-type"]')) {
+    if (document.activeElement !== el) el.value = ui.camera.camera_type || "perspective";
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="speed"]')) {
+    if (document.activeElement !== el) el.value = String(ui.cameraSpeed || 1);
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="active-camera-select"]')) {
+    if (document.activeElement !== el) el.value = ui.state.active_camera_id;
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="camera-color"]')) {
+    if (document.activeElement !== el) el.value = activeCamera?.color || "#4aa3ef";
+  }
+
+  if (!object) {
+    const badgeEl = q('[data-role="object-recon-badge"]');
+    if (badgeEl) badgeEl.hidden = true;
+    const selName = q('[data-role="selected-name"]');
+    if (selName) selName.textContent = `${activeCamera.name} · F${ui.frame}`;
+    relabelCurveGroups(q, {
+      camera: t("Camera (Position, Focal, Roll)"),
+      position: t("Position XYZ"),
+      target: t("Target XYZ"),
+      lens: t("FOV / Roll / Zoom"),
+    });
+    ui.rigMapper?.sync();
+    ui.poseEditor?.sync();
+    ui.motionEditor?.sync();
+    return;
+  }
+  const badgeEl = q('[data-role="object-recon-badge"]');
+  if (badgeEl) {
+    const badge = reconstructionBadge(object);
+    if (badge) {
+      badgeEl.hidden = false;
+      const prefix = badge.semantic ? `${badge.semantic} · ` : "";
+      badgeEl.textContent = `${prefix}${badge.label} (${Math.round(badge.confidence * 100)}%)`;
+      badgeEl.title = badge.title;
+      badgeEl.className = `oc-recon-badge oc-badge-${badge.band}`;
+    } else {
+      badgeEl.hidden = true;
+    }
+  }
+  const lockBtn = q('[data-role="object-lock-toggle"]');
+  if (lockBtn) {
+    lockBtn.classList.toggle("locked", Boolean(object.locked));
+    lockBtn.title = object.locked ? t("Unlock object") : t("Lock object");
+    const icon = lockBtn.querySelector("i");
+    if (icon) icon.className = `pi ${object.locked ? "pi-lock" : "pi-lock-open"}`;
+  }
+  const position = object.position || [0, 0, 0];
+  const selName = q('[data-role="selected-name"]');
+  if (selName) selName.textContent = object.name || object.type;
+  // An object has no lens, so the combined camera group falls back to position.
+  relabelCurveGroups(q, {
+    camera: t("Position XYZ"),
+    position: t("Position XYZ"),
+    target: t("Rotation XYZ"),
+    lens: t("Scale XYZ"),
+  });
+  const rotation = object.rotation || [0, 0, 0];
+  const size = object.size || [1, 1, 1];
+  const objValues = {
+    "object-x": position[0],
+    "object-y": position[1],
+    "object-z": position[2],
+    "object-rx": rotation[0],
+    "object-ry": rotation[1],
+    "object-rz": rotation[2],
+    "object-sx": size[0] ?? 1,
+    "object-sy": size[1] ?? 1,
+    "object-sz": size[2] ?? 1,
+  };
+  for (const [role, val] of Object.entries(objValues)) {
+    for (const el of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      if (document.activeElement !== el) el.value = String(Math.round(val * 1e4) / 1e4);
+    }
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="object-material"]')) {
+    if (document.activeElement !== el) el.value = object.material_mode || "textured";
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="object-color"]')) {
+    if (document.activeElement !== el) el.value = object.color || "#8c929b";
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="object-light-color"]')) {
+    if (document.activeElement !== el) el.value = object.color || "#ffffff";
+  }
+  for (const button of ui.root.querySelectorAll("[data-transform-mode]")) button.classList.toggle("active", button.dataset.transformMode === (ui.state.gizmo_mode || "translate"));
+  const animationRow = q('[data-role="animation-row"]');
+  const animationSelect = q('[data-role="animation-select"]');
+  const parentSelect = q('[data-role="object-parent"]');
+  if (parentSelect) {
+    const currentId = object.id;
+    // Offer every other object that would not create a cycle.
+    const descendants = new Set([currentId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const candidate of ui.state.objects)
+        if (!descendants.has(candidate.id) && candidate.parent_id && descendants.has(candidate.parent_id)) {
+          descendants.add(candidate.id);
+          changed = true;
+        }
+    }
+    const candidates = ui.state.objects.filter((candidate) => !descendants.has(candidate.id));
+    const signature = `P${getLocale()}${currentId}${candidates.map((candidate) => `${candidate.id} ${candidate.name || candidate.type}`).join("|")}`;
+    syncSelectOptions(parentSelect, signature, () => [
+      optionEl("", t("No parent")),
+      ...candidates.map((candidate) => optionEl(candidate.id, candidate.name || candidate.type)),
+    ], object.parent_id || "");
+  }
+  const isLight = ["sun_light", "point_light", "spot_light"].includes(object.type);
+  const isSpot = object.type === "spot_light";
+  const lightRow = q('[data-role="light-props-row"]');
+  if (lightRow) lightRow.hidden = !isLight;
+  const spotRow = q('[data-role="spot-props-row"]');
+  if (spotRow) spotRow.hidden = !isSpot;
+  const matRow = q('[data-role="material-row"]');
+  if (matRow) matRow.hidden = isLight;
+  const scaleRow = q('[data-role="scale-row"]');
+  if (scaleRow) scaleRow.hidden = isLight;
+  const rotRow = q('[data-role="rotation-row"]');
+  if (rotRow) rotRow.hidden = object.type === "point_light";
+
+  if (isLight) {
+    const intensityEl = q('[data-role="object-intensity"]');
+    if (intensityEl && document.activeElement !== intensityEl) {
+      intensityEl.value = String(object.intensity ?? (object.type === "sun_light" ? 2.2 : object.type === "spot_light" ? 3.0 : 2.0));
+    }
+    const shadowEl = q('[data-role="object-cast-shadow"]');
+    if (shadowEl) shadowEl.checked = object.cast_shadow !== false;
+    if (isSpot) {
+      const coneEl = q('[data-role="object-cone-angle"]');
+      if (coneEl && document.activeElement !== coneEl) coneEl.value = String(object.cone_angle ?? 45);
+      const penumbraEl = q('[data-role="object-penumbra"]');
+      if (penumbraEl && document.activeElement !== penumbraEl) penumbraEl.value = String(object.penumbra ?? 0.25);
+    }
+  }
+
+  const model = ui.modelInfoById.get(object.id);
+  if (animationRow) animationRow.hidden = !model?.animations;
+  if (animationSelect) {
+    const names = model?.animationNames || [];
+    syncSelectOptions(animationSelect, `A${names.join("|")}`, () => names.map((name, index) => optionEl(String(index), name)), String(object.animation_index || 0));
+  }
+
+  // Semantic tags + visible viewport label. Never stomp a field the user is
+  // typing into (refreshInspector runs on every frame change).
+  const tagsInput = q('[data-role="object-tags"]');
+  if (tagsInput && document.activeElement !== tagsInput) tagsInput.value = (object.tags || []).join(", ");
+  const annInput = q('[data-role="object-annotation"]');
+  if (annInput && document.activeElement !== annInput) annInput.value = object.annotation?.text || "";
+  const annColor = q('[data-role="object-annotation-color"]');
+  if (annColor && document.activeElement !== annColor) annColor.value = object.annotation?.color || "#8d7ee8";
+  const annAnchor = q('[data-role="object-annotation-anchor"]');
+  if (annAnchor && document.activeElement !== annAnchor) annAnchor.value = object.annotation?.anchor || "top";
+
+  // The Rig Mapper shows itself only for a Character and reloads its grid when
+  // the selected object changes.
+  ui.rigMapper?.sync();
+  ui.poseEditor?.sync();
+  ui.motionEditor?.sync();
+}
+
+export function updateSelectedObject(ui) {
+  const object = selectedObject(ui);
+  if (!object) return;
+  if (object.locked) {
+    ui.setStatus?.(t("Object is locked"));
+    return;
+  }
+  const read = (role, fallback) => {
+    const el = ui.root.querySelector(`[data-role="${role}"]`);
+    if (!el || el.value === "") return fallback;
+    const value = Number(el.value);
+    return Number.isFinite(value) ? value : fallback;
+  };
+  const pos = object.position || [0, 0, 0];
+  const rot = object.rotation || [0, 0, 0];
+  const sz = object.size || [1, 1, 1];
+  const now = globalThis.performance?.now?.() ?? Date.now();
+  if (ui.lastObjectNumericEditId !== object.id || !Number.isFinite(ui.lastObjectNumericEditAt) || now - ui.lastObjectNumericEditAt > 300) ui.checkpoint?.("Edit object");
+  ui.lastObjectNumericEditId = object.id;
+  ui.lastObjectNumericEditAt = now;
+  object.position = [read("object-x", pos[0]), read("object-y", pos[1]), read("object-z", pos[2])];
+  object.rotation = [read("object-rx", rot[0]), read("object-ry", rot[1]), read("object-rz", rot[2])];
+  object.size = [Math.max(0.01, read("object-sx", sz[0])), Math.max(0.01, read("object-sy", sz[1])), Math.max(0.01, read("object-sz", sz[2]))];
+  if (["sun_light", "point_light", "spot_light"].includes(object.type)) {
+    const intensityInput = ui.root.querySelector('[data-role="object-intensity"]');
+    if (intensityInput && intensityInput.value !== "") {
+      object.intensity = Math.max(0, Number(intensityInput.value) || 0);
+    }
+    const shadowInput = ui.root.querySelector('[data-role="object-cast-shadow"]');
+    if (shadowInput) {
+      object.cast_shadow = shadowInput.checked;
+    }
+    if (object.type === "spot_light") {
+      const coneInput = ui.root.querySelector('[data-role="object-cone-angle"]');
+      if (coneInput && coneInput.value !== "") {
+        object.cone_angle = clamp(Number(coneInput.value) || 45, 1, 90);
+      }
+      const penumbraInput = ui.root.querySelector('[data-role="object-penumbra"]');
+      if (penumbraInput && penumbraInput.value !== "") {
+        object.penumbra = clamp(Number(penumbraInput.value) || 0.25, 0, 1);
+      }
+    }
+  }
+  ui.commitObjectEdit(object);
+  ui.refreshObjects();
+  ui.render();
+}
+
+export function beginObjectEdit(ui, object) {
+  if (!object) return null;
+  if (object.locked) {
+    ui.setStatus(t("{value1} is locked", { value1: object.name || object.type }));
+    return null;
+  }
+  object.keyframes ||= [];
+  let key = findEditableKey(
+    object.keyframes,
+    ui.frame,
+    ui.state.auto_key ? null : ui.selectedKeyFrame,
+    ui.state.auto_key ? null : ui.editingKeyFrame,
+  );
+  if (ui.state.auto_key) {
+    if (!key) {
+      key = { frame: ui.frame, transform: cloneTransform(object), interpolation: ui.root.querySelector('[data-role="interp"]')?.value || "ease" };
+      object.keyframes.push(key);
+      object.keyframes.sort((a, b) => a.frame - b.frame);
+      ui.refreshKeys();
+    }
+    ui.selectedKeyFrame = key.frame;
+    ui.editingKeyFrame = key.frame;
+    ui.updateKeyVisualState();
+  } else if (key) {
+    ui.selectedKeyFrame = key.frame;
+    ui.updateKeyVisualState();
+  }
+  return key;
+}
+
+export function commitObjectEdit(ui, object) {
+  const key = beginObjectEdit(ui, object);
+  if (key) key.transform = cloneTransform(object);
+  ui.scheduleSerialize();
+  ui.refreshKeyEditor();
+  ui.updateKeyVisualState();
+  ui.drawCurveEditor();
+}
+
+/** Repaint camera-rx/ry/rz from the camera's actual position/target/roll.
+ * Rotation is a *view* onto that data (see cameraOrientationEuler), never a
+ * value of its own, so every edit that can change orientation -- including
+ * ones that never touch the rotation fields themselves -- must call this or
+ * the Rotation box goes stale relative to Target/Roll. */
+function syncCameraRotationDisplay(ui) {
+  const rotation = cameraOrientationEuler(ui.camera);
+  ["camera-rx", "camera-ry", "camera-rz"].forEach((role, index) => {
+    for (const el of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      if (document.activeElement !== el) el.value = String(Math.round(rotation[index] * 1e4) / 1e4);
+    }
+  });
+}
+
+/** Repaint camera-tx/ty/tz from the camera's actual target. The inverse
+ * counterpart of syncCameraRotationDisplay: editing Rotation X/Y/Z moves the
+ * target (see applyCameraOrientationEuler), so Target must stay in sync too. */
+function syncCameraTargetDisplay(ui) {
+  ["camera-tx", "camera-ty", "camera-tz"].forEach((role, index) => {
+    for (const el of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      if (document.activeElement !== el) el.value = String(Math.round(ui.camera.target[index] * 1e4) / 1e4);
+    }
+  });
+}
+
+/** Rotation X/Y is the look-at direction and Rotation Z is Roll -- aiming at
+ * a target already fixes two of a camera's three rotational degrees of
+ * freedom, so this is a complete, non-conflicting alternative to editing
+ * Target directly (see cameraOrientationEuler's own note). Kept separate
+ * from updateCameraFromHud on purpose: that function re-reads every HUD
+ * field on each call, and Target/Rotation both ultimately drive
+ * camera.target, so folding this in would have the last-read field silently
+ * overwrite whichever one the user did not just edit.
+ */
+export function updateCameraRotationFromHud(ui) {
+  const now = globalThis.performance?.now?.() ?? Date.now();
+  if (!Number.isFinite(ui.lastCameraHudEditAt) || now - ui.lastCameraHudEditAt > 300) ui.checkpoint("Edit camera");
+  ui.lastCameraHudEditAt = now;
+  const read = (role, fallback) => {
+    const el = ui.root.querySelector(`[data-role="${role}"]`);
+    if (!el || el.value === "") return fallback;
+    const value = Number(el.value);
+    return Number.isFinite(value) ? value : fallback;
+  };
+  const current = cameraOrientationEuler(ui.camera);
+  const rotation = [
+    clamp(read("camera-rx", current[0]), -90, 90),
+    read("camera-ry", current[1]),
+    clamp(read("camera-rz", current[2]), -180, 180),
+  ];
+  ui.beginCameraEdit();
+  applyCameraOrientationEuler(ui.camera, rotation);
+  ui.commitCameraEdit();
+  ui.finishCameraEdit();
+  syncCameraRotationDisplay(ui);
+  syncCameraTargetDisplay(ui);
+  ui.render();
+}
+
+export function updateCameraFromHud(ui) {
+  const now = globalThis.performance?.now?.() ?? Date.now();
+  if (!Number.isFinite(ui.lastCameraHudEditAt) || now - ui.lastCameraHudEditAt > 300) ui.checkpoint("Edit camera");
+  ui.lastCameraHudEditAt = now;
+  const read = (role, fallback) => {
+    const el = ui.root.querySelector(`[data-role="${role}"]`);
+    if (!el || el.value === "") return fallback;
+    const value = Number(el.value);
+    return Number.isFinite(value) ? value : fallback;
+  };
+  ui.camera.position = [read("camera-px", ui.camera.position[0]), read("camera-py", ui.camera.position[1]), read("camera-pz", ui.camera.position[2])];
+  ui.camera.target = [read("camera-tx", ui.camera.target[0]), read("camera-ty", ui.camera.target[1]), read("camera-tz", ui.camera.target[2])];
+  ui.camera.fov = clamp(read("camera-fov", ui.camera.fov), 5, 150);
+  ui.camera.roll = clamp(read("camera-roll", ui.camera.roll || 0), -180, 180);
+  ui.camera.near = Math.max(1e-4, read("camera-near", ui.camera.near));
+  ui.camera.far = Math.max(ui.camera.near + 1e-4, read("camera-far", ui.camera.far));
+  ui.beginCameraEdit();
+  ui.commitCameraEdit();
+  ui.finishCameraEdit();
+  syncCameraRotationDisplay(ui);
+  ui.render();
+}
+
+export function setObjectParent(ui, parentId) {
+  const object = selectedObject(ui);
+  if (!object) return;
+  ui.checkpoint("Set parent");
+  object.parent_id = parentId || null;
+  ui.serialize();
+  ui.refreshObjects();
+  ui.render();
+  const parent = ui.state.objects.find((item) => item.id === parentId);
+  ui.setStatus(parent ? t("{value1} parented to {value2}", { value1: object.name || object.type, value2: parent.name || parent.type }) : t("{value1} unparented", { value1: object.name || object.type }));
+}
+
+export function selectObjectAnimation(ui, index) {
+  const object = selectedObject(ui);
+  if (!object) return;
+  ui.checkpoint("Select animation");
+  object.animation_index = Math.max(0, index || 0);
+  ui.serialize();
+  ui.webgl?.selectAnimation(object.id, index);
+  ui.setStatus(t("Animation: {value1}", { value1: ui.modelInfoById.get(object.id)?.animationNames?.[index] || index + 1 }));
+}
+
+export { refreshObjects } from "./outliner.js";
+
+export function removeObjectResources(ui, id) {
+  ui.objectUrls.revoke(id);
+  releaseCardMedia(ui, id);
+  ui.modelUrlsById.delete(id);
+  ui.modelInfoById.delete(id);
+  ui.webgl?.removeModel(id);
+}

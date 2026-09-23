@@ -1,0 +1,233 @@
+// The two user-resizable regions: the Outliner object list (drag vertically to
+// show more objects) and the lower-deck camera-preview column (drag
+// horizontally to enlarge the camera views). Sizes persist in ui.state and are
+// clamped by sanitizeState.
+
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { PANEL_LAYOUT, defaultState, sanitizeState } from "../../web-src/director/core.js";
+import { applyPanelLayout, bindPanelResize, resetPanelLayout } from "../../web-src/event-bindings/panel-resize.js";
+
+test("defaultState seeds panel sizes at their documented defaults", () => {
+  const state = defaultState();
+  assert.equal(state.outliner_height, PANEL_LAYOUT.outlinerHeight.default);
+  assert.equal(state.preview_width, PANEL_LAYOUT.previewWidth.default);
+  assert.equal(state.side_width, PANEL_LAYOUT.sideWidth.default);
+  assert.equal(state.graph_height, PANEL_LAYOUT.graphHeight.default);
+  assert.equal(state.assets_height, PANEL_LAYOUT.assetsHeight.default);
+  assert.equal(state.agent_height, PANEL_LAYOUT.agentHeight.default);
+});
+
+test("sanitizeState clamps out-of-range or unusable panel sizes", () => {
+  const low = sanitizeState({ outliner_height: 5, preview_width: 5, side_width: 10, graph_height: 10, assets_height: 5, agent_height: 5 });
+  assert.equal(low.outliner_height, PANEL_LAYOUT.outlinerHeight.min);
+  assert.equal(low.preview_width, PANEL_LAYOUT.previewWidth.min);
+  assert.equal(low.side_width, PANEL_LAYOUT.sideWidth.min);
+  assert.equal(low.graph_height, PANEL_LAYOUT.graphHeight.min);
+  assert.equal(low.assets_height, PANEL_LAYOUT.assetsHeight.min);
+  assert.equal(low.agent_height, PANEL_LAYOUT.agentHeight.min);
+
+  const high = sanitizeState({ outliner_height: 99999, preview_width: 99999, side_width: 99999, graph_height: 99999, assets_height: 99999, agent_height: 99999 });
+  assert.equal(high.outliner_height, PANEL_LAYOUT.outlinerHeight.max);
+  assert.equal(high.preview_width, PANEL_LAYOUT.previewWidth.max);
+  assert.equal(high.side_width, PANEL_LAYOUT.sideWidth.max);
+  assert.equal(high.graph_height, PANEL_LAYOUT.graphHeight.max);
+  assert.equal(high.assets_height, PANEL_LAYOUT.assetsHeight.max);
+  assert.equal(high.agent_height, PANEL_LAYOUT.agentHeight.max);
+
+  const nan = sanitizeState({ outliner_height: "nope", preview_width: null, side_width: undefined, graph_height: "bad", assets_height: "nope", agent_height: undefined });
+  assert.equal(nan.outliner_height, PANEL_LAYOUT.outlinerHeight.default);
+  assert.equal(nan.preview_width, PANEL_LAYOUT.previewWidth.default);
+  assert.equal(nan.side_width, PANEL_LAYOUT.sideWidth.default);
+  assert.equal(nan.graph_height, PANEL_LAYOUT.graphHeight.default);
+  assert.equal(nan.assets_height, PANEL_LAYOUT.assetsHeight.default);
+  assert.equal(nan.agent_height, PANEL_LAYOUT.agentHeight.default);
+
+  const kept = sanitizeState({ outliner_height: 300, preview_width: 400, side_width: 350, graph_height: 250, assets_height: 400, agent_height: 260 });
+  assert.equal(kept.outliner_height, 300);
+  assert.equal(kept.preview_width, 400);
+  assert.equal(kept.side_width, 350);
+  assert.equal(kept.graph_height, 250);
+  assert.equal(kept.assets_height, 400);
+  assert.equal(kept.agent_height, 260);
+});
+
+function makeHandle() {
+  const listeners = new Map();
+  return {
+    listeners,
+    addEventListener(type, fn) { (listeners.get(type) || listeners.set(type, []).get(type)).push(fn); },
+    setPointerCapture() {}, releasePointerCapture() {},
+    dispatch(type, event) { for (const fn of listeners.get(type) || []) fn(event); },
+  };
+}
+
+function fixture(stateOverrides = {}) {
+  const vars = {};
+  const outliner = makeHandle();
+  const preview = makeHandle();
+  const side = makeHandle();
+  const graph = makeHandle();
+  const assets = makeHandle();
+  const agent = makeHandle();
+  const previewRefits = [];
+  const serializes = [];
+  const ui = {
+    state: { ...defaultState(), ...stateOverrides },
+    root: {
+      style: { setProperty: (name, value) => { vars[name] = value; } },
+      querySelector: (sel) => (
+        sel.includes("outliner-resize") ? outliner
+        : sel.includes("preview-resize") ? preview
+        : sel.includes("side-resize") ? side
+        : sel.includes("graph-resize") ? graph
+        : sel.includes("assets-resize") ? assets
+        : sel.includes("agent-resize") ? agent
+        : sel.includes("oc-body") ? { clientWidth: 1600 }
+        : null
+      ),
+      // No reset-layout button in this minimal fixture DOM.
+      querySelectorAll: () => [],
+    },
+    refreshCameraPreviews: () => previewRefits.push(true),
+    requestRender: () => {},
+    scheduleSerialize: () => serializes.push(true),
+  };
+  bindPanelResize(ui, undefined);
+  return { ui, vars, outliner, preview, side, graph, assets, agent, previewRefits, serializes };
+}
+
+test("applyPanelLayout writes the current sizes as CSS custom properties", () => {
+  const { vars } = fixture({ outliner_height: 260, preview_width: 320, side_width: 310, graph_height: 240, assets_height: 380, agent_height: 260 });
+  assert.equal(vars["--oc-outliner-h"], "260px");
+  assert.equal(vars["--oc-preview-w"], "320px");
+  assert.equal(vars["--oc-side-w"], "310px");
+  assert.equal(vars["--oc-graph-h"], "240px");
+  assert.equal(vars["--oc-assets-h"], "380px");
+  assert.equal(vars["--oc-agent-h"], "260px");
+});
+
+test("dragging the outliner handle grows the list height and persists it", () => {
+  const { ui, vars, outliner, serializes } = fixture({ outliner_height: 150 });
+  outliner.dispatch("pointerdown", { button: 0, pointerId: 1, clientY: 100, clientX: 0, preventDefault() {} });
+  outliner.dispatch("pointermove", { pointerId: 1, clientY: 240, clientX: 0 });
+  assert.equal(vars["--oc-outliner-h"], "290px", "the list follows the pointer live");
+  outliner.dispatch("pointerup", { pointerId: 1, clientY: 240, clientX: 0 });
+  assert.equal(ui.state.outliner_height, 290, "release commits the new height to state");
+  assert.equal(serializes.length, 1, "and schedules a serialize");
+});
+
+test("dragging past the max clamps and never exceeds the bound", () => {
+  const { ui, outliner } = fixture({ outliner_height: 150 });
+  outliner.dispatch("pointerdown", { button: 0, pointerId: 1, clientY: 0, clientX: 0, preventDefault() {} });
+  outliner.dispatch("pointerup", { pointerId: 1, clientY: 100000, clientX: 0 });
+  assert.equal(ui.state.outliner_height, PANEL_LAYOUT.outlinerHeight.max);
+});
+
+test("dragging the preview splitter resizes the column and re-fits the tiles", () => {
+  const { ui, vars, preview, previewRefits } = fixture({ preview_width: 236 });
+  preview.dispatch("pointerdown", { button: 0, pointerId: 2, clientX: 400, clientY: 0, preventDefault() {} });
+  preview.dispatch("pointermove", { pointerId: 2, clientX: 520, clientY: 0 });
+  assert.equal(vars["--oc-preview-w"], "356px");
+  preview.dispatch("pointerup", { pointerId: 2, clientX: 520, clientY: 0 });
+  assert.equal(ui.state.preview_width, 356);
+  assert.ok(previewRefits.length >= 1, "the WebGL preview tiles are re-measured for the new width");
+});
+
+test("double-click resets a handle to its default", () => {
+  const { ui, preview } = fixture({ preview_width: 500 });
+  preview.dispatch("dblclick", { preventDefault() {} });
+  assert.equal(ui.state.preview_width, PANEL_LAYOUT.previewWidth.default);
+});
+
+test("arrow keys nudge the size and Shift takes a bigger step", () => {
+  const { ui, outliner } = fixture({ outliner_height: 200 });
+  outliner.dispatch("keydown", { key: "ArrowDown", preventDefault() {} });
+  assert.equal(ui.state.outliner_height, 216);
+  outliner.dispatch("keydown", { key: "ArrowUp", shiftKey: true, preventDefault() {} });
+  assert.equal(ui.state.outliner_height, 168);
+  outliner.dispatch("keydown", { key: "Home", preventDefault() {} });
+  assert.equal(ui.state.outliner_height, PANEL_LAYOUT.outlinerHeight.default);
+});
+
+test("dragging the side splitter inversely resizes side_width", () => {
+  const { ui, vars, side } = fixture({ side_width: 280 });
+  side.dispatch("pointerdown", { button: 0, pointerId: 3, clientX: 700, clientY: 0, preventDefault() {} });
+  side.dispatch("pointermove", { pointerId: 3, clientX: 640, clientY: 0 });
+  assert.equal(vars["--oc-side-w"], "340px");
+  side.dispatch("pointerup", { pointerId: 3, clientX: 640, clientY: 0 });
+  assert.equal(ui.state.side_width, 340);
+});
+
+test("dragging the graph handle down resizes graph_height", () => {
+  const { ui, vars, graph } = fixture({ graph_height: 220 });
+  graph.dispatch("pointerdown", { button: 0, pointerId: 4, clientX: 0, clientY: 300, preventDefault() {} });
+  graph.dispatch("pointermove", { pointerId: 4, clientX: 0, clientY: 380 });
+  assert.equal(vars["--oc-graph-h"], "300px");
+  graph.dispatch("pointerup", { pointerId: 4, clientX: 0, clientY: 380 });
+  assert.equal(ui.state.graph_height, 300);
+});
+
+test("dragging the assets grid handle resizes assets_height, like the Scene outliner", () => {
+  const { ui, vars, assets, serializes } = fixture({ assets_height: 340 });
+  assets.dispatch("pointerdown", { button: 0, pointerId: 5, clientX: 0, clientY: 100, preventDefault() {} });
+  assets.dispatch("pointermove", { pointerId: 5, clientX: 0, clientY: 180 });
+  assert.equal(vars["--oc-assets-h"], "420px");
+  assets.dispatch("pointerup", { pointerId: 5, clientX: 0, clientY: 180 });
+  assert.equal(ui.state.assets_height, 420);
+  assert.equal(serializes.length, 1);
+});
+
+test("dragging the Agent panel handle resizes agent_height, like the Scene outliner", () => {
+  const { ui, vars, agent } = fixture({ agent_height: 220 });
+  agent.dispatch("pointerdown", { button: 0, pointerId: 6, clientX: 0, clientY: 100, preventDefault() {} });
+  agent.dispatch("pointermove", { pointerId: 6, clientX: 0, clientY: 140 });
+  assert.equal(vars["--oc-agent-h"], "260px");
+  agent.dispatch("pointerup", { pointerId: 6, clientX: 0, clientY: 140 });
+  assert.equal(ui.state.agent_height, 260);
+});
+
+test("assets and agent handles clamp to their bounds and reset on double-click", () => {
+  const { ui: uiAssets, assets } = fixture({ assets_height: 340 });
+  assets.dispatch("pointerdown", { button: 0, pointerId: 7, clientX: 0, clientY: 0, preventDefault() {} });
+  assets.dispatch("pointerup", { pointerId: 7, clientX: 0, clientY: 100000 });
+  assert.equal(uiAssets.state.assets_height, PANEL_LAYOUT.assetsHeight.max);
+
+  const { ui: uiAgent, agent } = fixture({ agent_height: 500 });
+  agent.dispatch("dblclick", { preventDefault() {} });
+  assert.equal(uiAgent.state.agent_height, PANEL_LAYOUT.agentHeight.default);
+});
+
+test("resetPanelLayout (Director modal audit Lot 4) restores every panel to its default in one call", () => {
+  const { ui, vars, previewRefits, serializes } = fixture({
+    outliner_height: 900, preview_width: 700, side_width: 600,
+    left_width: 500, graph_height: 700, assets_height: 1500, agent_height: 1500,
+  });
+  resetPanelLayout(ui);
+  assert.equal(ui.state.outliner_height, PANEL_LAYOUT.outlinerHeight.default);
+  assert.equal(ui.state.preview_width, PANEL_LAYOUT.previewWidth.default);
+  assert.equal(ui.state.side_width, PANEL_LAYOUT.sideWidth.default);
+  assert.equal(ui.state.left_width, PANEL_LAYOUT.leftWidth.default);
+  assert.equal(ui.state.graph_height, PANEL_LAYOUT.graphHeight.default);
+  assert.equal(ui.state.assets_height, PANEL_LAYOUT.assetsHeight.default);
+  assert.equal(ui.state.agent_height, PANEL_LAYOUT.agentHeight.default);
+  assert.equal(vars["--oc-outliner-h"], `${PANEL_LAYOUT.outlinerHeight.default}px`);
+  assert.ok(previewRefits.length >= 1, "re-fits the camera preview tiles for the restored width");
+  assert.ok(serializes.length >= 1, "schedules a serialize of the restored layout");
+});
+
+test("the side/left splitters never squeeze the central stage below its minimum on a narrow window", () => {
+  const { ui, vars, side } = fixture({ side_width: 280, left_width: 264 });
+  ui.root.querySelector = (sel) => (
+    sel.includes("side-resize") ? side
+    : sel.includes("oc-body") ? { clientWidth: 900 }
+    : null
+  );
+  // Dragging far past the static max (640) must still respect the narrow
+  // container's central-minimum constraint, not just the static bound.
+  side.dispatch("pointerdown", { button: 0, pointerId: 3, clientX: 0, clientY: 0, preventDefault() {} });
+  side.dispatch("pointerup", { pointerId: 3, clientX: -100000, clientY: 0 });
+  assert.ok(ui.state.side_width < PANEL_LAYOUT.sideWidth.max, "narrower than the static max because the container is narrow");
+  assert.ok(ui.state.side_width >= PANEL_LAYOUT.sideWidth.min);
+});

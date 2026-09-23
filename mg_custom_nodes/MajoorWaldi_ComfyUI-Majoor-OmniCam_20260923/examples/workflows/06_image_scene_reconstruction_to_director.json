@@ -1,0 +1,398 @@
+{
+  "id": "e812d450-9c2b-41ec-b5a9-352f21f0cc7d",
+  "revision": 0,
+  "last_node_id": 6,
+  "last_link_id": 6,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [
+        -2800,
+        100
+      ],
+      "size": [
+        330,
+        360
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "input_room.png",
+        "image"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "MajoorOmniCamExtractor",
+      "pos": [
+        -2400,
+        100
+      ],
+      "size": [
+        520,
+        680
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "IMAGE,VIDEO",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "solver_coverage",
+          "type": "FLOAT",
+          "links": null,
+          "slot_index": 1
+        },
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamExtractor"
+      },
+      "widgets_values": [
+        "scene_reconstruct",
+        "auto",
+        "auto",
+        53,
+        24,
+        36,
+        840,
+        1,
+        true,
+        1,
+        0.15,
+        0.1,
+        true,
+        0.01,
+        0.25
+      ]
+    },
+    {
+      "id": 3,
+      "type": "MajoorOmniCamDirector",
+      "pos": [
+        -1800,
+        100
+      ],
+      "size": [
+        880,
+        680
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE,VIDEO",
+          "link": null
+        },
+        {
+          "name": "video",
+          "type": "VIDEO,IMAGE",
+          "link": null
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "scene_3d",
+          "type": "*",
+          "link": null
+        },
+        {
+          "name": "solved_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "playblast_video",
+          "type": "VIDEO",
+          "links": [
+            4
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamDirector"
+      },
+      "widgets_values": [
+        "{\"schema_version\":1,\"fps\":24,\"duration_frames\":120,\"width\":1280,\"height\":720,\"render_mode\":\"omni_ref\",\"camera\":{\"position\":[6,4,6],\"target\":[0,1.5,0],\"fov\":35,\"roll\":0,\"camera_type\":\"perspective\",\"zoom\":1,\"near\":0.01,\"far\":10000},\"keyframes\":[{\"frame\":0,\"camera\":{\"position\":[6,4,6],\"target\":[0,1.5,0],\"fov\":35,\"roll\":0,\"camera_type\":\"perspective\",\"zoom\":1,\"near\":0.01,\"far\":10000},\"interpolation\":\"ease\"}],\"cameras\":[{\"id\":\"camera_1\",\"name\":\"Camera 1\",\"color\":\"#4aa3ef\",\"camera\":{\"position\":[6,4,6],\"target\":[0,1.5,0],\"fov\":35,\"roll\":0,\"camera_type\":\"perspective\",\"zoom\":1,\"near\":0.01,\"far\":10000},\"keyframes\":[{\"frame\":0,\"camera\":{\"position\":[6,4,6],\"target\":[0,1.5,0],\"fov\":35,\"roll\":0,\"camera_type\":\"perspective\",\"zoom\":1,\"near\":0.01,\"far\":10000},\"interpolation\":\"ease\"}]}],\"active_camera_id\":\"camera_1\",\"playblast_camera_id\":\"camera_1\",\"objects\":[{\"id\":\"subject\",\"type\":\"card\",\"name\":\"Subject Card\",\"position\":[0,1.5,0],\"rotation\":[0,0,0],\"size\":[2,3,0.01],\"material_mode\":\"textured\",\"color\":\"#8c929b\",\"keyframes\":[],\"enabled\":true,\"asset\":\"\"},{\"id\":\"sun_light\",\"type\":\"sun_light\",\"name\":\"Sun light\",\"position\":[5,8.5,4],\"rotation\":[-55,35,0],\"size\":[1,1,1],\"color\":\"#fff6ec\",\"intensity\":2.2,\"cast_shadow\":true,\"keyframes\":[],\"enabled\":true}],\"metadata\":{},\"guides\":true,\"burn_in\":false,\"speed_heatmap\":false,\"playblast_grid\":false,\"playblast_resolution\":\"output\",\"playblast_quality\":\"balanced\",\"card_fit\":\"contain\",\"card_asset\":\"\",\"reference_index\":0,\"reconstruction_appearance\":\"source_texture\",\"point_density\":\"balanced\",\"point_spread\":\"all_views\",\"point_color\":\"#cbd5e1\",\"viewport_bg_color\":\"#121212\",\"viewport_bg_image\":\"\",\"viewport_bg_sequence\":[],\"show_grid\":true,\"show_radar\":true,\"show_camera_paths\":true,\"show_camera_gizmos\":true,\"show_look_at\":true,\"show_helper_axes\":true,\"show_gizmo\":true,\"show_wireframe\":false,\"show_vertices\":false,\"backface_culling\":false,\"select_mode\":\"object\",\"gizmo_mode\":\"translate\",\"gizmo_space\":\"world\",\"navigation_profile\":\"simple\",\"spatial_snap_mode\":\"none\",\"spatial_grid_size\":0.5,\"auto_key\":false,\"view_mode\":\"perspective\",\"camera_view_visible\":true,\"editor_views\":{\"perspective\":{\"position\":[8,6,8],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"perspective\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]},\"iso\":{\"position\":[10,11,10],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]},\"front\":{\"position\":[0,1,14],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]},\"back\":{\"position\":[0,1,-14],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]},\"top\":{\"position\":[0,14,0],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,0,-1]},\"bottom\":{\"position\":[0,-12,0],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,0,1]},\"right\":{\"position\":[14,1,0],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]},\"left\":{\"position\":[-14,1,0],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]}},\"ui_density\":\"animation\",\"snap_enabled\":true,\"snap_frames\":1,\"timecode_mode\":\"time\",\"loop_playback\":false,\"playback_range\":null,\"markers\":[],\"preview_layout\":\"auto\",\"maximized_camera_id\":null,\"safe_areas\":false,\"resolution_gate\":false,\"aspect_ratio\":\"auto\",\"outliner_height\":220,\"preview_width\":236,\"side_width\":280,\"graph_height\":220,\"health_profile\":\"generic\",\"motion_layers\":[],\"selected_motion_layer_id\":null,\"motion_tool\":\"select\",\"sequence\":{\"enabled\":false,\"cuts\":[],\"recording_path\":\"\"}}",
+        "",
+        "",
+        1280,
+        720,
+        24,
+        5,
+        "omni_ref"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "MajoorOmniCamMonitor",
+      "pos": [
+        -850,
+        100
+      ],
+      "size": [
+        420,
+        340
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "link": 3
+        },
+        {
+          "name": "playblast_video",
+          "type": "VIDEO,IMAGE",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "final_prompt",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 0
+        },
+        {
+          "name": "reference_video",
+          "type": "VIDEO",
+          "links": [
+            5
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "reference_frames",
+          "type": "IMAGE",
+          "links": null,
+          "slot_index": 2
+        },
+        {
+          "name": "camera_embedding",
+          "type": "WAN_CAMERA_EMBEDDING",
+          "links": null,
+          "slot_index": 3
+        },
+        {
+          "name": "native_tracks",
+          "type": "TRACKS",
+          "links": null,
+          "slot_index": 4
+        },
+        {
+          "name": "tracks_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 5
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "links": null,
+          "slot_index": 6
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "links": null,
+          "slot_index": 7
+        },
+        {
+          "name": "target_length",
+          "type": "INT",
+          "links": null,
+          "slot_index": 8
+        },
+        {
+          "name": "h3edit_options",
+          "type": "H3EDIT_OPTIONS",
+          "links": null,
+          "slot_index": 9
+        },
+        {
+          "name": "target_fps",
+          "type": "FLOAT",
+          "links": null,
+          "slot_index": 10
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamMonitor"
+      },
+      "widgets_values": [
+        "Cinematic slow push-in through the reconstructed room.",
+        "h3_api",
+        1280,
+        720,
+        5,
+        24
+      ]
+    },
+    {
+      "id": 5,
+      "type": "SaveVideo",
+      "pos": [
+        -380,
+        100
+      ],
+      "size": [
+        350,
+        110
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "video/Reconstruction_Reference",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "MarkdownNote",
+      "pos": [
+        -2800,
+        -180
+      ],
+      "size": [
+        650,
+        240
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "# OmniCam — Still Image Scene Reconstruction to Director\n\nConvert a single still image into an editable 3D proxy scene, block camera moves in Director, and compile conditioning for video models.\n\n### How to use\n1. Feed a still image into `MajoorOmniCamExtractor`.\n2. In the Extractor panel, click **Scene Reconstruct** mode, choose a quality preset, and click **▶ RECONSTRUCT**.\n3. Click **OPEN IN DIRECTOR** to adopt the reconstructed environment mesh and fitted ground plane.\n4. Animate your camera in Director, record a playblast, and queue to compile through Monitor."
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      4,
+      "OMNICAM_MOTION_SCENE"
+    ],
+    [
+      3,
+      3,
+      0,
+      4,
+      0,
+      "OMNICAM_MOTION_SCENE"
+    ],
+    [
+      4,
+      3,
+      1,
+      4,
+      1,
+      "VIDEO"
+    ],
+    [
+      5,
+      4,
+      1,
+      5,
+      0,
+      "VIDEO"
+    ]
+  ],
+  "version": 0.4,
+  "extra": {
+    "omnicam_example_version": "0.3.0"
+  }
+}

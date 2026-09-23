@@ -1,0 +1,527 @@
+from __future__ import annotations
+
+import copy
+
+import pytest
+
+# torch is optional: the model-agnostic lane installs numpy and nothing else.
+# A bare ``import torch`` here fails collection for the whole run, which is how
+# three green suites turned the core lane red.
+pytest.importorskip("torch")
+
+import torch
+
+from omnicam.core.motion_scene import MotionScene
+from omnicam.profiles import CompileRequest
+from omnicam.profiles.h3 import H3_API_PROFILE, H3_NATIVE_PROFILE
+from omnicam.profiles.h3_scene_coverage import H3_SCENE_COVERAGE_PROFILE
+from omnicam.profiles.shots import MULTI_SHOT_PROMPT
+
+
+def _scene(*, camera_enabled: bool = True) -> MotionScene:
+    return MotionScene.from_dict(
+        {
+            "version": 1,
+            "timeline": {"duration_seconds": 2.0, "authoring_fps": 24.0},
+            "canvas": {"width": 640, "height": 360},
+            "cameras": [
+                {
+                    "id": "hero_camera",
+                    "label": "Hero Camera",
+                    "enabled": camera_enabled,
+                    "track": {
+                        "schema_version": 1,
+                        "fps": 24,
+                        "duration_frames": 48,
+                        "width": 640,
+                        "height": 360,
+                        "render_mode": "omni_ref",
+                        "keyframes": [
+                            {
+                                "frame": 0,
+                                "camera": {
+                                    "position": [0.0, 2.0, 6.0],
+                                    "target": [0.0, 1.0, 0.0],
+                                    "fov": 45.0,
+                                    "roll": 0.0,
+                                },
+                                "interpolation": "linear",
+                            },
+                            {
+                                "frame": 47,
+                                "camera": {
+                                    "position": [2.5, 3.0, 3.0],
+                                    "target": [0.0, 1.0, 0.0],
+                                    "fov": 32.0,
+                                    "roll": 12.0,
+                                },
+                                "interpolation": "smooth",
+                            },
+                        ],
+                        "objects": [],
+                        "metadata": {},
+                    },
+                }
+            ],
+            "active_camera_id": "hero_camera",
+            "playblast_camera_id": "hero_camera",
+            "objects": [],
+            "motion_layers": [],
+            "cuts": [],
+            "metadata": {},
+        }
+    )
+
+
+class MockVideo:
+    def get_frame_rate(self) -> float:
+        return 24.0
+
+    def get_frame_count(self) -> int:
+        return 100
+
+    def get_dimensions(self) -> tuple[int, int]:
+        return (640, 360)
+
+    def as_trimmed(self, start_time: float, duration: float, strict_duration: bool):
+        frames = max(1, round(duration * 24.0))
+        class Trimmed:
+            def get_components(self):
+                class Comps:
+                    images = torch.zeros((frames, 360, 640, 3))
+                return Comps()
+        return Trimmed()
+
+
+def _request(
+    *, camera_enabled: bool = True, with_video: bool = True, duration_seconds: float = 2.0,
+) -> CompileRequest:
+    return CompileRequest(
+        motion_scene=_scene(camera_enabled=camera_enabled),
+        playblast_video=MockVideo() if with_video else None,
+        base_prompt="A stone tower at blue hour.",
+        target_width=832,
+        target_height=480,
+        duration_seconds=duration_seconds,
+        target_fps=24.0,
+    )
+
+
+def test_h3_native_profile_resolves_timeline():
+    timeline = H3_NATIVE_PROFILE.resolve_timeline(_request())
+    assert timeline.frame_count == 56  # 5 + 17*3 = 56 (since 2.0s * 24 = 48)
+    assert timeline.fps == 24.0
+    assert timeline.duration_seconds == pytest.approx(56 / 24.0)
+    assert timeline.frame_policy == "17n_plus_5_at_24fps"
+
+
+def test_h3_native_profile_compiles_bounded_frames():
+    result = H3_NATIVE_PROFILE.compile(_request())
+    assert result.profile_id == "h3_native"
+    assert result.semantic == "reference_video"
+    assert "<Video 1>" in result.final_prompt
+    assert result.reference_frames is not None
+    assert isinstance(result.reference_frames, torch.Tensor)
+    assert result.reference_frames.shape == (56, 360, 640, 3)
+    assert result.reference_video is None
+
+
+def test_h3_api_profile_resolves_timeline():
+    timeline = H3_API_PROFILE.resolve_timeline(_request())
+    assert timeline.frame_count == 48
+    assert timeline.fps == 24.0
+    assert timeline.duration_seconds == 2.0
+    assert timeline.frame_policy == "api_duration_seconds"
+
+
+def test_h3_api_profile_compiles_video_transport():
+    request = _request(duration_seconds=6.0)  # within the API's 4-15s output range
+    result = H3_API_PROFILE.compile(request)
+    assert result.profile_id == "h3_api"
+    assert result.semantic == "reference_video"
+    assert "Video 1" in result.final_prompt  # No brackets for API
+    assert result.reference_video is request.playblast_video
+    assert result.reference_frames is None
+
+
+def test_h3_api_blocks_an_output_duration_outside_four_to_fifteen_seconds():
+    """MinimaxHailuo03ReferenceNode rejects this itself, only after the upload."""
+    too_short = _request(duration_seconds=2.0)
+    check = _check(H3_API_PROFILE.preflight(too_short), "output_duration")
+    assert check.state == "BLOCKED"
+
+    with pytest.raises(ValueError, match="4-15s"):
+        H3_API_PROFILE.compile(too_short)
+
+    in_range = _request(duration_seconds=6.0)
+    assert _check(H3_API_PROFILE.preflight(in_range), "output_duration").state == "PASS"
+
+
+def test_h3_native_warns_rather_than_blocks_outside_its_trained_frame_range():
+    """Native technically accepts a wider grid than it was trained on."""
+    too_short = _request(duration_seconds=2.0)  # 56 frames, below the ~124 floor
+    check = _check(H3_NATIVE_PROFILE.preflight(too_short), "native_trained_range")
+    assert check.state == "WARNING"
+    # A WARNING must not stop the compile the way a BLOCKED gate does.
+    H3_NATIVE_PROFILE.compile(too_short)
+
+    in_range = _request(duration_seconds=10.0)  # 243 frames, inside 124-362
+    assert _check(H3_NATIVE_PROFILE.preflight(in_range), "native_trained_range").state == "PASS"
+
+
+def test_h3_profiles_require_playblast_video():
+    request = _request(with_video=False)
+
+    native_checks = H3_NATIVE_PROFILE.preflight(request)
+    assert any(c.id == "playblast_video" and c.state == "BLOCKED" for c in native_checks)
+    with pytest.raises(ValueError, match="playblast video is required"):
+        H3_NATIVE_PROFILE.compile(request)
+
+    api_checks = H3_API_PROFILE.preflight(request)
+    assert any(c.id == "playblast_video" and c.state == "BLOCKED" for c in api_checks)
+    with pytest.raises(ValueError, match="playblast video is required"):
+        H3_API_PROFILE.compile(request)
+
+
+
+
+# ---------------------------------------------------------------------------
+# Reference-media contract and multi-shot handling
+# ---------------------------------------------------------------------------
+
+class ShortVideo(MockVideo):
+    """A reference far below H3's two-second minimum."""
+
+    def get_frame_count(self) -> int:
+        return 12  # 0.5 s at 24 fps
+
+
+class OffRateVideo(MockVideo):
+    """A reference outside the 23.9-60.5 fps window the API accepts."""
+
+    def get_frame_rate(self) -> float:
+        return 12.0
+
+
+def _check(checks, check_id):
+    return next(check for check in checks if check.id == check_id)
+
+
+def test_h3_api_blocks_a_reference_shorter_than_the_documented_minimum():
+    request = _request()
+    object.__setattr__(request, "playblast_video", ShortVideo())
+
+    check = _check(H3_API_PROFILE.preflight(request), "reference_media")
+
+    assert check.state == "BLOCKED"
+    assert "below the 2.0s minimum" in check.message
+
+
+def test_h3_api_blocks_a_reference_frame_rate_the_api_rejects():
+    request = _request()
+    object.__setattr__(request, "playblast_video", OffRateVideo())
+
+    check = _check(H3_API_PROFILE.preflight(request), "reference_media")
+
+    assert check.state == "BLOCKED"
+    assert "frame rate" in check.message
+
+
+def test_h3_api_refuses_to_compile_a_reference_shorter_than_the_minimum():
+    """A BLOCKED preflight has to stop the compile, not just colour the panel.
+
+    The API rejects this itself -- but only after the upload, and with an error
+    that arrives too late to be actionable.
+    """
+    request = _request()
+    object.__setattr__(request, "playblast_video", ShortVideo())
+
+    with pytest.raises(ValueError, match=r"below the 2\.0s minimum"):
+        H3_API_PROFILE.compile(request)
+
+
+def test_h3_api_refuses_to_compile_a_reference_frame_rate_the_api_rejects():
+    request = _request()
+    object.__setattr__(request, "playblast_video", OffRateVideo())
+
+    with pytest.raises(ValueError, match="frame rate"):
+        H3_API_PROFILE.compile(request)
+
+
+def test_h3_native_warns_rather_than_blocks_on_a_short_reference():
+    """Native has recommendations where the API has hard limits."""
+    request = _request()
+    object.__setattr__(request, "playblast_video", ShortVideo())
+
+    check = _check(H3_NATIVE_PROFILE.preflight(request), "reference_media")
+
+    assert check.state == "WARNING"
+
+
+def test_h3_native_reports_the_five_frame_floor_before_compiling():
+    """The runtime floor and the panel have to agree.
+
+    A three-frame reference used to preflight as a mere WARNING and then raise
+    at compile time, so the panel said the scene was fine right up until it was
+    not.
+    """
+    class TinyVideo(MockVideo):
+        def get_frame_count(self) -> int:
+            return 3
+
+    request = _request()
+    object.__setattr__(request, "playblast_video", TinyVideo())
+
+    check = _check(H3_NATIVE_PROFILE.preflight(request), "reference_frames")
+
+    assert check.state == "BLOCKED"
+    assert "at least 5 reference frames" in check.message
+
+
+def test_a_reference_long_enough_to_encode_passes_the_frame_floor():
+    """Short for the recommendation is not the same as too short to encode."""
+    request = _request()
+    object.__setattr__(request, "playblast_video", ShortVideo())  # 12 frames
+
+    check = _check(H3_NATIVE_PROFILE.preflight(request), "reference_frames")
+
+    assert check.state == "PASS"
+
+
+def test_h3_native_refuses_a_playblast_that_decodes_below_five_frames():
+    class TinyVideo(MockVideo):
+        # The decoded length follows the source frame count, so that is what a
+        # too-short reference actually looks like.
+        def get_frame_count(self) -> int:
+            return 3
+
+    request = _request()
+    object.__setattr__(request, "playblast_video", TinyVideo())
+
+    with pytest.raises(ValueError, match="at least 5 reference frames"):
+        H3_NATIVE_PROFILE.compile(request)
+
+
+def _multi_shot_request() -> CompileRequest:
+    payload = _scene().to_dict()
+    second = copy.deepcopy(payload["cameras"][0])
+    second["id"] = "wide_camera"
+    second["label"] = "Wide Camera"
+    payload["cameras"].append(second)
+    # Cuts are expressed in seconds, like everything else in a MotionScene.
+    payload["cuts"] = [
+        {"camera_id": "hero_camera", "time_seconds": 0.0, "end_time_seconds": 1.0},
+        {"camera_id": "wide_camera", "time_seconds": 1.0, "end_time_seconds": 2.0},
+    ]
+    request = _request(duration_seconds=6.0)  # within the API's 4-15s output range
+    object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
+    return request
+
+
+def test_h3_reports_a_multi_shot_edit_and_stops_describing_one_camera():
+    """The playblast carries the cuts, so the video stays valid; the prompt must not."""
+    request = _multi_shot_request()
+
+    assert request.motion_scene.is_multi_shot
+    check = _check(H3_API_PROFILE.preflight(request), "multi_shot")
+    assert check.state == "WARNING"
+
+    result = H3_API_PROFILE.compile(request)
+    assert MULTI_SHOT_PROMPT in result.final_prompt
+    assert result.final_prompt.startswith("A stone tower at blue hour.")
+
+
+def test_a_single_camera_scene_is_not_reported_as_an_edit():
+    check = _check(H3_API_PROFILE.preflight(_request()), "multi_shot")
+
+    assert check.state == "PASS"
+    in_range_request = _request(duration_seconds=6.0)  # within the API's 4-15s output range
+    assert MULTI_SHOT_PROMPT not in H3_API_PROFILE.compile(in_range_request).final_prompt
+
+
+def _stale_request() -> CompileRequest:
+    payload = _scene().to_dict()
+    payload["metadata"] = {
+        "playblast": {"motion_scene_fingerprint": "recorded-aaa"},
+        "motion_scene_fingerprint_live": "current-bbb",
+    }
+    request = _request()
+    object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
+    return request
+
+
+@pytest.mark.parametrize("profile", [H3_NATIVE_PROFILE, H3_API_PROFILE])
+def test_h3_blocks_a_playblast_recorded_before_the_scene_changed(profile):
+    """H3 conditions entirely on the reference video, so a stale one is a wrong
+    result, not a cosmetic nit -- BLOCKED before the queue, not a UI warning."""
+    request = _stale_request()
+    check = _check(profile.preflight(request), "playblast_freshness")
+    assert check.state == "BLOCKED"
+
+    with pytest.raises(ValueError):
+        profile.compile(request)
+
+
+@pytest.mark.parametrize("profile", [H3_NATIVE_PROFILE, H3_API_PROFILE])
+def test_h3_does_not_flag_a_fresh_playblast(profile):
+    payload = _scene().to_dict()
+    payload["metadata"] = {
+        "playblast": {"motion_scene_fingerprint": "same"},
+        "motion_scene_fingerprint_live": "same",
+    }
+    request = _request()
+    object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
+    assert not [c for c in profile.preflight(request) if c.id == "playblast_freshness"]
+
+
+@pytest.mark.parametrize("profile", [H3_NATIVE_PROFILE, H3_API_PROFILE])
+def test_h3_warns_when_the_captured_guide_style_is_not_motion_proxy(profile):
+    """H3 always expects motion_proxy (doc 12.1) -- a clay-captured guide gets
+    a non-blocking heads-up, not a hard stop."""
+    payload = _scene().to_dict()
+    payload["metadata"] = {"playblast": {"guide_style": "clay"}}
+    request = _request()
+    object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
+    check = _check(profile.preflight(request), "guide_style_mismatch")
+    assert check.state == "WARNING"
+
+
+@pytest.mark.parametrize("profile", [H3_NATIVE_PROFILE, H3_API_PROFILE])
+def test_h3_does_not_flag_a_motion_proxy_capture(profile):
+    payload = _scene().to_dict()
+    payload["metadata"] = {"playblast": {"guide_style": "motion_proxy"}}
+    request = _request()
+    object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
+    assert not [c for c in profile.preflight(request) if c.id == "guide_style_mismatch"]
+
+
+# ---------------------------------------------------------------------------
+# h3_scene_coverage: prompt/options compilation without a playblast
+# ---------------------------------------------------------------------------
+
+def _camera_payload(keyframes: list[dict], *, enabled: bool = True) -> dict:
+    return {
+        "id": "hero_camera",
+        "label": "Hero Camera",
+        "enabled": enabled,
+        "track": {
+            "schema_version": 1,
+            "fps": 24,
+            "duration_frames": keyframes[-1]["frame"] + 1,
+            "width": 640,
+            "height": 360,
+            "render_mode": "omni_ref",
+            "keyframes": keyframes,
+            "objects": [],
+            "metadata": {},
+        },
+    }
+
+
+def _orbit_keyframes(degrees: float, frames: int = 124) -> list[dict]:
+    from h3_track_fixtures import orbit_track
+
+    track = orbit_track(degrees=degrees, frames=frames)
+    return [
+        {"frame": key.frame, "camera": {
+            "position": key.camera.position, "target": key.camera.target,
+            "fov": key.camera.fov, "roll": key.camera.roll,
+        }, "interpolation": key.interpolation}
+        for key in track.keyframes
+    ]
+
+
+def _pan_in_place_keyframes(frames: int = 124) -> list[dict]:
+    from h3_track_fixtures import pan_in_place_track
+
+    track = pan_in_place_track(frames=frames)
+    return [
+        {"frame": key.frame, "camera": {
+            "position": key.camera.position, "target": key.camera.target,
+            "fov": key.camera.fov, "roll": key.camera.roll,
+        }, "interpolation": key.interpolation}
+        for key in track.keyframes
+    ]
+
+
+def _scene_with_camera(camera_payload: dict) -> MotionScene:
+    payload = _scene().to_dict()
+    payload["cameras"] = [camera_payload]
+    payload["active_camera_id"] = camera_payload["id"]
+    payload["playblast_camera_id"] = camera_payload["id"]
+    track = camera_payload["track"]
+    payload["timeline"]["duration_seconds"] = track["duration_frames"] / track["fps"]
+    payload["timeline"]["authoring_fps"] = float(track["fps"])
+    return MotionScene.from_dict(payload)
+
+
+def _h3_scene_coverage_request(camera_payload: dict, *, duration_seconds: float | None = None, base_prompt: str = "") -> CompileRequest:
+    scene = _scene_with_camera(camera_payload)
+    if duration_seconds is None:
+        duration_seconds = scene.timeline.duration_seconds
+    return CompileRequest(
+        motion_scene=scene,
+        playblast_video=None,
+        base_prompt=base_prompt,
+        target_width=831,
+        target_height=481,
+        duration_seconds=duration_seconds,
+        target_fps=24.0,
+    )
+
+
+def test_h3_scene_coverage_resolves_supported_length_and_grid():
+    request = _h3_scene_coverage_request(_camera_payload(_orbit_keyframes(180.0)), duration_seconds=6.0)
+    timeline = H3_SCENE_COVERAGE_PROFILE.resolve_timeline(request)
+    assert timeline.fps == 24.0
+    assert timeline.frame_count == 243
+    assert timeline.width == 832
+    assert timeline.height == 480
+
+
+def test_h3_scene_coverage_compiles_without_playblast():
+    request = _h3_scene_coverage_request(_camera_payload(_orbit_keyframes(180.0)))
+    result = H3_SCENE_COVERAGE_PROFILE.compile(request)
+    assert result.profile_id == "h3_scene_coverage"
+    assert result.semantic == "prompt_options"
+    assert "detailed_description:" in result.final_prompt
+    assert result.h3edit_options["prompt_mode"] == "directed | frozen scene coverage"
+    assert result.reference_video is None
+    assert result.reference_frames is None
+
+
+def test_h3_scene_coverage_blocks_non_orbital_camera():
+    request = _h3_scene_coverage_request(_camera_payload(_pan_in_place_keyframes()))
+    checks = H3_SCENE_COVERAGE_PROFILE.preflight(request)
+    assert any(check.state == "BLOCKED" for check in checks)
+    with pytest.raises(ValueError):
+        H3_SCENE_COVERAGE_PROFILE.compile(request)
+
+
+def test_h3_scene_coverage_surfaces_camera_contract_check_ids():
+    request = _h3_scene_coverage_request(_camera_payload(_orbit_keyframes(180.0)))
+    checks = {check.id: check for check in H3_SCENE_COVERAGE_PROFILE.preflight(request)}
+    for check_id in (
+        "h3_camera_representation", "h3_camera_direction", "h3_camera_completion",
+        "h3_camera_timing", "h3_loop_closure",
+    ):
+        assert check_id in checks
+        assert checks[check_id].state in {"PASS", "WARNING"}
+
+
+def test_h3_scene_coverage_360_orbit_enables_closure_check():
+    request = _h3_scene_coverage_request(_camera_payload(_orbit_keyframes(360.0)), duration_seconds=124 / 24.0)
+    checks = {check.id: check for check in H3_SCENE_COVERAGE_PROFILE.preflight(request)}
+    assert "matches the opening camera" in checks["h3_loop_closure"].message
+
+
+def test_h3_scene_coverage_reports_a_length_remap_warning():
+    request = _h3_scene_coverage_request(_camera_payload(_orbit_keyframes(90.0, frames=137)), duration_seconds=137 / 24.0)
+    checks = {check.id: check for check in H3_SCENE_COVERAGE_PROFILE.preflight(request)}
+    assert checks["h3_camera_timing"].state == "WARNING"
+
+
+def test_h3_scene_coverage_is_registered_in_the_catalog():
+    from omnicam.profiles.catalog import PROFILE_REGISTRY
+
+    assert PROFILE_REGISTRY.require("h3_scene_coverage") is H3_SCENE_COVERAGE_PROFILE

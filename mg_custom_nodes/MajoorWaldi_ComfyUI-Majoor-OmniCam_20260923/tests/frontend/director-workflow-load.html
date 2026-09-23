@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><title>OmniCam Director workflow-load ordering test</title>
+    <style>body { background: #111; }</style>
+    <script type="importmap">
+      { "imports": { "/scripts/app.js": "/tests/frontend/stubs/app.js", "/scripts/api.js": "/tests/frontend/stubs/api.js" } }
+    </script>
+  </head>
+  <body>
+    <div id="status">loading</div>
+    <div id="host"></div>
+    <script type="module">
+      // Reproduces how ComfyUI loads a saved workflow: nodeCreated is called
+      // from the node constructor and NOT awaited, so configure() runs -- and
+      // onConfigure fires -- while the Director chunk is still downloading.
+      // The Director must still end up showing the workflow's state.
+      const fail = (error) => {
+        document.querySelector("#status").textContent = "failed";
+        window.omnicamLoad = { error: String(error?.stack || error?.message || error) };
+      };
+      window.addEventListener("error", (event) => fail(event.error || event.message));
+      window.addEventListener("unhandledrejection", (event) => fail(event.reason));
+      try {
+        await import("/tests/frontend/stubs/app.js");
+        await import("/web/omnicam.js");
+        const extension = (window.__omnicamExtensions || []).find((item) => item.name === "Majoor.OmniCam.Director");
+        if (!extension) throw new Error("Director extension did not register");
+
+        const camera = (id) => ({ id, name: id, keyframes: [] });
+        const stateWith = (...ids) => JSON.stringify({
+          cameras: ids.map(camera), active_camera_id: ids[0], playblast_camera_id: ids[0], objects: [],
+        });
+
+        const stateWidget = { name: "state_json", value: stateWith("constructed") };
+        const widthWidget = { name: "width", value: 1280 };
+        const heightWidget = { name: "height", value: 720 };
+        const fpsWidget = { name: "fps", value: 24 };
+        const durationWidget = { name: "duration_seconds", value: 5 };
+        const node = {
+          comfyClass: "MajoorOmniCamDirector",
+          widgets: [
+            stateWidget,
+            { name: "recording_path", value: "" }, { name: "card_asset", value: "" },
+            widthWidget, heightWidget, fpsWidget, durationWidget,
+            { name: "render_mode", value: "omni_ref" },
+          ],
+          size: [800, 800], pos: [0, 0],
+          graph: { setDirtyCanvas() {} },
+          addDOMWidget(name, type, element) {
+            document.querySelector("#host").appendChild(element);
+            return { element, options: {} };
+          },
+          setSize(next) { this.size = next; }, connect() { return true; },
+        };
+
+        extension.beforeConfigureGraph?.({ nodes: [] });
+        // Deliberately NOT awaited -- this is the whole point of the test.
+        const created = extension.nodeCreated(node);
+
+        // ComfyUI's configure() now runs synchronously, writing the saved
+        // widget values and firing the graph callbacks.
+        stateWidget.value = stateWith("from_workflow_a", "from_workflow_b");
+        widthWidget.value = 1920;
+        heightWidget.value = 1080;
+        fpsWidget.value = 30;
+        durationWidget.value = 8;
+        node.onConfigure?.({});
+        node.onAfterGraphConfigured?.();
+        extension.afterConfigureGraph?.();
+
+        await created;
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
+        // The compact shell restores canonical state headlessly on configure
+        // (migration plan Task 6) -- this workflow-load race is proven
+        // against the persistent runtime now, without ever opening the
+        // workbench, which is the whole point of the migration.
+        const runtime = node.__majoorOmniCamDirectorRuntime;
+        window.omnicamLoad = {
+          attached: Boolean(runtime),
+          cameraIds: (runtime?.state?.cameras || []).map((item) => item.id),
+          width: widthWidget.value,
+          height: heightWidget.value,
+          fps: fpsWidget.value,
+          duration: durationWidget.value,
+          // The node started at [800, 800] -- already above Director's
+          // minimum on both axes -- to prove the loaded-workflow path never
+          // overwrites a real saved size with the fresh-node default.
+          size: [...node.size],
+        };
+        document.querySelector("#status").textContent = "ready";
+      } catch (error) {
+        fail(error);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,264 @@
+// Editor-state serialization and ComfyUI widget synchronization.
+// The node widgets stay authoritative on queue; the UI keeps them in sync here.
+
+import { clamp, cloneCamera, sanitizeState, sampleCamera } from "./director/core.js";
+import { SEQUENCE_TARGET, cutAtFrame, sequenceActive } from "./director/sequence.js";
+import { motionFingerprint } from "./shared/motion-fingerprint.js";
+import { applyPanelLayout } from "./event-bindings/panel-resize.js";
+
+export function activeCameraTrack(ui) {
+  if (!ui?.state?.cameras?.length) {
+    ui.state.cameras = [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: cloneCamera(ui?.camera), keyframes: ui?.state?.keyframes || [] }];
+  }
+  return ui.state.cameras.find((item) => item.id === ui.state.active_camera_id) || ui.state.cameras[0];
+}
+
+export function playblastCameraTrack(ui) {
+  if (!ui?.state?.cameras?.length) {
+    return activeCameraTrack(ui);
+  }
+  // The whole multi-camera edit rides on this branch. Every recording path
+  // funnels through here, so resolving the cut that covers the current frame is
+  // all it takes for the playblast -- and the viewport while it records -- to
+  // follow the edit instead of a single camera.
+  if (ui.state.playblast_camera_id === SEQUENCE_TARGET) {
+    const cut = cutAtFrame(ui.state, ui.frame);
+    const cutCamera = cut && ui.state.cameras.find((item) => item.id === cut.camera_id);
+    if (cutCamera) return cutCamera;
+  }
+  return ui.state.cameras.find((item) => item.id === ui.state.playblast_camera_id) || activeCameraTrack(ui);
+}
+
+export function syncActiveCameraTrack(ui) {
+  const active = activeCameraTrack(ui);
+  if (active) {
+    active.camera = cloneCamera(ui.camera);
+    active.keyframes = ui.state.keyframes;
+    ui.state.camera = cloneCamera(ui.camera);
+  }
+}
+
+export function serializeEditorState(ui) {
+  if (ui.disposed) return;
+  // Revision of the live serialized Director editor snapshot -- deliberately
+  // conservative: an Agent should never silently commit over a Director the
+  // user is actively manipulating, so a manual scrub outside playback
+  // advancing this too is acceptable. Never serialized into ui.state itself,
+  // and never used interchangeably with renderRevision.
+  ui.directorRevision = (
+    Number.isInteger(ui.directorRevision) ? Math.max(0, ui.directorRevision) : 0
+  ) + 1;
+  ui.renderRevision = (ui.renderRevision || 0) + 1;
+  syncActiveCameraTrack(ui);
+  // In sequence mode playblastCameraTrack() answers per frame, so the recording
+  // path has to come from the edit itself rather than from whichever camera the
+  // playhead happens to sit on.
+  const recordingSequence = ui.state.playblast_camera_id === SEQUENCE_TARGET && sequenceActive(ui.state);
+  const playblastCamera = playblastCameraTrack(ui);
+  if (ui.recordingWidget) {
+    if (recordingSequence) {
+      ui.recordingWidget.value = ui.state.sequence.recording_path || "";
+    } else {
+      const hasPerCameraRecording = ui.state.cameras.some((camera) => Boolean(camera.recording_path));
+      if (!hasPerCameraRecording && !playblastCamera.recording_path && ui.recordingWidget.value) {
+        playblastCamera.recording_path = String(ui.recordingWidget.value);
+      }
+      ui.recordingWidget.value = playblastCamera.recording_path || "";
+    }
+  }
+  ui.state.metadata = {
+    ...ui.state.metadata,
+    playblast_camera_id: recordingSequence ? SEQUENCE_TARGET : playblastCamera.id,
+    playblast_camera_name: recordingSequence ? "Sequence" : playblastCamera.name,
+  };
+  const payload = { ...ui.state, camera: cloneCamera(playblastCamera.camera), keyframes: playblastCamera.keyframes };
+  // The current scene fingerprint, hashed the same way `storePlayblastManifest`
+  // hashes it at record time. Carrying it in the serialized state lets a
+  // queued compile (no frontend) tell a stale playblast from a fresh one --
+  // the strict profiles block on the mismatch. Excluded from the hash itself
+  // (METADATA_CHROME_KEYS), so it does not perturb what it measures.
+  payload.metadata = { ...payload.metadata, motion_scene_fingerprint_live: motionFingerprint(ui.state) };
+  if (ui.stateWidget) ui.stateWidget.value = JSON.stringify(payload);
+  if (ui.widthWidget) ui.widthWidget.value = ui.state.width;
+  if (ui.heightWidget) ui.heightWidget.value = ui.state.height;
+  if (ui.fpsWidget) ui.fpsWidget.value = ui.state.fps;
+  if (ui.durationWidget) ui.durationWidget.value = ui.state.duration_frames / ui.state.fps;
+  if (ui.modeWidget) ui.modeWidget.value = ui.state.render_mode;
+  if (ui.cardWidget) ui.cardWidget.value = ui.state.card_asset || "";
+  ui.node.graph?.setDirtyCanvas?.(true, true);
+}
+
+export function bindWidgetCallbacks(ui) {
+  for (const widget of [ui.widthWidget, ui.heightWidget, ui.fpsWidget, ui.durationWidget, ui.modeWidget]) {
+    if (!widget || widget.__omnicamCallback) continue;
+    const original = widget.callback;
+    widget.callback = (...args) => {
+      const result = original?.apply(widget, args);
+      ui.syncFromWidgets();
+      return result;
+    };
+    widget.__omnicamCallback = true;
+  }
+}
+
+export function syncFromWidgets(ui, persist = true) {
+  const previousDuration = ui.state.duration_frames;
+  const previousFps = ui.state.fps;
+  ui.state.width = Number(ui.widthWidget?.value || ui.state.width);
+  ui.state.height = Number(ui.heightWidget?.value || ui.state.height);
+  ui.state.fps = Number(ui.fpsWidget?.value || ui.state.fps);
+  ui.state.duration_frames = Math.max(1, Math.round(Number(ui.durationWidget?.value || 5) * ui.state.fps));
+  // Keys past the end of the timeline go dormant, they are not destroyed.
+  // Clamping them here used to fold every key beyond the new end onto the last
+  // frame, where the dedupe below then kept only one of them: shortening a shot
+  // from 200 to 150 frames silently ate the keys at 160, 180 and 200, and
+  // lengthening it again could not bring them back. Only the lower bound is
+  // enforced; the timeline already skips drawing anything out of range.
+  for (const camera of ui.state.cameras) {
+    for (const key of camera.keyframes) key.frame = Math.max(0, Math.round(key.frame));
+    camera.keyframes = [...new Map(camera.keyframes.map((key) => [key.frame, key])).values()].sort((a, b) => a.frame - b.frame);
+  }
+  ui.state.keyframes = activeCameraTrack(ui).keyframes;
+  for (const object of ui.state.objects)
+    object.keyframes = [...new Map((object.keyframes || []).map((key) => {
+      const frame = Math.max(0, Math.round(key.frame));
+      return [frame, { ...key, frame }];
+    })).values()].sort((a, b) => a.frame - b.frame);
+  if (!ui.timelineKeyframes().some((key) => key.frame === ui.selectedKeyFrame)) ui.selectedKeyFrame = ui.timelineKeyframes()[0]?.frame ?? null;
+  ui.state.render_mode = ui.modeWidget?.value || ui.state.render_mode;
+  const q = (sel) => ui.root.querySelector(sel);
+  for (const el of ui.root.querySelectorAll('[data-role="mode"]')) el.value = ui.state.render_mode;
+  for (const el of ui.root.querySelectorAll('[data-role="guides"]')) el.checked = ui.state.guides !== false;
+  for (const el of ui.root.querySelectorAll('[data-role="playblast-grid"]')) el.checked = Boolean(ui.state.playblast_grid);
+  for (const el of ui.root.querySelectorAll('[data-role="playblast-labels"]')) el.checked = Boolean(ui.state.playblast_labels);
+  for (const el of ui.root.querySelectorAll('[data-role="guide-capture-style"]')) el.value = ui.state.guide_capture_style || "auto";
+  for (const el of ui.root.querySelectorAll('[data-role="reconstruction-appearance"]')) el.value = ui.state.reconstruction_appearance || "neutral";
+  for (const el of ui.root.querySelectorAll('[data-role="playblast-resolution"]')) el.value = ui.state.playblast_resolution || "output";
+  for (const el of ui.root.querySelectorAll('[data-role="show-wireframe"]')) el.checked = Boolean(ui.state.show_wireframe);
+  for (const el of ui.root.querySelectorAll('[data-role="show-vertices"]')) el.checked = Boolean(ui.state.show_vertices);
+  for (const el of ui.root.querySelectorAll('[data-role="backface-culling"]')) el.checked = Boolean(ui.state.backface_culling);
+  for (const el of ui.root.querySelectorAll('[data-role="show-grid"]')) el.checked = ui.state.show_grid !== false;
+  for (const el of ui.root.querySelectorAll('[data-role="show-camera-paths"]')) el.checked = ui.state.show_camera_paths !== false;
+  for (const el of ui.root.querySelectorAll('[data-role="show-camera-gizmos"]')) el.checked = ui.state.show_camera_gizmos !== false;
+  for (const el of ui.root.querySelectorAll('[data-role="show-look-at"]')) el.checked = ui.state.show_look_at !== false;
+  for (const el of ui.root.querySelectorAll('[data-role="show-helper-axes"]')) el.checked = ui.state.show_helper_axes !== false;
+  for (const btn of ui.root.querySelectorAll('[data-act="select-look-at"]')) {
+    const on = ui.selectedEntity === "camera_target";
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", String(on));
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="select-mode"]')) el.value = ui.state.select_mode || "object";
+  for (const el of ui.root.querySelectorAll('[data-role="burn-in"]')) el.checked = Boolean(ui.state.burn_in);
+  for (const el of ui.root.querySelectorAll('[data-role="speed-heatmap"]')) el.checked = Boolean(ui.state.speed_heatmap);
+  for (const el of ui.root.querySelectorAll('[data-role="point-density"]')) el.value = ui.state.point_density || "balanced";
+  for (const el of ui.root.querySelectorAll('[data-role="point-color"]')) el.value = ui.state.point_color || "#cbd5e1";
+  for (const el of ui.root.querySelectorAll('[data-role="point-spread"]')) el.value = ui.state.point_spread || "all_views";
+  for (const el of ui.root.querySelectorAll('[data-role="card-fit"]')) el.value = ui.state.card_fit || "contain";
+  for (const el of ui.root.querySelectorAll('[data-role="preview-layout"]')) el.value = ui.state.preview_layout || "auto";
+  for (const el of ui.root.querySelectorAll('[data-role="safe-areas"]')) el.checked = Boolean(ui.state.safe_areas);
+  for (const el of ui.root.querySelectorAll('[data-role="resolution-gate"]')) el.checked = Boolean(ui.state.resolution_gate);
+  for (const el of ui.root.querySelectorAll('[data-role="aspect-ratio"]')) el.value = ui.state.aspect_ratio || "auto";
+  for (const el of ui.root.querySelectorAll('[data-role="viewport-bg-color"]')) el.value = ui.state.viewport_bg_color || "#121212";
+  for (const el of ui.root.querySelectorAll('[data-role="gizmo-space"]')) el.value = ui.state.gizmo_space || "world";
+  for (const el of ui.root.querySelectorAll('[data-role="navigation-profile"]')) el.value = ui.state.navigation_profile || "maya";
+  for (const el of ui.root.querySelectorAll('[data-role="spatial-snap-mode"]')) el.value = ui.state.spatial_snap_mode || "none";
+  for (const el of ui.root.querySelectorAll('[data-role="spatial-grid-size"]')) el.value = String(ui.state.spatial_grid_size || 0.5);
+  const viewMode = ui.state.view_mode || "perspective";
+  for (const el of ui.root.querySelectorAll('[data-role="view-mode"]')) el.value = viewMode;
+  for (const btn of ui.root.querySelectorAll("[data-view]")) {
+    const active = btn.dataset.view === viewMode;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-pressed", String(active));
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="ui-density"]')) el.value = ui.state.ui_density || "animation";
+  ui.root.dataset.density = ui.state.ui_density || "animation";
+  applyPanelLayout(ui);
+  for (const el of ui.root.querySelectorAll('[data-role="camera-view-row"]')) el.hidden = !ui.state.camera_view_visible;
+  for (const tcv of ui.root.querySelectorAll('[data-act="toggle-camera-view"]')) {
+    tcv.classList.toggle("active", ui.state.camera_view_visible);
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="camera-type"]')) el.value = ui.camera.camera_type || "perspective";
+  for (const el of ui.root.querySelectorAll('[data-role="camera-near"]')) el.value = String(ui.camera.near ?? 0.01);
+  for (const el of ui.root.querySelectorAll('[data-role="camera-far"]')) el.value = String(ui.camera.far ?? 10000);
+  for (const el of ui.root.querySelectorAll('[data-role="speed"]')) el.value = String(ui.cameraSpeed || 1);
+  for (const btn of ui.root.querySelectorAll('[data-act="loop"]')) {
+    btn.classList.toggle("active", Boolean(ui.state.loop_playback));
+    btn.setAttribute("aria-pressed", String(Boolean(ui.state.loop_playback)));
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="toggle-snap"]')) {
+    btn.classList.toggle("active", ui.state.snap_enabled !== false);
+    btn.setAttribute("aria-pressed", String(ui.state.snap_enabled !== false));
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="toggle-timecode"]')) {
+    btn.classList.toggle("active", ui.state.timecode_mode === "timecode");
+    btn.setAttribute("aria-pressed", String(ui.state.timecode_mode === "timecode"));
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="show-radar"]')) el.checked = Boolean(ui.state.show_radar);
+  for (const el of ui.root.querySelectorAll('[data-role="encoder"]')) el.value = ui.state.encoder || "auto";
+  for (const el of ui.root.querySelectorAll('[data-role="proxy-preset"]')) el.value = ui.state.proxy_preset || "clean_proxy";
+  for (const el of ui.root.querySelectorAll('[data-role="snap-frames"]')) el.value = String(ui.state.snap_frames || 1);
+  for (const btn of ui.root.querySelectorAll('[data-act="auto-key"]')) {
+    btn.classList.toggle("active", Boolean(ui.state.auto_key));
+    btn.setAttribute("aria-pressed", String(Boolean(ui.state.auto_key)));
+  }
+  for (const btn of ui.root.querySelectorAll('[data-select-mode]')) {
+    const isMode = btn.dataset.selectMode === (ui.state.select_mode || "object");
+    btn.classList.toggle("active", isMode);
+    btn.setAttribute("aria-pressed", String(isMode));
+  }
+  for (const btn of ui.root.querySelectorAll('[data-transform-mode]')) {
+    const isMode = btn.dataset.transformMode === (ui.state.gizmo_mode || "translate");
+    btn.classList.toggle("active", isMode);
+    btn.setAttribute("aria-pressed", String(isMode));
+  }
+  const inspector = ui.root.querySelector('[data-role="viewport-inspector"]');
+  const isInspectorOpen = inspector && inspector.dataset.collapsed !== "true";
+  for (const btn of ui.root.querySelectorAll('[data-act="toggle-inspector"]')) {
+    btn.classList.toggle("active", Boolean(isInspectorOpen));
+    btn.setAttribute("aria-pressed", String(Boolean(isInspectorOpen)));
+  }
+  ui.refreshCameraSelectors();
+  const scrub = q('[data-role="scrub"]');
+  if (scrub) scrub.max = String(ui.state.duration_frames - 1);
+  const frameEl = q('[data-role="frame"]');
+  if (frameEl) frameEl.max = String(ui.state.duration_frames - 1);
+  const keyFrameEl = q('[data-role="key-frame"]');
+  if (keyFrameEl) keyFrameEl.max = String(ui.state.duration_frames - 1);
+  const durationSecEl = q('[data-role="duration-seconds"]');
+  if (durationSecEl) durationSecEl.value = String(ui.state.duration_frames / ui.state.fps);
+  const timelineFpsEl = q('[data-role="timeline-fps"]');
+  if (timelineFpsEl) timelineFpsEl.value = String(ui.state.fps);
+  ui.frame = clamp(ui.frame, 0, ui.state.duration_frames - 1);
+  if (persist) ui.serialize();
+  if (previousDuration !== ui.state.duration_frames || previousFps !== ui.state.fps) {
+    ui.computeAudioPeaks?.();
+    ui.setFrame(ui.frame, false, true);
+    ui.setStatus(`Timeline: ${ui.state.duration_frames} frames · ${(ui.state.duration_frames / ui.state.fps).toFixed(2)} s`);
+  }
+}
+
+export function restoreFromWidgets(ui) {
+  let parsed = null;
+  try {
+    parsed = JSON.parse(ui.stateWidget?.value || "{}");
+  } catch {
+    // Keep the current state when the stored payload is unreadable.
+  }
+  const previousIds = new Set(ui.state.objects.map((object) => object.id));
+  ui.state = sanitizeState(parsed);
+  const nextIds = new Set(ui.state.objects.map((object) => object.id));
+  for (const id of previousIds) if (!nextIds.has(id)) ui.removeObjectResources(id);
+  if (!ui.timelineKeyframes().some((key) => key.frame === ui.selectedKeyFrame)) ui.selectedKeyFrame = ui.timelineKeyframes()[0]?.frame ?? null;
+  ui.camera = sampleCamera(ui.state, Math.min(ui.frame, ui.state.duration_frames - 1));
+  ui.syncFromWidgets(false);
+  ui.root.querySelector('[data-role="gizmo-space"]').value = ui.state.gizmo_space;
+  ui.restoreAssets();
+  ui.refreshKeys();
+  ui.refreshObjects();
+  ui.render();
+  ui.history?.clear();
+  // A workflow load (or a scene adopted through scene-library.js) makes this the
+  // new "last saved" baseline the Reset Scene command reverts to.
+  ui.sceneBaseline = ui.stateWidget?.value ?? ui.sceneBaseline;
+  ui.sceneName = ui.state.metadata?.scene_name || "";
+}

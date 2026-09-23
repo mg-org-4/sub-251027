@@ -1,0 +1,236 @@
+name: Publish to Comfy registry
+
+# The Registry publishes whatever version is written in pyproject.toml, so the
+# release trigger is a version bump landing on main (or a manual dispatch).
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "pyproject.toml"
+
+# The reusable test workflow needs repository contents for checkout. Publishing
+# also needs issue permission only if the workflow itself chooses to report a
+# failure; keeping both explicit avoids the caller stripping contents:read.
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  release-test:
+    name: Release tests
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
+  release-build:
+    name: Build release artifacts
+    needs: release-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # Never fires from a fork.
+    if: ${{ github.repository_owner == 'MajoorWaldi' }}
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      asset: ${{ steps.release.outputs.asset }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Build the frontend bundle
+        # web-chunks/ and web/omnicam.js are committed (release-test, run just
+        # above via test.yml, already failed this release if a Linux build
+        # doesn't match them byte-for-byte). Rebuilding here anyway guarantees
+        # the artifact this job uploads is a fresh Linux build regardless of
+        # what's in the checkout, and keeps this job self-contained since a
+        # plain second checkout in a later job would git-clean untracked
+        # files -- these just no longer need to be untracked to be trustworthy.
+        run: |
+          npm ci
+          npm run build
+          test -f web/omnicam.js
+          test -d web-chunks
+      - name: Fetch current external adapter contracts
+        run: |
+          git clone --depth 1 https://github.com/Lightricks/ComfyUI-LTXVideo.git .adapter-release/ltx
+          git clone --depth 1 https://github.com/kijai/ComfyUI-WanVideoWrapper.git .adapter-release/wan-video-wrapper
+      - name: Verify external adapter contracts
+        # Release gate: a version bump does not publish while an upstream
+        # contract OmniCam pins has drifted. The weekly canary stays advisory;
+        # this step is blocking.
+        run: python scripts/adapter_contract_canary.py .adapter-release/ltx .adapter-release/wan-video-wrapper
+      - name: Install Comfy CLI
+        run: pip install comfy-cli==1.20.0
+      - name: Verify release contract
+        # tests/conftest.py imports numpy and omnicam, so the release lane
+        # needs the same dev environment as the unit suite -- the publish job
+        # otherwise has no pytest on PATH at all.
+        run: |
+          pip install -r requirements-dev.txt
+          pytest -q tests/test_release_contract.py
+      - name: Pack Registry archive
+        run: |
+          comfy --skip-prompt --no-enable-telemetry node pack
+          test -f node.zip
+      - name: Audit the exact Registry archive
+        # Blocking: the bytes that ship must contain no dev paths, no missing
+        # runtime files, and none of the scanner triggers 0.3.1 removed.
+        run: python scripts/registry_package_audit.py node.zip --json-out registry-audit.json
+      - name: Fingerprint exact Registry archive
+        run: sha256sum node.zip > registry-node.sha256
+      - name: Resolve release version
+        id: release
+        shell: bash
+        run: |
+          VERSION="$(python -c 'from pathlib import Path; lines=Path("pyproject.toml").read_text(encoding="utf-8").splitlines(); print(next(line.split("=", 1)[1].strip().strip("\"") for line in lines if line.startswith("version = ")))')"
+
+          TAG="v${VERSION}"
+          ASSET="majoor-omnicam-${VERSION}.zip"
+
+          cp node.zip "${ASSET}"
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "asset=${ASSET}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: majoor-omnicam-${{ steps.release.outputs.version }}
+          path: ${{ steps.release.outputs.asset }}
+          retention-days: 90
+      - uses: actions/upload-artifact@v5
+        with:
+          name: majoor-omnicam-registry-evidence-${{ steps.release.outputs.version }}
+          path: |
+            node.zip
+            registry-node.sha256
+            registry-audit.json
+          retention-days: 90
+      - uses: actions/upload-artifact@v5
+        with:
+          name: majoor-omnicam-frontend-${{ steps.release.outputs.version }}
+          path: |
+            web/omnicam.js
+            web-chunks
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          ASSET: ${{ steps.release.outputs.asset }}
+        run: |
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; refreshing archive."
+            gh release upload "${TAG}" "${ASSET}" --clobber
+          else
+            gh release create "${TAG}" "${ASSET}" \
+              --target "${GITHUB_SHA}" \
+              --title "Majoor OmniCam ${TAG}" \
+              --generate-notes \
+              --draft
+          fi
+
+  release-registry:
+    name: Publish Custom Node to Registry
+    needs: release-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    if: ${{ github.repository_owner == 'MajoorWaldi' }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v5
+        with:
+          name: majoor-omnicam-frontend-${{ needs.release-build.outputs.version }}
+          path: .
+      - name: Install Comfy CLI
+        run: pip install comfy-cli==1.20.0
+      - name: Verify packaged frontend artifact
+        run: |
+          test -f web/omnicam.js
+          test -d web-chunks
+          pip install -r requirements-dev.txt
+          pytest -q tests/test_release_contract.py
+      - name: Publish Custom Node
+        # Do not use the pinned publish-node composite action here: that action
+        # performs its own actions/checkout, whose default git clean removes the
+        # generated, git-ignored frontend immediately before packaging.
+        run: |
+          comfy --skip-prompt --no-enable-telemetry env
+          comfy --skip-prompt --no-enable-telemetry node publish --token "${{ secrets.REGISTRY_ACCESS_TOKEN }}"
+
+  registry-verify:
+    name: Verify Registry version is Active
+    needs: [release-build, release-registry]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: ${{ github.repository_owner == 'MajoorWaldi' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Wait for Comfy Registry Active status
+        # A successful `node publish` is only an upload. The GitHub Release is
+        # not finalized until the Registry has scanned this version and moved
+        # it to Active; Flagged / Banned / Deleted fail immediately.
+        run: |
+          python scripts/check_registry_status.py \
+            --node majoor-omnicam \
+            --version "${{ needs.release-build.outputs.version }}" \
+            --timeout 900 --interval 15 \
+            --status-out registry-status.json
+      - name: Preserve Registry status evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: majoor-omnicam-registry-status-${{ needs.release-build.outputs.version }}
+          path: registry-status.json
+          retention-days: 90
+          if-no-files-found: warn
+
+  release-github:
+    name: Finalize GitHub Release
+    needs: [release-build, registry-verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: ${{ github.repository_owner == 'MajoorWaldi' }}
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: majoor-omnicam-${{ needs.release-build.outputs.version }}
+          path: .
+      - name: Publish synchronized GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release-build.outputs.tag }}
+          ASSET: ${{ needs.release-build.outputs.asset }}
+        run: |
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; refreshing archive and publishing."
+            gh release upload "${TAG}" "${ASSET}" --clobber
+            gh release edit "${TAG}" --draft=false --latest
+          else
+            gh release create "${TAG}" "${ASSET}" \
+              --target "${GITHUB_SHA}" \
+              --title "Majoor OmniCam ${TAG}" \
+              --generate-notes
+          fi

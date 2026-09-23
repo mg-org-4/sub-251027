@@ -1,0 +1,472 @@
+// Extracted DOM bindings.
+
+import { clamp } from "../director/core.js";
+import { resolveZone } from "../commands.js";
+import { cancelModalTransform } from "../viewport-controls/modal-transform.js";
+import { applyCinemaLens } from "../cameras.js";
+import { applyBlockingScenePreset } from "../motion-presets.js";
+import { onCurveWheel } from "../curve-editor.js";
+import { onTimelineWheel } from "../timeline-interaction.js";
+import { bindRulerScrub } from "../timeline/ruler.js";
+import { bindGraphTabs } from "../curve-editor/tabs.js";
+import { bindTimeRemapControls, syncTimeRemapControls } from "../director/time-remap-ui.js";
+import { renderChannelList } from "../curve-editor/channel-list.js";
+import { syncMirroredControl } from "../event-bindings.js";
+import { panelWheelKeeper } from "../shared/panel-scroll.js";
+import { parseTagInput, sanitizeAnnotation } from "../assets/labels.js";
+import {
+  handleMinimapPointerDown,
+  handleMinimapPointerMove,
+  handleMinimapPointerUp,
+  handleMinimapWheel,
+} from "../viewport/minimap.js";
+import { t } from "../i18n.js";
+import { initAllDragScrubs } from "../inspector/drag-scrub.js";
+
+// Anchors a toolbar-menu's .menu-panel with position:fixed, computed from the
+// <details> element's own rect, so it renders above the bounded Director
+// shell instead of being clipped by an overflow:hidden/auto ancestor (see the
+// "toggle" listener in bindEditorAndGlobal for why this is needed). Mirrors
+// the CSS default's right-alignment via .menu-panel.right and clamps to the
+// viewport so a menu near an edge never runs off-screen.
+function positionMenuPanel(menu) {
+  const panel = menu.querySelector(":scope > .menu-panel");
+  if (!panel) return;
+  const anchor = menu.getBoundingClientRect();
+  const width = panel.offsetWidth || 240;
+  const alignRight = panel.classList.contains("right");
+  let left = alignRight ? anchor.right - width : anchor.left;
+  left = Math.min(Math.max(left, 4), window.innerWidth - width - 4);
+  const top = Math.min(anchor.bottom + 5, window.innerHeight - 4);
+  Object.assign(panel.style, { position: "fixed", top: `${top}px`, left: `${left}px`, right: "auto" });
+}
+
+function unpositionMenuPanel(menu) {
+  const panel = menu.querySelector(":scope > .menu-panel");
+  if (!panel) return;
+  panel.style.position = "";
+  panel.style.top = "";
+  panel.style.left = "";
+  panel.style.right = "";
+}
+
+export function bindEditorAndGlobal(ui, q, signal) {
+  for (const role of ["object-x", "object-y", "object-z", "object-px", "object-py", "object-pz", "object-rx", "object-ry", "object-rz", "object-sx", "object-sy", "object-sz", "object-intensity", "object-cone-angle", "object-penumbra", "object-cast-shadow"]) {
+    for (const input of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      input.addEventListener("input", () => ui.updateSelectedObject(), { signal });
+      input.addEventListener("change", () => ui.updateSelectedObject(), { signal });
+    }
+  }
+  for (const role of ["camera-px", "camera-py", "camera-pz", "camera-tx", "camera-ty", "camera-tz", "camera-fov", "camera-roll", "camera-near", "camera-far"]) {
+    for (const input of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      input.addEventListener("input", () => ui.updateCameraFromHud(), { signal });
+      input.addEventListener("change", () => ui.updateCameraFromHud(), { signal });
+    }
+  }
+  // Rotation X/Y/Z is Pitch/Yaw/Roll, a second view onto the same
+  // Target+Roll data the row above edits (see cameraOrientationEuler) -- it
+  // needs its own handler so editing one does not stomp the other (see
+  // updateCameraRotationFromHud's own note).
+  for (const role of ["camera-rx", "camera-ry", "camera-rz"]) {
+    for (const input of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      input.addEventListener("input", () => ui.updateCameraRotationFromHud(), { signal });
+      input.addEventListener("change", () => ui.updateCameraRotationFromHud(), { signal });
+    }
+  }
+  q('[data-role="animation-select"]')?.addEventListener("change", (event) => ui.selectObjectAnimation(Number(event.target.value)), { signal });
+  q('[data-role="object-parent"]')?.addEventListener("change", (event) => ui.setObjectParent(event.target.value || null), { signal });
+
+  // Tags + visible annotation for the selected object. Committed on change
+  // (blur / Enter) so a keystroke burst is one checkpoint and one repaint.
+  const commitObjectLabels = () => {
+    const object = ui.selectedObject?.();
+    if (!object || object.locked) return;
+    ui.checkpoint?.("Edit labels");
+    const tags = parseTagInput(q('[data-role="object-tags"]')?.value || "");
+    if (tags.length) object.tags = tags;
+    else delete object.tags;
+    const text = String(q('[data-role="object-annotation"]')?.value || "").trim();
+    const annotation = text
+      ? sanitizeAnnotation({
+          text,
+          color: q('[data-role="object-annotation-color"]')?.value,
+          anchor: q('[data-role="object-annotation-anchor"]')?.value,
+          visible: true,
+        })
+      : null;
+    if (annotation) object.annotation = annotation;
+    else delete object.annotation;
+    ui.serialize?.();
+    ui.refreshObjects?.();
+    ui.refreshInspector?.();
+    ui.labelOverlay?.update?.();
+    ui.render?.();
+  };
+  for (const role of ["object-tags", "object-annotation", "object-annotation-color", "object-annotation-anchor"]) {
+    q(`[data-role="${role}"]`)?.addEventListener("change", commitObjectLabels, { signal });
+  }
+  q('[data-role="duration-seconds"]')?.addEventListener("change", (event) => {
+    if (ui.durationWidget && Number(ui.durationWidget.value) !== Number(event.target.value)) ui.checkpoint("Change duration");
+    if (ui.durationWidget) ui.durationWidget.value = Number(event.target.value);
+    // Marks this clip's duration as user-owned so the next upstream media
+    // re-sync (every queue execution, not only on connect) does not stomp it
+    // back to the connected input's own length -- see adoptUpstreamMediaMetadata.
+    ui.durationManuallySet = true;
+    ui.syncFromWidgets();
+  }, { signal });
+  q('[data-role="timeline-fps"]')?.addEventListener("change", (event) => {
+    if (ui.fpsWidget && Number(ui.fpsWidget.value) !== Number(event.target.value)) ui.checkpoint("Change FPS");
+    if (ui.fpsWidget) ui.fpsWidget.value = Number(event.target.value);
+    ui.syncFromWidgets();
+  }, { signal });
+  bindRulerScrub(ui, signal);
+  bindGraphTabs(ui, signal);
+  bindTimeRemapControls(ui, signal);
+  q('[data-role="curve-group"]')?.addEventListener("change", () => {
+    // A new group means new channels, so the solo filter no longer refers to
+    // anything: reset it before the list is rebuilt from the new channels.
+    ui.setChannelFilter("all");
+    renderChannelList(ui);
+    syncTimeRemapControls(ui);
+    ui.drawCurveEditor();
+  }, { signal });
+  q('[data-act="curve-handles"]')?.addEventListener("click", () => ui.toggleCurveHandles(), { signal });
+  for (const button of ui.root.querySelectorAll("[data-curve-mode]")) {
+    button.addEventListener("click", () => ui.setCurveInterpolation(button.dataset.curveMode), { signal });
+  }
+  for (const button of ui.root.querySelectorAll("[data-tangent-mode]")) {
+    button.addEventListener("click", () => ui.setTangentMode(button.dataset.tangentMode), { signal });
+  }
+  for (const button of ui.root.querySelectorAll("[data-channel-filter]")) {
+    button.addEventListener("click", () => ui.setChannelFilter(button.dataset.channelFilter), { signal });
+  }
+  const curve = q('[data-role="curve-canvas"]');
+  if (curve) {
+    curve.addEventListener("pointerdown", (event) => ui.onCurvePointerDown(event), { signal });
+    curve.addEventListener("pointermove", (event) => ui.onCurvePointerMove(event), { signal });
+    curve.addEventListener("pointerup", (event) => ui.onCurvePointerUp(event), { signal });
+    curve.addEventListener("pointercancel", (event) => ui.onCurvePointerUp(event), { signal });
+    curve.addEventListener("pointerleave", () => { ui.curveHover = null; ui.drawCurveEditor(); }, { signal });
+    curve.addEventListener("dblclick", (event) => ui.onCurveDoubleClick?.(event), { signal });
+    curve.addEventListener("wheel", (event) => onCurveWheel(ui, event), { passive: false, signal });
+  }
+  q('[data-act="curve-zoom-in"]')?.addEventListener("click", () => ui.zoomCurve(1.25), { signal });
+  q('[data-act="curve-zoom-out"]')?.addEventListener("click", () => ui.zoomCurve(0.8), { signal });
+  q('[data-act="curve-fit"]')?.addEventListener("click", () => ui.resetCurveZoom(), { signal });
+  q('[data-role="key-frame"]')?.addEventListener("change", (event) => ui.retimeSelectedKey(Number(event.target.value)), { signal });
+  for (const role of ["key-interp", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type", "key-timing-weight"]) {
+    q(`[data-role="${role}"]`)?.addEventListener("change", () => ui.updateSelectedKey(), { signal });
+  }
+  q('[data-act="redistribute-key-timing"]')?.addEventListener("click", () => ui.redistributeActiveCameraTiming(), { signal });
+  for (const el of ui.root.querySelectorAll('[data-role="ui-density"]')) {
+    el.addEventListener("change", (e) => ui.setDensity(e.target.value), { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="preview-layout"]')) {
+    el.addEventListener("change", (e) => {
+      ui.state.preview_layout = e.target.value;
+      ui.scheduleSerialize();
+      ui.refreshCameraPreviews();
+      ui.renderCameraView();
+      ui.setStatus(`Preview layout: ${e.target.value}`);
+    }, { signal });
+  }
+  for (const button of ui.root.querySelectorAll('[data-act="aim-at-object"]')) {
+    button.addEventListener("click", () => {
+      ui.aimAtSelectedObject();
+      ui.closeMenus();
+    }, { signal });
+  }
+  // Both bake buttons go through the aim module, which falls back to the plain
+  // object bake when no bone is chosen.
+  for (const btn of ui.root.querySelectorAll('[data-act="bake-aim-keys"]')) {
+    btn.addEventListener("click", () => {
+      ui.bakeAimConstraint({ perFrame: false });
+      ui.closeMenus();
+    }, { signal });
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="bake-aim-per-frame"]')) {
+    btn.addEventListener("click", () => {
+      ui.bakeAimConstraint({ perFrame: true });
+      ui.closeMenus();
+    }, { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="camera-target-object"]')) {
+    el.addEventListener("change", (e) => {
+      ui.setCameraTrackingTarget(e.target.value);
+    }, { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="camera-aim-bone"]')) {
+    el.addEventListener("change", (e) => {
+      ui.setAimBone(e.target.value);
+    }, { signal });
+  }
+  for (const focusBtn of ui.root.querySelectorAll('[data-act="focus-target"]')) {
+    focusBtn.addEventListener("click", () => {
+      ui.focusCameraTarget();
+      ui.closeMenus();
+    }, { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="gizmo-space"]')) {
+    el.addEventListener("change", (e) => {
+      ui.state.gizmo_space = e.target.value;
+      for (const o of ui.root.querySelectorAll('[data-role="gizmo-space"]')) o.value = e.target.value;
+      ui.scheduleSerialize();
+      ui.render();
+    }, { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="navigation-profile"]')) {
+    el.addEventListener("change", (event) => {
+      ui.state.navigation_profile = ["blender", "simple"].includes(event.target.value) ? event.target.value : "maya";
+      ui.scheduleSerialize(); ui.setStatus(`Navigation: ${ui.state.navigation_profile}`);
+    }, { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="spatial-snap-mode"]')) {
+    el.addEventListener("change", (event) => {
+      ui.state.spatial_snap_mode = ["grid", "vertex"].includes(event.target.value) ? event.target.value : "none";
+      ui.scheduleSerialize(); ui.setStatus(`Spatial Snap: ${ui.state.spatial_snap_mode}`);
+    }, { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="spatial-grid-size"]')) {
+    el.addEventListener("change", (event) => {
+      ui.state.spatial_grid_size = Math.max(0.01, Math.min(100, Number(event.target.value) || 0.5));
+      event.target.value = String(ui.state.spatial_grid_size); ui.scheduleSerialize();
+    }, { signal });
+  }
+  for (const viewSelect of ui.root.querySelectorAll('[data-role="view-mode"]')) {
+    viewSelect.addEventListener("change", (e) => ui.setViewMode(e.target.value), { signal });
+  }
+  // Viewport Labels mode / content (design spec section 14). Seed the selects
+  // from whatever the overlay restored, then drive it on change.
+  const labelModeSelect = q('[data-role="label-mode"]');
+  const labelContentSelect = q('[data-role="label-content"]');
+  if (labelModeSelect) {
+    labelModeSelect.value = ui.labelOverlay?.settings?.mode || "selected";
+    labelModeSelect.addEventListener("change", (e) => ui.labelOverlay?.setMode(e.target.value), { signal });
+  }
+  if (labelContentSelect) {
+    labelContentSelect.value = ui.labelOverlay?.settings?.content || "annotation";
+    labelContentSelect.addEventListener("change", (e) => ui.labelOverlay?.setContent(e.target.value), { signal });
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="toggle-inspector"]')) {
+    btn.addEventListener("click", () => ui.toggleInspector(), { signal });
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="clear-selection"]')) {
+    btn.addEventListener("click", () => {
+      ui.selectedEntity = "camera";
+      ui.selectedObjectId = null;
+      ui.selectedKeyFrame = null;
+      ui.refreshObjects();
+      ui.refreshKeys();
+      ui.refreshInspector();
+      ui.render();
+    }, { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="timeline-summary"]')) {
+    el.addEventListener("click", () => {
+      if (ui.selectedEntity === "object") {
+        ui.selectedEntity = "camera";
+        ui.selectedObjectId = null;
+        ui.refreshObjects();
+        ui.refreshKeys();
+        ui.refreshInspector();
+        ui.render();
+        ui.setStatus(t("Editing: {value1}", { value1: ui.activeCameraTrack().name }));
+      }
+    }, { signal });
+  }
+  for (const menu of ui.root.querySelectorAll(".toolbar-menu")) {
+    menu.addEventListener("toggle", () => {
+      if (menu.open) {
+        ui.closeMenus(menu);
+        positionMenuPanel(menu);
+      } else {
+        unpositionMenuPanel(menu);
+      }
+    }, { signal });
+  }
+  // The bounded Director shell (oc-director: overflow:hidden; oc-dock:
+  // overflow-y:auto, since the Lot 1 modal-geometry pass) means a
+  // position:absolute .menu-panel can now be clipped by an ancestor instead
+  // of just growing the page. Anchoring it with position:fixed while open
+  // (positionMenuPanel/unpositionMenuPanel above) escapes any ancestor's
+  // overflow, but a fixed panel no longer tracks its anchor if an ancestor
+  // scrolls -- re-anchor instead of closing (closing on scroll is fragile:
+  // opening a menu whose summary isn't fully visible in a scrollable
+  // ancestor can itself trigger a native focus scroll-into-view, which would
+  // otherwise self-close the very menu just opened).
+  document.addEventListener("scroll", () => {
+    for (const menu of ui.root.querySelectorAll(".toolbar-menu[open]")) positionMenuPanel(menu);
+  }, { capture: true, signal });
+  const selectOutlinerItem = (target, event) => {
+    const sceneItem = target instanceof HTMLElement ? target.closest(".scene-item") : null;
+    if (!sceneItem || event.button === 2 || target.closest(".scene-action-btn")) return;
+    if (sceneItem.dataset.objectId) {
+      const object = ui.state.objects.find((item) => item.id === sceneItem.dataset.objectId);
+      if (!object) return;
+      ui.finishCameraEdit();
+      ui.selectedObjectIds ||= new Set();
+      if (event.ctrlKey || event.metaKey) {
+        // Ctrl/Cmd toggles one row in or out of the selection.
+        if (ui.selectedObjectIds.has(object.id)) ui.selectedObjectIds.delete(object.id);
+        else ui.selectedObjectIds.add(object.id);
+        ui.outlinerAnchorId = object.id;
+      } else if (event.shiftKey && ui.outlinerAnchorId
+        && ui.state.objects.some((o) => o.id === ui.outlinerAnchorId)) {
+        // Shift selects the contiguous run between the anchor and this row,
+        // in outliner (object array) order.
+        const order = ui.state.objects.map((o) => o.id);
+        const a = order.indexOf(ui.outlinerAnchorId);
+        const b = order.indexOf(object.id);
+        ui.selectedObjectIds = new Set(order.slice(Math.min(a, b), Math.max(a, b) + 1));
+      } else {
+        ui.selectedObjectIds = new Set([object.id]);
+        ui.outlinerAnchorId = object.id;
+      }
+      ui.selectedObjectId = ui.selectedObjectIds.has(object.id) ? object.id : [...ui.selectedObjectIds].at(-1) || null;
+      ui.selectedEntity = ui.selectedObjectIds.size ? "object" : "camera";
+      ui.selectedKeyFrame = ui.selectedObjectId
+        ? object.keyframes?.find((key) => key.frame === ui.frame)?.frame ?? null
+        : null;
+      ui.editingKeyFrame = null;
+      for (const row of ui.root.querySelectorAll(".scene-item")) {
+        const selected = Boolean(row.dataset.objectId && ui.selectedObjectIds.has(row.dataset.objectId));
+        const primary = Boolean(row.dataset.objectId && row.dataset.objectId === ui.selectedObjectId);
+        row.classList.toggle("selected", selected);
+        row.classList.toggle("primary", primary);
+        row.setAttribute("aria-selected", String(selected));
+      }
+      const batchBar = ui.root.querySelector('[data-role="outliner-batch-bar"]');
+      if (batchBar) {
+        const count = ui.selectedObjectIds?.size || 0;
+        batchBar.hidden = count < 2;
+        const badge = batchBar.querySelector('[data-role="batch-count"]');
+        if (badge) badge.textContent = `${count} ${t("selected")}`;
+      }
+      ui.refreshKeys();
+      ui.refreshInspector();
+      ui.render();
+      ui.setStatus(t("Selected: {value1}", { value1: object.name || object.type }));
+    } else if (sceneItem.dataset.cameraId) {
+      ui.activateCamera(sceneItem.dataset.cameraId);
+    }
+  };
+  ui.root.addEventListener("pointerdown", (event) => {
+    selectOutlinerItem(event.composedPath?.()[0] || event.target, event);
+  }, { capture: true, signal });
+  ui.root.addEventListener("pointerdown", (event) => {
+    const target = event.composedPath?.()[0] || event.target;
+    if (target instanceof HTMLElement && target.closest(".context-menu, [data-role='context-menu']")) {
+      return;
+    }
+    event.stopPropagation();
+    if (target instanceof HTMLElement && !target.closest(".toolbar-menu")) ui.closeMenus();
+    if (target instanceof HTMLElement && !target.closest(".key,.key-editor,canvas")) ui.exitKeyEdit(true);
+    if (!(target instanceof HTMLElement) || !target.closest("input,select,textarea,button,[contenteditable=true]")) ui.root.focus({ preventScroll: true });
+  }, { signal });
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.composedPath?.()[0] || event.target;
+    if (target instanceof HTMLElement && target.closest(".context-menu, [data-role='context-menu']")) {
+      return;
+    }
+    if (!(target instanceof Node) || !ui.root.contains(target)) {
+      ui.closeMenus();
+      ui.exitKeyEdit(true);
+    }
+  }, { capture: true, signal });
+  ui.root.addEventListener("mousedown", (event) => event.stopPropagation(), { signal });
+  // Let row-specific object/camera handlers run first; the root bubble handler
+  // remains the fallback for the canvas, timeline and empty viewport areas.
+  ui.root.addEventListener("contextmenu", (event) => ui.onContextMenu(event), { signal });
+  ui.interactionElement?.addEventListener("pointerdown", (event) => {
+    const rect = ui.interactionElement.getBoundingClientRect();
+    const px = ((event.clientX - rect.left) * ui.canvas.width) / Math.max(1, rect.width);
+    const py = ((event.clientY - rect.top) * ui.canvas.height) / Math.max(1, rect.height);
+    if (handleMinimapPointerDown(ui, event, px, py)) return;
+    ui.onPointerDown(event);
+  }, { signal });
+  ui.interactionElement?.addEventListener("pointermove", (event) => {
+    const rect = ui.interactionElement.getBoundingClientRect();
+    const px = ((event.clientX - rect.left) * ui.canvas.width) / Math.max(1, rect.width);
+    const py = ((event.clientY - rect.top) * ui.canvas.height) / Math.max(1, rect.height);
+    if (handleMinimapPointerMove(ui, event, px, py)) return;
+    ui.onPointerMove(event);
+  }, { signal });
+  ui.interactionElement?.addEventListener("pointerup", (event) => {
+    if (handleMinimapPointerUp(ui, event)) return;
+    ui.onPointerUp(event);
+  }, { signal });
+  ui.interactionElement?.addEventListener("pointercancel", (event) => {
+    handleMinimapPointerUp(ui, event);
+    ui.onPointerUp(event);
+  }, { signal });
+  ui.interactionElement?.addEventListener("lostpointercapture", (event) => {
+    handleMinimapPointerUp(ui, event);
+    ui.onPointerUp(event);
+  }, { signal });
+  // A double-click on the active camera's rendered path inserts a new key
+  // there (Task 8); anywhere else it keeps its long-standing meaning of
+  // setting the camera's Look-At target under the cursor.
+  ui.interactionElement?.addEventListener("dblclick", (event) => {
+    if (ui.insertPathKeyAtCursor?.(event)) return;
+    ui.setTargetAtCursor(event);
+  }, { signal });
+  ui.interactionElement?.addEventListener("wheel", (event) => {
+    const rect = ui.interactionElement.getBoundingClientRect();
+    const px = ((event.clientX - rect.left) * ui.canvas.width) / Math.max(1, rect.width);
+    const py = ((event.clientY - rect.top) * ui.canvas.height) / Math.max(1, rect.height);
+    if (handleMinimapWheel(ui, event, px, py)) return;
+    ui.onWheel(event);
+  }, { passive: false, signal });
+  // Mouse wheel over a scrollable panel inside the node (the side-panel body,
+  // long lists, the help sheet) must scroll that panel -- not fall through to
+  // LiteGraph and zoom the graph canvas behind the node.
+  ui.root.addEventListener("wheel", panelWheelKeeper(ui.root), { signal });
+  window.addEventListener("pointermove", (event) => {
+    if (ui.keyDrag) ui.onPointerMove(event);
+  }, { capture: true, signal });
+  window.addEventListener("pointerup", (event) => {
+    if (ui.keyDrag) ui.onPointerUp(event);
+  }, { capture: true, signal });
+  window.addEventListener("pointercancel", (event) => {
+    if (ui.keyDrag) ui.onPointerUp(event);
+  }, { capture: true, signal });
+  const timeline = q('[data-role="dope-tracks"]');
+  if (timeline) {
+    timeline.addEventListener("pointerdown", (event) => ui.onTimelinePointerDown(event), { signal });
+    timeline.addEventListener("pointermove", (event) => ui.onTimelinePointerMove(event), { signal });
+    timeline.addEventListener("pointerup", (event) => ui.onTimelinePointerUp(event), { signal });
+    timeline.addEventListener("pointercancel", (event) => ui.onTimelinePointerUp(event), { signal });
+    timeline.addEventListener("wheel", (event) => onTimelineWheel(ui, event), { passive: false, signal });
+  }
+  // Keydown is claimed by the page-wide capture interceptor (commands.js), which
+  // routes it here via ui.onKey. Track the zone the user last touched so a key
+  // pressed while focus sits on the document body still lands in the right map.
+  const rememberZone = (event) => {
+    const zone = resolveZone(event.composedPath?.()[0] || event.target);
+    if (zone) ui.lastKeyZone = zone;
+  };
+  ui.root.addEventListener("focusin", rememberZone, { signal });
+  ui.root.addEventListener("pointerdown", rememberZone, { capture: true, signal });
+  // A modal G/R/S transform consumes every keystroke until it is confirmed or
+  // cancelled. If focus leaves the node entirely (a click elsewhere in
+  // ComfyUI), cancel it so a stuck session cannot strand the keyboard.
+  ui.root.addEventListener("focusout", (event) => {
+    if (ui.modalTransform && !ui.root.contains(event.relatedTarget)) {
+      cancelModalTransform(ui);
+      ui.render();
+    }
+  }, { signal });
+  const ro = new ResizeObserver(() => {
+    ui.scheduleResizeAndRender();
+  });
+  const wrapEl = ui.root.querySelector(".viewport-wrap");
+  if (wrapEl) ro.observe(wrapEl);
+  ui.resizeObserver = ro;
+  const scrubDisposers = initAllDragScrubs(ui.root);
+  if (signal) {
+    signal.addEventListener("abort", () => {
+      for (const dispose of scrubDisposers) dispose();
+    });
+  }
+  ui.updateEditState();
+}

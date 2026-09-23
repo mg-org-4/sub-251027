@@ -1,0 +1,695 @@
+import { api, app } from "../comfy-runtime.js";
+import { RequestLifetime } from "../request-lifetime.js";
+import { panelWheelKeeper } from "../shared/panel-scroll.js";
+import { EventScope } from "../shared/event-scope.js";
+import { closeHelpPopup } from "../help/schema.js";
+import { renderSourceStageMedia } from "./source-stage.js";
+import { clearExtractorCache } from "./clear-cache.js";
+import { ExtractorRuntime } from "./runtime.js";
+
+import { postRefine } from "./refine-client.js";
+import { adoptReconstructionIntoDownstreamDirectors } from "./director-link.js";
+import { ReconstructionPanelController } from "./reconstruction/panel.js";
+import {
+  cancelQueuedRun,
+  prepareForQueuedRun,
+  startQueuedSolve,
+  syncPanelToNodeWidgets,
+} from "./queue/ui-bridge.js";
+import { RefineController } from "./refine-controls.js";
+import { cacheExtractorResult, motionSceneFromTrack } from "./result-cache.js";
+import { FrameDiagnosticsStore } from "./diagnostics-store.js";
+import { FrameCoordinator } from "./frame-coordinator.js";
+import { ResultApplyError, applyRefinedTrack } from "./result-sync.js";
+import { SourceViewer } from "./source-viewer.js";
+import { FallbackFrameViewer } from "./fallback-frame-viewer.js";
+import { describeSource } from "./source-resolver.js";
+import { adoptExtractorSourceLength, describeExtractorSource, refreshExtractorSource } from "./source-lifecycle.js";
+import {
+  appliedLabel,
+  controlAvailability,
+  progressLabel,
+  statusLabel,
+  statusTone,
+} from "./state.js";
+import { buildExtractorRoot } from "./template.js";
+import { TimelinePanelHost } from "./timeline-panel.js";
+import { trackHealth } from "./track-timeline.js";
+import { bindExtractorTransport } from "./transport.js";
+import { TrackingOverlay } from "./tracking-overlay.js";
+import { renderAnomalies } from "./views.js";
+import { loadTrackViewer } from "./track-viewer-host.js";
+import { renderExtractorRuler, renderFrameReadouts } from "./transport-readouts.js";
+
+function widget(node, name) {
+  return node?.widgets?.find((item) => item.name === name) || null;
+}
+
+// Canonical solve/cache state, the queue-event binding and the state reducer
+// live on ExtractorRuntime (see extractor/runtime.js); the workbench aliases
+// the fields below through accessors so every existing `this.state`/
+// `this.queuePromptId`/etc. read or write in this file keeps working
+// unchanged while actually storing on the runtime instance. This is what
+// lets a queued TRACK/Reconstruct survive the workbench closing (migration
+// plan Task 13) -- only node removal (runtime.dispose()) cancels it.
+const RUNTIME_ALIASED_FIELDS = [
+  "state", "extractMode", "queuePromptId", "result", "rawSolve", "landmarks", "sourceKey",
+];
+
+export class ExtractorUI {
+  // `runtime` is the persistent ExtractorRuntime this workbench renders.
+  constructor(runtime) {
+    this.runtime = runtime;
+    const node = runtime.node;
+    this.node = node;
+    // The ComfyUI app object -- passed to confirmAction/promptText so the
+    // dialog manager resolves even behind the bundle (see clear-cache.js).
+    this.app = app;
+    // The ComfyUI api object -- queued-run cancellation talks to the Jobs API.
+    this.api = api;
+    this.root = buildExtractorRoot();
+    // Own instance field, deliberately not aliased to runtime.disposed: this
+    // guards workbench-local re-entrancy across a runtime that outlives many
+    // open/close cycles.
+    this.disposed = false;
+    this.events = new EventScope();
+    // Requests belong to this panel. When the node is removed they are
+    // cancelled, so a destroyed panel never reports its own teardown as a
+    // network failure.
+    this.requests = new RequestLifetime();
+    this.diagnostics = new FrameDiagnosticsStore();
+    this.upstreamPreviewActive = false;
+    this.motionLimits = null;
+
+    // Cleanup-desk edits accumulate on the controller. A queued run reads them
+    // off the node widgets (queue/widget-sync.js); after a solve, dragging a
+    // slider re-derives the track live from the raw solve (requestRefine).
+    this.refine = new RefineController({ onRefine: (settings) => this.requestRefine(settings) });
+    this.fallbackViewer = new FallbackFrameViewer(this.$("fallback-preview"), { api });
+    this.sourceViewer = new SourceViewer(this.$("source-video"), {
+      onFrame: (frame) => this.coordinator.seek(frame, "media"),
+      onMetadata: ({ frameCount }) => this.adoptSourceLength(frameCount),
+      onError: (message) => this.dispatch({ type: "SOURCE", source: { playbackError: message } }),
+      onMode: () => this.render(),
+      fallbackViewer: this.fallbackViewer,
+    });
+    this.coordinator = new FrameCoordinator({
+      media: this.sourceViewer,
+      getViewer: () => this.viewer,
+      showDiagnostics: (frame) => this.showDiagnostics(frame),
+      dispatch: (action) => this.dispatch(action),
+      setFollow: (enabled) => this.sourceViewer.setFollow(enabled),
+      frameCount: this.state.frameCount,
+      fps: this.sourceViewer.fps,
+      loop: true,
+      onPlaybackState: () => this.transport?.render(),
+    });
+    this.timeline = new TimelinePanelHost(this.root, {
+      onSeek: (frame) => this.coordinator.seek(frame, "timeline"),
+    });
+    this.transport = bindExtractorTransport(this.root, {
+      coordinator: this.coordinator,
+      getState: () => this.state,
+      getTrack: () => this.state.trackMode === "raw" ? this.result.raw : this.result.refined,
+      on: (target, event, handler) => this.events.on(target, event, handler),
+    });
+    this.overlay = new TrackingOverlay(this.$("tracking-overlay"));
+    this.viewer = null;
+    this.viewerLoad = null;
+
+    this.reconstruction = new ReconstructionPanelController({
+      root: this.root,
+      node: this.node,
+      api,
+      app,
+      getSource: () => this.state.source?.ref || null,
+      onAdopt: (result) => adoptReconstructionIntoDownstreamDirectors(this.node, result),
+      // Scene Reconstruction Start / Stop run through the same partial queue as
+      // Camera TRACK; the panel no longer owns a job manager.
+      onQueue: () => this.startSolve("scene_reconstruct"),
+      onCancel: () => this.cancelQueuedRun(),
+      on: (target, event, handler) => this.events.on(target, event, handler),
+    });
+
+    const camModeBtn = this.$("extract-mode-camera");
+    const reconModeBtn = this.$("extract-mode-reconstruct");
+    if (camModeBtn) this.events.on(camModeBtn, "click", () => this.setExtractMode("camera_track"));
+    if (reconModeBtn) this.events.on(reconModeBtn, "click", () => this.setExtractMode("scene_reconstruct"));
+    // setExtractMode only dirties the canvas when the widget's value actually
+    // changes (see below), so replaying the mode we just read back is a safe,
+    // idempotent way to sync every other bit of UI (tab classes, panel
+    // visibility, the reconstruction panel's source) to it.
+    this.setExtractMode(this.extractMode);
+
+    const clearCacheBtn = this.$("clear-cache");
+    if (clearCacheBtn) {
+      this.events.on(clearCacheBtn, "click", () => {
+        clearCacheBtn.disabled = true;
+        Promise.resolve()
+          .then(() => this.clearCache())
+          .catch((err) => this.dispatch({ type: "FAILED", error: String(err?.message || err) }))
+          .finally(() => { clearCacheBtn.disabled = false; });
+      });
+    }
+
+    this.bindControls();
+    this.loadMotionLimits();
+    this.refreshSource();
+    // The runtime already restored the cached result at construction; this.result
+    // reads through to it.
+    this.render();
+  }
+
+  // -- plumbing ----------------------------------------------------------
+
+  $(role) {
+    return this.root.querySelector(`[data-role="${role}"]`);
+  }
+
+  // Delegates to the runtime so a headless observer (the compact shell's
+  // statechange listener) is notified the same way whether the mutation came
+  // from an interactive control here or from a queue event while closed.
+  // ExtractorRuntime.dispatch() calls this.render() back via workbench?.render().
+  dispatch(action) {
+    return this.runtime.dispatch(action);
+  }
+
+  async loadMotionLimits() {
+    try {
+      const payload = await this.requests.run(async (signal) => {
+        const response = await api.fetchApi?.("/majoor/omnicam/motion_profiles", { signal });
+        return response?.ok ? response.json() : undefined;
+      });
+      if (payload === undefined) return;
+      this.motionLimits = payload?.profiles?.find((profile) => profile.id === "generic")?.limits || null;
+      if (!this.disposed) this.render();
+    } catch {
+      // The panel still reports native solve quality when profile routes are unavailable.
+    }
+  }
+
+  bindControls() {
+    // Wheel over a scrollable panel scrolls it instead of zooming the graph.
+    this.events.on(this.root, "wheel", panelWheelKeeper(this.root));
+    for (const tab of this.root.querySelectorAll("[data-tab]")) {
+      this.events.on(tab, "click", () => this.setViewerMode(tab.dataset.tab));
+    }
+    for (const button of this.root.querySelectorAll("[data-track-mode]")) {
+      this.events.on(button, "click", () => this.setTrackMode(button.dataset.trackMode));
+    }
+    for (const button of this.root.querySelectorAll("[data-view]")) {
+      this.events.on(button, "click", () => this.viewer?.setView(button.dataset.view));
+    }
+    for (const button of this.root.querySelectorAll("[data-inspection-view]")) {
+      this.events.on(button, "click", () => {
+        const view = this.viewer?.setInspectionView(button.dataset.inspectionView) || "scene";
+        for (const item of this.root.querySelectorAll("[data-inspection-view]")) {
+          item.setAttribute("aria-selected", String(item.dataset.inspectionView === view));
+        }
+        for (const item of this.root.querySelectorAll("[data-view], [data-act='fit']")) {
+          item.disabled = view === "camera";
+        }
+      });
+    }
+
+    this.events.on(this.root.querySelector('[data-act="track"]'), "click", () => this.startSolve());
+    this.events.on(this.root.querySelector('[data-act="stop"]'), "click", () => this.cancelQueuedRun());
+    this.events.on(this.root.querySelector('[data-act="fit"]'), "click", () => this.viewer?.fit());
+    this.events.on(this.root.querySelector('[data-act="apply"]'), "click", () => this.applyRefined());
+    this.events.on(this.root.querySelector('[data-act="reset-refine"]'), "click", () => this.resetRefine());
+    this.events.on(this.$("scrubber"), "input", (event) => this.coordinator.seek(Number(event.target.value), "input"));
+    this.events.on(this.$("frame"), "change", (event) => this.coordinator.seek(Number(event.target.value), "input"));
+    this.events.on(this.$("follow-solve"), "change", (event) => this.sourceViewer.setFollow(event.target.checked));
+    this.timeline.bind((target, event, handler) => this.events.on(target, event, handler),
+      () => this.state.frameCount);
+    this.bindRefineControls();
+  }
+
+  bindRefineControls() {
+    const sliders = {
+      "position-smoothing": "position_smoothing",
+      "rotation-smoothing": "rotation_smoothing",
+      "horizon-stabilization": "horizon_stabilization",
+      "motion-scale": "motion_scale",
+      "position-tolerance": "position_tolerance",
+    };
+    for (const [role, key] of Object.entries(sliders)) {
+      const input = this.$(role);
+      this.events.on(input, "input", () => {
+        this.refine.update({ [key]: Number(input.value) });
+        this.renderRefineValues();
+      });
+    }
+    for (const axis of ["pitch", "yaw", "roll"]) {
+      const input = this.$(`align-${axis}`);
+      this.events.on(input, "input", () => {
+        this.refine.setAlignment({ [axis]: Number(input.value) });
+        this.renderRefineValues();
+      });
+    }
+    this.events.on(this.root.querySelector('[data-act="reset-alignment"]'), "click", () => {
+      for (const axis of ["pitch", "yaw", "roll"]) {
+        const input = this.$(`align-${axis}`);
+        if (input) input.value = "0";
+      }
+      this.refine.setAlignment({ pitch: 0, yaw: 0, roll: 0 });
+      this.renderRefineValues();
+    });
+    this.events.on(this.root.querySelector('[data-act="estimate-up"]'), "click", () => this.estimateUp());
+
+    this.events.on(this.root.querySelector('[data-act="set-in"]'), "click",
+      () => this.setTrim("trim-start", "trim_start_frame"));
+    this.events.on(this.root.querySelector('[data-act="set-out"]'), "click",
+      () => this.setTrim("trim-end", "trim_end_frame"));
+    this.events.on(this.root.querySelector('[data-act="reset-trim"]'), "click", () => {
+      for (const role of ["trim-start", "trim-end"]) {
+        const input = this.$(role);
+        if (input) input.value = "0";
+      }
+      this.refine.update({ trim_start_frame: 0, trim_end_frame: 0 });
+    });
+    for (const [role, key] of [["trim-start", "trim_start_frame"], ["trim-end", "trim_end_frame"]]) {
+      const input = this.$(role);
+      this.events.on(input, "change", () => this.refine.update({ [key]: Math.max(0, Number(input.value) || 0) }));
+    }
+    for (const [role, key] of [["normalize-origin", "normalize_origin"], ["simplify-keys", "simplify_keys"]]) {
+      const input = this.$(role);
+      this.events.on(input, "change", () => this.refine.update({ [key]: Boolean(input.checked) }));
+    }
+  }
+
+  // -- source ------------------------------------------------------------
+
+  refreshSource() {
+    const resolved = refreshExtractorSource(this);
+    if (this.reconstruction && resolved) {
+      this.reconstruction.setSource(resolved.ref || resolved);
+    }
+    return resolved;
+  }
+
+  /**
+   * Ask the server what this footage is, before anything is solved.
+   *
+   * Without it the panel knows a filename and nothing else: no rate, no frame
+   * count, so the scrubber has no range and the strip has nothing to say.
+   */
+  async describeSource(resolved) {
+    return describeExtractorSource(this, resolved);
+  }
+
+  /** Give the transport a real range, from the footage rather than a solve. */
+  adoptSourceLength(frameCount) {
+    return adoptExtractorSourceLength(this, frameCount);
+  }
+
+  // -- solve control -----------------------------------------------------
+
+  /**
+   * Delete every cached reconstruction from disk and forget this node's own
+   * cached results, in both modes: the camera-track scene/fingerprint/source
+   * widgets (result-cache.js) and the reconstruction panel's job state.
+   */
+  async clearCache() {
+    return clearExtractorCache(this);
+  }
+
+  /** TRACK / Reconstruct Start -> a partial ComfyUI execution. See queue/ui-bridge.js. */
+  startSolve(mode = "camera_track") {
+    return startQueuedSolve(this, mode);
+  }
+
+  /** STOP -> cancel this panel's ComfyUI job. Idempotent. */
+  cancelQueuedRun() {
+    return cancelQueuedRun(this);
+  }
+
+  syncPanelToNodeWidgets() {
+    return syncPanelToNodeWidgets(this);
+  }
+
+  prepareForQueuedRun() {
+    return prepareForQueuedRun(this);
+  }
+
+  /**
+   * Adopt a solved track. Canonical state/cache handling lives on
+   * ExtractorRuntime now (so it survives this workbench closing); the
+   * runtime pushes the result into this workbench's 3D viewer itself when
+   * one is attached (attachWorkbench/pushTracksToViewer), so this is a plain
+   * delegation kept for existing call sites (e.g. clear-cache tests).
+   */
+  acceptSolvedResult(result) {
+    return this.runtime.acceptSolvedResult(result);
+  }
+
+  /**
+   * Re-derive the refined track from the raw solve when a cleanup slider moves.
+   *
+   * No queue, no re-solve: POST the raw solve + settings to the bounded refine
+   * route and swap the result in. A no-op until a solve has produced a raw
+   * solve this session (after a reload, press TRACK to refine again).
+   */
+  async requestRefine(settings) {
+    if (!this.rawSolve || this.state.solveState !== "COMPLETED") return null;
+    try {
+      const payload = await postRefine(this.api, this.rawSolve, settings);
+      const refined = payload?.refined_track;
+      if (!refined?.keyframes?.length) return null;
+      this.result = { ...this.result, refined };
+      const fingerprint = String(payload.fingerprint || "");
+      this.dispatch({ type: "REFINED", fingerprint });
+      this.pushTracksToViewer();
+      cacheExtractorResult(this.node, { motionScene: motionSceneFromTrack(refined), fingerprint });
+      return payload;
+    } catch (error) {
+      // A refine hiccup must not tear down a good solve: keep COMPLETED and the
+      // last good track, just report it.
+      console.warn("[OmniCam] live refine failed", error);
+      this.setStatus?.(String(error?.message || error));
+      return null;
+    }
+  }
+
+  /**
+   * Level the world from the solve's own average up vector.
+   *
+   * Deliberately a button rather than something applied silently: a shot that
+   * was genuinely filmed tilted is indistinguishable from a tilted
+   * reconstruction, and only the user knows which they shot.
+   */
+  async estimateUp() {
+    this.refine.requestEstimatedUp();
+    const payload = await this.refine.flush();
+    const resolved = payload?.resolved_alignment;
+    if (!resolved) return null;
+    // Show what the estimate chose, so it can be nudged rather than trusted.
+    const [x, y, z, w] = resolved.map(Number);
+    const degrees = (value) => Math.round(value * (180 / Math.PI) * 10) / 10;
+    const pitch = degrees(Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y)));
+    const roll = degrees(Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)));
+    for (const [axis, value] of [["pitch", pitch], ["yaw", 0], ["roll", roll]]) {
+      const input = this.$(`align-${axis}`);
+      if (input) input.value = String(value);
+    }
+    this.refine.alignment = { pitch, yaw: 0, roll };
+    this.renderRefineValues();
+    return payload;
+  }
+
+  resetRefine() {
+    this.refine.reset();
+    for (const [role, value] of [
+      ["position-smoothing", 0.15], ["rotation-smoothing", 0.1],
+      ["horizon-stabilization", 0], ["motion-scale", 1], ["position-tolerance", 0.01],
+      ["align-pitch", 0], ["align-yaw", 0], ["align-roll", 0],
+    ]) {
+      const input = this.$(role);
+      if (input) input.value = String(value);
+    }
+    this.renderRefineValues();
+  }
+
+  setTrim(role, key) {
+    const input = this.$(role);
+    if (input) input.value = String(this.state.frame);
+    this.refine.update({ [key]: this.state.frame });
+  }
+
+  applyRefined() {
+    try {
+      const { fingerprint } = applyRefinedTrack(this.node, {
+        track: this.result.refined, state: this.state.solveState,
+      });
+      this.dispatch({ type: "APPLIED", fingerprint });
+    } catch (error) {
+      const message = error instanceof ResultApplyError ? error.message : String(error?.message || error);
+      this.dispatch({ type: "FAILED", error: message });
+    }
+  }
+
+  // -- viewer ------------------------------------------------------------
+
+  ensureViewer() {
+    if (this.viewer || this.disposed) return Promise.resolve(this.viewer);
+    this.viewerLoad ||= loadTrackViewer(this);
+    return this.viewerLoad;
+  }
+
+  pushTracksToViewer() {
+    if (!this.viewer) return;
+    this.viewer.setRawTrack(this.result.raw);
+    this.viewer.setRefinedTrack(this.result.refined);
+    this.viewer.setLandmarks(this.landmarks);
+    this.viewer.setMode(this.state.trackMode);
+    this.coordinator.seek(this.state.frame, "sync");
+  }
+
+  async setViewerMode(mode) {
+    this.dispatch({ type: "VIEWER_MODE", mode });
+    if (mode === "source") return;
+    // The viewer must exist before resize/fit, and on the first switch that
+    // now means waiting for the three.js chunk.
+    await this.ensureViewer();
+    if (this.disposed) return;
+    this.viewer?.resize();
+    this.viewer?.fit();
+  }
+
+  setTrackMode(mode) {
+    this.dispatch({ type: "TRACK_MODE", mode });
+    this.viewer?.setMode(mode);
+  }
+
+  showDiagnostics(frame) {
+    const diagnostics = this.diagnostics.get(frame);
+    if (diagnostics) this.overlay.setDiagnostics(diagnostics);
+    else this.overlay.clear();
+  }
+
+  // -- rendering ---------------------------------------------------------
+
+  render() {
+    const pill = this.$("solve-status");
+    if (pill) {
+      pill.dataset.tone = statusTone(this.state.solveState);
+      this.$("solve-status-text").textContent = statusLabel(this.state);
+    }
+
+    const strip = this.$("source-strip");
+    if (strip) {
+      strip.dataset.available = String(Boolean(this.state.source.available));
+      this.$("source-label").textContent = describeSource(this.state.source);
+    }
+
+    const available = controlAvailability(this.state);
+    for (const [action, enabled] of Object.entries({
+      track: available.track, stop: available.stop, apply: available.apply,
+    })) {
+      const button = this.root.querySelector(`[data-act="${action}"]`);
+      if (button) button.disabled = !enabled;
+    }
+
+    this.$("solve-detail").textContent = progressLabel(this.state);
+    this.$("solve-percent").textContent = `${Math.round(this.state.progress * 100)}%`;
+    this.$("progress-bar").style.width = `${Math.round(this.state.progress * 100)}%`;
+
+    const error = this.$("solve-error");
+    error.hidden = !this.state.error;
+    error.textContent = this.state.error || "";
+
+    const appliedState = appliedLabel(this.state);
+    const applied = this.$("applied-state");
+    applied.dataset.state = appliedState;
+    applied.textContent = appliedState;
+
+    const stepSource = this.root.querySelector('[data-step="source"]');
+    const stepTrack = this.root.querySelector('[data-step="track"]');
+    const stepSolve = this.root.querySelector('[data-step="solve"]');
+    const stepRefine = this.root.querySelector('[data-step="refine"]');
+    const stepOutput = this.root.querySelector('[data-step="output"]');
+    if (stepSource && stepTrack && stepSolve && stepRefine && stepOutput) {
+      const sourceOk = Boolean(this.state.source?.available);
+      stepSource.dataset.state = sourceOk ? "completed" : "active";
+      const isTracking = this.state.solveState === "TRACKING";
+      const isSolving = this.state.solveState === "SOLVING";
+      const isFailed = this.state.solveState === "FAILED";
+      const isCompleted = this.state.solveState === "COMPLETED";
+      stepTrack.dataset.state = isTracking ? "active" : (isCompleted || isSolving || this.rawSolve) ? "completed" : (isFailed && !this.rawSolve) ? "error" : "pending";
+      stepSolve.dataset.state = isSolving ? "active" : isCompleted ? "completed" : (isFailed && this.rawSolve) ? "error" : "pending";
+      const isApplied = appliedState === "APPLIED";
+      stepRefine.dataset.state = isApplied ? "completed" : isCompleted ? "active" : "pending";
+      stepOutput.dataset.state = isApplied ? "completed" : "pending";
+    }
+
+    for (const tab of this.root.querySelectorAll("[data-tab]")) {
+      tab.setAttribute("aria-selected", String(tab.dataset.tab === this.state.viewerMode));
+    }
+    for (const button of this.root.querySelectorAll("[data-track-mode]")) {
+      button.setAttribute("aria-selected", String(button.dataset.trackMode === this.state.trackMode));
+    }
+    const mode = this.state.viewerMode;
+    const showingSource = mode === "source";
+    const showingTrack = mode === "track3d";
+    const showingDiagnostics = false;
+    const stage = this.$("stage");
+    if (stage) stage.dataset.mode = mode;
+    renderSourceStageMedia(this, showingSource);
+    this.$("tracking-overlay").hidden = !showingDiagnostics;
+    this.$("track-canvas").hidden = !showingTrack;
+    this.root.querySelector('[data-role="views"]').hidden = !showingTrack;
+
+    const scrubber = this.$("scrubber");
+    if (scrubber) scrubber.max = String(Math.max(0, this.state.frameCount - 1));
+    const frameInput = this.$("frame");
+    if (frameInput) frameInput.max = String(Math.max(0, this.state.frameCount - 1));
+    const frameTotal = this.$("frame-total");
+    if (frameTotal) frameTotal.textContent = `/ ${Math.max(0, this.state.frameCount - 1)}`;
+    const fps = this.$("extractor-fps");
+    if (fps) fps.textContent = String(this.sourceViewer.fps || 24);
+
+    renderAnomalies(this.$("anomalies"), this.state.anomalies, {
+      actions: this.refine.settings.spike_actions,
+      onFrame: (frame) => this.coordinator.seek(frame, "anomaly"),
+      onAction: (anomaly, action) => {
+        const start = Number(anomaly.start_frame ?? anomaly.frame) || 0;
+        const end = Math.max(start, Number(anomaly.end_frame ?? anomaly.frame) || start);
+        for (let frame = start; frame <= end; frame += 1) this.refine.setSpikeAction(frame, action);
+        this.render();
+      },
+    });
+    this.renderTimeline();
+    this.transport.render();
+    renderFrameReadouts(this);
+    renderExtractorRuler(this);
+
+    const notice = this.$("stage-notice");
+    if (notice) {
+      const message = this.state.source.playbackError
+        || (this.upstreamPreviewActive ? "Preview only -- connect Load Video, or run the graph once, to track this source." : "");
+      notice.hidden = !message || !showingSource;
+      notice.textContent = message;
+    }
+  }
+
+  /**
+   * The read-only solved camera channels, aligned to the source frame clock.
+   */
+  renderTimeline() {
+    const track = this.state.trackMode === "raw" ? this.result.raw : this.result.refined;
+    this.currentHealth = trackHealth(track, this.motionLimits);
+    return this.timeline.render({
+      track,
+      health: this.currentHealth,
+      quality: this.state.quality,
+      anomalies: this.state.anomalies,
+      frame: this.state.frame,
+      frameCount: this.state.frameCount,
+    });
+  }
+
+  renderFrameReadouts() {
+    return renderFrameReadouts(this);
+  }
+
+  /** Keep the read-only solve sheet on the exact same frame axis as playback. */
+  renderExtractorRuler() {
+    renderExtractorRuler(this);
+  }
+
+  renderRefineValues() {
+    for (const role of [
+      "position-smoothing", "rotation-smoothing", "horizon-stabilization", "motion-scale", "position-tolerance",
+      "align-pitch", "align-yaw", "align-roll",
+    ]) {
+      const input = this.$(role);
+      const output = this.$(`${role}-out`);
+      if (input && output) output.textContent = input.value;
+    }
+  }
+
+  // -- lifecycle ---------------------------------------------------------
+
+  // The runtime already restored the cache at construction; kept as a thin
+  // delegation for any external caller (tests) still simulating an execution
+  // through the workbench directly.
+  executed(message) {
+    return this.runtime.executed(message);
+  }
+
+  setExtractMode(mode) {
+    this.extractMode = mode;
+    const isReconstruct = mode === "scene_reconstruct";
+    const reconPanel = this.$("reconstruction-panel");
+    // The whole camera-track UI -- tabs, stage, transport/dope timeline, Solve
+    // card, cleanup columns -- lives in this one element. Scene Reconstruct has
+    // its own panel (and its own 3D preview), so hide camera track entirely
+    // rather than leaving its menus stacked under the reconstruction panel.
+    const cameraBody = this.$("camera-track-body");
+
+    if (reconPanel) reconPanel.toggleAttribute("hidden", !isReconstruct);
+    if (cameraBody) cameraBody.toggleAttribute("hidden", isReconstruct);
+
+    const camBtn = this.$("extract-mode-camera");
+    if (camBtn) {
+      camBtn.setAttribute("aria-selected", !isReconstruct ? "true" : "false");
+      camBtn.classList.toggle("active", !isReconstruct);
+    }
+    const reconBtn = this.$("extract-mode-reconstruct");
+    if (reconBtn) {
+      reconBtn.setAttribute("aria-selected", isReconstruct ? "true" : "false");
+      reconBtn.classList.toggle("active", isReconstruct);
+    }
+
+    if (isReconstruct && this.reconstruction) {
+      const src = this.state.source?.ref || this.state.source;
+      if (src) this.reconstruction.setSource(src);
+      // Mirrors Camera Track's TRACK 3D tab: the 3D preview mounts the first
+      // time this mode is entered and then stays alive for the rest of the
+      // node's life, instead of needing its own separate open button.
+      this.reconstruction.openPreview();
+    }
+
+    const modeWidget = widget(this.node, "extract_mode");
+    if (modeWidget && modeWidget.value !== mode) {
+      modeWidget.value = mode;
+      this.node.setDirtyCanvas?.(true, true);
+    }
+  }
+
+  // Visual/media disposal only. A queued solve outlives this workbench --
+  // closing it must not cancel the job (migration plan Task 13); only true
+  // node removal (ExtractorRuntime.dispose()) does that.
+  dispose() {
+    this.reconstruction?.dispose();
+    this.disposed = true;
+    closeHelpPopup(); // body-level popup + capture keydown, else orphaned on graph clear
+    this.requests.dispose();
+    this.refine.dispose();
+    this.coordinator.dispose();
+    this.sourceViewer.dispose();
+    this.overlay.dispose();
+    this.diagnostics.dispose();
+    this.viewer?.dispose();
+    this.viewer = null;
+    this.viewerLoad = null;
+    this.events.dispose();
+    // Deliberately does not clear this.result: it aliases runtime.result,
+    // which must survive this workbench closing (migration plan Task 13) --
+    // only ExtractorRuntime.dispose() (node removal) tears down the solve.
+  }
+}
+
+for (const field of RUNTIME_ALIASED_FIELDS) {
+  Object.defineProperty(ExtractorUI.prototype, field, {
+    configurable: true,
+    enumerable: true,
+    get() { return this.runtime[field]; },
+    set(value) { this.runtime[field] = value; },
+  });
+}
+
+
+export { attachExtractor, openExtractorWorkbench, closeExtractorWorkbench } from "./attach.js";
+
+

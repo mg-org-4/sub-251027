@@ -1,0 +1,500 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { defaultState, sanitizeState } from "../../web-src/director/core.js";
+import { executeDirectorTransaction } from "../../web-src/director-api/transaction.js";
+import { UI_DIRTY, hasDirty } from "../../web-src/director/ui-dirty.js";
+
+function makeUi() {
+  const state = sanitizeState(defaultState());
+  state.cameras.push({ id: "camera_2", name: "Camera 2", camera: state.cameras[0].camera, keyframes: state.cameras[0].keyframes });
+  const ui = {
+    state: sanitizeState(state),
+    frame: 0,
+    selectedEntity: "camera",
+    selectedObjectId: null,
+    selectedObjectIds: new Set(),
+    selectedKeyFrame: 0,
+    checkpoints: [],
+    serializeCount: 0,
+    renderCount: 0,
+    checkpoint(label) { this.checkpoints.push(label); },
+    serialize() { this.serializeCount += 1; },
+    render() { this.renderCount += 1; },
+    refreshObjects() {},
+    refreshKeys() {},
+    refreshInspector() {},
+    sampleCamera: (_s, _f) => ({}),
+  };
+  return ui;
+}
+
+const tx = (overrides = {}) => ({
+  version: 1,
+  id: `tx_${Math.random().toString(36).slice(2)}`,
+  description: "test",
+  operations: [],
+  ...overrides,
+});
+
+test("rejects an unsupported API version without touching state", () => {
+  const ui = makeUi();
+  const before = JSON.stringify(ui.state);
+  const result = executeDirectorTransaction(ui, tx({ version: 2, operations: [{ type: "object.set_enabled", objectId: "subject", value: false }] }));
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "UNSUPPORTED_VERSION");
+  assert.equal(JSON.stringify(ui.state), before);
+  assert.equal(ui.checkpoints.length, 0);
+  assert.equal(ui.serializeCount, 0);
+});
+
+test("rejects a transaction with more than 50 operations", () => {
+  const ui = makeUi();
+  const operations = Array.from({ length: 51 }, () => ({ type: "object.set_enabled", objectId: "subject", value: true }));
+  const result = executeDirectorTransaction(ui, tx({ operations }));
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "TOO_MANY_OPERATIONS");
+});
+
+test("rejects an unknown operation type", () => {
+  const ui = makeUi();
+  const result = executeDirectorTransaction(ui, tx({ operations: [{ type: "camera.explode" }] }));
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "UNKNOWN_OPERATION");
+  assert.equal(result.error.operationIndex, 0);
+});
+
+test("rejects an empty description and an empty operation list", () => {
+  const ui = makeUi();
+  assert.equal(executeDirectorTransaction(ui, tx({ description: "  ", operations: [{ type: "object.set_locked", objectId: "subject", value: true }] })).error.code, "EMPTY_DESCRIPTION");
+  assert.equal(executeDirectorTransaction(ui, tx({ operations: [] })).error.code, "NO_OPERATIONS");
+});
+
+test("validateOnly performs zero writes, history, serialization or repaint", () => {
+  const ui = makeUi();
+  const before = JSON.stringify(ui.state);
+  const result = executeDirectorTransaction(ui, tx({
+    validateOnly: true,
+    operations: [
+      { type: "object.set_enabled", objectId: "subject", value: false },
+      { type: "camera.set_active", cameraId: "camera_2" },
+    ],
+  }));
+  assert.equal(result.ok, true);
+  assert.equal(result.validateOnly, true);
+  assert.equal(result.applied, 2);
+  assert.equal(JSON.stringify(ui.state), before);
+  assert.equal(ui.checkpoints.length, 0);
+  assert.equal(ui.serializeCount, 0);
+  assert.equal(ui.renderCount, 0);
+});
+
+test("a multi-op transaction is atomic when a later op fails", () => {
+  const ui = makeUi();
+  const before = JSON.stringify(ui.state);
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [
+      { type: "object.set_enabled", objectId: "subject", value: false },
+      { type: "camera.set_active", cameraId: "camera_404" },
+    ],
+  }));
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "UNKNOWN_CAMERA");
+  assert.equal(result.error.operationIndex, 1);
+  assert.equal(JSON.stringify(ui.state), before, "first op must be rolled back");
+  assert.equal(ui.checkpoints.length, 0);
+});
+
+test("a successful transaction creates exactly one checkpoint and one serialize", () => {
+  const ui = makeUi();
+  const result = executeDirectorTransaction(ui, tx({
+    description: "Disable subject and retarget",
+    operations: [
+      { type: "object.set_enabled", objectId: "subject", value: false },
+      { type: "object.set_locked", objectId: "subject", value: true },
+      { type: "camera.set_active", cameraId: "camera_2" },
+    ],
+  }));
+  assert.equal(result.ok, true);
+  assert.equal(result.applied, 3);
+  assert.equal(ui.checkpoints.length, 1);
+  assert.deepEqual(ui.checkpoints, ["Disable subject and retarget"]);
+  assert.equal(ui.serializeCount, 1);
+  assert.equal(ui.state.objects.find((o) => o.id === "subject").enabled, false);
+  assert.equal(ui.state.objects.find((o) => o.id === "subject").locked, true);
+  assert.equal(ui.state.active_camera_id, "camera_2");
+  assert.ok(hasDirty(result.dirtyMask, UI_DIRTY.outliner));
+  assert.ok(hasDirty(result.dirtyMask, UI_DIRTY.viewport));
+});
+
+test("a transaction id cannot be reused once committed", () => {
+  const ui = makeUi();
+  const shared = tx({ operations: [{ type: "object.set_enabled", objectId: "subject", value: false }] });
+  assert.equal(executeDirectorTransaction(ui, shared).ok, true);
+  const second = executeDirectorTransaction(ui, { ...shared, operations: [{ type: "object.set_enabled", objectId: "subject", value: true }] });
+  assert.equal(second.ok, false);
+  assert.equal(second.error.code, "DUPLICATE_TRANSACTION_ID");
+});
+
+test("keyframe.set_interpolation rejects an unsupported mode and edits a real key", () => {
+  const ui = makeUi();
+  const bad = executeDirectorTransaction(ui, tx({ operations: [{ type: "keyframe.set_interpolation", frame: 0, interpolation: "wobble" }] }));
+  assert.equal(bad.error.code, "BAD_INTERPOLATION");
+
+  const good = executeDirectorTransaction(ui, tx({ operations: [{ type: "keyframe.set_interpolation", frame: 0, interpolation: "linear" }] }));
+  assert.equal(good.ok, true);
+  const activeTrack = ui.state.cameras.find((c) => c.id === ui.state.active_camera_id);
+  assert.equal(activeTrack.keyframes.find((k) => k.frame === 0).interpolation, "linear");
+});
+
+test("rejects stale baseRevision atomically", () => {
+  const ui = makeUi();
+  ui.directorRevision = 7;
+
+  const before = JSON.stringify(ui.state);
+
+  const result = executeDirectorTransaction(ui, tx({
+    baseRevision: 6,
+    operations: [{
+      type: "object.set_enabled",
+      objectId: "subject",
+      value: false,
+    }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "STALE_REVISION");
+  assert.equal(result.revision, 7);
+  assert.deepEqual(result.error.details, {
+    expected: 7,
+    received: 6,
+  });
+  assert.equal(JSON.stringify(ui.state), before);
+  assert.equal(ui.checkpoints.length, 0);
+});
+
+test("validateOnly checks revision but does not advance it", () => {
+  const ui = makeUi();
+  ui.directorRevision = 4;
+
+  const result = executeDirectorTransaction(ui, tx({
+    baseRevision: 4,
+    validateOnly: true,
+    operations: [{
+      type: "object.set_enabled",
+      objectId: "subject",
+      value: false,
+    }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.revision, 4);
+  assert.equal(ui.directorRevision, 4);
+});
+
+test("validateOnly returns a bounded semantic diff of what the transaction would change", () => {
+  const ui = makeUi();
+  const before = ui.state.objects.find((o) => o.id === "subject").position;
+
+  const result = executeDirectorTransaction(ui, tx({
+    validateOnly: true,
+    operations: [{ type: "object.transform", objectId: "subject", position: [5, 5, 5] }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.truncated, undefined);
+  const change = result.changes.find((c) => c.entity === "subject" && c.field === "position");
+  assert.ok(change);
+  assert.deepEqual(change.before, before);
+  assert.deepEqual(change.after, [5, 5, 5]);
+  // Still a dry run: live state is untouched.
+  assert.deepEqual(ui.state.objects.find((o) => o.id === "subject").position, before);
+});
+
+test("a matching baseRevision commits and the response carries before/after revisions", () => {
+  const ui = makeUi();
+  ui.directorRevision = 2;
+  ui.serialize = function () {
+    this.serializeCount += 1;
+    this.directorRevision += 1;
+  };
+
+  const result = executeDirectorTransaction(ui, tx({
+    baseRevision: 2,
+    operations: [{ type: "object.set_enabled", objectId: "subject", value: false }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.baseRevision, 2);
+  assert.equal(result.revision, 3);
+  assert.equal(ui.directorRevision, 3);
+});
+
+test("an omitted baseRevision skips the concurrency check entirely", () => {
+  const ui = makeUi();
+  ui.directorRevision = 9;
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.set_enabled", objectId: "subject", value: false }],
+  }));
+  assert.equal(result.ok, true);
+});
+
+test("a failure response always reports the current revision", () => {
+  const ui = makeUi();
+  ui.directorRevision = 5;
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.set_active", cameraId: "camera_404" }],
+  }));
+  assert.equal(result.ok, false);
+  assert.equal(result.revision, 5);
+});
+
+test("a locked object rejects object.transform with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  ui.state.objects.find((o) => o.id === "subject").locked = true;
+  const before = JSON.stringify(ui.state);
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.transform", objectId: "subject", position: [1, 1, 1] }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+  assert.equal(JSON.stringify(ui.state), before);
+});
+
+test("a locked object rejects character.set_motion with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  const subject = ui.state.objects.find((o) => o.id === "subject");
+  subject.asset_kind = "character";
+  subject.locked = true;
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{
+      type: "character.set_motion",
+      objectId: "subject",
+      motion: { clip_id: "walk" },
+    }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
+
+test("a locked camera rejects camera.transform with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  ui.state.cameras.find((c) => c.id === "camera_1").locked = true;
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.transform", cameraId: "camera_1", position: [1, 1, 1] }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
+
+test("a locked camera rejects keyframe.upsert with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  ui.state.cameras.find((c) => c.id === "camera_1").locked = true;
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "keyframe.upsert", cameraId: "camera_1", frame: 1 }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
+
+test("keyframe.upsert with no camera payload warns that the new key reused the existing pose", () => {
+  // The exact, symptomless shape of an Agent "orbit the camera" transaction
+  // that forgot to say where to move: a keyframe genuinely gets created,
+  // but it clones frame 0's pose verbatim and the camera never moves.
+  const ui = makeUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "keyframe.upsert", cameraId: "camera_1", frame: 30 }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.warnings.length, 1);
+  assert.match(result.warnings[0], /no "camera" given/);
+  const camera = ui.state.cameras.find((c) => c.id === "camera_1");
+  const newKey = camera.keyframes.find((k) => k.frame === 30);
+  const baseKey = camera.keyframes.find((k) => k.frame === 0);
+  assert.deepEqual(newKey.camera, baseKey.camera);
+});
+
+test("keyframe.upsert with a camera payload creates a genuinely different pose and warns about nothing", () => {
+  const ui = makeUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "keyframe.upsert", cameraId: "camera_1", frame: 30, camera: { position: [9, 9, 9] } }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.warnings, []);
+  const camera = ui.state.cameras.find((c) => c.id === "camera_1");
+  const newKey = camera.keyframes.find((k) => k.frame === 30);
+  assert.deepEqual(newKey.camera.position, [9, 9, 9]);
+});
+
+test("keyframe.upsert editing an already-existing key never warns, even with no camera payload", () => {
+  const ui = makeUi();
+  const camera = ui.state.cameras.find((c) => c.id === "camera_1");
+  camera.keyframes.push({ frame: 30, camera: { ...camera.keyframes[0].camera, position: [5, 5, 5] }, interpolation: "ease" });
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "keyframe.upsert", cameraId: "camera_1", frame: 30, interpolation: "linear" }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.warnings, []);
+});
+
+test("camera.set_locked and object.set_locked stay usable on a locked entity, and unlocking restores edits", () => {
+  const ui = makeUi();
+  ui.state.cameras.find((c) => c.id === "camera_1").locked = true;
+  ui.state.objects.find((o) => o.id === "subject").locked = true;
+
+  const unlockCamera = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.set_locked", cameraId: "camera_1", value: false }],
+  }));
+  assert.equal(unlockCamera.ok, true);
+
+  const unlockObject = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.set_locked", objectId: "subject", value: false }],
+  }));
+  assert.equal(unlockObject.ok, true);
+
+  const editCamera = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.transform", cameraId: "camera_1", position: [9, 9, 9] }],
+  }));
+  assert.equal(editCamera.ok, true);
+  assert.deepEqual(ui.state.cameras.find((c) => c.id === "camera_1").camera.position, [9, 9, 9]);
+});
+
+test("camera.look_at at a point retargets every key and clears object tracking", () => {
+  const ui = makeUi();
+  const result = executeDirectorTransaction(ui, tx({ operations: [{ type: "camera.look_at", point: [1, 2, 3] }] }));
+  assert.equal(result.ok, true);
+  const activeTrack = ui.state.cameras.find((c) => c.id === ui.state.active_camera_id);
+  for (const key of activeTrack.keyframes) {
+    assert.deepEqual(key.camera.target, [1, 2, 3]);
+  }
+});
+
+// -- live runtime resource reconciliation (design spec section 20) ----------
+
+async function flush() {
+  for (let i = 0; i < 10; i += 1) await Promise.resolve();
+}
+
+function makeReconcilingUi() {
+  const ui = makeUi();
+  ui.removedObjectIds = [];
+  ui.restoreAssetsCallCount = 0;
+  ui.removeObjectResources = (id) => ui.removedObjectIds.push(id);
+  ui.restoreAssets = () => { ui.restoreAssetsCallCount += 1; };
+  return ui;
+}
+
+const CHAIR = { version: 2, id: "omnicam.prop.chair_01", name: "Chair 01", kind: "prop", file: "props/chair_01.glb", tags: ["chair"], source: "default" };
+
+test("asset.instantiate triggers restoreAssets after commit", async () => {
+  const ui = makeReconcilingUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "asset.instantiate", asset: CHAIR, point: [0, 0, 0], id: "seed1" }],
+  }));
+  assert.equal(result.ok, true);
+  await flush();
+  assert.equal(ui.restoreAssetsCallCount, 1);
+});
+
+test("object.duplicate with an asset reference triggers restoreAssets after commit", async () => {
+  const ui = makeReconcilingUi();
+  ui.state.objects.find((o) => o.id === "subject").asset_id = "asset_1";
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.duplicate", objectId: "subject" }],
+  }));
+  assert.equal(result.ok, true);
+  await flush();
+  assert.equal(ui.restoreAssetsCallCount, 1);
+});
+
+test("object.delete triggers removeObjectResources for the deleted id after commit", async () => {
+  const ui = makeReconcilingUi();
+  executeDirectorTransaction(ui, tx({ operations: [{ type: "object.create", objectType: "cube", id: "cube_1" }] }));
+  const result = executeDirectorTransaction(ui, tx({ operations: [{ type: "object.delete", objectId: "cube_1" }] }));
+  assert.equal(result.ok, true);
+  await flush();
+  assert.deepEqual(ui.removedObjectIds, ["cube_1"]);
+});
+
+test("a plain transform does not trigger any resource reconciliation", async () => {
+  const ui = makeReconcilingUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.transform", objectId: "subject", position: [1, 2, 3] }],
+  }));
+  assert.equal(result.ok, true);
+  await flush();
+  assert.equal(ui.restoreAssetsCallCount, 0);
+  assert.deepEqual(ui.removedObjectIds, []);
+});
+
+// design spec Task 11: a failure in the post-commit runtime reconciliation
+// must never look like an Agent failure -- the semantic mutation already
+// committed successfully, so it stays ok:true, but the caller needs some
+// observable signal instead of a swallowed console.warn (otherwise "the
+// state changed but I do not see the mesh" is undiagnosable).
+
+test("restoreAssets() rejecting after commit still leaves the transaction ok:true, with the state committed", async () => {
+  const ui = makeReconcilingUi();
+  ui.restoreAssets = () => Promise.reject(new Error("network error loading GLB"));
+  const revisionBefore = ui.checkpoints.length;
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "asset.instantiate", asset: CHAIR, point: [0, 0, 0], id: "seed1" }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(ui.state.objects.some((o) => o.asset_id === CHAIR.id), true);
+  assert.equal(ui.checkpoints.length, revisionBefore + 1); // committed once, no rollback
+  await flush();
+});
+
+test("restoreAssets() rejecting after commit appends a bounded, stack-trace-free warning", async () => {
+  const ui = makeReconcilingUi();
+  ui.restoreAssets = () => Promise.reject(new Error("network error loading GLB"));
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "asset.instantiate", asset: CHAIR, point: [0, 0, 0], id: "seed1" }],
+  }));
+  await flush();
+
+  assert.equal(result.warnings.length, 1);
+  assert.equal(result.warnings[0].code, "VIEWPORT_RESOURCE_RECONCILE_FAILED");
+  assert.match(result.warnings[0].message, /viewport resources could not be refreshed/);
+  assert.equal("stack" in result.warnings[0], false);
+  assert.equal(JSON.stringify(result.warnings[0]).includes("network error loading GLB"), false);
+});
+
+test("removeObjectResources() throwing after commit also appends the warning, without a rollback", async () => {
+  const ui = makeReconcilingUi();
+  ui.removeObjectResources = () => { throw new Error("three.js dispose failed"); };
+  executeDirectorTransaction(ui, tx({ operations: [{ type: "object.create", objectType: "cube", id: "cube_1" }] }));
+
+  const result = executeDirectorTransaction(ui, tx({ operations: [{ type: "object.delete", objectId: "cube_1" }] }));
+  assert.equal(result.ok, true);
+  assert.equal(ui.state.objects.some((o) => o.id === "cube_1"), false); // canonical delete still committed
+  await flush();
+
+  assert.equal(result.warnings.length, 1);
+  assert.equal(result.warnings[0].code, "VIEWPORT_RESOURCE_RECONCILE_FAILED");
+});
+
+test("a successful reconciliation adds no warning", async () => {
+  const ui = makeReconcilingUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "asset.instantiate", asset: CHAIR, point: [0, 0, 0], id: "seed1" }],
+  }));
+  await flush();
+  assert.deepEqual(result.warnings, []);
+});

@@ -1,0 +1,472 @@
+// The ComfyUI settings catalogue: pure data, no runtime state.
+//
+// Registered through `app.registerExtension({ settings })`, which is the current
+// API -- `app.ui.settings.addSetting()` is deprecated in the ComfyUI frontend.
+//
+// Every entry here is a *preference*: the value a newly created Director node
+// starts from. A saved workflow always wins, because ComfyUI restores node
+// widgets after nodeCreated() runs. The two exceptions are Language and Studio
+// quality, which apply to already-open editors through their onChange.
+//
+// The settings dialog builds a tree from the full `category` path and treats its
+// LAST segment as the setting's own leaf node. Every entry therefore needs a
+// distinct final segment (we use its display name); entries that shared a path
+// collapsed onto one node and all but the last-registered vanished from the
+// dialog. `category[1]` is the group heading the user sees under the panel.
+
+const CATEGORY = ["OmniCam"];
+
+export const SETTING_LOCALE = "MajoorOmniCam.Locale";
+
+// Output & recording
+export const SETTING_FPS = "MajoorOmniCam.Defaults.Fps";
+export const SETTING_DURATION = "MajoorOmniCam.Defaults.DurationSeconds";
+export const SETTING_WIDTH = "MajoorOmniCam.Defaults.Width";
+export const SETTING_HEIGHT = "MajoorOmniCam.Defaults.Height";
+export const SETTING_RENDER_MODE = "MajoorOmniCam.Defaults.RenderMode";
+export const SETTING_ENCODER = "MajoorOmniCam.Defaults.Encoder";
+export const SETTING_PLAYBLAST_RESOLUTION = "MajoorOmniCam.Defaults.PlayblastResolution";
+export const SETTING_PLAYBLAST_QUALITY = "MajoorOmniCam.Playblast.Quality";
+export const SETTING_PLAYBLAST_GRID = "MajoorOmniCam.Defaults.PlayblastGrid";
+export const SETTING_PLAYBLAST_LABELS = "MajoorOmniCam.Defaults.PlayblastLabels";
+export const SETTING_GUIDE_CAPTURE_STYLE = "MajoorOmniCam.Defaults.GuideCaptureStyle";
+
+// Proxy look
+export const SETTING_POINT_DENSITY = "MajoorOmniCam.Proxy.PointDensity";
+export const SETTING_POINT_SPREAD = "MajoorOmniCam.Proxy.PointSpread";
+export const SETTING_POINT_COLOR = "MajoorOmniCam.Proxy.PointColor";
+export const SETTING_CARD_FIT = "MajoorOmniCam.Proxy.CardFit";
+
+// Viewport
+export const SETTING_QUALITY = "MajoorOmniCam.Viewport.Quality";
+export const SETTING_ADAPTIVE = "MajoorOmniCam.Viewport.Adaptive";
+export const SETTING_BG_COLOR = "MajoorOmniCam.Viewport.BackgroundColor";
+
+// Display toggles
+export const SETTING_SHOW_GRID = "MajoorOmniCam.Display.Grid";
+export const SETTING_SHOW_RADAR = "MajoorOmniCam.Display.Radar";
+export const SETTING_SHOW_CAMERA_PATHS = "MajoorOmniCam.Display.CameraPaths";
+export const SETTING_SHOW_CAMERA_GIZMOS = "MajoorOmniCam.Display.CameraGizmos";
+export const SETTING_SHOW_LOOK_AT = "MajoorOmniCam.Display.LookAt";
+export const SETTING_SHOW_HELPER_AXES = "MajoorOmniCam.Display.HelperAxes";
+export const SETTING_SHOW_GIZMO = "MajoorOmniCam.Display.Gizmo";
+export const SETTING_GUIDES = "MajoorOmniCam.Display.Guides";
+export const SETTING_SAFE_AREAS = "MajoorOmniCam.Display.SafeAreas";
+export const SETTING_RESOLUTION_GATE = "MajoorOmniCam.Display.ResolutionGate";
+export const SETTING_ASPECT_RATIO = "MajoorOmniCam.Display.AspectRatio";
+export const SETTING_BURN_IN = "MajoorOmniCam.Display.BurnIn";
+export const SETTING_SPEED_HEATMAP = "MajoorOmniCam.Display.SpeedHeatmap";
+export const SETTING_SHOW_WIREFRAME = "MajoorOmniCam.Display.Wireframe";
+export const SETTING_SHOW_VERTICES = "MajoorOmniCam.Display.Vertices";
+
+// Modelling / manipulation tools
+export const SETTING_SELECT_MODE = "MajoorOmniCam.Tools.SelectMode";
+export const SETTING_GIZMO_MODE = "MajoorOmniCam.Tools.GizmoMode";
+export const SETTING_GIZMO_SPACE = "MajoorOmniCam.Tools.GizmoSpace";
+export const SETTING_SNAP_MODE = "MajoorOmniCam.Tools.SpatialSnapMode";
+export const SETTING_SNAP_GRID_SIZE = "MajoorOmniCam.Tools.SpatialGridSize";
+
+// Navigation
+export const SETTING_NAVIGATION_PROFILE = "MajoorOmniCam.Navigation.Profile";
+export const SETTING_FLY_SPEED = "MajoorOmniCam.Navigation.FlySpeed";
+export const SETTING_INVERT_ORBIT_Y = "MajoorOmniCam.Navigation.InvertOrbitY";
+export const SETTING_ZOOM_SENSITIVITY = "MajoorOmniCam.Navigation.ZoomSensitivity";
+export const SETTING_ORBIT_SENSITIVITY = "MajoorOmniCam.Navigation.OrbitSensitivity";
+export const SETTING_PAN_SENSITIVITY = "MajoorOmniCam.Navigation.PanSensitivity";
+export const SETTING_DOLLY_SENSITIVITY = "MajoorOmniCam.Navigation.DollySensitivity";
+export const SETTING_VIEW_MODE = "MajoorOmniCam.Navigation.ViewMode";
+
+export const SETTING_ENABLE_SHORTCUTS = "MajoorOmniCam.Controls.EnableShortcuts";
+
+// Timeline
+export const SETTING_SNAP_ENABLED = "MajoorOmniCam.Timeline.SnapEnabled";
+export const SETTING_SNAP_FRAMES = "MajoorOmniCam.Timeline.SnapFrames";
+export const SETTING_AUTO_KEY = "MajoorOmniCam.Timeline.AutoKey";
+export const SETTING_DEFAULT_INTERP = "MajoorOmniCam.Timeline.DefaultInterpolation";
+export const SETTING_TIMECODE_MODE = "MajoorOmniCam.Timeline.TimecodeMode";
+export const SETTING_LOOP_PLAYBACK = "MajoorOmniCam.Timeline.LoopPlayback";
+
+// Interface layout
+export const SETTING_UI_DENSITY = "MajoorOmniCam.Interface.Density";
+export const SETTING_PREVIEW_LAYOUT = "MajoorOmniCam.Interface.PreviewLayout";
+export const SETTING_CAMERA_VIEW_VISIBLE = "MajoorOmniCam.Interface.CameraPreviews";
+
+export const SETTING_UNDO_LIMIT = "MajoorOmniCam.History.Limit";
+
+// Extractor & Monitor defaults
+export const SETTING_EXTRACTOR_BACKEND = "MajoorOmniCam.Extractor.DefaultBackend";
+export const SETTING_MONITOR_PROFILE = "MajoorOmniCam.Monitor.DefaultProfile";
+
+// Director Agent (design spec: OmniCam Agent v1 provider settings). The
+// Credential control is deliberately NOT registered here -- it lives in the
+// Director's Agent tab instead (web-src/agent/panel.js), backed directly by
+// the provider HTTP routes, because a ComfyUI settings entry always persists
+// its value through the ordinary setting setter and this repo cannot rely on
+// a custom non-persisting settings-dialog renderer across every supported
+// frontend version (1.48.7 through master).
+export const SETTING_AGENT_ENABLED = "MajoorOmniCam.Agent.Enabled";
+export const SETTING_AGENT_PROVIDER = "MajoorOmniCam.Agent.Provider";
+// MajoorOmniCam.Agent.Model / .BaseUrl were a single pair shared by every
+// provider: switching Provider left the previous provider's model id and
+// endpoint override in place, so an OpenAI proxy Base URL could silently
+// carry over onto Anthropic. Model/BaseUrl are now scoped per provider (see
+// AGENT_PROVIDERS / agentModelSettingId() / agentBaseUrlSettingId() below).
+// These two ids are kept only so settings.js can migrate a value left over
+// from before that split into the provider that was active when it was
+// saved; once migrated they are cleared and, like
+// MajoorOmniCam.Agent.PreviewBeforeApply before them, are simply inert if
+// anything is ever written back into them again.
+export const SETTING_AGENT_MODEL = "MajoorOmniCam.Agent.Model";
+export const SETTING_AGENT_BASE_URL = "MajoorOmniCam.Agent.BaseUrl";
+export const SETTING_AGENT_MAX_OUTPUT_TOKENS = "MajoorOmniCam.Agent.MaxOutputTokens";
+export const SETTING_AGENT_MAX_STEPS = "MajoorOmniCam.Agent.MaxPlannerSteps";
+// MajoorOmniCam.Agent.PreviewBeforeApply was removed (design spec Task 7):
+// Preview -> Apply is a mandatory safety invariant for the built-in Agent,
+// never a preference the LLM's mutation could bypass. A user with that key
+// still persisted from an older version simply has an inert, unregistered
+// setting value sitting in their ComfyUI storage -- harmless to leave there.
+export const SETTING_AGENT_TIMEOUT = "MajoorOmniCam.Agent.RequestTimeoutSeconds";
+
+/** Every Agent provider, and the distinct settings-category leaf segment
+ * used for its own Model/Base URL pair (the settings dialog collapses
+ * entries whose full category path -- including this last segment --
+ * matches another entry, so each provider needs its own). */
+export const AGENT_PROVIDERS = [
+  { id: "ollama", settingKey: "Ollama", label: "Ollama" },
+  { id: "openai", settingKey: "OpenAI", label: "OpenAI" },
+  { id: "openai_compatible", settingKey: "OpenAICompatible", label: "OpenAI-compatible" },
+  { id: "anthropic", settingKey: "Anthropic", label: "Anthropic" },
+];
+
+function agentProvider(providerId) {
+  return AGENT_PROVIDERS.find((provider) => provider.id === providerId) || AGENT_PROVIDERS[0];
+}
+
+/** The Model setting id scoped to one provider -- e.g.
+ * "MajoorOmniCam.Agent.Anthropic.Model" -- so switching Agent.Provider never
+ * reuses another provider's model id. */
+export function agentModelSettingId(providerId) {
+  return `MajoorOmniCam.Agent.${agentProvider(providerId).settingKey}.Model`;
+}
+
+/** The Base URL setting id scoped to one provider, for the same reason. */
+export function agentBaseUrlSettingId(providerId) {
+  return `MajoorOmniCam.Agent.${agentProvider(providerId).settingKey}.BaseUrl`;
+}
+
+/** Shorthand for the many on/off preferences, which are otherwise identical. */
+function toggle(id, group, name, tooltip, defaultValue) {
+  return { id, category: [...CATEGORY, group, name], name, tooltip, type: "boolean", defaultValue };
+}
+
+function choice(id, group, name, tooltip, options, defaultValue) {
+  return { id, category: [...CATEGORY, group, name], name, tooltip, type: "combo", options, defaultValue };
+}
+
+function slider(id, group, name, tooltip, attrs, defaultValue) {
+  return { id, category: [...CATEGORY, group, name], name, tooltip, type: "slider", attrs, defaultValue };
+}
+
+function text(id, group, name, tooltip, defaultValue = "") {
+  return { id, category: [...CATEGORY, group, name], name, tooltip, type: "text", defaultValue };
+}
+
+export function buildOmniCamSettings({
+  onLocaleChange,
+  onQualityChange,
+  onAdaptiveChange,
+  onNavigationProfileChange,
+  onUiDensityChange,
+  onUndoLimitChange,
+  onBgColorChange,
+  onFlySpeedChange,
+  onInvertOrbitYChange,
+  onZoomSensitivityChange,
+  onOrbitSensitivityChange,
+  onPanSensitivityChange,
+  onDollySensitivityChange,
+  onCameraViewVisibleChange,
+  onAgentEnabledChange,
+} = {}) {
+  return [
+    {
+      id: SETTING_LOCALE,
+      category: [...CATEGORY, "Language", "Viewport language"],
+      name: "Viewport language",
+      tooltip: "Language of the OmniCam Director viewport. 'Follow ComfyUI' uses the ComfyUI locale.",
+      type: "combo",
+      options: [
+        { text: "Follow ComfyUI", value: "auto" },
+        { text: "English", value: "en" },
+        { text: "Français", value: "fr" },
+      ],
+      defaultValue: "auto",
+      onChange: () => onLocaleChange?.(),
+    },
+
+    slider(SETTING_FPS, "Defaults", "Default FPS",
+      "Frame rate applied to newly created Director nodes.", { min: 1, max: 120, step: 1 }, 24),
+    slider(SETTING_DURATION, "Defaults", "Default duration (seconds)",
+      "Timeline duration applied to newly created Director nodes.", { min: 1, max: 120, step: 1 }, 5),
+    slider(SETTING_WIDTH, "Defaults", "Default width",
+      "Output width applied to newly created Director nodes.", { min: 64, max: 4096, step: 16 }, 1280),
+    slider(SETTING_HEIGHT, "Defaults", "Default height",
+      "Output height applied to newly created Director nodes.", { min: 64, max: 4096, step: 16 }, 720),
+    choice(SETTING_RENDER_MODE, "Defaults", "Default proxy render mode",
+      "Render mode applied to newly created Director nodes.",
+      ["omni_ref", "graybox", "grid", "point_field", "wireframe", "card_grid", "beauty"], "omni_ref"),
+    choice(SETTING_ENCODER, "Defaults", "Default playblast encoder",
+      "WebCodecs is deterministic; realtime is the MediaRecorder fallback.", [
+        { text: "WebCodecs (deterministic)", value: "auto" },
+        { text: "Realtime fallback", value: "realtime" },
+      ], "auto"),
+    choice(SETTING_PLAYBLAST_RESOLUTION, "Defaults", "Default playblast resolution",
+      "Drawing-buffer size of the recorded playblast. 'Match node output' locks it to the node's width x height.", [
+        { text: "Viewport (fast)", value: "viewport" },
+        { text: "Half of node output", value: "half" },
+        { text: "Match node output", value: "output" },
+        { text: "2x node output (sharp)", value: "double" },
+      ], "viewport"),
+    choice(SETTING_PLAYBLAST_QUALITY, "Defaults", "Default playblast quality",
+      "Encoder quality target for newly created Director playblasts.", [
+        { text: "Low (smaller file)", value: "low" },
+        { text: "Balanced", value: "balanced" },
+        { text: "High", value: "high" },
+      ], "balanced"),
+    toggle(SETTING_PLAYBLAST_GRID, "Defaults", "Keep the grid in the playblast",
+      "Records the floor grid into the playblast instead of hiding it for the capture.", false),
+    toggle(SETTING_PLAYBLAST_LABELS, "Defaults", "Burn labels / annotations into the playblast",
+      "Paints the viewport Labels overlay onto the recorded frames (they are hidden by default for a clean capture).", false),
+    choice(SETTING_GUIDE_CAPTURE_STYLE, "Defaults", "Default guide capture style",
+      "Material/lighting recipe applied only while recording a playblast -- independent of Viewport Shading. "
+      + "'Auto' records the current shading as-is.", [
+        { text: "Auto", value: "auto" },
+        { text: "Motion Proxy", value: "motion_proxy" },
+        { text: "Clay / White Model", value: "clay" },
+        { text: "Depth Rich", value: "depth_rich" },
+      ], "auto"),
+
+    choice(SETTING_POINT_DENSITY, "Proxy", "Default point density",
+      "Point count of the omni-reference point field.",
+      ["none", "sparse", "balanced", "dense", "ultra"], "balanced"),
+    choice(SETTING_POINT_SPREAD, "Proxy", "Default point spread",
+      "How the reference points are distributed around the scene.", [
+        { text: "All views (full 3D)", value: "all_views" },
+        { text: "Ground + low angle", value: "ground_focus" },
+        { text: "Spherical dome", value: "dome" },
+      ], "all_views"),
+    { id: SETTING_POINT_COLOR, category: [...CATEGORY, "Proxy", "Default point colour"], name: "Default point colour",
+      tooltip: "Colour of the reference point field.", type: "color", defaultValue: "cbd5e1" },
+    choice(SETTING_CARD_FIT, "Proxy", "Default card fit",
+      "How media is fitted inside a subject card.", [
+        { text: "Fit (contain)", value: "contain" },
+        { text: "Fill (cover)", value: "cover" },
+        { text: "Stretch", value: "stretch" },
+      ], "contain"),
+
+    {
+      id: SETTING_QUALITY,
+      category: [...CATEGORY, "Viewport", "Studio quality"],
+      name: "Studio quality",
+      tooltip: "Image-based lighting and soft shadows in the editing viewport. Lower it on a modest GPU.",
+      type: "combo",
+      options: [
+        { text: "Low (no shadows)", value: "low" },
+        { text: "Balanced", value: "balanced" },
+        { text: "High (2048px shadows)", value: "high" },
+      ],
+      defaultValue: "balanced",
+      onChange: (value) => onQualityChange?.(value),
+    },
+    {
+      ...toggle(SETTING_ADAPTIVE, "Viewport", "Drop quality when the viewport stutters",
+        "Steps the studio quality down automatically if navigation falls below ~40fps, and leaves it there for the session.", true),
+      onChange: () => onAdaptiveChange?.(),
+    },
+    {
+      id: SETTING_BG_COLOR, category: [...CATEGORY, "Viewport", "Default background colour"], name: "Default background colour",
+      tooltip: "Viewport background. Leave it at the default to keep the studio sky.",
+      type: "color", defaultValue: "121212",
+      onChange: (value) => onBgColorChange?.(value),
+    },
+
+    toggle(SETTING_SHOW_GRID, "Display", "Show grid by default",
+      "Shows the viewport floor grid on newly created Director nodes.", true),
+    toggle(SETTING_SHOW_RADAR, "Display", "Show camera mini-map by default",
+      "Shows the radar mini-map on newly created Director nodes.", true),
+    toggle(SETTING_SHOW_CAMERA_PATHS, "Display", "Show camera paths by default",
+      "Shows camera trajectories on newly created Director nodes.", true),
+    toggle(SETTING_SHOW_CAMERA_GIZMOS, "Display", "Show camera gizmos by default",
+      "Shows camera bodies and frustums on newly created Director nodes.", true),
+    toggle(SETTING_SHOW_LOOK_AT, "Display", "Show look-at targets by default",
+      "Shows camera look-at lines and target crosshairs on newly created Director nodes.", true),
+    toggle(SETTING_SHOW_HELPER_AXES, "Display", "Show helper axes by default",
+      "Shows null-object axis helpers on newly created Director nodes.", true),
+    toggle(SETTING_SHOW_GIZMO, "Display", "Show transform gizmo by default",
+      "Shows transform and axis gizmos on newly created Director nodes.", true),
+    toggle(SETTING_GUIDES, "Display", "Show rule-of-thirds guides by default",
+      "Shows the rule-of-thirds grid and centre crosshair in camera view.", true),
+    toggle(SETTING_SAFE_AREAS, "Display", "Show safe areas by default",
+      "Shows the 90% action-safe and 80% title-safe rectangles.", false),
+    toggle(SETTING_RESOLUTION_GATE, "Display", "Show resolution gate by default",
+      "Masks the viewport down to the node's output width x height.", false),
+    choice(SETTING_ASPECT_RATIO, "Display", "Default aspect ratio",
+      "Framing ratio used by the resolution gate. 'Auto' follows the node output.",
+      ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"], "auto"),
+    toggle(SETTING_BURN_IN, "Display", "Show burn-in data by default",
+      "Overlays frame, fps, FOV and render mode along the bottom of the viewport.", false),
+    toggle(SETTING_SPEED_HEATMAP, "Display", "Show speed map by default",
+      "Colours the camera path by travel speed.", false),
+    toggle(SETTING_SHOW_WIREFRAME, "Display", "Show wireframe by default",
+      "Draws mesh edges over scene objects. Skinned models follow their animation.", false),
+    toggle(SETTING_SHOW_VERTICES, "Display", "Show mesh vertices by default",
+      "Draws mesh vertices as points over scene objects.", false),
+
+    choice(SETTING_SELECT_MODE, "Tools", "Default selection mode",
+      "Component level the viewport selects at.",
+      ["object", "vertex", "edge", "face"], "object"),
+    choice(SETTING_GIZMO_MODE, "Tools", "Default transform mode",
+      "Transform the gizmo starts in.",
+      ["translate", "rotate", "scale"], "translate"),
+    choice(SETTING_GIZMO_SPACE, "Tools", "Default gizmo space",
+      "World-aligned axes, or the selected object's own orientation.",
+      ["world", "local"], "world"),
+    choice(SETTING_SNAP_MODE, "Tools", "Default spatial snapping",
+      "Snap dragged transforms to a grid increment or to nearby vertices.", [
+        { text: "Off", value: "none" },
+        { text: "Grid", value: "grid" },
+        { text: "Vertex", value: "vertex" },
+      ], "none"),
+    slider(SETTING_SNAP_GRID_SIZE, "Tools", "Default snap grid size",
+      "Grid increment used by spatial grid snapping, in scene units.", { min: 0.01, max: 10, step: 0.01 }, 0.5),
+
+    {
+      ...choice(SETTING_NAVIGATION_PROFILE, "Navigation", "Default navigation profile",
+        "Viewport navigation profile applied to newly created Director nodes.", [
+          { text: "Maya", value: "maya" },
+          { text: "Blender", value: "blender" },
+          { text: "Simple (mouse only)", value: "simple" },
+        ], "simple"),
+      onChange: (value) => onNavigationProfileChange?.(value),
+    },
+    {
+      ...slider(SETTING_FLY_SPEED, "Navigation", "Default fly speed",
+        "WASD / QE fly speed applied to newly created Director nodes.", { min: 0.05, max: 5, step: 0.05 }, 1),
+      onChange: (value) => onFlySpeedChange?.(value),
+    },
+    {
+      ...toggle(SETTING_INVERT_ORBIT_Y, "Navigation", "Invert vertical orbit (Invert Y)",
+        "Invert the vertical axis when orbiting the viewport.", false),
+      onChange: (value) => onInvertOrbitYChange?.(value),
+    },
+    {
+      ...slider(SETTING_ZOOM_SENSITIVITY, "Navigation", "Mouse wheel zoom sensitivity",
+        "Multiplier for mouse wheel zoom speed in the viewport.", { min: 0.2, max: 3, step: 0.1 }, 1),
+      onChange: (value) => onZoomSensitivityChange?.(value),
+    },
+    {
+      ...slider(SETTING_ORBIT_SENSITIVITY, "Navigation", "Orbit rotation sensitivity",
+        "Multiplier for camera orbit rotation speed in the viewport.", { min: 0.2, max: 3, step: 0.1 }, 1),
+      onChange: (value) => onOrbitSensitivityChange?.(value),
+    },
+    {
+      ...slider(SETTING_PAN_SENSITIVITY, "Navigation", "Pan sensitivity",
+        "Multiplier for viewport pan gestures.", { min: 0.2, max: 3, step: 0.1 }, 1),
+      onChange: (value) => onPanSensitivityChange?.(value),
+    },
+    {
+      ...slider(SETTING_DOLLY_SENSITIVITY, "Navigation", "Dolly drag sensitivity",
+        "Multiplier for middle-button and Alt-drag dolly gestures.", { min: 0.2, max: 3, step: 0.1 }, 1),
+      onChange: (value) => onDollySensitivityChange?.(value),
+    },
+    choice(SETTING_VIEW_MODE, "Navigation", "Default view",
+      "View a newly created Director node opens in.",
+      ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"], "perspective"),
+
+    toggle(SETTING_ENABLE_SHORTCUTS, "Controls", "Enable OmniCam shortcuts",
+      "Lets OmniCam consume viewport and timeline keyboard shortcuts while a Director is focused.", true),
+
+    toggle(SETTING_SNAP_ENABLED, "Timeline", "Enable timeline snapping by default",
+      "Snaps dragged keyframes to the frame increment below.", true),
+    slider(SETTING_SNAP_FRAMES, "Timeline", "Default timeline snap",
+      "Frame increment used by timeline snapping on newly created Director nodes.", { min: 1, max: 24, step: 1 }, 1),
+    toggle(SETTING_AUTO_KEY, "Timeline", "Enable Auto Key by default",
+      "Enables Auto Key on newly created Director nodes.", false),
+    choice(SETTING_DEFAULT_INTERP, "Timeline", "Default key interpolation",
+      "Interpolation mode assigned to newly created camera and object keyframes.",
+      ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"], "ease"),
+    choice(SETTING_TIMECODE_MODE, "Timeline", "Default time display",
+      "Elapsed time, or HH:MM:SS:FF timecode.", [
+        { text: "Time (mm:ss.ms)", value: "time" },
+        { text: "Timecode (hh:mm:ss:ff)", value: "timecode" },
+      ], "time"),
+    toggle(SETTING_LOOP_PLAYBACK, "Timeline", "Loop playback by default",
+      "Restarts playback at the first frame instead of stopping at the last.", false),
+
+    {
+      ...choice(SETTING_UI_DENSITY, "Interface", "Default interface density",
+        "How much of the editor chrome is shown.", [
+          { text: "Basic", value: "basic" },
+          { text: "Animation", value: "animation" },
+          { text: "Advanced", value: "advanced" },
+        ], "animation"),
+      onChange: (value) => onUiDensityChange?.(value),
+    },
+    choice(SETTING_PREVIEW_LAYOUT, "Interface", "Default camera preview layout",
+      "How the camera preview tiles are arranged.", [
+        { text: "Auto strip", value: "auto" },
+        { text: "Single", value: "1" },
+        { text: "Side by side", value: "2" },
+        { text: "Quad", value: "4" },
+      ], "auto"),
+    {
+      ...toggle(SETTING_CAMERA_VIEW_VISIBLE, "Interface", "Show camera previews by default",
+        "Opens newly created Director nodes with the camera preview strip visible.", true),
+      onChange: (value) => onCameraViewVisibleChange?.(value),
+    },
+
+    {
+      ...slider(SETTING_UNDO_LIMIT, "History", "Undo history limit",
+        "Maximum number of Undo steps held by each Director editor.", { min: 10, max: 500, step: 10 }, 100),
+      onChange: (value) => onUndoLimitChange?.(value),
+    },
+
+    choice(SETTING_EXTRACTOR_BACKEND, "Defaults", "Default extractor tracker",
+      "Default tracking backend for OmniCam Extractor.", [
+        { text: "DPVO (Dense Point-Visual Odometry)", value: "dpvo" },
+        { text: "PyColmap (SfM feature matching)", value: "pycolmap" },
+      ], "dpvo"),
+    choice(SETTING_MONITOR_PROFILE, "Defaults", "Default monitor profile",
+      "Default compilation profile for OmniCam Monitor.", [
+        { text: "Wan 2.1 Native Camera (Trajectory/Plücker)", value: "wan_camera_native" },
+        { text: "MiniMax Hailuo H3 (Omni Reference)", value: "minimax_h3" },
+        { text: "LTX-Video Motion Profile", value: "ltx_motion" },
+        { text: "Generic Video Reference", value: "generic_video" },
+      ], "wan_camera_native"),
+
+    {
+      ...toggle(SETTING_AGENT_ENABLED, "Agent", "Enable built-in Agent",
+        "Enables the OmniCam Director Agent panel. The external Agent Contract v1 bridge is a separate concern and stays available either way.", true),
+      onChange: () => onAgentEnabledChange?.(),
+    },
+    choice(SETTING_AGENT_PROVIDER, "Agent", "Provider",
+      "Provider used by the built-in Director Agent.", [
+        { text: "Ollama / local", value: "ollama" },
+        { text: "OpenAI", value: "openai" },
+        { text: "OpenAI-compatible / local", value: "openai_compatible" },
+        { text: "Anthropic", value: "anthropic" },
+      ], "ollama"),
+    ...AGENT_PROVIDERS.flatMap((provider) => [
+      text(agentModelSettingId(provider.id), "Agent", `${provider.label} model`,
+        `Model id used by the Agent planner when Provider is set to ${provider.label}.`),
+      text(agentBaseUrlSettingId(provider.id), "Agent", `${provider.label} base URL`,
+        `Optional endpoint override used when Provider is set to ${provider.label}.`),
+    ]),
+    slider(SETTING_AGENT_MAX_OUTPUT_TOKENS, "Agent", "Max output tokens",
+      "Maximum provider output budget.", { min: 512, max: 32768, step: 512 }, 4096),
+    slider(SETTING_AGENT_MAX_STEPS, "Agent", "Max planner steps",
+      "Maximum bounded Agent iterations.", { min: 1, max: 12, step: 1 }, 6),
+    slider(SETTING_AGENT_TIMEOUT, "Agent", "Provider timeout",
+      "Maximum provider request duration.", { min: 15, max: 300, step: 5 }, 120),
+  ];
+}

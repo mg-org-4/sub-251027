@@ -1,0 +1,66 @@
+import { attachPlayblastMetrics } from "../playblast-contract.js";
+import { waitForMediaEvent } from "../dom-media.js";
+
+const MIME_TYPES = ["video/mp4;codecs=avc1.42E01E", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+const BITRATES = { low: 3_000_000, balanced: 6_000_000, high: 12_000_000 };
+
+function videoBitrate(quality) {
+  return BITRATES[quality] || BITRATES.balanced;
+}
+
+export async function captureRealtimePlayblast({
+  canvas,
+  fps,
+  frameCount,
+  renderFrame,
+  quality = "balanced",
+  mediaRecorder = globalThis.MediaRecorder,
+  signal,
+  now = () => globalThis.performance?.now?.() ?? Date.now(),
+  sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  onMetrics,
+}) {
+  if (!mediaRecorder || !canvas.captureStream) throw new Error("MediaRecorder unsupported in this browser");
+  const stream = canvas.captureStream(fps); let recorder;
+  try {
+    for (const mimeType of MIME_TYPES) { if (mediaRecorder.isTypeSupported && !mediaRecorder.isTypeSupported(mimeType)) continue; try { recorder = new mediaRecorder(stream, { mimeType, videoBitsPerSecond: videoBitrate(quality) }); break; } catch (_) {} }
+    if (!recorder) throw new Error("Cannot create MediaRecorder");
+    const chunks = []; recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+    const finished = new Promise((resolve, reject) => { recorder.addEventListener("stop", resolve, { once: true }); recorder.addEventListener("error", () => reject(recorder.error || new Error("MediaRecorder failed")), { once: true }); });
+    recorder.start(100);
+    const startedAt = now();
+    for (let frame = 0; frame < frameCount; frame++) {
+      if (signal?.aborted) throw new DOMException("Playblast cancelled", "AbortError");
+      await renderFrame(frame);
+      await sleep(1000 / fps);
+    }
+    recorder.stop();
+    await finished;
+    const recordedDurationMs = Math.max(0, now() - startedAt);
+    const expectedDurationMs = frameCount / fps * 1000;
+    const metrics = {
+      encoder: "media_recorder",
+      requestedFrames: frameCount,
+      expectedDurationMs,
+      recordedDurationMs,
+      driftMs: recordedDurationMs - expectedDurationMs,
+      fps,
+      width: canvas.width,
+      height: canvas.height,
+    };
+    onMetrics?.(metrics);
+    const blob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
+    return attachPlayblastMetrics(blob, metrics);
+  } finally { if (recorder?.state === "recording") recorder.stop(); stream.getTracks().forEach((track) => track.stop()); }
+}
+
+export async function uploadPlayblast(api, blob) {
+  const extension = blob.type.startsWith("video/mp4") ? "mp4" : "webm"; const body = new FormData(); body.append("video", blob, `omnicam_playblast.${extension}`);
+  const response = await api.fetchApi("/majoor/omnicam/upload_playblast", { method: "POST", body }); if (!response.ok) throw new Error(await response.text()); return response.json();
+}
+
+export async function waitForSeekingMedia(mediaItems) {
+  await Promise.all([...mediaItems]
+    .filter((media) => media instanceof HTMLVideoElement && media.seeking)
+    .map((media) => waitForMediaEvent(media, ["seeked", "error"], { timeout: 5000 }).catch(() => {})));
+}

@@ -1,0 +1,611 @@
+// OmniCam Director methods extracted from the UI facade.
+
+import { resetCameraAnimation, resetObjectAnimation } from "../../animation-reset.js";
+import { applyAimConstraint, bakeAimConstraint, setAimBone } from "../../aim-constraint.js";
+import { formatFocalLength } from "../../lens.js";
+import { updatePlayhead } from "../../timeline/playhead.js";
+import { t } from "../../i18n.js";
+import { SPATIAL_HANDLE_MODES, setSpatialHandleMode as applySpatialHandleMode, writeSpatialHandle } from "../../camera-path-curve.js";
+import { insertCameraPathKey } from "../camera-path-insert.js";
+import { redistributeCameraPathTiming } from "../camera-path-timing.js";
+import { CAMERA_PATH_PRESET_LABELS, CAMERA_PATH_PRESET_TYPES, createCameraPathPreset } from "../camera-path-presets.js";
+import { normalizedPlaybackRange } from "../camera-path-draw.js";
+import { omnicamListModal } from "../ui-services.js";
+import { selectPathKeyFromClick } from "../../viewport/path-editing.js";
+import { setPathSelectionComponent as applyPathSelectionComponent } from "../camera-path-selection.js";
+import { pathCentroid, transformPathKeys } from "../camera-path-transform.js";
+import { buildDirectorDomCache } from "../dom-cache.js";
+import { syncInspectorSelection, setInspectorMode } from "../../inspector/context.js";
+import { deselectAll, duplicateSelectedObjects, invertSelection, lockSelectedObjects, selectAllObjects, toggleSelectedObjects } from "../../scene/batch-actions.js";
+
+export function createSceneMethods(dependencies) {
+  const { app, api, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bindEditorEvents, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, releaseAudio, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, deleteSelectedObjects, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setKeyTangentMode, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateCameraRotationFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform } = dependencies;
+  return {
+  setChannelFilter(filter) {
+    setChannelFilter(this, filter);
+  },
+  setFrame(frame, fromPlayback = false, refreshTimeline = true) {
+    this.frame = clamp(Math.round(frame), 0, this.state.duration_frames - 1);
+    if (this.editingKeyFrame !== this.frame) this.editingKeyFrame = null;
+    this.camera = sampleCamera(this.activeCameraTrack(), this.frame, this.state.objects);
+    // A bone-level aim cannot be resolved from state, so it lands here, on the
+    // one camera the playhead actually drives.
+    applyAimConstraint(this, this.activeCameraTrack(), this.camera, this.frame);
+    this.applyObjectAnimationFrame();
+    // Fixed, whole-life controls come from the DOM cache instead of ten
+    // querySelectorAll() sweeps per scrubbed frame (see director/dom-cache.js).
+    const dom = (this.dom ||= buildDirectorDomCache(this.root));
+    for (const el of dom.frames) if (document.activeElement !== el) el.value = String(this.frame);
+    for (const el of dom.scrubs) el.value = String(this.frame);
+    for (const el of dom.cameraFov) if (document.activeElement !== el) el.value = String(Math.round(this.camera.fov * 100) / 100);
+    for (const el of dom.cameraRoll) if (document.activeElement !== el) el.value = String(Math.round((this.camera.roll || 0) * 100) / 100);
+    // The Lens card shows the same value in millimetres alongside the FOV.
+    for (const el of dom.cameraFocal) if (document.activeElement !== el) el.value = formatFocalLength(this.camera.fov);
+    for (const el of dom.viewportZoom) el.textContent = `${(Number(this.camera.zoom) || 1).toFixed(2)}x`;
+    for (const el of dom.cameraType) if (document.activeElement !== el) el.value = this.camera.camera_type || "perspective";
+    for (const el of dom.cameraNear) if (document.activeElement !== el) el.value = String(this.camera.near ?? 0.01);
+    for (const el of dom.cameraFar) if (document.activeElement !== el) el.value = String(this.camera.far ?? 10000);
+    const sec = this.frame / this.state.fps;
+    for (const media of this.cardMediaById.values()) media instanceof HTMLVideoElement && Number.isFinite(media.duration) && media.duration > 0 && (media.currentTime = sec % media.duration);
+    const minutes = Math.floor(sec / 60), seconds = Math.floor(sec % 60), milliseconds = Math.floor(sec % 1 * 1e3), frames = this.frame % Math.max(1, Math.round(this.state.fps)), totalSeconds = Math.floor(this.frame / this.state.fps);
+    (dom.time || this.root.querySelector('[data-role="time"]')).textContent = this.state.timecode_mode === "timecode"
+      ? `${String(Math.floor(totalSeconds / 3600)).padStart(2, "0")}:${String(Math.floor(totalSeconds / 60) % 60).padStart(2, "0")}:${String(totalSeconds % 60).padStart(2, "0")}:${String(frames).padStart(2, "0")}`
+      : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
+    if (refreshTimeline) this.refreshKeys();
+    else {
+      updatePlayhead(this);
+      for (const element of this.root.querySelectorAll("[data-key-frame]")) {
+        const keyFrame = Number(element.dataset.keyFrame);
+        element.classList.toggle("at-playhead", keyFrame === this.frame), element.classList.toggle("selected", keyFrame === this.selectedKeyFrame), element.classList.toggle("editing", keyFrame === this.editingKeyFrame);
+      }
+      this.refreshKeyEditor(), this.drawCurveEditor();
+    }
+    fromPlayback || this.serialize();
+    this.refreshInspector();
+    // Continuous playback coalesces its repaint through the frame scheduler so
+    // a burst of events between paints costs one render, not one each. A
+    // recording needs exact per-frame pixels, and one-shot fromPlayback
+    // callers (preset apply, motion tools) repaint themselves right after, so
+    // both of those still render synchronously here.
+    if (fromPlayback && this.playing && !this.recording) this.requestRender("frame");
+    else this.render();
+  },
+  timelineObject() {
+    return timelineObject(this);
+  },
+  timelineKeyframes() {
+    return timelineKeyframes(this);
+  },
+  // The camera key the playhead is parked on, or null when between keys.
+  // The new-key interpolation select branches on this directly; other camera
+  // edits go through beginCameraEdit(), which resolves the same auto-key vs.
+  // transient-preview question consistently (and always checkpoints/serializes).
+  activeKeyframe() {
+    const camera = this.activeCameraTrack();
+    return (camera?.keyframes || []).find((key) => key.frame === this.frame) || null;
+  },
+  applyObjectAnimationFrame() {
+    applyObjectAnimationFrame(this, sampleObjectTransform);
+  },
+  insertKeyframe() {
+    for (const btn of this.root.querySelectorAll('[data-act="key"]')) {
+      btn.classList.remove("key-pulse");
+      void btn.offsetWidth;
+      btn.classList.add("key-pulse");
+    }
+    insertKeyframe(this);
+  },
+  setKeyInterpolation(interpolation) {
+    setKeyInterpolation(this, interpolation);
+  },
+  setKeyTangentMode(mode) {
+    setKeyTangentMode(this, mode);
+  },
+  deleteKeyframe() {
+    deleteKeyframe(this);
+  },
+  copyKeyframe() {
+    copyKeyframe(this);
+  },
+  pasteKeyframe() {
+    pasteKeyframe(this);
+  },
+  resetCamera() {
+    resetCamera(this, defaultCamera);
+  },
+  resetCameraAnimation(id) {
+    resetCameraAnimation(this, id);
+  },
+  resetObjectAnimation(id) {
+    resetObjectAnimation(this, id);
+  },
+  selectedKeyframe() {
+    return selectedKeyframe(this);
+  },
+  selectKeyframe(key) {
+    selectKeyframe(this, key);
+  },
+  beginCameraEdit() {
+    return beginCameraEdit(this);
+  },
+  commitCameraEdit() {
+    commitCameraEdit(this);
+  },
+  finishCameraEdit() {
+    finishCameraEdit(this);
+  },
+  exitKeyEdit(clearSelection = !1) {
+    exitKeyEdit(this, clearSelection);
+  },
+  toggleAutoKey() {
+    toggleAutoKey(this);
+  },
+  updateEditState() {
+    updateEditState(this);
+  },
+  updateKeyVisualState() {
+    updateKeyVisualState(this);
+  },
+  curveChannels() {
+    return curveChannels(this);
+  },
+  drawCurveEditor() {
+    drawCurveEditor(this);
+  },
+  onCurvePointerDown(event) {
+    onCurvePointerDown(this, event);
+  },
+  onCurvePointerMove(event) {
+    onCurvePointerMove(this, event);
+  },
+  onCurvePointerUp(event) {
+    onCurvePointerUp(this, event);
+  },
+  setCurveInterpolation(mode) {
+    setCurveInterpolation(this, mode);
+  },
+  setTangentMode(mode) {
+    setTangentMode(this, mode);
+  },
+  // Spatial Bézier handle mode (Auto Smooth / Aligned / Free / Corner) for the
+  // selected camera keyframe -- the viewport curve, not the timeline F-curve.
+  setSpatialHandleMode(mode) {
+    if (!SPATIAL_HANDLE_MODES.includes(mode)) return;
+    const track = this.activeCameraTrack();
+    const keys = track?.keyframes || [];
+    const index = keys.findIndex((key) => key.frame === this.selectedKeyFrame);
+    if (index < 0) {
+      this.setStatus(t("Select a camera keyframe first"));
+      return;
+    }
+    this.checkpoint(t("Camera path handle: {mode}").replace("{mode}", mode));
+    applySpatialHandleMode(keys[index], mode, {
+      prevKey: keys[index - 1] || null,
+      nextKey: keys[index + 1] || null,
+    });
+    if (this.webgl) this.webgl.pathKey = "";
+    this.serialize();
+    this.refreshKeys();
+    this.setFrame(this.frame, false, false);
+    this.render();
+    this.setStatus(t("Curve handle updated"));
+  },
+  // Called from the viewport drag loop (viewport-controls/interactions.js) so
+  // that eagerly-loaded module needs no static import of the curve maths.
+  dragCurveHandle(key, side, worldPoint, options) {
+    writeSpatialHandle(key, side, worldPoint, options || {});
+  },
+  // Position/Target component toggle for the primary selected path key (plan
+  // section 12.1). Only ever changes which point a translate gizmo attaches
+  // to (see transform-target.js's path_point_target); it never mutates a
+  // keyframe, so no checkpoint/undo entry is needed here.
+  setPathSelectionComponent(component) {
+    this.pathSelection = applyPathSelectionComponent(this.pathSelection, component);
+    this.refreshInspector();
+    this.render();
+  },
+  // Double-click on the rendered path between two keys inserts a new camera
+  // key there (plan section 26 Task 8). Returns false (and does nothing) when
+  // the cursor isn't over a path segment, so the caller can fall back to its
+  // other double-click behaviour (setTargetAtCursor).
+  insertPathKeyAtCursor(event) {
+    if (!event || !this.webgl?.pickPathSegment) return false;
+    const rect = this.interactionElement.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) * this.canvas.width) / Math.max(1, rect.width);
+    const y = ((event.clientY - rect.top) * this.canvas.height) / Math.max(1, rect.height);
+    const hit = this.webgl.pickPathSegment([x, y]);
+    if (!hit) return false;
+    const track = (this.state.cameras || []).find((camera) => camera.id === hit.cameraId);
+    if (!track || track.locked) return false;
+
+    const result = insertCameraPathKey(track.keyframes || [], {
+      leftFrame: hit.leftFrame, rightFrame: hit.rightFrame, t: hit.t,
+    });
+    if (!result.ok) {
+      this.setStatus(result.reason === "no_free_frame"
+        ? t("No free frame here to insert a key")
+        : t("Could not insert a key here"));
+      return true;
+    }
+
+    this.checkpoint(t("Insert camera path key"));
+    if (track.id !== this.state.active_camera_id) this.activateCamera(track.id);
+    track.keyframes = result.keys;
+    this.state.keyframes = result.keys;
+    this.camera = sampleCamera(track, this.frame, this.state.objects);
+    track.camera = cloneCamera(this.camera);
+    selectPathKeyFromClick(this, { cameraId: track.id, frame: result.frame, additive: false });
+    this.serialize();
+    this.refreshObjects();
+    this.refreshKeys();
+    this.refreshInspector();
+    this.render();
+    this.setStatus(t("Camera path key inserted at frame {frame}").replace("{frame}", String(result.frame)));
+    return true;
+  },
+  // Select the active camera's whole path as one transform target. The gizmo
+  // only draws in an editor view, so a shot-camera view drops to perspective.
+  selectCameraPath() {
+    if (!(this.activeCameraTrack()?.keyframes?.length >= 1)) return false;
+    this.finishCameraEdit();
+    this.selectedEntity = "camera_path";
+    this.selectedObjectId = null;
+    this.selectedObjectIds = new Set();
+    this.editingKeyFrame = null;
+    if (this.state.view_mode === "camera") this.setViewMode("perspective");
+    this.refreshObjects(), this.refreshKeys(), this.refreshInspector(), this.render();
+    return true;
+  },
+  // One affine transform applied to every keyframe of the active path at once
+  // (options: { mode, delta | factors | rotationDeg }; origin defaults to the
+  // path centroid). Backs the path gizmo's numeric / keyboard entry.
+  transformCameraPath(options) {
+    const track = this.activeCameraTrack();
+    if (!track || track.locked || !(track.keyframes?.length >= 1)) return false;
+    this.checkpoint("Transform camera path");
+    const merged = transformPathKeys(track.keyframes, { origin: pathCentroid(track.keyframes), ...options });
+    track.keyframes = merged;
+    if (track.id === this.state.active_camera_id) this.state.keyframes = merged;
+    this.camera = sampleCamera(track, this.frame, this.state.objects);
+    track.camera = cloneCamera(this.camera);
+    this.serialize(), this.refreshKeys(), this.refreshInspector(), this.render(), this.renderCameraView?.();
+    return true;
+  },
+  // "Redistribute Timing" (plan section 26 Task 10 / spec section 14.3):
+  // reflows the active camera's own existing key range using each key's
+  // authoring Timing Weight, never touching any other camera or object.
+  redistributeActiveCameraTiming() {
+    const track = this.activeCameraTrack();
+    if (!track || track.locked || !(track.keyframes?.length >= 2)) {
+      if (track?.keyframes?.length < 2) this.setStatus(t("Need at least two keys to redistribute timing"));
+      return false;
+    }
+    const sorted = [...track.keyframes].sort((a, b) => a.frame - b.frame);
+    const result = redistributeCameraPathTiming(sorted, {
+      startFrame: sorted[0].frame,
+      endFrame: sorted[sorted.length - 1].frame,
+    });
+    if (!result.ok) {
+      this.setStatus(result.reason === "insufficient_frame_slots"
+        ? t("Not enough frame slots to redistribute this many keys")
+        : t("Could not redistribute timing"));
+      return false;
+    }
+    this.checkpoint(t("Redistribute camera path timing"));
+    track.keyframes = result.keys;
+    if (track.id === this.state.active_camera_id) this.state.keyframes = result.keys;
+    this.camera = sampleCamera(track, this.frame, this.state.objects);
+    track.camera = cloneCamera(this.camera);
+    this.serialize();
+    this.refreshKeys();
+    this.refreshKeyEditor();
+    this.refreshInspector();
+    this.render();
+    this.setStatus(t("Camera path timing redistributed"));
+    return true;
+  },
+  // Camera Path Presets (plan section 26 Task 11 / spec section 17): a
+  // single compact picker over every preset type instead of one toolbar
+  // button per preset. Generated keys are ordinary camera keyframes -- fully
+  // editable afterward by the regular point/curve/timing tools -- covering
+  // the active camera's current playback range by default.
+  async openCameraPathPresetPicker() {
+    const track = this.activeCameraTrack();
+    if (!track || track.locked) {
+      this.setStatus(t("{name} is locked").replace("{name}", track?.name || t("Camera")));
+      return false;
+    }
+    const items = CAMERA_PATH_PRESET_TYPES.map((type) => ({ id: type, label: t(CAMERA_PATH_PRESET_LABELS[type] || type) }));
+    const type = await omnicamListModal({ title: t("Camera Path Preset"), items, owner: this });
+    if (!type) return false;
+    return this.applyCameraPathPreset(type);
+  },
+  applyCameraPathPreset(type, params = {}) {
+    const track = this.activeCameraTrack();
+    if (!track || track.locked) {
+      this.setStatus(t("{name} is locked").replace("{name}", track?.name || t("Camera")));
+      return false;
+    }
+    const [startFrame, endFrame] = normalizedPlaybackRange(this.state);
+    const result = createCameraPathPreset({ type, camera: this.camera, startFrame, endFrame, params });
+    if (!result.ok) {
+      this.setStatus(result.reason === "insufficient_frame_slots"
+        ? t("Not enough frames in the playback range for this preset")
+        : t("Could not generate that camera path preset"));
+      return false;
+    }
+    this.checkpoint(t("Apply camera path preset"));
+    track.keyframes = result.keyframes;
+    if (track.id === this.state.active_camera_id) this.state.keyframes = result.keyframes;
+    this.camera = sampleCamera(track, this.frame, this.state.objects);
+    track.camera = cloneCamera(this.camera);
+    this.serialize();
+    this.refreshObjects();
+    this.refreshKeys();
+    this.refreshInspector();
+    this.render();
+    this.setStatus(t("{preset} camera path generated").replace("{preset}", t(CAMERA_PATH_PRESET_LABELS[type] || type)));
+    return true;
+  },
+  toggleCurveHandles() {
+    toggleCurveHandles(this);
+  },
+  onTimelineWheel(event) {
+    onTimelineWheel(this, event);
+  },
+  resetTimelineZoom() {
+    resetTimelineZoom(this);
+  },
+  toggleInspector(forcedState) {
+    const el = this.root.querySelector('[data-role="viewport-inspector"]');
+    if (!el) return;
+    const isCollapsed = forcedState !== undefined ? forcedState : el.dataset.collapsed !== "true";
+    el.dataset.collapsed = String(isCollapsed);
+    for (const btn of this.root.querySelectorAll('[data-act="toggle-inspector"]')) {
+      btn.classList.toggle("active", !isCollapsed);
+      btn.setAttribute("aria-pressed", String(!isCollapsed));
+    }
+    this.setStatus(isCollapsed ? "Inspector hidden (N)" : "Inspector shown");
+  },
+  refreshKeys() {
+    refreshKeys(this);
+  },
+  refreshKeyEditor() {
+    refreshKeyEditor(this);
+  },
+  retimeSelectedKey(frame, nearest = !1) {
+    retimeSelectedKey(this, frame, nearest);
+  },
+  updateSelectedKey() {
+    updateSelectedKey(this);
+  },
+  updateKeyFromView() {
+    updateKeyFromView(this);
+  },
+  loadSelectedKeyView() {
+    loadSelectedKeyView(this);
+  },
+  goToAdjacentKey(direction) {
+    goToAdjacentKey(this, direction);
+  },
+  addPrimitive(type) {
+    addPrimitive(this, type);
+  },
+  async renameObject(id) {
+    return renameObject(this, id);
+  },
+  duplicateObject(id) {
+    duplicateObject(this, id);
+  },
+  toggleObject(id) {
+    toggleObject(this, id);
+  },
+  showAllObjects() {
+    const hidden = this.state.objects.filter((object) => object.enabled === false);
+    if (!hidden.length) return;
+    this.checkpoint("Show all objects");
+    for (const object of hidden) object.enabled = true;
+    this.serialize(); this.refreshObjects(); this.render(); this.setStatus("All objects shown");
+  },
+  selectHierarchy(id = this.selectedObjectId) {
+    if (!id) return;
+    const ids = new Set([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const object of this.state.objects) {
+        if (object.parent_id && ids.has(object.parent_id) && !ids.has(object.id)) { ids.add(object.id); changed = true; }
+      }
+    }
+    this.selectedObjectIds = ids; this.selectedObjectId = id; this.selectedEntity = "object";
+    this.refreshObjects(); this.refreshInspector(); this.render(); this.setStatus(`Hierarchy selected: ${ids.size} object(s)`);
+  },
+  async deleteObject(id) {
+    return deleteObject(this, id);
+  },
+  async deleteSelectedObjects() {
+    return deleteSelectedObjects(this);
+  },
+  duplicateSelectedObjects() {
+    return duplicateSelectedObjects(this);
+  },
+  toggleSelectedObjects(targetVisibility = null) {
+    return toggleSelectedObjects(this, targetVisibility);
+  },
+  lockSelectedObjects(targetLocked = null) {
+    return lockSelectedObjects(this, targetLocked);
+  },
+  selectAllObjects() {
+    return selectAllObjects(this);
+  },
+  deselectAll() {
+    return deselectAll(this);
+  },
+  invertSelection() {
+    return invertSelection(this);
+  },
+  addMediaCard() {
+    addMediaCard(this);
+  },
+  selectedObject() {
+    return selectedObject(this);
+  },
+  playblastCameraAtFrame() {
+    // The recorder steps frame by frame, so the bone aim it reads here is the
+    // same one the viewport shows -- the playblast cannot drift from the edit.
+    return applyAimConstraint(this, playblastCameraTrack(this), playblastCameraAtFrame(this, sampleCamera), this.frame);
+  },
+  viewportCamera() {
+    return viewportCamera(this);
+  },
+  setViewMode(mode) {
+    setViewMode(this, mode);
+  },
+  toggleCameraView() {
+    toggleCameraView(this);
+  },
+  setDensity(density) {
+    ["basic", "animation", "advanced"].includes(density) || (density = "advanced");
+    this.state.ui_density = density;
+    this.root.dataset.density = density;
+    this.root.querySelector('[data-role="ui-density"]').value = density;
+    // A secondary mode whose button just became density-hidden (Health under
+    // "basic") must not leave the Inspector stranded on an invisible pane --
+    // drop back to the selected entity.
+    const activeMode = this.root.querySelector("[data-inspector-mode].active");
+    if (activeMode && getComputedStyle(activeMode).display === "none") {
+      this.setInspectorMode("entity");
+    }
+    this.serialize();
+    requestAnimationFrame(() => {
+      this.resizeCanvas(), this.render();
+    });
+    this.setStatus(`Interface: ${density}`);
+  },
+  lookAtObject(id) {
+    const object = this.state.objects.find((item) => item.id === id);
+    if (!object) return;
+    this.checkpoint("Look-at constraint");
+    for (const camera of this.state.cameras)
+      for (const key of camera.keyframes) key.camera.target = [...(object.position || [0, 1.5, 0])];
+    this.camera = sampleCamera(this.state, this.frame), this.serialize(), this.refreshKeys(), this.render(), this.setStatus(`Cameras look at ${object.name || object.type}`);
+  },
+  setTransformMode(mode) {
+    setTransformMode(this, mode);
+  },
+  refreshInspector() {
+    this.perf && (this.perf.inspectorRefreshCount = (this.perf.inspectorRefreshCount || 0) + 1);
+    refreshInspector(this);
+    syncInspectorSelection(this);
+  },
+  setInspectorMode(mode) {
+    setInspectorMode(this, mode);
+  },
+  updateSelectedObject() {
+    updateSelectedObject(this);
+  },
+  beginObjectEdit(object) {
+    return beginObjectEdit(this, object);
+  },
+  commitObjectEdit(object) {
+    commitObjectEdit(this, object);
+  },
+  updateCameraFromHud() {
+    updateCameraFromHud(this);
+  },
+  updateCameraRotationFromHud() {
+    updateCameraRotationFromHud(this);
+  },
+  selectObjectAnimation(index) {
+    selectObjectAnimation(this, index);
+  },
+  setObjectParent(parentId) {
+    setObjectParent(this, parentId);
+  },
+  refreshObjects() {
+    refreshObjects(this);
+  },
+  removeObjectResources(id) {
+    removeObjectResources(this, id);
+  },
+  aimAtSelectedObject(targetId) {
+    this.checkpoint("Aim & track subject");
+    const cam = this.activeCameraTrack();
+    const targetObj = (targetId && this.state.objects.find((o) => o.id === targetId)) || this.selectedObject() || this.state.objects.find((o) => o.id === "subject") || this.state.objects[0];
+    if (!targetObj) return;
+    if (cam.target_object_id !== targetObj.id) cam.aim_bone = null;
+    cam.target_object_id = targetObj.id;
+    if (cam.id === this.state.active_camera_id) {
+      this.state.target_object_id = targetObj.id;
+      this.state.aim_bone = cam.aim_bone;
+    }
+    const modelCenter = (targetObj.type === "model" || targetObj.type === "glb") ? this.webgl?.getObjectWorldCenter?.(targetObj.id) : null;
+    const targetPos = modelCenter || (targetObj.keyframes?.length
+      ? sampleObjectTransform(targetObj, this.frame).position
+      : (targetObj.position || [0, 1.5, 0]));
+    this.camera.target = [...targetPos];
+    this.beginCameraEdit();
+    this.commitCameraEdit();
+    this.finishCameraEdit();
+    this.serialize();
+    this.refreshInspector();
+    this.updateHudCamera();
+    this.render();
+    this.setStatus(`Camera tracking locked to ${targetObj.name || targetObj.id}`);
+  },
+  setAimBone(boneName) {
+    setAimBone(this, boneName);
+  },
+  bakeAimConstraint(options) {
+    bakeAimConstraint(this, options);
+  },
+  setCameraTrackingTarget(targetId) {
+    this.checkpoint("Change camera tracking target");
+    const cam = this.activeCameraTrack();
+    // A bone name only means something inside the model it came from, so
+    // retargeting drops it rather than aiming at a bone that no longer exists.
+    if (cam.target_object_id !== (targetId || null)) cam.aim_bone = null;
+    cam.target_object_id = targetId || null;
+    if (cam.id === this.state.active_camera_id) {
+      this.state.target_object_id = targetId || null;
+      this.state.aim_bone = cam.aim_bone;
+    }
+    // Tracking is a live constraint. Never bake its resolved target into the
+    // authored key underneath it: clearing the constraint must reveal exactly
+    // the original Follow Path/manual target again.
+    this.camera = sampleCamera(cam, this.frame, this.state.objects);
+    applyAimConstraint(this, cam, this.camera, this.frame);
+    this.serialize();
+    this.refreshInspector();
+    this.render();
+    this.setStatus(targetId ? `Camera tracking: ${targetId}` : `Camera tracking disabled (manual target)`);
+  },
+  bakeAimToKeyframes() {
+    this.checkpoint("Bake aim to keyframes");
+    const cam = this.activeCameraTrack();
+    const targetId = cam.target_object_id || this.state.target_object_id || "subject";
+    const targetObj = this.state.objects.find((o) => o.id === targetId) || this.state.objects[0];
+    if (!targetObj || !cam.keyframes?.length) return;
+    const modelCenter = (targetObj.type === "model" || targetObj.type === "glb") ? this.webgl?.getObjectWorldCenter?.(targetObj.id) : null;
+    for (const key of cam.keyframes) {
+      const pos = (targetObj.type === "model" || targetObj.type === "glb") && modelCenter && !targetObj.keyframes?.length
+        ? modelCenter
+        : (targetObj.keyframes?.length
+          ? sampleObjectTransform(targetObj, key.frame).position
+          : (targetObj.position || [0, 1.5, 0]));
+      key.camera.target = [...pos];
+    }
+    if (cam.id === this.state.active_camera_id) {
+      this.state.keyframes = cam.keyframes;
+    }
+    this.serialize();
+    this.refreshKeys();
+    this.refreshInspector();
+    this.render();
+    this.setStatus(`Aim baked across all keyframes following ${targetObj.name || targetObj.id}`);
+  }
+  };
+}
+
+
+

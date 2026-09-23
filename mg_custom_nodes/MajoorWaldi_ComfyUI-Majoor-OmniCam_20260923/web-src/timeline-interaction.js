@@ -1,0 +1,263 @@
+// Timeline pointer events, scrubbing, multi-key selection, dragging and retiming for OmniCam Director.
+
+import { clamp } from "./director/core.js";
+import { t } from "./i18n.js";
+
+export function timelinePercentForFrame(ui, frame) {
+  const lastFrame = Math.max(1, ui.state.duration_frames - 1);
+  const zoom = clamp(Number(ui.timelineZoom) || 1.0, 0.1, 50.0);
+  const pan = Number(ui.timelinePan) || 0;
+  const timeSpan = lastFrame / zoom;
+  return ((frame - pan) / Math.max(1e-6, timeSpan)) * 100;
+}
+
+export function timelineFrameFromEvent(ui, event, box) {
+  const rect = box.getBoundingClientRect();
+  const lastFrame = Math.max(1, ui.state.duration_frames - 1);
+  const zoom = clamp(Number(ui.timelineZoom) || 1.0, 0.1, 50.0);
+  const pan = Number(ui.timelinePan) || 0;
+  const timeSpan = lastFrame / zoom;
+  const rawRatio = (event.clientX - rect.left) / Math.max(1, rect.width);
+  return clamp(Math.round(pan + rawRatio * timeSpan), 0, lastFrame);
+}
+
+export function onTimelineWheel(ui, event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const lastFrame = Math.max(1, ui.state.duration_frames - 1);
+  const factor = event.deltaY < 0 ? 1.18 : 0.85;
+
+  if (event.shiftKey) {
+    // Pan horizontally
+    ui.timelinePan = clamp((Number(ui.timelinePan) || 0) + (event.deltaY > 0 ? 4 : -4), -lastFrame * 0.5, lastFrame);
+  } else {
+    // Zoom timeline centered at mouse pointer
+    const box = event.currentTarget;
+    const rect = box.getBoundingClientRect();
+    const mouseRatio = (event.clientX - rect.left) / Math.max(1, rect.width);
+    const oldZoom = clamp(Number(ui.timelineZoom) || 1.0, 0.2, 30.0);
+    const newZoom = clamp(oldZoom * factor, 0.2, 30.0);
+    const oldSpan = lastFrame / oldZoom;
+    const newSpan = lastFrame / newZoom;
+    const currentPointerFrame = (Number(ui.timelinePan) || 0) + mouseRatio * oldSpan;
+    ui.timelinePan = clamp(currentPointerFrame - mouseRatio * newSpan, -lastFrame * 0.5, lastFrame);
+    ui.timelineZoom = newZoom;
+  }
+  ui.refreshKeys();
+  ui.setStatus(t("Timeline zoom: {value1}%", { value1: (ui.timelineZoom * 100).toFixed(0) }));
+}
+
+export function resetTimelineZoom(ui) {
+  ui.timelineZoom = 1.0;
+  ui.timelinePan = 0;
+  ui.refreshKeys();
+  ui.setStatus(t("Timeline view fitted"));
+}
+
+export function onTimelinePointerDown(ui, event) {
+  if (event.target.closest?.(".key")) return;
+  event.preventDefault();
+  event.stopPropagation();
+  ui.exitKeyEdit(true);
+  const box = event.currentTarget;
+  box.focus({ preventScroll: true });
+  box.setPointerCapture?.(event.pointerId);
+
+  // Pan with Middle Mouse Button, Alt + Click or Right Click on empty space
+  if (event.button === 1 || event.altKey || event.button === 2) {
+    ui.timelinePanDrag = {
+      startX: event.clientX,
+      origPan: Number(ui.timelinePan) || 0,
+      pointerId: event.pointerId,
+    };
+    return;
+  }
+
+  // Box selection with Shift + Click on empty space
+  if (event.shiftKey) {
+    const rect = box.getBoundingClientRect();
+    ui.boxSelect = { box, pointerId: event.pointerId, startX: event.clientX - rect.left, currentX: event.clientX - rect.left };
+    return;
+  }
+
+  ui.selectedKeyFrames = null;
+  ui.timelineDrag = { box, pointerId: event.pointerId };
+  ui.setFrame(timelineFrameFromEvent(ui, event, box));
+}
+
+export function onTimelinePointerMove(ui, event) {
+  // Timeline Pan Drag
+  if (ui.timelinePanDrag && event.pointerId === ui.timelinePanDrag.pointerId) {
+    event.preventDefault();
+    event.stopPropagation();
+    const dx = event.clientX - ui.timelinePanDrag.startX;
+    const box = ui.timelineDrag?.box || ui.root.querySelector('[data-role="dope-tracks"]');
+    const lastFrame = Math.max(1, ui.state.duration_frames - 1);
+    const timeSpan = lastFrame / (Number(ui.timelineZoom) || 1.0);
+    ui.timelinePan = ui.timelinePanDrag.origPan - (dx / Math.max(1, box.clientWidth)) * timeSpan;
+    ui.refreshKeys();
+    return;
+  }
+
+  // Box Selection
+  if (ui.boxSelect && event.pointerId === ui.boxSelect.pointerId) {
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = ui.boxSelect.box.getBoundingClientRect();
+    ui.boxSelect.currentX = event.clientX - rect.left;
+    let overlay = ui.boxSelect.overlay;
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "box-select";
+      ui.boxSelect.box.appendChild(overlay);
+      ui.boxSelect.overlay = overlay;
+    }
+    const left = Math.min(ui.boxSelect.startX, ui.boxSelect.currentX);
+    overlay.style.left = `${left}px`;
+    overlay.style.width = `${Math.abs(ui.boxSelect.currentX - ui.boxSelect.startX)}px`;
+    overlay.style.top = "0";
+    overlay.style.bottom = "0";
+    return;
+  }
+
+  if (!ui.timelineDrag || event.pointerId !== ui.timelineDrag.pointerId) return;
+  event.preventDefault();
+  event.stopPropagation();
+  // refreshTimeline=false: the full rebuild refreshKeys() would otherwise do
+  // on every single pointermove also recomputes the whole Camera Health
+  // report (see motion-health.js/renderHealthZones), an O(duration_frames)
+  // pass over the whole track -- scrubbing a long animation reran that, plus
+  // a full keyframe-lane DOM rebuild, at pointermove frequency. The playhead
+  // still tracks the cursor via the light path's updatePlayhead(); the health
+  // zones and keys lane catch up once, on release (see onTimelinePointerUp).
+  ui.setFrame(timelineFrameFromEvent(ui, event, ui.timelineDrag.box), false, false);
+}
+
+export function onTimelinePointerUp(ui, event) {
+  if (ui.timelinePanDrag && event.pointerId === ui.timelinePanDrag.pointerId) {
+    ui.timelinePanDrag = null;
+    return;
+  }
+  if (ui.boxSelect && event.pointerId === ui.boxSelect.pointerId) {
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = ui.boxSelect.box.getBoundingClientRect();
+    const lastFrame = Math.max(1, ui.state.duration_frames - 1);
+    const zoom = clamp(Number(ui.timelineZoom) || 1.0, 0.1, 50.0);
+    const pan = Number(ui.timelinePan) || 0;
+    const timeSpan = lastFrame / zoom;
+    const frameAt = (x) => clamp(pan + (x / Math.max(1, rect.width)) * timeSpan, 0, lastFrame);
+    const from = Math.min(frameAt(ui.boxSelect.startX), frameAt(ui.boxSelect.currentX));
+    const to = Math.max(frameAt(ui.boxSelect.startX), frameAt(ui.boxSelect.currentX));
+    ui.boxSelect.overlay?.remove();
+    ui.boxSelect = null;
+    const hits = ui.timelineKeyframes().filter((key) => key.frame >= from && key.frame <= to).map((key) => key.frame);
+    if (hits.length) {
+      ui.selectedKeyFrames = new Set(hits);
+      ui.selectedKeyFrame = hits[0];
+      ui.updateKeyVisualState();
+      ui.refreshKeyEditor();
+      ui.setStatus(t("{value1} keys selected", { value1: hits.length }));
+    }
+    return;
+  }
+  if (!ui.timelineDrag || event.pointerId !== ui.timelineDrag.pointerId) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (ui.timelineDrag.box.hasPointerCapture?.(event.pointerId)) ui.timelineDrag.box.releasePointerCapture(event.pointerId);
+  ui.timelineDrag = null;
+  // Catch up the one full rebuild (keyframe lane + Camera Health zones) the
+  // drag itself skipped on every intermediate frame.
+  ui.refreshKeys();
+}
+
+// Pixels the pointer must travel before a key-drag actually retimes anything.
+// Below it, a click that lands on a key -- to select it, or just because keys
+// are close together on the timeline -- must not nudge the key on its own.
+// This is the same dead zone used to distinguish "clicked" from "dragged" in
+// the viewport (see the `moved < 5` check in onPointerUp).
+const KEY_DRAG_THRESHOLD = 4;
+
+export function onKeyDragMove(ui, event) {
+  const drag = ui.keyDrag;
+  if (!drag) return;
+  if (!drag.engaged) {
+    const moved = Math.hypot(event.clientX - (drag.startClientX ?? event.clientX), event.clientY - (drag.startClientY ?? event.clientY));
+    if (moved < KEY_DRAG_THRESHOLD) return;
+    drag.engaged = true;
+    ui.suppressKeyClick = true;
+  }
+  if (!drag.historyCheckpointed) {
+    ui.checkpoint?.("Move keyframe");
+    drag.historyCheckpointed = true;
+  }
+  const rect = drag.box.getBoundingClientRect();
+  const lastFrame = Math.max(1, ui.state.duration_frames - 1);
+  const zoom = clamp(Number(ui.timelineZoom) || 1.0, 0.1, 50.0);
+  const pan = Number(ui.timelinePan) || 0;
+  const timeSpan = lastFrame / zoom;
+  let frame = Math.round(clamp(pan + ((event.clientX - rect.left) / Math.max(1, rect.width)) * timeSpan, 0, lastFrame));
+  frame = ui.snapFrame(frame);
+  const delta = frame - drag.startPointerFrame;
+
+  let badge = drag.badge;
+  if (!badge) {
+    badge = document.createElement("div");
+    badge.className = "floating-retime-badge";
+    drag.box.appendChild(badge);
+    drag.badge = badge;
+  }
+  const pct = timelinePercentForFrame(ui, frame);
+  badge.style.left = `${pct}%`;
+  badge.textContent = drag.isDuplicate ? `+Copy F${frame}` : `F${frame}${delta !== 0 ? ` (${delta > 0 ? "+" : ""}${delta})` : ""}`;
+
+  if (drag.moving && drag.moving.length > 1) {
+    if (delta === drag.lastDelta) return;
+    drag.lastDelta = delta;
+    const keys = ui.timelineKeyframes();
+    const movingKeys = new Set(drag.moving.map((m) => m.key));
+    const others = keys.filter((item) => !movingKeys.has(item)).map((item) => item.frame);
+    const maxFrame = Math.max(0, ui.state.duration_frames - 1);
+
+    let effectiveDelta = 0;
+    if (delta > 0) {
+      let maxPositive = Infinity;
+      for (const entry of drag.moving) {
+        maxPositive = Math.min(maxPositive, maxFrame - entry.startFrame);
+        for (const obs of others) {
+          if (obs > entry.startFrame) {
+            maxPositive = Math.min(maxPositive, (obs - 1) - entry.startFrame);
+          }
+        }
+      }
+      effectiveDelta = Math.max(0, Math.min(delta, maxPositive));
+    } else if (delta < 0) {
+      let maxNegative = Infinity;
+      for (const entry of drag.moving) {
+        maxNegative = Math.min(maxNegative, entry.startFrame - 0);
+        for (const obs of others) {
+          if (obs < entry.startFrame) {
+            maxNegative = Math.min(maxNegative, entry.startFrame - (obs + 1));
+          }
+        }
+      }
+      effectiveDelta = Math.min(0, Math.max(delta, -Math.max(0, maxNegative)));
+    }
+
+    const finalTargets = drag.moving.map((entry) => entry.startFrame + effectiveDelta);
+    drag.moving.forEach((entry, i) => {
+      entry.key.frame = finalTargets[i];
+    });
+    keys.sort((a, b) => a.frame - b.frame);
+    ui.selectedKeyFrames = new Set(finalTargets);
+    ui.selectedKeyFrame = drag.key.frame;
+    ui.editingKeyFrame = drag.key.frame;
+    ui.scheduleSerialize();
+    ui.setFrame(drag.key.frame, false, true);
+    return;
+  }
+  if (frame !== drag.key.frame) {
+    ui.editingKeyFrame = drag.key.frame;
+    ui.retimeSelectedKey(frame, true, { checkpoint: false });
+  }
+}

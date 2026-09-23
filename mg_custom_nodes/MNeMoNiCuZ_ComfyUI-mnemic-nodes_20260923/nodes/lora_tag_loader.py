@@ -1,0 +1,213 @@
+import folder_paths
+import re
+
+from comfy_api.latest import io
+
+from ..utils.file_utils import find_best_match
+from ..utils.settings_utils import is_lora_console_log_enabled, is_lora_fuzzy_search_enabled, get_lora_max_logged_candidates
+
+# Import ComfyUI files
+import comfy.sd
+import comfy.utils
+import comfy.model_base
+import comfy.lora
+
+def z_image_to_diffusers(mmdit_config, output_prefix=""):
+    n_layers = mmdit_config.get("n_layers", 0)
+    hidden_size = mmdit_config.get("dim", 0)
+    key_map = {}
+    for index in range(n_layers):
+        prefix_from = "layers.{}".format(index)
+        prefix_to = "{}layers.{}".format(output_prefix, index)
+        for end in ("weight", "bias"):
+            k = "{}.attention.".format(prefix_from)
+            qkv = "{}.attention.qkv.{}".format(prefix_to, end)
+            key_map["{}to_q.{}".format(k, end)] = (qkv, (0, 0, hidden_size))
+            key_map["{}to_k.{}".format(k, end)] = (qkv, (0, hidden_size, hidden_size))
+            key_map["{}to_v.{}".format(k, end)] = (qkv, (0, hidden_size * 2, hidden_size))
+        block_map = {
+            "attention.norm_q.weight": "attention.q_norm.weight",
+            "attention.norm_k.weight": "attention.k_norm.weight",
+            "attention.to_out.0.weight": "attention.out.weight",
+            "attention.to_out.0.bias": "attention.out.bias",
+        }
+        for k in block_map:
+            key_map["{}.{}".format(prefix_from, k)] = "{}.{}".format(prefix_to, block_map[k])
+    MAP_BASIC = {
+        # Final layer
+        ("final_layer.linear.weight", "all_final_layer.2-1.linear.weight"),
+        ("final_layer.linear.bias", "all_final_layer.2-1.linear.bias"),
+        ("final_layer.adaLN_modulation.1.weight", "all_final_layer.2-1.adaLN_modulation.1.weight"),
+        ("final_layer.adaLN_modulation.1.bias", "all_final_layer.2-1.adaLN_modulation.1.bias"),
+        # X embedder
+        ("x_embedder.weight", "all_x_embedder.2-1.weight"),
+        ("x_embedder.bias", "all_x_embedder.2-1.bias"),
+    }
+    for k in MAP_BASIC:
+        key_map[k[1]] = "{}{}".format(output_prefix, k[0])
+    return key_map
+
+# Cache of the most recently loaded LoRA, kept at module level because V3 nodes
+# execute as classmethods on a per-run class clone and cannot hold instance state.
+_LOADED_LORA = None
+
+# Regular expression pattern to match tags enclosed in angle brackets
+TAG_PATTERN = r"\<[0-9a-zA-Z:\_\-\.\s/()\\]+\>"
+
+
+class LoraTagLoader(io.ComfyNode):
+    """
+    LoraTagLoader is responsible for loading Lora tags from the provided text.
+    It uses a regex pattern to identify specific tags within the text.
+    Original version: https://github.com/badjeff/comfyui_lora_tag_loader
+    This version also includes a new matching system to find the "best" matching LoRA file based on scoring.
+    """
+
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="MNeMiC_LoraTagLoader",
+            display_name="🏷️ LoRA Loader Prompt Tags",
+            category="⚡ MNeMiC Nodes",
+            description="Loads LoRA tags from the provided input string (usually the prompt) and applies them to the model without needing one or multiple LoRA Loader nodes",
+            inputs=[
+                io.Model.Input("MODEL", tooltip="The model (checkpoint) to apply the LoRA to"),
+                io.Clip.Input("CLIP", tooltip="The CLIP model being used"),
+                io.String.Input(
+                    "STRING",
+                    multiline=True,
+                    force_input=True,
+                    tooltip="Input text containing LoRA tags to be processed. Tags should be enclosed in angle brackets, e.g., <lora:loraName:1>",
+                ),
+            ],
+            outputs=[
+                io.Model.Output(display_name="MODEL", tooltip="The model output after the LoRA was loaded"),
+                io.Clip.Output(display_name="CLIP", tooltip="The CLIP output after the LoRA was loaded"),
+                io.String.Output(display_name="STRING", tooltip="The input text cleaned up with the LoRA tags removed"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, MODEL, CLIP, STRING) -> io.NodeOutput:
+        global _LOADED_LORA
+
+        console_log = is_lora_console_log_enabled()
+        if console_log:
+            print(f"\nLoraTagLoader processing text: {STRING}")
+
+        founds = re.findall(TAG_PATTERN, STRING)
+        if len(founds) < 1:
+            return io.NodeOutput(MODEL, CLIP, STRING)
+
+        model_lora = MODEL
+        clip_lora = CLIP
+        
+        lora_files = folder_paths.get_filename_list("loras")
+        for f in founds:
+            tag = f[1:-1]
+            pak = tag.split(":")
+            type = pak[0]
+            if type != 'lora':
+                continue
+            
+            # Parse the tag components
+            if len(pak) <= 1 or not pak[1]:
+                continue
+            name = pak[1]
+            
+            # Parse weights
+            wModel = 1.0
+            wClip = 1.0
+
+            if len(pak) > 2 and pak[2]:
+                try:
+                    strength = float(pak[2])
+                    wModel = strength if strength != 0 else 1.0
+                except ValueError:
+                    if console_log:
+                        print(f"LoraTagLoader Warning: Invalid model strength value '{pak[2]}' for LoRA '{pak[1]}'. Defaulting to 1.0.")
+                    wModel = 1.0
+            
+            wClip = wModel # default clip to model weight
+
+            if len(pak) > 3 and pak[3]:
+                try:
+                    clip_strength = float(pak[3])
+                    wClip = clip_strength if clip_strength != 0 else 1.0
+                except ValueError:
+                    if console_log:
+                        print(f"LoraTagLoader Warning: Invalid clip strength value '{pak[3]}' for LoRA '{pak[1]}'. Defaulting to model weight ({wClip}).")
+                    # wClip is already set to wModel, so no change needed here, just the warning.
+
+            # Use our new matching system
+            lora_name = find_best_match(name, lora_files, log=console_log, fuzzy_search=is_lora_fuzzy_search_enabled(), max_logged=get_lora_max_logged_candidates())
+            
+            if lora_name is None:
+                if console_log:
+                    print(f"No matching LoRA found for tag: {(type, name, wModel, wClip)}")
+                continue
+            
+            if console_log:
+                print(f"\nApplying LoRA: {(type, name, wModel, wClip)} >> {lora_name}")
+            
+            # Load and apply the LoRA
+            lora_path = folder_paths.get_full_path("loras", lora_name)
+            lora = None
+            
+            # Check if we already have this LoRA loaded
+            if _LOADED_LORA is not None:
+                if _LOADED_LORA[0] == lora_path:
+                    lora = _LOADED_LORA[1]
+                else:
+                    temp = _LOADED_LORA
+                    _LOADED_LORA = None
+                    del temp
+
+            # Load the LoRA if needed
+            if lora is None:
+                lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+                _LOADED_LORA = (lora_path, lora)
+
+            # Apply the LoRA
+            is_zit = False
+            if hasattr(comfy.model_base, "Lumina2"):
+                if isinstance(model_lora.model, comfy.model_base.Lumina2):
+                    is_zit = True
+
+            if is_zit:
+                if console_log:
+                    print(f"LoraTagLoader: ZiT model detected, applying custom key mapping via monkeypatch.")
+                # Monkeypatch approach: temporarily modify model_lora_keys_unet to include ZiT support
+                # This replicates the logic from the ComfyUI commit
+                original_model_lora_keys_unet = comfy.lora.model_lora_keys_unet
+                
+                def patched_model_lora_keys_unet(model, key_map={}):
+                    # Call the original function first
+                    key_map = original_model_lora_keys_unet(model, key_map)
+                    
+                    # Add ZiT-specific mappings if it's a Lumina2 model
+                    if isinstance(model, comfy.model_base.Lumina2):
+                        diffusers_keys = z_image_to_diffusers(model.model_config.unet_config, output_prefix="diffusion_model.")
+                        for k in diffusers_keys:
+                            to = diffusers_keys[k]
+                            key_lora = k[:-len(".weight")]
+                            key_map["diffusion_model.{}".format(key_lora)] = to
+                            key_map["lycoris_{}".format(key_lora.replace(".", "_"))] = to
+                    
+                    return key_map
+                
+                # Temporarily replace the function
+                comfy.lora.model_lora_keys_unet = patched_model_lora_keys_unet
+                
+                try:
+                    # Use the standard loading path, which will now use our patched function
+                    model_lora, clip_lora = comfy.sd.load_lora_for_models(model_lora, clip_lora, lora, wModel, wClip)
+                finally:
+                    # Always restore the original function
+                    comfy.lora.model_lora_keys_unet = original_model_lora_keys_unet
+            else:
+                model_lora, clip_lora = comfy.sd.load_lora_for_models(model_lora, clip_lora, lora, wModel, wClip)
+
+        # Remove the LoRA tags from the text
+        plain_prompt = re.sub(TAG_PATTERN, "", STRING)
+        return io.NodeOutput(model_lora, clip_lora, plain_prompt)

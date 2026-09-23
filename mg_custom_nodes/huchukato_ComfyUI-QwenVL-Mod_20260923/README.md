@@ -58,6 +58,25 @@ Qwen Chat treats the render node as its generation target: it reads your request
 Demo workflow: [`workflows/livepeer/Livepeer-Agent-Demo.json`](https://github.com/huchukato/ComfyUI-Garage/blob/master/workflows/livepeer/Livepeer-Agent-Demo.json) in the ComfyUI-Garage repo — just `Load Media → Livepeer Render`.
 
 ## **📰 News & Updates**
+* **2026/09/22**: **v2.8.14 — Removed Duplicate Livepeer Node**. [[Update](update.md#version-2814-20260922)]
+> 🌐 `AILab_LivepeerRender` is no longer shown in the node menu; old workflows still load via `legacy_aliases.js`.
+
+* **2026/09/22**: **v2.8.13 — Pixaroma-Style Node Branding & Chat Styling**. [[Update](update.md#version-2813-20260922)]
+> 🎨 **Node colours**: each QwenVL-Mod family (Vision, Vision GGUF, Prompt Enhancer, Livepeer, Utils) now has distinct title/body colours, with user colour choices always preserved.
+> 💬 **Chat sidebar**: wrapped composer in a styled panel and added a shared stylesheet for a cleaner, more modern look.
+
+* **2026/09/22**: **v2.8.12 — Pony→Natural Language in QwenVL Presets Too**. [[Update](update.md#version-2812-20260922)]
+> 🐴 **Pony→Natural Language**: now available both as a **PromptEnhancer style** (text-only) and as a **QwenVL preset** (with image input). Converts Danbooru/Pony tags into clean natural-language prompts for Flux, Krea, Qwen-Image 2.1, and other image models.
+
+* **2026/09/22**: **v2.8.11 — Removed Redundant MiniMax Chat Guide**. [[Update](update.md#version-2811-20260922)]
+> 🧹 Removed the `mmh3_acceleration` `_chat_guides` entry: acceleration-mode switching is handled deterministically by Qwen Chat selectors and `use native/10eros/turbo` shortcuts, so the extra system-prompt guidance was no longer needed.
+
+* **2026/09/22**: **v2.8.10 — Pony→Natural Language Preset Moved to PromptEnhancer**. [[Update](update.md#version-2810-20260922)]
+> 🐴 **Pony→Natural Language**: The generic Danbooru/Pony tag-to-natural-language converter is now a **PromptEnhancer style** (HF + GGUF), replacing the old `Pony→Z-Image` and `Pony→Flux` styles. Use it to turn tag soups into clean prompts for Flux, Krea, Qwen-Image 2.1, and other image models.
+
+* **2026/09/22**: **v2.8.9 — Single Pony→Natural Language Preset**. [[Update](update.md#version-289-20260922)]
+> 🐴 **Pony→Natural Language**: Replaced the model-specific `Pony→Z-Image` and `Pony→Flux` presets with a single generic converter.
+
 * **2026/09/21**: **v2.8.0 — Livepeer Agent Render Node, Unified Media Loader, and Chat-Driven Generation**. [[Update](update.md#version-280-20260921)]
 > 🌐 **Livepeer Agent Render**: New `QwenVL_LivepeerRender` node generates images and videos through the Livepeer Agent network via MCP — capability dropdown with image and video models, IMAGE output for stills, `source_video` frame picker for i2v references.
 > 🗂️ **Unified media loader**: New `QwenVL_LoadMedia` node picks images or videos from input/output folders with preview and an upload button.
@@ -74,7 +93,7 @@ Demo workflow: [`workflows/livepeer/Livepeer-Agent-Demo.json`](https://github.co
 * **2026/09/03**: **v2.6** 🎬 **Camera & Style Tag Dropdowns + Pony Converters + Qwen 3.8 + LTX 2.3 FL2VA + MiniMax H3 Loop Mode**. [[Update](update.md#version-26-20260903)]
 > 🎥 **Camera Tag Dropdown**: New `camera_tag` parameter in all nodes with 19 camera movements (STATIC_CAMERA, SLOW/FAST ZOOM, PAN, TILT, DOLLY, TRACKING, CRANE, ORBIT, HANDHELD, ROLL). Tags injected as prefix + re-injected at end for recency bias. STATIC_CAMERA overrides RICHNESS RULES.
 > 🎨 **Style Tag Dropdown**: New `style_tag` parameter in PromptEnhancer (T2V only) with 12 visual styles (ANIME, PHOTOREALISTIC, 3DCG, CARTOON, CLAYMATION, WATERCOLOR, VINTAGE, NOIR, CYBERPUNK, FANTASY, SOFTFOCUS, HENTAI).
-> 🐴 **Pony Prompt Converters**: New `🎨 Pony→Z-Image` and `🎨 Pony→Flux` presets convert Danbooru tags to natural-language prompts for Z-Image-Turbo and Flux.1. Rewritten `🖼️ Tags` preset generates Pony/SDXL tags with `score_9` prefix.
+> 🐴 **Pony Prompt Converter**: Presets for converting Danbooru/Pony tags into natural-language image prompts. (Consolidated into a single generic `🎨 Pony→Natural Language` preset in v2.8.9.) Rewritten `🖼️ Tags` preset generates Pony/SDXL tags with `score_9` prefix.
 > 🧠 **Qwen 3.8 Models**: Added Qwen3.8-27B-Uncensored-Heretic-Abliterated (VL), Qwen3.8-4B-Distill-heretic and Qwen3.8-9B-heretic-uncensored (text). Switched to armand0e repaired Qwen3.5-9B-heretic weights.
 > 🎬 **LTX 2.3 FL2VA**: New FL2VA presets (5s/10s/20s) + 10s/20s I2V/T2V presets. Dropdown reordered I2V → FL2VA → T2V. Danbooru tag support in all LTX 2.3 presets.
 > 🎬 **MiniMax H3**: LOOP MODE for FL2VA, anatomical coherence, [DIALOGUE] trigger, [P3]/[P4] R2VA reference tags, I2VA user-text priority, mandatory sexual sounds, camera control tags.

@@ -88,6 +88,25 @@ T2V → VRAM Cleanup (Full Cleanup) → I2V-1 → VRAM Cleanup (Full Cleanup) �
 ---
 
 ## **📰 Notizie & Aggiornamenti**
+* **2026/09/22**: **v2.8.14 — Rimosso nodo Livepeer duplicato**. [[Aggiornamenti](update.md#version-2814-20260922)]
+> 🌐 `AILab_LivepeerRender` non compare più nel menu; i vecchi workflow si caricano comunque tramite `legacy_aliases.js`.
+
+* **2026/09/22**: **v2.8.13 — Branding nodi in stile Pixaroma e chat styling**. [[Aggiornamenti](update.md#version-2813-20260922)]
+> 🎨 **Colori nodi**: ogni famiglia QwenVL-Mod (Vision, Vision GGUF, Prompt Enhancer, Livepeer, Utils) ha ora colori distinti per titolo/corpo, preservando sempre le scelte dell’utente.
+> 💬 **Chat sidebar**: composer racchiuso in un pannello stilizzato con un foglio di stile condiviso per un aspetto più pulito e moderno.
+
+* **2026/09/22**: **v2.8.12 — Pony→Natural Language anche nei preset QwenVL**. [[Aggiornamenti](update.md#version-2812-20260922)]
+> 🐴 **Pony→Natural Language**: ora disponibile sia come **stile PromptEnhancer** (solo testo) che come **preset QwenVL** (con immagine). Converte tag Danbooru/Pony in prompt natural-language puliti per Flux, Krea, Qwen-Image 2.1 e altri modelli.
+
+* **2026/09/22**: **v2.8.11 — Rimossa guida chat MiniMax ridondante**. [[Aggiornamenti](update.md#version-2811-20260922)]
+> 🧹 Rimossa la guida `_chat_guides.mmh3_acceleration`: lo switching delle modalità di accelerazione MiniMax è gestito deterministicamente dai selettori di Qwen Chat e dagli shortcut `use native/10eros/turbo`, quindi la guida aggiuntiva non serviva più.
+
+* **2026/09/22**: **v2.8.10 — Pony→Natural Language spostato su PromptEnhancer**. [[Aggiornamenti](update.md#version-2810-20260922)]
+> 🐴 **Pony→Natural Language**: Il converter generico da tag Danbooru/Pony a natural-language è ora uno **stile del PromptEnhancer** (HF + GGUF), sostituendo i vecchi stili `Pony→Z-Image` e `Pony→Flux`. Per Flux, Krea, Qwen-Image 2.1 e altri modelli d'immagine.
+
+* **2026/09/22**: **v2.8.9 — Preset unico Pony→Natural Language**. [[Aggiornamenti](update.md#version-289-20260922)]
+> 🐴 **Pony→Natural Language**: Sostituiti i preset model-specifici `Pony→Z-Image` e `Pony→Flux` con un unico converter generico.
+
 * **2026/09/16**: **v2.7.0 — Qwen Workflow Chat, allegati immagine, azioni guidate e modelli Qwen 3.8**. [[Aggiornamenti](update.md#version-270-20260916)]
 > **Qwen Workflow Chat**: Assistente nativo nella sidebar ComfyUI con azioni validate sul workflow, choices cliccabili, recupero del JSON malformato, routing basato sui preset ed esecuzione autonoma della coda.
 > **Chat con immagini**: Analisi automatica delle immagini del workflow oppure allegato prioritario direttamente in chat, con anteprima, ridimensionamento e rimozione.
@@ -98,7 +117,7 @@ T2V → VRAM Cleanup (Full Cleanup) → I2V-1 → VRAM Cleanup (Full Cleanup) �
 * **2026/09/03**: **v2.6** 🎬 **Dropdown Camera & Style Tag + Converter Pony + Qwen 3.8 + LTX 2.3 FL2VA + MiniMax H3 Loop Mode**. [[Aggiornamenti](update.md#version-26-20260903)]
 > 🎥 **Dropdown Camera Tag**: Nuovo parametro `camera_tag` in tutti i nodi con 19 movimenti camera (STATIC_CAMERA, SLOW/FAST ZOOM, PAN, TILT, DOLLY, TRACKING, CRANE, ORBIT, HANDHELD, ROLL). Tag iniettati come prefisso + re-iniettati alla fine per recency bias. STATIC_CAMERA sovrascrive RICHNESS RULES.
 > 🎨 **Dropdown Style Tag**: Nuovo parametro `style_tag` nel PromptEnhancer (solo T2V) con 12 stili visivi (ANIME, PHOTOREALISTIC, 3DCG, CARTOON, CLAYMATION, WATERCOLOR, VINTAGE, NOIR, CYBERPUNK, FANTASY, SOFTFOCUS, HENTAI).
-> 🐴 **Converter Pony**: Nuovi preset `🎨 Pony→Z-Image` e `🎨 Pony→Flux` convertono tag Danbooru in prompt natural-language per Z-Image-Turbo e Flux.1. Preset `🖼️ Tags` riscritto genera tag Pony/SDXL con prefisso `score_9`.
+> 🐴 **Converter Pony**: Preset per convertire tag Danbooru in prompt natural-language per modelli d'immagine. (Unificato nel preset generico `🎨 Pony→Natural Language` in v2.8.9.) Preset `🖼️ Tags` riscritto genera tag Pony/SDXL con prefisso `score_9`.
 > 🧠 **Modelli Qwen 3.8**: Aggiunti Qwen3.8-27B-Uncensored-Heretic-Abliterated (VL), Qwen3.8-4B-Distill-heretic e Qwen3.8-9B-heretic-uncensored (testo). Passati a pesi armand0e riparati Qwen3.5-9B-heretic.
 > 🎬 **LTX 2.3 FL2VA**: Nuovi preset FL2VA (5s/10s/20s) + preset 10s/20s I2V/T2V. Dropdown riordinato I2V → FL2VA → T2V. Supporto tag Danbooru in tutti i preset LTX 2.3.
 > 🎬 **MiniMax H3**: LOOP MODE per FL2VA, coerenza anatomica, trigger [DIALOGUE], tag riferimento [P3]/[P4] per R2VA, priorità testo utente in I2VA, suoni sessuali obbligatori, tag controllo camera.

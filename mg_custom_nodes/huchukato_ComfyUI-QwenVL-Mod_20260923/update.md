@@ -1,5 +1,39 @@
 # ComfyUI-QwenVL Update Log
 
+## Version 2.8.14 (2026/09/22)
+
+- Removed the duplicate `AILab_LivepeerRender` node from the Add Node menu.
+- Added `web/js/legacy_aliases.js` to rewrite old `AILab_LivepeerRender` nodes to `QwenVL_LivepeerRender` on workflow load, keeping old workflows compatible.
+- Updated `QwenVL_Livepeer.py` `NODE_CLASS_MAPPINGS` / `NODE_DISPLAY_NAME_MAPPINGS` to expose only the canonical node name.
+
+## Version 2.8.13 (2026/09/22)
+
+- Refreshed node branding with a Pixaroma-style colour scheme: each QwenVL-Mod family now has recognisable title/body colours (Vision, Vision GGUF, Enhancer, Livepeer, Utils).
+- Updated `web/js/appearance.js` to apply colours in `beforeRegisterNodeDef`, preserving user/workflow colour choices and covering all current nodes (Unified, Livepeer, LoadMedia, VRAM cleanup, story split).
+- Added shared stylesheet `web/css/qwen_nodes.css` and wrapped the chat composer in a dedicated panel for cleaner spacing and styling.
+- Standardised `QwenVL_LoadMedia` category to `QwenVL-Mod/Utils`.
+
+## Version 2.8.12 (2026/09/22)
+
+- Added `🎨 Pony→Natural Language` back to the QwenVL `preset_prompt` dropdown (`_preset_prompts` + `qwenvl`), in addition to the PromptEnhancer style.
+- The same converter is now available both as a vision preset (when an image is attached) and as a text-only style enhancement.
+
+## Version 2.8.11 (2026/09/22)
+
+- Removed the redundant `mmh3_acceleration` chat guide from `_chat_guides`. MiniMax H3 acceleration modes are already handled deterministically by Qwen Chat selectors and `use native/10eros/turbo` commands, so the extra system-prompt text was no longer useful.
+
+## Version 2.8.10 (2026/09/22)
+
+- Moved the new `🎨 Pony→Natural Language` preset from the QwenVL `preset_prompt` dropdown into the **PromptEnhancer** `enhancement_style` dropdown (`qwen_text.styles`).
+- Removed the old `🎨 Pony→Z-Image` and `🎨 Pony→Flux` PromptEnhancer styles.
+- The Pony tag converter is now selected as a **style** in the PromptEnhancer node (HF and GGUF), keeping the QwenVL preset list focused on vision/analysis/video tasks.
+
+## Version 2.8.9 (2026/09/22)
+
+- Replaced the model-specific `🎨 Pony→Z-Image` and `🎨 Pony→Flux` presets with a single generic `🎨 Pony→Natural Language` preset in `AILab_System_Prompts.json`.
+- The new preset converts Danbooru/Pony tag prompts into a clean, model-agnostic natural-language paragraph suitable for Flux, Krea, Qwen-Image 2.1, and other image generation models.
+- Removes `score_*` quality tags and Pony meta tags (`source_pony`, `rating_*`, etc.), preserves optional `[style]` tags, and handles NSFW content without censoring.
+
 ## Version 2.8.8 (2026/09/21)
 
 - Turbo config now actually toggles the Turbo LoRA: the graph snapshot includes subgraph inner nodes (qualified ids like "105:213"), findNode resolves them, and the MiniMax configs emit set_node_mode on LoraLoader nodes inside the enhancer subgraph — Turbo enables it, Native/10Eros bypass it (10Eros has TURBO fused).

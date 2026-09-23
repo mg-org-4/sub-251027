@@ -1,0 +1,29 @@
+{
+  "name": "comfyui-majoor-omnicam-frontend",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "dev": "vite build --mode development --watch",
+    "check": "npm run check:lines && npm run check:encoding && npm run check:three && npm run check:locales && npm run check:contract && npm run check:licenses && node --check web/omnicam.js",
+    "check:lines": "node scripts/check_source_lines.mjs",
+    "check:encoding": "node scripts/check_text_encoding.mjs",
+    "check:three": "node scripts/check_three_surface.mjs",
+    "check:locales": "node scripts/check_locales.mjs",
+    "check:contract": "node scripts/check_template_contract.mjs",
+    "check:licenses": "node scripts/generate_third_party_notices.mjs",
+    "test:unit": "node scripts/run_node_tests.mjs",
+    "test:browser": "playwright test",
+    "test:live": "playwright test --config playwright.live.config.mjs"
+  },
+  "dependencies": {
+    "mediabunny": "1.53.1",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "vite": "7.3.6"
+  }
+}

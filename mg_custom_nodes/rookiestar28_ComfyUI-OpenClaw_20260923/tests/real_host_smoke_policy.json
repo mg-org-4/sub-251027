@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "lane": {
+    "name": "real-host-frontend-smoke",
+    "workflow": ".github/workflows/real_host_smoke.yml",
+    "blocking": false,
+    "triggers": [
+      "workflow_dispatch",
+      "schedule"
+    ],
+    "forbidden_triggers": [
+      "pull_request",
+      "push"
+    ]
+  },
+  "core": {
+    "repository": "https://github.com/comfyanonymous/ComfyUI.git",
+    "source_head": "e638023d54497dbe0579565e5de4bb7076899592",
+    "project_version": "0.37.0",
+    "bundled_frontend_version": "1.53.6"
+  },
+  "subjects": {
+    "bundled": {
+      "id": "bundled",
+      "frontend_version": "1.53.6",
+      "front_end_version_arg": null,
+      "summary": "The frontend package the core manifest pins. The host serves it when no frontend version is requested."
+    },
+    "standalone_release": {
+      "id": "standalone_release",
+      "frontend_version": "1.55.11",
+      "front_end_version_arg": "Comfy-Org/ComfyUI_frontend@v1.55.11",
+      "release_tag": "v1.55.11",
+      "release_tag_commit": "3a851363c48b233b3b576131dff6e1e92b0e1573",
+      "release_asset_name": "dist.zip",
+      "release_asset_sha256": "37fac946be14a9cd96ec3fc0dd92fca826c24093c11e1e7184262f8a187f1071",
+      "release_asset_size_bytes": 25031746,
+      "release_asset_digest_source": "GitHub release API, tag v1.55.11, asset dist.zip; publisher-reported on 2026-09-22 and not independently downloaded here. The lane hashes downloaded bytes and refuses a mismatch.",
+      "web_root_relative": "web_custom_versions/Comfy-Org_ComfyUI_frontend/1.55.11",
+      "summary": "The reproducible standalone release. Its asset digest is pinned from published release metadata, so the lane verifies the artifact before the host sees it; the subject still refuses to run without explicit authorization."
+    }
+  },
+  "not_executed": {
+    "frontend_source_head": "23559a8f86227837aef21d1da8b7aa8149f3b2cc",
+    "frontend_source_describe": "v1.55.11-104-g23559a8f86",
+    "reason": "A reviewed checkout 104 commits ahead of the release, with package version 1.55.12. The host can reproduce release 1.55.11, not this commit, so no runtime evidence may name it."
+  },
+  "deadlines_seconds": {
+    "fetch": 900,
+    "install": 1800,
+    "startup": 300,
+    "smoke": 900,
+    "teardown": 120
+  },
+  "runtime": {
+    "bind_host": "127.0.0.1",
+    "required_args": [
+      "--cpu",
+      "--disable-auto-launch"
+    ],
+    "forbidden_args": [
+      "--enable-cors-header",
+      "--tls-keyfile",
+      "--tls-certfile",
+      "--front-end-root"
+    ],
+    "allowed_bind_hosts": [
+      "127.0.0.1",
+      "::1"
+    ],
+    "health_path": "/openclaw/health"
+  },
+  "geometry": {
+    "sidebar_min_width_px": 560
+  },
+  "evidence": {
+    "matrix_path": "docs/release/compatibility_matrix.md",
+    "surface_module": "web/openclaw_host_surface.js",
+    "evidence_key": "real_host",
+    "current_state": "validated",
+    "run_id": "host-pair-20260922-01",
+    "evidence_id": "host-evidence-20260922-01",
+    "states_requiring_run_id": [
+      "validated",
+      "failed"
+    ]
+  },
+  "host_owned_noise": {
+    "summary": "Requests and frontend messages a stock ComfyUI produces on its own, measured on an isolated host running only this product and the peer fixture. Entries here are only ever consulted for URLs already known not to belong to this product, so nothing here can excuse an OpenClaw failure.",
+    "requests": [
+      {
+        "path": "/api/userdata/user.css",
+        "reason": "ComfyUI asks for the operator's optional custom stylesheet on every load and 404s when they have not created one. Measured on ComfyUI 0.34.0."
+      },
+      {
+        "path": "/user.css",
+        "reason": "The same optional stylesheet, requested a second time at the web root. Same condition, same host."
+      },
+      {
+        "path": "/api/userdata/comfy.templates.json",
+        "reason": "ComfyUI reads the operator's saved workflow templates and 404s when they have saved none. Measured on ComfyUI 0.34.0."
+      },
+      {
+        "path": "/api/userdata",
+        "reason": "The subgraph listing, requested as /api/userdata?dir=subgraphs&recurse=true&split=false&full_info=true, which 404s when the user directory holds no subgraphs. Matched on the path so the query string does not have to be pinned."
+      }
+    ],
+    "aborted_request_kinds": [
+      {
+        "error_text": "net::ERR_ABORTED",
+        "reason": "The browser discarding a request that was still in flight when the page closed, not a server answering badly. Observed on core ComfyUI routes at end of test: run 34109004949 recorded POST /api/settings/Comfy.InstalledVersion returning 200 OK at 10:01:43.225Z and a later attempt aborting under 5 ms before the end-of-test audit. Consulted only after a request is known not to belong to this product, so an abort on an OpenClaw module is still charged to OpenClaw."
+      }
+    ],
+    "console_messages": [
+      {
+        "text": "ComfyApp graph accessed before initialization",
+        "reason": "A ComfyUI frontend log line emitted while its own app object is still constructing. It names no extension and has no companion request, so it can only be recognised by its exact text."
+      }
+    ],
+    "measured_on": "ComfyUI 0.34.0 with frontend package 1.51.9, started with --disable-all-custom-nodes --whitelist-custom-nodes ComfyUI-OpenClaw openclaw-smoke-peer, so that /extensions listed 93 entries: 56 OpenClaw, 36 core, 1 peer, 0 test files."
+  }
+}

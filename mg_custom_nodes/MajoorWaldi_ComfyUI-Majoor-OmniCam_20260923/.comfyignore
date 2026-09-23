@@ -1,0 +1,50 @@
+# Files the Registry should not ship to users. The runtime needs omnicam/,
+# web/, web-chunks/, schemas/ and the packaging metadata; everything below is
+# development-only and only makes the download bigger.
+.venv/
+venv/
+.pytest_cache/
+.pytest_*/
+.tmp_pytest_*/
+.ruff_cache/
+.mypy_cache/
+__pycache__/
+node_modules/
+test-results/
+*.log
+
+# Local scratch and toolchain checkouts, never part of a release.
+.dpvo-install/
+.codex-pytest-temp/
+.superpowers/
+.vscode/
+
+# Development-only sources and suites. web-src/ is the input to `npm run build`;
+# what ships is the built bundle in web-chunks/ (+ web/omnicam.js), which is
+# committed.
+tests/
+web-src/
+scripts/
+playwright.config.mjs
+playwright.live.config.mjs
+vite.config.mjs
+vite.test.config.mjs
+package.json
+package-lock.json
+requirements-dev.txt
+
+# Contributor/CI metadata that has no meaning inside an installed node.
+.github/
+AGENTS.md
+.template-contract.json
+docs/superpowers/
+
+# Developer-only asset acquisition and documentation.
+omnicam/assets/bootstrap/
+omnicam/assets/bootstrap_sources.json
+docs/
+
+# README/doc illustrations: 8.2 of the package's 11.4 MB, and nothing at
+# runtime reads them. They are already served from raw.githubusercontent.com
+# (README.md points there, as do the Registry's banner_url and icon), so
+# shipping them only made every install download 8 MB of pictures.

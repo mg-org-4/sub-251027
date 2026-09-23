@@ -1,0 +1,74 @@
+// Confidence badges and reconstruction appearance controls for Director scene objects.
+
+import { reconstructionInspectorRows } from "./reconstruction-inspector.js";
+
+export function reconstructionBadge(object) {
+  if (!object?.reconstruction) return null;
+
+  const conf =
+    object.reconstruction.confidence != null
+      ? Number(object.reconstruction.confidence)
+      : 1.0;
+
+  // Thresholds mirror confidence_band() in omnicam/reconstruction/confidence.py
+  // so a score never reads as one tier in the badge and another server-side.
+  let band = "low";
+  let label = "Low";
+  if (conf >= 0.75) {
+    band = "high";
+    label = "High";
+  } else if (conf >= 0.45) {
+    band = "medium";
+    label = "Medium";
+  }
+
+  const recon = object.reconstruction;
+  const provider = recon.provider || "Reconstructed";
+  const pct = Math.round(conf * 100);
+  // v2 metadata (blockout_object) carries per-axis confidence + semantic; fold
+  // it into the badge tooltip as plain text so the inspector shows the detail
+  // without any new DOM. Older environment/room/depth-mesh metadata just gets
+  // the one-line summary.
+  const rows = reconstructionInspectorRows(object);
+  const detail = rows.length ? "\n" + rows.map(([k, v]) => `${k}: ${v}`).join("\n") : "";
+  const title = `${provider} • ${label} (${pct}%)${detail}`;
+
+  return {
+    label,
+    band,
+    title,
+    confidence: conf,
+    semantic: String(recon.semantic || ""),
+    role: String(recon.role || ""),
+  };
+}
+
+export function getReconstructionAppearance(state) {
+  return state?.reconstruction_appearance || "source_texture";
+}
+
+/**
+ * The material appearance the viewport should actually render for one
+ * reconstructed object right now.
+ *
+ * This is the one place that decision gets made, so it stays a single,
+ * unit-testable rule: an omni_ref conditioning playblast (cleanCapture) must
+ * never leak the recovered source texture into the reference it feeds a
+ * generation model, no matter what the interactive Reconstruction Appearance
+ * toggle is set to. Non-reconstructed objects aren't affected at all.
+ */
+export function reconstructionMaterialMode(object, state, cleanCapture) {
+  if (!object?.reconstruction) return null;
+  if (cleanCapture) return "neutral";
+  return getReconstructionAppearance(state) === "source_texture" ? "textured" : "neutral";
+}
+
+export function setReconstructionAppearance(ui, appearance) {
+  if (!ui) return;
+  if (!ui.state) ui.state = {};
+  ui.state.reconstruction_appearance =
+    appearance === "source_texture" ? "source_texture" : "neutral";
+  ui.serialize?.();
+  ui.render?.();
+}
+

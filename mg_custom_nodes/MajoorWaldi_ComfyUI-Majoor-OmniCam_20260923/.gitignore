@@ -1,0 +1,71 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_*/
+.pytest-tmp/
+.pytest-tmp-run/
+.audit-pytest-temp/
+.tmp-pytest/
+.superpowers/sdd/2026-09-01-extractor-ui-parity/task-1-report.md
+.codex-pytest-temp/
+# Scratch dirs from audit / TDD runs (matching *.log files already ignored above).
+.tmp_*/
+.ruff_cache/
+.venv/
+venv/
+node_modules/
+test-results/
+dist/
+*.log
+/.audit-20260914/
+
+# `comfy node pack` / registry_package_audit.py output.
+node.zip
+registry-audit.json
+
+# Vite build output IS committed (web-chunks/, web/omnicam.js) so a plain
+# `git clone` runs without a build step. This was gitignored twice before
+# (515c835, dbdcc22) and reverted (8ec2bba) because a Windows-built bundle
+# and Linux CI's fresh build resolved different module graphs (268 vs 260
+# modules measured 2026-09-06; 266 vs 258 previously) -- a stale filename
+# normalization bug in vite.config.mjs. That bug is fixed: `compare_vite_graphs.mjs
+# --strict` between a WSL/Ubuntu build and a Windows build now reports zero
+# delta and byte-identical chunk files (verified 2026-09-11). The frontend CI
+# job now fails if `npm run build` on Linux produces anything different from
+# what's committed -- see the `git diff --exit-code` step in test.yml.
+.DS_Store
+Thumbs.db
+
+# Ignore all docs except the maintained set
+docs/*
+!docs/NODES.md
+!docs/SHORTCUTS.md
+!docs/SECURITY.md
+!docs/TECHNICAL_REFERENCE.md
+!docs/USER_GUIDE.md
+!docs/COMPATIBILITY.md
+!docs/CONFORMANCE.md
+!docs/REFACTOR_CHECKLIST.md
+!docs/AUDIT.md
+!docs/BLOCKOUT_ASSET_LIBRARY.md
+!docs/ASSET_LIBRARY.md
+!docs/CHARACTERS.md
+!docs/AGENT_INTEGRATION.md
+!docs/assets/
+
+# DPVO build tree: sources upstream, toolkit CUDA portable, archives
+.dpvo-install/
+.vscode/launch.json
+
+# ComfyUI reconstruction cache / staged asset library, if it ever lands in the
+# repo root instead of ComfyUI/input (test artefact, never source).
+/majoor_omnicam/
+
+# Starter asset bootstrap. Downloaded packs, installed models and generated
+# provenance (SOURCES.md, library.lock.json, last-report.json) live under
+# <ComfyUI input>/omnicam/library/, never in this repo. Ignore any that leak in
+# from a wrong --dest or a smoke test.
+/omnicam/library/
+**/.bootstrap/
+tmp_bootstrap_input/
+*.partial

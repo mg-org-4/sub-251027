@@ -1,0 +1,99 @@
+from omnicam.core.camera_tools import (
+    add_camera_shake,
+    animate_fov,
+    apply_camera_preset,
+    apply_dolly_zoom,
+    constrain_arc,
+    constrain_look_at,
+    follow_track_target,
+    motion_speed_profile,
+    smooth_camera_path,
+)
+from omnicam.core.track import OmniCamTrack
+
+
+def test_camera_presets_preserve_track_contract():
+    track = OmniCamTrack.from_dict({"duration_frames": 24})
+    orbit = apply_camera_preset(track, "orbit_left")
+    assert orbit.schema_version == track.schema_version
+    assert orbit.duration_frames == 24
+    assert orbit.keyframes[-1].camera.position != orbit.keyframes[0].camera.position
+
+    product = apply_camera_preset(track, "product_360")
+    assert len(product.keyframes) >= 9
+    assert product.keyframes[len(product.keyframes) // 2].camera.position != product.keyframes[0].camera.position
+    assert product.keyframes[-1].camera.position == product.keyframes[0].camera.position
+
+
+def test_camera_tools_are_deterministic_and_keep_dimensions():
+    track = OmniCamTrack.from_dict({"duration_frames": 12, "width": 640, "height": 360})
+    assert add_camera_shake(track, seed=42).to_dict() == add_camera_shake(track, seed=42).to_dict()
+    assert smooth_camera_path(track).width == 640
+    assert apply_dolly_zoom(track).height == 360
+    assert constrain_look_at(track, [1, 2, 3]).keyframes[0].camera.target == [1.0, 2.0, 3.0]
+    assert len(motion_speed_profile(track)) == 12
+    assert animate_fov(track, 2).keyframes[-1].camera.fov < track.keyframes[0].camera.fov
+    assert constrain_arc(track).duration_frames == track.duration_frames
+    assert follow_track_target(track).schema_version == 1
+
+
+def test_retime_preserves_fcurve_payloads():
+    from omnicam.core.camera_tools import retime_to_speed
+    track = OmniCamTrack.from_dict({"duration_frames": 2, "fps": 24, "keyframes": [
+        {"frame": 0, "camera": {"position": [0, 0, 0], "target": [0, 0, -1]}, "tangents": {"mode": "free"}, "references": [{"id": "a"}]},
+        {"frame": 1, "camera": {"position": [100, 0, 0], "target": [0, 0, -1]}},
+    ]})
+    result = retime_to_speed(track, 1.0)
+    assert result.keyframes[0].tangents == {"mode": "free"}
+    assert result.keyframes[0].references == [{"id": "a"}]
+
+
+def test_focal_length_conversion_and_trajectory_analysis():
+    from omnicam.core.camera_tools import (
+        analyze_camera_trajectory,
+        focal_length_to_fov,
+        fov_to_focal_length,
+    )
+
+    # 50mm on 36mm sensor gives ~39.6° horizontal FOV
+    fov_50 = focal_length_to_fov(50.0)
+    assert 26.0 < fov_50 < 28.0
+    assert abs(fov_to_focal_length(fov_50) - 50.0) < 0.1
+
+    # 24mm wide lens
+    fov_24 = focal_length_to_fov(24.0)
+    assert 52.0 < fov_24 < 54.0
+
+    track = OmniCamTrack.from_dict({"duration_frames": 24, "fps": 24})
+    orbit_track = apply_camera_preset(track, "orbit_left", 1.0)
+    analysis = analyze_camera_trajectory(orbit_track)
+    assert len(analysis["movements"]) > 0
+    assert "orbit" in analysis["primary_movement"] or "orbit" in str(analysis["movements"])
+    assert analysis["start_focal_mm"] > 0
+
+    full_orbit = analyze_camera_trajectory(apply_camera_preset(track, "product_360"))
+    assert abs(full_orbit["orbit_degrees"]) > 350
+    assert full_orbit["path_length"] > 0
+    assert "fov_distance_correlation" in full_orbit
+
+
+def test_smooth_camera_path_smooths_multichannel():
+    # Track with spikes in fov, zoom, and roll near 180/-180 degrees
+    track = OmniCamTrack.from_dict({
+        "fps": 24, "duration_frames": 5, "keyframes": [
+            {"frame": 0, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 30.0, "zoom": 1.0, "roll": 170.0}, "interpolation": "linear"},
+            {"frame": 1, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 30.0, "zoom": 1.0, "roll": 175.0}, "interpolation": "linear"},
+            {"frame": 2, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 60.0, "zoom": 2.0, "roll": -175.0}, "interpolation": "linear"},
+            {"frame": 3, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 30.0, "zoom": 1.0, "roll": -170.0}, "interpolation": "linear"},
+            {"frame": 4, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 30.0, "zoom": 1.0, "roll": -165.0}, "interpolation": "linear"},
+        ]
+    })
+    smoothed = smooth_camera_path(track, radius=1)
+    s2 = smoothed.sample(2)
+    # Spikes in fov and zoom should be averaged down
+    assert s2.fov < 60.0
+    assert s2.zoom < 2.0
+    # Roll wrapped across 180° boundary: 175° to -175° is a 10° step, not 350°!
+    # Averaged roll at frame 2 should stay close to ±180°, not flip toward 0°!
+    assert abs(s2.roll) > 160.0
+

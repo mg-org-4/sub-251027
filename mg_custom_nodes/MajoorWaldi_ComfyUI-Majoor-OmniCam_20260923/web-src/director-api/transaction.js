@@ -1,0 +1,217 @@
+// Atomic transaction runner. Validate -> apply every operation to a cloned
+// draft -> (unless validateOnly) checkpoint once, swap state, serialise and
+// repaint the dirty domains. Any DirectorApiError aborts before the swap, so
+// the live state is never left half-mutated.
+
+import { cloneCamera, sampleCamera, sanitizeState } from "../director/core.js";
+import { DIRECTOR_API_VERSION, DIRECTOR_OPS } from "./constants.js";
+import { DirectorApiError } from "./errors.js";
+import { validateDirectorTransaction } from "./validate.js";
+import { applyDirectorOperation } from "./apply.js";
+import { computeSemanticDiff } from "./diff.js";
+import { rememberTransactionId } from "./tx-id-cache.js";
+
+function clone(value) {
+  return typeof structuredClone === "function"
+    ? structuredClone(value)
+    : JSON.parse(JSON.stringify(value));
+}
+
+function currentRevision(ui) {
+  return Number.isInteger(ui.directorRevision)
+    ? Math.max(0, ui.directorRevision)
+    : 0;
+}
+
+function failure(ui, id, error) {
+  return {
+    ok: false,
+    version: DIRECTOR_API_VERSION,
+    revision: currentRevision(ui),
+    id: id ?? null,
+    applied: 0,
+    error: {
+      code: error.code || "INTERNAL",
+      operationIndex: error.operationIndex ?? null,
+      message: error.message,
+      ...(error.details ? { details: error.details } : {}),
+    },
+  };
+}
+
+function prepareCommittedActiveCamera(ui) {
+  const active = (ui.state.cameras || []).find(
+    (item) => item.id === ui.state.active_camera_id,
+  ) || ui.state.cameras?.[0] || null;
+
+  if (!active) return null;
+
+  // serializeEditorState() calls syncActiveCameraTrack(), which copies
+  // ui.camera back into active.camera. Protect the semantic transaction's
+  // freshly committed camera before that synchronization occurs.
+  ui.state.keyframes = active.keyframes;
+  ui.state.camera = cloneCamera(active.camera);
+  ui.camera = cloneCamera(active.camera);
+
+  return active;
+}
+
+function restoreViewportCamera(ui, active) {
+  if (!active) return;
+  ui.camera = sampleCamera(
+    active,
+    ui.frame ?? 0,
+    ui.state.objects || [],
+  );
+}
+
+// Semantic state changes commit synchronously, but the live three.js runtime
+// (meshes, media elements, object URLs) does not automatically follow it --
+// only restoreFromWidgets()'s full-state-swap path used to reconcile that.
+// Run the same reconciliation after a committed Director API transaction, but
+// asynchronously so executeDirectorTransaction() itself stays synchronous for
+// its many existing synchronous callers.
+async function reconcileRuntimeResources(ui, tx, outcomes) {
+  const restore = outcomes.some((item) => item.resourceRefresh === true);
+  const deleted = tx.operations
+    .filter((op) => op.type === DIRECTOR_OPS.OBJECT_DELETE)
+    .map((op) => op.objectId);
+  for (const objectId of deleted) {
+    ui.removeObjectResources?.(objectId);
+  }
+  const instantiated = tx.operations.some((op) => op.type === DIRECTOR_OPS.ASSET_INSTANTIATE);
+  if (restore || instantiated) {
+    await ui.restoreAssets?.();
+  }
+}
+
+function repaint(ui, dirtyMask, reason) {
+  if (typeof ui.requestUiUpdate === "function") {
+    ui.requestUiUpdate(dirtyMask, reason);
+    return;
+  }
+  // Pre-scheduler fallback: repaint the whole editor once.
+  ui.camera = ui.sampleCamera?.(ui.state, ui.frame) ?? ui.camera;
+  ui.refreshObjects?.();
+  ui.refreshKeys?.();
+  ui.refreshInspector?.();
+  ui.render?.();
+}
+
+export function executeDirectorTransaction(ui, input) {
+  let tx;
+  try {
+    tx = validateDirectorTransaction(ui, input);
+  } catch (error) {
+    if (error instanceof DirectorApiError) return failure(ui, input?.id, error);
+    throw error;
+  }
+
+  const beforeRevision = currentRevision(ui);
+
+  if (
+    tx.baseRevision !== undefined
+    && tx.baseRevision !== beforeRevision
+  ) {
+    return failure(
+      ui,
+      tx.id,
+      new DirectorApiError(
+        "STALE_REVISION",
+        "Scene changed since the caller read it",
+        null,
+        {
+          expected: beforeRevision,
+          received: tx.baseRevision,
+        },
+      ),
+    );
+  }
+
+  const draft = clone(ui.state);
+  let dirtyMask = 0;
+  const warnings = [];
+  const outcomes = [];
+
+  for (let index = 0; index < tx.operations.length; index += 1) {
+    try {
+      const result = applyDirectorOperation({ ui, state: draft, operation: tx.operations[index] });
+      dirtyMask |= result?.dirtyMask || 0;
+      if (result?.warning) warnings.push(result.warning);
+      if (result?.outcome) outcomes.push({ index, ...result.outcome });
+    } catch (error) {
+      if (error instanceof DirectorApiError) {
+        if (error.operationIndex === null || error.operationIndex === undefined) {
+          error.operationIndex = index;
+        }
+        return failure(ui, tx.id, error);
+      }
+      throw error;
+    }
+  }
+
+  if (tx.validateOnly) {
+    const { changes, truncated } = computeSemanticDiff(ui.state, draft);
+    return {
+      ok: true,
+      version: DIRECTOR_API_VERSION,
+      revision: beforeRevision,
+      id: tx.id,
+      applied: tx.operations.length,
+      warnings,
+      outcomes,
+      dirtyMask,
+      validateOnly: true,
+      changes,
+      ...(truncated ? { truncated: true } : {}),
+    };
+  }
+
+  ui.checkpoint?.(tx.description);
+  ui.state = sanitizeState(draft);
+
+  const active = prepareCommittedActiveCamera(ui);
+
+  rememberTransactionId(ui, tx.id);
+  ui.serialize?.();
+
+  restoreViewportCamera(ui, active);
+  repaint(ui, dirtyMask, `director-api:${tx.id}`);
+
+  const result = {
+    ok: true,
+    version: DIRECTOR_API_VERSION,
+    baseRevision: beforeRevision,
+    revision: currentRevision(ui),
+    id: tx.id,
+    applied: tx.operations.length,
+    warnings,
+    outcomes,
+    dirtyMask,
+  };
+
+  // The canonical mutation above already committed successfully -- a failure
+  // here must never look like a failed transaction (no rollback is possible
+  // or attempted), but it must not vanish into a console-only warning either,
+  // or "the state changed but I do not see the mesh" is undiagnosable
+  // (design spec Task 11). `warnings` is the same array `result.warnings`
+  // points to, so a caller holding onto `result` sees this appended even
+  // though it resolves after the synchronous return below -- this keeps
+  // executeDirectorTransaction() itself synchronous for its many existing
+  // synchronous callers. A caller that instead serializes `result` right
+  // away (the external Agent bridge, replying over HTTP) cannot observe a
+  // later in-place mutation, so it must await the same promise before
+  // serializing: exposed here, non-enumerable so it never leaks into a
+  // JSON.stringify(result) or a shallow {...result} spread.
+  const reconciliation = reconcileRuntimeResources(ui, tx, outcomes).catch((error) => {
+    console.warn("OmniCam: resource reconciliation failed", error);
+    warnings.push({
+      code: "VIEWPORT_RESOURCE_RECONCILE_FAILED",
+      message: "The scene change was committed, but one or more viewport resources could not be refreshed.",
+    });
+    ui.setStatus?.("The scene change was committed, but one or more viewport resources could not be refreshed.");
+  });
+  Object.defineProperty(result, "_reconciliation", { value: reconciliation, enumerable: false });
+
+  return result;
+}

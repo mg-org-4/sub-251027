@@ -1,0 +1,34 @@
+﻿// DOM event listeners, split by UI responsibility.
+
+import { bindEditorAndGlobal } from "./event-bindings/editor-global.js";
+import { bindTransportAndMedia } from "./event-bindings/transport-media.js";
+import { bindDirectorChrome } from "./event-bindings/director-chrome.js";
+import { bindViewportSettings } from "./event-bindings/viewport-settings.js";
+import { bindPanelResize } from "./event-bindings/panel-resize.js";
+import { bindCameraPathDraw } from "./event-bindings/camera-path-draw.js";
+import { bindSceneLibrary } from "./event-bindings/scene-library.js";
+import { bindMotionTrackEvents } from "./motion-tracks/interactions.js";
+import { bindMotionCreation } from "./motion-tracks/creation.js";
+import { bindMotionPreview } from "./motion-tracks/preview.js";
+
+export function syncMirroredControl(root, role, source, property = "value") {
+  for (const control of root.querySelectorAll(`[data-role="${role}"]`)) {
+    if (control !== source) control[property] = source[property];
+  }
+}
+
+export function bindEditorEvents(ui) {
+  ui.abortController = new AbortController();
+  const signal = ui.abortController.signal;
+  const q = (selector) => ui.root.querySelector(selector);
+  bindMotionTrackEvents(ui, signal);
+  bindMotionCreation(ui, signal);
+  bindMotionPreview(ui, signal);
+  bindTransportAndMedia(ui, q, signal);
+  bindViewportSettings(ui, q, signal);
+  bindPanelResize(ui, signal);
+  bindCameraPathDraw(ui, signal);
+  bindSceneLibrary(ui, signal);
+  bindEditorAndGlobal(ui, q, signal);
+  bindDirectorChrome(ui, signal);
+}

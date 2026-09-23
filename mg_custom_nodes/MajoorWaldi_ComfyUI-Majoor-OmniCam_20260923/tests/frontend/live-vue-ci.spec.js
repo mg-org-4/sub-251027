@@ -1,0 +1,329 @@
+import { expect, test } from "@playwright/test";
+import { queueProductGraph, waitForComfyCanvas } from "./live-helpers.js";
+
+const CASES = [
+  ["MajoorOmniCamDirector", "__majoorOmniCam"],
+  ["MajoorOmniCamExtractor", "__majoorOmniCamExtractor"],
+  ["MajoorOmniCamMonitor", "__majoorOmniCamMonitor"],
+];
+
+const MARKERS = CASES.map(([, marker]) => marker);
+
+async function openReady(page) {
+  await page.goto("/");
+  await waitForComfyCanvas(page);
+  await page.waitForFunction(
+    () =>
+      window.comfyAPI?.app?.app?.isGraphReady
+      && window.LiteGraph?.registered_node_types?.MajoorOmniCamDirector
+      && window.LiteGraph?.registered_node_types?.MajoorOmniCamExtractor
+      && window.LiteGraph?.registered_node_types?.MajoorOmniCamMonitor,
+    null,
+    { timeout: 30_000 },
+  );
+}
+
+async function enableVueNodes(page) {
+  await page.evaluate(async () => {
+    const { app } = await import("/scripts/app.js");
+    await app.extensionManager.setting.set("Comfy.VueNodes.Enabled", true);
+    app.graph.clear();
+  });
+  await waitForComfyCanvas(page);
+}
+
+/** Resolve whichever OmniCam marker a node carries, and its live root element. */
+async function rootState(page, handle) {
+  return page.evaluate(({ handle, markers }) => {
+    const node = window[handle];
+    const marker = markers.find((name) => node?.[name]);
+    const root = marker ? node[marker].root : null;
+    // LiteGraph stores `size` as an indexable Float32Array-like, not a real
+    // Array (and the Nodes 2.0 layer wraps it again), so `Array.isArray` is
+    // the wrong gate -- probe for two finite numeric slots instead.
+    const rawSize = node?.size;
+    const size =
+      rawSize && rawSize.length >= 2 && Number.isFinite(Number(rawSize[0])) && Number.isFinite(Number(rawSize[1]))
+        ? [Math.round(rawSize[0]), Math.round(rawSize[1])]
+        : null;
+    return {
+      marker: marker || null,
+      connected: Boolean(root?.isConnected),
+      width: root?.getBoundingClientRect().width || 0,
+      size,
+    };
+  }, { handle, markers: MARKERS });
+}
+
+// Director is the only product left mounting a compact, always-mounted shell
+// (workbench migration plan Task 10): its editor's __majoorOmniCam root does
+// not exist until a user (or this test) opens the workbench via the shell's
+// Open button. Extractor and Monitor mount their full panel inline,
+// immediately, with no shell and no open step (Monitor/Extractor inline
+// migration) -- openWorkbenchIfShell() below is a no-op for them.
+const SHELL_RUNTIME_MARKER = {
+  MajoorOmniCamDirector: "__majoorOmniCamDirectorRuntime",
+};
+
+async function openWorkbenchIfShell(page, handle, nodeType) {
+  const runtimeMarker = SHELL_RUNTIME_MARKER[nodeType];
+  if (!runtimeMarker) return;
+  await page.waitForFunction(
+    ({ handle, runtimeMarker }) => Boolean(window[handle]?.[runtimeMarker]?.shell?.openButton),
+    { handle, runtimeMarker },
+    { timeout: 60_000 },
+  );
+  await page.evaluate(
+    ({ handle, runtimeMarker }) => window[handle][runtimeMarker].shell.openButton.click(),
+    { handle, runtimeMarker },
+  );
+}
+
+async function waitAttached(page, handle) {
+  await page.waitForFunction(
+    ({ handle, markers }) => {
+      const node = window[handle];
+      return markers.some((name) => node?.[name]?.root?.isConnected);
+    },
+    { handle, markers: MARKERS },
+    // The Director editor bundle is heavy and the pinned/latest frontend CI lanes
+    // fetches an unreleased build from GitHub before the first paint; a cold
+    // CPU-only runner can take well past 45s to mount the first Vue root.
+    { timeout: 60_000 },
+  );
+}
+
+for (const [nodeType, marker] of CASES) {
+  test(`${nodeType} mounts and disposes with Nodes 2.0 enabled`, async ({ page }) => {
+    // Cold boot + unreleased-frontend fetch + first Vue-root mount overruns the
+    // default 60s file budget on the pinned/latest frontend lanes; take the triple.
+    test.slow();
+    const pageErrors = [];
+    page.on("pageerror", (error) => {
+      pageErrors.push(String(error?.stack || error));
+    });
+
+    await openReady(page);
+    await enableVueNodes(page);
+
+    await page.evaluate(async (type) => {
+      const { app } = await import("/scripts/app.js");
+      const node = window.LiteGraph.createNode(type);
+      app.graph.add(node);
+      window.__omnicamVueTestNode = node;
+    }, nodeType);
+    await openWorkbenchIfShell(page, "__omnicamVueTestNode", nodeType);
+
+    await page.waitForFunction(
+      ({ marker }) =>
+        Boolean(window.__omnicamVueTestNode?.[marker]?.root?.isConnected),
+      { marker },
+      // Match waitAttached: the pinned/latest frontend lanes' first mount is slow.
+      { timeout: 60_000 },
+    );
+
+    const mounted = await page.evaluate(
+      ({ marker }) => ({
+        hasMarker: Boolean(window.__omnicamVueTestNode?.[marker]),
+        connected: Boolean(
+          window.__omnicamVueTestNode?.[marker]?.root?.isConnected,
+        ),
+      }),
+      { marker },
+    );
+
+    expect(mounted.hasMarker).toBe(true);
+    expect(mounted.connected).toBe(true);
+
+    await page.evaluate(async () => {
+      const { app } = await import("/scripts/app.js");
+      const node = window.__omnicamVueTestNode;
+      window.__omnicamDisposedRoot =
+        node.__majoorOmniCam?.root
+        || node.__majoorOmniCamExtractor?.root
+        || node.__majoorOmniCamMonitor?.root;
+      app.graph.remove(node);
+    });
+
+    await page.waitForFunction(
+      () => !window.__omnicamDisposedRoot?.isConnected,
+    );
+
+    expect(pageErrors).toEqual([]);
+  });
+}
+
+for (const [nodeType] of CASES) {
+  test(`${nodeType} survives resize, right sidebar, serialization reload, duplication and queue (Nodes 2.0)`, async ({ page }) => {
+    // Mount + four resizes + sidebar + reload + duplicate + queue is a lot for
+    // one CPU-only CI test, and three of those steps now wait up to 60s for a
+    // Vue root on the slow pinned/latest frontend lanes; budget for the sum.
+    test.setTimeout(300_000);
+    const pageErrors = [];
+    page.on("pageerror", (error) => pageErrors.push(String(error?.stack || error)));
+
+    await openReady(page);
+    await enableVueNodes(page);
+
+    // --- mount -------------------------------------------------------------
+    await page.evaluate(async (type) => {
+      const { app } = await import("/scripts/app.js");
+      const node = window.LiteGraph.createNode(type);
+      app.graph.add(node);
+      window.__omniPrimary = node;
+    }, nodeType);
+    await openWorkbenchIfShell(page, "__omniPrimary", nodeType);
+    await waitAttached(page, "__omniPrimary");
+
+    // --- resize through several sizes, including a narrow one -------------
+    // A DOM-widget node whose width math is wrong (the open ComfyUI issues
+    // around right-panel width and resize) breaks here: the mounted root
+    // detaches, collapses to zero width, or throws from afterResize.
+    const sizes = [[1400, 1200], [760, 760], [1024, 1500], [900, 900]];
+    for (const size of sizes) {
+      await page.evaluate(async ({ size }) => {
+        const { app } = await import("/scripts/app.js");
+        window.__omniPrimary.setSize(size);
+        app.graph.setDirtyCanvas(true, true);
+        window.dispatchEvent(new Event("resize"));
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }, { size });
+      const state = await rootState(page, "__omniPrimary");
+      expect(state.connected, `root detached after resize to ${size}`).toBe(true);
+      expect(state.width, `root collapsed to zero width after resize to ${size}`).toBeGreaterThan(0);
+    }
+
+    // For Director (still open from the mount/resize checks above), the
+    // workbench is a body-level modal (`aria-modal="true"`) whose backdrop
+    // legitimately blocks pointer events elsewhere on the page while open --
+    // close it before touching ComfyUI's own sidebar; the reload and
+    // duplicate steps below reopen it via openWorkbenchIfShell as needed.
+    // A no-op for Extractor/Monitor: their panel is inline, not a modal, so
+    // there is nothing for Escape to close.
+    await page.keyboard.press("Escape");
+
+    // --- open a real sidebar, then resize again --------------------------
+    // The per-tab button DOM keeps churning across frontend releases: the
+    // `.node-library-tab-button` class the 1.49.x fixtures (and this test)
+    // relied on is gone by 1.54.x. The `.side-bar-button` /
+    // `.side-bar-button-selected` / `.sidebar-content-container` contract has
+    // held since well before 1.43, so key off that. Prefer the node-library
+    // tab while its class survives, else open whichever tab is first -- the
+    // test only needs a panel open to exercise the resize math. Requiring the
+    // selected state means this test still can't silently pass with no panel.
+    const nodeLibraryTab = page.locator(".side-bar-button.node-library-tab-button");
+    const sidebarButton = (await nodeLibraryTab.count())
+      ? nodeLibraryTab.first()
+      : page.locator(".side-bar-button").first();
+    await expect(sidebarButton).toBeVisible({ timeout: 15_000 });
+    if (!(await sidebarButton.evaluate((element) => element.classList.contains("side-bar-button-selected")))) {
+      await sidebarButton.click();
+    }
+    await expect(page.locator(".side-bar-button-selected")).toBeVisible();
+    await expect(page.locator(".sidebar-content-container").first()).toBeVisible();
+
+    // Reopen Director's workbench (closing destroys the transient editor
+    // object, not just hides it -- see director/shell.js) for the "root
+    // detached with the right sidebar open" check just below. A no-op for
+    // Extractor/Monitor, whose panel was never closed.
+    await openWorkbenchIfShell(page, "__omniPrimary", nodeType);
+    await waitAttached(page, "__omniPrimary");
+
+    await page.evaluate(async () => {
+      window.__omniPrimary.setSize([1100, 1100]);
+      window.dispatchEvent(new Event("resize"));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    {
+      const state = await rootState(page, "__omniPrimary");
+      expect(state.connected, "root detached with the right sidebar open").toBe(true);
+      expect(state.width, "root collapsed with the right sidebar open").toBeGreaterThan(0);
+    }
+
+    // --- serialize, reload the workflow, expect the chosen size to survive
+    const savedSize = await page.evaluate(() => {
+      window.__omniPrimary.setSize([1234, 1122]);
+      return [Math.round(window.__omniPrimary.size[0]), Math.round(window.__omniPrimary.size[1])];
+    });
+    await page.evaluate(async () => {
+      const { app } = await import("/scripts/app.js");
+      const node = window.__omniPrimary;
+      const serialized = node.serialize();
+      const data = { last_node_id: node.id, last_link_id: 0, nodes: [serialized], links: [] };
+      if (typeof app.loadGraphData === "function") await app.loadGraphData(data);
+      else app.graph.configure(data);
+      window.__omniPrimary = app.graph.nodes.find((candidate) => candidate.comfyClass === node.comfyClass);
+    });
+    await openWorkbenchIfShell(page, "__omniPrimary", nodeType);
+    await waitAttached(page, "__omniPrimary");
+    {
+      const state = await rootState(page, "__omniPrimary");
+      expect(state.marker, "node did not re-mount its Vue root after reload").not.toBeNull();
+      expect(state.connected).toBe(true);
+      // A restored node keeps the saved size (floored to the node minimum),
+      // never silently snapped back to the default.
+      expect(state.size[0]).toBeGreaterThanOrEqual(Math.min(savedSize[0], 640));
+      expect(Math.abs(state.size[0] - savedSize[0])).toBeLessThanOrEqual(savedSize[0]);
+    }
+
+    // --- duplicate: both roots mount and stay independent ----------------
+    // Tag the primary's live root before cloning: for Director/Extractor,
+    // opening the clone's workbench below closes the primary's (only one
+    // workbench may be open at a time, migration plan section 7), so the
+    // primary's marker/root may already be gone by the time we can check
+    // distinctness -- a DOM tag survives that regardless of which side is
+    // still mounted.
+    await page.evaluate(({ markers }) => {
+      const marker = markers.find((name) => window.__omniPrimary?.[name]);
+      window.__omniPrimary[marker].root.dataset.omnicamTestPrimary = "1";
+    }, { markers: MARKERS });
+
+    await page.evaluate(async () => {
+      const { app } = await import("/scripts/app.js");
+      const clone = window.__omniPrimary.clone();
+      clone.pos = [window.__omniPrimary.pos[0] + 80, window.__omniPrimary.pos[1] + 80];
+      app.graph.add(clone);
+      window.__omniClone = clone;
+    });
+    await openWorkbenchIfShell(page, "__omniClone", nodeType);
+    await waitAttached(page, "__omniClone");
+    {
+      const clone = await rootState(page, "__omniClone");
+      expect(clone.connected, "duplicate's workbench/editor failed to mount").toBe(true);
+      const distinct = await page.evaluate(({ markers }) => {
+        const marker = markers.find((name) => window.__omniClone?.[name]);
+        return window.__omniClone[marker].root.dataset.omnicamTestPrimary !== "1";
+      }, { markers: MARKERS });
+      expect(distinct, "duplicate shares the original's root element").toBe(true);
+
+      if (!SHELL_RUNTIME_MARKER[nodeType]) {
+        // Extractor and Monitor mount inline, independently per node -- both
+        // the original and the duplicate stay mounted simultaneously, unlike
+        // the single-workbench-at-a-time policy that still governs Director.
+        const primary = await rootState(page, "__omniPrimary");
+        expect(primary.connected, "primary root detached after duplicating").toBe(true);
+      }
+    }
+
+    // --- queue the graph with Vue nodes enabled -------------------------
+    await queueProductGraph(page, "__omniPrimary");
+
+    // --- remove everything: every root disposes ------------------------
+    await page.evaluate(async () => {
+      const { app } = await import("/scripts/app.js");
+      window.__omniDisposedRoots = [window.__omniPrimary, window.__omniClone].map((node) => {
+        const marker = ["__majoorOmniCam", "__majoorOmniCamExtractor", "__majoorOmniCamMonitor"].find((name) => node?.[name]);
+        return marker ? node[marker].root : null;
+      });
+      app.graph.remove(window.__omniClone);
+      app.graph.remove(window.__omniPrimary);
+    });
+    await page.waitForFunction(
+      () => (window.__omniDisposedRoots || []).every((root) => !root || !root.isConnected),
+      null,
+      { timeout: 30_000 },
+    );
+
+    expect(pageErrors).toEqual([]);
+  });
+}

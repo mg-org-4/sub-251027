@@ -1,0 +1,1545 @@
+# qwen3vl_node.py
+import sys
+import os
+import json
+import tempfile
+import subprocess
+import torch
+import gc
+import comfy.model_management
+import pickle
+import hashlib
+import time
+from PIL import Image
+from typing import Optional, Dict, Any
+import textwrap
+import traceback
+import re
+import folder_paths
+import threading
+
+HAS_JSON_REPAIR = False
+try:
+    from json_repair import repair_json
+    HAS_JSON_REPAIR = True
+except ImportError:
+    print("Warning: json_repair not available, using standard json parsing only")
+
+CATEGORY_NAME = "🌐 SimpleQwenVL"
+NODE_USER_DIR_NAME = "SimpleQwenVL_configs"
+
+from pathlib import Path
+current_dir = str(Path(__file__).parent)
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+from debug_print import _debug_print
+import qwen3vl_run
+
+_current_module = None
+
+def _norm_default(value, default):
+    """
+    If value equals default (after JSON round-trip), treat as None.
+    Useful for numeric defaults like n_keep=-1, embedding_scale=1.0.
+    """
+    if value is None:
+        return None
+    try:
+        if value == default:
+            return None
+    except Exception:
+        pass
+    return value
+
+# ========== Глобальный кеш и переменные ==========
+_config_cache = {}
+_last_modified = {}
+_user_config_file = None  
+_is_inferring = False       # True, пока нода в execute
+_pending_cleanup = False    # True, если пришёл запрос во время инференса
+
+def get_user_config_path() -> str:
+    """Возвращает путь к пользовательскому файлу конфигурации, создавая его при необходимости."""
+    global _user_config_file  
+    try:
+        _user_base = folder_paths.get_user_directory()
+        _user_dir = os.path.join(_user_base, NODE_USER_DIR_NAME)
+        os.makedirs(_user_dir, exist_ok=True)
+        
+        _user_config_file = os.path.join(_user_dir, "system_prompts_user.json")
+        if not os.path.exists(_user_config_file):
+            default_user_data = {
+                "_system_prompts": {},
+                "_user_prompt_styles": {},
+                "_camera_preset": {},
+                "_model_presets": {},
+                "_user_prompt_template": {}
+            }
+            with open(_user_config_file, 'w', encoding='utf-8') as f:
+                json.dump(default_user_data, f, indent=2, ensure_ascii=False)
+            print(f"[SimpleQwenVL] Created default user config at: {_user_config_file}")
+        
+        return _user_config_file
+    except Exception as e:
+        print(f"[SimpleQwenVL] Warning: Could not initialize user directory: {e}")
+        return None
+
+def invalidate_cache():
+    """Очищает глобальный кэш, заставляя систему перечитать файлы."""
+    global _config_cache, _last_modified
+    _config_cache.clear()
+    _last_modified.clear()
+
+# ==========================================================
+# ИНИЦИАЛИЗАЦИЯ ПРИ ИМПОРТЕ МОДУЛЯ (ОДИН РАЗ ПРИ СТАРТЕ COMFYUI)
+# ==========================================================
+get_user_config_path()
+
+def get_config_files():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    files = {}
+    files['main'] = os.path.join(current_dir, "system_prompts.json")
+    files['user_legacy'] = os.path.join(current_dir, "system_prompts_user.json")
+    
+    if _user_config_file and os.path.exists(_user_config_file):
+        files['user'] = _user_config_file
+    
+    return files
+
+def repair_and_load_json(content: str, filepath: Optional[str] = None) -> Dict:
+    # Сначала пробуем стандартный json.loads
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as e:
+        # Если не получилось и есть json_repair - пробуем его
+        if HAS_JSON_REPAIR:
+            try:
+                repaired = repair_json(content)
+                if not repaired or not repaired.strip():
+                    raise ValueError(f"json_repair returned empty result for {filepath}")
+                result = json.loads(repaired)
+                print(f"[SimpleQwenVL] Warning: JSON in {filepath} was repaired by json_repair")
+                return result
+            except Exception as repair_error:
+                raise ValueError(
+                    f"Failed to parse JSON in {filepath} even after repair: {repair_error}\n"
+                    f"Original error: {e}\n"
+                    f"Content preview: {content[:200]}..."
+                ) from repair_error
+        else:
+            raise ValueError(f"Failed to parse JSON in {filepath}: {e}") from e
+
+def _update_cache_if_needed():
+    files = get_config_files()
+    need_reload = False
+    
+    for name, path in files.items():
+        if os.path.exists(path):
+            mtime = os.path.getmtime(path)
+            if _last_modified.get(name, 0) < mtime:
+                need_reload = True
+                break
+                
+    if need_reload or not _config_cache:
+        combined = {}
+        for name, path in files.items():
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    data = repair_and_load_json(content, path)
+                    if isinstance(data, dict):
+                        for key, value in data.items():
+                            if key.startswith('_'):
+                                combined.setdefault(key, {}).update(value)
+                except Exception as e:
+                    print(f"[SimpleQwenVL] Failed to load config file {path}: {e}")
+                    continue # <--- ВАЖНО: continue вместо raise, чтобы один битый файл не ломал всё
+        
+        _config_cache.clear()
+        _config_cache.update(combined)
+        for name, path in files.items():
+            if path and os.path.exists(path):
+                _last_modified[name] = os.path.getmtime(path)
+                
+    return _config_cache
+
+def load_cached_section(section_name: str) -> Dict:
+    cache = _update_cache_if_needed()
+    return cache.get(section_name, {}).copy()
+
+def load_unbanned_section(section_name: str) -> dict:
+    """Возвращает объединённую секцию из кэша, исключая записи "BANNED"."""
+    raw = load_cached_section(section_name)
+    return {k: v for k, v in raw.items() if v != "BANNED"}
+
+# ========== Вспомогательные функции ==========
+def clear_memory(gccollect = False, debug = False):
+    try:
+        t_start = time.perf_counter()   
+        comfy.model_management.unload_all_models()
+        comfy.model_management.soft_empty_cache()
+        _debug_print(debug, "clear memory: unload_all_models", t_start)
+
+        t_start = time.perf_counter()   
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+        _debug_print(debug, "clear memory: cuda.empty_cache", t_start)
+
+        if gccollect:
+            t_start = time.perf_counter()   
+            gc.collect()
+            _debug_print(debug, "clear memory: gc.collect", t_start)
+
+    except Exception as e:
+        print(f"[ERROR] during cache clearing: {e}", file=sys.stderr)
+
+def clear_temp_files(temp_paths):
+    for path in temp_paths:
+        if isinstance(path, str) and os.path.exists(path):
+            try:
+                os.unlink(path)
+            except Exception as e:
+                print(f"[WARNING] Could not delete temp file {path}: {e}", file=sys.stderr)
+
+def process_images(image_inputs, file_mode=True, file_format='JPEG', jpeg_quality=95, max_images=10):
+    """
+    image_inputs: список из трёх элементов (image, image2, image3), каждый может быть тензором (B,H,W,C) или None.
+    Возвращает список путей к временным файлам (если file_mode=True) или список PIL.Image.
+    """
+    results = []
+    total_images = 0
+
+    for idx, img_batch in enumerate(image_inputs):
+        if img_batch is None:
+            continue
+        # Проверка размерности
+        if img_batch.ndim == 4:
+            batch_size = img_batch.shape[0]
+            # Если тензор 4D, перебираем все изображения в батче
+            for i in range(batch_size):
+                img_tensor = img_batch[i]
+                if img_tensor.numel() == 0:
+                    print(f"Warning: Image {idx+1}, element {i}: Empty tensor, skipping")
+                    continue
+                if img_tensor.shape[-3] == 0 or img_tensor.shape[-2] == 0:
+                    print(f"Warning: Image {idx+1}, element {i}: Zero dimensions, skipping")
+                    continue
+                # Обработка одного изображения
+                total_images += 1
+                if total_images > max_images:
+                    print(f"[WARNING] Number of image exceeds {max_images}. Please reduce input/batch size.", file=sys.stderr)
+                    continue
+                # Далее как раньше: конвертация в PIL и сохранение
+                pil_img = tensor_to_pil(img_tensor)  # вынесем в отдельную функцию
+                if file_mode:
+                    temp_path = save_pil_temp(pil_img, file_format, jpeg_quality)
+                    results.append(temp_path)
+                else:
+                    results.append(pil_img)
+        elif img_batch.ndim == 3:
+            # Одиночное изображение
+            img_tensor = img_batch
+            if img_tensor.numel() == 0:
+                print(f"Warning: Image {idx+1}: Empty tensor, skipping")
+                continue
+            if img_tensor.shape[-3] == 0 or img_tensor.shape[-2] == 0:
+                print(f"Warning: Image {idx+1}: Zero dimensions, skipping")
+                continue
+            total_images += 1
+            if total_images > max_images:
+                print(f"[WARNING] Number of image exceeds {max_images}. Please reduce input/batch size.", file=sys.stderr)
+                continue
+            pil_img = tensor_to_pil(img_tensor)
+            if file_mode:
+                temp_path = save_pil_temp(pil_img, file_format, jpeg_quality)
+                results.append(temp_path)
+            else:
+                results.append(pil_img)
+        else:
+            print(f"Warning: Unexpected tensor dimension {img_batch.ndim} for input {idx+1}, skipping")
+    return results
+
+def process_audios(audio_inputs, file_mode=True, target_sr=None, max_audios=3):
+    import numpy as np
+    import wave
+    import io
+
+    if target_sr is not None:
+        try:
+            import torchaudio
+        except ImportError:
+            target_sr = None
+            print("[WARNING] torchaudio not installed. Resampling disabled.", file=sys.stderr)
+
+    results = []
+    total = 0
+
+    for aud in audio_inputs:
+        if aud is None:
+            continue
+
+        # Распаковка
+        waveform = aud['waveform'] # тензор формы (B, C, T)
+        sr_in = aud.get('sample_rate', 16000)
+
+        # Ресемплинг (если нужен) – применяем ко всему батчу сразу
+        if target_sr is not None and sr_in != target_sr:
+            waveform = torchaudio.functional.resample(waveform, orig_freq=sr_in, new_freq=target_sr)
+            print(f"[DEBUG] Audio resample: {sr_in} -> {target_sr}", file=sys.stderr)
+            sr_in = target_sr
+        else:
+            print(f"[DEBUG] Audio sample rate: {sr_in}", file=sys.stderr)
+
+        # Переносим на CPU и в numpy
+        if hasattr(waveform, 'cpu'):
+            waveform = waveform.cpu()
+        aud_np = waveform.numpy()  # форма (B, C, T)
+
+        # Итерируем по батчу
+        for b in range(aud_np.shape[0]):
+            if total >= max_audios:
+                print(f"[WARNING] Number of audio exceeds {max_audios}. Please reduce input/batch size.", file=sys.stderr)
+                continue
+
+            # Берём один элемент батча: (C, T)
+            audio_channel_sample = aud_np[b]  # форма (C, T)
+
+            # Если стерео (C=2) – смешиваем в моно (усредняем по каналам)
+            if audio_channel_sample.shape[0] == 2:
+                audio_mono = np.mean(audio_channel_sample, axis=0)  # (T,)
+            else:
+                audio_mono = audio_channel_sample[0]  # берём первый канал, если C=1
+
+            # Float [-1,1] -> int16 PCM
+            aud_int16 = np.clip(audio_mono * 32767.0, -32768, 32767).astype(np.int16)
+
+            # Запись
+            if file_mode:
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
+                    with wave.open(f.name, 'wb') as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(2)
+                        wf.setframerate(sr_in)
+                        wf.writeframes(aud_int16.tobytes())
+                    results.append(f.name)
+            else:
+                buf = io.BytesIO()
+                with wave.open(buf, 'wb') as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(sr_in)
+                    wf.writeframes(aud_int16.tobytes())
+                results.append(buf.getvalue())
+
+            total += 1
+
+    return results
+
+# ============================================================
+# Video helpers (phase 1)
+# ============================================================
+
+def _video_from_file(vid):
+    """
+    Получает из VideoFromFile путь к файлу и параметры обрезки.
+    """
+    video_path = None
+    if hasattr(vid, '_VideoFromFile__file'):
+        video_path = str(vid._VideoFromFile__file)
+    elif hasattr(vid, 'path'):
+        video_path = str(vid.path)
+        
+    if not video_path or not os.path.exists(video_path):
+        print(f"[ERROR] Invalid video path: {video_path}", file=sys.stderr)
+        return None
+
+    # Извлекаем параметры обрезки для передачи в config
+    start_time = 0.0
+    duration = 0.0
+    try:
+        if hasattr(vid, 'get_active_trim_window'):
+            start_time, duration = vid.get_active_trim_window()
+        elif hasattr(vid, 'get_duration'):
+            duration = vid.get_duration()    
+    except Exception as e:
+        print(f"[ERROR] get_active_trim_window/get_duration failed: {e}", file=sys.stderr)
+        return None
+
+    return video_path, start_time, duration
+
+def _video_from_tensor(vid, max_frames):
+    """
+    Конвертирует VideoFromComponents или torch-тензор в numpy-массив uint8 (RGB) и прореживает до max_frames.
+    """
+    tensor_frames = None
+    if hasattr(vid, 'get_components'):
+        try:
+            components = vid.get_components()
+            if hasattr(components, 'images'):
+                tensor_frames = components.images
+            else:
+                print(f"[ERROR] Сomponents has no 'images' attribute", file=sys.stderr)
+                return None
+        except Exception as e:
+            print(f"[ERROR] get_components failed: {e}", file=sys.stderr)
+            return None
+    else:
+        tensor_frames = vid
+        
+    if tensor_frames is None:
+        return None
+
+    if tensor_frames.dtype in (torch.float32, torch.float16, torch.bfloat16):
+        if tensor_frames.max() > 1.0:
+            tensor_frames = tensor_frames.clamp(0, 255).byte()
+        else:
+            tensor_frames = (tensor_frames * 255).clamp(0, 255).byte()
+    elif tensor_frames.dtype != torch.uint8:
+        tensor_frames = tensor_frames.byte()
+
+    np_frames = tensor_frames.cpu().numpy()
+    if len(np_frames.shape) == 5:
+        np_frames = np_frames[0]
+
+    # Прореживание до max_frames
+    if len(np_frames) > max_frames:
+        indices = np.linspace(0, len(np_frames) - 1, max_frames).astype(int)
+        np_frames = np_frames[indices]
+
+    return np_frames
+
+def _process_videos_native(video_inputs, config, execution_mode):
+    """
+    Native-режим.
+    """
+    max_frames = config.get("max_frames", 24)
+    target_fps = config.get("video_fps_target", 1.0)
+
+    video_values = []
+    config_updates = {}
+    file_paths = []
+    total_frame_num = 0
+
+    # В нативном режиме в любом случае нужен ffmpeg
+    ffmpeg_exe = _get_ffmpeg_exe_node()
+    if ffmpeg_exe is None:
+        return [], {}, []
+    config_updates["video_ffmpeg_bin_dir"] = os.path.dirname(ffmpeg_exe)
+    
+    for vid in video_inputs:
+        if vid is None:
+            continue
+
+        vid_type = str(type(vid))
+
+        # --- Сценарий 1: VideoFromFile ---
+        if 'VideoFromFile' in vid_type:
+
+            result = _video_from_file(vid)
+            if result is None:
+                continue
+            video_path, start_time, duration = result
+
+            has_trim = (start_time > 0) or (duration > 0)
+            if has_trim:
+                trimmed_path = _trim_video_with_ffmpeg_node(video_path, start_time, duration, ffmpeg_exe)
+                if trimmed_path is None:
+                    continue
+
+                # Добавляем новый файл
+                file_paths.append(trimmed_path)
+                video_values.append({ "path":trimmed_path })
+                total_frame_num += max_frames
+
+            else:
+
+                # Добавляем исходный файл, обрезка не требуется
+                video_values.append({ "path":video_path })
+                total_frame_num += max_frames
+
+        # --- Сценарий 2: VideoFromComponents или сырой тензор ---
+        elif hasattr(vid, 'get_components') or isinstance(vid, torch.Tensor):
+
+            np_frames = _video_from_tensor(vid, max_frames)
+            if np_frames is None:
+                continue
+
+            encoded_path = _encode_video_with_ffmpeg_node(np_frames, fps=target_fps, ffmpeg_exe=ffmpeg_exe)
+            if encoded_path is None:
+                continue
+
+            # Добавляем новый файл
+            file_paths.append(encoded_path)
+            video_values.append({ "path":encoded_path })
+            total_frame_num += len(np_frames)
+
+        else:
+            print(f"[WARNING] Unsupported video type: {vid_type}", file=sys.stderr)
+
+    config_updates['frame_num'] = total_frame_num
+    return video_values, config_updates, file_paths
+
+def _process_videos_images(video_inputs, config, execution_mode):
+    """
+    Images-режим.
+    """
+    max_frames = config.get("max_frames", 24)
+    target_fps = config.get("video_fps_target", 1.0)
+
+    video_values = []
+    config_updates = {}
+    file_paths = []
+    total_frame_num = 0
+
+    for vid in video_inputs:
+        if vid is None:
+            continue
+
+        vid_type = str(type(vid))
+
+        # --- Сценарий 1: VideoFromFile ---
+        if 'VideoFromFile' in vid_type:
+            result = _video_from_file(vid)
+            if result is None:
+                continue
+            video_path, start_time, duration = result
+
+            # Добавляем исходный файл, обрезка будет на второй стадии
+            video_values.append({ 
+                "path":video_path,
+                "trim_start": start_time,
+                "trim_duration": duration,
+            }) 
+            total_frame_num += max_frames
+
+        # --- Сценарий 2: VideoFromComponents или сырой тензор ---
+        elif hasattr(vid, 'get_components') or isinstance(vid, torch.Tensor):
+                
+            np_frames = _video_from_tensor(vid, max_frames)
+            if np_frames is None:
+                continue
+                
+            if execution_mode == "subprocess":
+                ffmpeg_exe = _get_ffmpeg_exe_node()
+                if ffmpeg_exe is None:
+                    continue
+                encoded_path = _encode_video_with_ffmpeg_node(np_frames, fps=target_fps, ffmpeg_exe=ffmpeg_exe)
+                if encoded_path is None:
+                    continue
+
+                # Добавляем новый файл
+                file_paths.append(encoded_path)
+                video_values.append({ "path":encoded_path })
+                total_frame_num += len(np_frames)
+
+            else:
+
+                # Передаем массив без создания файла
+                video_values.append({ "array":np_frames }) 
+                total_frame_num += len(np_frames)
+            
+        else:
+            print(f"[WARNING] Unsupported video type: {vid_type}", file=sys.stderr)
+            
+    config_updates['frame_num'] = total_frame_num
+    return video_values, config_updates, file_paths
+
+def process_videos(video_inputs, config, execution_mode):
+    """
+    Маршрутизатор видео-контента (Фаза 1)
+    Читает форматы VideoFromFile, VideoFromComponents или сырой тензор.
+    Возвращает: video_values (пути или numpy), config_updates, file_paths (список временных файлов для очистки)
+    """
+    video_mode = config.get("video_mode", "images")
+
+    if video_mode == "native":
+        return _process_videos_native(video_inputs, config, execution_mode)
+    else:
+        return _process_videos_images(video_inputs, config, execution_mode)
+
+# ============================================================
+# ffmpeg utilities
+# ============================================================
+
+def _get_ffmpeg_exe_node():
+    """
+    Ищет ffmpeg и ffprobe в директории Scripts или системном PATH.
+    """
+    exe_ffmpeg = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    exe_ffprobe = "ffprobe.exe" if os.name == "nt" else "ffprobe"
+    
+    # 1. Директория Scripts
+    python_dir = os.path.dirname(sys.executable)
+    bin_dir = os.path.join(python_dir, "Scripts")
+    if os.path.isdir(bin_dir):    
+        path_ffmpeg = os.path.join(bin_dir, exe_ffmpeg)
+        path_ffprobe = os.path.join(bin_dir, exe_ffprobe)
+        
+        if os.path.isfile(path_ffmpeg) and os.path.isfile(path_ffprobe):
+            return path_ffmpeg
+
+    # 2. Системный PATH 
+    import shutil
+
+    path_ffmpeg = shutil.which("ffmpeg")
+    path_ffprobe = shutil.which("ffprobe")
+
+    if path_ffmpeg and path_ffprobe and os.path.isfile(path_ffmpeg) and os.path.isfile(path_ffprobe):
+        return path_ffmpeg
+
+    print("[ERROR] ffmpeg/ffprobe path not found", file=sys.stderr)
+    return None
+
+def _trim_video_with_ffmpeg_node(video_path, start_time, duration, ffmpeg_exe=None):
+    """
+    Обрезает видеофайл с помощью ffmpeg (stream copy).
+    Возвращает путь к временному файлу при успехе, или None при ошибке.
+    """    
+    tmp_out = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+    try:
+        cmd = [
+            ffmpeg_exe, "-y", "-ss", str(start_time), "-i", video_path,
+            "-t", str(duration), "-c", "copy", tmp_out
+        ]
+        
+        subprocess.run(cmd, capture_output=True, check=True)
+        return tmp_out
+
+    except Exception as e:
+        print(f"[ERROR] ffmpeg trim failed: {e}", file=sys.stderr)
+        # Очистка неполного/поврежденного файла в случае ошибки
+        if os.path.exists(tmp_out):
+            try:
+                os.remove(tmp_out)
+            except OSError:
+                pass
+        return None
+
+def _encode_video_with_ffmpeg_node(frames_np, fps=24, ffmpeg_exe=None):
+    """
+    Кодирует numpy-кадры (T, H, W, C) uint8 RGB в видеофайл через ffmpeg.
+    ffmpeg_exe: полный путь к исполняемому файлу (не директория!).
+    """
+    if frames_np.ndim != 4 or frames_np.shape[0] == 0:
+        print(f"[ERROR] Invalid frames shape: {frames_np.shape}", file=sys.stderr)
+        return None
+        
+    tmp_out = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+    try:
+        t, h, w, c = frames_np.shape
+        pix_fmt_in = "rgb24" if c == 3 else "gray"
+        
+        cmd = [
+            ffmpeg_exe, "-y", "-f", "rawvideo", "-vcodec", "rawvideo",
+            "-s", f"{w}x{h}", "-pix_fmt", pix_fmt_in, "-framerate", str(fps),
+            "-i", "pipe:0", "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p",
+            "-preset", "ultrafast", str(tmp_out),
+        ]
+        
+        subprocess.run(cmd, input=frames_np.tobytes(), capture_output=True, check=True)
+        return tmp_out
+
+    except Exception as e:
+        print(f"[ERROR] ffmpeg encode failed: {e}", file=sys.stderr)
+        # Очистка неполного/поврежденного файла в случае ошибки
+        if os.path.exists(tmp_out):
+            try:
+                os.remove(tmp_out)
+            except OSError:
+                pass
+        return None
+
+# ============================================================
+
+def tensor_to_pil(img_tensor):
+    """Конвертирует тензор (H,W,C) в PIL Image."""
+    if img_tensor.shape[-1] == 4:
+        img_tensor = img_tensor[..., :3]
+    img_tensor = img_tensor.mul(255).clamp(0, 255).byte()
+    img_np = img_tensor.numpy()
+    channels = img_np.shape[-1] if img_np.ndim == 3 else 1
+    mode = 'RGB' if channels == 3 else 'L' if channels == 1 else 'RGB'
+    return Image.fromarray(img_np, mode=mode)
+
+def save_pil_temp(pil_img, file_format, jpeg_quality):
+    suffix = '.jpg' if file_format == 'JPEG' else '.png'
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
+        if file_format == 'JPEG':
+            pil_img.save(f, format='JPEG', quality=jpeg_quality, optimize=True, subsampling=0)
+        else:
+            pil_img.save(f, format='PNG', optimize=True)
+        return f.name
+
+def extract_data_from_file(data_path):
+    data = None
+    if data_path and os.path.exists(data_path):
+        try:
+            with open(data_path, 'rb') as f:
+                data = pickle.load(f)
+            os.unlink(data_path)
+        except Exception as e:
+            print(f"[WARNING] Failed to load data: {e}")
+    return data
+
+def extract_json_from_output(output: str) -> dict:
+    """Извлекает JSON из вывода, игнорируя логи до/после"""
+
+    if not output:
+        raise ValueError("Empty output")
+
+    start = output.find('{')
+    end = output.rfind('}')
+    
+    if start == -1 or end == -1:
+        raise ValueError(f"No JSON found in output:\n{output}")
+    
+    json_str = output[start:end+1]
+    
+    try:
+        return json.loads(json_str)
+
+    except json.JSONDecodeError:
+        raise ValueError(f"Invalid JSON in output:\n{output}")
+
+def run_script_subprocess(script_name, config, timeout=300):
+    node_dir = os.path.dirname(os.path.abspath(__file__))
+    script_path = os.path.join(node_dir, script_name)
+
+    if not os.path.exists(script_path):
+        return {"status": "error", "message": f"Script file '{script_name}' not found in {node_dir}"}
+
+    if os.path.basename(script_name) != script_name:
+        return {"status": "error", "message": "Script name must not contain path separators"}
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as tmp_file:
+        json.dump(config, tmp_file, ensure_ascii=False)
+        tmp_config_path = tmp_file.name
+
+    process = subprocess.Popen(
+        [sys.executable, script_path, tmp_config_path],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        errors='replace',
+        cwd=node_dir
+    )
+
+    # === communicate() в отдельном потоке ===
+    # Это гарантирует отсутствие deadlock'а (как в subprocess.run)
+    comm_result = {"stdout": None, "stderr": None, "exception": None}
+
+    def _reader():
+        try:
+            stdout, stderr = process.communicate()
+            comm_result["stdout"] = stdout
+            comm_result["stderr"] = stderr
+        except Exception as e:
+            comm_result["exception"] = e
+
+    reader_thread = threading.Thread(target=_reader, daemon=True)
+    reader_thread.start()
+
+    start_time = time.time()
+
+    try:
+        # === Основной цикл: ждём поток-читатель, проверяя прерывание и таймаут ===
+        while reader_thread.is_alive():
+            # 1. Проверка глобального таймаута
+            if time.time() - start_time > timeout:
+                print(f"[SimpleQwenVL] Subprocess timed out after {timeout}s. Killing...", file=sys.stderr)
+                process.kill()
+                reader_thread.join(timeout=3)
+                stdout = comm_result["stdout"] or ""
+                stderr = comm_result["stderr"] or ""
+                return {
+                    "status": "error",
+                    "message": f"Inference timed out ({timeout}s).",
+                    "traceback": f"STDOUT:\n{stdout}\nSTDERR:\n{stderr}"
+                }
+
+            # 2. Проверка прерывания ComfyUI (кнопка X)
+            try:
+                comfy.model_management.throw_exception_if_processing_interrupted()
+            except Exception:
+                print("[SimpleQwenVL] Interrupt detected. Terminating subprocess...", file=sys.stderr)
+                process.terminate()
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                reader_thread.join(timeout=3)
+                raise  # пробрасываем, чтобы ComfyUI остановил граф
+
+            # 3. Ждём поток-читатель 0.5 сек и идём на новый круг
+            reader_thread.join(timeout=0.5)
+
+        # === Поток-читатель завершился — проверяем, не было ли исключения ===
+        if comm_result["exception"] is not None:
+            raise comm_result["exception"]
+
+        stdout = comm_result["stdout"]
+        stderr = comm_result["stderr"]
+
+        # === Обработка результата (как в старом subprocess.run) ===
+        try:
+            output_data = extract_json_from_output(stdout)
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": str(e),
+                "traceback": f"STDOUT:\n{stdout}\nSTDERR:\n{stderr}"
+            }
+
+        if process.returncode == 0:
+            debug = config.get("debug", True)
+            if debug and stderr:
+                print(f"{stderr}", file=sys.stderr)
+            return output_data
+        else:
+            if process.returncode == 1:
+                return {
+                    "status": "error",
+                    "message": output_data.get('message', "Unknown error"),
+                    "traceback": f"STDOUT:\n{stdout}\nSTDERR:\n{stderr}\n{output_data.get('traceback', '')}"
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Subprocess failed with code: {process.returncode}",
+                    "traceback": f"STDOUT:\n{stdout}\nSTDERR:\n{stderr}"
+                }
+
+    except InterruptedError:
+        # Пробрасываем прерывание ComfyUI
+        raise
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Subprocess launch failed: {e}",
+            "traceback": traceback.format_exc()
+        }
+    finally:
+        # Гарантируем, что поток-читатель завершён
+        if reader_thread.is_alive():
+            process.kill()
+            reader_thread.join(timeout=2)
+        try:
+            os.unlink(tmp_config_path)
+        except Exception:
+            pass
+
+def run_inference_pipeline(script_name, config, mode="subprocess", gccollect = False, debug = False):
+    global _current_module
+    if not script_name:
+        return "[ERROR] Script name is not defined", None, None
+    try:
+
+        data = None
+        if mode == "subprocess":
+            #subprocess - выгружаем модель keep_vram в начале 
+            unload_model(gccollect, debug, target="keep_vram")
+
+            result = run_script_subprocess(script_name, config, timeout=300)
+        else:
+            if script_name == "qwen3vl_run.py":
+                module = qwen3vl_run
+            else:
+                return f"[ERROR] Direct execution not supported for script '{script_name}'", None, None
+
+            #Другой скрипт выбран - выгружаем все
+            if _current_module is not None and _current_module != module:
+                unload_model(gccollect, debug, target="all")
+
+            _current_module = module
+            result, data = module.run_inference_direct(config)
+
+            #direct_clean - выгружаем модель в конце 
+            if mode == "direct_clean":
+                unload_model(gccollect, debug, target="keep_vram")
+
+        #Обработка результата
+        if result.get("status") == "success":
+            text = result.get("output", "")
+            data_type = result.get("data_type", 0)
+
+            if mode == "subprocess":
+                data_file = result.get("data_file")
+                if data_file:
+                    data = extract_data_from_file(data_file)
+
+            conditioning = None
+            if data_type == 1 and data is not None:
+
+                convert_emb_to_cond = config.get("convert_emb_to_cond", False)
+                if convert_emb_to_cond:
+                    hidden_states = torch.from_numpy(data).unsqueeze(0)
+                    #  Формируем conditioning
+                    seq_len = hidden_states.shape[1]
+                    attention_mask = torch.ones((1, seq_len), dtype=torch.long)
+                    
+                    conditioning = [
+                        [
+                            hidden_states,
+                            {
+                                "pooled_output": None,
+                                "attention_mask": attention_mask
+                            }
+                        ]
+                    ]
+                else:
+                    conditioning = data
+
+            audio = None
+            if data_type == 2 and data is not None: #TTS
+                try:
+                    import io
+                    import wave     
+                    import numpy as np
+
+                    # 1. Читаем стандартный WAV
+                    with wave.open(io.BytesIO(data), 'rb') as wav_file:
+                        sample_rate = wav_file.getframerate()
+                        channels = wav_file.getnchannels()
+                        frames = wav_file.readframes(wav_file.getnframes())
+                    
+                    # 2. Преобразуем PCM16 байты в float32 массив в диапазоне [-1.0, 1.0]
+                    audio_np = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+                    
+                    # 3. Создаем тензор и приводим к форме [batch, channels, samples]
+                    waveform = torch.from_numpy(audio_np).unsqueeze(0) # временно [1, samples]
+                    
+                    if channels > 1:
+                        waveform = waveform.view(1, channels, -1)
+                    else:
+                        waveform = waveform.view(1, 1, -1) # Моно аудио: [1, 1, samples]
+                        
+                    # 4. Формируем итоговый словарь для ComfyUI
+                    audio = {
+                        "waveform": waveform,
+                        "sample_rate": int(sample_rate)
+                    }
+                except Exception as e:
+                    print(f"[ERROR] Failed to convert TTS bytes to ComfyUI format: {e}", file=sys.stderr)
+
+            return text, conditioning, audio
+        else:
+            error_msg = result.get('message', 'Unknown error')
+            output_msg = f"❌ Inference failed:\n{error_msg}\nCheck console for details."
+
+            print(f"[ERROR] Inference failed:\n{error_msg}", file=sys.stderr)
+
+            if "traceback" in result:
+                print(result["traceback"], file=sys.stderr)
+
+            # Очистка памяти при ошибке - выгружаем все
+            unload_model(False, debug, target="all")
+            clear_memory(True, debug)
+
+            return output_msg, None, None
+    except Exception as e:
+        error_msg = f"Unexpected error: {e}"
+        output_msg = f"❌ Inference failed:\n{error_msg}\nCheck console for details."
+
+        print(f"[ERROR] Inference failed:\n{error_msg}", file=sys.stderr)
+
+        print(traceback.format_exc())
+
+        # Очистка памяти при ошибке - выгружаем все
+        unload_model(False, debug, target="all")
+        clear_memory(True, debug)
+
+        return output_msg, None, None
+
+def unload_model(gccollect = False, debug = False, target="keep_vram"):
+    global _current_module
+    if _current_module is not None and hasattr(_current_module, 'unload_llama_model'):
+            _current_module.unload_llama_model(gccollect, debug=debug, target=target)
+    if target == "all":
+        _current_module = None
+
+def config_override_repair(text: str) -> Dict[str, Any]:
+    """
+    Парсит конфиг в разных форматах с ошибками.
+    """
+    
+    def extract_json_block(s: str) -> str:
+        """
+        Находит объект {...}, игнорируя скобки внутри строк.
+        Если внешних скобок нет — оборачивает «голые» key: value.
+        """
+        # 1. Ищем первый {, который НЕ внутри строки
+        start = -1
+        in_str = False
+        escape = False
+        for i, c in enumerate(s):
+            if escape:
+                escape = False
+                continue
+            if c == '\\' and in_str:
+                escape = True
+                continue
+            if c == '"':
+                in_str = not in_str
+                continue
+            if in_str:
+                continue
+            if c == '{':
+                start = i
+                break
+        
+        if start == -1:
+            # Нет внешних скобок — оборачиваем «голые» пары
+            content = s.strip().strip(',').strip()
+            return '{' + content + '}' if content else '{}'
+        
+        # 2. Сопоставляем скобки, начиная с найденного start
+        depth = 0
+        in_str = False
+        escape = False
+        
+        for i in range(start, len(s)):
+            c = s[i]
+            if escape:
+                escape = False
+                continue
+            if c == '\\' and in_str:
+                escape = True
+                continue
+            if c == '"':
+                in_str = not in_str
+                continue
+            if in_str:
+                continue
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+                if depth == 0:
+                    return s[start:i+1].strip()
+        
+        # Fallback: скобки не закрылись — пробуем спасти
+        block = s[start:].rstrip(' ,\t\n\r')
+        if not block.endswith('}'):
+            block += '}'
+        return block.strip()
+    
+    def quick_fixes(s: str) -> str:
+        """Безопасные правки: висячие запятые перед } или ]"""
+        return re.sub(r',\s*([}\]])', r'\1', s)
+    
+    # ─────────────────────────────────────────────────────────────
+    # Основной поток
+    # ─────────────────────────────────────────────────────────────
+    raw = extract_json_block(text)
+    if raw in ('', '{}'):
+        return {}
+    
+    parsed = None
+    last_error = None
+    
+    # Пробуем: чистый парсинг → с быстрыми фиксами → с json_repair
+    for processor in [lambda x: x, quick_fixes]:
+        try:
+            parsed = json.loads(processor(raw))
+            break
+        except json.JSONDecodeError as e:
+            last_error = e
+            continue
+    
+    if parsed is None:
+        try:
+            from json_repair import repair_json
+            parsed = json.loads(repair_json(raw))
+        except Exception:
+            pass
+    
+    if parsed is None:
+        preview = text[:150].replace('\n', ' ')
+        raise ValueError(f"Не удалось распарсить конфиг: {last_error}. Вход: {preview}...")
+    
+    if not isinstance(parsed, dict):
+        if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+            parsed = parsed[0]
+        else:
+            raise ValueError(f"Ожидался JSON-объект, получено: {type(parsed).__name__}")
+    
+    return parsed.copy()  
+
+
+# ========== Основная нода ==========
+class SimpleQwen3VL_GGUF_Node:
+    _cached_config_hash = ""
+    _cached_config = {}
+
+    @classmethod
+    def _config_override_repair(cls, text: str) -> Dict[str, Any]:
+        config_hash = hashlib.sha256(text.encode('utf-8')).hexdigest()
+        if cls._cached_config_hash == config_hash and cls._cached_config:
+            return cls._cached_config.copy()
+
+        parsed = config_override_repair(text)
+
+        cls._cached_config_hash = config_hash
+        cls._cached_config = parsed
+        return parsed
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        try:
+            model_presets = load_unbanned_section('_model_presets')
+            model_presets_names = ["None"] + sorted(model_presets.keys())
+            system_presets = load_unbanned_section('_system_prompts')
+            system_prompts_names = ["None"] + list(system_presets.keys())
+        except:
+            model_presets_names = ["None"]
+            system_prompts_names = ["None"]
+        return {
+            "required": {
+                "model_preset": (model_presets_names, {
+                    "default": model_presets_names[0],
+                    "tooltip": "Select a model configuration preset from templates defined in system_prompts_user.json.",
+                }),
+                "system_preset": (system_prompts_names, {
+                    "default": system_prompts_names[0],
+                    "tooltip": "Select a system prompt from predefined templates.",
+                }),
+                "user_prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "Describe this image.",
+                    "tooltip": "The specific prompt for the task. Can include input data and {variable} placeholders (auto-replaced when 'variables' or 'user_prompt_template' is provided).",
+                }),
+                "seed": ("INT", {
+                    "default": 42,
+                    "min": 0, 
+                    "max": 0xffffffff,
+                    "step": 1,
+                    "tooltip": "Random seed for reproducible generation.",
+                }),
+                "unload_all_models": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "If True, clears VRAM/RAM before starting inference to prevent OOM errors.",
+                }),
+                "mode": (["subprocess", "direct_clean", "keep_vram", "save1", "save2", "save3"], {
+                    "default": "subprocess",
+                    "tooltip": (
+                        "Execution mode:\n"
+                        "• subprocess — isolates llama.cpp, prevents memory leaks and ComfyUI crashes (INCOMPATIBLE with video inputs).\n"
+                        "• direct_clean — unloads model after inference, no subprocess overhead.\n"
+                        "• keep_vram — keeps model in VRAM for fast sequential batch processing.\n"
+                        "• save1/save2/save3 — auxiliary slots for long-term model storage in VRAM."
+                    ),
+                }),
+                "bypass": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "If True, the node skips processing and passes the 'user_prompt' directly to the output 'text' without modification.",
+                }),
+            },
+            "optional": {
+                "config_override": ("STRING", {
+                    "multiline": True,
+                    "default": None,
+                    "forceInput": True,
+                    "tooltip": "Overrides specific fields in the model preset template, or defines an entirely new model configuration if 'model_preset' is set to None.",
+                }),
+                "system_prompt_override": ("STRING", {
+                    "multiline": True,
+                    "default": None,
+                    "forceInput": True,
+                    "tooltip": "If text is provided here, it becomes the system prompt and the selected 'system_preset' is completely ignored.",
+                }),
+                "user_prompt_template": ("STRING", {
+                    "multiline": True,
+                    "default": None,
+                    "forceInput": True,
+                    "tooltip": "Custom user prompt template using {user_prompt} and other placeholders. When provided, automatic placeholder replacement is enabled.",
+                }),
+                "variables": ("STRING", {
+                    "multiline": True,
+                    "default": None,
+                    "forceInput": True,
+                    "tooltip": "Custom user placeholders in {} for use in system and user prompts. When provided, automatic placeholder replacement is enabled.",
+                }),
+                "image": ("IMAGE", {
+                    "tooltip": "Input image(s) to be analyzed. Additional dynamic inputs (image2, image3...) can be added. Batch processing is supported.",
+                }),
+                "audio": ("AUDIO", {
+                    "tooltip": "Input audio to be analyzed (loaded via Load Audio). The model must support audio (e.g., Gemma4-12B). See 'audio_sample_rate' parameter.",
+                }),
+                "video": ("*", {
+                    "tooltip": (
+                        "Input video (Load Video) or image batch. "
+                        "Processed as a reduced set of frames (see 'max_frames'). "
+                        "Requires increased 'n_ctx'. "
+                        "Many frames/files consume more VRAM; smaller models may lose details. "
+                    ),
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("STRING", "CONDITIONING", "STRING", "STRING", "AUDIO")
+    RETURN_NAMES = ("text", "conditioning", "system_prompt", "user_prompt", "audio")
+    FUNCTION = "run"
+    CATEGORY = CATEGORY_NAME
+
+    def run(self,
+            model_preset,
+            system_preset,
+            user_prompt,
+            seed,
+            unload_all_models,
+            mode="subprocess",
+            bypass=False,
+            system_prompt_override=None,
+            config_override=None,
+            variables=None,
+            user_prompt_template=None,
+            **kwargs):
+
+        if bypass:
+            return (user_prompt, None, "", "", None)
+
+        t_total0 = time.perf_counter()
+        temp_paths = []
+        debug = None
+        text = None
+        try:
+            set_inferring(True)
+
+            # Загружаем config из файла
+            config = {}
+            user_vars = {}
+            if model_preset != "None":
+                model_presets = load_cached_section('_model_presets')
+                if model_preset not in model_presets:
+                    raise ValueError(f"Model preset '{model_preset}' not found")
+                config = old_names_patch(model_presets[model_preset])
+
+            # Восстанавливаем config_override
+            if config_override and str(config_override).strip():
+                try:
+                    override_dict = self._config_override_repair(str(config_override))
+                    config.update(old_names_patch(override_dict))
+                except Exception as e:
+                    raise ValueError(e)      
+
+            # Восстанавливаем variables
+            if variables and str(variables).strip():
+                try:
+                    variables_dict = self._config_override_repair(str(variables))
+                    user_vars.update(old_names_patch(variables_dict))
+                except Exception as e:
+                    raise ValueError(e)         
+
+            # Получаем имя скрипта
+            script_name = config.get("script", "qwen3vl_run.py")
+            debug = config.get("debug", True)
+            gccollect_start = config.get("force_gc_start", False)
+            gccollect = config.get("force_gc_unload", False)
+
+            _debug_print(debug, "config read", t_total0, f"| mode {mode}")
+ 
+            # Очистка моделей
+            if unload_all_models:
+                clear_memory(gccollect_start, debug=debug)
+
+            # Собираем все входы
+            input_images = []
+            input_audios = []
+            input_videos = []
+
+            # Legacy входы
+            if kwargs.get("image") is not None:
+                input_images.append(kwargs["image"])
+            if kwargs.get("audio") is not None:
+                input_audios.append(kwargs["audio"])
+            if kwargs.get("video") is not None:
+                input_videos.append(kwargs["video"])
+
+            # Динамические входы (image2, image3, ..., audio2, audio3, ..., video2, video3, ...)
+            for key in sorted(kwargs.keys()):
+                if key in ["image", "audio", "video"]:
+                    continue  # Уже обработаны выше
+                
+                if key.startswith("image") and key[5:].isdigit():
+                    if kwargs[key] is not None:
+                        input_images.append(kwargs[key])
+                elif key.startswith("audio") and key[5:].isdigit():
+                    if kwargs[key] is not None:
+                        input_audios.append(kwargs[key])
+                elif key.startswith("video") and key[5:].isdigit():
+                    if kwargs[key] is not None:
+                        input_videos.append(kwargs[key])
+
+            # Обработка изображений и аудио
+            file_mode = (mode == "subprocess")
+            images_value = []
+            audio_value = []
+            video_value = []
+
+            # Изображения
+            if input_images:
+                t_process_images = time.perf_counter()
+                max_images = config.get("max_images", 10)
+                images_value = process_images(input_images, file_mode=file_mode, max_images=max_images)
+                if file_mode:
+                    temp_paths += images_value
+                _debug_print(debug, "process_images", t_process_images)
+
+            # Аудио
+            if input_audios:
+                t_process_audios = time.perf_counter()
+                target_sr = _norm_default(config.get("audio_sample_rate", 0), 0) #0 - disable resample
+                max_audios = config.get("max_audios", 3)
+                audio_value = process_audios(input_audios, file_mode=file_mode, target_sr=target_sr, max_audios=max_audios)
+                if file_mode:
+                    temp_paths += audio_value
+                _debug_print(debug, "process_audios", t_process_audios)
+
+            # Видео 
+            if input_videos:
+                t_process_videos = time.perf_counter()
+                video_value, vid_config, file_paths = process_videos(input_videos, config, execution_mode=mode)
+                config.update(vid_config)    
+                temp_paths += file_paths
+                _debug_print(debug, "process_videos", t_process_videos)
+
+            if mode == "subprocess":
+                # streaming_mode не нужен в subprocess режиме
+                config["streaming_mode"] = False
+
+            if (len(images_value) + len(audio_value) + len(video_value)) == 0:
+                config["content_count"] = 0 # Это нужно только для того чтобы форсировать перезагрузку кеша
+
+            # system_prompt & user_prompt
+
+            raw_system_prompt = ""
+            raw_user_prompt = user_prompt if user_prompt else ""
+            
+            use_preset_for_user = config.get("system_preset_to_user_prompt", False)
+            enable_placeholders = config.get("enable_variables", False)
+
+            # 1. Определяем системный промпт из override, выпадающего списка или default
+            if not use_preset_for_user:
+                if system_prompt_override is not None:
+                    raw_system_prompt = system_prompt_override.strip()
+                elif system_preset != "None":
+                    system_prompts = load_cached_section('_system_prompts')
+                    raw_system_prompt = system_prompts.get(system_preset, "").strip()
+                else:
+                    raw_system_prompt = config.get("system_prompt_default", "")
+            else:
+                # Если пресет должен уйти в юзер, системный берем из override или default
+                if system_prompt_override is not None:
+                    raw_system_prompt = system_prompt_override.strip()
+                else:
+                    raw_system_prompt = config.get("system_prompt_default", "")
+
+            # 2. Если пресет должен уйти в юзер-промпт, дописываем его туда (для joecaptionbeta и подобных)
+            if use_preset_for_user and system_preset != "None":
+                system_prompts = load_cached_section('_system_prompts')
+                preset_text = system_prompts.get(system_preset, "").strip()
+                if preset_text:
+                    raw_user_prompt = (preset_text + "\n" + raw_user_prompt).strip()
+
+            # 3. Читаем шаблон для user_prompt, если он есть
+            if user_prompt_template is None:
+                if system_preset != "None":
+                    user_prompt_templates = load_cached_section('_user_prompt_template')
+                    user_prompt_template = user_prompt_templates.get(system_preset, None)
+
+            # Если выключатель выключен, просто возвращаем то, что собрали
+            if enable_placeholders or len(user_vars) > 0 or user_prompt_template:
+                # Если плейсхолдеры включены - собираем переменные            
+                auto_vars = {
+                    "image_num": len(images_value) if images_value else 0, # Количество изображений на трех входах
+                    "ref_num": max(0, len(images_value) - 1), # Количество референсных изображений за вычетом первого
+                    "audio_num": len(audio_value) if audio_value else 0,
+                    "frame_num": config.get('frame_num', 0), # Количество кадров видео
+                    "user_prompt": raw_user_prompt, 
+                }
+                
+                if input_images is not None and len(input_images) > 0:
+                    auto_vars["width"] = input_images[0].shape[2]
+                    auto_vars["height"] = input_images[0].shape[1]
+                else:
+                    auto_vars["width"] = 0
+                    auto_vars["height"] = 0
+
+                # Приоритет: кастомные перекрывают авто
+                final_vars = {**auto_vars, **user_vars}
+
+                # Безопасная замена
+                class SafeDict(dict):
+                    def __missing__(self, key):
+                        return '{' + key + '}'
+
+                if user_prompt_template is not None:
+                    raw_user_prompt = user_prompt_template
+
+                try:
+                    # Форматируем системный промпт
+                    final_system_prompt = raw_system_prompt.format_map(SafeDict(final_vars))
+                    
+                    # Форматируем юзер-промпт (используя тот же словарь)
+                    final_user_prompt = raw_user_prompt.format_map(SafeDict(final_vars))
+                    
+                except Exception as e:
+                    raise ValueError(f"Error formatting prompts: {e}")
+
+                # Если {user_prompt} был в системном, очищаем юзерский, чтобы LLM не читал его дважды.
+                if "{user_prompt}" in raw_system_prompt:
+                    final_user_prompt = ""
+
+                system_prompt = final_system_prompt
+                user_prompt = final_user_prompt
+            else:
+                system_prompt = raw_system_prompt
+                user_prompt = raw_user_prompt
+
+
+            script_name, config = old_config_patch(script_name, config)
+
+            cache_mode = mode if mode.startswith("save") else "keep_vram"
+            config_str = json.dumps(config, sort_keys=True, ensure_ascii=False).encode('utf-8')
+            config_hash = hashlib.sha256(config_str).hexdigest()
+
+            # Итоговый конфиг для инференса
+            final_config = {
+                **config,
+                "cache_mode": cache_mode,
+                "user_prompt": user_prompt,
+                "system_prompt": system_prompt,
+                "images": images_value,
+                "audios": audio_value,
+                "videos": video_value,
+                "seed": seed,
+                "config_hash": config_hash
+            }
+
+            if not script_name:
+                raise ValueError(f"Script {script_name} is not defined")
+
+            # Запуск инференса
+            text, conditioning, audio = run_inference_pipeline(script_name, final_config, mode, gccollect, debug = debug)
+
+            return (text, conditioning, system_prompt, user_prompt, audio)
+
+        finally:
+
+            if temp_paths:
+                t_clear_temp_files0 = time.perf_counter()
+                clear_temp_files(temp_paths)
+                _debug_print(debug, "clear_temp_files", t_clear_temp_files0)
+
+            set_inferring(False)
+            check_pending_cleanup()
+
+            _debug_print(debug, f"total time", t_total0)
+
+
+
+def old_config_patch(script_name, config):
+    # Поддержка старых конфигов. Для обратной совместимости.
+
+    # если не задан скрипт - определяем модель по имени файла
+    if script_name is None:
+        script_name = "qwen3vl_run.py"
+        config["script"] = script_name
+
+        model_path = config.get("model_path") or ""
+        if isinstance(model_path, str) and model_path:
+            model_filename = os.path.basename(model_path).lower()
+            if any(x in model_filename for x in ("llava", "ministral", "mistral")):
+                if config.get("chat_handler") is None:
+                    config["chat_handler"] = "llava16"
+
+        if config.get("chat_handler") is None:
+            config["chat_handler"] = "qwen3"
+
+    # если задан скрипт llavavl_run.py - перенаправляем на обработку в qwen3vl_run.py
+    elif script_name == "llavavl_run.py":
+        script_name = "qwen3vl_run.py"
+        config["script"] = script_name
+
+        if config.get("chat_handler") is None:
+            config["chat_handler"] = "llava16"
+
+    return script_name, config
+
+
+def old_names_patch(config: Dict[str, Any]) -> Dict[str, Any]:
+    # Заменяет устаревшие ключи конфигурации на канонические. Для обратной совместимости.
+
+    OLD_TO_NEW = {
+        "ctx": "n_ctx",
+        "cpu_threads": "n_threads",
+        "gpu_layers": "n_gpu_layers",
+        "output_max_tokens": "max_tokens",
+        "present_penalty": "presence_penalty",
+        "flash_attn": "flash_attn_type",
+    }
+
+    result = config.copy()
+
+    for old_key, new_key in OLD_TO_NEW.items():
+        if old_key in result:
+            if new_key in result:
+                # Если присутствуют оба ключа, отдаём приоритет каноническому
+                print(f"[WARNING] Conflict: both '{old_key}' and '{new_key}' found.", file=sys.stderr)
+                del result[old_key]
+            else:
+                # Старое есть, нового нет → переименовываем
+                result[new_key] = result.pop(old_key)
+
+    return result
+
+# ==========================================================
+# CLEANUP
+# ==========================================================
+
+def set_inferring(value: bool):
+    """Устанавливает флаг инференса. Вызывается из execute ноды."""
+    global _is_inferring
+    _is_inferring = value
+
+def request_cleanup() -> dict:
+    """
+    Вызывается из эндпоинта /simpleqwenvl/memory/free.
+    Возвращает словарь с результатом для ответа клиенту.
+    """
+    global _is_inferring, _pending_cleanup
+    
+    if _is_inferring:
+        _pending_cleanup = True
+        print("[SimpleQwenVL] Inference in progress. Cleanup deferred.")
+        return {"success": True, "deferred": True}
+    else:
+        _pending_cleanup = False
+        unload_model(gccollect = True, target="all")
+        print("[SimpleQwenVL] llama.cpp memory cleared (immediately).")
+        return {"success": True, "deferred": False}
+
+def check_pending_cleanup():
+    """
+    Вызывается в finally блока execute ноды.
+    Если был отложенный запрос — выполняет очистку.
+    """
+    global _pending_cleanup
+    
+    if _pending_cleanup:
+        _pending_cleanup = False
+        unload_model(gccollect = True, target="all")
+        print("[SimpleQwenVL] llama.cpp memory cleared (deferred).")
+
+from server import PromptServer
+from aiohttp import web
+
+@PromptServer.instance.routes.post("/simpleqwenvl/memory/free")
+async def free_qwen_memory(request):
+    try:
+        result = request_cleanup()
+        return web.json_response(result)
+    except Exception as e:
+        print(f"[SimpleQwenVL] Error during cleanup: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500)

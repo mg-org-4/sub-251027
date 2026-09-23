@@ -1,0 +1,5 @@
+WEB_DIRECTORY = "./web"
+__version__ = "0.3.1"
+
+NODE_CLASS_MAPPINGS = {}
+NODE_DISPLAY_NAME_MAPPINGS = {}

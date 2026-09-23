@@ -22,6 +22,11 @@ from .constants import (
 LOG = logging.getLogger("h3_continuum_join")
 class LayoutCompatibilityError(RuntimeError): pass
 
+_VIDEO_CHANNELS = 24
+_AUDIO_CHANNELS = 32
+_VIDEO_PATCH = (1, 2, 2)
+_AUDIO_STREAMS = 2
+
 def _reference_metadata(ref:dict[str,Any])->dict[str,Any]:
     value=ref.get(CONTINUUM_REFERENCE_METADATA_KEY); return value if isinstance(value,dict) else {}
 def _is_video_context(ref):
@@ -40,6 +45,396 @@ def normalize_condition_latents(payload):
     audio_latents.extend(item["audio_latent"] for item in refs if item.get("audio_latent") is not None)
     payload["cond_video_latents"]=video_latents
     payload["cond_audio_latents"]=audio_latents
+
+
+def _layout_condition_rows(layout):
+    try:
+        segments=tuple(layout.segments)
+    except Exception as exc:
+        raise LayoutCompatibilityError(
+            "Core PackedLayout does not expose segments"
+        ) from exc
+    visual=audio=0
+    for item in segments:
+        if not isinstance(item,(tuple,list)) or len(item)!=3:
+            raise LayoutCompatibilityError(
+                "Core PackedLayout segment is not (start, stop, kind)"
+            )
+        start,stop,kind=int(item[0]),int(item[1]),str(item[2])
+        if stop<start:
+            raise LayoutCompatibilityError(
+                "Core PackedLayout segment has a negative row span"
+            )
+        rows=stop-start
+        if kind in ("cond","ref_img"):
+            visual+=rows
+        elif kind in ("cond_audio","ref_audio"):
+            audio+=rows
+    return int(visual),int(audio)
+
+
+def _layout_signature(layout):
+    try:
+        signature=tuple(int(value) for value in layout.signature)
+    except Exception as exc:
+        raise LayoutCompatibilityError(
+            "Core PackedLayout does not expose a five-value signature"
+        ) from exc
+    if len(signature)!=5:
+        raise LayoutCompatibilityError(
+            "Core PackedLayout signature must be "
+            "(text_len, latent_t, latent_h, latent_w, audio_t)"
+        )
+    text_len,latent_t,latent_h,latent_w,audio_t=signature
+    if min(text_len,latent_t,latent_h,latent_w,audio_t)<0:
+        raise LayoutCompatibilityError(
+            "Core PackedLayout signature contains a negative value"
+        )
+    if latent_h%_VIDEO_PATCH[1] or latent_w%_VIDEO_PATCH[2]:
+        raise LayoutCompatibilityError(
+            "Core PackedLayout target latent height/width is not divisible by 2"
+        )
+    return signature
+
+
+def _tensor_shape(value,dimensions,label,errors):
+    if not torch.is_tensor(value):
+        errors.append(f"{label} is missing or is not a Tensor")
+        return None
+    shape=tuple(int(item) for item in value.shape)
+    if len(shape)!=dimensions:
+        errors.append(
+            f"{label} must have {dimensions} dimensions, got shape={shape}"
+        )
+        return None
+    return shape
+
+
+def _video_block(*,index,kind,latent,expected_rows,metadata,errors):
+    label=f"Visual block #{index} ({kind})"
+    block_errors=[]
+    shape=_tensor_shape(latent,5,label,block_errors)
+    actual_rows=None
+    if shape is not None:
+        batch,channels,latent_t,latent_h,latent_w=shape
+        if batch!=1:
+            block_errors.append(f"batch must be 1, got {batch}")
+        if channels!=_VIDEO_CHANNELS:
+            block_errors.append(
+                f"video latent channels must be {_VIDEO_CHANNELS}, got {channels}"
+            )
+        pt,ph,pw=_VIDEO_PATCH
+        if latent_t%pt or latent_h%ph or latent_w%pw:
+            block_errors.append(
+                "video latent T/H/W is not divisible by the H3 patch size "
+                f"{_VIDEO_PATCH}"
+            )
+        else:
+            actual_rows=batch*(latent_t//pt)*(latent_h//ph)*(latent_w//pw)
+    if actual_rows is not None and int(expected_rows)!=int(actual_rows):
+        block_errors.append(
+            f"expected rows {int(expected_rows)} != actual rows {int(actual_rows)}"
+        )
+    errors.extend(block_errors)
+    return {
+        "index":int(index),
+        "type":str(kind),
+        "shape":shape,
+        "metadata":dict(metadata),
+        "expected_rows":int(expected_rows),
+        "actual_rows":None if actual_rows is None else int(actual_rows),
+        "errors":tuple(block_errors),
+    }
+
+
+def _audio_block(*,index,kind,latent,expected_rows,metadata,errors):
+    label=f"Audio block #{index} ({kind})"
+    block_errors=[]
+    shape=_tensor_shape(latent,4,label,block_errors)
+    actual_rows=None
+    if shape is not None:
+        batch,channels,streams,latent_t=shape
+        if batch!=1:
+            block_errors.append(f"batch must be 1, got {batch}")
+        if channels!=_AUDIO_CHANNELS:
+            block_errors.append(
+                f"audio latent channels must be {_AUDIO_CHANNELS}, got {channels}"
+            )
+        if streams!=_AUDIO_STREAMS:
+            block_errors.append(
+                f"audio latent streams must be {_AUDIO_STREAMS}, got {streams}"
+            )
+        actual_rows=streams*latent_t
+    if actual_rows is not None and int(expected_rows)!=int(actual_rows):
+        block_errors.append(
+            f"expected rows {int(expected_rows)} != actual rows {int(actual_rows)}"
+        )
+    errors.extend(block_errors)
+    return {
+        "index":int(index),
+        "type":str(kind),
+        "shape":shape,
+        "metadata":dict(metadata),
+        "expected_rows":int(expected_rows),
+        "actual_rows":None if actual_rows is None else int(actual_rows),
+        "errors":tuple(block_errors),
+    }
+
+
+def _format_preflight_failure(report,reason):
+    lines=["H3 Continuum PackedLayout preflight failed",""]
+    for group,label in (
+        (report["visual_blocks"],"Visual"),
+        (report["audio_blocks"],"Audio"),
+    ):
+        for block in group:
+            if not block["errors"]:
+                continue
+            lines.extend((
+                f"{label} block #{block['index']}",
+                f"type: {block['type']}",
+            ))
+            metadata=block["metadata"]
+            if "resolved_frame_index" in metadata:
+                lines.append(
+                    f"resolved_frame_index: {metadata['resolved_frame_index']}"
+                )
+            shape=block["shape"]
+            if shape is not None:
+                if label=="Visual":
+                    b,c,t,h,w=shape
+                    lines.append(
+                        f"latent shape: B={b} C={c} T={t} H={h} W={w}"
+                    )
+                else:
+                    b,c,ch,t=shape
+                    lines.append(
+                        f"latent shape: B={b} C={c} streams={ch} T={t}"
+                    )
+            lines.extend((
+                f"expected rows: {block['expected_rows']}",
+                f"actual rows: {block['actual_rows']}",
+            ))
+            if block["actual_rows"] is not None:
+                lines.append(
+                    "delta: "
+                    f"{block['actual_rows']-block['expected_rows']:+d}"
+                )
+            lines.extend(f"detail: {value}" for value in block["errors"])
+            lines.append("")
+    lines.extend((
+        f"Layout expected visual rows: {report['layout_visual_rows']}",
+        f"Actual visual rows: {report['actual_visual_rows']}",
+        f"Layout expected audio rows: {report['layout_audio_rows']}",
+        f"Actual audio rows: {report['actual_audio_rows']}",
+        "",
+        str(reason),
+        "No tensors were resized, truncated, padded, or replaced.",
+        "Sampling was not started.",
+    ))
+    return "\n".join(lines)
+
+
+def preflight_packed_layout(payload,*,repair_stale=False):
+    """Validate Core H3 condition rows and narrowly repair a stale layout.
+
+    A repair is allowed only when every current keyframe/reference tensor is
+    self-consistent with the geometry Core will use to construct a fresh
+    PackedLayout.  Tensor geometry is never changed here.
+    """
+    if not isinstance(payload,dict):
+        raise LayoutCompatibilityError("MiniMax H3 payload must be a dict")
+    layout=payload.get("layout")
+    if layout is None:
+        return {
+            "status":"layout_unavailable",
+            "repaired":False,
+            "visual_blocks":(),
+            "audio_blocks":(),
+        }
+    signature=_layout_signature(layout)
+    _text_len,_target_t,target_h,target_w,_target_audio_t=signature
+    target_frame_rows=(target_h//_VIDEO_PATCH[1])*(target_w//_VIDEO_PATCH[2])
+    keyframes=list(payload.get("keyframes") or ())
+    refs=list(payload.get("refs") or ())
+    visual_blocks=[]; audio_blocks=[]; geometry_errors=[]
+    visual_index=audio_index=0
+    for keyframe in keyframes:
+        if not isinstance(keyframe,dict):
+            geometry_errors.append("keyframe entry is not a dict")
+            continue
+        latent=keyframe.get("latent")
+        if latent is not None:
+            visual_index+=1
+            shape=tuple(int(value) for value in getattr(latent,"shape",()))
+            latent_t=shape[2] if len(shape)==5 else 0
+            visual_blocks.append(_video_block(
+                index=visual_index,
+                kind="keyframe",
+                latent=latent,
+                expected_rows=latent_t*target_frame_rows,
+                metadata={
+                    "resolved_frame_index":keyframe.get("resolved_frame_index")
+                },
+                errors=geometry_errors,
+            ))
+        audio_latent=keyframe.get("audio_latent")
+        if audio_latent is not None:
+            audio_index+=1
+            shape=tuple(int(value) for value in getattr(audio_latent,"shape",()))
+            latent_t=shape[-1] if len(shape)==4 else 0
+            audio_blocks.append(_audio_block(
+                index=audio_index,
+                kind="keyframe",
+                latent=audio_latent,
+                expected_rows=latent_t*_AUDIO_STREAMS,
+                metadata={
+                    "resolved_frame_index":keyframe.get("resolved_frame_index")
+                },
+                errors=geometry_errors,
+            ))
+    for ref in refs:
+        if not isinstance(ref,dict):
+            geometry_errors.append("reference entry is not a dict")
+            continue
+        kind=str(ref.get("kind",""))
+        if kind=="image":
+            visual_index+=1
+            latent_h=int(ref.get("latent_h",0)); latent_w=int(ref.get("latent_w",0))
+            visual_blocks.append(_video_block(
+                index=visual_index,
+                kind="ref_image",
+                latent=ref.get("latent"),
+                expected_rows=(latent_h//2)*(latent_w//2),
+                metadata={"latent_t":1,"latent_h":latent_h,"latent_w":latent_w},
+                errors=geometry_errors,
+            ))
+            block=visual_blocks[-1]
+            if block["shape"] is not None:
+                _b,_c,actual_t,actual_h,actual_w=block["shape"]
+                metadata_errors=[]
+                if actual_t!=1:
+                    metadata_errors.append(
+                        f"image reference latent_t must be 1, got {actual_t}"
+                    )
+                if (actual_h,actual_w)!=(latent_h,latent_w):
+                    metadata_errors.append(
+                        "reference metadata H/W "
+                        f"{(latent_h,latent_w)} != latent H/W {(actual_h,actual_w)}"
+                    )
+                if metadata_errors:
+                    geometry_errors.extend(metadata_errors)
+                    block["errors"]=tuple((*block["errors"],*metadata_errors))
+        elif kind in ("video","video_audio"):
+            visual_index+=1
+            latent_t=int(ref.get("latent_t",0)); latent_h=int(ref.get("latent_h",0)); latent_w=int(ref.get("latent_w",0))
+            visual_blocks.append(_video_block(
+                index=visual_index,
+                kind=f"ref_{kind}",
+                latent=ref.get("latent"),
+                expected_rows=latent_t*(latent_h//2)*(latent_w//2),
+                metadata={"latent_t":latent_t,"latent_h":latent_h,"latent_w":latent_w},
+                errors=geometry_errors,
+            ))
+            block=visual_blocks[-1]
+            if block["shape"] is not None:
+                _b,_c,actual_t,actual_h,actual_w=block["shape"]
+                metadata_errors=[]
+                if (actual_t,actual_h,actual_w)!=(latent_t,latent_h,latent_w):
+                    metadata_errors.append(
+                        "reference metadata T/H/W "
+                        f"{(latent_t,latent_h,latent_w)} != latent T/H/W "
+                        f"{(actual_t,actual_h,actual_w)}"
+                    )
+                if metadata_errors:
+                    geometry_errors.extend(metadata_errors)
+                    block["errors"]=tuple((*block["errors"],*metadata_errors))
+        elif kind not in ("audio",):
+            geometry_errors.append(f"unsupported reference kind: {kind!r}")
+        if kind in ("audio","video","video_audio"):
+            ref_audio_t=int(ref.get("ref_audio_t",0))
+            audio_latent=ref.get("audio_latent")
+            if ref_audio_t>0 or audio_latent is not None:
+                audio_index+=1
+                audio_blocks.append(_audio_block(
+                    index=audio_index,
+                    kind=f"ref_{kind}",
+                    latent=audio_latent,
+                    expected_rows=ref_audio_t*_AUDIO_STREAMS,
+                    metadata={"ref_audio_t":ref_audio_t},
+                    errors=geometry_errors,
+                ))
+                block=audio_blocks[-1]
+                if block["shape"] is not None:
+                    actual_t=block["shape"][-1]
+                    if actual_t!=ref_audio_t:
+                        message=(
+                            f"reference metadata audio_t {ref_audio_t} != "
+                            f"latent audio_t {actual_t}"
+                        )
+                        geometry_errors.append(message)
+                        block["errors"]=tuple((*block["errors"],message))
+    layout_visual_rows,layout_audio_rows=_layout_condition_rows(layout)
+    actual_visual_rows=sum(
+        int(block["actual_rows"] or 0) for block in visual_blocks
+    )
+    actual_audio_rows=sum(
+        int(block["actual_rows"] or 0) for block in audio_blocks
+    )
+    report={
+        "status":"matched",
+        "repaired":False,
+        "visual_blocks":tuple(visual_blocks),
+        "audio_blocks":tuple(audio_blocks),
+        "layout_visual_rows":int(layout_visual_rows),
+        "actual_visual_rows":int(actual_visual_rows),
+        "layout_audio_rows":int(layout_audio_rows),
+        "actual_audio_rows":int(actual_audio_rows),
+    }
+    if geometry_errors:
+        raise LayoutCompatibilityError(_format_preflight_failure(
+            report,"Unsafe geometry mismatch."
+        ))
+    rows_match=(
+        layout_visual_rows==actual_visual_rows
+        and layout_audio_rows==actual_audio_rows
+    )
+    if rows_match:
+        return report
+    if not repair_stale:
+        raise LayoutCompatibilityError(_format_preflight_failure(
+            report,"PackedLayout rows do not match the current payload."
+        ))
+    try:
+        rebuilt=type(layout)(
+            *signature,
+            keyframes=keyframes or None,
+            refs=refs or None,
+        )
+    except Exception as exc:
+        raise LayoutCompatibilityError(_format_preflight_failure(
+            report,
+            "PackedLayout is stale, but a fresh layout could not be constructed: "
+            f"{type(exc).__name__}: {exc}",
+        )) from exc
+    rebuilt_visual_rows,rebuilt_audio_rows=_layout_condition_rows(rebuilt)
+    if (
+        rebuilt_visual_rows!=actual_visual_rows
+        or rebuilt_audio_rows!=actual_audio_rows
+    ):
+        raise LayoutCompatibilityError(_format_preflight_failure(
+            report,
+            "A fresh PackedLayout still does not match the current payload; "
+            "automatic repair is unsafe.",
+        ))
+    payload["layout"]=rebuilt
+    report.update({
+        "status":"layout_rebuilt",
+        "repaired":True,
+        "layout_visual_rows":int(rebuilt_visual_rows),
+        "layout_audio_rows":int(rebuilt_audio_rows),
+    })
+    return report
 def _input_device(x):
     device=getattr(x,"device",None)
     if isinstance(device,torch.device): return device

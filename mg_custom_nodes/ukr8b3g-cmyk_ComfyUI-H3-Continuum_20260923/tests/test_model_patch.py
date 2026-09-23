@@ -54,17 +54,17 @@ def _layout():
     pos[3, 0] = 1
     pos[4:6, 0] = 2
     pos[6, 0] = 2
-    return SimpleNamespace(segments=segments, position_ids=pos, signature=(1, 1, 1, 1, 1))
+    return SimpleNamespace(segments=segments, position_ids=pos, signature=(1, 1, 2, 2, 1))
 
 
 def test_apply_model_wrapper_repairs_payload_before_executor():
-    video = torch.zeros(1, 24, 1, 1, 1)
+    video = torch.zeros(1, 24, 1, 2, 2)
     audio = torch.zeros(1, 32, 2, 1)
     ref = {
         "kind": "video_audio",
         "latent_t": 1,
-        "latent_h": 1,
-        "latent_w": 1,
+        "latent_h": 2,
+        "latent_w": 2,
         "ref_audio_t": 1,
         "latent": video,
         "audio_latent": audio,
@@ -106,14 +106,47 @@ def test_apply_model_wrapper_repairs_keyframes_with_audio_reference_without_cont
     assert result["cond_audio_latents"] == [audio]
 
 
+def test_apply_model_wrapper_persists_a_proven_stale_layout_repair(monkeypatch):
+    import ComfyUI_H3_Continuum_Join.model_patch as model_patch
+
+    audio = torch.zeros(1, 32, 2, 1)
+    old_layout = object()
+    replacement = object()
+    payload = {
+        "layout": old_layout,
+        "keyframes": [
+            {"resolved_frame_index": 0, "audio_latent": audio}
+        ],
+        "refs": [],
+    }
+    calls = []
+
+    def fake_preflight(value, *, repair_stale):
+        calls.append(bool(repair_stale))
+        if repair_stale:
+            value["layout"] = replacement
+            return {"repaired": True}
+        assert value["layout"] is replacement
+        return {"repaired": False}
+
+    monkeypatch.setattr(model_patch, "preflight_packed_layout", fake_preflight)
+    wrapper = _wrapper_factory(strict=True, debug=False)
+
+    result = wrapper(Executor(), torch.zeros(1), minimax_payload=payload)
+
+    assert calls == [True, False]
+    assert payload["layout"] is replacement
+    assert result["layout"] is replacement
+
+
 def test_apply_model_wrapper_fails_when_actual_topology_changes():
-    video = torch.zeros(1, 24, 1, 1, 1)
+    video = torch.zeros(1, 24, 1, 2, 2)
     audio = torch.zeros(1, 32, 2, 1)
     ref = {
         "kind": "video_audio",
         "latent_t": 1,
-        "latent_h": 1,
-        "latent_w": 1,
+        "latent_h": 2,
+        "latent_w": 2,
         "ref_audio_t": 1,
         "latent": video,
         "audio_latent": audio,
@@ -168,13 +201,13 @@ def test_layout_validation_profiler_records_full_calls_groups_and_step_contribut
 
 
 def test_apply_model_wrapper_reports_validator_status_without_changing_payload():
-    video = torch.zeros(1, 24, 1, 1, 1)
+    video = torch.zeros(1, 24, 1, 2, 2)
     audio = torch.zeros(1, 32, 2, 1)
     ref = {
         "kind": "video_audio",
         "latent_t": 1,
-        "latent_h": 1,
-        "latent_w": 1,
+        "latent_h": 2,
+        "latent_w": 2,
         "ref_audio_t": 1,
         "latent": video,
         "audio_latent": audio,

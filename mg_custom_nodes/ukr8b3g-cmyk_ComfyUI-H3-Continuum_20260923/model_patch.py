@@ -19,6 +19,7 @@ from .layout_adapter import (
     materialize_continuum_latents,
     normalize_condition_latents,
     patch_layout_in_place,
+    preflight_packed_layout,
     payload_has_continuum,
     validate_native_continuity_layout,
 )
@@ -165,16 +166,15 @@ def _wrapper_factory(
 
     def apply_model_wrapper(executor, *args, **kwargs):
         payload = kwargs.get("minimax_payload")
-        if packed_row_planner is not None:
-            from .v3.packed_row_planner import observe_layout_fail_soft
-            observe_layout_fail_soft(packed_row_planner, payload)
         has_continuum = payload_has_continuum(payload)
-        has_mixed_keyframe_refs = (
+        has_condition_blocks = (
             isinstance(payload, dict)
-            and bool(payload.get("keyframes"))
-            and payload.get("refs") is not None
+            and (bool(payload.get("keyframes")) or bool(payload.get("refs")))
         )
-        if not has_continuum and not has_mixed_keyframe_refs:
+        if not has_continuum and not has_condition_blocks:
+            if packed_row_planner is not None:
+                from .v3.packed_row_planner import observe_layout_fail_soft
+                observe_layout_fail_soft(packed_row_planner, payload)
             return executor(*args, **kwargs)
         try:
             try:
@@ -186,6 +186,21 @@ def _wrapper_factory(
                     exc,
                 )
             patched_payload = dict(payload)
+            # Rebuild Core's flattened condition lists from the authoritative
+            # keyframe/reference blocks before checking their row contract.
+            normalize_condition_latents(patched_payload)
+            preflight_result = preflight_packed_layout(
+                patched_payload,
+                repair_stale=True,
+            )
+            if preflight_result.get("repaired"):
+                # The wrapper is called for every model evaluation.  Persist a
+                # proven-safe replacement on the queue-local payload so later
+                # steps preserve one layout and one position_ids identity.
+                payload["layout"] = patched_payload["layout"]
+            if packed_row_planner is not None:
+                from .v3.packed_row_planner import observe_layout_fail_soft
+                observe_layout_fail_soft(packed_row_planner, patched_payload)
             if has_continuum:
                 patch_layout_in_place(patched_payload, strict=True, debug=debug)
                 transformer_options = kwargs.get("transformer_options")
@@ -219,10 +234,11 @@ def _wrapper_factory(
                     )
                 input_x = args[0] if args else None
                 materialize_continuum_latents(patched_payload, input_x, debug=debug)
-            # ComfyUI Core 0.33.1 replaces keyframe condition latents with
-            # reference latents when both contracts are present. Rebuild the
-            # combined list for First/Last Frame + standalone Reference Audio.
+            # Materialization may replace CPU block tensors with device-local
+            # tensors.  Rebuild the flattened lists once more, then prove the
+            # final payload still matches the repaired/preserved layout.
             normalize_condition_latents(patched_payload)
+            preflight_packed_layout(patched_payload, repair_stale=False)
             kwargs["minimax_payload"] = patched_payload
         except (CompatibilityError, LayoutCompatibilityError, KeyError, TypeError, ValueError) as exc:
             raise RuntimeError(f"H3 Continuum Join compatibility failure: {exc}") from exc

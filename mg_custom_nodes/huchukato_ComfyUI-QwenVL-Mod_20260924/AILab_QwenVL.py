@@ -26,26 +26,11 @@ from PIL import Image
 from huggingface_hub import snapshot_download, hf_hub_download
 from transformers import AutoProcessor, AutoTokenizer, BitsAndBytesConfig
 
-# SageAttention support
-# SageAttention 2.x exposes functions at top-level; 1.x had them in .core
-try:
-    from sageattention import (
-        sageattn_qk_int8_pv_fp16_cuda,
-        sageattn_qk_int8_pv_fp8_cuda,
-        sageattn_qk_int8_pv_fp8_cuda_sm90,
-    )
-    SAGE_ATTENTION_AVAILABLE = True
-except ImportError:
-    try:
-        from sageattention.core import (
-            sageattn_qk_int8_pv_fp16_cuda,
-            sageattn_qk_int8_pv_fp8_cuda,
-            sageattn_qk_int8_pv_fp8_cuda_sm90,
-        )
-        SAGE_ATTENTION_AVAILABLE = True
-    except ImportError as _sage_err:
-        SAGE_ATTENTION_AVAILABLE = False
-        print(f"[QwenVL] SageAttention import failed: {_sage_err}")
+from chat_service import normalize_minimax_output
+from qwenvl_presets import (
+    VL_PRESET_NAMES, VL_PROMPTS, VL_DURATIONS,
+    DURATION_OPTIONS, DEFAULT_DURATION, resolve_vl_preset,
+)
 
 # Global cache for generated prompts
 PROMPT_CACHE = {}
@@ -76,12 +61,12 @@ def save_prompt_cache():
     except Exception as e:
         print(f"[QwenVL] Failed to save prompt cache: {e}")
 
-def get_cache_key(model_name, preset_prompt, custom_prompt, image_hash=None, video_hash=None, seed=None):
+def get_cache_key(model_name, preset_prompt, prompt, image_hash=None, video_hash=None, seed=None):
     """Generate cache key from inputs"""
     key_data = {
         "model": model_name,
         "preset": preset_prompt,
-        "custom": custom_prompt.strip() if custom_prompt else "",
+        "custom": prompt.strip() if prompt else "",
         "image": image_hash,
         "video": video_hash,
         "seed": seed  # Always include seed to ensure proper caching behavior
@@ -90,7 +75,7 @@ def get_cache_key(model_name, preset_prompt, custom_prompt, image_hash=None, vid
     key_str = json.dumps(key_data, sort_keys=True)
     return hashlib.md5(key_str.encode()).hexdigest()
 
-def get_alternative_cache_key(model_name, preset_prompt, custom_prompt, image_hash=None, video_hash=None, seed=None, module_name="QwenVL"):
+def get_alternative_cache_key(model_name, preset_prompt, prompt, image_hash=None, video_hash=None, seed=None, module_name="QwenVL"):
     """Generate alternative cache key for fixed seed mode to find random prompts"""
     # Only for fixed seed mode (when user wants consistent prompts)
     # We consider any seed that the user keeps fixed as "fixed seed mode"
@@ -235,15 +220,15 @@ SYSTEM_PROMPTS_PATH = NODE_DIR / "AILab_System_Prompts.json"
 HF_VL_MODELS: dict[str, dict] = {}
 HF_TEXT_MODELS: dict[str, dict] = {}
 HF_ALL_MODELS: dict[str, dict] = {}
-SYSTEM_PROMPTS = {}
-PRESET_PROMPTS: list[str] = ["Describe this image in detail."]
+SYSTEM_PROMPTS = dict(VL_PROMPTS)
+PRESET_PROMPTS: list[str] = list(VL_PRESET_NAMES) or ["Describe this image in detail."]
 
 TOOLTIPS = {
     "model_name": "Pick the Qwen-VL checkpoint. First run downloads weights into models/LLM/Qwen-VL, so leave disk space.",
     "quantization": "Precision vs VRAM. FP16 gives the best quality if memory allows; 8-bit suits 8–16 GB GPUs; 4-bit fits 6 GB or lower but is slower.",
-    "attention_mode": "auto tries SageAttention → FlashAttention 2 → SDPA in order. SDPA is stable and recommended. Only override when debugging attention backends.",
+    "attention_mode": "auto tries FlashAttention 2 → SDPA in order. SDPA is stable and recommended. Only override when debugging attention backends.",
     "preset_prompt": "Built-in instruction describing how Qwen-VL should analyze the media input.",
-    "custom_prompt": "Additional user input that gets combined with the preset template. Leave empty to use only the template.",
+    "prompt": "Additional user input that gets combined with the preset template. Leave empty to use only the template.",
     "max_tokens": "Maximum number of new tokens to decode. Larger values yield longer answers but consume more time and memory.",
     "keep_model_loaded": "Keeps the model resident in VRAM/RAM after the run so the next prompt skips loading.",
     "seed": "Seed controlling sampling and frame picking; reuse it to reproduce results.",
@@ -283,21 +268,20 @@ def load_model_configs():
         else:
             HF_VL_MODELS = {k: v for k, v in data.items() if not k.startswith("_")}
             HF_TEXT_MODELS = {}
-        SYSTEM_PROMPTS = data.get("_system_prompts", {})
+        SYSTEM_PROMPTS.update(data.get("_system_prompts") or {})
         PRESET_PROMPTS = data.get("_preset_prompts", PRESET_PROMPTS)
     except Exception as exc:
         print(f"[QwenVL] Config load failed: {exc}")
         HF_VL_MODELS = {}
         HF_TEXT_MODELS = {}
         HF_ALL_MODELS = {}
-        SYSTEM_PROMPTS = {}
     try:
         with open(SYSTEM_PROMPTS_PATH, "r", encoding="utf-8") as fh:
             data = json.load(fh) or {}
         qwenvl_prompts = data.get("qwenvl") or {}
         preset_override = data.get("_preset_prompts") or []
         if isinstance(qwenvl_prompts, dict) and qwenvl_prompts:
-            SYSTEM_PROMPTS = qwenvl_prompts
+            SYSTEM_PROMPTS.update(qwenvl_prompts)
         if isinstance(preset_override, list) and preset_override:
             PRESET_PROMPTS = preset_override
     except FileNotFoundError:
@@ -558,51 +542,6 @@ def flash_attn_available():
 
     return True
 
-def sage_attn_available():
-    """Check if SageAttention is available and GPU supports it."""
-    if not SAGE_ATTENTION_AVAILABLE:
-        return False
-    if not torch.cuda.is_available():
-        return False
-    major, _ = torch.cuda.get_device_capability()
-    if major < 8:
-        return False
-    return True
-
-
-def get_sage_attention_config():
-    """Get the appropriate SageAttention kernel based on GPU architecture."""
-    if not sage_attn_available():
-        return None, None, None
-
-    major, minor = torch.cuda.get_device_capability()
-    arch_code = major * 10 + minor
-
-    attn_func = None
-    pv_accum_dtype = "fp32"
-
-    if arch_code >= 120:  # Blackwell
-        pv_accum_dtype = "fp32+fp32"
-        attn_func = sageattn_qk_int8_pv_fp8_cuda
-        print(f"[QwenVL] SageAttention: Using SM120 (Blackwell) FP8 kernel")
-    elif arch_code >= 90:  # Hopper
-        pv_accum_dtype = "fp32+fp32"
-        attn_func = sageattn_qk_int8_pv_fp8_cuda_sm90
-        print(f"[QwenVL] SageAttention: Using SM90 (Hopper) FP8 kernel")
-    elif arch_code == 89:  # Ada Lovelace
-        pv_accum_dtype = "fp32+fp32"
-        attn_func = sageattn_qk_int8_pv_fp8_cuda
-        print(f"[QwenVL] SageAttention: Using SM89 (Ada) FP8 kernel")
-    elif arch_code >= 80:  # Ampere
-        pv_accum_dtype = "fp32"
-        attn_func = sageattn_qk_int8_pv_fp16_cuda
-        print(f"[QwenVL] SageAttention: Using SM80+ (Ampere) FP16 kernel")
-    else:
-        print(f"[QwenVL] SageAttention not supported on SM{arch_code}")
-        return None, None, None
-
-    return attn_func, "per_warp", pv_accum_dtype
-
 def is_fp8_model(model_name: str) -> bool:
     """Check if model name indicates it's a pre-quantized FP8 model."""
     fp8_indicators = ["-fp8", "_fp8", "-FP8", "_FP8"]
@@ -621,9 +560,7 @@ def resolve_attention_mode(mode, force_sdpa=False):
     if mode == "sdpa":
         return "sdpa"
     if mode == "sage":
-        if sage_attn_available():
-            return "sage"
-        print("[QwenVL] SageAttention forced but unavailable, falling back to SDPA")
+        print("[QwenVL] SageAttention support was removed (monkey-patch incompatible with transformers >= 5.x), falling back to SDPA")
         return "sdpa"
     if mode == "flash_attention_2":
         if flash_attn_available():
@@ -631,10 +568,7 @@ def resolve_attention_mode(mode, force_sdpa=False):
         print("[QwenVL] Flash-Attn forced but unavailable, falling back to SDPA")
         return "sdpa"
 
-    # Auto mode: try sage → flash → sdpa
-    if sage_attn_available():
-        print("[QwenVL] Auto mode: Using SageAttention")
-        return "sage"
+    # Auto mode: try flash → sdpa
     if flash_attn_available():
         print("[QwenVL] Auto mode: Using Flash Attention 2")
         return "flash_attention_2"
@@ -843,11 +777,7 @@ class QwenVLBase:
         model_path = ensure_model(model_name)
         quant_config, dtype = quantization_config(model_name, quant)
         
-        # Handle attention mode for loading
-        # SageAttention requires loading with SDPA first, then patching
         actual_attn_impl = attn_impl
-        if attn_impl == "sage":
-            actual_attn_impl = "sdpa"
         
         # MEMORY DEBUGGING: Check memory before loading
         if torch.cuda.is_available():
@@ -963,17 +893,6 @@ class QwenVLBase:
                 except Exception as e:
                     print(f"[QwenVL] ❌ Failed to move to GPU: {e}")
                     print("[QwenVL] Keeping model on CPU (will be very slow)")
-        
-        # Apply SageAttention patching if needed
-        if attn_impl == "sage":
-            try:
-                from sageattention_patch import set_sage_attention
-                set_sage_attention(self.model)
-                print("[QwenVL] SageAttention patching applied successfully")
-            except Exception as e:
-                print(f"[QwenVL] SageAttention patching failed: {e}")
-                print("[QwenVL] Falling back to SDPA attention")
-                # Model is already loaded with SDPA, so we can continue
         
         # MEMORY CLEANUP: Clear cache after model loading
         if torch.cuda.is_available():
@@ -1171,17 +1090,17 @@ class QwenVLBase:
         text = self.tokenizer.decode(outputs[0, input_len:], skip_special_tokens=True)
         return text.strip()
 
-    def run(self, model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt=False, camera_tag="None", video=None, passthrough=False):
+    def run(self, model_name, quantization, preset_prompt, prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt=False, camera_tag="None", video=None, passthrough=False, duration=DEFAULT_DURATION):
         torch.manual_seed(seed)
         
         global LAST_SAVED_PROMPT
         
-        # Passthrough mode: skip model loading entirely, return custom_prompt as-is.
+        # Passthrough mode: skip model loading entirely, return prompt as-is.
         # Used when the chat (or an external tool) already generated the final
         # prompt in the target format — avoids redundant Qwen inference.
         if passthrough:
-            print(f"[QwenVL] Passthrough mode ON — skipping model load, returning custom_prompt directly ({len(custom_prompt or '')} chars)")
-            return (custom_prompt or "",)
+            print(f"[QwenVL] Passthrough mode ON — skipping model load, returning prompt directly ({len(prompt or '')} chars)")
+            return (prompt or "",)
         
         # Simple keep last prompt logic
         if keep_last_prompt:
@@ -1195,12 +1114,15 @@ class QwenVLBase:
         
         # Always generate when keep last prompt is disabled
         print(f"[QwenVL] Keep last prompt disabled - generating new prompt")
-        print(f"[QwenVL] custom_prompt received: '{custom_prompt[:200] if custom_prompt else '(empty)'}'")
+        print(f"[QwenVL] prompt received: '{prompt[:200] if prompt else '(empty)'}'")
         print(f"[QwenVL] image connected: {image is not None} (shape={image.shape if image is not None else 'N/A'})")
         print(f"[QwenVL] image2 connected: {image2 is not None} (shape={image2.shape if image2 is not None else 'N/A'})")
         print(f"[QwenVL] video connected: {video is not None} (shape={video.shape if video is not None else 'N/A'})")
         
-        prompt_template = SYSTEM_PROMPTS.get(preset_prompt, preset_prompt)
+        # Resolve preset aliases (legacy dropdown names) and the duration
+        # widget to a flat prompt key like "MiniMax › NSFW (10s)".
+        preset_prompt, preset_key = resolve_vl_preset(preset_prompt, duration)
+        prompt_template = SYSTEM_PROMPTS.get(preset_key, preset_key)
         
         # Generate cache key with all inputs including seed
         image_hash = get_image_hash(image)
@@ -1208,7 +1130,7 @@ class QwenVLBase:
         video_hash = get_video_hash(video)
         # Combine image2 and video hashes for backward-compatible cache key
         combined_hash = f"{image2_hash or ''}/{video_hash or ''}" if (image2_hash or video_hash) else None
-        cache_key = get_cache_key(model_name, preset_prompt, custom_prompt, image_hash, combined_hash, seed)
+        cache_key = get_cache_key(model_name, preset_key, prompt, image_hash, combined_hash, seed)
         
         # Check cache first (only for random mode)
         if cache_key in PROMPT_CACHE:
@@ -1218,17 +1140,17 @@ class QwenVLBase:
                 return (cached_text,)
         
         prompt_template = add_danbooru_guidance(prompt_template, preset_prompt)
-        if custom_prompt and custom_prompt.strip():
-            # Combine user input with template - custom prompt first for priority
-            prompt = f"{custom_prompt.strip()}\n\n{prompt_template}"
+        if prompt and prompt.strip():
+            # Combine user input with template - user prompt first for priority
+            full_prompt = f"{prompt.strip()}\n\n{prompt_template}"
         else:
-            prompt = prompt_template
+            full_prompt = prompt_template
 
         # ── Camera tag injection ───────────────────────────────────────────
         # Qwen 9B has strong recency bias: tags at the start of a 10k-char
         # prompt get diluted. Two sources of camera tags:
         #   1. The `camera_tag` dropdown (authoritative, takes priority)
-        #   2. Tags written manually in custom_prompt (fallback)
+        #   2. Tags written manually in prompt (fallback)
         # The chosen tag + its short description is injected BOTH at the
         # start (as a prefix) and as a FINAL reminder at the end so the
         # model sees it right before generation.
@@ -1239,9 +1161,9 @@ class QwenVLBase:
             tag_clean = camera_tag.strip().upper().strip("[]")
             if tag_clean in CAMERA_TAGS:
                 found_cam_tag = tag_clean
-        # Source 2: manual tag in custom_prompt (only if dropdown is None)
-        if not found_cam_tag and custom_prompt and custom_prompt.strip():
-            upper = custom_prompt.upper()
+        # Source 2: manual tag in prompt (only if dropdown is None)
+        if not found_cam_tag and prompt and prompt.strip():
+            upper = prompt.upper()
             for tag in CAMERA_TAGS:
                 if f"[{tag}]" in upper:
                     found_cam_tag = tag
@@ -1254,7 +1176,7 @@ class QwenVLBase:
                 f"\n\n═══ FINAL CAMERA DIRECTIVE (HIGHEST PRIORITY) ═══\n"
                 f"Camera: {tag_str} — {desc}\n"
                 f"You MUST use this camera movement and NO other. "
-                f"{camera_directive_location(preset_prompt, prompt)}\n"
+                f"{camera_directive_location(preset_prompt, full_prompt)}\n"
                 f"IMPORTANT: the camera tag controls ONLY the camera. "
                 f"The subject MUST still have natural, lively action and "
                 f"movement throughout the clip — breathing, gestures, "
@@ -1264,7 +1186,7 @@ class QwenVLBase:
                 f"the camera performs {tag_str}.\n"
                 f"═══ END DIRECTIVE ═══"
             )
-            prompt = prefix + prompt + reminder
+            full_prompt = prefix + full_prompt + reminder
 
         self.load_model(
             model_name,
@@ -1276,7 +1198,7 @@ class QwenVLBase:
         )
         try:
             text = self.generate(
-                prompt,
+                full_prompt,
                 image,
                 image2,
                 frame_count,
@@ -1289,6 +1211,8 @@ class QwenVLBase:
                 video=video,
             )
             
+            text = normalize_minimax_output(text, preset_prompt, has_image=image is not None)
+
             # Validate output before caching — reject "ready/waiting" responses
             # that occur when the model treats the system prompt as a conversation
             _lower = text.strip().lower()[:50]
@@ -1325,7 +1249,7 @@ class AILab_QwenVL(QwenVLBase):
         models = list(HF_VL_MODELS.keys())
         default_model = models[0] if models else "Qwen3-VL-4B-Instruct"
         prompts = PRESET_PROMPTS or ["Describe this image in detail."]
-        preferred_prompt = "🖼️ Detailed Description"
+        preferred_prompt = "IMG › Detailed"
         default_prompt = preferred_prompt if preferred_prompt in prompts else prompts[0]
         return {
             "required": {
@@ -1334,18 +1258,19 @@ class AILab_QwenVL(QwenVLBase):
                 "attention_mode": (ATTENTION_MODES, {"default": "auto", "tooltip": TOOLTIPS["attention_mode"]}),
                 "preset_prompt": (prompts, {"default": default_prompt, "tooltip": TOOLTIPS["preset_prompt"]}),
                 "camera_tag": (CAMERA_TAG_OPTIONS, {"default": "None", "tooltip": CAMERA_TAG_TOOLTIP}),
-                "custom_prompt": ("STRING", {"default": "", "multiline": True, "tooltip": TOOLTIPS["custom_prompt"]}),
+                "prompt": ("STRING", {"default": "", "multiline": True, "tooltip": TOOLTIPS["prompt"]}),
                 "max_tokens": ("INT", {"default": 8192, "min": 64, "max": 8192, "tooltip": TOOLTIPS["max_tokens"]}),
-                "keep_model_loaded": ("BOOLEAN", {"default": True, "tooltip": TOOLTIPS["keep_model_loaded"]}),
+                "keep_model_loaded": ("BOOLEAN", {"default": False, "tooltip": TOOLTIPS["keep_model_loaded"]}),
                 "seed": ("INT", {"default": 1, "min": 1, "max": 2**32 - 1, "tooltip": TOOLTIPS["seed"] + "\n\n💡 Cache Info: Prompts are cached automatically. Use the same inputs (model, preset, custom prompt, image/image2/video) to reuse cached prompts and avoid regeneration.\n\n🔒 Fixed Seed Mode: Set seed = 1 to ignore image/image2/video changes and only use text-based caching. Perfect for keeping the same prompt regardless of media input variations."}),
                 "keep_last_prompt": ("BOOLEAN", {"default": False, "tooltip": "Keep the last generated prompt instead of creating a new one"}),
-                "passthrough": ("BOOLEAN", {"default": False, "tooltip": "Skip Qwen model loading and return custom_prompt directly. Use when the chat already generated the final prompt — saves VRAM and inference time."}),
+                "passthrough": ("BOOLEAN", {"default": False, "tooltip": "Skip Qwen model loading and return prompt directly. Use when the chat already generated the final prompt — saves VRAM and inference time."}),
             },
             "optional": {
                 "image": ("IMAGE", {"tooltip": "First reference image (single image). For R2VA this is Picture 1."}),
                 "image2": ("IMAGE", {"tooltip": "Second reference image (single image). For R2VA this is Picture 2."}),
                 "video": ("IMAGE", {"tooltip": "Video frames input. Use frame_count to control how many frames are sampled."}),
                 "frame_count": ("INT", {"default": 16, "min": 1, "max": 64, "tooltip": TOOLTIPS["frame_count"]}),
+                "duration": (DURATION_OPTIONS, {"default": DEFAULT_DURATION, "tooltip": "Clip length for duration-aware presets (MiniMax/LTX/Wan). Ignored by image presets."}),
             },
         }
 
@@ -1354,8 +1279,8 @@ class AILab_QwenVL(QwenVLBase):
     FUNCTION = "process"
     CATEGORY = "QwenVL-Mod"
 
-    def process(self, model_name, quantization, preset_prompt, camera_tag, custom_prompt, attention_mode, max_tokens, keep_model_loaded, seed, keep_last_prompt=False, passthrough=False, image=None, image2=None, video=None, frame_count=16):
-        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, 0.6, 0.9, 1, 1.2, seed, keep_model_loaded, attention_mode, False, "auto", keep_last_prompt, camera_tag, video=video, passthrough=passthrough)
+    def process(self, model_name, quantization, preset_prompt, camera_tag, prompt, attention_mode, max_tokens, keep_model_loaded, seed, keep_last_prompt=False, passthrough=False, image=None, image2=None, video=None, frame_count=16, duration=DEFAULT_DURATION):
+        return self.run(model_name, quantization, preset_prompt, prompt, image, image2, frame_count, max_tokens, 0.6, 0.9, 1, 1.2, seed, keep_model_loaded, attention_mode, False, "auto", keep_last_prompt, camera_tag, video=video, passthrough=passthrough, duration=duration)
 
 class AILab_QwenVL_Advanced(QwenVLBase):
     @classmethod
@@ -1363,7 +1288,7 @@ class AILab_QwenVL_Advanced(QwenVLBase):
         models = list(HF_VL_MODELS.keys())
         default_model = models[0] if models else "Qwen3-VL-4B-Instruct"
         prompts = PRESET_PROMPTS or ["Describe this image in detail."]
-        preferred_prompt = "🖼️ Detailed Description"
+        preferred_prompt = "IMG › Detailed"
         default_prompt = preferred_prompt if preferred_prompt in prompts else prompts[0]
 
         num_gpus = torch.cuda.device_count()
@@ -1379,22 +1304,23 @@ class AILab_QwenVL_Advanced(QwenVLBase):
                 "device": (device_options, {"default": "auto", "tooltip": TOOLTIPS["device"]}),
                 "preset_prompt": (prompts, {"default": default_prompt, "tooltip": TOOLTIPS["preset_prompt"]}),
                 "camera_tag": (CAMERA_TAG_OPTIONS, {"default": "None", "tooltip": CAMERA_TAG_TOOLTIP}),
-                "custom_prompt": ("STRING", {"default": "", "multiline": True, "tooltip": TOOLTIPS["custom_prompt"]}),
+                "prompt": ("STRING", {"default": "", "multiline": True, "tooltip": TOOLTIPS["prompt"]}),
                 "max_tokens": ("INT", {"default": 8192, "min": 64, "max": 8192, "tooltip": TOOLTIPS["max_tokens"]}),
                 "temperature": ("FLOAT", {"default": 0.6, "min": 0.1, "max": 1.0, "tooltip": TOOLTIPS["temperature"]}),
                 "top_p": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "tooltip": TOOLTIPS["top_p"]}),
                 "num_beams": ("INT", {"default": 1, "min": 1, "max": 8, "tooltip": TOOLTIPS["num_beams"]}),
                 "repetition_penalty": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 2.0, "tooltip": TOOLTIPS["repetition_penalty"]}),
-                "keep_model_loaded": ("BOOLEAN", {"default": True, "tooltip": TOOLTIPS["keep_model_loaded"]}),
+                "keep_model_loaded": ("BOOLEAN", {"default": False, "tooltip": TOOLTIPS["keep_model_loaded"]}),
                 "seed": ("INT", {"default": 1, "min": 1, "max": 2**32 - 1, "tooltip": TOOLTIPS["seed"] + "\n\n💡 Cache Info: Prompts are cached automatically. Use same inputs (model, preset, custom prompt, image/image2/video) to reuse cached prompts and avoid regeneration.\n\n🔒 Fixed Seed Mode: Set seed = 1 to ignore image/image2/video changes and only use text-based caching. Perfect for keeping the same prompt regardless of media input variations."}),
                 "keep_last_prompt": ("BOOLEAN", {"default": False, "tooltip": "Keep last generated prompt instead of creating a new one"}),
-                "passthrough": ("BOOLEAN", {"default": False, "tooltip": "Skip Qwen model loading and return custom_prompt directly. Use when the chat already generated the final prompt — saves VRAM and inference time."}),
+                "passthrough": ("BOOLEAN", {"default": False, "tooltip": "Skip Qwen model loading and return prompt directly. Use when the chat already generated the final prompt — saves VRAM and inference time."}),
             },
             "optional": {
                 "image": ("IMAGE", {"tooltip": "First reference image (single image). For R2VA this is Picture 1."}),
                 "image2": ("IMAGE", {"tooltip": "Second reference image (single image). For R2VA this is Picture 2."}),
                 "video": ("IMAGE", {"tooltip": "Video frames input. Use frame_count to control how many frames are sampled."}),
                 "frame_count": ("INT", {"default": 16, "min": 1, "max": 64, "tooltip": TOOLTIPS["frame_count"]}),
+                "duration": (DURATION_OPTIONS, {"default": DEFAULT_DURATION, "tooltip": "Clip length for duration-aware presets (MiniMax/LTX/Wan). Ignored by image presets."}),
             },
         }
 
@@ -1403,8 +1329,8 @@ class AILab_QwenVL_Advanced(QwenVLBase):
     FUNCTION = "process"
     CATEGORY = "QwenVL-Mod"
 
-    def process(self, model_name, quantization, attention_mode, use_torch_compile, device, preset_prompt, camera_tag, custom_prompt, max_tokens, temperature, top_p, num_beams, repetition_penalty, keep_model_loaded, seed, keep_last_prompt, passthrough=False, image=None, image2=None, video=None, frame_count=16):
-        return self.run(model_name, quantization, preset_prompt, custom_prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt, camera_tag, video=video, passthrough=passthrough)
+    def process(self, model_name, quantization, attention_mode, use_torch_compile, device, preset_prompt, camera_tag, prompt, max_tokens, temperature, top_p, num_beams, repetition_penalty, keep_model_loaded, seed, keep_last_prompt, passthrough=False, image=None, image2=None, video=None, frame_count=16, duration=DEFAULT_DURATION):
+        return self.run(model_name, quantization, preset_prompt, prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt, camera_tag, video=video, passthrough=passthrough, duration=duration)
 
 NODE_CLASS_MAPPINGS = {
     "AILab_QwenVL": AILab_QwenVL,
@@ -1521,7 +1447,7 @@ DANBOORU_INPUT_GUIDANCE = """INPUT TAG SUPPORT:
 
 def add_danbooru_guidance(prompt, preset_name):
     name = preset_name or ""
-    if "LTX 2.3" not in name and not ("MiniMax H3" in name and ("R2VA" in name or "FL2VA" in name)) and not ("Wan" in name and "T2V" in name):
+    if "LTX" not in name and not ("MiniMax" in name and ("R2VA" in name or "FL2VA" in name)) and not ("Wan" in name and "T2V" in name):
         return prompt
     if "INPUT TAG SUPPORT:" in prompt or "Danbooru-style tags" in prompt:
         return prompt
@@ -1530,9 +1456,9 @@ def add_danbooru_guidance(prompt, preset_name):
 
 def camera_directive_location(preset_name, prompt=""):
     context = f"{preset_name or ''}\n{prompt or ''}"
-    if "LTX 2.3" in context:
+    if "LTX" in context:
         return "State it explicitly in the first sentence of the video description; do not introduce a [Shot 1] label unless the selected preset already requires one."
-    if "MiniMax H3" in context:
+    if "MiniMax" in context:
         return "State it explicitly in the first sentence of [Shot 1]."
     return "State it explicitly in the first sentence of the generated video prompt."
 
@@ -1544,6 +1470,6 @@ def style_reference_guard(preset_name, prompt=""):
     return ""
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "AILab_QwenVL": "🔷 QwenVL-Mod",
-    "AILab_QwenVL_Advanced": "🔷 QwenVL-Mod (Advanced)",
+    "AILab_QwenVL": "🧠 QwenVL-Mod",
+    "AILab_QwenVL_Advanced": "🧠 QwenVL-Mod (Advanced)",
 }

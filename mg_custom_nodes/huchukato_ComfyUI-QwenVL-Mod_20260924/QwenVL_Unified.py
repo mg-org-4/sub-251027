@@ -7,6 +7,7 @@ import torch
 
 import AILab_QwenVL as _hf
 import AILab_QwenVL_GGUF as _gguf
+from qwenvl_presets import DURATION_OPTIONS, DEFAULT_DURATION
 
 
 HF_VL_MODELS = getattr(_hf, "HF_VL_MODELS", {})
@@ -28,10 +29,10 @@ def _combined_model_list():
     gguf_all = GGUF_VL_CATALOG.get("models") or {}
     gguf_models = sorted([k for k, e in gguf_all.items() if (e or {}).get("mmproj_filename")])
     models = []
-    if hf_models:
-        models.extend([f"{HF_PREFIX}{m}" for m in hf_models])
     if gguf_models:
         models.extend([f"{GGUF_PREFIX}{m}" for m in gguf_models])
+    if hf_models:
+        models.extend([f"{HF_PREFIX}{m}" for m in hf_models])
     if not models:
         models = ["(no models found)"]
     return models
@@ -54,27 +55,27 @@ class QwenVL_Unified:
 
     @classmethod
     def INPUT_TYPES(cls):
-        prompts = PRESET_PROMPTS or ["Describe this image in detail."]
-        preferred = "🖼️ Detailed Description"
+        prompts = PRESET_PROMPTS or ["IMG › Detailed"]
+        preferred = "IMG › Detailed"
         default_prompt = preferred if preferred in prompts else prompts[0]
         return {
             "required": {
-                "backend": (["HF Transformers", "GGUF llama.cpp"], {"default": "GGUF llama.cpp", "tooltip": "Backend engine. The model_name prefix determines actual routing; keep them aligned."}),
-                "model_name": (_combined_model_list(), {"default": _default_model(), "tooltip": "HF models are prefixed with 'HF: ', GGUF models with 'GGUF: '."}),
+                "model_name": (_combined_model_list(), {"default": _default_model(), "tooltip": "HF models are prefixed with 'HF: ', GGUF models with 'GGUF: '. The prefix selects the backend."}),
                 "preset_prompt": (prompts, {"default": default_prompt, "tooltip": TOOLTIPS.get("preset_prompt", "")}),
                 "camera_tag": (CAMERA_TAG_OPTIONS, {"default": "None", "tooltip": CAMERA_TAG_TOOLTIP}),
-                "custom_prompt": ("STRING", {"default": "", "multiline": True, "tooltip": TOOLTIPS.get("custom_prompt", "")}),
+                "prompt": ("STRING", {"default": "", "multiline": True, "tooltip": TOOLTIPS.get("prompt", "")}),
                 "max_tokens": ("INT", {"default": 8192, "min": 64, "max": 8192, "tooltip": TOOLTIPS.get("max_tokens", "")}),
-                "keep_model_loaded": ("BOOLEAN", {"default": True, "tooltip": TOOLTIPS.get("keep_model_loaded", "")}),
+                "keep_model_loaded": ("BOOLEAN", {"default": False, "tooltip": TOOLTIPS.get("keep_model_loaded", "")}),
                 "seed": ("INT", {"default": 1, "min": 1, "max": 2**32 - 1, "tooltip": TOOLTIPS.get("seed", "")}),
                 "keep_last_prompt": ("BOOLEAN", {"default": False, "tooltip": "Keep the last generated prompt instead of creating a new one"}),
-                "passthrough": ("BOOLEAN", {"default": False, "tooltip": "Skip Qwen model loading and return custom_prompt directly."}),
+                "passthrough": ("BOOLEAN", {"default": False, "tooltip": "Skip Qwen model loading and return prompt directly."}),
             },
             "optional": {
                 "image": ("IMAGE", {"tooltip": "First reference image (single image). For R2VA this is Picture 1."}),
                 "image2": ("IMAGE", {"tooltip": "Second reference image (single image). For R2VA this is Picture 2."}),
                 "video": ("IMAGE", {"tooltip": "Video frames input. Use frame_count to control how many frames are sampled."}),
                 "frame_count": ("INT", {"default": 16, "min": 1, "max": 64, "tooltip": TOOLTIPS.get("frame_count", "")}),
+                "duration": (DURATION_OPTIONS, {"default": DEFAULT_DURATION, "tooltip": "Clip length for duration-aware presets (MiniMax/LTX/Wan). Ignored by image presets."}),
             },
         }
 
@@ -85,11 +86,10 @@ class QwenVL_Unified:
 
     def process(
         self,
-        backend,
         model_name,
         preset_prompt,
         camera_tag,
-        custom_prompt,
+        prompt,
         max_tokens,
         keep_model_loaded,
         seed,
@@ -99,6 +99,7 @@ class QwenVL_Unified:
         image2=None,
         video=None,
         frame_count=16,
+        duration=DEFAULT_DURATION,
     ):
         if model_name.startswith(GGUF_PREFIX):
             m = model_name[len(GGUF_PREFIX):]
@@ -107,7 +108,7 @@ class QwenVL_Unified:
                 device="auto",
                 preset_prompt=preset_prompt,
                 camera_tag=camera_tag,
-                custom_prompt=custom_prompt,
+                prompt=prompt,
                 max_tokens=max_tokens,
                 temperature=0.6,
                 top_p=0.9,
@@ -126,6 +127,7 @@ class QwenVL_Unified:
                 image=image,
                 image2=image2,
                 video=video,
+                duration=duration,
             )
 
         if model_name.startswith(HF_PREFIX):
@@ -140,7 +142,7 @@ class QwenVL_Unified:
             device="auto",
             preset_prompt=preset_prompt,
             camera_tag=camera_tag,
-            custom_prompt=custom_prompt,
+            prompt=prompt,
             max_tokens=max_tokens,
             temperature=0.6,
             top_p=0.9,
@@ -154,6 +156,7 @@ class QwenVL_Unified:
             image2=image2,
             video=video,
             frame_count=frame_count,
+            duration=duration,
         )
 
 
@@ -162,28 +165,27 @@ class QwenVL_Unified_Advanced(QwenVL_Unified):
 
     @classmethod
     def INPUT_TYPES(cls):
-        prompts = PRESET_PROMPTS or ["Describe this image in detail."]
-        preferred = "🖼️ Detailed Description"
+        prompts = PRESET_PROMPTS or ["IMG › Detailed"]
+        preferred = "IMG › Detailed"
         default_prompt = preferred if preferred in prompts else prompts[0]
         num_gpus = torch.cuda.device_count()
         gpu_list = [f"cuda:{i}" for i in range(num_gpus)]
         device_options = ["auto", "cpu", "mps"] + gpu_list
         return {
             "required": {
-                "backend": (["HF Transformers", "GGUF llama.cpp"], {"default": "GGUF llama.cpp"}),
-                "model_name": (_combined_model_list(), {"default": _default_model(), "tooltip": "HF models are prefixed with 'HF: ', GGUF models with 'GGUF: '."}),
+                "model_name": (_combined_model_list(), {"default": _default_model(), "tooltip": "HF models are prefixed with 'HF: ', GGUF models with 'GGUF: '. The prefix selects the backend."}),
                 "preset_prompt": (prompts, {"default": default_prompt, "tooltip": TOOLTIPS.get("preset_prompt", "")}),
                 "camera_tag": (CAMERA_TAG_OPTIONS, {"default": "None", "tooltip": CAMERA_TAG_TOOLTIP}),
-                "custom_prompt": ("STRING", {"default": "", "multiline": True, "tooltip": TOOLTIPS.get("custom_prompt", "")}),
+                "prompt": ("STRING", {"default": "", "multiline": True, "tooltip": TOOLTIPS.get("prompt", "")}),
                 "device": (device_options, {"default": "auto", "tooltip": TOOLTIPS.get("device", "")}),
                 "max_tokens": ("INT", {"default": 8192, "min": 64, "max": 8192, "tooltip": TOOLTIPS.get("max_tokens", "")}),
                 "temperature": ("FLOAT", {"default": 0.6, "min": 0.0, "max": 2.0}),
                 "top_p": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0}),
                 "repetition_penalty": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 2.0}),
-                "keep_model_loaded": ("BOOLEAN", {"default": True, "tooltip": TOOLTIPS.get("keep_model_loaded", "")}),
+                "keep_model_loaded": ("BOOLEAN", {"default": False, "tooltip": TOOLTIPS.get("keep_model_loaded", "")}),
                 "seed": ("INT", {"default": 1, "min": 1, "max": 2**32 - 1, "tooltip": TOOLTIPS.get("seed", "")}),
                 "keep_last_prompt": ("BOOLEAN", {"default": False, "tooltip": "Keep the last generated prompt instead of creating a new one"}),
-                "passthrough": ("BOOLEAN", {"default": False, "tooltip": "Skip Qwen model loading and return custom_prompt directly."}),
+                "passthrough": ("BOOLEAN", {"default": False, "tooltip": "Skip Qwen model loading and return prompt directly."}),
                 # HF-specific
                 "quantization": (Quantization.get_values(), {"default": Quantization.FP16.value, "tooltip": TOOLTIPS.get("quantization", "")}),
                 "attention_mode": (ATTENTION_MODES, {"default": "auto", "tooltip": TOOLTIPS.get("attention_mode", "")}),
@@ -202,16 +204,16 @@ class QwenVL_Unified_Advanced(QwenVL_Unified):
                 "image": ("IMAGE", {"tooltip": "First reference image (single image). For R2VA this is Picture 1."}),
                 "image2": ("IMAGE", {"tooltip": "Second reference image (single image). For R2VA this is Picture 2."}),
                 "video": ("IMAGE", {"tooltip": "Video frames input. Use frame_count to control how many frames are sampled."}),
+                "duration": (DURATION_OPTIONS, {"default": DEFAULT_DURATION, "tooltip": "Clip length for duration-aware presets (MiniMax/LTX/Wan). Ignored by image presets."}),
             },
         }
 
     def process(
         self,
-        backend,
         model_name,
         preset_prompt,
         camera_tag,
-        custom_prompt,
+        prompt,
         device,
         max_tokens,
         temperature,
@@ -235,6 +237,7 @@ class QwenVL_Unified_Advanced(QwenVL_Unified):
         image=None,
         image2=None,
         video=None,
+        duration=DEFAULT_DURATION,
     ):
         if model_name.startswith(GGUF_PREFIX):
             m = model_name[len(GGUF_PREFIX):]
@@ -243,7 +246,7 @@ class QwenVL_Unified_Advanced(QwenVL_Unified):
                 device=device,
                 preset_prompt=preset_prompt,
                 camera_tag=camera_tag,
-                custom_prompt=custom_prompt,
+                prompt=prompt,
                 max_tokens=max_tokens,
                 temperature=temperature,
                 top_p=top_p,
@@ -262,6 +265,7 @@ class QwenVL_Unified_Advanced(QwenVL_Unified):
                 image=image,
                 image2=image2,
                 video=video,
+                duration=duration,
             )
 
         if model_name.startswith(HF_PREFIX):
@@ -276,7 +280,7 @@ class QwenVL_Unified_Advanced(QwenVL_Unified):
             device=device,
             preset_prompt=preset_prompt,
             camera_tag=camera_tag,
-            custom_prompt=custom_prompt,
+            prompt=prompt,
             max_tokens=max_tokens,
             temperature=temperature,
             top_p=top_p,
@@ -290,6 +294,7 @@ class QwenVL_Unified_Advanced(QwenVL_Unified):
             image2=image2,
             video=video,
             frame_count=frame_count,
+            duration=duration,
         )
 
 

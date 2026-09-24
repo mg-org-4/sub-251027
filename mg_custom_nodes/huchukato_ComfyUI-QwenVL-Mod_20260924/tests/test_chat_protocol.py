@@ -24,11 +24,12 @@ from chat_service import (
     validate_messages,
     _fix_minimax_preset_actions,
     _match_minimax_preset,
-    _merge_minimax_config,
     _minimax_preset_mode,
     _minimax_result,
     _is_image_enhancer_node,
     _has_image_enhancer_target,
+    ensure_i2va_binding,
+    normalize_minimax_output,
 )
 
 
@@ -121,8 +122,7 @@ class ChatProtocolTests(unittest.TestCase):
         self.assertIn('currently selects preset "MiniMax H3 NSFW (5s)"', prompt)
         self.assertIn("IGNORE any full prompt-writing guide for that preset", prompt)
         self.assertIn("the inner QwenVL node will use it to build the final prompt", prompt)
-        self.assertIn('You MUST set node 105 widget "prompt" to a concise, fluent English action directive', prompt)
-        self.assertIn("You MAY lightly refine the wording", prompt)
+        self.assertIn('You MUST set node 105 widget "prompt" to a concise English action directive', prompt)
         self.assertIn('set node 105 widget "passthrough" to false', prompt)
         self.assertIn("inner QwenVL must analyze the image and create the final preset prompt", prompt)
         # The full MiniMax format guide must not leak into the chat prompt for an image enhancer.
@@ -490,121 +490,6 @@ class ChatProtocolTests(unittest.TestCase):
         self.assertNotIn("integrated_multimodal_description:", prompt)
         self.assertNotIn("overall_soundscape:", prompt)
 
-    def test_config_directive_includes_exact_sampler_values(self):
-        graph = {"nodes": []}
-        prompt = build_prompt([{"role": "user", "content": "a woman dancing"}], graph, config_directive="10eros")
-        self.assertIn("USER-SELECTED MINIMAX CONFIG: 10eros", prompt)
-        self.assertIn("steps: 8", prompt)
-        self.assertIn("sampler_name: euler", prompt)
-        self.assertIn("shift_video: 6", prompt)
-
-    def test_merge_minimax_config_keeps_llm_prompt_and_enforces_config(self):
-        graph = {
-            "nodes": [
-                {
-                    "id": 105,
-                    "widgets": [
-                        {"name": "unet_name", "value": "x", "options": {"values": ["10Eros_Max_h3_TURBO-hybrid_beta3_int8_convrot_skip_edges.safetensors"]}},
-                        {"name": "preset_prompt", "value": "🎬 MiniMax H3 NSFW (5s)", "options": {"values": ["🎬 MiniMax H3 NSFW (5s)", "🎬 MiniMax H3 NSFW (10s)"]}},
-                        {"name": "passthrough", "value": True},
-                        {"name": "prompt", "value": ""},
-                        {"name": "steps", "value": 20, "options": {"values": [8, 20]}},
-                        {"name": "sampler_name", "value": "res_multistep", "options": {"values": ["euler", "res_multistep"]}},
-                        {"name": "scheduler", "value": "simple", "options": {"values": ["simple"]}},
-                        {"name": "shift_video", "value": 12, "options": {"values": [6, 12]}},
-                        {"name": "shift_audio", "value": 3, "options": {"values": [3]}},
-                        {"name": "value_1", "value": 5},
-                    ],
-                }
-            ]
-        }
-        result = {
-            "message": "Done",
-            "actions": [
-                {"type": "set_widget_value", "node_id": 105, "widget": "prompt", "value": "A woman licking and stroking sensually."},
-                {"type": "queue_workflow"},
-            ],
-        }
-        merged = _merge_minimax_config(result, graph, "10eros", "licking and stroking")
-        # LLM-refined prompt is preserved
-        prompt_actions = [a for a in merged["actions"] if a.get("widget") == "prompt"]
-        self.assertEqual(len(prompt_actions), 1)
-        self.assertEqual(prompt_actions[0]["value"], "A woman licking and stroking sensually.")
-        # Config is enforced
-        self.assertEqual(next(a for a in merged["actions"] if a.get("widget") == "steps")["value"], 8)
-        self.assertEqual(next(a for a in merged["actions"] if a.get("widget") == "sampler_name")["value"], "euler")
-        self.assertEqual(next(a for a in merged["actions"] if a.get("widget") == "shift_video")["value"], 6)
-        self.assertEqual(next(a for a in merged["actions"] if a.get("widget") == "passthrough")["value"], False)
-        self.assertTrue(any(a["type"] == "queue_workflow" for a in merged["actions"]))
-
-    def test_descriptive_config_directive_routes_to_llm_and_merges_config(self):
-        class FakeQuantization:
-            Q8 = types.SimpleNamespace(value="q8")
-
-        class FakeBase:
-            def load_model(self, *args):
-                pass
-
-            def generate(self, *args, **kwargs):
-                # Simulate LLM refining the prompt and returning a queue action
-                return json.dumps({
-                    "message": "Refined",
-                    "actions": [
-                        {"type": "set_widget_value", "node_id": 105, "widget": "prompt", "value": "A woman licking and stroking."},
-                        {"type": "queue_workflow"},
-                    ],
-                })
-
-        previous = sys.modules.get("AILab_QwenVL")
-        sys.modules["AILab_QwenVL"] = types.SimpleNamespace(
-            HF_ALL_MODELS={"test-model": {}},
-            Quantization=FakeQuantization,
-            QwenVLBase=FakeBase,
-            SYSTEM_PROMPTS={"🎬 MiniMax H3 NSFW (5s)": "guide"},
-        )
-        try:
-            graph = {
-                "nodes": [
-                    {
-                        "id": 105,
-                        "widgets": [
-                            {"name": "unet_name", "value": "x", "options": {"values": ["10Eros_Max_h3_TURBO-hybrid_beta3_int8_convrot_skip_edges.safetensors"]}},
-                            {"name": "preset_prompt", "value": "🎬 MiniMax H3 NSFW (5s)", "options": {"values": ["🎬 MiniMax H3 NSFW (5s)"]}},
-                            {"name": "passthrough", "value": True},
-                            {"name": "prompt", "value": ""},
-                            {"name": "steps", "value": 20, "options": {"values": [8, 20]}},
-                            {"name": "sampler_name", "value": "res_multistep", "options": {"values": ["euler", "res_multistep"]}},
-                            {"name": "scheduler", "value": "simple", "options": {"values": ["simple"]}},
-                            {"name": "shift_video", "value": 12, "options": {"values": [6, 12]}},
-                            {"name": "shift_audio", "value": 3, "options": {"values": [3]}},
-                            {"name": "value_1", "value": 5},
-                        ],
-                    }
-                ]
-            }
-            runtime = ChatRuntime()
-            result = runtime.chat(
-                "hf", "test-model",
-                [{"role": "user", "content": "Licking and stroking"}],
-                graph,
-                {},
-                directives={"config": "10eros", "text": "Licking and stroking"},
-            )
-            self.assertIn("Refined", result["message"])
-            # LLM prompt preserved
-            self.assertEqual(
-                next(a for a in result["actions"] if a["widget"] == "prompt")["value"],
-                "A woman licking and stroking.",
-            )
-            # Config enforced
-            self.assertEqual(next(a for a in result["actions"] if a["widget"] == "steps")["value"], 8)
-            self.assertEqual(next(a for a in result["actions"] if a["widget"] == "sampler_name")["value"], "euler")
-        finally:
-            if previous is None:
-                sys.modules.pop("AILab_QwenVL", None)
-            else:
-                sys.modules["AILab_QwenVL"] = previous
-
     def test_fix_minimax_preset_corrects_generic_to_fl2va(self):
         graph = {
             "nodes": [
@@ -633,6 +518,49 @@ class ChatProtocolTests(unittest.TestCase):
         fixed = _fix_minimax_preset_actions(result, graph)
         preset_action = next(a for a in fixed["actions"] if a["widget"] == "preset_prompt")
         self.assertEqual(preset_action["value"], "🔄 MiniMax H3 NSFW FL2VA (10s)")
+
+
+    def test_ensure_i2va_binding_prepends_missing_line(self):
+        binding = "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced."
+        body = "integrated_multimodal_description: [Shot 1] A woman smiles."
+        result = ensure_i2va_binding(body, "🎬 MiniMax H3 NSFW (5s)", has_image=True)
+        self.assertTrue(result.startswith(binding))
+        self.assertIn(body, result)
+
+    def test_ensure_i2va_binding_keeps_existing_line(self):
+        binding = "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced."
+        original = f"{binding}\n\nintegrated_multimodal_description: [Shot 1] A woman smiles."
+        self.assertEqual(ensure_i2va_binding(original, "🎬 MiniMax H3 NSFW (5s)", has_image=True), original)
+
+    def test_ensure_i2va_binding_skips_fl2va(self):
+        body = "How the reference pictures align with the target video ..."
+        self.assertEqual(
+            ensure_i2va_binding(body, "🔄 MiniMax H3 NSFW FL2VA (5s)", has_image=True),
+            body,
+        )
+
+    def test_normalize_minimax_removes_duplicate_shot_blocks(self):
+        binding = "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced."
+        body = "integrated_multimodal_description: [Shot 1] ...\noverall_soundscape: ...\nnon_diegetic_music: N/A"
+        duplicate = f"[Shot 1] A woman smiles.\n[Shot 2] She turns.\n\n{binding}\n\n{body}"
+        result = normalize_minimax_output(duplicate, "🎬 MiniMax H3 NSFW (5s)", has_image=True)
+        self.assertTrue(result.startswith(binding))
+        self.assertNotIn("[Shot 2] She turns.", result.split("integrated_multimodal_description:")[0])
+        self.assertIn("integrated_multimodal_description:", result)
+
+    def test_normalize_minimax_adds_missing_i2va_binding(self):
+        body = "integrated_multimodal_description: [Shot 1] A woman smiles.\noverall_soundscape: ...\nnon_diegetic_music: N/A"
+        result = normalize_minimax_output(body, "🎬 MiniMax H3 NSFW (5s)", has_image=True)
+        self.assertIn("For the target video", result)
+        self.assertIn("integrated_multimodal_description:", result)
+
+    def test_normalize_minimax_keeps_fl2va_alignment(self):
+        alignment = "How the reference pictures align with the target video — Picture 1 (from [Shot 1]) aligns with the 0.00-second mark; Picture 2 aligns with the 5.00-second mark."
+        body = "integrated_multimodal_description: [Shot 1] ...\noverall_soundscape: ...\nnon_diegetic_music: N/A"
+        text = f"{alignment}\n\n{body}"
+        result = normalize_minimax_output(text, "🔄 MiniMax H3 NSFW FL2VA (5s)", has_image=True)
+        self.assertTrue(result.startswith(alignment))
+        self.assertIn("integrated_multimodal_description:", result)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from qwenvl_presets import VL_ALIASES, resolve_preset, resolve_vl_preset
+
 
 MAX_MESSAGES = 20
 MAX_MESSAGE_CHARS = 12000
@@ -18,6 +20,50 @@ MAX_VIDEO_FRAMES = 4
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 ALLOWED_ACTIONS = {"set_widget_value", "set_node_mode", "queue_workflow"}
 MINIMAX_I2VA_BINDING = "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced."
+
+
+def ensure_i2va_binding(text, preset_name, has_image=False):
+    """Ensure MiniMax H3 I2VA outputs include the required reference binding
+    line. FL2VA/R2VA presets use their own alignment format and are excluded."""
+    if not has_image or not preset_name or "MiniMax" not in preset_name:
+        return text
+    if "FL2VA" in preset_name or "R2VA" in preset_name:
+        return text
+    if MINIMAX_I2VA_BINDING in text:
+        return text
+    return f"{MINIMAX_I2VA_BINDING}\n\n{text.lstrip()}"
+
+
+def normalize_minimax_output(text, preset_name, has_image=False):
+    """Remove stray preface / duplicated shot blocks before the real prompt body
+    and ensure the required reference alignment line is present.
+
+    MiniMax H3 presets expect the output to start directly with the mode's
+    header (I2VA binding / FL2VA alignment line / nothing for T2VA), followed
+    by `integrated_multimodal_description:`, `overall_soundscape:` and
+    `non_diegetic_music:`. Anything else before the first body label is noise."""
+    if not preset_name or "MiniMax" not in preset_name:
+        return text
+    label = "integrated_multimodal_description:"
+    idx = text.find(label)
+    if idx < 0:
+        return ensure_i2va_binding(text, preset_name, has_image)
+
+    head, tail = text[:idx], text[idx:]
+    marker = None
+    if "FL2VA" in preset_name or "R2VA" in preset_name:
+        marker = "How the reference pictures align"
+    elif has_image:
+        marker = "For the target video"
+
+    prefix = ""
+    if marker:
+        for line in head.splitlines():
+            if marker in line:
+                prefix = line.strip() + "\n\n"
+                break
+    return ensure_i2va_binding(prefix + tail.lstrip(), preset_name, has_image)
+
 
 BASE_SYSTEM_PROMPT = """You are Qwen Workflow Assistant inside ComfyUI. Answer the user and, only when requested, control the open workflow using the supplied snapshot.
 LANGUAGE: "message" and choice labels must mirror the LATEST user message language. Workflow prompt text must be English.
@@ -41,8 +87,7 @@ WORKFLOW TARGETS (pick the FIRST matching case for the node you are controlling)
    - EXAMPLE: user says "use 10Eros: slow caressing on thigh, static camera"
      Actions: unet_name=10Eros...; steps=8; sampler_name=euler; shift_video=6; prompt="slow caressing on thigh, static camera"; passthrough=false; queue_workflow.
    - NEVER copy "use Native", "use 10Eros", "generate", "5s video" into the prompt widget.
-   - For preset-enhancer nodes (preset_prompt + passthrough + image input), write a concise, fluent English action directive. You MAY lightly refine the user's wording — add a clear subject if missing, fix grammar, turn telegraphic text into a natural phrase — but do NOT invent scene details and do NOT write a full multi-section preset prompt.
-   - NEVER describe the reference image yourself (clothes, face, room, light); the inner QwenVL model will see the image and describe it. You only provide the action.
+   - NEVER describe the image yourself (clothes, face, room, light); the inner QwenVL model will see the image and describe it. You only provide the action.
 2. Livepeer Render node (type contains "Livepeer", exposes capability + duration):
    - Write one English shot-native prompt into its "prompt" widget. Update capability, duration, aspect_ratio to match the request.
    - For images select an image capability from the dropdown (flux-schnell, flux-dev, etc.); for video select a video capability. Keep custom_capability empty unless the user names a model not in the dropdown.
@@ -420,9 +465,15 @@ def enforce_image_reference_bindings(result, graph, has_images):
             continue
         widgets = {widget.get("name"): widget.get("value") for widget in node.get("widgets", []) if isinstance(widget, dict)}
         preset = str(widgets.get("preset_prompt", ""))
+        resolved_preset, _ = resolve_preset(preset, VL_ALIASES)
+        is_minimax_i2va = (
+            "minimax" in resolved_preset.lower()
+            and "r2va" not in resolved_preset.lower()
+            and "fl2va" not in resolved_preset.lower()
+        )
         title = f'{node.get("title", "")} {node.get("type", "")}'.lower()
         passthrough = passthrough_values.get(str(action.get("node_id")), widgets.get("passthrough") is True)
-        if "minimax h3 nsfw (" not in preset.lower() or "image to video" not in title or not passthrough:
+        if not is_minimax_i2va or "image to video" not in title or not passthrough:
             continue
         action["value"] = f"{MINIMAX_I2VA_BINDING}\n\n{value.lstrip()}"
         amended.append(action["value"])
@@ -471,13 +522,23 @@ def _preset_guides(graph, messages, has_images=False):
         return ""
     wanted = set()
     for node in graph.get("nodes", []):
+        widgets = {w.get("name"): w.get("value") for w in node.get("widgets", []) if isinstance(w, dict)}
         for widget in node.get("widgets", []):
-            if isinstance(widget, dict) and widget.get("value") in guides:
-                wanted.add(widget["value"])
+            if not isinstance(widget, dict):
+                continue
+            value = widget.get("value")
+            if value in guides:
+                wanted.add(value)
+            elif isinstance(value, str):
+                # Widget values are base preset names; resolve to the flat
+                # "Name (Ns)" guide key using the node's duration widget.
+                _, key = resolve_vl_preset(value, widgets.get("duration"))
+                if key in guides:
+                    wanted.add(key)
     last_user = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
     wanted.update(name for name in guides if name in last_user)
     # A duration mention (e.g. "10 seconds", "10s", "10 secondi") selects the
-    # preset variants for that length, e.g. "MiniMax H3 NSFW (10s)". Keep the
+    # flat guide for that length, e.g. "MiniMax › NSFW (10s)". Keep the
     # same MiniMax mode as the currently selected preset (FL2VA / R2VA / generic).
     current_mode = None
     for node in graph.get("nodes", []):
@@ -502,7 +563,7 @@ def _preset_guides(graph, messages, has_images=False):
         return ""
     # Suppress full-format video guides when the chat must only feed the enhancer.
     if has_images and _has_image_enhancer_target(graph):
-        video_prefixes = ("🎬 MiniMax", "🎞️ MiniMax", "🔄 MiniMax", "🎥 LTX", "🔀 LTX", "🎵 LTX", "📹 Wan", "🔄 Wan", "📖 Wan")
+        video_prefixes = ("MiniMax", "LTX", "Wan", "🎬 MiniMax", "🎞️ MiniMax", "🔄 MiniMax", "🎥 LTX", "🔀 LTX", "🎵 LTX", "📹 Wan", "🔄 Wan", "📖 Wan")
         wanted = {name for name in wanted if not any(name.startswith(prefix) for prefix in video_prefixes)}
         if not wanted:
             return ""
@@ -511,8 +572,8 @@ def _preset_guides(graph, messages, has_images=False):
         "\n\nPROMPT WRITING GUIDES - when writing or editing a prompt for a node "
         "associated with one of these presets, follow the corresponding guide "
         "exactly, including its required output format. If the user asks for a "
-        "different clip duration than the one the workflow is set to, also set "
-        "the preset widget to the matching duration variant (if one exists) and "
+        "different clip duration than the one the workflow is set to, set the "
+        "node's \"duration\" widget (e.g. \"10s\") when it exists and "
         "update the workflow's duration/frame-count widgets accordingly:\n" + parts
     )
 
@@ -561,12 +622,9 @@ def _chat_guides_for(graph, has_images=False):
                 f'### Exact image-enhancer target\nImage pixels are provided. Node {node.get("id")} exposes "{prompt_widget}", "preset_prompt", and "passthrough". '
                 f'Inspect the provided image pixels to understand how the requested action applies. The node currently selects preset "{widgets.get("preset_prompt", "")}". '
                 f'IGNORE any full prompt-writing guide for that preset above: the inner QwenVL node will use it to build the final prompt. '
-                f'You MUST set node {node.get("id")} widget "{prompt_widget}" to a concise, fluent English action directive derived from the latest substantive request. '
-                f'You MAY lightly refine the wording: add a clear subject if missing, fix grammar, and turn telegraphic text into a natural action phrase, but keep it short and do NOT invent scene details not implied by the request or reference images. '
-                f'Example: "sucking penis" → "A woman sucking a penis, blowjob." Example: "she dance" → "The woman dances gracefully." '
-                f'Never copy the raw user text verbatim; never add the "For the target video..." binding line; never write integrated_multimodal_description/sections. '
+                f'You MUST set node {node.get("id")} widget "{prompt_widget}" to a concise English action directive derived from the latest substantive request (skip execute-only confirmations; never copy it verbatim; never add the "For the target video..." binding line; never write integrated_multimodal_description/sections). '
                 f'Do NOT change node {node.get("id")} widget "preset_prompt" unless the user explicitly asks to switch mode (e.g., "switch to I2VA"). '
-                f'If the user only changes duration, keep the same preset family and update the duration widgets (value_1 or seconds), not the preset_prompt. '
+                f'If the user only changes duration, keep the same preset family and update the duration widgets (the node\'s "duration" widget, plus value_1 or seconds on the sampler), not the preset_prompt. '
                 f'set node {node.get("id")} widget "passthrough" to false, then queue. The inner QwenVL must analyze the image and create the final preset prompt.'
             )
         else:
@@ -583,24 +641,10 @@ def _chat_guides_for(graph, has_images=False):
     )
 
 
-def _minimax_config_instruction(config_key):
-    config = _MINIMAX_CONFIGS[config_key]
-    lines = [f"\nUSER-SELECTED MINIMAX CONFIG: {config_key}. Apply these exact sampler widget values when updating a MiniMax H3 video sampler node:"]
-    lines.append(f'- unet_name: contains "{config["unet_needle"]}" (fallback: {config["unet_fallback"]})')
-    for name, value in config["values"].items():
-        lines.append(f"- {name}: {value}")
-    if config.get("lora_mode"):
-        lines.append(f'- Set any LoRA node under the same sampler to mode "{config["lora_mode"]}" (bypass/enable).')
-    return "\n".join(lines) + "\n"
-
-
-def build_prompt(messages, graph, enable_thinking=False, has_images=False, has_video=False, config_directive=None):
+def build_prompt(messages, graph, enable_thinking=False, has_images=False, has_video=False):
     history = "\n".join(f"{item['role'].upper()}: {item['content']}" for item in messages)
     snapshot = json.dumps(graph, ensure_ascii=False, separators=(",", ":"))
-    instruction = BASE_SYSTEM_PROMPT
-    if config_directive in _MINIMAX_CONFIGS:
-        instruction += _minimax_config_instruction(config_directive)
-    instruction += _preset_guides(graph, messages, has_images) + _chat_guides_for(graph, has_images)
+    instruction = BASE_SYSTEM_PROMPT + _preset_guides(graph, messages, has_images) + _chat_guides_for(graph, has_images)
     instruction += THINKING_INSTRUCTION if enable_thinking else NO_THINKING_INSTRUCTION
     if has_video:
         instruction += "\nVIDEO INPUT: sampled frames from a video clip are attached to the latest user message. Treat them as the clip itself when the user asks to review, critique, or refine a generated video."
@@ -773,10 +817,18 @@ def _minimax_result(graph, config_key, text):
             seconds = int(duration.group(1))
             if "value_1" in widgets:
                 actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "value_1", "value": seconds})
-            current_preset = widgets["preset_prompt"].get("value", "")
-            preset_match = _match_minimax_preset(widgets["preset_prompt"], seconds, current_preset)
-            if preset_match:
-                actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "preset_prompt", "value": preset_match})
+            if "duration" in widgets:
+                # New-style node: duration is its own widget; the preset stays
+                # on the same family name regardless of clip length.
+                dur_value = f"{seconds}s"
+                dur_options = [str(o) for o in _widget_options(widgets["duration"])]
+                if not dur_options or dur_value in dur_options:
+                    actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "duration", "value": dur_value})
+            else:
+                current_preset = widgets["preset_prompt"].get("value", "")
+                preset_match = _match_minimax_preset(widgets["preset_prompt"], seconds, current_preset)
+                if preset_match:
+                    actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "preset_prompt", "value": preset_match})
         directive = _clean_action_directive(text)
         if directive and "prompt" in widgets:
             actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "prompt", "value": directive})
@@ -801,36 +853,6 @@ def _minimax_result(graph, config_key, text):
     return None
 
 
-def _duration_phrase(text):
-    match = re.search(r"\b(\d{1,2})\s*(?:sec(?:ond)?s?|s|secondi?)\b", text or "", re.IGNORECASE)
-    return f"{match.group(1)} seconds" if match else ""
-
-
-def _merge_minimax_config(result, graph, config_key, text):
-    """Combine deterministic MiniMax sampler config actions (unet, steps,
-    scheduler, shifts, LoRA modes, duration) with an LLM-refined prompt action.
-    Returns result unchanged if no MiniMax sampler node is found."""
-    synthetic_text = _duration_phrase(text)
-    config_result = _minimax_result(graph, config_key, synthetic_text)
-    if not config_result:
-        return result
-    node_id = next((a["node_id"] for a in config_result.get("actions", []) if a.get("widget") == "unet_name"), None)
-    if node_id is None:
-        return result
-
-    # Keep the LLM-refined prompt and any non-conflicting actions.
-    config_widgets = {"unet_name", "steps", "sampler_name", "scheduler", "shift_video", "shift_audio", "value_1", "preset_prompt", "passthrough"}
-    kept = [a for a in result.get("actions", []) if not (
-        a.get("type") == "set_widget_value"
-        and str(a.get("node_id")) == str(node_id)
-        and a.get("widget") in config_widgets
-    )]
-    kept = [a for a in kept if a.get("type") != "queue_workflow"]
-    kept.extend(config_result.get("actions", []))
-    result["actions"] = kept
-    return result
-
-
 def _fix_minimax_preset_actions(result, graph):
     """After LLM routing, correct preset_prompt actions on MiniMax H3 nodes so
     the duration variant matches the currently selected mode (FL2VA/R2VA).
@@ -853,12 +875,33 @@ def _fix_minimax_preset_actions(result, graph):
             # Current preset is the generic one; don't second-guess explicit mode switches.
             continue
         new_value = str(action.get("value") or "")
-        new_mode = _minimax_preset_mode(new_value)
+        # Normalize legacy dropdown names to the canonical preset so mode
+        # comparison and widget options work with the new naming.
+        resolved_new, resolved_dur = resolve_preset(new_value, VL_ALIASES)
+        new_mode = _minimax_preset_mode(resolved_new)
+        if resolved_new in [str(o) for o in _widget_options(widgets["preset_prompt"])]:
+            action["value"] = resolved_new
+        def _emit_duration(dur):
+            if not dur or "duration" not in widgets:
+                return
+            dur_options = [str(o) for o in _widget_options(widgets["duration"])]
+            if not dur_options or dur in dur_options:
+                result["actions"].append({"type": "set_widget_value", "node_id": action.get("node_id"), "widget": "duration", "value": dur})
+
         if new_mode == current_mode:
+            # Same family — duration is expressed via the "duration" widget.
+            _emit_duration(resolved_dur)
+            continue
+        if "duration" in widgets:
+            # New-style node: keep the current preset family, duration lives in
+            # its own widget.
+            action["value"] = current_preset
+            _emit_duration(resolved_dur)
             continue
         duration_match = re.search(r"\((\d+)s\)", new_value)
         if not duration_match:
-            # No duration in the new value; revert to the current preset to stay safe.
+            # Legacy node without a duration suffix; revert to the current
+            # preset to stay safe.
             action["value"] = current_preset
             continue
         fixed = _match_minimax_preset(widgets["preset_prompt"], int(duration_match.group(1)), current_preset)
@@ -908,38 +951,13 @@ class ChatRuntime:
         sel_capability = str(directives.get("capability") or "auto")
         sel_config = str(directives.get("config") or "auto")
         sel_text = str(directives.get("text") or "")
-        config_directive = None
         explicit = None
         if sel_capability != "auto":
             explicit = _capability_result(graph, sel_capability, sel_text, sel_text)
         if explicit is None and sel_config in _MINIMAX_CONFIGS:
-            # If the user wrote a descriptive scene, let the LLM refine the
-            # prompt while we enforce the selected config afterwards. Otherwise
-            # bypass the LLM for a fast deterministic execution.
-            if not sel_text or _is_execution_only(sel_text):
-                explicit = _minimax_result(graph, sel_config, sel_text)
-            else:
-                config_directive = sel_config
+            explicit = _minimax_result(graph, sel_config, sel_text)
         if explicit is None:
-            explicit = _explicit_capability_request(messages, graph)
-        if explicit is None:
-            last_user = _last_user_message(messages)
-            trigger = _CONFIG_TRIGGER.search(last_user)
-            if trigger:
-                raw = trigger.group(1).lower()
-                if "native" in raw or raw.rstrip() == "config c":
-                    msg_config = "native"
-                elif "eros" in raw or raw.rstrip() == "config a":
-                    msg_config = "10eros"
-                elif "turbo" in raw or raw.rstrip() == "config b":
-                    msg_config = "turbo"
-                else:
-                    msg_config = None
-                rest = _CONFIG_TRIGGER.sub("", last_user).strip()
-                if msg_config and (not rest or _is_execution_only(rest)):
-                    explicit = _minimax_result(graph, msg_config, last_user)
-                elif msg_config:
-                    config_directive = msg_config
+            explicit = _explicit_capability_request(messages, graph) or _explicit_minimax_request(messages, graph)
         if explicit is not None:
             return explicit
         available = self.models().get(backend)
@@ -957,14 +975,12 @@ class ChatRuntime:
             # Thinking consumes tokens before the JSON reply; a small budget
             # truncates the response after the reasoning and no JSON is emitted.
             options["max_tokens"] = max(int(options.get("max_tokens", 1024)), 4096)
-        prompt = build_prompt(messages, graph, enable_thinking, bool(images), bool(video), config_directive)
+        prompt = build_prompt(messages, graph, enable_thinking, bool(images), bool(video))
         with self._lock:
             text = self._generate(backend, model_name, prompt, options, enable_thinking, images, video)
         result = parse_model_response(text)
         if result.pop("parsed"):
             result = enforce_image_enhancer_routing(result, graph, messages, bool(images))
-            if config_directive in _MINIMAX_CONFIGS:
-                result = _merge_minimax_config(result, graph, config_directive, sel_text)
             result = _fix_minimax_preset_actions(result, graph)
             return enforce_image_reference_bindings(result, graph, bool(images))
         # The model ignored the JSON protocol (e.g. a conversational preamble
@@ -974,14 +990,12 @@ class ChatRuntime:
             {"role": "assistant", "content": (text or "")[:2000]},
             {"role": "user", "content": "Your reply was not a JSON object. Return ONLY the JSON object described in the system instructions — no preamble, no extra text."},
         ]
-        retry_prompt = build_prompt(retry_messages, graph, enable_thinking, bool(images), bool(video), config_directive)
+        retry_prompt = build_prompt(retry_messages, graph, enable_thinking, bool(images), bool(video))
         with self._lock:
             retry_text = self._generate(backend, model_name, retry_prompt, options, enable_thinking, images, video)
         retry_result = parse_model_response(retry_text)
         if retry_result.pop("parsed"):
             retry_result = enforce_image_enhancer_routing(retry_result, graph, messages, bool(images))
-            if config_directive in _MINIMAX_CONFIGS:
-                retry_result = _merge_minimax_config(retry_result, graph, config_directive, sel_text)
             retry_result = _fix_minimax_preset_actions(retry_result, graph)
             return enforce_image_reference_bindings(retry_result, graph, bool(images))
         return result

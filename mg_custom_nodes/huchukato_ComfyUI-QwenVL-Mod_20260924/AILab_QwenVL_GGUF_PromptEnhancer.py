@@ -21,7 +21,14 @@ from dataclasses import dataclass
 from pathlib import Path
 import torch
 from huggingface_hub import hf_hub_download, snapshot_download
-from llama_cpp import Llama
+try:
+    from llama_cpp import Llama
+except ImportError as exc:
+    raise ImportError(
+        "llama-cpp-python is not installed — GGUF nodes require a vision-capable "
+        "build. Local install: `pip install llama-cpp-python`; for CUDA/vision "
+        "wheels see github.com/abetlen/llama-cpp-python"
+    ) from exc
 
 import folder_paths
 from AILab_OutputCleaner import OutputCleanConfig, clean_model_output, prompt_output_guard
@@ -31,6 +38,10 @@ import sys
 sys.path.append(str(Path(__file__).parent))
 from AILab_QwenVL import PROMPT_CACHE, ensure_cuda_vram_headroom, get_cache_key, get_alternative_cache_key, save_prompt_cache, CAMERA_TAG_OPTIONS, CAMERA_TAG_TOOLTIP, CAMERA_TAG_DESCRIPTIONS, STYLE_TAG_OPTIONS, STYLE_TAG_TOOLTIP, STYLE_TAG_DESCRIPTIONS, add_danbooru_guidance, camera_directive_location, style_reference_guard
 from AILab_QwenVL_GGUF import read_gguf_architecture, find_in_llm_paths, _filter_kwargs_for_callable
+from qwenvl_presets import (
+    TEXT_STYLE_NAMES, TEXT_PROMPTS, TEXT_DURATIONS, TRANSLATION_PROMPT,
+    DURATION_OPTIONS, DEFAULT_DURATION, resolve_text_style,
+)
 
 # Simple global variable to store last generated prompt
 LAST_SAVED_PROMPT = None
@@ -41,19 +52,28 @@ PROMPT_CONFIG_PATH = NODE_DIR / "AILab_System_Prompts.json"
 
 
 def load_prompt_config():
-    if not PROMPT_CONFIG_PATH.exists():
-        raise FileNotFoundError(f"[QwenVL] Missing AILab_System_Prompts.json at {PROMPT_CONFIG_PATH}")
-    try:
-        with open(PROMPT_CONFIG_PATH, "r", encoding="utf-8") as fh:
-            data = json.load(fh) or {}
-        qwen_text = data.get("qwen_text") or {}
-        styles = qwen_text.get("styles")
-        translation_prompt = qwen_text.get("translation_prompt")
-        if not styles or not translation_prompt:
-            raise ValueError("AILab_System_Prompts.json must include qwen_text.styles and qwen_text.translation_prompt")
-        return {"styles": styles, "translation_prompt": translation_prompt}
-    except Exception as exc:
-        raise RuntimeError(f"[QwenVL] Failed to load AILab_System_Prompts.json: {exc}") from exc
+    styles = dict(TEXT_PROMPTS)
+    translation_prompt = TRANSLATION_PROMPT
+    # Legacy user file still wins over the bundled presets when present.
+    if PROMPT_CONFIG_PATH.exists():
+        try:
+            with open(PROMPT_CONFIG_PATH, "r", encoding="utf-8") as fh:
+                data = json.load(fh) or {}
+            qwen_text = data.get("qwen_text") or {}
+            legacy_styles = qwen_text.get("styles") or {}
+            if isinstance(legacy_styles, dict):
+                styles.update({
+                    name: entry.get("system_prompt", "")
+                    for name, entry in legacy_styles.items()
+                    if isinstance(entry, dict) and entry.get("system_prompt")
+                })
+            if isinstance(qwen_text.get("translation_prompt"), str):
+                translation_prompt = qwen_text["translation_prompt"]
+        except Exception as exc:
+            print(f"[QwenVL] Legacy prompt config skipped: {exc}")
+    if not styles:
+        raise RuntimeError("[QwenVL] No text styles found in presets/*.json")
+    return {"styles": styles, "translation_prompt": translation_prompt}
 
 
 PROMPT_CONFIG = load_prompt_config()
@@ -211,9 +231,9 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
 
     @classmethod
     def INPUT_TYPES(cls):
-        styles = list(STYLES.keys())
-        preferred_style = "📝 Enhance"
-        default_style = preferred_style if preferred_style in styles else (styles[0] if styles else "📝 Enhance")
+        styles = list(TEXT_STYLE_NAMES) or list(STYLES.keys())
+        preferred_style = "Enhance"
+        default_style = preferred_style if preferred_style in styles else (styles[0] if styles else "Enhance")
         temp = cls.load_gguf_models()
         model_keys = sorted(list((temp.get("models") or {}).keys())) or ["(no GGUF models found)"]
         default_model = model_keys[0]
@@ -230,10 +250,11 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
                 "repetition_penalty": ("FLOAT", {"default": 1.1, "min": 0.5, "max": 2.0}),
                 "english_output": ("BOOLEAN", {"default": False, "tooltip": "Force final output in English using translation prompt."}),
                 "device": (["auto", "cuda", "cpu", "mps"], {"default": "auto", "tooltip": "Select device; auto prefers GPU when available."}),
-                "keep_model_loaded": ("BOOLEAN", {"default": True, "tooltip": "Keep model loaded in memory for faster repeated inference (uses more VRAM)."}),
+                "keep_model_loaded": ("BOOLEAN", {"default": False, "tooltip": "Keep model loaded in memory for faster repeated inference (uses more VRAM)."}),
                 "seed": ("INT", {"default": 1, "min": 1, "max": 2**32 - 1}),
                 "keep_last_prompt": ("BOOLEAN", {"default": False, "tooltip": "Keep the last generated prompt instead of creating a new one"}),
                 "passthrough": ("BOOLEAN", {"default": False, "tooltip": "Skip Qwen model loading and return prompt_text directly. Use when the chat already generated the final prompt — saves VRAM and inference time."}),
+                "duration": (DURATION_OPTIONS, {"default": DEFAULT_DURATION, "tooltip": "Clip length for duration-aware styles (MiniMax/LTX/Wan). Ignored by generic styles."}),
                             }
         }
 
@@ -529,6 +550,7 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
         seed,
         keep_last_prompt,
         passthrough=False,
+        duration=DEFAULT_DURATION,
     ):
         global LAST_SAVED_PROMPT
 
@@ -557,7 +579,8 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
                 f"english_output={bool(english_output)}",
             ) if part
         )
-        cache_key = get_cache_key(model_name, preset_system_prompt, cache_prompt, seed=seed)
+        preset_system_prompt, style_key = resolve_text_style(preset_system_prompt, duration)
+        cache_key = get_cache_key(model_name, style_key, cache_prompt, seed=seed)
 
         # Check cache first (only for random mode)
         if cache_key in PROMPT_CACHE:
@@ -566,11 +589,9 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
                 print(f"[QwenVL PromptEnhancer GGUF] Using cached prompt for seed {seed}: {cache_key[:8]}...")
                 return (cached_text.strip(),)
 
-        style_entry = self.styles.get(preset_system_prompt, {})
-        style_system_prompt = (style_entry.get("system_prompt") or "").strip()
-        system_prompt = style_system_prompt
+        system_prompt = (self.styles.get(style_key) or "").strip()
         if not system_prompt:
-            raise ValueError("system_prompt is empty; check AILab_System_Prompts.json or preset selection.")
+            raise ValueError("system_prompt is empty; check presets/*.json or preset selection.")
         system_prompt = add_danbooru_guidance(system_prompt, preset_system_prompt)
         system_prompt = f"{system_prompt}\n\n{prompt_output_guard()}"
         merged_prompt = prompt_text.strip() or "Describe a scene vividly."
@@ -703,5 +724,5 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "AILab_QwenVL_GGUF_PromptEnhancer": "🔷 QwenVL-Mod Prompt Enhancer (GGUF)",
+    "AILab_QwenVL_GGUF_PromptEnhancer": "✍🏻 QwenVL-Mod Prompt Enhancer (GGUF)",
 }

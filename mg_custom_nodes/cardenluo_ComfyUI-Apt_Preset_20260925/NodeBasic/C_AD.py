@@ -3083,12 +3083,20 @@ def _ad_motion_context_frames(value, node_name):
 
 
 def _ad_ref2_motion_context_plan(value, legacy_method="guide"):
-    mode = str(value or "None").strip()
+    mode = str(value or "none").strip()
+    aliases = {
+        "None": "none",
+        "guide 22 frames": "guide_22",
+        "guide 39 frames": "guide_39",
+        "native_soft_mask 39": "native_39",
+        "native_masked 39 frames": "native_39",
+    }
+    mode = aliases.get(mode, mode)
     plans = {
-        "None": (0, "guide"),
-        "guide 22 frames": (22, "guide"),
-        "guide 39 frames": (39, "guide"),
-        "native_soft_mask 39": (39, "native_redraw_av"),
+        "none": (0, "guide"),
+        "guide_22": (22, "guide"),
+        "guide_39": (39, "guide"),
+        "native_39": (39, "native_redraw_av"),
     }
     if mode in plans:
         return plans[mode]
@@ -3098,8 +3106,8 @@ def _ad_ref2_motion_context_plan(value, legacy_method="guide"):
         method = "native_redraw_av" if legacy_method == "native_masked_av" else "guide"
         return 39, method
     raise ValueError(
-        "AD_MinMax_Ref2_generate: motion_context must be None, guide 22 frames, "
-        "guide 39 frames or native_soft_mask 39"
+        "AD_MinMax_Ref2_generate: motion_context must be none, guide_22, "
+        "guide_39 or native_39"
     )
 
 
@@ -4657,7 +4665,12 @@ def _ad_stage_entries(value, fallback="", fallback_time=_AD_STAGE_TIME_DEFAULT):
         if not isinstance(item, collections.abc.Mapping) or not isinstance(item.get("prompt"), str):
             raise ValueError("AD MiniMax H3: each stage prompt must be text or a prompt/time object")
         stage_time = _ad_stage_time(item.get("single_stage_time", fallback_time))
-        entries.append({"prompt": item["prompt"], "single_stage_time": stage_time})
+        entry = {"prompt": item["prompt"], "single_stage_time": stage_time}
+        if "motion_context" in item:
+            motion_context = str(item["motion_context"] or "none").strip()
+            _ad_ref2_motion_context_plan(motion_context)
+            entry["motion_context"] = motion_context
+        entries.append(entry)
     if not entries and fallback:
         entries = [{"prompt": str(fallback), "single_stage_time": fallback_time}]
     return entries
@@ -4675,6 +4688,14 @@ def _ad_stage_time_plan(stage_prompts, prompt, single_stage_time, stage_info):
     total = len(entries) if stage_info is None else (_ad_stage_info(stage_info)[2] or len(entries))
     times = [entries[min(index, len(entries) - 1)]["single_stage_time"] for index in range(total)]
     return times[stage_index], sum(times[:stage_index]), sum(times)
+
+
+def _ad_stage_motion_context(stage_prompts, prompt, fallback, stage_info):
+    entries = _ad_stage_entries(stage_prompts, prompt)
+    if not entries:
+        return fallback
+    stage_index = 0 if stage_info is None else _ad_stage_info(stage_info)[1]
+    return entries[min(stage_index, len(entries) - 1)].get("motion_context", fallback)
 
 
 def _ad_stage_prompt_plan(stage_prompts, prompt, stage_info=None):
@@ -5825,12 +5846,12 @@ class AD_MinMax_Ref2_generate(_AD_MinMaxBase, _AD_MinMaxRef2GuideBase):
             "tooltip": "仅用于视频创建输出",
         })
         required["motion_context"] = ([
-            "None",
-            "guide 22 frames",
-            "guide 39 frames",
-            "native_soft_mask 39",
+            "none",
+            "guide_22",
+            "guide_39",
+            "native_39",
         ], {
-            "default": "guide 22 frames",
+            "default": "guide_22",
             "tooltip": "续接方案：Guide22/39帧使用条件引导；native soft 39使用动态重绘并保持AV网格精确对齐。",
         })
         required["reference_media_mode"] = (
@@ -5914,10 +5935,6 @@ class AD_MinMax_Ref2_generate(_AD_MinMaxBase, _AD_MinMaxRef2GuideBase):
         latent_sample_tile = kwargs.pop("latent_sample_tile", "None：不分块")
         legacy_continuation_method = kwargs.pop("continuation_method", "guide")
         stage_info = stage_info_data1
-        motion_context_frames, continuation_method = _ad_ref2_motion_context_plan(
-            motion_context, legacy_continuation_method
-        )
-        motion_context_enabled = motion_context_frames > 0
         if reference_media_mode not in (
             "单个长视频自动分段",
             "单个长音频驱动自动分段",
@@ -5935,6 +5952,13 @@ class AD_MinMax_Ref2_generate(_AD_MinMaxBase, _AD_MinMaxRef2GuideBase):
             run_id, stage_index, total = None, 0, 1
         else:
             run_id, stage_index, total = _ad_stage_info(stage_info)
+        stage_motion_context = _ad_stage_motion_context(
+            stage_prompts, prompt, motion_context, stage_info
+        )
+        motion_context_frames, continuation_method = _ad_ref2_motion_context_plan(
+            stage_motion_context, legacy_continuation_method
+        )
+        motion_context_enabled = motion_context_frames > 0
         selected_prompt, _references = _ad_stage_prompt_plan(stage_prompts, prompt, stage_info)
         stage_time, segment_start_seconds, _total_seconds = _ad_stage_time_plan(
             stage_prompts, prompt, single_stage_time, stage_info
@@ -6987,14 +7011,14 @@ class AD_MinMax_Ref2_sample(AD_MinMax_Ref2_generate_refine, AD_MinMax_Ref2_gener
             run_id, stage_index, total = _ad_stage_info(stage_info_data)
 
         if sample_mode == "base":
-            if isinstance(stage_info_data, collections.abc.Mapping) and channel not in ("data1", "data2", "data3"):
+            if channel is not None and channel not in ("data1", "data2", "data3"):
                 raise ValueError(
                     f"AD_MinMax_Ref2_sample: sample_mode=base requires "
                     f"a valid stage_info_channel, got {channel}"
                 )
             channel = channel or "data1"
         elif sample_mode in ("pixel_refine", "latent_refine"):
-            if isinstance(stage_info_data, collections.abc.Mapping) and channel not in ("data2", "data3"):
+            if channel is not None and channel not in ("data2", "data3"):
                 raise ValueError(
                     f"AD_MinMax_Ref2_sample: sample_mode={sample_mode} requires "
                     f"stage_info_channel=data2 or data3, got {channel}"

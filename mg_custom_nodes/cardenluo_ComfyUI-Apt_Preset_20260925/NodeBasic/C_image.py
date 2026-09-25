@@ -1,6 +1,8 @@
 
 import torch
 import numpy as np
+import json
+import os
 
 import torchvision.transforms.functional as TF
 import math
@@ -19,6 +21,8 @@ import node_helpers
 from typing import Tuple
 
 import comfy.utils
+from aiohttp import web
+from server import PromptServer
 
 
 from ..main_unit import *
@@ -5685,6 +5689,40 @@ class Image_pad_adjust_restore:
         
         return mask.unsqueeze(-1)
 
+    def composite_region(self, background, content, feather_mask=None):
+        content = content.to(device=background.device, dtype=background.dtype)
+        target_channels = background.shape[-1]
+        content_channels = content.shape[-1]
+        alpha = None
+
+        if content_channels == 4 and target_channels != 4:
+            alpha = content[..., 3:4].clamp(0.0, 1.0)
+            content = content[..., :3]
+            content_channels = 3
+
+        if content_channels != target_channels:
+            if target_channels == 1 and content_channels >= 3:
+                content = (content[..., :1] * 0.299
+                           + content[..., 1:2] * 0.587
+                           + content[..., 2:3] * 0.114)
+            elif content_channels == 1:
+                content = content.expand(*content.shape[:-1], target_channels)
+            elif target_channels == 4 and content_channels == 3:
+                content = torch.cat((content, torch.ones_like(content[..., :1])), dim=-1)
+            elif content_channels > target_channels:
+                content = content[..., :target_channels]
+            else:
+                content = torch.cat((content, content[..., -1:].expand(*content.shape[:-1], target_channels - content_channels)), dim=-1)
+
+        blend_mask = feather_mask
+        if blend_mask is not None:
+            blend_mask = blend_mask.to(device=background.device, dtype=background.dtype)
+        if alpha is not None:
+            blend_mask = alpha if blend_mask is None else blend_mask * alpha
+        if blend_mask is None:
+            return content
+        return torch.lerp(background, content, blend_mask)
+
     def restore(self, pad_image, stitch, smoothness):
         original_image = stitch["original_image"]
         original_h, original_w = stitch["original_shape"]
@@ -5738,26 +5776,20 @@ class Image_pad_adjust_restore:
             
             if actual_src_width > 0 and actual_src_height > 0:
                 content_img = content_img[:, :actual_src_height, :actual_src_width, :]
-                
-                if smoothness > 0 and feather_mask is not None:
-                    background = restored_image[:, dst_top:dst_bottom, dst_left:dst_right, :]
-                    blended = background * (1 - feather_mask) + content_img * feather_mask
-                    restored_image[:, dst_top:dst_bottom, dst_left:dst_right, :] = blended
-                else:
-                    restored_image[:, dst_top:dst_bottom, dst_left:dst_right, :] = content_img
+                background = restored_image[:, dst_top:dst_bottom, dst_left:dst_right, :]
+                restored_image[:, dst_top:dst_bottom, dst_left:dst_right, :] = self.composite_region(
+                    background, content_img, feather_mask if smoothness > 0 else None
+                )
         else:
             restored_image = original_image.clone()
             content_img = pad_image[0, valid_top:valid_bottom, valid_left:valid_right, :]
             
             if actual_src_width > 0 and actual_src_height > 0:
                 content_img = content_img[:actual_src_height, :actual_src_width, :]
-                
-                if smoothness > 0 and feather_mask is not None:
-                    background = restored_image[0, dst_top:dst_bottom, dst_left:dst_right, :]
-                    blended = background * (1 - feather_mask) + content_img * feather_mask
-                    restored_image[0, dst_top:dst_bottom, dst_left:dst_right, :] = blended
-                else:
-                    restored_image[0, dst_top:dst_bottom, dst_left:dst_right, :] = content_img
+                background = restored_image[0, dst_top:dst_bottom, dst_left:dst_right, :]
+                restored_image[0, dst_top:dst_bottom, dst_left:dst_right, :] = self.composite_region(
+                    background, content_img, feather_mask if smoothness > 0 else None
+                )
         
         if has_mask and original_mask is not None:
             restored_mask = original_mask
@@ -6291,6 +6323,181 @@ class Image_expand_canvase_visual:
             return avg_color
         else:
             return (128, 128, 128)
+
+
+class Image_layer_mask_blend:
+    OUTPUT_NODE = True
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image_a": ("IMAGE",),
+                "image_b": ("IMAGE",),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "blend"
+    CATEGORY = "Apt_Preset/image/visualize_edit"
+    DESCRIPTION = "A is the upper layer. Paint a mask from the node context menu to reveal B."
+
+    @staticmethod
+    def _node_key(unique_id):
+        return re.sub(r"[^a-zA-Z0-9_-]", "_", str(unique_id or "default"))
+
+    @classmethod
+    def _cache_dir(cls, unique_id):
+        return os.path.join(folder_paths.get_input_directory(), "Apt_Preset_layer_mask", cls._node_key(unique_id))
+
+    @classmethod
+    def _mask_path(cls, unique_id):
+        return os.path.join(cls._cache_dir(unique_id), "layer_mask.png")
+
+    @classmethod
+    def _editor_path(cls, unique_id):
+        return os.path.join(cls._cache_dir(unique_id), "layer_editor.png")
+
+    @classmethod
+    def IS_CHANGED(cls, image_a, image_b, unique_id=None):
+        path = cls._mask_path(unique_id)
+        if not os.path.isfile(path):
+            return "no-mask"
+        stat = os.stat(path)
+        return f"{stat.st_mtime_ns}:{stat.st_size}"
+
+    @staticmethod
+    def _repeat_batch(image, batch_size):
+        if image.shape[0] == batch_size:
+            return image
+        indices = torch.arange(batch_size, device=image.device) % image.shape[0]
+        return image.index_select(0, indices)
+
+    @staticmethod
+    def _normalize_channels(image, channels):
+        current = image.shape[-1]
+        if current == channels:
+            return image
+        if current == 1:
+            image = image.repeat(1, 1, 1, 3)
+            current = 3
+        elif current == 2:
+            image = torch.cat((image[..., :1].repeat(1, 1, 1, 3), image[..., 1:2]), dim=-1)
+            current = 4
+        elif current > 4:
+            image = image[..., :4]
+            current = 4
+        if current == 3 and channels == 4:
+            alpha = torch.ones((*image.shape[:-1], 1), dtype=image.dtype, device=image.device)
+            image = torch.cat((image, alpha), dim=-1)
+        return image
+
+    @classmethod
+    def _load_mask(cls, unique_id, height, width, batch_size, device, dtype):
+        path = cls._mask_path(unique_id)
+        if not os.path.isfile(path):
+            return torch.zeros((batch_size, height, width, 1), device=device, dtype=dtype)
+        with Image.open(path) as image:
+            mask = torch.from_numpy(np.array(image.convert("L"), dtype=np.float32) / 255.0)[None, None]
+        if mask.shape[-2:] != (height, width):
+            mask = F.interpolate(mask, size=(height, width), mode="bilinear", align_corners=False)
+        mask = mask.movedim(1, -1).to(device=device, dtype=dtype)
+        return cls._repeat_batch(mask, batch_size).clamp_(0.0, 1.0)
+
+    @classmethod
+    def _save_editor_image(cls, image_a, mask, unique_id):
+        cache_dir = cls._cache_dir(unique_id)
+        os.makedirs(cache_dir, exist_ok=True)
+        rgb = image_a[0, ..., :3].detach().to(device="cpu", dtype=torch.float32).clamp(0.0, 1.0)
+        if rgb.shape[-1] == 1:
+            rgb = rgb.repeat(1, 1, 3)
+        alpha = (1.0 - mask[0, ..., 0].detach().to(device="cpu", dtype=torch.float32)).clamp(0.0, 1.0)
+        rgba = torch.cat((rgb, alpha.unsqueeze(-1)), dim=-1)
+        Image.fromarray((rgba.numpy() * 255.0).round().astype(np.uint8), mode="RGBA").save(cls._editor_path(unique_id), "PNG")
+
+    @classmethod
+    def _save_result_preview(cls, image, unique_id):
+        preview = image[0].detach().to(device="cpu", dtype=torch.float32).clamp(0.0, 1.0)
+        channels = preview.shape[-1]
+        mode = "RGBA" if channels >= 4 else "RGB"
+        preview = preview[..., :4] if channels >= 4 else preview[..., :3]
+        filename = f"apt_layer_mask_blend_{cls._node_key(unique_id)}.png"
+        Image.fromarray((preview.numpy() * 255.0).round().astype(np.uint8), mode=mode).save(
+            os.path.join(folder_paths.get_temp_directory(), filename), "PNG"
+        )
+        return {"filename": filename, "subfolder": "", "type": "temp"}
+
+    def blend(self, image_a, image_b, unique_id=None):
+        if image_a.shape[0] == 0 or image_b.shape[0] == 0:
+            return (image_a,)
+
+        image_b = image_b.to(device=image_a.device, dtype=image_a.dtype)
+        height, width = image_a.shape[1:3]
+        if image_b.shape[1:3] != (height, width):
+            image_b = common_upscale(image_b.movedim(-1, 1), width, height, "bicubic", "disabled").movedim(1, -1)
+
+        batch_size = max(image_a.shape[0], image_b.shape[0])
+        image_a = self._repeat_batch(image_a, batch_size)
+        image_b = self._repeat_batch(image_b, batch_size)
+        channels = 4 if image_a.shape[-1] not in (1, 3) or image_b.shape[-1] not in (1, 3) else 3
+        image_a = self._normalize_channels(image_a, channels)
+        image_b = self._normalize_channels(image_b, channels)
+        mask = self._load_mask(unique_id, height, width, batch_size, image_a.device, image_a.dtype)
+        output = (image_a * (1.0 - mask) + image_b * mask).clamp(0.0, 1.0)
+
+        self._save_editor_image(image_a, mask, unique_id)
+        preview = self._save_result_preview(output, unique_id)
+        return {"ui": {"images": [preview]}, "result": (output,)}
+
+
+@PromptServer.instance.routes.post("/apt_preset/image_layer_mask_blend/save_mask")
+async def apt_preset_image_layer_mask_blend_save_mask(request):
+    try:
+        reader = await request.multipart()
+    except ValueError:
+        return web.json_response({"ok": False, "error": "Invalid multipart request."}, status=400)
+
+    node_id = ""
+    image_ref = None
+    while True:
+        part = await reader.next()
+        if part is None:
+            break
+        if part.name == "node_id":
+            node_id = await part.text()
+        elif part.name == "image_ref":
+            try:
+                image_ref = json.loads(await part.text())
+            except json.JSONDecodeError:
+                return web.json_response({"ok": False, "error": "Invalid mask image reference."}, status=400)
+
+    if not node_id or not isinstance(image_ref, dict):
+        return web.json_response({"ok": False, "error": "Missing node or mask image."}, status=400)
+    if image_ref.get("type") != "input":
+        return web.json_response({"ok": False, "error": "Mask image must come from the input folder."}, status=400)
+
+    filename = str(image_ref.get("filename") or "")
+    subfolder = str(image_ref.get("subfolder") or "")
+    annotated_name = f"{subfolder}/{filename} [input]" if subfolder else f"{filename} [input]"
+    if not filename or not folder_paths.exists_annotated_filepath(annotated_name):
+        return web.json_response({"ok": False, "error": "Mask editor image was not found."}, status=404)
+
+    source_path = folder_paths.get_annotated_filepath(annotated_name)
+    try:
+        with Image.open(source_path) as image:
+            rgba = np.array(image.convert("RGBA"), dtype=np.uint8)
+        mask = 255 - rgba[..., 3]
+        cache_dir = Image_layer_mask_blend._cache_dir(node_id)
+        os.makedirs(cache_dir, exist_ok=True)
+        Image.fromarray(mask, mode="L").save(Image_layer_mask_blend._mask_path(node_id), "PNG")
+    except (OSError, ValueError) as error:
+        return web.json_response({"ok": False, "error": f"Failed to save mask: {error}"}, status=500)
+
+    return web.json_response({"ok": True})
 
 
 

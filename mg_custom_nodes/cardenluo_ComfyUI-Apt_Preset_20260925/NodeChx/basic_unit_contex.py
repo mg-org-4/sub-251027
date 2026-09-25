@@ -1,3 +1,5 @@
+import math
+
 import comfy.model_management
 import comfy.samplers
 import comfy.utils
@@ -14,8 +16,12 @@ from nodes import (
 )
 
 from ..main_unit import CLIP_TYPE, apply_lora_stack, load_upscale_model, new_context, pil2tensor, read_ratios, upscale_with_model
-from ..NodeBasic.C_AD import _AD_H3_LATENT_TILE_PRESETS
-from ..NodeBasic.minimaxH3 import _ad_h3_aligned_tile_regions, _ad_h3_core_halo_window
+from ..NodeBasic.C_AD import (
+    _AD_H3_LATENT_TILE_PRESETS,
+    _AD_H3_SAMPLE_LATENT_TILE_CHOICES,
+    _AD_H3_SAMPLE_LATENT_TILE_PRESETS,
+)
+from ..NodeBasic.minimaxH3 import _ad_h3_aligned_tile_regions, _ad_h3_bridge_window, _ad_h3_core_halo_window
 
 try:
     from .load_GGUF.nodes import CLIPLoaderGGUF2, DualCLIPLoaderGGUF, UnetLoaderGGUF2
@@ -27,7 +33,7 @@ except (ImportError, RuntimeError):
     GGUF_AVAILABLE = False
 
 
-_UC_NO_LATENT_TILE = next(iter(_AD_H3_LATENT_TILE_PRESETS))
+_UC_NO_LATENT_TILE = _AD_H3_SAMPLE_LATENT_TILE_CHOICES[0]
 _UC_TILED_APPLY_MODEL_KEY = "apt_uc_tiled_apply_model"
 
 
@@ -60,10 +66,57 @@ def _uc_crop_scaled(value, axis, start, end, full_size):
     return _uc_crop_spatial(value, axis, cond_start, cond_end)
 
 
+def _uc_restore_alpha(image, alpha):
+    if alpha is None:
+        return image
+    if alpha.shape[1:3] != image.shape[1:3]:
+        alpha = comfy.utils.common_upscale(
+            alpha.movedim(-1, 1), image.shape[2], image.shape[1], "bilinear", "disabled"
+        ).movedim(1, -1)
+    alpha = alpha.to(device=image.device, dtype=image.dtype)
+    return torch.cat((image[..., :3], alpha), dim=-1)
+
+
+def _uc_resolve_tile_preset(preset, width, height):
+    if preset in _AD_H3_SAMPLE_LATENT_TILE_PRESETS:
+        tile_count, overlap_pixels, bridge_seams = _AD_H3_SAMPLE_LATENT_TILE_PRESETS[preset]
+    elif preset in _AD_H3_LATENT_TILE_PRESETS:
+        tile_count, overlap_pixels = _AD_H3_LATENT_TILE_PRESETS[preset]
+        bridge_seams = False
+    else:
+        raise ValueError(f"UC_Ksampler_refine: unknown tile preset: {preset}")
+
+    if overlap_pixels == "auto":
+        long_edge = max(int(width), int(height))
+        short_edge = max(1, min(int(width), int(height)))
+        aspect = long_edge / short_edge
+        if aspect <= 1.35:
+            aspect_overlap = 192
+        elif aspect < 1.9:
+            aspect_overlap = 256
+        elif aspect < 2.2:
+            aspect_overlap = 288
+        else:
+            aspect_overlap = 320
+
+        if long_edge <= 1024:
+            length_overlap = 192
+        elif long_edge <= 1344:
+            length_overlap = 256
+        elif long_edge <= 1536:
+            length_overlap = 288
+        else:
+            length_overlap = 320
+        overlap_pixels = max(aspect_overlap, length_overlap)
+
+    return int(tile_count), int(overlap_pixels), bool(bridge_seams)
+
+
 class _UCTiledApplyModel:
-    def __init__(self, tile_count, overlap_pixels):
+    def __init__(self, tile_count, overlap_pixels, bridge_seams=False):
         self.tile_count = int(tile_count)
         self.overlap_pixels = int(overlap_pixels)
+        self.bridge_seams = bool(bridge_seams)
 
     def apply_model_wrapper(self, executor, x, t, c_concat=None, c_crossattn=None,
                             control=None, transformer_options={}, **kwargs):
@@ -78,16 +131,34 @@ class _UCTiledApplyModel:
         if len(regions) <= 1 or any(start == 0 and end == full_size for start, end, _, _ in regions):
             return executor(x, t, c_concat, c_crossattn, control, transformer_options, **kwargs)
 
+        weighted_regions = []
+        for start, end, core_start, core_end in regions:
+            window = _ad_h3_core_halo_window(start, end, core_start, core_end, x.device)
+            weighted_regions.append((start, end, window))
+        if self.bridge_seams and len(regions) > 1 and halo > 0:
+            context_half = max(2, int(math.ceil((halo * 1.5) / 2.0)) * 2)
+            for index in range(len(regions) - 1):
+                boundary = int(regions[index][3])
+                start = max(0, boundary - context_half)
+                end = min(full_size, boundary + context_half)
+                if end - start < 2:
+                    continue
+                window = _ad_h3_bridge_window(start, end, boundary, halo, x.device)
+                weighted_regions.append((start, end, window))
+
         output = torch.zeros_like(x, dtype=torch.float32)
         weight_shape = (1, 1, full_size, 1) if axis == "H" else (1, 1, 1, full_size)
         weights = torch.zeros(weight_shape, dtype=torch.float32, device=x.device)
-        for start, end, core_start, core_end in regions:
-            window = _ad_h3_core_halo_window(start, end, core_start, core_end, x.device)
+        tiled_transformer_options = dict(transformer_options or {})
+        qwen_cache_options = dict(tiled_transformer_options.get("qwen_image21_cache", {}))
+        qwen_cache_options["device"] = "off"
+        tiled_transformer_options["qwen_image21_cache"] = qwen_cache_options
+        for start, end, window in weighted_regions:
             window = window.view(1, 1, -1, 1) if axis == "H" else window.view(1, 1, 1, -1)
             prediction = executor(
                 _uc_crop_spatial(x, axis, start, end), t,
                 _uc_crop_scaled(c_concat, axis, start, end, full_size),
-                c_crossattn, control, transformer_options, **kwargs,
+                c_crossattn, control, tiled_transformer_options, **kwargs,
             )
             if axis == "H":
                 output[:, :, start:end, :] += prediction.float() * window
@@ -98,9 +169,9 @@ class _UCTiledApplyModel:
         return (output / weights.clamp_min(1e-8)).to(dtype=x.dtype)
 
 
-def _uc_tiled_model(model, tile_count, overlap_pixels):
+def _uc_tiled_model(model, tile_count, overlap_pixels, bridge_seams=False):
     tiled_model = model.clone()
-    state = _UCTiledApplyModel(tile_count, overlap_pixels)
+    state = _UCTiledApplyModel(tile_count, overlap_pixels, bridge_seams)
     tiled_model.add_wrapper_with_key(
         WrappersMP.APPLY_MODEL, _UC_TILED_APPLY_MODEL_KEY, state.apply_model_wrapper
     )
@@ -348,7 +419,7 @@ class UC_Ksampler_refine:
                     "step": 0.01,
                 }),
                 "tile_size": (
-                    list(_AD_H3_LATENT_TILE_PRESETS),
+                    list(_AD_H3_SAMPLE_LATENT_TILE_CHOICES),
                     {"default": _UC_NO_LATENT_TILE, "tooltip": "按分块数量和重叠像素进行 latent 分块采样。"},
                 ),
                 "sample_parameters": ("BOOLEAN", {
@@ -401,6 +472,10 @@ class UC_Ksampler_refine:
         if image is None:
             raise ValueError("UC_Ksampler_refine needs an image or latent in context")
 
+        alpha = image[..., 3:4] if image.shape[-1] == 4 else None
+        if alpha is not None:
+            image = image[..., :3]
+
         if sample_parameters is False:
             steps = context.get("steps")
             cfg = context.get("cfg")
@@ -414,9 +489,6 @@ class UC_Ksampler_refine:
             sampler = "euler"
         if scheduler in (None, "None"):
             scheduler = "simple"
-        if tile_size not in _AD_H3_LATENT_TILE_PRESETS:
-            raise ValueError(f"UC_Ksampler_refine: unknown tile preset: {tile_size}")
-
         upscale_model = load_upscale_model(model_name)
         image = upscale_with_model(upscale_model, image)
         image_height, image_width = image.shape[1:3]
@@ -428,13 +500,19 @@ class UC_Ksampler_refine:
             ).movedim(1, -1)
         latent = VAEEncode().encode(vae, image)[0]
 
-        tile_count, overlap_pixels = _AD_H3_LATENT_TILE_PRESETS[tile_size]
-        sample_model = _uc_tiled_model(model, tile_count, overlap_pixels) if tile_count > 1 else model
+        tile_count, overlap_pixels, bridge_seams = _uc_resolve_tile_preset(
+            tile_size, target_width, target_height
+        )
+        sample_model = (
+            _uc_tiled_model(model, tile_count, overlap_pixels, bridge_seams)
+            if tile_count > 1 else model
+        )
         latent = common_ksampler(
             sample_model, int(seed), int(steps), float(cfg), sampler, scheduler,
             positive, negative, latent, denoise=float(denoise),
         )[0]
         output_image = VAEDecode().decode(vae, latent)[0]
+        output_image = _uc_restore_alpha(output_image, alpha)
         output_context = new_context(
             context, model=model, positive=positive, negative=negative, latent=latent,
             images=output_image, steps=steps, cfg=cfg, sampler=sampler, scheduler=scheduler,
@@ -627,10 +705,3 @@ class UC_ContextCache:
         if not cache_images:
             checkpoint_context["images"] = None
         return (checkpoint_context,)
-
-
-
-
-
-
-

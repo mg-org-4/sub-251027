@@ -73,6 +73,10 @@ class sum_QwenImage2:
             "stage_index": ("INT", {"forceInput": True, "default": 0,
                                      "min": 0, "max": 1024, "step": 1,
                                      "tooltip": "不传或 0 时取第 1 段。"}),
+            "latent_image": ("IMAGE", {
+                "forceInput": True,
+                "tooltip": "可选。接入后使用该图片宽高创建输出 latent；未接入时使用 width/height。",
+            }),
             "media": ("IMAGE,VIDEO,AUDIO,LATENT,STRING",),
             "prompt": ("STRING", {"multiline": True, "default": ""}),
             "stage_prompts": ("STRING", {
@@ -91,18 +95,13 @@ class sum_QwenImage2:
                 "tooltip": "把每张参考图缩放到 resolution x resolution 像素面积，"
                           
             }),
-            "output_size": ("BOOLEAN", {
-                "default": False,
-                "label_on": "自定义",
-                "label_off": "第一张图尺寸",
-                "tooltip": "输出 latent 的尺寸来源。第一张图尺寸（取素材库第一张图（media_1）的宽高，未连接则回退到 width/height）；"
-                            "自定义（直接使用 width/height）。",
-            }),
             "width": ("INT", {
                 "default": 1024, "min": 32, "max": 4096, "step": 32,
+                "tooltip": "输出图的宽",
            }),
             "height": ("INT", {
                 "default": 1024, "min": 32, "max": 4096, "step": 32,
+                "tooltip": "输出图的高",
             }),
         }
         for index in range(1, _QWEN2_MAX_MEDIA + 1):
@@ -152,9 +151,9 @@ class sum_QwenImage2:
                 image = image[..., :3]
         return image.clamp(0.0, 1.0)
 
-    def encode(self, context=None, model=None, stage_index=0, media=None,
+    def encode(self, context=None, model=None, stage_index=0, latent_image=None, media=None,
                prompt="", stage_prompts="[]", negative_prompt="blur", ref_size_mode=False,
-               resolution=1024, output_size=False, width=1024, height=1024, **kwargs):
+               resolution=1024, width=1024, height=1024, **kwargs):
         clip = context.get("clip", None) if context else None
         vae = context.get("vae", None) if context else None
         if clip is None:
@@ -180,9 +179,7 @@ class sum_QwenImage2:
         latent_h = int(height) if height else 1024
 
         direct = media if (isinstance(media, torch.Tensor) and media.ndim == 4) else None
-        first_image = None
-
-        for local_index, global_index in enumerate(refs, start=1):
+        for global_index in refs:
             image = kwargs.get(f"media_{global_index}")
             if image is None and global_index == 1:
                 image = direct
@@ -214,27 +211,17 @@ class sum_QwenImage2:
             if s.shape[-1] > 3:
                 rgb = rgb * s[:, :, :, 3:] + (1.0 - s[:, :, :, 3:])
             images_vl.append(rgb)
-            if global_index == 1 and first_image is None:
-                first_image = image
             if vae is not None:
                 ref_latents.append(vae.encode(s))
 
-        # output_size 控制 latent 尺寸来源：
-        #   False = 第一张图尺寸 → 取素材库首张图（media_1 或 media 直连）的宽高，没图则回退到 width/height；
-        #   True  = 自定义      → 直接用 width/height。
-        if not output_size:
-            source = first_image if first_image is not None else kwargs.get("media_1")
-            if source is None:
-                source = direct
-            if source is not None and isinstance(source, torch.Tensor) and source.ndim == 4:
-                source = self._process_image_channels(source)
-                h, w = source.shape[1], source.shape[2]
-                # 与官方一致：宽高都按 32 倍整除（与 VAE 下采样 8 × DiT patch 2 对齐），下界 32
-                latent_h = max((h // 32) * 32, 32)
-                latent_w = max((w // 32) * 32, 32)
-            else:
-                latent_w = max(32, int(width) if width else 1024)
-                latent_h = max(32, int(height) if height else 1024)
+        # latent_image 是唯一的图片尺寸控制入口。接入时按首帧宽高创建
+        # 输出 latent；未接入时严格使用 width/height，避免参考素材污染尺寸。
+        if isinstance(latent_image, torch.Tensor) and latent_image.ndim == 4:
+            source = self._process_image_channels(latent_image)
+            h, w = source.shape[1], source.shape[2]
+            # 与官方一致：宽高按 32 倍数向下对齐（VAE 8 × DiT patch 2）。
+            latent_h = max((h // 32) * 32, 32)
+            latent_w = max((w // 32) * 32, 32)
         else:
             latent_w = max(32, int(width) if width else 1024)
             latent_h = max(32, int(height) if height else 1024)

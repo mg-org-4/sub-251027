@@ -3,7 +3,7 @@ import { api } from "../../scripts/api.js";
 
 // AD MiniMax Guide frontend.
 
-const AD_GUIDE_UI_VERSION = "2026.09.24-guide-v146-qwen-media-target";
+const AD_GUIDE_UI_VERSION = "2026.09.25-guide-v157-plain-prompt-serialization";
 globalThis.__AD_MINIMAX_GUIDE_UI41_MODULE__ = true;
 console.info(`[ADMiniMaxGuide] frontend ${AD_GUIDE_UI_VERSION} loaded`);
 const NODE_CLASS = "AD_MiniMax_guide";
@@ -26,6 +26,10 @@ const STAGE_PROMPT_INDEX_PROP = "ad_minimax_guide_stage_prompt_index";
 const MEDIA_EDITOR_FILENAME_LABELS_PROP = "ad_media_editor_filename_labels";
 const MEDIA_EDITOR_CACHE_ENABLED_PROP = "ad_media_editor_cache_enabled";
 const MEDIA_EDITOR_CACHED_ITEMS_PROP = "ad_media_editor_cached_items";
+const MEDIA_EDITOR_UNIFIED_MOTION_PROP = "ad_media_editor_unified_motion";
+const MEDIA_EDITOR_UNIFIED_TIME_PROP = "ad_media_editor_unified_time";
+const MEDIA_EDITOR_MOTION_PROP = "ad_media_editor_motion";
+const MEDIA_EDITOR_TIME_PROP = "ad_media_editor_time";
 const FLOW_STAGE_TOTAL_INITIALIZED_PROP = "ad_flow_stage_total_initialized";
 const REF2_GENERATE_WIDGET_VALUES_PROP = "ad_minimax_guide_ref2_generate_widget_values";
 const FL2_GENERATE_WIDGET_VALUES_PROP = "ad_minimax_guide_fl2_generate_widget_values";
@@ -66,6 +70,25 @@ const MAX_SECONDS = 20;
 const DEFAULT_STAGE_TIME = 5;
 const MIN_STAGE_TIME = 0.1;
 const MAX_STAGE_TIME = 15;
+const MOTION_CONTEXT_VALUES = ["none", "guide_22", "guide_39", "native_39"];
+const MOTION_CONTEXT_SET = new Set(MOTION_CONTEXT_VALUES);
+const MOTION_CONTEXT_ALIASES = {
+    None: "none",
+    "guide 22 frames": "guide_22",
+    "guide 39 frames": "guide_39",
+    "native_soft_mask 39": "native_39",
+    "native_masked 39 frames": "native_39",
+    "22": "guide_22",
+    "22帧": "guide_22",
+    "39": "guide_39",
+    "39帧": "guide_39",
+};
+
+function canonicalMotionContext(value, fallback = "guide_22") {
+    const source = String(value ?? "").trim();
+    const mode = MOTION_CONTEXT_ALIASES[source] || source;
+    return MOTION_CONTEXT_SET.has(mode) ? mode : fallback;
+}
 
 function normalizeStageTime(value, fallback = DEFAULT_STAGE_TIME) {
     const number = Number(value);
@@ -963,11 +986,17 @@ function syncMediaRelayToTarget(targetNode, relayNode, removed = false, exclusiv
 
     const desired = mediaRelayLinks(relayNode);
     const sourceKey = (link) => `${Number(link?.source_id)}:${Number(link?.source_slot) || 0}`;
-    const desiredKeys = new Set(desired.map(sourceKey));
+    // Cached editor materials can move to a different output slot when users
+    // delete or reorder them. Their cache id is the stable identity; using the
+    // slot as the identity leaves stale cards behind and can lose Auto Text.
+    const relayKey = (link) => link?.cached && link?.cache_id != null
+        ? `cache:${String(link.cache_id)}`
+        : `source:${sourceKey(link)}`;
+    const desiredKeys = new Set(desired.map(relayKey));
     const links = ensureLinks(targetNode);
     for (let index = links.length - 1; index >= 0; index -= 1) {
         const link = links[index];
-        if (Number(link.display_source_id) !== relayId || desiredKeys.has(sourceKey(link))) continue;
+        if (Number(link.display_source_id) !== relayId || desiredKeys.has(relayKey(link))) continue;
         removeMentionsForMaterial(targetNode, link);
         links.splice(index, 1);
     }
@@ -977,11 +1006,35 @@ function syncMediaRelayToTarget(targetNode, relayNode, removed = false, exclusiv
         const sourceSlot = Number(relayLink.source_slot) || 0;
         const sourceType = relayLink.source_type || getSlotType(sourceNode.outputs?.[sourceSlot]) || "*";
         const mediaType = relayLink.media_type || getMediaType(sourceType, sourceNode);
-        const existing = links.find((link) => sourceKey(link) === sourceKey(relayLink));
+        const existing = links.find((link) => Number(link.display_source_id) === relayId
+            && relayKey(link) === relayKey(relayLink));
         if (existing) {
-            if (relayLink.cached) Object.assign(existing, relayLink);
-            existing.display_source_id = relayId;
-            existing.display_source_slot = 0;
+            Object.assign(existing, relayLink, {
+                source_id: Number(relayLink.source_id),
+                source_slot: sourceSlot,
+                source_type: sourceType,
+                media_type: mediaType,
+                display_source_id: relayId,
+                display_source_slot: 0,
+            });
+            continue;
+        }
+        if (relayLink.cached) {
+            // Add cached outputs atomically. addVirtualLink refreshes and
+            // normalizes before the cached metadata is attached; the editor's
+            // union output type can therefore be misread as IMAGE and discard
+            // batch text/video/audio metadata.
+            if (!canAccept(targetNode, mediaType)) continue;
+            ensureLinks(targetNode).push({
+                ...relayLink,
+                source_id: Number(relayLink.source_id),
+                source_slot: sourceSlot,
+                source_type: sourceType,
+                media_type: mediaType,
+                display_source_id: relayId,
+                display_source_slot: 0,
+                cached: true,
+            });
             continue;
         }
         if (addVirtualLink(targetNode, sourceNode, sourceSlot, sourceType, mediaType, true)) {
@@ -989,7 +1042,6 @@ function syncMediaRelayToTarget(targetNode, relayNode, removed = false, exclusiv
             if (added) {
                 added.display_source_id = relayId;
                 added.display_source_slot = 0;
-                if (relayLink.cached) Object.assign(added, relayLink, { display_source_id: relayId, display_source_slot: 0 });
             }
         }
     }
@@ -998,6 +1050,7 @@ function syncMediaRelayToTarget(targetNode, relayNode, removed = false, exclusiv
     refreshMaterialTray(targetNode);
     targetNode.setDirtyCanvas?.(true, true);
     app.graph?.setDirtyCanvas?.(true, true);
+    app.graph?.change?.();
     return true;
 }
 
@@ -2004,7 +2057,11 @@ function patchGraphToPrompt() {
                         ? qwenTextPrefix + runtimePrompt
                         : runtimePrompt;
                     return getWidget(node, "single_stage_time")
-                        ? { prompt: finalPrompt, single_stage_time: doc.single_stage_time }
+                        ? {
+                            prompt: finalPrompt,
+                            single_stage_time: doc.single_stage_time,
+                            ...(doc.motion_context != null ? { motion_context: canonicalMotionContext(doc.motion_context) } : {}),
+                        }
                         : finalPrompt;
                 }));
                 // stage_index 已从外部节点连接时，保留外部链接，不被 UI 阶段选择覆盖
@@ -2511,7 +2568,7 @@ function scheduleMaterialRestoreRefresh(node) {
 function watchMediaSourceNode(node) {
     if (!node) return;
     if (ZH_BROWSER && String(node.comfyClass || node.type || "") === "text_MinimaxH3") {
-        const labels = { text: "批量文本", delimiter: "分隔标识", duration_delimiter: "时长标识" };
+        const labels = { text: "批量文本", delimiter: "分隔标识", duration_delimiter: "时长标识", motion_delimiter: "Motion标识" };
         for (const widget of node.widgets || []) {
             if (labels[widget.name]) widget.label = labels[widget.name];
         }
@@ -2830,11 +2887,12 @@ function resizeMaterialTray(node, itemCount) {
     const tray = node?.__adGuideMaterialTray;
     if (!tray) return;
     const nextHeight = materialTrayHeight(node, itemCount);
-    const previousHeight = Number(tray.dataset.trayHeight) || 70;
+    const previousHeight = Number(tray.dataset.trayHeight);
+    const initialized = Number.isFinite(previousHeight) && previousHeight > 0;
     tray.dataset.trayHeight = String(nextHeight);
     tray.style.height = `${nextHeight}px`;
     tray.style.flexBasis = `${nextHeight}px`;
-    if (previousHeight !== nextHeight) adjustNodeHeight(node, nextHeight - previousHeight);
+    if (initialized && previousHeight !== nextHeight) adjustNodeHeight(node, nextHeight - previousHeight);
 }
 
 function normalizeBatchMarker(value) {
@@ -2866,17 +2924,37 @@ function batchMarkerRemainder(line, normalizedPrefix) {
     return "";
 }
 
-function splitBatchPrompts(text, delimiter = "【Segment {n}】", durationDelimiter = "【Duration {t}s】") {
+function batchMotionMarkerPattern(value) {
+    const source = String(value);
+    const marker = normalizeBatchMarker(source);
+    const count = marker.split("{m}").length - 1;
+    if (!marker || /[\r\n]/.test(source) || count !== 1) {
+        throw new Error(ZH_BROWSER
+            ? "Motion 标识必须独占一行并包含一个 {m}"
+            : "Motion marker must occupy one line and contain exactly one {m}");
+    }
+    const escape = (part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const [before, after] = marker.split("{m}");
+    return {
+        pattern: `${escape(before)}(${MOTION_CONTEXT_VALUES.join("|")})${escape(after)}`,
+        prefix: escape(before),
+    };
+}
+
+function splitBatchPrompts(text, delimiter = "【Segment {n}】", durationDelimiter = "【Duration {t}s】", motionDelimiter = "【Motion {m}】") {
     const marker = batchMarkerPattern(delimiter, "{n}");
     const duration = batchMarkerPattern(durationDelimiter, "{t}", true);
-    const pattern = new RegExp(`^(?:${marker.pattern})(?:${duration.pattern})?`, "i");
+    const motion = batchMotionMarkerPattern(motionDelimiter);
+    const pattern = new RegExp(`^(?:${marker.pattern})(?:${duration.pattern})?(?:${motion.pattern})?`, "i");
     const durationPrefix = new RegExp(`^(?:${marker.pattern})${duration.prefix}`, "i");
+    const motionPrefix = new RegExp(`^(?:${marker.pattern})(?:${duration.pattern})?${motion.prefix}`, "i");
     const segments = [];
     let lines = [];
     let singleStageTime = null;
+    let motionContext = null;
     const appendSegment = () => {
         const segment = lines.join("\n").trim();
-        if (segment) segments.push({ text: segment, single_stage_time: singleStageTime });
+        if (segment) segments.push({ text: segment, single_stage_time: singleStageTime, motion_context: motionContext });
         lines = [];
     };
     for (const line of String(text).replace(/\r\n?/g, "\n").split("\n")) {
@@ -2887,6 +2965,11 @@ function splitBatchPrompts(text, delimiter = "【Segment {n}】", durationDelimi
                 throw new Error(ZH_BROWSER
                     ? `Duration 格式无效，最多只能有一位小数：${line.trim()}`
                     : `Invalid Duration; use one decimal place at most: ${line.trim()}`);
+            }
+            if (header[2] == null && motionPrefix.test(normalizedLine)) {
+                throw new Error(ZH_BROWSER
+                    ? `Motion 必须是 ${MOTION_CONTEXT_VALUES.join("、")}：${line.trim()}`
+                    : `Motion must be one of ${MOTION_CONTEXT_VALUES.join(", ")}: ${line.trim()}`);
             }
             appendSegment();
             if (header[1] == null) singleStageTime = null;
@@ -2899,6 +2982,7 @@ function splitBatchPrompts(text, delimiter = "【Segment {n}】", durationDelimi
                 }
                 singleStageTime = parsed;
             }
+            motionContext = header[2] == null ? null : canonicalMotionContext(String(header[2]).toLowerCase());
             const remainder = batchMarkerRemainder(line, header[0]);
             if (remainder) lines.push(remainder);
         } else {
@@ -2920,24 +3004,37 @@ function importBatchPrompts(node, link) {
     if (!link?.cached && String(source?.comfyClass || source?.type || "") !== "text_MinimaxH3") {
         throw new Error("请连接 text_MinimaxH3 批量文本节点");
     }
-    if (!link?.cached && source.inputs?.some((input) => ["text", "delimiter", "duration_delimiter"].includes(input.name) && input.link != null)) {
+    if (!link?.cached && source.inputs?.some((input) => ["text", "delimiter", "duration_delimiter", "motion_delimiter"].includes(input.name) && input.link != null)) {
         throw new Error("请直接在批量文本节点中粘贴文本并设置分隔标识；自动分段不会运行上游节点");
     }
     const segments = splitBatchPrompts(
         link?.cached ? String(link.text || "") : getWidgetValue(source, "text", ""),
         link?.cached ? "【Segment {n}】" : getWidgetValue(source, "delimiter", "【Segment {n}】"),
         link?.cached ? "【Duration {t}s】" : getWidgetValue(source, "duration_delimiter", "【Duration {t}s】"),
+        link?.cached ? "【Motion {m}】" : getWidgetValue(source, "motion_delimiter", "【Motion {m}】"),
     );
     const fallbackTime = normalizeStageTime(getWidgetValue(node, "single_stage_time", DEFAULT_STAGE_TIME));
+    const fallbackMotion = isMediaEditorNode(node)
+        ? canonicalMotionContext(node.properties?.[MEDIA_EDITOR_MOTION_PROP])
+        : canonicalRef2GenerateMotionPlan(getWidgetValue(node, "motion_context", "guide_22"));
     // Parse all documents before replacing any existing stage or editor state.
-    const docs = segments.map(({ text, single_stage_time }) => {
+    const docs = segments.map(({ text, single_stage_time, motion_context }) => {
         const container = document.createElement("div");
         appendPromptTextWithDialogueBlocks(container, text, node);
         return clonePromptDoc({
             ...serializeEditorDoc(container),
             single_stage_time: single_stage_time ?? fallbackTime,
+            motion_context: motion_context ?? fallbackMotion,
         });
     });
+    if (isMediaEditorNode(node) && node.properties?.[MEDIA_EDITOR_UNIFIED_MOTION_PROP]) {
+        const motion = canonicalMotionContext(node.properties[MEDIA_EDITOR_MOTION_PROP]);
+        for (const doc of docs) doc.motion_context = motion;
+    }
+    if (isMediaEditorNode(node) && node.properties?.[MEDIA_EDITOR_UNIFIED_TIME_PROP]) {
+        const time = normalizeStageTime(node.properties[MEDIA_EDITOR_TIME_PROP]);
+        for (const doc of docs) doc.single_stage_time = time;
+    }
     app.graph?.beforeChange?.();
     node.properties[STAGE_PROMPT_DOCS_PROP] = docs;
     node.properties[STAGE_PROMPT_INDEX_PROP] = 0;
@@ -3196,6 +3293,11 @@ function createImportedResourceNode(targetNode, mediaType, value, index, sourceN
             durationDelimiter.value = "【Duration {t}s】";
             if (durationDelimiter._state) durationDelimiter._state.value = durationDelimiter.value;
         }
+        const motionDelimiter = getWidget(sourceNode, "motion_delimiter");
+        if (motionDelimiter) {
+            motionDelimiter.value = "【Motion {m}】";
+            if (motionDelimiter._state) motionDelimiter._state.value = motionDelimiter.value;
+        }
     }
     if (sourceName) sourceNode.title = `${spec.label} · ${sourceName}`;
     const slot = sourceNode.outputs?.findIndex((output) => getMediaType(getSlotType(output), sourceNode) === mediaType) ?? 0;
@@ -3281,6 +3383,7 @@ function createMaterialFolderCard(node) {
     input.multiple = true;
     input.accept = ".jpg,.jpeg,.png,.webp,.heic,.heif,.gif,.bmp,.mp4,.mov,.webm,.mkv,.avi,.m4v,.wav,.mp3,.flac,.ogg,.m4a,.aac,.opus,.wma,.txt";
     input.hidden = true;
+    input.addEventListener("click", (event) => event.stopPropagation());
     card.addEventListener("pointerdown", (event) => event.stopPropagation());
     card.addEventListener("click", (event) => {
         if (event.target === input) return;
@@ -3315,8 +3418,11 @@ function refreshMaterialTray(node, suppliedOptions = null) {
     if (node.__adMediaEditorNameToggle) node.__adMediaEditorNameToggle.checked = filenameLabels;
     if (node.__adMediaEditorNameModeText) node.__adMediaEditorNameModeText.textContent = filenameLabels ? "原名" : "编号";
     const options = suppliedOptions || mentionOptions(node);
-    tray.textContent = "";
-    tray.append(createMaterialFolderCard(node));
+    const folderCard = Array.from(tray.children).find((child) => child.classList.contains("ad-guide-material-folder"));
+    for (const child of Array.from(tray.children)) {
+        if (child !== folderCard) child.remove();
+    }
+    if (!folderCard) tray.append(createMaterialFolderCard(node));
     const links = normalizeLinks(node);
     const batchLink = links.find((link) => link.media_type === "batch");
     const batchImageLink = links.find((link) => link.media_type === "image_batch");
@@ -3648,6 +3754,7 @@ function syncPromptFromEditor(node, markDirty = true) {
             docs[index] = clonePromptDoc({
                 ...doc,
                 single_stage_time: docs[index]?.single_stage_time,
+                motion_context: docs[index]?.motion_context,
             });
             node.properties[STAGE_PROMPT_DOCS_PROP] = docs;
             node.properties[PROMPT_DOC_PROP] = docs[index];
@@ -3673,12 +3780,14 @@ function clonePromptDoc(doc) {
     const text = String(source.text || "");
     const parts = Array.isArray(source.parts) ? source.parts.map((part) => ({ ...part })) : [];
     const singleStageTime = normalizeStageTime(source.single_stage_time);
-    return {
+    const value = {
         version: 1,
         text,
         parts: parts.length || !text ? parts : [{ type: "text", text }],
         single_stage_time: singleStageTime,
     };
+    if (source.motion_context != null) value.motion_context = canonicalMotionContext(source.motion_context);
+    return value;
 }
 
 function promptDocWithCommonPrefix(doc, prefix) {
@@ -4004,10 +4113,23 @@ function updateMediaEditorCommonPrefixRows(node) {
     }
 }
 
+function commitMediaEditorStageSettings(node, docs) {
+    node.properties[STAGE_PROMPT_DOCS_PROP] = docs;
+    updateStagePromptsWidget(node);
+    node.setDirtyCanvas?.(true, true);
+    app.graph?.change?.();
+    window.dispatchEvent(new CustomEvent(MEDIA_RELAY_EVENT, { detail: { nodeId: Number(node.id), promptsOnly: true } }));
+}
+
 function renderMediaEditorRows(node, fitInitialContent = false) {
     const table = node?.__adMediaEditorTable;
     if (!table) return;
     const docs = ensureStagePromptDocs(node);
+    const defaultMotion = canonicalMotionContext(node.properties?.[MEDIA_EDITOR_MOTION_PROP]);
+    for (const doc of docs) {
+        if (doc.motion_context == null) doc.motion_context = defaultMotion;
+    }
+    updateStagePromptsWidget(node);
     const commonPrefix = mediaEditorCommonPrefix(node);
     const active = Math.max(0, Math.min(docs.length - 1, Number(node.properties[STAGE_PROMPT_INDEX_PROP]) || 0));
     const expandedRows = mediaEditorExpandedRows(node);
@@ -4024,6 +4146,9 @@ function renderMediaEditorRows(node, fitInitialContent = false) {
         materialCell.className = "ad-media-editor-material-cell";
         const textCell = document.createElement("div");
         textCell.className = "ad-media-editor-text-cell";
+        const stageLabel = document.createElement("span");
+        stageLabel.className = "ad-media-editor-stage-label";
+        stageLabel.textContent = `stage${index + 1}`;
         const commonPrefixLine = document.createElement("div");
         commonPrefixLine.className = "ad-media-editor-row-prefix";
         commonPrefixLine.textContent = commonPrefix;
@@ -4045,6 +4170,23 @@ function renderMediaEditorRows(node, fitInitialContent = false) {
         renderPromptDoc(node, editor, doc);
         const choose = () => selectMediaEditorRow(node, editor, index);
         installMediaEditorPromptInteractions(node, editor, textCell, choose);
+        const motion = document.createElement("select");
+        motion.className = "ad-media-editor-row-motion";
+        motion.title = ZH_BROWSER ? "本段 Motion Context" : "Segment motion context";
+        for (const value of MOTION_CONTEXT_VALUES) {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            motion.append(option);
+        }
+        motion.value = canonicalMotionContext(doc.motion_context, defaultMotion);
+        motion.disabled = node.properties?.[MEDIA_EDITOR_UNIFIED_MOTION_PROP] === true;
+        motion.addEventListener("pointerdown", (event) => event.stopPropagation());
+        motion.addEventListener("change", (event) => {
+            event.stopPropagation();
+            doc.motion_context = canonicalMotionContext(motion.value);
+            commitMediaEditorStageSettings(node, docs);
+        });
         const time = document.createElement("label");
         time.className = "ad-media-editor-row-time";
         time.title = ZH_BROWSER ? "本段时长（秒）" : "Segment duration in seconds";
@@ -4054,21 +4196,20 @@ function renderMediaEditorRows(node, fitInitialContent = false) {
         timeInput.max = String(MAX_STAGE_TIME);
         timeInput.step = "0.1";
         timeInput.value = formatStageTime(doc.single_stage_time);
+        timeInput.disabled = node.properties?.[MEDIA_EDITOR_UNIFIED_TIME_PROP] === true;
         const timeUnit = document.createElement("span");
         timeUnit.textContent = "s";
         const commitStageTime = (value) => {
             const stageTime = normalizeStageTime(value, doc.single_stage_time);
             doc.single_stage_time = stageTime;
             timeInput.value = formatStageTime(stageTime);
-            node.properties[STAGE_PROMPT_DOCS_PROP] = docs;
-            node.setDirtyCanvas?.(true, true);
-            app.graph?.change?.();
-            window.dispatchEvent(new CustomEvent(MEDIA_RELAY_EVENT, { detail: { nodeId: Number(node.id), promptsOnly: true } }));
+            commitMediaEditorStageSettings(node, docs);
         };
         const stageTimeButton = (label, delta) => {
             const button = document.createElement("button");
             button.type = "button";
             button.textContent = label;
+            button.disabled = node.properties?.[MEDIA_EDITOR_UNIFIED_TIME_PROP] === true;
             button.addEventListener("pointerdown", (event) => event.stopPropagation());
             button.addEventListener("click", (event) => {
                 event.preventDefault();
@@ -4104,7 +4245,7 @@ function renderMediaEditorRows(node, fitInitialContent = false) {
             event.stopPropagation();
             setMediaEditorRowExpanded(node, index, true);
         });
-        textCell.append(commonPrefixLine, preview, editor, time, toggle);
+        textCell.append(stageLabel, commonPrefixLine, preview, editor, motion, time, toggle);
         row.append(materialCell, textCell);
         table.append(row);
         node.__adMediaEditorRows.push({ element: row, materialCell, textCell, commonPrefix: commonPrefixLine, preview, editor, index });
@@ -4119,7 +4260,12 @@ function renderMediaEditorRows(node, fitInitialContent = false) {
 function addMediaEditorRow(node) {
     if (node.__adGuideEditor) syncPromptFromEditor(node, false);
     const docs = ensureStagePromptDocs(node);
-    docs.push(clonePromptDoc({ text: "", parts: [] }));
+    docs.push(clonePromptDoc({
+        text: "",
+        parts: [],
+        single_stage_time: normalizeStageTime(node.properties?.[MEDIA_EDITOR_TIME_PROP]),
+        motion_context: canonicalMotionContext(node.properties?.[MEDIA_EDITOR_MOTION_PROP]),
+    }));
     node.properties[STAGE_PROMPT_DOCS_PROP] = docs;
     node.properties[STAGE_PROMPT_INDEX_PROP] = docs.length - 1;
     mediaEditorExpandedRows(node).add(docs.length - 1);
@@ -4157,6 +4303,12 @@ function syncMediaEditorPromptsToTarget(editorNode, targetNode) {
     targetNode.properties[STAGE_PROMPT_DOCS_PROP] = docs;
     targetNode.properties[STAGE_PROMPT_INDEX_PROP] = index;
     targetNode.properties[PROMPT_DOC_PROP] = docs[index];
+    if (editorNode.properties?.[MEDIA_EDITOR_UNIFIED_MOTION_PROP]) {
+        setConfiguredWidgetValue(targetNode, "motion_context", canonicalMotionContext(editorNode.properties[MEDIA_EDITOR_MOTION_PROP]));
+    }
+    if (editorNode.properties?.[MEDIA_EDITOR_UNIFIED_TIME_PROP]) {
+        setConfiguredWidgetValue(targetNode, "single_stage_time", normalizeStageTime(editorNode.properties[MEDIA_EDITOR_TIME_PROP]));
+    }
     setConfiguredWidgetValue(targetNode, "prompt", docs[index].text);
     updateStagePromptsWidget(targetNode);
     renderEditorFromNode(targetNode, true);
@@ -4169,7 +4321,11 @@ function updateStagePromptsWidget(node) {
     const widget = getWidget(node, "stage_prompts");
     if (widget) {
         widget.value = JSON.stringify(docs.map((doc) => getWidget(node, "single_stage_time")
-            ? { prompt: String(doc.text || ""), single_stage_time: doc.single_stage_time }
+            ? {
+                prompt: String(doc.text || ""),
+                single_stage_time: doc.single_stage_time,
+                ...(doc.motion_context != null ? { motion_context: canonicalMotionContext(doc.motion_context) } : {}),
+            }
             : String(doc.text || "")));
         if (widget._state) widget._state.value = widget.value;
     }
@@ -4251,6 +4407,13 @@ function updateStagePromptBar(node) {
         stageTime.value = docs[index].single_stage_time;
         if (stageTime._state) stageTime._state.value = stageTime.value;
     }
+    if (isRef2GenerateTarget(node) && docs[index].motion_context != null) {
+        const motion = getWidget(node, "motion_context");
+        if (motion) {
+            motion.value = canonicalMotionContext(docs[index].motion_context);
+            if (motion._state) motion._state.value = motion.value;
+        }
+    }
     if (isGuideTarget(node)) {
         const stageIndex = getWidget(node, "stage_index");
         if (stageIndex) {
@@ -4263,6 +4426,7 @@ function updateStagePromptBar(node) {
 }
 
 function installStageTimeWidgetSync(node) {
+    installStageMotionWidgetSync(node);
     const widget = getWidget(node, "single_stage_time");
     if (!widget || widget.__adGuideStageTimeSyncInstalled) return;
     widget.__adGuideStageTimeSyncInstalled = true;
@@ -4277,6 +4441,28 @@ function installStageTimeWidgetSync(node) {
         if (widget._state) widget._state.value = stageTime;
         node.properties[STAGE_PROMPT_DOCS_PROP] = docs;
         updateStagePromptBar(node);
+        node.setDirtyCanvas?.(true, true);
+        app.graph?.change?.();
+        return result;
+    };
+}
+
+function installStageMotionWidgetSync(node) {
+    if (!isRef2GenerateTarget(node)) return;
+    const widget = getWidget(node, "motion_context");
+    if (!widget || widget.__adGuideStageMotionSyncInstalled) return;
+    widget.__adGuideStageMotionSyncInstalled = true;
+    const original = widget.callback;
+    widget.callback = function stageMotionChanged(value) {
+        const result = original?.apply(this, arguments);
+        const docs = ensureStagePromptDocs(node);
+        const index = Math.max(0, Math.min(docs.length - 1, Number(node.properties?.[STAGE_PROMPT_INDEX_PROP]) || 0));
+        const motion = canonicalMotionContext(value);
+        docs[index].motion_context = motion;
+        widget.value = motion;
+        if (widget._state) widget._state.value = motion;
+        node.properties[STAGE_PROMPT_DOCS_PROP] = docs;
+        updateStagePromptsWidget(node);
         node.setDirtyCanvas?.(true, true);
         app.graph?.change?.();
         return result;
@@ -5436,6 +5622,37 @@ function repairNodeLayout(node) {
     else setTimeout(run, 0);
 }
 
+function fitRef2SampleNodeHeight(node) {
+    if (!isRef2UnifiedTarget(node)) return;
+    const fit = () => {
+        refreshVueNodeWidgets(node);
+        let computed;
+        try {
+            computed = node.computeSize?.();
+        } catch {
+            return;
+        }
+        const width = Number(node.size?.[0]) || Number(computed?.[0]) || 260;
+        const height = Number(computed?.[1]);
+        if (!Number.isFinite(height) || height <= 0) return;
+        const nextSize = [width, height];
+        node.setSize?.(nextSize);
+        if (node.size) {
+            node.size[0] = width;
+            node.size[1] = height;
+        } else {
+            node.size = nextSize;
+        }
+        node._widgetSlotsDirty = true;
+        node.setDirtyCanvas?.(true, true);
+        node.graph?.setDirtyCanvas?.(true, true);
+        app.graph?.setDirtyCanvas?.(true, true);
+    };
+    fit();
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(fit);
+    else setTimeout(fit, 0);
+}
+
 function syncEditorMode(node) {
     syncModeWidgets(node);
     const widget = getWidget(node, "prompt");
@@ -6439,14 +6656,15 @@ function canonicalRef2GenerateMotionContext(value) {
 }
 
 function canonicalRef2GenerateMotionPlan(value, legacyMethod = "guide") {
-    const mode = String(value ?? "");
-    if (mode === "None") return "None";
-    if (["guide 22 frames", "guide 39 frames", "native_soft_mask 39"].includes(mode)) return mode;
-    if (mode === "native_masked 39 frames") return "native_soft_mask 39";
-    const frames = canonicalRef2GenerateMotionContext(mode);
-    if (frames === "None") return "None";
-    if (frames === "39" && legacyMethod === "native_masked_av") return "native_soft_mask 39";
-    return frames === "39" ? "guide 39 frames" : "guide 22 frames";
+    const source = String(value ?? "");
+    if (MOTION_CONTEXT_SET.has(source) || MOTION_CONTEXT_ALIASES[source]) {
+        if (["39", "39帧"].includes(source) && legacyMethod === "native_masked_av") return "native_39";
+        return canonicalMotionContext(source);
+    }
+    const frames = canonicalRef2GenerateMotionContext(source);
+    if (frames === "None") return "none";
+    if (frames === "39" && legacyMethod === "native_masked_av") return "native_39";
+    return frames === "39" ? "guide_39" : "guide_22";
 }
 
 function canonicalReferenceMediaMode(value) {
@@ -6517,7 +6735,7 @@ function currentMulWidgetValues(node) {
         single_stage_time: Number(getWidgetValue(node, "single_stage_time", DEFAULT_STAGE_TIME)),
         ref_image_size: Object.prototype.hasOwnProperty.call(OPTION_DEFS.ref_image_size, refImageSize) ? refImageSize : REF_IMAGE_MATCH,
         fps: Number(getWidgetValue(node, "fps", 24)),
-        motion_context: canonicalRef2GenerateMotionPlan(getWidgetValue(node, "motion_context", "guide 22 frames")),
+        motion_context: canonicalRef2GenerateMotionPlan(getWidgetValue(node, "motion_context", "guide_22")),
         reference_media_mode: canonicalReferenceMediaMode(
             getWidgetValue(node, "reference_media_mode", "default"),
         ),
@@ -6845,22 +7063,6 @@ function normalizeMulOutputs(node) {
     return changed;
 }
 
-function normalizeRef2StageInfoInput(node) {
-    const expected = isRef2UnifiedTarget(node)
-        ? "stage_info_data"
-        : isRef2GenerateTarget(node) || isFl2GenerateTarget(node)
-            ? "stage_info_data1"
-            : null;
-    if (!expected) return false;
-    const input = (node.inputs || []).find((item) => String(item?.type || "") === "FLOW_STAGE_INFO");
-    if (!input || String(input.name || "") === expected) return false;
-    input.name = expected;
-    input.label = expected;
-    node._widgetSlotsDirty = true;
-    node.setDirtyCanvas?.(true, true);
-    return true;
-}
-
 function repairMulConfiguredWidgetValues(node, info) {
     const raw = Array.isArray(info?.widgets_values) ? [...info.widgets_values] : [];
     const stored = info?.properties?.[REF2_GENERATE_WIDGET_VALUES_PROP];
@@ -6930,10 +7132,22 @@ function buildMediaEditorUI(node) {
     if (typeof node.properties[MEDIA_EDITOR_CACHE_ENABLED_PROP] !== "boolean") {
         node.properties[MEDIA_EDITOR_CACHE_ENABLED_PROP] = false;
     }
+    if (typeof node.properties[MEDIA_EDITOR_UNIFIED_MOTION_PROP] !== "boolean") {
+        node.properties[MEDIA_EDITOR_UNIFIED_MOTION_PROP] = false;
+    }
+    if (typeof node.properties[MEDIA_EDITOR_UNIFIED_TIME_PROP] !== "boolean") {
+        node.properties[MEDIA_EDITOR_UNIFIED_TIME_PROP] = false;
+    }
     cachedMediaItems(node);
     rebuildCachedMediaLinks(node);
     ensureLinks(node);
-    ensureStagePromptDocs(node);
+    const initialDocs = ensureStagePromptDocs(node);
+    node.properties[MEDIA_EDITOR_MOTION_PROP] = canonicalMotionContext(
+        node.properties[MEDIA_EDITOR_MOTION_PROP] ?? initialDocs[0]?.motion_context,
+    );
+    node.properties[MEDIA_EDITOR_TIME_PROP] = normalizeStageTime(
+        node.properties[MEDIA_EDITOR_TIME_PROP] ?? initialDocs[0]?.single_stage_time,
+    );
     if (node.inputs?.[0]) {
         node.inputs[0].name = "media";
         node.inputs[0].label = "media";
@@ -7029,7 +7243,95 @@ function buildMediaEditorUI(node) {
     nameMode.append(nameToggle, nameTrack, nameModeText);
     materialTitle.append(cacheMode, nameMode);
     const textTitle = document.createElement("span");
+    textTitle.className = "ad-media-editor-text-title";
     textTitle.textContent = "文本";
+    const unifiedSettings = document.createElement("span");
+    unifiedSettings.className = "ad-media-editor-unified-settings";
+    const applyUnifiedMotion = () => {
+        const docs = ensureStagePromptDocs(node);
+        const value = canonicalMotionContext(node.properties[MEDIA_EDITOR_MOTION_PROP]);
+        for (const doc of docs) doc.motion_context = value;
+        commitMediaEditorStageSettings(node, docs);
+        renderMediaEditorRows(node);
+    };
+    const motionUniform = document.createElement("label");
+    motionUniform.className = "ad-media-editor-unified-control";
+    const motionUniformToggle = document.createElement("input");
+    motionUniformToggle.type = "checkbox";
+    motionUniformToggle.checked = node.properties[MEDIA_EDITOR_UNIFIED_MOTION_PROP] === true;
+    const motionUniformText = document.createElement("span");
+    motionUniformText.textContent = "统一motion";
+    const motionUniformSelect = document.createElement("select");
+    for (const value of MOTION_CONTEXT_VALUES) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        motionUniformSelect.append(option);
+    }
+    motionUniformSelect.value = node.properties[MEDIA_EDITOR_MOTION_PROP];
+    motionUniformToggle.addEventListener("change", (event) => {
+        event.stopPropagation();
+        node.properties[MEDIA_EDITOR_UNIFIED_MOTION_PROP] = motionUniformToggle.checked;
+        if (motionUniformToggle.checked) applyUnifiedMotion();
+        else {
+            renderMediaEditorRows(node);
+            node.setDirtyCanvas?.(true, true);
+            app.graph?.change?.();
+        }
+    });
+    motionUniformSelect.addEventListener("change", (event) => {
+        event.stopPropagation();
+        node.properties[MEDIA_EDITOR_MOTION_PROP] = canonicalMotionContext(motionUniformSelect.value);
+        if (motionUniformToggle.checked) applyUnifiedMotion();
+        else app.graph?.change?.();
+    });
+    motionUniform.append(motionUniformToggle, motionUniformText, motionUniformSelect);
+    const timeUniform = document.createElement("label");
+    timeUniform.className = "ad-media-editor-unified-control";
+    const timeUniformToggle = document.createElement("input");
+    timeUniformToggle.type = "checkbox";
+    timeUniformToggle.checked = node.properties[MEDIA_EDITOR_UNIFIED_TIME_PROP] === true;
+    const timeUniformText = document.createElement("span");
+    timeUniformText.textContent = "统一时间";
+    const timeUniformInput = document.createElement("input");
+    timeUniformInput.type = "number";
+    timeUniformInput.min = String(MIN_STAGE_TIME);
+    timeUniformInput.max = String(MAX_STAGE_TIME);
+    timeUniformInput.step = "0.1";
+    timeUniformInput.value = formatStageTime(node.properties[MEDIA_EDITOR_TIME_PROP]);
+    const applyUnifiedTime = () => {
+        const docs = ensureStagePromptDocs(node);
+        const value = normalizeStageTime(timeUniformInput.value, node.properties[MEDIA_EDITOR_TIME_PROP]);
+        node.properties[MEDIA_EDITOR_TIME_PROP] = value;
+        timeUniformInput.value = formatStageTime(value);
+        for (const doc of docs) doc.single_stage_time = value;
+        commitMediaEditorStageSettings(node, docs);
+        renderMediaEditorRows(node);
+    };
+    timeUniformToggle.addEventListener("change", (event) => {
+        event.stopPropagation();
+        node.properties[MEDIA_EDITOR_UNIFIED_TIME_PROP] = timeUniformToggle.checked;
+        if (timeUniformToggle.checked) applyUnifiedTime();
+        else {
+            renderMediaEditorRows(node);
+            node.setDirtyCanvas?.(true, true);
+            app.graph?.change?.();
+        }
+    });
+    timeUniformInput.addEventListener("change", (event) => {
+        event.stopPropagation();
+        const value = normalizeStageTime(timeUniformInput.value, node.properties[MEDIA_EDITOR_TIME_PROP]);
+        node.properties[MEDIA_EDITOR_TIME_PROP] = value;
+        timeUniformInput.value = formatStageTime(value);
+        if (timeUniformToggle.checked) applyUnifiedTime();
+        else app.graph?.change?.();
+    });
+    for (const control of [motionUniformToggle, motionUniformSelect, timeUniformToggle, timeUniformInput]) {
+        control.addEventListener("pointerdown", (event) => event.stopPropagation());
+        control.addEventListener("click", (event) => event.stopPropagation());
+    }
+    timeUniform.append(timeUniformToggle, timeUniformText, timeUniformInput);
+    unifiedSettings.append(motionUniform, timeUniform);
     const controls = document.createElement("span");
     controls.className = "ad-media-editor-controls";
     const makeButton = (label, title, action) => {
@@ -7049,7 +7351,7 @@ function buildMediaEditorUI(node) {
         makeButton("+", "添加一行分段文本", addMediaEditorRow),
         makeButton("−", "删除当前行", removeMediaEditorRow),
     );
-    textTitle.append(controls);
+    textTitle.append(unifiedSettings, controls);
     header.append(materialTitle, textTitle);
     const table = document.createElement("div");
     table.className = "ad-media-editor-table";
@@ -7143,6 +7445,14 @@ function installMediaEditorNode(nodeType, nodeData) {
             buildMediaEditorUI(this);
             refreshMaterialTray(this);
             renderMediaEditorRows(this, true);
+            // Workflow restoration configures nodes in graph order. Re-emit
+            // after the graph has settled so previously cached materials are
+            // also copied to an already connected target without re-importing.
+            for (const delay of [0, 100, 500]) {
+                setTimeout(() => window.dispatchEvent(new CustomEvent(MEDIA_RELAY_EVENT, {
+                    detail: { nodeId: Number(this.id) },
+                })), delay);
+            }
         }, 0);
         return result;
     };
@@ -7171,7 +7481,6 @@ function installNode(nodeType, nodeData) {
     nodeType.prototype.onNodeCreated = function onNodeCreatedH3Easy() {
         const result = originalCreated?.apply(this, arguments);
         this.properties ||= {};
-        normalizeRef2StageInfoInput(this);
         pruneTransportNodeInstance(this);
         ensureLinks(this);
         if (isMulTarget(this)) {
@@ -7189,13 +7498,10 @@ function installNode(nodeType, nodeData) {
         pruneLinksForMode(this);
         localizeNodeInstance(this);
         if (isMulTarget(this)) {
-            pruneLegacyFlowStageMediaLinks(this);
-            reorderMulInputSlots(this);
             reorderMulWidgets(this);
             installSecondPassWidgetSync(this);
             installOnePassWidgetSync(this);
         }
-        if (isGuideTarget(this)) reorderMulInputSlots(this);
         syncModeWidgets(this);
         patchCanvas();
         installQuickCreateCapture(app.canvas);
@@ -7206,7 +7512,6 @@ function installNode(nodeType, nodeData) {
     const originalConfigure = nodeType.prototype.onConfigure;
     nodeType.prototype.onConfigure = function onConfigureH3Easy(info) {
         const result = originalConfigure?.apply(this, arguments);
-        normalizeRef2StageInfoInput(this);
         pruneTransportNodeInstance(this);
         if (info?.properties?.[PROMPT_DOC_PROP]) {
             this.properties ||= {};
@@ -7238,13 +7543,10 @@ function installNode(nodeType, nodeData) {
         pruneLinksForMode(this);
         localizeNodeInstance(this);
         if (isMulTarget(this)) {
-            pruneLegacyFlowStageMediaLinks(this);
-            reorderMulInputSlots(this);
             reorderMulWidgets(this);
             installSecondPassWidgetSync(this);
             installOnePassWidgetSync(this);
         }
-        if (isGuideTarget(this)) reorderMulInputSlots(this);
         syncModeWidgets(this);
         renderEditorFromNode(this);
         updateStagePromptBar(this);
@@ -7287,7 +7589,8 @@ function installNode(nodeType, nodeData) {
         const result = originalSerialize?.apply(this, arguments);
         if (info && this.properties?.[PROMPT_DOC_PROP]) {
             info.properties ||= {};
-            info.properties[PROMPT_DOC_PROP] = this.properties[PROMPT_DOC_PROP];
+            // Workflow snapshots must not retain Vue proxies from live node properties.
+            info.properties[PROMPT_DOC_PROP] = JSON.parse(JSON.stringify(this.properties[PROMPT_DOC_PROP]));
             if (isStagePromptTarget(this)) {
                 info.properties[STAGE_PROMPT_DOCS_PROP] = ensureStagePromptDocs(this).map(clonePromptDoc);
                 info.properties[STAGE_PROMPT_INDEX_PROP] = Number(this.properties[STAGE_PROMPT_INDEX_PROP]) || 0;
@@ -7329,12 +7632,10 @@ function installNode(nodeType, nodeData) {
         const result = originalDraw?.apply(this, arguments);
         if (pruneTransportNodeInstance(this)) repairNodeLayout(this);
         if (isMulTarget(this)) {
-            reorderMulInputSlots(this);
             reorderMulWidgets(this);
             installSecondPassWidgetSync(this);
             installOnePassWidgetSync(this);
         }
-        if (isGuideTarget(this)) reorderMulInputSlots(this);
         installStageTimeWidgetSync(this);
         if (this.__adGuideEditorVersion !== AD_GUIDE_UI_VERSION) repairDetachedPromptEditor(this);
         else if (this.__adGuideCanonicalMentionVersion !== AD_GUIDE_UI_VERSION) normalizeEditorMentionTags(this);
@@ -7371,9 +7672,9 @@ function installRefineNode(nodeType, nodeData) {
     const originalCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function onNodeCreatedH3Refine() {
         const result = originalCreated?.apply(this, arguments);
-        normalizeRef2StageInfoInput(this);
         normalizeMulOutputs(this);
         installSecondPassWidgetSync(this);
+        fitRef2SampleNodeHeight(this);
         return result;
     };
 
@@ -7381,9 +7682,12 @@ function installRefineNode(nodeType, nodeData) {
     nodeType.prototype.onConfigure = function onConfigureH3Refine(info) {
         migrateRefineWidgets(this, info);
         const result = originalConfigure?.apply(this, arguments);
-        normalizeRef2StageInfoInput(this);
         normalizeMulOutputs(this);
         installSecondPassWidgetSync(this);
+        // onNodeCreated applies the default base visibility before the saved
+        // workflow size is restored. Re-fit after restoring the selected mode
+        // so refine/latent rows do not add their height again on every reload.
+        fitRef2SampleNodeHeight(this);
         return result;
     };
 
@@ -7395,16 +7699,6 @@ function installRefineNode(nodeType, nodeData) {
             syncSecondPassWidgets(this);
             setTimeout(() => syncSecondPassWidgets(this), 0);
         }
-        if (connected && inputName === "stage_info_data") {
-            setTimeout(() => {
-                const input = this.inputs?.[index];
-                const link = getNativeGraphLink(this.graph || app.graph, input?.link) || linkInfo;
-                const source = (this.graph || app.graph)?.getNodeById?.(Number(link?.origin_id ?? link?.originId));
-                if (String(source?.comfyClass || source?.type || "") !== FLOW_STAGE_BEGIN_CLASS) return;
-                this.disconnectInput?.(index);
-                this.setDirtyCanvas?.(true, true);
-            }, 0);
-        }
         return result;
     };
 }
@@ -7415,18 +7709,141 @@ function graphLinkValues(graph = app.graph) {
     return Object.values(links || {}).filter(Boolean);
 }
 
-function pruneLegacyFlowStageMediaLinks(node) {
-    if (!isMulTarget(node)) return false;
-    const links = ensureLinks(node);
-    const filtered = links.filter((link) => {
-        const source = app.graph?.getNodeById?.(Number(link?.source_id));
-        return String(source?.comfyClass || source?.type || "") !== FLOW_STAGE_BEGIN_CLASS;
+function serializedLink(link) {
+    if (Array.isArray(link)) {
+        return {
+            id: link[0],
+            originId: link[1],
+            originSlot: Number(link[2]),
+            targetId: link[3],
+            targetSlot: Number(link[4]),
+        };
+    }
+    return {
+        id: link?.id,
+        originId: link?.origin_id ?? link?.originId,
+        originSlot: Number(link?.origin_slot ?? link?.originSlot),
+        targetId: link?.target_id ?? link?.targetId,
+        targetSlot: Number(link?.target_slot ?? link?.targetSlot),
+    };
+}
+
+let savedFlowStageGraphLinks = [];
+function rememberFlowStageGraphLinks(graphData) {
+    const sourceIds = new Set((graphData?.nodes || [])
+        .filter((node) => String(node?.type || node?.comfyClass || "") === FLOW_STAGE_BEGIN_CLASS)
+        .map((node) => String(node.id)));
+    const serializedLinks = Array.isArray(graphData?.links)
+        ? graphData.links
+        : Object.values(graphData?.links || {});
+    savedFlowStageGraphLinks = serializedLinks
+        .map(serializedLink)
+        .filter((link) => sourceIds.has(String(link.originId))
+            && link.id != null
+            && Number.isInteger(link.originSlot)
+            && Number.isInteger(link.targetSlot));
+}
+
+function nodeBySavedId(graph, id) {
+    return graph?.getNodeById?.(id)
+        || (graph?._nodes || []).find((node) => String(node?.id) === String(id));
+}
+
+function slotHoldingLink(slots, savedId, property) {
+    return (slots || []).findIndex((slot) => {
+        const value = slot?.[property];
+        const ids = Array.isArray(value) ? value : [value];
+        return ids.some((id) => String(id) === String(savedId));
     });
-    if (filtered.length === links.length) return false;
-    node.properties[LINKS_PROP] = filtered;
-    resequence(node);
-    refreshMaterialTray(node);
-    return true;
+}
+
+function repairSavedFlowStageLinks() {
+    const graph = app.graph;
+    let changed = false;
+
+    for (const saved of savedFlowStageGraphLinks) {
+        const source = nodeBySavedId(graph, saved.originId);
+        const target = nodeBySavedId(graph, saved.targetId);
+        if (!source || !target) continue;
+
+        const links = graphLinkValues(graph);
+        const byId = links.find((link) => String(link?.id) === String(saved.id));
+        const sourceSlotById = slotHoldingLink(source.outputs, saved.id, "links");
+        const targetSlotById = slotHoldingLink(target.inputs, saved.id, "link");
+        const sourceSlot = sourceSlotById >= 0 ? sourceSlotById : saved.originSlot;
+        const targetSlot = targetSlotById >= 0
+            ? targetSlotById
+            : (byId && Number(byId.target_id) === Number(target.id) ? Number(byId.target_slot) : saved.targetSlot);
+        if (!source.outputs?.[sourceSlot] || !target.inputs?.[targetSlot]) continue;
+
+        const endpointLink = links.find((link) => (
+            Number(link?.origin_id) === Number(source.id)
+            && Number(link?.origin_slot) === sourceSlot
+            && Number(link?.target_id) === Number(target.id)
+            && Number(link?.target_slot) === targetSlot
+        ));
+        const existing = byId || endpointLink;
+        if (existing) {
+            if (byId) {
+                if (Number(existing.origin_id) !== Number(source.id)) {
+                    existing.origin_id = source.id;
+                    changed = true;
+                }
+                if (Number(existing.origin_slot) !== sourceSlot) {
+                    existing.origin_slot = sourceSlot;
+                    changed = true;
+                }
+                if (Number(existing.target_id) !== Number(target.id)) {
+                    existing.target_id = target.id;
+                    changed = true;
+                }
+                if (Number(existing.target_slot) !== targetSlot) {
+                    existing.target_slot = targetSlot;
+                    changed = true;
+                }
+            }
+            for (let index = 0; index < (source.outputs?.length || 0); index += 1) {
+                if (index === sourceSlot || !Array.isArray(source.outputs[index]?.links)) continue;
+                const filtered = source.outputs[index].links.filter((id) => String(id) !== String(existing.id));
+                if (filtered.length !== source.outputs[index].links.length) {
+                    source.outputs[index].links = filtered;
+                    changed = true;
+                }
+            }
+            for (let index = 0; index < (target.inputs?.length || 0); index += 1) {
+                if (index !== targetSlot && String(target.inputs[index]?.link) === String(existing.id)) {
+                    target.inputs[index].link = null;
+                    changed = true;
+                }
+            }
+            const outputLinks = source.outputs[sourceSlot].links ||= [];
+            if (!outputLinks.some((id) => String(id) === String(existing.id))) {
+                outputLinks.push(existing.id);
+                changed = true;
+            }
+            if (target.inputs[targetSlot].link !== existing.id) {
+                target.inputs[targetSlot].link = existing.id;
+                changed = true;
+            }
+            continue;
+        }
+
+        for (const output of source.outputs || []) {
+            if (Array.isArray(output?.links)) {
+                output.links = output.links.filter((id) => String(id) !== String(saved.id));
+            }
+        }
+        for (const input of target.inputs || []) {
+            if (String(input?.link) === String(saved.id)) input.link = null;
+        }
+        source.connect?.(sourceSlot, target, targetSlot);
+        changed = true;
+    }
+    if (changed) {
+        graph?.setDirtyCanvas?.(true, true);
+        graph?.change?.();
+    }
+    return changed;
 }
 
 function reorderMulInputSlots(node) {
@@ -7445,62 +7862,29 @@ function reorderMulInputSlots(node) {
             return leftRank - rightRank;
         })
         .map(({ input }) => input);
-    if (next.every((input, index) => input === current[index])) return false;
-    node.inputs = next;
+    const reordered = !next.every((input, index) => input === current[index]);
+    if (reordered) node.inputs = next;
     const links = graphLinkValues(node.graph || app.graph);
+    let repaired = false;
     node.inputs.forEach((input, targetSlot) => {
         const ids = Array.isArray(input?.link) ? input.link : [input?.link];
         for (const id of ids) {
             if (id == null) continue;
             const link = links.find((item) => String(item?.id) === String(id));
-            if (link) link.target_slot = targetSlot;
+            if (link && Number(link.target_slot) !== targetSlot) {
+                link.target_slot = targetSlot;
+                repaired = true;
+            }
         }
     });
+    if (!reordered && !repaired) return false;
     node._widgetSlotsDirty = true;
     node.setDirtyCanvas?.(true, true);
     return true;
 }
 
-function normalizeFlowStageBeginSlots(node, force = false) {
-    if (String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "") !== FLOW_STAGE_BEGIN_CLASS) return;
-    if (node.__adFlowStageSlotsNormalizedUI41 && !force) return;
-    for (let index = (node.outputs?.length || 0) - 1; index >= 0; index -= 1) {
-        if (String(node.outputs[index]?.name || "") === "data") node.removeOutput?.(index);
-    }
-    const byName = Object.fromEntries((node.outputs || []).map((output, index) => [String(output?.name || ""), index]));
-    const graph = node.graph || app.graph;
-    const removeIds = [];
-    for (const link of graphLinkValues(graph)) {
-        if (String(link?.origin_id) !== String(node.id)) continue;
-        const target = graph?.getNodeById?.(link.target_id);
-        const input = target?.inputs?.[link.target_slot];
-        const inputName = String(input?.name || "");
-        const inputType = String(input?.type || "").toUpperCase();
-        if (inputName.toLowerCase() === "media") {
-            removeIds.push(link.id);
-        } else if (inputName === "stage_info_data") {
-            removeIds.push(link.id);
-        } else if (["stage_info", "stage_info_data1", "stage_info_data2", "stage_info_data3"].includes(inputName) && byName.stage_info != null) {
-            link.origin_slot = byName.stage_info;
-        } else if (inputType === "INT" && byName.stage_index != null) {
-            link.origin_slot = byName.stage_index;
-        }
-    }
-    for (const id of removeIds) graph?.removeLink?.(id);
-    for (const output of node.outputs || []) output.links = [];
-    for (const link of graphLinkValues(graph)) {
-        if (String(link?.origin_id) !== String(node.id)) continue;
-        const output = node.outputs?.[Number(link.origin_slot)];
-        if (output) (output.links ||= []).push(link.id);
-    }
-    node._widgetSlotsDirty = true;
-    node.setDirtyCanvas?.(true, true);
-    node.__adFlowStageSlotsNormalizedUI41 = true;
-}
-
 function syncFlowStageBeginWidgets(node) {
     if (String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "") !== FLOW_STAGE_BEGIN_CLASS) return;
-    normalizeFlowStageBeginSlots(node);
     setConditionalWidgetVisible(node, getWidget(node, "run_id"), true);
     const currentIndex = getWidget(node, "stage_index");
     if (currentIndex) currentIndex.label = "stage_index";
@@ -7517,7 +7901,7 @@ function installFlowStageBeginNode(nodeType, nodeData) {
         return result;
     };
     const originalConfigure = nodeType.prototype.onConfigure;
-    nodeType.prototype.onConfigure = function onConfigureFlowStageBeginUI41() {
+    nodeType.prototype.onConfigure = function onConfigureFlowStageBeginUI41(info) {
         const result = originalConfigure?.apply(this, arguments);
         syncFlowStageBeginWidgets(this);
         return result;
@@ -7730,6 +8114,13 @@ function install() {
        .ad-media-editor-prefix-input:focus { box-shadow: inset 0 0 0 1px rgba(0,226,187,.72); }
        .ad-media-editor-header > span { position: relative; padding: 0 8px; box-sizing: border-box; }
        .ad-media-editor-material-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
+       .ad-media-editor-text-title { display: flex; align-items: center; min-width: 0; padding-right: 62px !important; }
+       .ad-media-editor-unified-settings { display: inline-flex; align-items: center; gap: 6px; min-width: 0; margin-left: 10px; }
+       .ad-media-editor-unified-control { display: inline-flex; align-items: center; gap: 3px; min-width: 0; color: var(--ad-guide-native-widget-muted, rgba(255,255,255,.68)); font: 10px/20px system-ui, sans-serif; white-space: nowrap; cursor: pointer !important; }
+       .ad-media-editor-unified-control input[type="checkbox"] { width: 13px; height: 13px; margin: 0; }
+       .ad-media-editor-unified-control select, .ad-media-editor-unified-control input[type="number"] { height: 20px; min-width: 0; border: 0; border-radius: 3px; outline: 0; background: rgba(0,0,0,.28); color: var(--ad-guide-native-widget-text, #ddd); font: 10px/18px system-ui, sans-serif; }
+       .ad-media-editor-unified-control select { width: 82px; }
+       .ad-media-editor-unified-control input[type="number"] { width: 38px; padding: 0 2px; }
        .ad-media-editor-name-mode { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; color: var(--ad-guide-native-widget-muted, rgba(255,255,255,.62)); font: 10px/18px system-ui, sans-serif; cursor: pointer !important; }
        .ad-media-editor-name-mode input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
        .ad-media-editor-name-track { position: relative; width: 24px; height: 13px; border-radius: 7px; background: rgba(255,255,255,.18); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
@@ -7753,16 +8144,19 @@ function install() {
        .ad-media-editor-ref .ad-guide-mention-chip-thumb { flex: 0 0 16px; margin: 0; }
        .ad-media-editor-empty-ref { margin: auto; color: var(--ad-guide-native-widget-muted, rgba(255,255,255,.32)); }
        .ad-media-editor-text-cell { position: relative; min-width: 0; min-height: 52px; box-sizing: border-box; background: var(--ad-guide-native-widget-bg, #222); }
+       .ad-media-editor-stage-label { position: absolute; z-index: 2; top: 7px; left: 7px; color: #ff704d; font: 700 11px/18px system-ui, sans-serif; pointer-events: none; }
        .ad-media-editor-row-prefix { position: absolute; z-index: 3; top: 34px; left: 7px; right: 7px; height: 18px; overflow: hidden; color: #ff9a40; font: 12px/18px Consolas, "Courier New", monospace; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
        .ad-media-editor-row-prefix[hidden] { display: none !important; }
        .ad-media-editor-row-preview { min-height: 52px; max-height: 96px; padding: 34px 7px 7px; box-sizing: border-box; overflow: hidden; color: var(--ad-guide-native-widget-text, #ddd); font: 12px/1.45 system-ui, sans-serif; white-space: pre-wrap; cursor: pointer !important; }
        .ad-media-editor-row.has-common-prefix .ad-media-editor-row-preview { min-height: 74px; max-height: 118px; padding-top: 56px; }
        .ad-media-editor-row-preview[hidden], .ad-media-editor-text[hidden] { display: none !important; }
        .ad-media-editor-row-toggle { position: absolute; top: 5px; right: 5px; min-width: 38px; height: 22px; padding: 0 5px; border: 0; border-radius: 4px; background: rgba(0,226,187,.12); color: rgba(112,255,224,.9); font: 11px/18px system-ui, sans-serif; cursor: pointer !important; }
+       .ad-media-editor-row-motion { position: absolute; z-index: 2; top: 5px; right: 174px; width: 104px; height: 22px; padding: 0 3px; border: 0; border-radius: 4px; outline: 0; background: var(--ad-guide-native-widget-bg, #222); color: var(--ad-guide-native-widget-text, #ddd); box-shadow: inset 0 0 0 1px var(--ad-guide-native-widget-outline, rgba(255,255,255,.18)); font: 11px/20px system-ui, sans-serif; }
        .ad-media-editor-row-time { position: absolute; z-index: 2; top: 5px; right: 51px; display: inline-flex; align-items: center; height: 22px; padding: 0 4px; border-radius: 4px; background: var(--ad-guide-native-widget-bg, #222); color: var(--ad-guide-native-widget-muted, rgba(255,255,255,.62)); box-shadow: inset 0 0 0 1px var(--ad-guide-native-widget-outline, rgba(255,255,255,.18)); font: 11px/20px system-ui, sans-serif; }
        .ad-media-editor-row-time input { width: 34px; height: 20px; padding: 0 1px; border: 0; outline: 0; appearance: textfield; background: transparent; color: var(--ad-guide-native-widget-text, #ddd); font: 11px/20px system-ui, sans-serif; text-align: right; }
        .ad-media-editor-row-time input::-webkit-inner-spin-button { appearance: none; margin: 0; }
        .ad-media-editor-row-time button { width: 20px; height: 20px; padding: 0; border: 0; background: transparent; color: var(--ad-guide-native-widget-text, #ddd); font: 13px/20px system-ui, sans-serif; cursor: pointer !important; }
+       .ad-media-editor-row-motion:disabled, .ad-media-editor-row-time input:disabled, .ad-media-editor-row-time button:disabled { opacity: .42; cursor: not-allowed !important; }
        .ad-media-editor-text { min-height: 96px; padding: 34px 7px 7px !important; overflow: visible !important; background: var(--ad-guide-native-widget-bg, #222); }
        .ad-media-editor-row.has-common-prefix .ad-media-editor-text { min-height: 118px; padding-top: 56px !important; }
     `;
@@ -7776,22 +8170,24 @@ if (!globalThis.__AD_MINIMAX_GUIDE_UI41_REGISTERED__) {
         setup() {
             install();
         },
+        beforeConfigureGraph(graphData) {
+            rememberFlowStageGraphLinks(graphData);
+        },
+        afterConfigureGraph() {
+            repairSavedFlowStageLinks();
+        },
         loadedGraphNode(node) {
             const nodeClass = String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "");
             if (nodeClass === FLOW_STAGE_BEGIN_CLASS) {
-                normalizeFlowStageBeginSlots(node, true);
                 syncFlowStageBeginWidgets(node);
             }
             if (isMulTarget(node)) {
                 normalizeMulOutputs(node);
-                normalizeRef2StageInfoInput(node);
-                pruneLegacyFlowStageMediaLinks(node);
                 reorderMulInputSlots(node);
                 installOnePassWidgetSync(node);
             }
             if (isGuideTarget(node)) reorderMulInputSlots(node);
             if (isRef2RefineTarget(node)) {
-                normalizeRef2StageInfoInput(node);
                 normalizeMulOutputs(node);
                 installSecondPassWidgetSync(node);
             }

@@ -27,13 +27,11 @@ Each selected row stores its editable description in the workflow. That workflow
 
 Upstream v5 bundles are expanded into their image, video, and audio members. A single `<RefMod N>` tag resolves to every native reference label contained by that bundle, in member order. Strength uses direct latent scaling (`latent * strength`), not the upstream pack's blur-mix behavior; use full strength if low-strength scaling does not suit a particular file.
 - Video thumbnails: each uploaded video shows its first frame as a background preview behind the clip tile.
-- Simple / Structured prompt mode: toggle how builder fields assemble into the final prompt (persisted per workflow).
+- One free-text prompt editor for all modes. The optional structure button inserts the corresponding H3 template; the reference prefill uses enabled media and saved reference descriptions.
 - Frame rate: `frame_rate` input (0.1–240, default 24) sets the output FPS and is re-emitted as an output.
 - Crop preview: ▶ Play crop plays only the current crop range; the preview range is draggable.
 - Paste-replace: pasting over a selected tile replaces it in place, keeping its slot.
-- Mode-specific prompt builders:
-  - FL2VA/I2VA/L2VA/T2VA: guided fields for description and audio sections with automatic alignment headers.
-  - REF2VA: six free-text sections (subject_definitions, summary, retention_analysis, detailed_description, overall_soundscape, non_diegetic_music) with helper buttons — Insert Shot, Prefill Labels & Summary, and Preview Prompt.
+- Mode-specific prompt structure templates: T2VA/I2VA/FL2VA/L2VA use a multimodal description and audio headers, with frame alignment where applicable; REF2VA uses the six official full-reference sections. Both are optional insertions into the same prompt field.
 - Only the selected model is loaded: `ref2va_model` for REF2VA, `fl2va_model` for all image-to-video modes (FL2VA family + Image Inpaint); the Guide node calls ComfyUI's built-in H3 nodes. REF2VA passes native inputs by name, preserving compatibility if Core reorders them (v0.4.36).
 
 ## Installation and graph setup
@@ -233,34 +231,15 @@ Images:
 
 ### Prompt editors
 
-Below the timeline is a unified prompt-builder panel whose layout depends on the active mode. Both editors have resizable text areas with drag-handle bars at the bottom; heights persist in the workflow JSON.
+Below the timeline, every model mode has one free-text prompt field, initially empty. **Insert Prompt Structure** inserts the former structured-mode template at the cursor; for REF2VA it contains `subject_definitions`, `summary`, `retention_analysis`, `detailed_description`, `overall_soundscape`, and `non_diegetic_music`, while base modes include their applicable frame-alignment instruction and description/sound/music headers. Edit or omit any part of the template. The text area is resizable and its height persists in the workflow JSON.
 
-#### FL2VA / I2VA / L2VA / T2VA builder
+The dark prompt toolbar also has **Insert [Shot N]** and, for REF2VA, **Insert RefMod #** (expands a selected saved reference into native label and description). Their number controls open small popovers beside the clicked button; Enter inserts and Escape dismisses. **Prefill Labels & Summary** fills the six H3 reference sections from enabled image/video/audio references and RefMods, including audio-only/video+audio tracks, their lane positions, and any authored media or RefMod descriptions. It does not assume that an image is an opening keyframe, that a video is being edited, or that audio is copied. Existing filled sections stay intact; plain free text is moved into `detailed_description`. Complete the shot-by-shot description and soundscape yourself and check preservation markers against the intended use—no visual or audio content is inferred from pixels or waveforms. There is no separate Director prompt preview. **Prompt Forge** opens the optional LLM prompt writer (local ComfyUI model, Ollama, or configured OpenAI-compatible server): Generate shows its draft in the Forge dialog; **Apply to node** then replaces the prompt field. The last three successful generations are listed under the draft. Click one to preview it and apply it later, even if you previously closed Forge without applying; they are saved in this Director node's workflow properties and survive a saved-workflow reload. A draft generated for another mode can be viewed but must be applied while that mode is selected. Storing the workflow also stores these drafts, so use **Clear history** in Forge to remove saved drafts without touching the Director prompt, or the Director's **Clear** button to remove media, prompt and Forge history together. Reference packs still serialize only the editable prompt; the three Forge drafts live in the workflow's node properties. Old structured workflows, embedded video metadata, and structured reference packs are assembled into the same prompt field when loaded.
 
-Three labeled text areas:
+#### Prompt Forge: writing and applying a draft
 
-- **integrated_multimodal_description** — main scene/action/camera/environment description with optional `[Shot N]` markers. An **Insert [Shot N]** button pops up a dialog and places the marker at your cursor.
-- **overall_soundscape** — ambient sounds, dialogue, effects.
-- **non_diegetic_music** — background score or `N/A`.
+Open **Prompt Forge** from the Director's prompt toolbar. Enter an **Idea** (a sentence or two is enough), then choose an available **Model**, **Creativity** preset, and **Detail** level (1–10). The model list groups local ComfyUI models, Ollama, and configured OpenAI-compatible models; unavailable models cannot be selected. The Forge uses the Director's current mode and duration. Timeline references appear in lane order: REF2VA images can be assigned **subject**, **style**, or **keyframe** roles; image/video references have an optional **keep** instruction. Video rows indicate their video/audio stream. These roles and instructions guide the writer; inspect the generated text rather than assuming the model interpreted every reference correctly. A text-only model cannot see image contents and writes from the idea and supplied reference information instead.
 
-Alignment instruction lines (for I2VA/FL2VA/L2VA) are generated automatically based on mode and duration; you do not type them manually.
-
-#### REF2VA builder
-
-Six labeled text areas matching the official full-reference format. Section headers (`subject_definitions:` etc.) are appended automatically by the backend; you write only the content:
-
-- **subject_definitions** — define `<Subject N>`, `<Picture N>`, `<Video N>`, `<Audio N>` entries and what each contributes.
-- **summary** — task-type prefix (`[reference generation + audio reference]`) plus one-line intent statement.
-- **retention_analysis** — per-label retention markers (`fully_preserved`, `attribute_transfer`, etc.) with brief rationale.
-- **detailed_description** — shot-by-shot narrative using `[Shot N]` and timestamps.
-- **overall_soundscape** — audio environment.
-- **non_diegetic_music** — score or `N/A`.
-
-Helper buttons above the fields:
-
-- **Insert [Shot N]** — asks for a shot number, inserts `[Shot N] ` at the cursor in the `detailed_description` area.
-- **Prefill Labels & Summary** — scans your timeline items and writes initial `<Picture N>`, `<Video N>`, `<Audio N>` label lines plus a summary template referencing them. Edit freely afterward.
-- **Preview Prompt** — opens a popup showing exactly how the final prompt will look once section headers and any alignment lines are applied. Includes a copy-to-clipboard button.
+Click **Generate** to write a draft. The preview does **not** change the Director prompt until you click **Apply to node**, which replaces the field. **Regenerate** produces another draft; **Cancel** or closing the dialog stops an in-progress generation. Forge reports model warnings and unload status after the run. The last three successful drafts remain selectable in that Director node's saved workflow, including after closing and reopening Forge. Drafts belong to their original mode: switch back to that mode before applying one. **Clear history** removes drafts but preserves the active prompt; the Director's **Clear** removes both. Reference packs save the applied prompt, not Forge history. Review and edit the applied text in the Director before queueing.
 
 ## Limits and validation
 
@@ -441,11 +420,10 @@ Example: `The camera pushes in with small amplitude at slow speed toward her han
 1. Choose FL2VA for endpoint/text work; REF2VA for multi-reference transfer.
 2. Add only references that contribute specific identity, motion, layout, or sound.
 3. Trim videos/audio to the strongest 2–15s segments; respect totals.
-4. Use the mode-specific prompt builder:
-   - FL2VA/I2VA/L2VA/T2VA: fill the three guided fields; alignment lines appear automatically.
-   - REF2VA: click **Prefill Labels & Summary** to scaffold your labels, then edit subject definitions and detailed description. Use **Insert [Shot N]** for clean shot markers.
-5. Click **Preview Prompt** to verify the exact output before queuing.
-6. Verify duration, aspect ratio, and motion match your references; queue through the Guide.
+4. Write directly in the prompt field, or click **Insert Prompt Structure** for the mode's H3 format.
+   - FL2VA/I2VA/L2VA/T2VA: fill the description, soundscape and music; add the correct frame-alignment timing.
+   - REF2VA: click **Prefill Labels & Summary** to populate labels for enabled references, then check their roles and retention markers and write the actual detailed shots and soundscape. Use **Insert [Shot N]** for clean shot markers.
+5. Verify the text in the prompt field, duration, aspect ratio, and motion against your references; queue through the Guide.
 
 Official MiniMax H3 guides (canonical conventions):
 - [Video Prompt Writing Guide](https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/docs/VIDEO_PROMPT_WRITING_GUIDE_base_en.md)

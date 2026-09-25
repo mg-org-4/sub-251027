@@ -7,6 +7,7 @@ from nodes.helper_minimax_h3_prompt_builder import (
     migrate_legacy_prompt,
 )
 from nodes.nodes_minimax_h3_director import MiniMaxH3Director
+from nodes import nodes_minimax_h3_director as director_module
 
 
 def test_legacy_widget_prompt_is_preserved_losslessly():
@@ -26,6 +27,42 @@ def test_director_uses_legacy_prompt_when_builder_is_absent():
 
     assert guide["resolved_prompt"] == prompt
     assert guide["builder_state"]["simple_prompt"] == prompt
+
+
+def test_empty_new_director_prompt_stays_empty():
+    guide = MiniMaxH3Director().build_guide(
+        "T2VA", "", 1344, 768, 5, "match", "{}", "",
+    )[0]
+    assert guide["resolved_prompt"] == ""
+    assert guide["builder_state"]["simple_prompt"] == ""
+
+
+def test_old_structured_ref_builder_remains_executable_without_frontend():
+    old_builder = _real_ref2va_builder_state()
+    guide = MiniMaxH3Director().build_guide(
+        "REF2VA", "", 1344, 768, 5, "match", "{}", old_builder,
+    )[0]
+    assert "red sandstone lion" in guide["resolved_prompt"]
+    assert "subject_definitions:" in guide["resolved_prompt"]
+
+
+def test_new_single_prompt_takes_precedence_over_stale_structured_fields():
+    old = json.loads(_real_ref2va_builder_state())
+    old.update(prompt_mode="simple", simple_prompt="My new prompt")
+    guide = MiniMaxH3Director().build_guide(
+        "REF2VA", "My new prompt", 1344, 768, 5, "match", "{}", json.dumps(old),
+    )[0]
+    assert guide["resolved_prompt"] == "My new prompt"
+
+
+def test_frontend_single_editor_and_legacy_reference_pack_migration():
+    source = open("js/minimax_h3_director.js", encoding="utf-8").read()
+    assert "topRow.append(modesSide, spacer, ioSide" in source
+    assert "buildSimpleForm(promptPanel);" in source
+    assert "Insert Prompt Structure" in source
+    assert 'forgeButton.textContent = "Prompt Forge"' in source
+    assert "portablePromptText(saved)" in source
+    assert 'builderState.simple_prompt = joinText(builderState.simple_prompt, portablePromptText(saved))' in source
 
 
 def test_frontend_keeps_standard_prompt_widget_serialized():
@@ -99,6 +136,32 @@ def test_old_9_value_save_loads_without_crashing_and_preserves_prompt():
     # The builder_state is reachable and produced a non-empty prompt.
     assert guide["resolved_prompt"].strip()
     assert "lion" in guide["resolved_prompt"]
+
+
+def test_mixed_uploaded_media_and_refmod_tags_keep_both_reference_paths(monkeypatch):
+    class Latent:
+        def __mul__(self, strength):
+            return ("scaled", strength)
+
+    monkeypatch.setattr(director_module, "load_refmods", lambda name: [
+        (Latent(), {"kind": "image"}), (Latent(), {"kind": "video"}),
+        (Latent(), {"kind": "audio"}),
+    ])
+    monkeypatch.setattr(director_module, "refmod_fingerprint", lambda name: (1, 1))
+    media = object()
+    state = {"items": [{"type": "image", "value": media, "slot": 0},
+                       {"type": "video", "value": media, "slot": 0, "duration": 2},
+                       {"type": "audio", "value": media, "slot": 0, "duration": 2}],
+             "refmods": [{"slot": 1, "name": "combo", "strength": 1}]}
+    monkeypatch.setattr(director_module, "scale_input_media", lambda value, *args: value)
+    guide = MiniMaxH3Director().build_guide(
+        "REF2VA", "<RefMod 1>", 1344, 768, 5, "match", json.dumps(state, default=lambda _: "media"), "",
+    )[0]
+    assert list(guide["ref_images"]) == ["ref_image_1"]
+    assert list(guide["ref_videos"]) == ["ref_video_1"]
+    assert list(guide["ref_audios"]) == ["ref_audio_1"]
+    assert [item["kind"] for item in guide["minimax_ref_items"]] == ["image", "video", "audio"]
+    assert "<Picture 2> <Video 2> <Audio 2>" in guide["resolved_prompt"]
 
 
 def test_out_of_range_frame_rate_still_raises():

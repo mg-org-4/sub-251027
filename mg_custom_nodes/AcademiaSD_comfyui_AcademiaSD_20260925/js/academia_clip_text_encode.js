@@ -721,6 +721,30 @@ function registerPromptNode(nodeName, defaultFileName) {
 
                     updatePanelState();
 
+                    // El prompt viaja con los proyectos de Multi Image Reference:
+                    // al guardar se entrega, al cargar se recoge. Ninguno de los
+                    // dos nodos sabe nada del otro, solo de estos dos eventos.
+                    // Lo que usan otros nodos para escribir aqui el prompt: la
+                    // caja y el widget que se ejecuta, siempre a la vez.
+                    this.asdSetText = (text) => {
+                        textarea.value = text;
+                        const liveTextWidget = _this.widgets.find(w => w.name === "text");
+                        if (liveTextWidget) liveTextWidget.value = text;
+                    };
+                    const onCollect = (e) => e.detail.add(_this, { text: textarea.value });
+                    const onApply = (e) => {
+                        const data = e.detail.take(_this);
+                        if (typeof data?.text === "string") _this.asdSetText(data.text);
+                    };
+                    window.addEventListener("academia:project-collect", onCollect);
+                    window.addEventListener("academia:project-apply", onApply);
+                    const onRemoved = this.onRemoved;
+                    this.onRemoved = function () {
+                        window.removeEventListener("academia:project-collect", onCollect);
+                        window.removeEventListener("academia:project-apply", onApply);
+                        if (onRemoved) onRemoved.apply(this, arguments);
+                    };
+
                     refreshLists().then(() => {
                         loadListFromServer(this.currentList).then(() => {
                             const liveTextWidget = _this.widgets.find(w => w.name === "text");

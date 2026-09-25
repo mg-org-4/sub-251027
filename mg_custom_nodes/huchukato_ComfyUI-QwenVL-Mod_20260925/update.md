@@ -1,5 +1,39 @@
 # ComfyUI-QwenVL Update Log
 
+## Version 2.9.5 (2026/09/25)
+
+- Workflow Chat: wildcard autocomplete — typing `__` in the input lists TagForge wildcards (fuzzy-matched as you type); arrows/Enter/Tab to pick, Esc to dismiss. Silent when TagForge is not installed.
+- Workflow Chat: media words (video/clip/scene) are stripped only when they open the directive ("a video of...", "video, ..."), never mid-sentence — "lasts for all the video" now reaches the prompt intact.
+
+## Version 2.9.4 (2026/09/25)
+
+- Workflow Chat: action text no longer loses duration phrases that belong to the action itself (e.g. "the kiss lasts 5 seconds"); clip-length specs still set the duration widget only when they read as meta ("10s video", "video of 8 seconds").
+- Stray leading connectors ("of", "showing", "a") left behind by stripped duration/media words are cleaned up.
+
+## Version 2.9.3 (2026/09/25)
+
+- Workflow Chat: **wildcard support** — `__wildcard__` tokens in your message are expanded via ComfyUI-TagForge (when installed) before the request reaches the LLM, so action wildcards work inside chat prompts.
+- Repeat button now loads the last user message into the input for editing instead of resending it immediately.
+- Config selector label renamed to "Config MMH3" (the presets are MiniMax H3 specific).
+
+## Version 2.9.2 (2026/09/25)
+
+- Removed the bogus `requires-comfyui >=1.0.0` constraint — ComfyUI versions are 0.x, and the mismatch was disabling the node pack in ComfyUI Manager.
+
+## Version 2.9.1 (2026/09/25)
+
+- Rewrote the MiniMax config examples in the chat system prompt as plain prose — the dense `key=value;` action syntax was triggering the registry `python_minified_code` rule (false positive on `chat_service.py:88`).
+- Moved the registry admin workflow out of the published package.
+
+## Version 2.9.0 (2026/09/25)
+
+- MiniMax model matrix in Qwen Workflow Chat: `Native`, `Native Turbo`, `10Eros` and `10Eros Turbo` configs now drive the whole sampler setup — UNet selection (nvfp4 / 10Eros beta5 int8), step count (20 quality / 8 turbo), LoRA enable/bypass and the correct LoRA file per mode (lightx2v fl2v/ref2v vs TenStrip combined fusion).
+- `BlockSparseAttention` `tau` is set per config (1.0 quality, 1.3 turbo).
+- New unified HF/GGUF prompt enhancer node; `custom_prompt` widget renamed to `prompt`; backend dropdowns removed (model prefix is the single selector); `keep_model_loaded` defaults to False; duration becomes a widget.
+- Presets split into per-family files; style-tag presets now lead the output with an explicit style declaration; denser Pony→Natural and Detailed caption outputs.
+- MiniMax output normalization applied to the GGUF backend; legacy `AILab_*` nodes hidden from the add-node menu (superseded by Unified); refreshed node icons.
+- Publish workflow: changelog extraction rewritten in plain shell (registry scanner false positive on embedded Python).
+
 ## Version 2.8.14 (2026/09/22)
 
 - Removed the duplicate `AILab_LivepeerRender` node from the Add Node menu.

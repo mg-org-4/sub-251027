@@ -17,7 +17,7 @@ const TRANSLATIONS = {
         completed: "Operation completed.", applied: "Applied", rejected: "Rejected", ready: "Ready",
         aborted: "Request stopped. Backend inference may still be running.", loadingModels: "Loading models…",
         modelsUnavailable: "Models unavailable: {error}", model: "Model", maxTokens: "Max tokens",
-        temperature: "Temperature", attach: "Attach image or video", send: "Send", repeat: "Repeat", repeatTitle: "Resend the latest user message",
+        temperature: "Temperature", attach: "Attach image or video", send: "Send", repeat: "Repeat", repeatTitle: "Load the latest user message into the input",
         stop: "Stop", newChat: "New chat", initializing: "Initializing…", preparingImage: "Preparing image…", preparingVideo: "Extracting video frames…",
         imageAttached: "Image attached: it will be used instead of workflow images", videoAttached: "Video attached: sampled frames will be sent to Qwen", attachedVideo: "Attached video", nothingToRepeat: "No message to repeat",
         newConversation: "New conversation", placeholder: "Example: set 25 steps in KSampler and run the workflow",
@@ -32,7 +32,7 @@ const TRANSLATIONS = {
         assetsError: "Unable to load ComfyUI Assets: {error}", close: "Close", selectTarget: "Select the Load Media / Load Image (from Outputs) node",
         assetChatOnly: "Asset selected for Qwen. Add a Load Image (from Outputs) node to sync it with the workflow.",
         assetSynced: "Asset selected for Qwen and loaded into node {node}.", settings: "Settings", showSettings: "Show settings", hideSettings: "Hide settings",
-        config: "Config", configAuto: "Auto (chat decides)", capability: "Livepeer", capabilityAuto: "Any capability",
+        config: "Config MMH3", configAuto: "Auto (chat decides)", capability: "Livepeer", capabilityAuto: "Any capability",
     },
     it: {
         empty: "Chiedimi di analizzare o modificare i parametri del workflow aperto.", user: "Tu", thinking: "Pensiero",
@@ -43,7 +43,7 @@ const TRANSLATIONS = {
         completed: "Operazione completata.", applied: "Applicato", rejected: "Rifiutato", ready: "Pronto",
         aborted: "Attesa interrotta. L’inferenza backend potrebbe essere ancora in corso.", loadingModels: "Caricamento modelli…",
         modelsUnavailable: "Modelli non disponibili: {error}", model: "Modello", maxTokens: "Max tokens",
-        temperature: "Temperatura", attach: "Allega immagine o video", send: "Invia", repeat: "Ripeti", repeatTitle: "Reinvia l'ultimo messaggio utente",
+        temperature: "Temperatura", attach: "Allega immagine o video", send: "Invia", repeat: "Ripeti", repeatTitle: "Ricarica l'ultimo messaggio utente nell'input",
         stop: "Stop", newChat: "Nuova chat", initializing: "Inizializzazione…", preparingImage: "Preparazione dell’immagine…", preparingVideo: "Estrazione frame del video…",
         imageAttached: "Immagine allegata: sarà usata al posto di quelle del workflow", videoAttached: "Video allegato: i frame campionati saranno inviati a Qwen", attachedVideo: "Video allegato", nothingToRepeat: "Nessun messaggio da ripetere",
         newConversation: "Nuova conversazione", placeholder: "Es: imposta 25 step nel KSampler e avvia il workflow",
@@ -58,7 +58,7 @@ const TRANSLATIONS = {
         assetsError: "Impossibile caricare le Risorse ComfyUI: {error}", close: "Chiudi", selectTarget: "Seleziona il nodo Load Media / Carica Immagine da Output",
         assetChatOnly: "Risorsa selezionata per Qwen. Aggiungi un nodo Carica Immagine da Output per sincronizzarla con il workflow.",
         assetSynced: "Risorsa selezionata per Qwen e caricata nel nodo {node}.", settings: "Impostazioni", showSettings: "Mostra impostazioni", hideSettings: "Nascondi impostazioni",
-        config: "Config", configAuto: "Auto (decide la chat)", capability: "Livepeer", capabilityAuto: "Qualsiasi capability",
+        config: "Config MMH3", configAuto: "Auto (decide la chat)", capability: "Livepeer", capabilityAuto: "Qualsiasi capability",
     },
 };
 const DEFAULT_STATE = {
@@ -78,6 +78,71 @@ let controller = null;
 let elements = {};
 let attachedImage = null;
 let attachedVideo = null;
+
+// ---- Wildcard autocomplete (ComfyUI-TagForge) ----
+const WILDCARD_LIST_URL = "/jupo/TagForge/tagcomplete/wildcards/list";
+let wildcardsCache = null;
+const wildMenu = { items: [], index: 0, token: null };
+
+async function loadWildcardNames() {
+    if (wildcardsCache !== null) return wildcardsCache;
+    try {
+        const res = await fetch(api.apiURL(WILDCARD_LIST_URL));
+        const data = res.ok ? await res.json() : [];
+        wildcardsCache = Array.isArray(data) ? data : [];
+    } catch {
+        wildcardsCache = [];
+    }
+    return wildcardsCache;
+}
+
+function wildcardTokenAtCaret() {
+    const el = elements.input;
+    const caret = el.selectionStart ?? el.value.length;
+    const match = el.value.slice(0, caret).match(/(?:^|\s)__([\w\-/]*)$/);
+    if (!match) return null;
+    return { start: caret - match[1].length - 2, prefix: match[1] };
+}
+
+function hideWildcardMenu() {
+    elements.wildMenu?.classList.remove("visible");
+    wildMenu.items = [];
+    wildMenu.token = null;
+}
+
+function updateWildcardMenu() {
+    const menu = elements.wildMenu;
+    if (!menu) return;
+    const token = wildcardTokenAtCaret();
+    const prefix = (token?.prefix || "").toLowerCase();
+    const items = token ? (wildcardsCache || []).filter((n) => n.toLowerCase().includes(prefix)).slice(0, 30) : [];
+    wildMenu.items = items;
+    wildMenu.token = token;
+    wildMenu.index = 0;
+    if (!items.length) return hideWildcardMenu();
+    menu.replaceChildren(...items.map((name, i) => {
+        const item = createElement("div", "qwen-chat-wild-item" + (i === 0 ? " active" : ""), name);
+        item.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            acceptWildcard(name);
+        });
+        return item;
+    }));
+    menu.classList.add("visible");
+}
+
+function acceptWildcard(name) {
+    const el = elements.input;
+    const token = wildMenu.token || wildcardTokenAtCaret();
+    if (!token) return;
+    const before = el.value.slice(0, token.start);
+    const after = el.value.slice(el.selectionStart ?? token.start);
+    const insert = name + (name.endsWith("__") ? " " : "__ ");
+    el.value = before + insert + after;
+    el.selectionStart = el.selectionEnd = (before + insert).length;
+    updateWildcardMenu();
+    el.focus();
+}
 
 function t(key, values = {}) {
     let text = TRANSLATIONS[state.language]?.[key] ?? TRANSLATIONS.en[key] ?? key;
@@ -635,7 +700,7 @@ async function sendMessage() {
         setStatus(t("selectModel"), true);
         return;
     }
-    const configLabels = { native: "Native", "10eros": "10Eros", turbo: "Turbo LoRA" };
+    const configLabels = { native: "Native", native_turbo: "Native Turbo", "10eros": "10Eros", "10eros_turbo": "10Eros Turbo" };
     const content = rawText || `⚙️ ${capability !== "auto" ? capability : configLabels[config] || config}`;
     state.messages.push({ role: "user", content });
     state.messages = state.messages.slice(-20);
@@ -773,6 +838,11 @@ function buildSidebar(container) {
         .qwen-chat-thinking summary { cursor:pointer; font-size:11px; user-select:none; }
         .qwen-chat-thinking pre { max-height:220px; overflow:auto; margin:8px 0 0; padding:9px; border-radius:8px; white-space:pre-wrap; background:rgba(0,0,0,.16); }
         .qwen-chat-input { width:100%; min-height:92px; resize:vertical; line-height:1.4; }
+        .qwen-chat-composer { position:relative; }
+        .qwen-chat-wild-menu { display:none; position:absolute; left:0; right:0; bottom:100%; margin-bottom:6px; max-height:200px; overflow:auto; background:var(--comfy-menu-bg,#202124); border:1px solid var(--border-color,#4b4d55); border-radius:9px; box-shadow:0 -6px 20px rgba(0,0,0,.4); z-index:30; }
+        .qwen-chat-wild-menu.visible { display:block; }
+        .qwen-chat-wild-item { padding:6px 10px; cursor:pointer; font-family:monospace; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .qwen-chat-wild-item.active { background:rgba(109,124,255,.2); }
         .qwen-chat-selectors { display:flex; gap:7px; }
         .qwen-chat-selectors label { display:flex; align-items:center; gap:6px; flex:1; min-width:0; font-size:11px; opacity:.78; }
         .qwen-chat-selectors select { flex:1; min-width:0; font-size:12px; padding:5px 7px; }
@@ -857,10 +927,11 @@ function buildSidebar(container) {
     elements.messages = createElement("div", "qwen-chat-messages");
     elements.input = createElement("textarea", "qwen-chat-input");
     elements.input.placeholder = t("placeholder");
+    elements.wildMenu = createElement("div", "qwen-chat-wild-menu");
     elements.attachment = createElement("div", "qwen-chat-attachment");
     const selectors = createElement("div", "qwen-chat-selectors");
     elements.config = createElement("select");
-    for (const [value, label] of [["auto", t("configAuto")], ["native", "Native"], ["10eros", "10Eros"], ["turbo", "Turbo LoRA"]]) {
+    for (const [value, label] of [["auto", t("configAuto")], ["native", "Native"], ["native_turbo", "Native Turbo"], ["10eros", "10Eros"], ["10eros_turbo", "10Eros Turbo"]]) {
         const option = createElement("option", "", label);
         option.value = value;
         elements.config.append(option);
@@ -892,7 +963,7 @@ function buildSidebar(container) {
     elements.clear = createElement("button", "qwen-chat-clear", t("newChat"));
     actions.append(elements.send, elements.repeat, elements.stop, elements.clear);
     const composer = createElement("div", "qwen-chat-composer");
-    composer.append(elements.input, elements.attachment, selectors, composerTools, actions);
+    composer.append(elements.wildMenu, elements.input, elements.attachment, selectors, composerTools, actions);
     elements.status = createElement("div", "qwen-chat-status", t("initializing"));
     elements.assetModal = createElement("div", "qwen-chat-assets-modal");
     const assetPanel = createElement("div", "qwen-chat-assets-panel");
@@ -971,7 +1042,7 @@ function buildSidebar(container) {
             return;
         }
         elements.input.value = lastUser.content;
-        sendMessage();
+        elements.input.focus();
     });
     elements.stop.addEventListener("click", () => controller?.abort());
     elements.clear.addEventListener("click", () => {
@@ -982,11 +1053,40 @@ function buildSidebar(container) {
         setStatus(t("newConversation"));
     });
     elements.input.addEventListener("keydown", (event) => {
+        if (elements.wildMenu?.classList.contains("visible")) {
+            const rows = elements.wildMenu.children;
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                wildMenu.index = (wildMenu.index + (event.key === "ArrowDown" ? 1 : -1) + wildMenu.items.length) % wildMenu.items.length;
+                [...rows].forEach((row, i) => row.classList.toggle("active", i === wildMenu.index));
+                rows[wildMenu.index]?.scrollIntoView({ block: "nearest" });
+                return;
+            }
+            if (event.key === "Enter" || event.key === "Tab") {
+                event.preventDefault();
+                acceptWildcard(wildMenu.items[wildMenu.index]);
+                return;
+            }
+            if (event.key === "Escape") {
+                event.preventDefault();
+                hideWildcardMenu();
+                return;
+            }
+        }
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
             sendMessage();
         }
     });
+    elements.input.addEventListener("input", () => {
+        if (elements.input.value.includes("__")) {
+            loadWildcardNames().then(updateWildcardMenu);
+        } else {
+            updateWildcardMenu();
+        }
+    });
+    elements.input.addEventListener("click", updateWildcardMenu);
+    elements.input.addEventListener("blur", () => setTimeout(hideWildcardMenu, 150));
     renderMessages();
     loadModels();
 }

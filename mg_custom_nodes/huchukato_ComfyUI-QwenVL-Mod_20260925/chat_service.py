@@ -22,6 +22,25 @@ ALLOWED_ACTIONS = {"set_widget_value", "set_node_mode", "queue_workflow"}
 MINIMAX_I2VA_BINDING = "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced."
 
 
+def _expand_wildcard_tokens(text):
+    """Expand TagForge __wildcard__ tokens when the node pack is installed."""
+    if not text or "__" not in text:
+        return text
+    try:
+        import importlib
+        for name in ("ComfyUI-TagForge.py.wildcards", "ComfyUI_TagForge.py.wildcards"):
+            try:
+                module = importlib.import_module(name)
+                expanded = module.WildcardLoader.process(text)
+                if expanded:
+                    return expanded
+            except (ImportError, AttributeError):
+                continue
+    except Exception:
+        pass
+    return text
+
+
 def ensure_i2va_binding(text, preset_name, has_image=False):
     """Ensure MiniMax H3 I2VA outputs include the required reference binding
     line. FL2VA/R2VA presets use their own alignment format and are excluded."""
@@ -75,17 +94,19 @@ Choices are top-level, only when truly ambiguous. Always close braces.
 ---
 WORKFLOW TARGETS (pick the FIRST matching case for the node you are controlling):
 1. MiniMax H3 video sampler (exposes unet_name + preset_prompt + passthrough):
-   - If the request says "use Native", "Config C", "use 10Eros", "Config A" etc., FIRST update the sampler widgets, then write only the action into the "prompt" widget.
+   - If the request says "use Native", "use 10Eros Turbo", "Config A" etc., FIRST update the sampler widgets, then write only the action into the "prompt" widget.
    - Config mapping:
-     * Native / Config C → unet_name="minimax_h3_fl2va_pruned_nvfp4_convrot_int8.safetensors", steps=20, sampler_name="res_multistep", scheduler="simple", shift_video=12, shift_audio=3
-     * 10Eros / Config A → unet_name="10Eros_Max_h3_TURBO-hybrid_beta3_int8_convrot_skip_edges.safetensors", steps=8, sampler_name="euler", scheduler="simple", shift_video=6, shift_audio=3
-     * Turbo LoRA / Config B → steps=8, sampler_name="euler", scheduler="simple", shift_video=6, shift_audio=3 (LoRA toggle is manual)
-   - If a different duration is requested, set "value_1" to that number of seconds.
+     * Native / Config C uses the minimax_h3_fl2va_pruned_nvfp4_convrot_int8 unet with 20 steps, res_multistep sampler, simple scheduler, shift_video 12, shift_audio 3
+     * Native Turbo / Config B uses the same unet with 8 steps, euler sampler, simple scheduler, shift_video 6, shift_audio 3
+     * 10Eros / Config D uses the 10Eros_Max_h3_hybrid_beta5_int8 unet with 20 steps, res_multistep sampler, simple scheduler, shift_video 12, shift_audio 3
+     * 10Eros Turbo / Config A uses the same 10Eros unet with 8 steps, euler sampler, simple scheduler, shift_video 6, shift_audio 3
+   - Turbo variants run with the turbo LoRA enabled; the LoRA node toggle is handled automatically, do not mention it.
+   - If a different duration is requested, set the "value_1" widget to that number of seconds.
    - For the prompt: remove config words and duration. Write only a short English action description.
    - EXAMPLE: user says "generate a 5s video, use Native: rhythmic hip sway, subtle back and forth"
-     Actions: value_1=5; unet_name=minimax...; steps=20; sampler_name=res_multistep; shift_video=12; shift_audio=3; prompt="rhythmic hip sway, subtle back and forth"; passthrough=false; queue_workflow.
-   - EXAMPLE: user says "use 10Eros: slow caressing on thigh, static camera"
-     Actions: unet_name=10Eros...; steps=8; sampler_name=euler; shift_video=6; prompt="slow caressing on thigh, static camera"; passthrough=false; queue_workflow.
+     You set value_1 to 5 on the sampler, select the minimax unet, set 20 steps with res_multistep, set shift_video 12 and shift_audio 3, write "rhythmic hip sway, subtle back and forth" into the prompt widget, set passthrough to false, and queue the workflow.
+   - EXAMPLE: user says "use 10Eros Turbo: slow caressing on thigh, static camera"
+     You select the 10Eros unet, set 8 steps with euler, set shift_video 6, write "slow caressing on thigh, static camera" into the prompt widget, set passthrough to false, and queue the workflow.
    - NEVER copy "use Native", "use 10Eros", "generate", "5s video" into the prompt widget.
    - NEVER describe the image yourself (clothes, face, room, light); the inner QwenVL model will see the image and describe it. You only provide the action.
 2. Livepeer Render node (type contains "Livepeer", exposes capability + duration):
@@ -375,8 +396,32 @@ _GENERATION_PREFIX = re.compile(
     r"(?:of|with|showing|where|di|con)?[:,]?\s*",
     re.IGNORECASE,
 )
-_DURATION_MENTION = re.compile(r"\b\d+\s*(?:s|sec(?:ond)?s?|secondi?)\b(?:\s*(?:video|clip|animation))?", re.IGNORECASE)
-_MEDIA_WORD = re.compile(r"\b(?:video|clip|animation|scene)\b", re.IGNORECASE)
+_DURATION_MENTION = re.compile(
+    r"\b\d+\s*(?:s|sec(?:ond)?s?|secondi?)\s*(?:video|clip|animation)\b"
+    r"|\b(?:video|clip|animation)\s+(?:of|di|da)\s+\d+\s*(?:s|sec(?:ond)?s?|secondi?)\b"
+    r"|\b\d+s\b",
+    re.IGNORECASE,
+)
+_LEADING_MEDIA = re.compile(
+    r"^(?:(?:a|an|the|this|new|un|una|il|l)\s+)?(?:video|clip|animation|scene)\b[\s,;:.-]*",
+    re.IGNORECASE,
+)
+
+
+_ACTION_DURATION = re.compile(r"(?:lasts?|lasting|at least|almeno|dura)\b\s*$", re.IGNORECASE)
+
+
+def _clip_duration_seconds(text):
+    """First duration mention that reads as a clip-length spec. Durations that
+    describe the action itself ('the kiss lasts 5 seconds', 'at least 3
+    seconds') are skipped so they never set the sampler's length widget."""
+    if not isinstance(text, str):
+        return None
+    for match in re.finditer(r"\b(\d{1,2})\s*(?:sec(?:ond)?s?|s|secondi?)\b", text, re.IGNORECASE):
+        if _ACTION_DURATION.search(text[max(0, match.start() - 30):match.start()]):
+            continue
+        return int(match.group(1))
+    return None
 
 
 def _clean_action_directive(text):
@@ -390,10 +435,11 @@ def _clean_action_directive(text):
     cleaned = _GENERATION_PREFIX.sub("", cleaned, count=1).strip(" ,;:-").lstrip(".")
     cleaned = _GENERATION_PREFIX.sub("", cleaned, count=1).strip(" ,;:-").lstrip(".")
     cleaned = _DURATION_MENTION.sub("", cleaned)
-    cleaned = _MEDIA_WORD.sub("", cleaned)
     cleaned = re.sub(r"\s*[,;:]\s*", ", ", cleaned)
     cleaned = re.sub(r"(?:,\s*){2,}", ", ", cleaned)
     cleaned = re.sub(r"\s{2,}", " ", cleaned).lstrip(" ,;:.-").rstrip(" ,;:-")
+    cleaned = _LEADING_MEDIA.sub("", cleaned)
+    cleaned = re.sub(r"^(?:(?:a|an|the)\s+)?(?:of|di|da|con|with|showing)\s+", "", cleaned, flags=re.IGNORECASE)
     return cleaned
 
 
@@ -709,30 +755,47 @@ def _explicit_capability_request(messages, graph):
 
 _CONFIG_TRIGGER = re.compile(
     r"\b(?:use|usa|switch\s+to|passa\s+a|metti|set|con)\s+(?:the\s+|il\s+|la\s+)?"
-    r"(native|10\s*eros(?:[-\s]?max)?|turbo(?:\s*lora)?|config\s*[abc])\b",
+    r"(native(?:\s+turbo)?|10\s*eros(?:[-\s]?max)?(?:\s+turbo)?|"
+    r"turbo(?:\s*lora)?(?:\s+(?:native|10\s*eros(?:[-\s]?max)?))?|config\s*[abcd])\b",
     re.IGNORECASE,
 )
 
+_NATIVE_UNET = "minimax_h3_fl2va_pruned_nvfp4_convrot_int8.safetensors"
+_EROS_UNET = "10Eros_Max_h3_hybrid_beta5_int8.safetensors"
+# Needle "h3_hybrid" matches the non-turbo beta5 only; the fused file is
+# named "h3_TURBO-hybrid_beta5" so it never collides.
 _MINIMAX_CONFIGS = {
     "native": {
         "unet_needle": "fl2va_pruned",
-        "unet_fallback": "minimax_h3_fl2va_pruned_nvfp4_convrot_int8.safetensors",
+        "unet_fallback": _NATIVE_UNET,
         "values": {"steps": 20, "sampler_name": "res_multistep", "scheduler": "simple", "shift_video": 12, "shift_audio": 3},
+        "lora_mode": "bypass",
+        "sparse_tau": 1.0,
     },
-    "10eros": {
-        "unet_needle": "10eros",
-        "unet_fallback": "10Eros_Max_h3_TURBO-hybrid_beta3_int8_convrot_skip_edges.safetensors",
-        "values": {"steps": 8, "sampler_name": "euler", "scheduler": "simple", "shift_video": 6, "shift_audio": 3},
-    },
-    "turbo": {
+    "native_turbo": {
         "unet_needle": "fl2va_pruned",
-        "unet_fallback": "minimax_h3_fl2va_pruned_nvfp4_convrot_int8.safetensors",
+        "unet_fallback": _NATIVE_UNET,
         "values": {"steps": 8, "sampler_name": "euler", "scheduler": "simple", "shift_video": 6, "shift_audio": 3},
         "lora_mode": "enable",
+        "lora_needles": ["fl2v_turbo", "ref2v_turbo"],
+        "sparse_tau": 1.3,
+    },
+    "10eros": {
+        "unet_needle": "h3_hybrid_beta5",
+        "unet_fallback": _EROS_UNET,
+        "values": {"steps": 20, "sampler_name": "res_multistep", "scheduler": "simple", "shift_video": 12, "shift_audio": 3},
+        "lora_mode": "bypass",
+        "sparse_tau": 1.0,
+    },
+    "10eros_turbo": {
+        "unet_needle": "h3_hybrid_beta5",
+        "unet_fallback": _EROS_UNET,
+        "values": {"steps": 8, "sampler_name": "euler", "scheduler": "simple", "shift_video": 6, "shift_audio": 3},
+        "lora_mode": "enable",
+        "lora_needles": ["fusion_turbo"],
+        "sparse_tau": 1.3,
     },
 }
-# Turbo LoRA must be bypassed for Native/10Eros (fused in the 10Eros checkpoint)
-_MINIMAX_LORA_MODE = {"native": "bypass", "10eros": "bypass", "turbo": "enable"}
 
 
 def _last_user_message(messages):
@@ -812,9 +875,8 @@ def _minimax_result(graph, config_key, text):
                     continue
                 value = match
             actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": name, "value": value})
-        duration = re.search(r"\b(\d{1,2})\s*(?:sec(?:ond)?s?|s|secondi?)\b", text, re.IGNORECASE)
-        if duration:
-            seconds = int(duration.group(1))
+        seconds = _clip_duration_seconds(text)
+        if seconds is not None:
             if "value_1" in widgets:
                 actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "value_1", "value": seconds})
             if "duration" in widgets:
@@ -832,7 +894,7 @@ def _minimax_result(graph, config_key, text):
         directive = _clean_action_directive(text)
         if directive and "prompt" in widgets:
             actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "prompt", "value": directive})
-        lora_mode = config.get("lora_mode") or _MINIMAX_LORA_MODE.get(config_key)
+        lora_mode = config.get("lora_mode")
         prefix = f'{node["id"]}:'
         if lora_mode:
             target_mode = 0 if lora_mode == "enable" else 4
@@ -842,9 +904,45 @@ def _minimax_result(graph, config_key, text):
                     continue
                 if inner.get("mode", 0) != target_mode:
                     actions.append({"type": "set_node_mode", "node_id": inner["id"], "mode": lora_mode})
+        # Turbo configs also pick the right LoRA file: the lightx2v per-mode
+        # LoRA for Native (matched to the FL2VA/R2VA preset family), the
+        # TenStrip combined fusion LoRA for 10Eros.
+        lora_needles = config.get("lora_needles")
+        if lora_needles:
+            needles = list(lora_needles)
+            preset_mode = _minimax_preset_mode(widgets["preset_prompt"].get("value"))
+            if preset_mode == "R2VA":
+                needles.sort(key=lambda n: "ref2v" not in n)
+            elif preset_mode == "FL2VA":
+                needles.sort(key=lambda n: "fl2v" not in n)
+            for inner in graph.get("nodes", []):
+                inner_id = str(inner.get("id", ""))
+                if not inner_id.startswith(prefix) or "lora" not in str(inner.get("type", "")).lower():
+                    continue
+                for w in inner.get("widgets", []):
+                    if not isinstance(w, dict) or w.get("name") != "lora_name":
+                        continue
+                    for needle in needles:
+                        match = _match_option(w, needle)
+                        if match:
+                            if w.get("value") != match:
+                                actions.append({"type": "set_widget_value", "node_id": inner["id"], "widget": "lora_name", "value": match})
+                            break
+        sparse_tau = config.get("sparse_tau")
+        if sparse_tau is not None:
+            for inner in graph.get("nodes", []):
+                inner_id = str(inner.get("id", ""))
+                if not inner_id.startswith(prefix) or "blocksparse" not in str(inner.get("type", "")).lower().replace("_", ""):
+                    continue
+                inner_widgets = {w.get("name") for w in inner.get("widgets", []) if isinstance(w, dict)}
+                for wname in ("selection.tau", "tau"):
+                    if wname in inner_widgets:
+                        actions.append({"type": "set_widget_value", "node_id": inner["id"], "widget": wname, "value": sparse_tau})
+                        break
         actions.append({"type": "set_widget_value", "node_id": node["id"], "widget": "passthrough", "value": False})
         actions.append({"type": "queue_workflow"})
-        label = {"native": "Native", "10eros": "10Eros", "turbo": "Turbo LoRA"}[config_key]
+        label = {"native": "Native", "native_turbo": "Native Turbo",
+                 "10eros": "10Eros", "10eros_turbo": "10Eros Turbo"}[config_key]
         if re.match(r"^\s*(usa|passa|metti|fai|genera|crea)\b", text, re.IGNORECASE):
             message = f"⚙️ MiniMax H3 → {label}. Workflow in coda."
         else:
@@ -917,13 +1015,19 @@ def _explicit_minimax_request(messages, graph):
     trigger = _CONFIG_TRIGGER.search(last_user)
     if not trigger:
         return None
-    raw = trigger.group(1).lower()
-    if "native" in raw or raw.rstrip() == "config c":
-        config_key = "native"
-    elif "eros" in raw or raw.rstrip() == "config a":
-        config_key = "10eros"
-    elif "turbo" in raw or raw.rstrip() == "config b":
-        config_key = "turbo"
+    raw = re.sub(r"\s+", " ", trigger.group(1).lower()).strip()
+    if "config" in raw:
+        config_key = {"config a": "10eros_turbo", "config b": "native_turbo",
+                      "config c": "native", "config d": "10eros"}.get(raw)
+        if config_key is None:
+            return None
+    elif "eros" in raw:
+        config_key = "10eros_turbo" if "turbo" in raw else "10eros"
+    elif "native" in raw:
+        config_key = "native_turbo" if "turbo" in raw else "native"
+    elif "turbo" in raw:
+        # Bare "turbo" keeps the legacy meaning: native model + turbo LoRA.
+        config_key = "native_turbo"
     else:
         return None
     return _minimax_result(graph, config_key, last_user)
@@ -944,6 +1048,12 @@ class ChatRuntime:
 
     def chat(self, backend, model_name, messages, graph, options, images=None, video=None, directives=None):
         messages = validate_messages(messages)
+        for i in range(len(messages) - 1, -1, -1):
+            if messages[i].get("role") == "user":
+                expanded = _expand_wildcard_tokens(messages[i].get("content", ""))
+                if expanded != messages[i].get("content"):
+                    messages[i] = {**messages[i], "content": expanded}
+                break
         graph = validate_graph(graph)
         images = validate_images(images or [])
         video = validate_images(video or [], MAX_VIDEO_FRAMES)

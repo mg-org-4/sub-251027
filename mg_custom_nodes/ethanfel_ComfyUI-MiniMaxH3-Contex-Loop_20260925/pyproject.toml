@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comfyui-minimaxh3-contex-loop"
+description = "Recursive, checkpointed MiniMax H3 scene loops plus native-first AV target masking for inpainting, motion/audio continuity, audiovisual review, resume, and final assembly for ComfyUI."
+version = "0.7.0"
+license = "GPL-3.0"
+license-files = ["LICENSE"]
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "NikoDemon80", email = "262659861+NikoDemon80@users.noreply.github.com" },
+    { name = "Ethanfel", email = "28683423+ethanfel@users.noreply.github.com" },
+]
+keywords = [
+    "comfyui",
+    "minimax-h3",
+    "video-generation",
+    "audio",
+    "loop",
+    "checkpoint",
+    "resume",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Multimedia :: Sound/Audio",
+]
+
+[project.urls]
+Homepage = "https://github.com/ethanfel/ComfyUI-MiniMaxH3-Context-Loop"
+Repository = "https://github.com/ethanfel/ComfyUI-MiniMaxH3-Context-Loop"
+Issues = "https://github.com/ethanfel/ComfyUI-MiniMaxH3-Context-Loop/issues"
+Upstream = "https://github.com/NikoDemon80/ComfyUI-H3-Motion-Context"
+MotionContextProvider = "https://github.com/seitanism/ComfyUI-H3-Motion-Context-MultiRef"
+
+[tool.comfy]
+PublisherId = "ethanfel"
+DisplayName = "MiniMax H3 Context Loop"
+
+[tool.setuptools]
+packages = []

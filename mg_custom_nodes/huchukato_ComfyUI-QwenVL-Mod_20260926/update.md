@@ -1,5 +1,19 @@
 # ComfyUI-QwenVL Update Log
 
+## Version 2.9.9 (2026/09/25)
+
+- Chat Config MMH3: added **R2VA Native** and **R2VA Native Turbo** — select the ref2va unet (image-ref conditioned) instead of fl2va, enable the ref2v turbo LoRA in turbo mode, and auto-switch the enhancer preset to an R2VA variant preserving the selected duration. Chat phrases like "usa r2va turbo" trigger them too.
+
+## Version 2.9.8 (2026/09/25)
+
+- New preset **IMG › Qwen Edit** on the QwenVL nodes (and **Qwen Image Edit** on the Prompt Enhancer): rewrites any input as a Qwen Image 2.1-style edit instruction — imperative edit clause, explicit keep-unchanged list, `<imageN>` placeholders preserved, reference-transfer and lighting-consistency clauses. Complements the `__qwen21/*__` wildcards for free-form edits.
+
+- Node menu category now shows as `🔮 QwenVL-Mod`; new banner and icon.
+
+## Version 2.9.7 (2026/09/25)
+
+- Republish of the consolidated 2.9.5 content — registry tombstoned 2.9.5/2.9.6 after deletion, so the same feature set ships under a new version number.
+
 ## Version 2.9.5 (2026/09/25)
 
 - Workflow Chat: wildcard autocomplete — typing `__` in the input lists TagForge wildcards (fuzzy-matched as you type); arrows/Enter/Tab to pick, Esc to dismiss. Silent when TagForge is not installed.

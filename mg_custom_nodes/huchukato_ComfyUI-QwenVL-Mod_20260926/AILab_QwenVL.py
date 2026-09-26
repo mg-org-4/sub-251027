@@ -27,6 +27,7 @@ from huggingface_hub import snapshot_download, hf_hub_download
 from transformers import AutoProcessor, AutoTokenizer, BitsAndBytesConfig
 
 from chat_service import normalize_minimax_output
+from wildcard_util import expand_wildcard_tokens
 from qwenvl_presets import (
     VL_PRESET_NAMES, VL_PROMPTS, VL_DURATIONS,
     DURATION_OPTIONS, DEFAULT_DURATION, resolve_vl_preset,
@@ -1092,9 +1093,13 @@ class QwenVLBase:
 
     def run(self, model_name, quantization, preset_prompt, prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt=False, camera_tag="None", video=None, passthrough=False, duration=DEFAULT_DURATION):
         torch.manual_seed(seed)
-        
+
         global LAST_SAVED_PROMPT
-        
+
+        # Expand TagForge __wildcard__ tokens first — also in passthrough mode,
+        # so raw tokens never reach the downstream prompt.
+        prompt = expand_wildcard_tokens(prompt or "")
+
         # Passthrough mode: skip model loading entirely, return prompt as-is.
         # Used when the chat (or an external tool) already generated the final
         # prompt in the target format — avoids redundant Qwen inference.
@@ -1277,7 +1282,7 @@ class AILab_QwenVL(QwenVLBase):
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("RESPONSE",)
     FUNCTION = "process"
-    CATEGORY = "QwenVL-Mod"
+    CATEGORY = "🔮 QwenVL-Mod"
 
     def process(self, model_name, quantization, preset_prompt, camera_tag, prompt, attention_mode, max_tokens, keep_model_loaded, seed, keep_last_prompt=False, passthrough=False, image=None, image2=None, video=None, frame_count=16, duration=DEFAULT_DURATION):
         return self.run(model_name, quantization, preset_prompt, prompt, image, image2, frame_count, max_tokens, 0.6, 0.9, 1, 1.2, seed, keep_model_loaded, attention_mode, False, "auto", keep_last_prompt, camera_tag, video=video, passthrough=passthrough, duration=duration)
@@ -1327,7 +1332,7 @@ class AILab_QwenVL_Advanced(QwenVLBase):
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("RESPONSE",)
     FUNCTION = "process"
-    CATEGORY = "QwenVL-Mod"
+    CATEGORY = "🔮 QwenVL-Mod"
 
     def process(self, model_name, quantization, attention_mode, use_torch_compile, device, preset_prompt, camera_tag, prompt, max_tokens, temperature, top_p, num_beams, repetition_penalty, keep_model_loaded, seed, keep_last_prompt, passthrough=False, image=None, image2=None, video=None, frame_count=16, duration=DEFAULT_DURATION):
         return self.run(model_name, quantization, preset_prompt, prompt, image, image2, frame_count, max_tokens, temperature, top_p, num_beams, repetition_penalty, seed, keep_model_loaded, attention_mode, use_torch_compile, device, keep_last_prompt, camera_tag, video=video, passthrough=passthrough, duration=duration)

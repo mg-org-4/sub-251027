@@ -32,6 +32,7 @@ except ImportError as exc:
 
 import folder_paths
 from AILab_OutputCleaner import OutputCleanConfig, clean_model_output, prompt_output_guard
+from wildcard_util import expand_wildcard_tokens
 
 # Import cache functions from main module
 import sys
@@ -112,7 +113,7 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("ENHANCED_OUTPUT",)
     FUNCTION = "process"
-    CATEGORY = "QwenVL-Mod"
+    CATEGORY = "🔮 QwenVL-Mod"
 
     def __init__(self):
         self.llm = None
@@ -176,10 +177,13 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
                 if isinstance(entry, dict):
                     models[name] = entry
 
-        # Text-only catalog (use Qwen_model; do not use qwenVL_model here)
-        qwen_repos = data.get("Qwen_model") or {}
-        if isinstance(qwen_repos, dict):
-            seen_display_names: set[str] = set()
+        # Text catalog: Qwen_model first, then qwenVL_model — the 3.x VL models
+        # are multimodal but work fine text-only, so they belong here too.
+        seen_display_names: set[str] = set()
+        for section in ("Qwen_model", "qwenVL_model"):
+            qwen_repos = data.get(section) or {}
+            if not isinstance(qwen_repos, dict):
+                continue
             for repo_key, repo in qwen_repos.items():
                 if not isinstance(repo, dict):
                     continue
@@ -553,6 +557,10 @@ class AILab_QwenVL_GGUF_PromptEnhancer:
         duration=DEFAULT_DURATION,
     ):
         global LAST_SAVED_PROMPT
+
+        # Expand TagForge __wildcard__ tokens before anything else — also in
+        # passthrough mode, so raw tokens never reach the downstream prompt.
+        prompt_text = expand_wildcard_tokens(prompt_text or "")
 
         # Passthrough mode: skip model loading entirely, return prompt_text as-is.
         if passthrough:

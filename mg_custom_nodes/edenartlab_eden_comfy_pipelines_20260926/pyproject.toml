@@ -1,0 +1,38 @@
+[project]
+name = "eden_comfy_pipelines"
+description = "80+ ComfyUI nodes from Eden.art: KMeans color masks, organic fill and shape animations, depth slicing and parallax, projection mapping, smart media loaders, logic/math/text utilities, GPT and CLIP-interrogator nodes."
+version = "1.4.0"
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Operating System :: OS Independent",
+    "Environment :: GPU :: NVIDIA CUDA",
+    "Environment :: GPU :: AMD ROCm",
+    "Environment :: GPU :: Intel Arc",
+    "Environment :: NPU :: Huawei Ascend",
+    "Environment :: GPU :: Apple Metal",
+]
+dependencies = [
+    "open_clip_torch>=2.26.1",
+    "transformers",
+    "openai>=1.57.2",
+    "python-dotenv",
+    "scikit-learn",
+    "scipy",
+    "matplotlib",
+    "opencv-python",
+    "py7zr",
+]
+
+[project.urls]
+Repository = "https://github.com/edenartlab/eden_comfy_pipelines"
+Documentation = "https://github.com/edenartlab/eden_comfy_pipelines#readme"
+"Bug Tracker" = "https://github.com/edenartlab/eden_comfy_pipelines/issues"
+
+[tool.comfy]
+PublisherId = "edenartlab"
+DisplayName = "Eden Comfy Pack"
+Icon = "https://raw.githubusercontent.com/edenartlab/eden_comfy_pipelines/main/assets/eden.png"
+includes = []
+requires-comfyui = ">=0.3.48"

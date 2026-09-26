@@ -8497,10 +8497,13 @@ class Trellis2StringToFile3D:
     CATEGORY = "Trellis2Wrapper"
 
     def process(self, glb_path):
+        if not os.path.exists(glb_path):
+            glb_path = os.path.join(folder_paths.get_input_directory(), glb_path)
+            
         from comfy_api.latest import Types
         file_3d = Types.File3D(glb_path)
         
-        return (file_3d, )          
+        return (file_3d, )       
 
 NODE_CLASS_MAPPINGS = {
     "Trellis2LoadModel": Trellis2LoadModel,

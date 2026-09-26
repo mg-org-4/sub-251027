@@ -4,7 +4,7 @@
 
 Prompt-adherence enhancement for Krea2 diffusion models in ComfyUI.
 
-This custom node patches the Krea2 text-fusion path during sampling and applies a controlled internal conditioning adjustment intended to improve how strongly the model follows prompt details.
+The enhancer nodes patch Krea2's text-fusion path during sampling. The package also includes phrase weighting, a Turbo sigma scheduler, and an image-only character LoRA loader.
 
 ## Installation
 
@@ -25,6 +25,88 @@ No extra Python packages are required beyond a working ComfyUI Krea2 setup.
 | **Krea2T Enhancer Advanced** | `MODEL` | Same enhancer path, plus a direct post-`txtmlp` `text_scale` control for fused text-token strength. |
 | **Krea2 Turbo Reference Sigmas (From Latent)** | `SIGMAS`, `LATENT` | Builds a Turbo sigma schedule based on the official Krea 2 Turbo scheduler settings and validates the connected latent dimensions. |
 | **Krea2 Text Encode — Attention-Weighted Phrases** | `MODEL`, `CONDITIONING`, `STRING` | Encodes weighted phrases and changes only the image-query-to-selected-text-key attention odds in Krea2's shared DiT blocks. |
+| **Krea2T Character LoRA — Image Only** | `MODEL`, `STRING` | Applies a character LoRA directly to image tokens while skipping unsupported weights. |
+
+## Character LoRA — Image Only
+
+### Why use this loader?
+
+A character LoRA can change more than likeness. Adding one to an otherwise
+working setup can make requested details less reliable or change how other
+LoRAs behave. This loader is designed to reduce that interference while
+keeping the character's influence on the image.
+
+Krea2 processes the prompt and image together through shared layers. With a
+regular LoRA loader, character updates to those layers apply to both the image
+and the prompt's internal representation. Excluding weights for dedicated
+text-processing layers still leaves this shared route active.
+
+This loader filters the supported weights and applies the character updates
+only to image tokens. That removes their direct contribution to text tokens
+while preserving other connected LoRAs. It targets one source of overlap;
+normal interaction between text and image remains, so results still depend
+on the character LoRA and the rest of the workflow.
+
+### Setup
+
+Use this node in place of the regular LoRA loader for your character. Select
+the character LoRA in `lora_name` and adjust `strength_model` to control its
+influence.
+
+```text
+Krea2 model -> other LoRA loaders (optional) -> Krea2T Character LoRA — Image Only -> sampler
+```
+
+Other LoRAs can stay connected as usual. Load each character LoRA only once.
+If using the phrase encoder, place it after this loader and connect its
+MODEL and CONDITIONING outputs to the sampler.
+
+| Input/output | Meaning |
+|---|---|
+| `model` | Krea2 model from your model loader or another LoRA loader. |
+| `lora_name` | Your character LoRA file. |
+| `strength_model` | Character LoRA strength. Default `1.0`; `0` turns its effect off. Negative values are supported. |
+| `enabled` | Bypasses this loader when off. |
+| `report` | Optional text output showing how many weights were loaded or skipped. |
+
+### How it works
+
+Image tokens represent the image being generated; text tokens represent the
+prompt. This loader applies the character LoRA's updates directly to image
+tokens, including reference-image tokens, while leaving text tokens without
+that direct update. Text and image still interact through the model's normal
+attention, so this does not completely isolate their influence.
+
+Unsupported weights are skipped automatically. If the LoRA has no compatible
+weights, the model passes through unchanged and the report shows zero loaded
+weights. The loader preserves other LoRAs already applied to the model and
+adds no extra attention or sampling pass.
+
+Requires an up-to-date ComfyUI with native Krea2 support. No core-file edits or
+extra Python packages are needed. Supports Nodes 2.0.
+
+<details>
+<summary>Supported LoRA weight format</summary>
+
+### Supported keys
+
+The filter accepts complete pairs with these **exact** names:
+
+```text
+diffusion_model.blocks.<0–27>.<projection>.lora_A.weight
+diffusion_model.blocks.<0–27>.<projection>.lora_B.weight
+```
+
+`<projection>` is one of `attn.wq`, `attn.wk`, `attn.wv`, `attn.wo`,
+`attn.gate`, `mlp.gate`, `mlp.up`, or `mlp.down`. That permits up to 448
+tensors forming 224 matrix updates. Subsets and different LoRA ranks are
+supported when their dimensions match the model.
+
+All other names and incomplete pairs are skipped. Alternate naming formats
+are not converted. Separate alpha/scaling metadata is not applied, so LoRAs
+that rely on it may need a different strength setting.
+
+</details>
 
 ## Usage
 

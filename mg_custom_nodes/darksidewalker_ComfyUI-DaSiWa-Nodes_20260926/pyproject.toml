@@ -1,0 +1,27 @@
+[project]
+name = "ComfyUI-DaSiWa-Nodes"
+description = "DaSiWa Custom Nodes Collection"
+version = "0.4.61"
+license = {file = "LICENSE"}
+dependencies = [
+    "torch",
+    "nvidia-vfx",
+    "Pillow",
+    "numpy",
+    "transformers>=4.45.0",
+    "accelerate",
+    "psutil>=5.9",
+    "av>=18.0",
+    "safetensors",
+    "nvidia-ml-py",
+    "llama-cpp-python>=0.3.26",
+]
+
+[project.urls]
+Repository = "https://github.com/darksidewalker/ComfyUI-DaSiWa-Nodes"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "darksidewalker"
+DisplayName = "ComfyUI-DaSiWa-Nodes"
+Icon = "https://avatars.githubusercontent.com/u/84453554"

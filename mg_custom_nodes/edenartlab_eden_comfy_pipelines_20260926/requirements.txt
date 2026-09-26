@@ -1,0 +1,9 @@
+open_clip_torch>=2.26.1
+transformers
+openai>=1.57.2
+python-dotenv
+scikit-learn
+scipy
+matplotlib
+opencv-python
+py7zr

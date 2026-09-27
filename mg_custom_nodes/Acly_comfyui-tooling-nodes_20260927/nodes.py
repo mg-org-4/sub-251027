@@ -37,7 +37,7 @@ class LoadImageBase64(io.ComfyNode):
 
         if "A" in img.getbands():
             mask = np.array(img.getchannel("A")).astype(np.float32) / 255.0
-            mask = torch.from_numpy(mask)
+            mask = torch.from_numpy(mask)[None,]
         else:
             mask = None
 
@@ -205,6 +205,7 @@ class LoadImageCache(io.ComfyNode):
             raise ValueError(f"Image with ID {id} not found in cache.")
 
         img = Image.open(BytesIO(image_data))
+
         w, h = img.size
         c = len(img.getbands())
         normalized = np.array(img).astype(np.float32) / 255.0
@@ -301,7 +302,7 @@ class ApplyMaskToImage(io.ComfyNode):
         # Apply each mask in the batch to its corresponding image's alpha channel
         for i in range(out.shape[0]):
             alpha = mask[i] if is_mask_batch else mask[0]
-            out[i, 3, :, :] = alpha
+            out[i, 3, :, :] *= alpha
 
         return (to_bhwc(out),)
 

@@ -12,6 +12,9 @@ CURRENT = ContextVar(SCOPE, default=None)
 
 
 def loaded_linear(weight):
+    if weight.ndim < 2 or any(size != 1 for size in weight.shape[2:]):
+        raise ValueError("Image-only character adapters require linear factors, not spatial convolution kernels.")
+    weight = weight.flatten(1)
     layer = comfy.ops.manual_cast.Linear(weight.shape[1], weight.shape[0],
                                          bias=False, device="meta", dtype=weight.dtype)
     layer.weight = torch.nn.Parameter(weight)
@@ -21,18 +24,60 @@ def loaded_linear(weight):
 class Factors(torch.nn.Module):
     def __init__(self, adapter):
         super().__init__()
-        up, down = adapter.weights[:2]
+        up, down, alpha, mid, _, _ = adapter.weights
         self.down = loaded_linear(down)
+        self.mid = loaded_linear(mid) if mid is not None else torch.nn.Identity()
         self.up = loaded_linear(up)
+        self.scale = 1.0 if alpha is None else float(alpha) / down.shape[0]
+        self.in_features = self.down.in_features
+        self.out_features = self.up.out_features
 
     def forward(self, x):
-        return self.up(self.down(x))
+        out = self.up(self.mid(self.down(x)))
+        return out if self.scale == 1.0 else out * self.scale
+
+
+class KroneckerFactors(torch.nn.Module):
+    def __init__(self, adapter):
+        super().__init__()
+        w1, w2, alpha, w1_a, w1_b, w2_a, w2_b, t2, _ = adapter.weights
+        rank = None
+        if w1 is None:
+            self.w1 = torch.nn.Sequential(loaded_linear(w1_b), loaded_linear(w1_a))
+            self.groups = w1_b.shape[1]
+            out_groups = w1_a.shape[0]
+            rank = w1_b.shape[0]
+        else:
+            self.w1 = loaded_linear(w1)
+            self.groups = w1.shape[1]
+            out_groups = w1.shape[0]
+        if w2 is None:
+            layers = [loaded_linear(w2_b)]
+            if t2 is None:
+                layers.append(loaded_linear(w2_a))
+            else:
+                layers.extend((loaded_linear(t2), loaded_linear(w2_a.mT)))
+            self.w2 = torch.nn.Sequential(*layers)
+            in_group, out_group = layers[0].in_features, layers[-1].out_features
+            rank = w2_b.shape[0]
+        else:
+            self.w2 = loaded_linear(w2)
+            in_group, out_group = self.w2.in_features, self.w2.out_features
+        self.scale = 1.0 if alpha is None or rank is None else float(alpha) / rank
+        self.in_features = self.groups * in_group
+        self.out_features = out_groups * out_group
+
+    def forward(self, x):
+        grouped = x.reshape(*x.shape[:-1], self.groups, -1)
+        out = self.w1(self.w2(grouped).transpose(-1, -2)).transpose(-1, -2).flatten(-2)
+        return out if self.scale == 1.0 else out * self.scale
 
 
 class FactorBank(torch.nn.Module):
     def __init__(self, adapters, compute_dtype):
         super().__init__()
-        self.factors = torch.nn.ModuleList(Factors(adapter) for adapter in adapters.values())
+        types = {"lora": Factors, "lokr": KroneckerFactors}
+        self.factors = torch.nn.ModuleList(types[adapter.name](adapter) for adapter in adapters.values())
         self.manual_cast_dtype = compute_dtype
 
     def get_dtype(self):

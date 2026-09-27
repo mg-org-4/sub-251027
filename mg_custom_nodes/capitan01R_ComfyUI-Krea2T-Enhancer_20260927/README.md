@@ -50,7 +50,7 @@ on the character LoRA and the rest of the workflow.
 ### Setup
 
 Use this node in place of the regular LoRA loader for your character. Select
-the character LoRA in `lora_name` and adjust `strength_model` to control its
+the character LoRA or LoKr in `lora_name` and adjust `strength_model` to control its
 influence.
 
 ```text
@@ -67,7 +67,7 @@ MODEL and CONDITIONING outputs to the sampler.
 | `lora_name` | Your character LoRA file. |
 | `strength_model` | Character LoRA strength. Default `1.0`; `0` turns its effect off. Negative values are supported. |
 | `enabled` | Bypasses this loader when off. |
-| `report` | Optional text output showing how many weights were loaded or skipped. |
+| `report` | Optional text output showing loaded/skipped weights, adapter types, and saved scaling. |
 
 ### How it works
 
@@ -86,25 +86,39 @@ Requires an up-to-date ComfyUI with native Krea2 support. No core-file edits or
 extra Python packages are needed. Supports Nodes 2.0.
 
 <details>
-<summary>Supported LoRA weight format</summary>
+<summary>Supported adapter formats</summary>
 
-### Supported keys
+### LoRA and LoKr
 
-The filter accepts complete pairs with these **exact** names:
+The loader supports standard LoRA and LoKr exports using ComfyUI's Krea2 key
+mapping. Compatibility depends on the saved format, not the trainer name.
+LoRA pairs can use A/B, up/down, Diffusers, or PEFT naming. LoKr supports
+direct and decomposed factors.
 
-```text
-diffusion_model.blocks.<0–27>.<projection>.lora_A.weight
-diffusion_model.blocks.<0–27>.<projection>.lora_B.weight
-```
+Saved alpha/rank scaling is applied before `strength_model`. For example,
+rank 16 with alpha 1 applies `1/16` of the raw LoRA update at strength `1.0`.
+Files without alpha retain their unscaled update. LoKr follows ComfyUI's
+scaling rules for its factor layout.
 
-`<projection>` is one of `attn.wq`, `attn.wk`, `attn.wv`, `attn.wo`,
-`attn.gate`, `mlp.gate`, `mlp.up`, or `mlp.down`. That permits up to 448
-tensors forming 224 matrix updates. Subsets and different LoRA ranks are
-supported when their dimensions match the model.
+Only the attention and MLP projections in Krea2's 28 shared image/text blocks
+are eligible: `attn.wq`, `attn.wk`, `attn.wv`, `attn.wo`, `attn.gate`,
+`mlp.gate`, `mlp.up`, and `mlp.down`. This covers up to 224 matrix updates.
+Weights targeting dedicated text processing, normalization, or other layers
+are skipped, including when the file uses alternate key names.
 
-All other names and incomplete pairs are skipped. Alternate naming formats
-are not converted. Separate alpha/scaling metadata is not applied, so LoRAs
-that rely on it may need a different strength setting.
+Incomplete adapters and unsupported formats such as DoRA and LoHa are skipped.
+Matched adapters must have dimensions compatible with the model. LoKr runs
+from its factors without allocating a full-sized Kronecker weight matrix.
+
+If an older version produced excessive noise with a LoRA that stores alpha,
+update and restart ComfyUI: previous versions ignored that scaling and could
+apply the adapter too strongly. Start again at your intended strength rather
+than a value chosen to compensate for that bug.
+
+For a manual update, replace both `character_lora_image_only/__init__.py` and
+`character_lora_image_only/runtime.py`, then restart ComfyUI. Updating only one
+file leaves part of the old loader installed. The report's
+`adapter_scale_range` shows the saved scaling before your strength setting.
 
 </details>
 

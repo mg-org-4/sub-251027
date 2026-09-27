@@ -33,7 +33,7 @@ Core Load Video → H3 Continuum Video Adapter → Timeline Video Frames
 ローカル受入ではFull CPU `1424 passed / 1 skipped / 0 failed`、ブラウザ保存・再読込、Follow／Repeatの`2 × 5秒` GPUテストがPASSしました。両方とも704×416、24fps、240フレーム、映像10秒、32kHz stereo音声10秒で、OOM／NaN／allocation failure／crashはありません。FollowはChunk 2で後半区間へ切り替わり、Repeatは同じ先頭側参照を維持しました。RTX 5060 Ti 16 GBで観測した最大VRAMは約15.6～15.7 GiBで、16 GBの余裕は小さい条件です。これは機能・mode分離の受入結果であり、一般的な速度や主観画質の保証ではありません。詳細は[Timeline Video Experimental](docs/TIMELINE_VIDEO_EXPERIMENTAL.md)を参照してください。
 
 
-> **V3.8X2**はpackage `3.8.3`の製品名・Workflow名です。V3.8 Production Samplerを維持し、任意のReference Image 4～9と内蔵Decode Cache Helperを追加しています。旧V3.8.0は[`v3.8.0`タグ](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0)から導入できます。
+> **V3.8X2**はpackage metadata `3.8.3`の製品名・Workflow名です。現在の`main`には3.8.3以降のLoader保存・復元修正が入り、公式WorkflowはCore Load AudioとCore Load Video → H3 Continuum Video Adapterを使用します。旧Continuum Audio／Video Loader IDは保存Workflow互換用として残します。Reference Images 4～9と内蔵Decode Cache Helperを含み、Timeline Videoは`main`上のExperimental機能です。旧V3.8.0は[`v3.8.0`タグ](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0)から導入できます。
 
 ## V3.8X2 公式Workflow
 
@@ -554,6 +554,22 @@ outputs: images / audio / result
 
 当時のV2.1.7では、旧`H3ContinuumSamplerV2`をLegacy/Coreノードとして登録し、既存WorkflowのノードID、入力順、出力順を維持していました。これはV3.8の公開範囲を示す説明ではありません。このIDを使う旧Workflowは対応するhistorical Release/tagで開いてください。
 
+## Timeline Promptの注意
+
+`Prompt Format = Timeline`では、`[0-5s]`のようなtime-range headerを必ず単独行に置き、prompt本文は次の行から記述してください。
+
+```text
+[0-5s]
+最初の5秒の動作を記述します。
+
+[5-10s]
+次の5秒の動作を記述します。
+```
+
+`[0-5s] prompt text`のように同じ行へ本文を書く形式はTimeline headerとして認識されません。`Prompt Format = Auto`ではFixedとして判定されます。`Prompt Format = Timeline`を明示した場合でも、現行実装はTimeline parse errorで生成を停止せず、diagnostic `H3C-P100`を出してFixedへfail-openします。この場合、入力全体が各Chunkで再利用されるため、同じactionが繰り返されるように見えることがあります。
+
+また、Timeline自体が正しくparseされても、あるChunkの時間範囲が未指定の場合は`H3C-P101`を出し、直前のpromptを再利用します。先頭側にgapがある場合は最初の有効sectionを使います。意図しないaction反復を避けるため、全Chunkの時間範囲を明示してください。
+
 ## Continuity
 
 - `Auto — conservative`
@@ -577,7 +593,7 @@ UNET -> SageAttention -> Sol-Attn -> LoRA -> Spectrum -> H3 Continuum Sampler
 
 ## インストール
 
-V3.8はComfyUI 0.34.2で検証しています。以下の歴史的な受入記録には旧ComfyUI版も登場しますが、現在のインストール目標ではありません。V3.8の依存を満たす限り、ComfyUIの最新版は必須ではありません。
+`pyproject.toml`では`requires-comfyui >=0.32.0`を宣言しています。現在このプロジェクトで実生成まで検証済みの基準はComfyUI `0.34.2`です。現行V3.8X2についてREADMEに記録されているlive runtime受入証拠は`0.34.2`であり、`0.32.x`ではありません。新しいCoreについてはIssue #24のseam regressionを調査中です。したがって`0.34.2`は現在の検証基準であり、最低インストールversionや、すべての新しいCoreで同一挙動を保証する意味ではありません。以下の歴史的な受入記録には旧ComfyUI版も登場します。
 
 ZIPを展開して、`ComfyUI-H3-Continuum`フォルダーを`ComfyUI/custom_nodes/`へ置き、ComfyUIを再起動します。
 
@@ -589,7 +605,9 @@ ZIPを展開して、`ComfyUI-H3-Continuum`フォルダーを`ComfyUI/custom_nod
 
 現在のV3.8X2 Public Surface suiteは、正確な10 ID export、変更していない公式Workflow 2名称と各ZIP内JSONの同一性、別名のExperimental Follow／Repeat Workflow、外部依存、Registry除外、既存V3.8 widget/socket先頭契約と末尾追加mode、`Show Advanced Settings`／`Hide Advanced Settings`による表示切替を確認します。Registry配布対象のハッシュは`REGISTRY_MANIFEST.sha256`、source側の整合性は`MANIFEST.sha256`で管理します。
 
-**最新のV3.8X2準備証拠：** Timeline Video統合後のFull CPU suiteは**1,424 passed / 1 skipped / 0 failed**です。ブラウザ保存・再読込とFollow／Repeatの`2 × 5秒` GPU GateもPASSし、両方とも704×416、24fps、240フレーム、映像10秒、32kHz stereo音声10秒で完走しました。OOM／NaN／allocation failure／crashはありません。従来のReview Functional Gateでは`3 × 5秒`を実行し、Q1～Q3はphysical groupを1つずつ生成、Q4は`3 reused / 0 generated`で全3 groupを再利用し、Q3とQ4の復号後RGB／PCM SHA-256が一致しました。9枚Reference Imageの別Gateは下記に記録しています。これは機能実行、prefix再利用、AV再構築、mode分離、テストした9枚経路の確認であり、画像・音声の総合的な主観品質評価ではありません。
+**現在の`main` HEAD CPU/CI証拠（`88363ccd`）：** GitHub Actions run `35811479080`はPython 3.11で成功し、**1,429 passed / 3 skipped / 0 failed**でした。
+
+**直近のbrowser／GPU受入：** Timeline Video統合時のGateではFull CPU **1,424 passed / 1 skipped / 0 failed**、ブラウザ保存・再読込、Follow／Repeatの`2 × 5秒` GPU functional runがPASSしました。両方とも704×416、24fps、240フレーム、映像10秒、32kHz stereo音声10秒で完走し、OOM／NaN／allocation failure／crashはありません。ただし、これらのbrowser／GPU結果は現在のPackedLayout HEADより前のものであり、`88363ccd`を新たにGPU検証した結果としては扱いません。従来のReview Functional Gateでは`3 × 5秒`を実行し、Q1～Q3はphysical groupを1つずつ生成、Q4は`3 reused / 0 generated`で全3 groupを再利用し、Q3とQ4の復号後RGB／PCM SHA-256が一致しました。9枚Reference Imageの別Gateは下記に記録しています。これは機能実行、prefix再利用、AV再構築、mode分離、テストした9枚経路の確認であり、画像・音声の総合的な主観品質評価ではありません。
 
 ### 9枚Reference Image入力Gate（0.3 MP参照画像）
 

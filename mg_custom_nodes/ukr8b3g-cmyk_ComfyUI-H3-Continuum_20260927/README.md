@@ -33,7 +33,7 @@ The two comparison workflows are intentionally separate from the unchanged offic
 Local acceptance passed with full CPU `1424 passed / 1 skipped / 0 failed`, browser save/reload, and Follow/Repeat `2 x 5 s` GPU runs at 704x416, 24 fps, 240 frames, and 10-second 32 kHz stereo audio. Follow changed to the later source interval for Chunk 2 while Repeat retained the shared prefix; both completed without OOM, NaN, allocation failure, or crash. Peak observed VRAM was about 15.6–15.7 GiB on the tested RTX 5060 Ti 16 GB system, so 16 GB headroom was small. This is a functional mode-separation result, not a universal speed or subjective-quality guarantee. See [Timeline Video Experimental](docs/TIMELINE_VIDEO_EXPERIMENTAL.md).
 
 
-> **V3.8X2** is the product and workflow label for package `3.8.3`. It keeps the V3.8 production sampler and adds optional Reference Images 4–9 plus the built-in Decode Cache Helper. The older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0).
+> **V3.8X2** is the product and workflow label for package metadata `3.8.3`. Current `main` includes the post-3.8.3 loader-persistence repair: the official workflows use Core Load Audio and Core Load Video -> H3 Continuum Video Adapter, while the deprecated Continuum Audio/Video loader IDs remain registered for saved-workflow compatibility. V3.8X2 also includes optional Reference Images 4–9 and the built-in Decode Cache Helper. Timeline Video remains Experimental on `main`. The older V3.8.0 package remains available from tag [`v3.8.0`](https://github.com/ukr8b3g-cmyk/ComfyUI-H3-Continuum/tree/v3.8.0).
  <img width="1536" height="1024" alt="exec-9cfa73b4-c1d3-4416-8950-fa661b946638_2" src="https://github.com/user-attachments/assets/8df15764-6db6-4d4c-9eb5-0d2c7b0668f0" />
 
 
@@ -1020,7 +1020,7 @@ The retired V3.3 Timeline Sampler and earlier timeline-audio paths remain histor
 
 ## Installation
 
-V3.8 is verified against ComfyUI 0.34.2. Historical acceptance records below may mention older ComfyUI versions; they are not the current installation target.
+`pyproject.toml` declares `requires-comfyui >=0.32.0`. The current generation baseline verified by this project is ComfyUI `0.34.2`. The current V3.8X2 live-runtime acceptance evidence recorded here is for `0.34.2`, not `0.32.x`, and seam behavior on newer Core versions is currently being investigated in Issue #24. Treat `0.34.2` as the current verified baseline, not as the minimum install version or a guarantee that all newer Core versions behave identically. Historical acceptance records below may mention older ComfyUI versions.
 
 ### Updating an existing installation
 
@@ -1190,7 +1190,9 @@ Not recommended:
 [0-5s] Describe the scene.
 ~~~
 
-The second form is not recognized as a Timeline header. When **Prompt Format = Auto**, it may therefore be interpreted as a Fixed prompt instead, causing the complete text to be reused across chunks.
+The second form is not recognized as a Timeline header. With **Prompt Format = Auto**, it is detected as Fixed. With **Prompt Format = Timeline**, a Timeline parse error currently fails open to Fixed and emits diagnostic `H3C-P100`; the complete text can therefore be reused across all chunks.
+
+A Timeline that parses successfully but does not cover a chunk emits `H3C-P101` and reuses the previous prompt, or the earliest valid section for a leading gap. To avoid accidental repeated actions, explicitly cover every chunk interval.
 
 The time ranges should normally match the configured `chunk_seconds`.
 
@@ -1345,7 +1347,9 @@ Use a 24 fps source for `Video Guide Frames`. `Load Video (Upload)` may accept f
 
 The V3.8X2 public-surface suite checks the exact ten-node export, both unchanged official workflow names and matching ZIP payloads, the separate experimental Follow/Repeat workflows, declared external dependencies, Registry exclusions, the preserved V3.8 widget/socket prefix plus the appended mode widget, and presentation-only `Show Advanced Settings` / `Hide Advanced Settings` behavior. Registry payload hashes are recorded in `REGISTRY_MANIFEST.sha256`; source integrity is recorded in `MANIFEST.sha256`.
 
-**Latest V3.8X2 preparation evidence:** after the Timeline Video integration, the full CPU suite passed **1,424 passed / 1 skipped / 0 failed**. Browser persistence and Follow/Repeat `2 × 5 second` GPU gates passed; both produced 704×416, 24 fps, 240-frame, 10-second video with 32 kHz stereo audio and no OOM, NaN, allocation failure, or crash. The prior dedicated Review Functional Gate passed a `3 × 5 second` run: Q1–Q3 generated one physical group at a time, and Q4 reused all three groups with `3 reused / 0 generated`; Q3 and Q4 had identical decoded RGB and PCM SHA-256 values. The separate nine-reference Gate is recorded below. These checks confirm functional execution, prefix reuse, AV reconstruction, mode separation, and the tested nine-reference path; they are not a full subjective image- or audio-quality rating.
+**Current `main` HEAD CPU/CI evidence (`88363ccd`):** GitHub Actions run `35811479080` completed successfully on Python 3.11 with **1,429 passed / 3 skipped / 0 failed**.
+
+**Most recent browser/GPU acceptance:** the Timeline Video integration gate previously passed **1,424 passed / 1 skipped / 0 failed**, browser save/reload, and the Follow/Repeat `2 × 5 second` GPU functional runs described above. Those runs produced 704×416, 24 fps, 240-frame, 10-second video with 32 kHz stereo audio and no OOM, NaN, allocation failure, or crash. They predate the current PackedLayout HEAD and are not presented as a fresh GPU validation of `88363ccd`. The prior dedicated Review Functional Gate passed a `3 × 5 second` run: Q1–Q3 generated one physical group at a time, and Q4 reused all three groups with `3 reused / 0 generated`; Q3 and Q4 had identical decoded RGB and PCM SHA-256 values. The separate nine-reference Gate is recorded below. These checks confirm functional execution, prefix reuse, AV reconstruction, mode separation, and the tested nine-reference path; they are not a full subjective image- or audio-quality rating.
 
 ### Nine-reference input gate (0.3 MP reference images)
 

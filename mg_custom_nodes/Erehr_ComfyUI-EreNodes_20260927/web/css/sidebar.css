@@ -12,17 +12,20 @@
 }
 .ere-sidebar.ere-sb-multi .ere-sb-selected {
     background: color-mix(in srgb, var(--ere-drag-accent, var(--primary-background)) 18%, transparent);
-    outline: 1px solid var(--ere-drag-accent, var(--primary-background));
-    outline-offset: -1px;
 }
-/* A tile is filled edge to edge by its thumbnail, so the fill goes over it instead of behind it and has to stay translucent. */
+/* A tile is filled edge to edge by its thumbnail, so hover and selection go over it instead of behind it and have to stay translucent.
+   Mixed from the foreground, so they lighten in the dark theme and darken in the light one rather than greying the tile out. */
+.ere-sidebar .ere-sb-tile:hover::after,
 .ere-sidebar .ere-sb-tile.ere-sb-selected::after {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: color-mix(in srgb, var(--comfy-input-bg) 70%, transparent);
+    background: color-mix(in srgb, var(--base-foreground) 8%, transparent);
     pointer-events: none;
+}
+.ere-sidebar .ere-sb-tile.ere-sb-selected::after {
+    background: color-mix(in srgb, var(--base-foreground) 14%, transparent);
 }
 .ere-sidebar.ere-sb-multi .ere-sb-tile.ere-sb-selected::after {
     background: color-mix(in srgb, var(--ere-drag-accent, var(--primary-background)) 18%, transparent);
@@ -109,14 +112,33 @@
     border: none;
     background: transparent;
 }
-.ere-sidebar .ere-sb-tile:not(.ere-sb-selected):not(.ere-sb-folder-tile),
-.ere-sidebar .ere-sb-tile:not(.ere-sb-selected):hover {
-    background: var(--comfy-input-bg);
+/* Every tile, folder or entry, sits on the same card fill so the grid reads as a grid; the overlays above mark hover and selection. */
+.ere-sidebar .ere-sb-tile,
+.ere-sidebar .ere-sb-tile.ere-sb-selected {
+    background: var(--secondary-background);
 }
 /* renderTagTile sets the type fill inline, so lifting the label off the fill needs the weight. */
 .ere-sidebar .ere-sb-tile:hover .ere-name,
 .ere-sidebar .ere-sb-selected .ere-name {
     background: transparent !important;
+}
+/* Masonry: each tile spans as many of these short rows as its height needs, and the grid's own placement puts it in the first column with room, which is the shortest. */
+.ere-sidebar .ere-sb-grid.ere-sb-masonry {
+    grid-auto-rows: var(--ere-masonry-row, 4px);
+    row-gap: 0;
+}
+/* The tile is sized to the post's proportions, so the thumbnail fills it; cropping only trims what the clamp cut. */
+.ere-sidebar .ere-sb-booru-tile > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+}
+.ere-sidebar .ere-sb-booru-noimg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .ere-sidebar .ere-sb-folder-tile {
     display: flex;
@@ -124,11 +146,6 @@
     align-items: center;
     justify-content: center;
     gap: .25rem;
-    border: 1px solid var(--border-default);
-    background: var(--modal-card-background);
-}
-.ere-sidebar .ere-sb-folder-tile:hover {
-    background: var(--modal-card-background-hovered);
 }
 .ere-sidebar .ere-sb-tile-name {
     max-width: 100%;
@@ -258,6 +275,17 @@
     word-break: break-word;
 }
 
+/* The start-page field in the booru popover, sized for a few digits. */
+.ere-sb-page {
+    width: 4.5rem;
+    height: 24px;
+    padding: 0 6px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--comfy-input-bg);
+    color: var(--input-text);
+    font: inherit;
+}
 /* Content width, not the space to the viewport edge. Tailwind utilities sit in a layer, so this has to be unlayered CSS to hold. */
 .ere-sb-menu {
     width: max-content;

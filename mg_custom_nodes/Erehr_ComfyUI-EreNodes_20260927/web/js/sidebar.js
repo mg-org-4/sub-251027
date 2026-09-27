@@ -1,10 +1,10 @@
 import { app } from "../../../scripts/app.js";
-import { getCache, isNotFound, loadStyle, clearMissingCache, clearGroupCache, isAcceptedImage, extractFromImage, tagsFromResult, forgetVerdicts, installTooltips, getSetting, loadGroupTags, requestJson, toast, confirmDialog, promptDialog, pickFile, trackMarquee, trackPress, HOLD_MS, MOVE_THRESHOLD } from "./util.js";
+import { getCache, isNotFound, loadStyle, clearMissingCache, clearGroupCache, isAcceptedImage, extractFromImage, tagsFromResult, forgetVerdicts, installTooltips, getSetting, loadGroupTags, requestJson, apiUrl, toast, confirmDialog, promptDialog, pickFile, trackMarquee, trackPress, HOLD_MS, MOVE_THRESHOLD } from "./util.js";
 import { SURFACE_CLASS, injectTagStyles, renderTagTile, previewUrl, saveCover,
          TILE_SIZE, TILE_GAP, TILE_SIZES, TILE_RATIOS, tileBoxFor } from "./tagview.js";
 import { showPreviewFor, hidePreviewPanel, setPreviewHandlers } from "./preview.js";
 import { startExternalDrag, isDragActive, injectDragStyles } from "./dragdrop.js";
-import { ActionContextMenu, TagIndexContextMenu } from "./contextmenu.js";
+import { ActionContextMenu, TagContextMenu, TagIndexContextMenu, tagKey } from "./contextmenu.js";
 import { GlobalAutocomplete } from "../prompt_autocomplete.js";
 import { createTagEditor } from "./tageditor.js";
 import { dedupeTags } from "./parser.js";
@@ -38,6 +38,7 @@ const TABS = [
     { id: "group",     label: "Tag Groups", defaultView: "list" },
     { id: "lora",      label: "Loras",      defaultView: "grid" },
     { id: "embedding", label: "Embeddings", defaultView: "grid" },
+    { id: "booru",     label: "Booru",      defaultView: "grid" },
 ];
 
 // Only lucide icons the frontend already compiles can be used — an uncompiled `icon-[lucide--x]` renders as nothing.
@@ -58,6 +59,7 @@ const LS_EXPANDED = "EreNodes.Sidebar.expanded";
 const LS_TAB = "EreNodes.Sidebar.tab";
 const LS_TAGSEARCH = "EreNodes.Sidebar.tagSearch";
 const LS_BOOKMARKS_SEEN = "EreNodes.Sidebar.bookmarksSeen";
+const LS_BOORU = "EreNodes.Sidebar.booru";
 
 // Long enough that typing a word filters once at the end of it rather than once per letter.
 const SEARCH_DEBOUNCE_MS = 250;
@@ -86,12 +88,16 @@ const state = {
     selection: new Set(),
     anchor: null,
     cursor: -1,         // index into rows, for the keyboard
+    kbd: false,         // the cursor was last moved by the keyboard, so it is drawn and previewed
     rows: [],
+    sections: [],       // grid view: { start, count, cols() } per grid, for moving up and down a column
     flows: [],
     press: null,
     editor: null,
     viewMenu: null,     // closes the view popover, while one is open
     bookmarks: [],      // tag group paths, in the order they were added
+    // `sort` and `startPage` are per site and last until ComfyUI is reloaded: a way of browsing, not a preference.
+    booru: { site: "safebooru", query: "", posts: [], page: 0, done: false, loading: false, error: null, seq: 0, sort: {}, startPage: {} },
 };
 
 // Bookmarks
@@ -217,6 +223,8 @@ function restorePrefs() {
     state.tab = loadJSON(LS_TAB, TABS[0].id);
     if (!TABS.some(t => t.id === state.tab)) state.tab = TABS[0].id;
     state.tagSearch = loadJSON(LS_TAGSEARCH, false) === true;
+    const site = loadJSON(LS_BOORU, "safebooru");
+    if (BOORUS.some(b => b.id === site)) state.booru.site = site;
 }
 
 function persistExpanded() {
@@ -271,6 +279,7 @@ function filesUnder(node, out = []) {
  * @param {{unpack?: boolean}} opts  expand groups instead of passing the pill.
  */
 async function tagsForRow(row, opts = {}) {
+    if (row.tab === "booru") return row.post.tags.map(t => ({ ...t }));
     if (row.type === "folder") {
         const node = nodeAtPath(state.trees[state.tab] || { folders: [], files: [] }, row.path);
         // Its own entries only. A library organised into subfolders would otherwise put every group under a top folder into one drop, which is tens of thousands of files and one request each.
@@ -449,10 +458,12 @@ function autocompleteEnabled() {
 /** Attached on focus, not up front: the mode and the setting can both change while the row stands. */
 function attachSearchAutocomplete(input) {
     input.addEventListener("focus", () => {
-        if (!deepSearchActive() || !autocompleteEnabled()) return;
+        const booru = state.tab === "booru";
+        if (!(deepSearchActive() || booru) || !autocompleteEnabled()) return;
         searchAutocomplete ??= new GlobalAutocomplete();
         searchAutocomplete.attach(input, {
-            menuClass: TagIndexContextMenu,
+            // Booru searches complete from the tag CSV: the site's tags, not the ones in your groups.
+            menuClass: booru ? TagContextMenu : TagIndexContextMenu,
             // A search term is matched literally, so `\(` would be looked up with the backslash in it.
             escapeParens: false,
         });
@@ -485,6 +496,234 @@ function countLeaves(folder) {
         leafCounts.set(folder, count);
     }
     return count;
+}
+
+// Booru
+// Searches go through py/booru.py, which also relays Safebooru's and Gelbooru's thumbnails; e621's load straight into <img>.
+// A post's image is only ever shown, never read, so it cannot be dragged, only its tags.
+
+// Tags a post may carry that are never wanted in a prompt. General tags on the boorus, so leaving out meta tags does not catch them.
+const DEFAULT_HIDDEN_TAGS = "watermark, username, logo, signature";
+
+const BOORUS = [
+    { id: "safebooru", label: "Safebooru", icon: "icon-[lucide--image]" },
+    { id: "gelbooru",  label: "Gelbooru",  icon: "icon-[lucide--image]" },
+    { id: "e621",      label: "e621",      icon: "icon-[lucide--image]" },
+];
+
+const booruSource = () => BOORUS.find(b => b.id === state.booru.site) ?? BOORUS[0];
+
+const BOORU_SORTS = [
+    { id: "latest", icon: "pi pi-clock", label: "Latest" },
+    { id: "top",    icon: "pi pi-star",  label: "Top rated" },
+    { id: "random", icon: "pi pi-sync",  label: "Random" },
+];
+const booruSort = () => state.booru.sort[state.booru.site] ?? "latest";
+const booruStartPage = () => state.booru.startPage[state.booru.site] ?? 1;
+
+// Masonry: tiles keep their post's proportions, clamped so a panorama or a long strip stays a usable tile. Heights are known before any image loads, so the grid places them with no measuring.
+const MASONRY_ROW = 4;
+const MASONRY_MIN = 0.5;
+const MASONRY_MAX = 2.5;
+
+function masonryHeight(post, width) {
+    const ratio = post.width && post.height ? post.height / post.width : 1;
+    return Math.round(width * Math.min(Math.max(ratio, MASONRY_MIN), MASONRY_MAX));
+}
+
+/** The search box takes comma-separated tags, as the tag search does, and each becomes the site's underscored form; `-tag` and `rating:x` pass through. */
+function booruTags(query) {
+    return String(query).split(",").map(t => t.trim().replace(/\s+/g, "_")).filter(Boolean).join(" ");
+}
+
+/** The hidden-tags setting, as tagKey spells them. */
+function hiddenBooruTags() {
+    return new Set(String(getSetting("EreNodes.Sidebar.BooruHiddenTags", DEFAULT_HIDDEN_TAGS)).split(",").map(tagKey).filter(Boolean));
+}
+
+/** A post as the sidebar uses it: pills for its tags, less the hidden ones, and relayed thumbnails pointed at the relay. */
+const relayUrl = url => apiUrl(`/erenodes/booru/image?${new URLSearchParams({ url })}`);
+
+function booruPost(post, hidden) {
+    const relay = url => (post.relay ? relayUrl(url) : url);
+    return {
+        ...post,
+        thumb: relay(post.thumb),
+        thumbLarge: relay(post.thumbLarge),
+        // Readable by the page, which a cover upload needs; the grid shows the direct URL where it can.
+        coverSource: post.relay ? relay(post.thumbLarge) : relayUrl(post.thumbLarge),
+        tags: (post.tags ?? []).filter(tag => !hidden.has(tagKey(tag.name))).map(tag => ({ name: tag.name, type: "tag", active: true, category: tag.category })),
+    };
+}
+
+/** Start a search from page one, dropping whatever the last one had loaded. */
+function searchBooru(query) {
+    const b = state.booru;
+    b.query = String(query).trim();
+    b.posts = [];
+    b.page = booruStartPage() - 1;
+    b.done = false;
+    b.error = null;
+    b.loading = false;
+    b.seq++;
+    clearSelection();
+    state.cursor = -1;
+    // Started first: it marks the search as loading before its first await, so the redraw shows "Loading…" rather than an empty result.
+    loadBooruPage();
+    if (state.tab === "booru") render();
+}
+
+/** The next page, appended; called again by the scroll handler until a short page says there is no more. */
+async function loadBooruPage() {
+    const b = state.booru;
+    if (b.loading || b.done || !b.query) return;
+    const source = booruSource();
+    b.loading = true;
+    const seq = b.seq;
+    const page = b.page + 1;
+    let data = null;
+    let error = null;
+    try {
+        data = await requestJson("/erenodes/booru/search", { body: {
+            site: source.id,
+            tags: booruTags(b.query),
+            page,
+            sort: booruSort(),
+            rating: getSetting("EreNodes.Sidebar.BooruRating", "sensitive"),
+            userId: getSetting("EreNodes.Sidebar.GelbooruUserId", ""),
+            apiKey: getSetting("EreNodes.Sidebar.GelbooruApiKey", ""),
+            allContent: getSetting("EreNodes.Sidebar.GelbooruAllContent", false),
+            blocked: getSetting("EreNodes.Sidebar.BooruBlockedTags", ""),
+        } });
+        // The site's own refusal (Danbooru's two-tag limit, a rejected key) comes back as `error`.
+        error = data?.error ?? null;
+    } catch (e) {
+        error = e.message || `${source.label} could not be reached.`;
+    }
+    // A newer search owns the list now.
+    if (seq !== b.seq) return;
+    b.loading = false;
+    if (error) {
+        b.error = error;
+        b.done = true;
+    } else {
+        const seen = new Set(b.posts.map(post => post.id));
+        const hidden = hiddenBooruTags();
+        const added = (data.posts ?? []).map(post => booruPost(post, hidden)).filter(post => !seen.has(post.id));
+        b.posts.push(...added);
+        // Fetched now, in the background, so tiles scrolled into view later come straight from the browser cache.
+        const large = state.tileSize.booru === "large";
+        for (const post of added) {
+            const img = new Image();
+            img.decoding = "async";
+            img.src = large ? post.thumbLarge : post.thumb;
+        }
+        b.page = page;
+        if (!data.more) b.done = true;
+    }
+    if (state.tab !== "booru") return;
+    const body = bodyEl();
+    const scrollTop = body?.scrollTop ?? 0;
+    render();
+    if (body) body.scrollTop = scrollTop;
+    fillBooruViewport();
+}
+
+/** Keep loading while the grid does not reach past the bottom of the panel, since then there is no scrolling to ask for more. */
+function fillBooruViewport() {
+    const body = bodyEl();
+    if (!body || state.tab !== "booru") return;
+    if (body.scrollHeight - body.scrollTop - body.clientHeight < body.clientHeight) loadBooruPage();
+}
+
+function renderBooru(body) {
+    const b = state.booru;
+    const source = booruSource();
+    if (!b.query) {
+        body.appendChild(statusMessage("pi-search", `Search ${source.label}`,
+            "Type tags, comma separated.\nHover a post to see its tags; drag it onto a node to add them.").wrap);
+        return;
+    }
+    if (b.posts.length) {
+        const { width } = tileBox();
+        const grid = gridBox(body, width, width);
+        grid.classList.add("ere-sb-masonry");
+        grid.style.setProperty("--ere-masonry-row", `${MASONRY_ROW}px`);
+        // Not windowed: a windowed grid assumes rows of one height, which masonry has not got.
+        const items = [];
+        const frag = document.createDocumentFragment();
+        for (const post of b.posts) {
+            addRow(items, { type: "file", name: `#${post.id}`, path: `${b.site}/${post.id}`, tab: "booru", post }, r => makeBooruTile(r));
+        }
+        for (const item of items) frag.appendChild(item.make(item.row));
+        grid.appendChild(frag);
+        state.flows.push(plainHandle(grid, items));
+    }
+    if (b.loading) {
+        el("div", "ere-sb-empty", body).textContent = "Loading…";
+    } else if (b.error) {
+        if (b.posts.length) el("div", "ere-sb-empty", body).textContent = b.error;
+        else body.appendChild(statusMessage("pi-exclamation-triangle", `${source.label} search failed`, b.error).wrap);
+    } else if (!b.posts.length) {
+        body.appendChild(statusMessage("pi-search", "No posts", `${source.label} has nothing for "${b.query}".`).wrap);
+    }
+}
+
+function makeBooruTile(row) {
+    const wrap = el("li", "ere-sb-tile ere-sb-booru-tile");
+    wrap.dataset.ereKey = rowKey(row);
+    const height = masonryHeight(row.post, tileBox().width);
+    wrap.style.height = `${height}px`;
+    // The gap below the tile is part of its span, since masonry rows have none of their own.
+    wrap.style.gridRowEnd = `span ${Math.ceil((height + TILE_GAP) / MASONRY_ROW)}`;
+    if (state.selection.has(wrap.dataset.ereKey)) wrap.classList.add("ere-sb-selected");
+    const img = el("img", "", wrap);
+    img.alt = "";
+    img.decoding = "async";
+    img.draggable = false;
+    // A thumbnail that will not load (a removed file, a blocked host) leaves a tile naming the post; its tags still preview and drag.
+    img.addEventListener("error", () => {
+        img.remove();
+        wrap.classList.add("ere-sb-booru-noimg");
+        el("div", "ere-sb-tile-name", wrap).textContent = row.name;
+    }, { once: true });
+    img.src = state.tileSize.booru === "large" ? row.post.thumbLarge : row.post.thumb;
+    attachPress(wrap, row);
+    attachHover(wrap, row);
+    wrap.addEventListener("contextmenu", e => openBooruMenu(row, e));
+    return wrap;
+}
+
+/** The editor on a new group holding the post's tags, with its image as the cover to save. Opens without a cover when the image cannot be fetched. */
+async function saveBooruAsGroup(post) {
+    let coverFile = null;
+    try {
+        const response = await fetch(post.coverSource);
+        if (response.ok) {
+            const blob = await response.blob();
+            coverFile = new File([blob], `booru-${post.id}.${(blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg")}`, { type: blob.type });
+        }
+    } catch (e) {
+        console.warn("[EreNodes] Could not fetch the booru image for the cover.", e);
+    }
+    openEditor({ mode: "new", folder: "", name: "", tags: post.tags.map(t => ({ ...t })), coverFile });
+}
+
+function openBooruMenu(row, e) {
+    e.preventDefault();
+    e.stopPropagation();
+    hidePreviewPanel(true);
+    const anchor = { clientX: e.clientX, clientY: e.clientY };
+    if (state.selection.size > 1) {
+        if (state.selection.has(rowKey(row))) return openSelectionMenu(anchor);
+        clearSelection();
+    }
+    new ActionContextMenu(anchor, row.name, [
+        addAsMenuItem("Add as", async () => row.post.tags),
+        { name: "Save as tag group", callback: () => saveBooruAsGroup(row.post) },
+        null,
+        { name: `Open on ${booruSource().label}`, callback: () => window.open(row.post.page, "_blank", "noopener") },
+    ]);
 }
 
 // Selection
@@ -570,8 +809,75 @@ function moveCursor(delta) {
     const next = state.cursor < 0
         ? (delta > 0 ? 0 : state.rows.length - 1)
         : Math.min(Math.max(state.cursor + delta, 0), state.rows.length - 1);
-    selectOnly(state.rows[next]);
+    moveTo(next);
+}
+
+/** Put the keyboard cursor on a row: selected, scrolled into view and previewed, as hovering it would. */
+function moveTo(index) {
+    const row = state.rows[index];
+    if (!row) return;
+    state.kbd = true;
+    selectOnly(row);
     revealCursor();
+    // After the window has drawn the row the scroll brought into view.
+    requestAnimationFrame(() => {
+        const el = state.kbd && state.rows[state.cursor] === row ? rowElement(row) : null;
+        if (el && row.type !== "folder") previewRow(el, row);
+        else hidePreviewPanel();
+    });
+}
+
+/** Grid view: up and down keep to the column, and cross into the grid above or below at the same column. */
+function moveGrid(dir) {
+    const at = state.sections.findIndex(s => state.cursor >= s.start && state.cursor < s.start + s.count);
+    const section = state.sections[at];
+    if (!section) { moveCursor(dir); return; }
+    const cols = section.cols();
+    const pos = state.cursor - section.start;
+    const col = pos % cols;
+    const line = Math.floor(pos / cols);
+    if (dir > 0) {
+        if (line < Math.floor((section.count - 1) / cols)) { moveTo(section.start + Math.min(pos + cols, section.count - 1)); return; }
+        const next = state.sections[at + 1];
+        if (next) moveTo(next.start + Math.min(col, next.count - 1));
+        return;
+    }
+    if (line > 0) { moveTo(state.cursor - cols); return; }
+    const prev = state.sections[at - 1];
+    if (!prev) return;
+    const prevCols = prev.cols();
+    moveTo(prev.start + Math.min(Math.floor((prev.count - 1) / prevCols) * prevCols + col, prev.count - 1));
+}
+
+/** Masonry: up and down go to the nearest tile above or below in the same column, found by position. */
+function moveMasonry(dir) {
+    const tiles = [...(bodyEl()?.querySelectorAll(".ere-sb-booru-tile") ?? [])];
+    const key = state.rows[state.cursor] ? rowKey(state.rows[state.cursor]) : null;
+    const current = tiles.find(t => t.dataset.ereKey === key);
+    if (!current) { moveCursor(dir); return; }
+    const from = current.getBoundingClientRect();
+    const x = from.left + from.width / 2;
+    let best = null;
+    let bestDistance = Infinity;
+    for (const tile of tiles) {
+        const r = tile.getBoundingClientRect();
+        if (tile === current || r.left > x || r.right < x) continue;
+        const distance = dir > 0 ? r.top - from.bottom : from.top - r.bottom;
+        if (distance >= -1 && distance < bestDistance) { best = tile; bestDistance = distance; }
+    }
+    if (best) moveTo(state.rows.findIndex(r => rowKey(r) === best.dataset.ereKey));
+}
+
+/** The pointer moved: the keyboard cursor gives way to it, and arrows carry on from the row under the pointer. */
+function endKeyboardNav(rowEl) {
+    state.kbd = false;
+    if (state.selection.size <= 1) clearSelection();
+    const key = rowEl?.dataset.ereKey ?? null;
+    state.anchor = key;
+    state.cursor = key ? state.rows.findIndex(r => rowKey(r) === key) : -1;
+    const row = state.rows[state.cursor];
+    if (row && row.type !== "folder") previewRow(rowEl, row);
+    else hidePreviewPanel();
 }
 
 function revealCursor() {
@@ -585,7 +891,7 @@ function revealCursor() {
     state.host?.querySelector(`[data-ere-key="${CSS.escape(key)}"]`)?.scrollIntoView({ block: "nearest" });
 }
 
-/** One level up, for the views that show one at a time. */
+/** One level up, for the views that show one at a time, with the cursor on the folder it came out of. */
 function goUp() {
     const view = state.view[state.tab];
     if (!walksLevels(view)) return false;
@@ -594,6 +900,8 @@ function goUp() {
     state.crumb[state.tab] = path === BOOKMARK_PATH ? "" : path.slice(0, Math.max(path.lastIndexOf("/"), 0));
     state.cursor = -1;
     render();
+    const index = state.rows.findIndex(r => r.type === "folder" && (r.path === path || (path === BOOKMARK_PATH && r.bookmarkRoot)));
+    moveTo(Math.max(index, 0));
     return true;
 }
 
@@ -609,10 +917,9 @@ function typeAhead(key) {
     // Repeating one letter walks the entries starting with it, rather than sticking on the first.
     const from = (repeat || typed.length === 1) ? state.cursor + 1 : 0;
     for (let i = 0; i < rows.length; i++) {
-        const row = rows[(from + i) % rows.length];
-        if ((row.name || "").toLowerCase().startsWith(typed)) {
-            selectOnly(row);
-            revealCursor();
+        const index = (from + i) % rows.length;
+        if ((rows[index].name || "").toLowerCase().startsWith(typed)) {
+            moveTo(index);
             return;
         }
     }
@@ -622,31 +929,26 @@ function onBodyKeyDown(e) {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target !== e.currentTarget && e.target?.closest?.("input, textarea")) return;
 
+    // Left and right only walk a grid's rows; entering and leaving a folder is Enter and Backspace in every view.
+    const grid = state.view[state.tab] === "grid";
     switch (e.key) {
-        case "ArrowDown": moveCursor(1); break;
-        case "ArrowUp": moveCursor(-1); break;
-        case "Home": if (state.rows.length) { selectOnly(state.rows[0]); revealCursor(); } break;
-        case "End": if (state.rows.length) { selectOnly(state.rows[state.rows.length - 1]); revealCursor(); } break;
+        case "ArrowDown": if (state.tab === "booru" && state.cursor >= 0) moveMasonry(1); else if (grid && state.cursor >= 0) moveGrid(1); else moveCursor(1); break;
+        case "ArrowUp": if (state.tab === "booru" && state.cursor >= 0) moveMasonry(-1); else if (grid && state.cursor >= 0) moveGrid(-1); else moveCursor(-1); break;
+        case "ArrowRight": if (!grid) return; moveCursor(1); break;
+        case "ArrowLeft": if (!grid) return; moveCursor(-1); break;
+        case "Home": moveTo(0); break;
+        case "End": moveTo(state.rows.length - 1); break;
         case "Enter": {
             const row = state.rows[state.cursor];
-            if (row) onRowActivate(row);
+            if (row) onRowActivate(row, { keyboard: true });
             break;
         }
-        case "ArrowRight": {
-            const row = state.rows[state.cursor];
-            if (row?.type === "folder") onRowActivate(row);
-            break;
-        }
-        case "ArrowLeft":
-            if (!goUp()) {
-                const row = state.rows[state.cursor];
-                if (row?.type === "folder" && state.expanded[state.tab].has(row.path)) toggleFolder(row.path);
-            }
-            break;
         case "Backspace": if (!goUp()) return; break;
         case "Escape":
             clearSelection();
             state.cursor = -1;
+            state.kbd = false;
+            hidePreviewPanel();
             break;
         default:
             // A bare printable character is the start of a name, not a shortcut.
@@ -749,20 +1051,32 @@ function anchorRect(el) {
         : row;
 }
 
+/** The tags (and, outside grid view, the image) of an entry, beside its row. */
+function previewRow(el, row) {
+    // Large grid tiles are already about the preview's size; list rows and small tiles are not.
+    const image = state.view[state.tab] !== "grid" || state.tileSize[state.tab] !== "large";
+    if (row.tab === "booru") {
+        // The tile's own thumbnail: already cached, and close enough in size to the preview's.
+        showPreviewFor({ tags: row.post.tags, anchor: anchorRect(el), image, imageUrl: row.post.thumb, interactive: true });
+        return;
+    }
+    showPreviewFor({
+        type: row.tab, path: row.path, extension: row.extension,
+        anchor: anchorRect(el),
+        image,
+        // A lora's trained words are informational; a group's tags can be picked out.
+        interactive: row.tab === "group" && row.type === "file",
+    });
+}
+
 function attachHover(el, row) {
     if (row.type === "folder") return;
     el.addEventListener("pointerenter", () => {
-        if (isDragActive()) return;
-        showPreviewFor({
-            type: row.tab, path: row.path, extension: row.extension,
-            anchor: anchorRect(el),
-            // Grid view already shows the thumbnail on the tile itself.
-            image: state.view[state.tab] !== "grid",
-            // A lora's trained words are informational; a group's tags can be picked out.
-            interactive: row.tab === "group" && row.type === "file",
-        });
+        // While the keyboard drives, its preview stays put; the first real pointer move hands over (see buildTreeBody).
+        if (isDragActive() || state.kbd) return;
+        previewRow(el, row);
     });
-    el.addEventListener("pointerleave", () => hidePreviewPanel());
+    el.addEventListener("pointerleave", () => { if (!state.kbd) hidePreviewPanel(); });
 }
 
 // Press
@@ -783,7 +1097,7 @@ function attachPress(el, row) {
             const lists = await Promise.all(rows.map(r => tagsForRow(r)));
             if (session.released) return;
             const tags = dedupeTags(lists.flat());
-            const label = rows.length > 1 ? `${rows.length} items` : row.name;
+            const label = rows.length > 1 ? `${rows.length} items` : (row.tab === "booru" ? `${tags.length} tags` : row.name);
 
             // Tag groups drop as themselves; holding Alt drops their contents instead.
             // Resolved up front so the Alt swap is instant; reading files mid-drag stalls the ghost. Only tag groups have a second reading — a lora is a lora.
@@ -806,12 +1120,10 @@ function attachPress(el, row) {
                 tags, label, altTags, altLabel,
                 x: session.x,
                 y: session.y,
-                // Lets a drop inside the sidebar move these entries instead of treating them as tags to save.
-                origin: {
-                    kind: "sidebar", tab: state.tab, rows, groups,
-                    onMove: moveRowsInto,
-                    onCanvasDrop,
-                },
+                // Lets a drop inside the sidebar move these entries instead of treating them as tags to save. Booru posts are not entries: they only carry tags.
+                origin: row.tab === "booru"
+                    ? { kind: "booru", onCanvasDrop }
+                    : { kind: "sidebar", tab: state.tab, rows, groups, onMove: moveRowsInto, onCanvasDrop },
             });
         };
 
@@ -821,16 +1133,27 @@ function attachPress(el, row) {
     el.addEventListener("dblclick", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        onRowActivate(row);
+        if (row.type !== "folder") onRowActivate(row);
     });
 }
 
-/** A click picks, it does not act. Adding is the double click, the menu and the drag, as in a file manager. */
+// A folder opens on the first click, so the second click of a habitual double click must not land on whatever the view has just put under the pointer.
+const DOUBLE_CLICK_MS = 400;
+let folderOpenedAt = 0;
+
+/** A click opens a folder; on an entry it only moves the cursor there. Adding is the double click, the menu and the drag, as in a file manager; Ctrl and Shift still select. */
 function onRowClick(row, e) {
     focusBody();
     if (handleRowSelect(row, e)) return;
     if (e.ctrlKey || e.metaKey) return;   // the body's guard already toggled it
-    selectOnly(row);
+    state.kbd = false;
+    clearSelection();
+    state.anchor = rowKey(row);
+    state.cursor = state.rows.findIndex(r => rowKey(r) === state.anchor);
+    if (row.type === "folder" && Date.now() - folderOpenedAt > DOUBLE_CLICK_MS) {
+        folderOpenedAt = Date.now();
+        onRowActivate(row);
+    }
 }
 
 function selectOnly(row) {
@@ -841,13 +1164,14 @@ function selectOnly(row) {
     syncSelectionClasses();
 }
 
-async function onRowActivate(row) {
+async function onRowActivate(row, { keyboard = false } = {}) {
     if (row.type === "folder") {
         // A level-walking view navigates into it; list view expands it where it is.
         if (walksLevels(state.view[state.tab])) {
             state.crumb[state.tab] = row.path;
             state.cursor = -1;
             render();
+            if (keyboard) moveTo(0);
         } else {
             toggleFolder(row.path);
         }
@@ -1036,8 +1360,9 @@ function markDropFolder(el, path, { moves = true } = {}) {
     el.dataset.ereSidebarDrop = "1";
     el.dataset.erePath = path;
     el._ereSidebarDrop = onSidebarDrop;
-    el._ereSidebarAccepts = (origin) =>
-        origin?.kind !== "sidebar" || (moves && canMoveInto(origin.rows, path, origin.tab));
+    // A booru post dropped back on its own grid means nothing; saving its tags is the row menu's job.
+    el._ereSidebarAccepts = (origin) => origin?.kind !== "booru"
+        && (origin?.kind !== "sidebar" || (moves && canMoveInto(origin.rows, path, origin.tab)));
 }
 
 /** Folder an entry currently lives in. */
@@ -1372,7 +1697,15 @@ function render() {
     state.flows = [];
     body.textContent = "";
     state.rows = [];
+    state.sections = [];
 
+
+    if (state.tab === "booru") {
+        renderBooru(body);
+        state.cursor = state.anchor ? state.rows.findIndex(r => rowKey(r) === state.anchor) : -1;
+        syncSelectionClasses();
+        return;
+    }
 
     const tree = state.trees[state.tab];
     if (state.loading || !tree) {
@@ -1440,6 +1773,7 @@ function render() {
         if (folderRows.length || showBookmarkTile) {
             const folders = gridBox(body, TILE_SIZE, TILE_SIZE);
             const items = [];
+            const start = state.rows.length;
             if (showBookmarkTile) addRow(items, bookmarkRow(), r => makeTile(r));
             for (const folder of folderRows) {
                 addRow(items, {
@@ -1448,6 +1782,7 @@ function render() {
                 }, r => makeTile(r));
             }
             tiles += items.length;
+            state.sections.push({ start, count: items.length, cols: () => gridColumns(folders, TILE_SIZE, TILE_GAP) });
             mountFlow(body, folders, items, {
                 lineHeight: TILE_SIZE + TILE_GAP,
                 perLine: () => gridColumns(folders, TILE_SIZE, TILE_GAP),
@@ -1464,8 +1799,10 @@ function render() {
         if (marked.length) {
             const grid = gridBox(body, width, height);
             const items = [];
+            const start = state.rows.length;
             for (const file of marked) addRow(items, tileRowFor(file), r => makeTile(r));
             tiles += items.length;
+            state.sections.push({ start, count: items.length, cols: () => gridColumns(grid, width, TILE_GAP) });
             mountFlow(body, grid, items, {
                 lineHeight: height + TILE_GAP,
                 perLine: () => gridColumns(grid, width, TILE_GAP),
@@ -1477,8 +1814,10 @@ function render() {
         if (remaining.length) {
             const files = gridBox(body, width, height);
             const items = [];
+            const start = state.rows.length;
             for (const file of remaining) addRow(items, tileRowFor(file), r => makeTile(r));
             tiles += items.length;
+            state.sections.push({ start, count: items.length, cols: () => gridColumns(files, width, TILE_GAP) });
             mountFlow(body, files, items, {
                 lineHeight: height + TILE_GAP,
                 perLine: () => gridColumns(files, width, TILE_GAP),
@@ -2079,10 +2418,12 @@ function buildSearchRow(header) {
     const search = el("input", "ere-sb-search size-full border-none bg-transparent outline-none pl-8 pr-6 text-xs", searchBox);
     search.type = "text";
     // The placeholder is a free mode indicator: tag mode takes comma-separated tags.
-    search.placeholder = deepSearchActive() ? "Search tags (comma separated)..." : "Search...";
-    search.value = state.query;
+    const booru = state.tab === "booru";
+    search.placeholder = booru ? `Search ${booruSource().label} (comma separated)...`
+        : deepSearchActive() ? "Search tags (comma separated)..." : "Search...";
+    search.value = booru ? state.booru.query : state.query;
     searchBox.addEventListener("click", () => search.focus());
-    if (deepSearchActive()) attachSearchAutocomplete(search);
+    if (deepSearchActive() || booru) attachSearchAutocomplete(search);
 
     // Inline display rather than [hidden], which a display utility would win against.
     const clear = el("button",
@@ -2096,6 +2437,11 @@ function buildSearchRow(header) {
     showClear();
 
     const applyQuery = () => {
+        // Enter always searches, so it also re-rolls a Random sort.
+        if (booru) {
+            searchBooru(search.value);
+            return;
+        }
         state.query = search.value;
         // Tag mode renders twice: once pending, once with the answer.
         if (deepSearchActive()) runTagSearch();
@@ -2106,11 +2452,24 @@ function buildSearchRow(header) {
     };
 
     let debounce = 0;
-    search.addEventListener("input", () => {
+    search.addEventListener("input", (e) => {
         showClear();
         clearTimeout(debounce);
-        debounce = setTimeout(applyQuery, SEARCH_DEBOUNCE_MS);
+        if (!booru) {
+            debounce = setTimeout(applyQuery, SEARCH_DEBOUNCE_MS);
+            return;
+        }
+        // A booru search is a request to someone else's server, so a half-typed word never sends one. A picked suggestion does: the autocomplete announces its insert with a plain Event, typing arrives as an InputEvent.
+        if (!(e instanceof InputEvent)) applyQuery();
     });
+    if (booru) {
+        // Capture, and bound before the autocomplete attaches on focus, so it sees whether a suggestion menu was open: then Enter picks from it, and the insert searches (above).
+        search.addEventListener("keydown", (e) => {
+            if (e.key !== "Enter" || searchAutocomplete?.menu?.root) return;
+            clearTimeout(debounce);
+            applyQuery();
+        }, true);
+    }
     clear.addEventListener("click", () => {
         clearTimeout(debounce);
         search.value = "";
@@ -2138,6 +2497,16 @@ function buildSearchRow(header) {
         tagBtn.addEventListener("click", () => setTagSearch(!on));
     }
 
+    if (state.tab === "booru") {
+        const sortBtn = el("button", BUTTON_SECONDARY, actions);
+        sortBtn.type = "button";
+        sortBtn.title = "Sort and page";
+        sortBtn.setAttribute("aria-label", "Sort and page");
+        sortBtn.setAttribute("aria-haspopup", "menu");
+        el("i", "pi pi-sort-alt", sortBtn);
+        sortBtn.addEventListener("click", () => openBooruSortMenu(sortBtn));
+    }
+
     // View and tile options, in the Assets tab's settings popover rather than one cycling button per option.
     const viewBtn = el("button", BUTTON_SECONDARY, actions);
     viewBtn.type = "button";
@@ -2150,7 +2519,90 @@ function buildSearchRow(header) {
 
 /** The Assets tab's view-settings popover: picking an option leaves it open, so the grid options can be reached without two round trips. */
 function openViewMenu(anchor) {
-    if (state.viewMenu) { closeViewMenu(); return; }
+    openPopover(anchor, (menu, fill, place) => {
+        if (state.tab === "booru") {
+            for (const source of BOORUS) {
+                addMenuItem(menu, source, state.booru.site === source.id, () => {
+                    if (state.booru.site === source.id) return;
+                    state.booru.site = source.id;
+                    saveJSON(LS_BOORU, source.id);
+                    const search = state.host?.querySelector(".ere-sb-search");
+                    if (search) search.placeholder = `Search ${source.label} (comma separated)...`;
+                    searchBooru(state.booru.query);
+                    fill();
+                });
+            }
+        } else {
+            for (const option of VIEW_OPTIONS) {
+                addMenuItem(menu, option, state.view[state.tab] === option.id, () => { setView(option.id); fill(); place(); });
+            }
+        }
+        if (state.view[state.tab] !== "grid") return;
+        el("div", MENU_SEPARATOR, menu);
+        for (const option of TILE_SIZES) {
+            addMenuItem(menu, option, state.tileSize[state.tab] === option.id, () => {
+                state.tileSize[state.tab] = option.id;
+                saveJSON(LS_TILE, Object.fromEntries(TABS.map(t => [t.id, state.tileSize[t.id]])));
+                render();
+                fill();
+            });
+        }
+        // Masonry tiles take each post's own proportions.
+        if (state.tab === "booru") return;
+        el("div", MENU_SEPARATOR, menu);
+        for (const option of TILE_RATIOS) {
+            addMenuItem(menu, option, state.tileRatio[state.tab] === option.id, () => {
+                state.tileRatio[state.tab] = option.id;
+                saveJSON(LS_RATIO, Object.fromEntries(TABS.map(t => [t.id, state.tileRatio[t.id]])));
+                render();
+                fill();
+            });
+        }
+    });
+}
+
+/** The booru tab's browsing popover: the order of results, and the page a search starts on. */
+function openBooruSortMenu(anchor) {
+    openPopover(anchor, (menu, fill) => {
+        for (const option of BOORU_SORTS) {
+            addMenuItem(menu, option, booruSort() === option.id, () => {
+                if (booruSort() === option.id) return;
+                state.booru.sort[state.booru.site] = option.id;
+                searchBooru(state.booru.query);
+                fill();
+            });
+        }
+        el("div", MENU_SEPARATOR, menu);
+        const row = el("label", "ere-sb-page-row flex h-8 items-center gap-2 rounded-lg p-2 text-xs text-base-foreground", menu);
+        el("i", "pi pi-book size-4", row);
+        el("span", "mr-4 flex-1", row).textContent = "Page";
+        const input = el("input", "ere-sb-page", row);
+        input.type = "number";
+        input.min = "1";
+        input.value = String(booruStartPage());
+        const apply = () => {
+            const page = Math.max(1, Math.floor(Number(input.value)) || 1);
+            input.value = String(page);
+            if (page === booruStartPage()) return;
+            state.booru.startPage[state.booru.site] = page;
+            searchBooru(state.booru.query);
+        };
+        input.addEventListener("change", apply);
+        input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); apply(); } });
+    });
+}
+
+/**
+ * The Assets tab's settings popover, under `anchor`. Picking an option leaves it open, so several can be set in one visit.
+ * @param {Function} build  (menu, fill, place) — adds the rows; `fill` rebuilds them, `place` re-anchors after a size change
+ */
+function openPopover(anchor, build) {
+    // A second click on the same button closes it; a click on the other button swaps to that popover.
+    if (state.viewMenu) {
+        const same = state.viewMenuAnchor === anchor;
+        closeViewMenu();
+        if (same) return;
+    }
 
     const menu = el("div", MENU_CLASS, document.body);
     menu.setAttribute("role", "menu");
@@ -2168,28 +2620,7 @@ function openViewMenu(anchor) {
 
     const fill = () => {
         for (const child of [...menu.children]) if (child !== arrow) child.remove();
-        for (const option of VIEW_OPTIONS) {
-            addMenuItem(menu, option, state.view[state.tab] === option.id, () => { setView(option.id); fill(); place(); });
-        }
-        if (state.view[state.tab] !== "grid") return;
-        el("div", MENU_SEPARATOR, menu);
-        for (const option of TILE_SIZES) {
-            addMenuItem(menu, option, state.tileSize[state.tab] === option.id, () => {
-                state.tileSize[state.tab] = option.id;
-                saveJSON(LS_TILE, Object.fromEntries(TABS.map(t => [t.id, state.tileSize[t.id]])));
-                render();
-                fill();
-            });
-        }
-        el("div", MENU_SEPARATOR, menu);
-        for (const option of TILE_RATIOS) {
-            addMenuItem(menu, option, state.tileRatio[state.tab] === option.id, () => {
-                state.tileRatio[state.tab] = option.id;
-                saveJSON(LS_RATIO, Object.fromEntries(TABS.map(t => [t.id, state.tileRatio[t.id]])));
-                render();
-                fill();
-            });
-        }
+        build(menu, fill, place);
     };
 
     const onPointerDown = (e) => { if (!menu.contains(e.target) && !anchor.contains(e.target)) closeViewMenu(); };
@@ -2200,7 +2631,9 @@ function openViewMenu(anchor) {
         document.removeEventListener("keydown", onKeyDown, true);
         window.removeEventListener("resize", place);
         state.viewMenu = null;
+        state.viewMenuAnchor = null;
     };
+    state.viewMenuAnchor = anchor;
     fill();
     place();
     document.addEventListener("pointerdown", onPointerDown, true);
@@ -2235,6 +2668,22 @@ function buildTreeBody(host) {
     // Focusable so the keys below reach it, but not in the tab order.
     content.tabIndex = -1;
     content.addEventListener("keydown", onBodyKeyDown);
+    // Keyboard and pointer are one cursor: the first real move of the pointer ends keyboard navigation. Compared by position, since scrolling the list under a still pointer fires moves too.
+    let pointerAt = "";
+    content.addEventListener("pointermove", (e) => {
+        const at = `${e.clientX},${e.clientY}`;
+        if (at === pointerAt) return;
+        pointerAt = at;
+        if (state.kbd && !isDragActive()) endKeyboardNav(e.target?.closest?.("[data-ere-key]"));
+    });
+    content.addEventListener("scroll", () => {
+        if (state.tab === "booru" && content.scrollHeight - content.scrollTop - content.clientHeight < content.clientHeight) loadBooruPage();
+    }, { passive: true });
+    content.addEventListener("focusout", (e) => {
+        if (!state.kbd || content.contains(e.relatedTarget)) return;
+        state.kbd = false;
+        hidePreviewPanel();
+    });
 
     // Tags dragged out of a node land in the root folder when dropped on empty space.
     // Entries dragged within the sidebar do not: the background is everywhere, and would catch a drag released over the row it started on and move it to the root.
@@ -2313,10 +2762,13 @@ async function selectTab(id) {
     closeEditor({ rebuild: false });
     state.tab = id;
     state.query = "";
+    // A booru search is kept across tab switches: it is a list fetched from elsewhere, not a filter on something already here.
     state.tagResults = null;
     clearSelection();
     saveJSON(LS_TAB, id);
     buildChrome(state.host);
+    // The tab button that had focus was rebuilt, so focus goes where a fresh open puts it.
+    state.host?.querySelector(".ere-sb-search")?.focus({ preventScroll: true });
     await ensureTree();
 }
 
@@ -2330,6 +2782,10 @@ function setView(view) {
 
 async function ensureTree({ force = false } = {}) {
     const tab = state.tab;
+    if (tab === "booru") {
+        render();
+        return;
+    }
     // Anything that arrives after the user has moved on belongs to a list nobody is looking at.
     const current = () => state.host && state.tab === tab;
     const held = state.trees[tab];
@@ -2375,6 +2831,28 @@ export async function refresh() {
     }
 }
 
+/** Ctrl+F anywhere in the sidebar goes to the search; Down from the search or a tab goes to the first entry. */
+function onSidebarKeyDown(e) {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "f") {
+        const search = state.host?.querySelector(".ere-sb-search");
+        if (!search) return;
+        e.preventDefault();
+        e.stopPropagation();
+        search.focus();
+        search.select();
+        return;
+    }
+    if (e.key !== "ArrowDown" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    if (!e.target?.classList?.contains("ere-sb-search") && e.target?.getAttribute?.("role") !== "tab") return;
+    // The search's own suggestions take the arrows while they are open.
+    if (searchAutocomplete?.menu?.root) return;
+    if (!state.rows.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    focusBody();
+    moveTo(0);
+}
+
 // Mount
 
 export function mountSidebar(hostEl) {
@@ -2388,11 +2866,15 @@ export function mountSidebar(hostEl) {
     setPreviewHandlers({ startExternalDrag, onCanvasDrop });
 
     state.host = hostEl;
-    buildChrome(hostEl);
-    // Typing is the first thing most opens are for, as in the core sidebars — but only when a person just opened it, since a restored tab would otherwise take the keyboard from the canvas.
-    if (navigator.userActivation?.isActive !== false) {
-        hostEl.querySelector(".ere-sb-search")?.focus({ preventScroll: true });
+    if (!hostEl._ereKeys) {
+        hostEl._ereKeys = true;
+        hostEl.addEventListener("keydown", onSidebarKeyDown);
     }
+    buildChrome(hostEl);
+    // Typing is the first thing an open is for, as the core sidebars do on mount. Again after a frame, for a host not yet in the document when it is handed over.
+    const focusSearch = () => hostEl.querySelector(".ere-sb-search")?.focus({ preventScroll: true });
+    focusSearch();
+    requestAnimationFrame(() => { if (state.host === hostEl && !hostEl.contains(document.activeElement)) focusSearch(); });
     // Not a forced refetch: state.trees survives unmount and the server compares signatures, so an unchanged answer costs a directory stat per folder and no transfer.
     ensureTree();
     loadBookmarks().then(() => { if (state.host) render(); });

@@ -74,6 +74,7 @@ ComfyUI-EreNodes provides an intuitive and feature-rich solution for handling pr
 - **Group or Contents, Your Choice**: A dragged tag group lands as one pill by default; hold **Alt** to drop its tags instead. The ghost tells you which
 - **Drop an Image to Build a Group**: Drop a generated image anywhere on the tree to create a group from its prompt, with the image kept as the cover
 - **Pick Tags Out of a Preview**: Hover a tag group, move into the preview, select tags you want and drag just those into a prompt node
+- **Booru Tab**: search Safebooru, Gelbooru (with your API key) or e621 from the sidebar, with autocomplete. Hover a post for its tags, drag it onto a node to add them, or save them as a tag group
 
 ### Advanced Tag Editing
 - **Missing File Warnings**: LoRA, embedding and tag group pills turn red-bordered when the file they name isn't on disk
@@ -94,8 +95,12 @@ ComfyUI-EreNodes provides an intuitive and feature-rich solution for handling pr
 
 ### Smart Autocomplete
 - **Comprehensive Dictionaries**: Built-in tag lists from Danbooru and e621, plus support for custom CSV files in `ComfyUI/user/__erenodes/autocomplete`
-- **Intelligent Aliases**: Automatic tag alias detection and replacement with canonical terms
+- **Intelligent Aliases**: Automatic tag alias detection and replacement with canonical terms. Show aliases under their tag, in a submenu, or as suggestions of their own (Settings → EreNodes)
 - **Flexible Search**: Partial matching support, including multi-word tag recognition
+- **Category Filters**: Danbooru's prefixes narrow a search: `artist:` / `art:`, `character:` / `char:`, `copyright:` / `copy:`, `general:` / `gen:`, `meta:` (and e621's `species:`, `lore:`). `@` searches artists and keeps the `@` on the inserted name, for Anima
+- **Category Colours**: the post count takes Danbooru's colour for artist, character, copyright and meta tags
+- **LoRAs, Embeddings and Groups Inline**: type `<lora:` / `lora:`, `embedding:` or `group:` to switch to the file browser, with previews; the pick is written back as `<lora:name:1.0>` or `embedding:name`. A tag group becomes a pill in tag nodes and is unpacked into its tags in a textarea
+- **No Duplicates**: tags already in the prompt are left out, in every textarea as well as in tag nodes; by default their other spellings stay available
 - **Visual Highlighting**: Clear highlighting of filtered terms for enhanced clarity
 
 ![Image](https://github.com/user-attachments/assets/42deb9e3-73fa-4891-9ec5-cfbd497f9d9e)
@@ -162,9 +167,9 @@ The Prompt Lora Loader uses the same pills, drag and drop and right-click menus 
 ## Changelog
 
 <details>
-<summary><b>Version 3.7</b> — Prompt Lora Loader, update-safe storage, custom autocomplete CSVs</summary>
+<summary><b>Version 3.8</b> — Booru browser in sidebar tab</summary>
 
-### Version 3.7 - Latest
+### Version 3.7
 - **New Node: Prompt Lora Loader**: applies LoRAs to MODEL/CLIP with the familiar pill interface, from its own list and from the incoming prompt — no other pack needed
 
 ### Version 3.6

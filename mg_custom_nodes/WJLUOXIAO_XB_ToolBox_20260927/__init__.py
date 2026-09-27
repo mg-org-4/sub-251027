@@ -70,7 +70,7 @@ WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "js")
 try:
     from .nodes_vis import XB_VRAM_Calculator, XB_ChunkVisualization
     from .nodes_vram import XTX_Data_Radar
-    from .nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster, XB_MasterParameter, XB_VideoLoader, XB_VideoCombine
+    from .nodes_video import XB_VideoParamsMaster, XB_ImageParamsMaster, XB_ImageParamsMasterMini, XB_MasterParameter, XB_VideoLoader, XB_VideoCombine
     from .nodes_blockswap import XB_UNetBlockSwap, XB_CheckpointBlockSwap 
     from .nodes_blockswap_sage import XB_Sage_BlockSwap
     from .nodes_wiring import XB_UNetNameBroadcaster, XB_CLIPNameBroadcaster
@@ -137,10 +137,20 @@ try:
             XB_llamaStoryboardProcessor, XB_llamaStoryboardProcessorPro,
             XB_RoleSceneDispatcher,
         )
+        # ── 提示词增强反推（模型加载器 + 指令推理 + 提示词增强预设 + 推理参数 + LLM-API 设置 五合一）──
+        from .nodes_llama_prompt_reverse import XB_llamaPromptReverse
         _LLAMA_AVAILABLE = True
     except ImportError as e:
         print_warning(f"[XB-llama] llama-cpp-python 未安装, Llama/MiniMax 节点不可用: {e}")
         _LLAMA_AVAILABLE = False
+
+    # ── 🖼️ 生图提示词预设Pro（生图提示词预设 + 提示词增强反推 融合）──
+    try:
+        from .nodes_image_prompt_preset_pro import XB_ImagePromptPresetPro
+        _PRO_AVAILABLE = True
+    except Exception as e:
+        print_warning(f"[XB-BOX] 生图提示词预设Pro 未加载：{e}")
+        _PRO_AVAILABLE = False
 
     # ── CosyVoice3 音频节点 ──
     from .cosyvoice3.nodes.model_loader import XB_CosyVoice3_ModelLoader
@@ -165,7 +175,8 @@ try:
         "XB_ChunkVisualization": XB_ChunkVisualization,
         "XTX_Data_Radar": XTX_Data_Radar,
         "XB_VideoParamsMaster": XB_VideoParamsMaster,
-        "XB_ImageParamsMaster": XB_ImageParamsMaster, 
+        "XB_ImageParamsMaster": XB_ImageParamsMaster,
+        "XB_ImageParamsMasterMini": XB_ImageParamsMasterMini, 
         "XB_ImagePromptPreset": XB_ImagePromptPreset,
         "XB_PlaySound": XB_PlaySound,
         "XB_MasterParameter": XB_MasterParameter,
@@ -324,6 +335,13 @@ try:
             "XB_llamaStoryboardProcessor": XB_llamaStoryboardProcessor,
             "XB_llamaStoryboardProcessorPro": XB_llamaStoryboardProcessorPro,
             "XB_RoleSceneDispatcher": XB_RoleSceneDispatcher,
+            "XB_llamaPromptReverse": XB_llamaPromptReverse,
+        })
+
+    # ── 生图提示词预设Pro ──
+    if _PRO_AVAILABLE:
+        NODE_CLASS_MAPPINGS.update({
+            "XB_ImagePromptPresetPro": XB_ImagePromptPresetPro,
         })
 
     NODE_DISPLAY_NAME_MAPPINGS = { 
@@ -332,6 +350,7 @@ try:
         "XTX_Data_Radar": "XB-BOX - Data Radar",
         "XB_VideoParamsMaster": "XB-BOX - Video Params Master", 
         "XB_ImageParamsMaster": "XB-BOX - Image Params Master",
+        "XB_ImageParamsMasterMini": "XB-BOX - Image Params Master Mini",
         "XB_ImagePromptPreset": "XB-BOX - Image Prompt Preset",
         "XB_PlaySound": "XB-BOX - 🔊 播放声音",
         "XB_MasterParameter": "XB-BOX - Master Parameter",
@@ -339,7 +358,7 @@ try:
         "XB_VideoCombine": "XB-BOX - 🎬 视频拼接输出",
         "XB_UNetBlockSwap": "XB-BOX - UNet Block Swap",
         "XB_CheckpointBlockSwap": "XB-BOX - Checkpoint Block Swap",
-        "XB_Sage_BlockSwap": "XB-BOX - Sage + BlockSwap (Golden Duo)",
+        "XB_Sage_BlockSwap": "XB-BOX - Acceleration + BlockSwap Duo",
         "XB_UNetNameBroadcaster": "XB-BOX - UNet Name Broadcaster",
         "XB_CLIPNameBroadcaster": "XB-BOX - CLIP Name Broadcaster",
         "XB_MemoryVisualization": "XB 📊 硬件监控面板 (Memory Visualization)",
@@ -352,7 +371,7 @@ try:
         "XB_Wan_InfiniteRelayNode": "XB-BOX - Wan Infinite Relay Node",
         "XB_Video_Merger": "XB-BOX - Video Merger",
         "XB_StoryboardSlicer": "XB-BOX - Storyboard Slicer",
-        "XB_SageAttentionAccelerator": "XB-BOX - SageAttention Accelerator",
+        "XB_SageAttentionAccelerator": "XB-BOX - Acceleration Mode Selector",
         "XB_ROCmMemCleaner": "XB-BOX - 🧹 显存清理",
         # ── 借尸还魂：旧节点名 + 新的优化版显示名 ──
         "XB_ROCmKSampler": "XB-BOX - 采样器（原版优化）",
@@ -475,6 +494,13 @@ try:
             "XB_llamaStoryboardProcessor": "XB-llama - 🎞️ 分镜词处理器",
             "XB_llamaStoryboardProcessorPro": "XB-llama - 🎞️ 分镜词处理器Pro",
             "XB_RoleSceneDispatcher": "XB-llama - 🎬 角色场景调度器",
+            "XB_llamaPromptReverse": "XB-llama - ✨ 提示词增强反推",
+        })
+
+    # ── 生图提示词预设Pro 显示名 ──
+    if _PRO_AVAILABLE:
+        NODE_DISPLAY_NAME_MAPPINGS.update({
+            "XB_ImagePromptPresetPro": "XB-BOX - 🖼️ 生图提示词预设Pro",
         })
 
     print_success("\n" + "="*50)

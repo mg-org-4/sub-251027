@@ -107,7 +107,12 @@ app.registerExtension({
                 }
             }
 
-            this.rs_data = { save_path: "", file_prefix: "img", format: "png" };
+            this.rs_data = {
+                save_path: "",
+                file_prefix: "img",
+                format: "png",
+                user_confirmed_paths: [],
+            };
             if (!this.rs_data.uuid) {
                 this.rs_data.uuid = this.generateUUID();
             }
@@ -336,12 +341,15 @@ app.registerExtension({
             this._hasNewImages = false;
 
             this.setSize([MIN_WIDTH, MIN_HEIGHT]);
-            this.min_size = [MIN_WIDTH, MIN_HEIGHT];
+            // min_size НЕ устанавливаем — иначе нода не сможет свернуться
 
+            // Минимальный размер применяем только к развёрнутой ноде
             this.onResize = function() {
-                if (this.size[0] < MIN_WIDTH) this.size[0] = MIN_WIDTH;
-                if (this.size[1] < MIN_HEIGHT) this.size[1] = MIN_HEIGHT;
-                this.setDirtyCanvas(true, true);
+                if (this.flags?.collapsed) return;
+                let changed = false;
+                if (this.size[0] < MIN_WIDTH)  { this.size[0] = MIN_WIDTH;  changed = true; }
+                if (this.size[1] < MIN_HEIGHT) { this.size[1] = MIN_HEIGHT; changed = true; }
+                if (changed) this.setDirtyCanvas(true, true);
             };
 
             this.loadOutputFolders = async function () {
@@ -485,6 +493,9 @@ app.registerExtension({
             }
 
             this.onDrawBackground = function(ctx) {
+                // Свёрнутая нода — ничего не рисуем
+                if (this.flags?.collapsed) return;
+
                 ctx.save();
                 try {
                     if (this.imgs.length === 0) return;
@@ -580,6 +591,13 @@ app.registerExtension({
 
             const origODF = this.onDrawForeground;
             this.onDrawForeground = function (ctx, vr) {
+                // При сворачивании: чистим зоны кликов, но всё равно даём ComfyUI нарисовать заголовок/порты
+                if (this.flags?.collapsed) {
+                    this.clickZones = [];
+                    if (origODF) origODF.apply(this, arguments);
+                    return;
+                }
+
                 ctx.save();
                 try {
                     if (origODF) origODF.apply(this, arguments);
@@ -663,6 +681,9 @@ app.registerExtension({
             };
 
             this.onMouseDown = function (e, pos, canvas) {
+                // Свёрнутая нода — клики по превью не обрабатываем
+                if (this.flags?.collapsed) return false;
+
                 const availableW = this.size[0] - this.padding * 2;
                 const availableH = this.size[1] - this.widgetsHeight - this.padding * 2;
                 const startY = this.widgetsHeight + this.padding;
@@ -761,7 +782,7 @@ app.registerExtension({
                 menu.appendChild(rootItem);
 
                 const customItem = document.createElement("div");
-                customItem.textContent = "️ Custom path...";
+                customItem.textContent = "✏️ Custom path...";
                 customItem.style.cssText = 'padding:8px 15px;cursor:pointer;color:#aaa;font-size:12px;border-bottom:1px solid #333;';
                 customItem.onmouseover = () => customItem.style.background = "#333";
                 customItem.onmouseout = () => customItem.style.background = "#1a1a1a";
@@ -840,7 +861,23 @@ app.registerExtension({
                 document.body.appendChild(pop);
                 setTimeout(() => { inp.focus(); if (cv.length) inp.select(); }, 50);
 
-                const save = () => { self.rs_data.save_path = inp.value; self.persistState(); self.updateUI(); self.closeActivePopup(); };
+                const save = () => {
+                    const newPath = inp.value.trim();
+                    self.rs_data.save_path = newPath;
+
+                    // A path typed by the user in the UI is trusted by definition.
+                    // Paths that arrive via a workflow file are NOT added here.
+                    if (!self.rs_data.user_confirmed_paths) {
+                        self.rs_data.user_confirmed_paths = [];
+                    }
+                    if (newPath && !self.rs_data.user_confirmed_paths.includes(newPath)) {
+                        self.rs_data.user_confirmed_paths.push(newPath);
+                    }
+
+                    self.persistState();
+                    self.updateUI();
+                    self.closeActivePopup();
+                };
                 btn.onclick = (e) => { e.stopPropagation(); e.preventDefault(); save(); };
                 inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } };
 

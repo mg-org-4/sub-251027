@@ -2,7 +2,7 @@ import logging
 import os
 
 # Version information - must be at module level for ComfyUI Manager
-__version__ = "2.6.4"
+__version__ = "2.6.6"
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -65,19 +65,6 @@ try:
         )
 except Exception as e:
     logger.error(f"Error importing/applying Nunchaku monkey patch: {e}")
-# -----------------------------------------
-
-# --- rgthree logo route guard (self-defense until rgthree-comfy#763 lands) ---
-try:
-    from .patches.rgthree_logo_route_guard import apply_rgthree_logo_guard
-    if apply_rgthree_logo_guard():
-        logger.info("Applied rgthree logo route guard (non-SVG payloads use the bundled logo).")
-    else:
-        logger.debug(
-            "rgthree logo route guard: rgthree-comfy not loaded yet; retrying at every prompt."
-        )
-except Exception as e:
-    logger.debug(f"Error importing/applying rgthree logo route guard: {e}")
 # -----------------------------------------
 
 # -----------------------------------------

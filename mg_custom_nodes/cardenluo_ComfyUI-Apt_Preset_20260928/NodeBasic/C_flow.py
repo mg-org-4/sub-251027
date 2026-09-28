@@ -519,28 +519,6 @@ async def apt_preset_flow_bridge_image_save_edit(request):
         except Exception as e:
             return web.json_response({"ok": False, "error": f"读取 image_ref 失败: {e}"}, status=400)
 
-    # #region debug-point D:save-edit-received
-    import urllib.request
-    try:
-        urllib.request.urlopen(urllib.request.Request(
-            "http://127.0.0.1:7777/event",
-            data=json.dumps({
-                "sessionId": "mask-save-lag",
-                "runId": "post-fix",
-                "hypothesisId": "D",
-                "location": "C_flow.py:apt_preset_flow_bridge_image_save_edit:received",
-                "msg": "[DEBUG] 后端收到编辑后的图片上传",
-                "data": {
-                    "node_id": node_id,
-                    "image_bytes": len(image_bytes),
-                }
-            }).encode(),
-            headers={"Content-Type": "application/json"}
-        )).read()
-    except Exception:
-        pass
-    # #endregion
-
     cache_dir = flow_bridge_image._get_node_cache_dir(node_id)
     os.makedirs(cache_dir, exist_ok=True)
 
@@ -554,31 +532,6 @@ async def apt_preset_flow_bridge_image_save_edit(request):
             else:
                 mask_array = rgba_np[:, :, :3].max(axis=2).astype(np.uint8)
             mask_array = (255 - mask_array).astype(np.uint8)
-            # #region debug-point D:save-edit-parsed
-            try:
-                urllib.request.urlopen(urllib.request.Request(
-                    "http://127.0.0.1:7777/event",
-                    data=json.dumps({
-                        "sessionId": "mask-save-lag",
-                        "runId": "post-fix",
-                        "hypothesisId": "D",
-                        "location": "C_flow.py:apt_preset_flow_bridge_image_save_edit:parsed",
-                        "msg": "[DEBUG] 后端解析上传图片完成",
-                        "data": {
-                            "node_id": node_id,
-                            "mode": pil_image.mode,
-                            "size": list(pil_image.size),
-                            "alpha_min": int(alpha.min()),
-                            "alpha_max": int(alpha.max()),
-                            "mask_min": int(mask_array.min()),
-                            "mask_max": int(mask_array.max()),
-                        }
-                    }).encode(),
-                    headers={"Content-Type": "application/json"}
-                )).read()
-            except Exception:
-                pass
-            # #endregion
             gray_image = Image.fromarray(mask_array, mode="L")
             for filename in os.listdir(cache_dir):
                 if filename.startswith("bridge_mask_edit_") and filename.endswith(".png"):

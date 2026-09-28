@@ -3863,7 +3863,7 @@ class _AD_MinMaxRef2GuideBase(AD_MiniMax_Ref2V):
                 _allow_empty_references=False, _allow_context_latent=False, **kwargs):
         if isinstance(kwargs.get("media"), str):
             prompt = kwargs["media"]
-        if clip is None or vae is None or audio_vae is None:
+        if clip is None or vae is None:
             blocker = ExecutionBlocker(None)
             return blocker, blocker, _ad_preview_prompt(prompt, kwargs)
         if _h3_empty_av_latent is None or _h3_resize is None or _node_helpers is None:
@@ -3932,6 +3932,8 @@ class _AD_MinMaxRef2GuideBase(AD_MiniMax_Ref2V):
             video_latent = vae.encode(frames)
             audio_latent, audio_t = None, 0
             if soundtrack is not None:
+                if audio_vae is None:
+                    raise ValueError("AD_MiniMax_guide needs audio_vae for a reference video with audio")
                 audio_latent, audio_t = self._encode_ref_audio(audio_vae, soundtrack)
                 audio_ordinal += 1
                 ref_items.append({"type": "audio"})
@@ -3947,6 +3949,8 @@ class _AD_MinMaxRef2GuideBase(AD_MiniMax_Ref2V):
         for input_index, _kind, audio in audios:
             if not isinstance(audio, collections.abc.Mapping) or "waveform" not in audio:
                 raise ValueError("Audio references must be AUDIO payloads")
+            if audio_vae is None:
+                raise ValueError("AD_MiniMax_guide needs audio_vae for an audio reference")
             audio_latent, audio_t = self._encode_ref_audio(audio_vae, audio)
             audio_ordinal += 1
             ref_items.append({"type": "audio"})
@@ -4058,6 +4062,22 @@ class AD_Media_editor:
             values.append(media)
         values.extend([None] * (_AD_MEDIA_EDITOR_CACHE_SLOTS - len(values)))
         return tuple(values[:_AD_MEDIA_EDITOR_CACHE_SLOTS])
+
+
+class basicIn_media(AD_Media_editor):
+    CATEGORY = "Apt_Preset/IO_Port"
+    DESCRIPTION = "Simple cached media library."
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "cached_media": ("STRING", {"default": "[]", "multiline": True, "dynamicPrompts": False}),
+            },
+        }
+
+    def pass_through(self, cached_media="[]"):
+        return super().pass_through(cached_media=cached_media)
 
 
 def _ad_limit_video_frames(video, frame_count):
@@ -5998,7 +6018,7 @@ class AD_MinMax_Ref2_generate(_AD_MinMaxBase, _AD_MinMaxRef2GuideBase):
         clip = context.get("clip")
         vae = context.get("vae")
         audio_vae = context.get("audio_vae")
-        missing = [name for name, value in (("clip", clip), ("vae", vae), ("audio_vae", audio_vae)) if value is None]
+        missing = [name for name, value in (("clip", clip), ("vae", vae)) if value is None]
         if missing:
             raise ValueError(f"AD_MinMax_Ref2_generate context is missing: {', '.join(missing)}")
         negative = _apt_default_negative(context.get("negative"), clip)
@@ -6918,6 +6938,22 @@ class AD_MinMax_Ref2_sample(AD_MinMax_Ref2_generate_refine, AD_MinMax_Ref2_gener
     RETURN_NAMES = ("context", "refined_latent", "segment_video", "merged_video", "segment_image")
     FUNCTION = "execute"
     CATEGORY = "Apt_Preset/AD"
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, sample_mode="base", refine_model="None", latent_model="", sampling_profile="None"):
+        profile_result = super().VALIDATE_INPUTS(sampling_profile=sampling_profile)
+        if profile_result is not True:
+            return profile_result
+        if sample_mode not in ("base", "pixel_refine", "latent_refine"):
+            return f"Unknown Ref2 sample mode: {sample_mode}"
+        if sample_mode == "pixel_refine" and refine_model != "None":
+            if refine_model not in folder_paths.get_filename_list("upscale_models"):
+                return f"Image upscale model not found: {refine_model}"
+        if sample_mode == "latent_refine":
+            choices = latent_minimaxH3_scale.INPUT_TYPES()["required"]["model"][0]
+            if latent_model not in choices:
+                return f"Latent upscale model not found: {latent_model}"
+        return True
 
 
     def check_lazy_status(self, **kwargs):

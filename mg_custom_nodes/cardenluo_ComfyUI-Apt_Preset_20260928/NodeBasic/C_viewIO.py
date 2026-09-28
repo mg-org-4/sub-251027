@@ -3094,7 +3094,33 @@ import folder_paths
 import node_helpers
 
 def tensor_to_hash(tensor):
-    return hash(tuple(tensor.cpu().numpy().ravel()[:1000]))
+    tensor = tensor.detach().cpu().contiguous()
+    digest = hashlib.sha256()
+    digest.update(str(tuple(tensor.shape)).encode("utf-8"))
+    digest.update(str(tensor.dtype).encode("utf-8"))
+    digest.update(tensor.numpy().tobytes())
+    return digest.hexdigest()
+
+def normalize_view_bridge_mask(mask, batch_size, height, width):
+    if mask is None:
+        return None
+    if mask.dim() == 2:
+        mask = mask.unsqueeze(0)
+    elif mask.dim() == 4 and mask.shape[1] == 1:
+        mask = mask.squeeze(1)
+
+    if mask.shape[-2:] != (height, width):
+        mask = torch.nn.functional.interpolate(mask.unsqueeze(1), size=(height, width), mode="bilinear", align_corners=False).squeeze(1)
+
+    if mask.shape[0] != batch_size:
+        if mask.shape[0] == 1:
+            mask = mask.expand(batch_size, -1, -1)
+        elif mask.shape[0] < batch_size:
+            repeat_count = (batch_size + mask.shape[0] - 1) // mask.shape[0]
+            mask = mask.repeat(repeat_count, 1, 1)[:batch_size]
+        else:
+            mask = mask[:batch_size]
+    return mask
 
 def tensor2pil(image):
     img_np = np.clip(255. * image.cpu().numpy(), 0, 255).astype(np.uint8)
@@ -3117,7 +3143,8 @@ def create_temp_file(image):
 class view_bridge_image:   
     def __init__(self):
         self.image_id = None
-        self.cached_mask = None  
+        self.cached_mask = None
+        self.cached_mask_source = None
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -3142,17 +3169,17 @@ class view_bridge_image:
     NAME = "view_bridge_image"
 
     def edit(self, image, mask=None, operation="None", image_update=None, output_mask=False):
+        image_id = tensor_to_hash(image)
         if self.image_id is None:
-            self.image_id = tensor_to_hash(image)
+            self.image_id = image_id
+        elif image_id != self.image_id:
             image_update = None
-        else:
-            image_id = tensor_to_hash(image)
-            if image_id != self.image_id:
-                image_update = None
-                self.image_id = image_id
-                # 图像ID变化时重置缓存遮罩
-                if not output_mask:
-                    self.cached_mask = None
+            self.image_id = image_id
+            self.cached_mask = None
+            self.cached_mask_source = None
+
+        batch_size, height, width = image.shape[:3]
+        mask = normalize_view_bridge_mask(mask, batch_size, height, width)
 
         # 优先使用 image_update 中的图像
         if image_update is not None and 'images' in image_update:
@@ -3175,7 +3202,8 @@ class view_bridge_image:
             # 否则使用 preview_image
             if mask is not None:
                 try:
-                    masked_result = generate_masked_black_image(image, mask)
+                    preview_mask = mask.to(device=image.device, dtype=image.dtype)
+                    masked_result = generate_masked_black_image(image, preview_mask)
                     preview_image = masked_result["result"][0]
                 except Exception as e:
                     print(f"[Error] Failed to apply mask for preview: {e}")
@@ -3219,12 +3247,13 @@ class view_bridge_image:
 
         # 新增 Mask 运算逻辑
         mask1 = mask
-        mask2 = output_mask_val
+        mask2 = normalize_view_bridge_mask(output_mask_val, batch_size, height, width)
 
         # 计算当前运算结果
         if mask1 is None or operation == "None":
             current_result = mask2
         else:
+            mask2 = mask2.to(device=mask1.device, dtype=mask1.dtype)
             invert_mask1 = False
             invert_mask2 = False
 
@@ -3232,17 +3261,6 @@ class view_bridge_image:
                 mask1 = 1 - mask1
             if invert_mask2:
                 mask2 = 1 - mask2
-
-            if mask1.dim() == 2:
-                mask1 = mask1.unsqueeze(0)
-            if mask2.dim() == 2:
-                mask2 = mask2.unsqueeze(0)
-
-            b, h, w = image.shape[0], image.shape[1], image.shape[2]
-            if mask1.shape != (b, h, w):
-                mask1 = torch.zeros((b, h, w), dtype=mask1.dtype, device=mask1.device)
-            if mask2.shape != (b, h, w):
-                mask2 = torch.zeros((b, h, w), dtype=mask2.dtype, device=mask2.device)
 
             algorithm = "torch"  # 简化逻辑，直接使用torch
 
@@ -3258,17 +3276,20 @@ class view_bridge_image:
                 else:
                     current_result = mask2  # 默认操作为 mask2
 
+        mask_source = None
+        if image_update is not None and image_update.get('images'):
+            image_ref = image_update['images'][0]
+            mask_source = (image_ref.get('type'), image_ref.get('subfolder'), image_ref.get('filename'))
+
         # 根据output_mask控制是否保留遮罩
         if output_mask:
-            # 如果是第一次启用启用保留，缓存当前结果
-            if self.cached_mask is None:
-                # 为避免显存问题，只在需要时保存缓存，并将其移至CPU
+            if self.cached_mask is None or mask_source != self.cached_mask_source:
                 self.cached_mask = current_result.detach().cpu()
-            # 使用缓存的遮罩作为结果（需要时移回GPU）
+                self.cached_mask_source = mask_source
             final_mask = self.cached_mask.to(current_result.device) if self.cached_mask.device != current_result.device else self.cached_mask
         else:
-            # 不保留时更新缓存为当前结果
-            self.cached_mask = current_result.detach().cpu()  # 移至CPU以节省GPU显存
+            self.cached_mask = current_result.detach().cpu()
+            self.cached_mask_source = mask_source
             final_mask = current_result
 
         # 返回结果

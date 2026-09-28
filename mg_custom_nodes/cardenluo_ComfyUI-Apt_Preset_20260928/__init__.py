@@ -40,6 +40,7 @@ from .NodeBasic.C_imgEffect import Image_effect_Load
 from .NodeBasic.C_type import *
 from .NodeExcel.ExcelOP import *
 from .NodeExcel.AIagent import *
+from .NodeExcel.AI_Qwen_skill import AI_Qwen_skill
 from .NodeExcel.doubao_web_node import *
 
 from .NodeBasic.C_flow import *
@@ -613,6 +614,7 @@ NODE_CLASS_MAPPINGS= {
 "AI_PresetSave":AI_PresetSave,
 "AI_Qwen":AI_Qwen,
 "AI_Qwen_text":AI_Qwen_text,
+"AI_Qwen_skill":AI_Qwen_skill,
 
 "AI_Ollama_image":AI_Ollama_image,
 "AI_Ollama_text": AI_Ollama_text,
@@ -745,6 +747,7 @@ NODE_CLASS_MAPPINGS= {
 
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "basicIn_media": "basicIn_media",
 
     "AD_MinMax_Ref2_generate": "AD_MinMax_Ref2_generate弃用",
     "AD_MinMax_FL2_generate": "AD_MinMax_FL2_generate弃用",

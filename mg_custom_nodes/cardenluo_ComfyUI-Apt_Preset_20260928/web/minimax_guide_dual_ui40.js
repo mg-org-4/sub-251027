@@ -126,6 +126,7 @@ const TEXT = {
     loadAudio: ZH_BROWSER ? "\u52a0\u8f7d\u97f3\u9891" : "Load audio",
     deleteLink: ZH_BROWSER ? "\u5220\u9664" : "Delete",
     promptPlaceholder: "Prompt...",
+    qwenReferencePromptPlaceholder: ZH_BROWSER ? "双击素材，可以添加标签。\n# 唤醒图像编辑约束" : "Double-click media to add a tag.\n# Insert image-editing constraints.",
     referencePromptPlaceholder: ZH_BROWSER
         ? "\u53cc\u51fb\u7d20\u6750\uff0c\u53ef\u4ee5\u6dfb\u52a0\u6807\u7b7e\uff0c\n\u53cc\u51fbAuto_text\u81ea\u52a8\u5206\u6bb5\u63d0\u793a\u8bcd\n\u53cc\u51fbAuto_img\u81ea\u52a8\u8ffd\u52a0\u6279\u91cf\u56fe\u7247\n# \u5524\u9192\u624b\u52a8\u8f93\u5165\u683c\u5f0f"
         : "Double-click media to add a tag.\nDouble-click Auto_text to split prompts.\nDouble-click Auto_img to append batch images.",
@@ -198,6 +199,17 @@ overall_soundscape:
 
 non_diegetic_music: `,
     },
+];
+const QWEN_PROMPT_TAG_OPTIONS = [
+    { label: "全局锁", value: "除本次指定修改的 ⟨对象⟩ 外，画面其余所有元素保持与输入图完全一致" },
+    { label: "人物锁", value: "人物面部身份与五官特征以 <image1> 为准，严格不变" },
+    { label: "内容锁", value: "以 <image1> 为画布，其构图、取景范围与未指定区域原样保留" },
+    { label: "光影锁", value: "保持原图光源方向、光照强度与整体色调不变，新增 / 改动物体的阴影方向与场景一致" },
+    { label: "媒介锁", value: "保留原图的摄影 / 插画 / 3D 媒介质感，不跨风格转换" },
+    { label: "文字锁", value: "未指定修改的文字内容、字体、位置保持原样；引号内逐字保留" },
+    { label: "产品锁", value: "保持 ⟨产品⟩ 的外形、Logo、比例、颜色、数量与原图一致" },
+    { label: "声明画布", value: "以 <imageX> 为画布，保留其构图与全部未指定区域；从 <imageY> 中提取 ⟨主体 / 服装 / 面部 / 风格⟩ 置入" },
+    { label: "素材分工", value: "<image1> 提供人物身份，<image2> 提供服装，<image3> 提供场景背景" },
 ];
 const OPTION_DEFS = {
     mode: {
@@ -293,7 +305,6 @@ const OPTION_ALIASES = {
     },
 };
 const COLOR_IMAGE = "#5aa9f0";
-const COLOR_LINK_BORDER = "rgba(0,0,0,0.5)";
 const COMFY_NATIVE_LINK_COLOR = "#9A9";
 const LABELS = {
     image: "Picture",
@@ -348,7 +359,15 @@ function isMediaRelayNode(node) {
 }
 
 function isMediaEditorNode(node) {
+    return [MEDIA_EDITOR_CLASS, MEDIA_RELAY_CLASS].includes(String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || ""));
+}
+
+function isFullMediaEditorNode(node) {
     return String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "") === MEDIA_EDITOR_CLASS;
+}
+
+function isSimpleMediaLibraryNode(node) {
+    return String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "") === MEDIA_RELAY_CLASS;
 }
 
 function isMultiPromptNode(node) {
@@ -392,6 +411,11 @@ function isMulTarget(node) {
 
 function isQwen2Target(node) {
     return String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "") === "sum_QwenImage2";
+}
+
+function promptEditorPlaceholder(node) {
+    if (!isReferenceMode(node)) return TEXT.promptPlaceholder;
+    return isQwen2Target(node) ? TEXT.qwenReferencePromptPlaceholder : TEXT.referencePromptPlaceholder;
 }
 
 function isStagePromptTarget(node) {
@@ -1231,17 +1255,12 @@ function scheduleNativeMediaConnectionConversion(targetNode, inputIndex, linkInf
     if (!linkInfo) setTimeout(() => convertNativeMediaConnection(targetNode, inputIndex), 50);
 }
 
-function cubicPoint(start, end, t) {
-    const cp1 = [start[0] + 80, start[1]];
-    const cp2 = [end[0] - 80, end[1]];
-    const mt = 1 - t;
-    return [
-        mt * mt * mt * start[0] + 3 * mt * mt * t * cp1[0] + 3 * mt * t * t * cp2[0] + t * t * t * end[0],
-        mt * mt * mt * start[1] + 3 * mt * mt * t * cp1[1] + 3 * mt * t * t * cp2[1] + t * t * t * end[1],
-    ];
+function officialLinkMidpoint(canvas, source, target) {
+    const point = canvas?.computeConnectionPoint?.(source, target, 0.5, globalThis.LiteGraph?.RIGHT, globalThis.LiteGraph?.LEFT);
+    return point && Number.isFinite(point[0]) && Number.isFinite(point[1]) ? point : [(source[0] + target[0]) / 2, (source[1] + target[1]) / 2];
 }
 
-function linkGeometry(targetNode, link) {
+function linkGeometry(targetNode, link, canvas = app.canvas) {
     const displaySourceId = Number(link.display_source_id);
     const sourceNode = targetNode.graph?.getNodeById?.(Number.isFinite(displaySourceId) ? displaySourceId : Number(link.source_id));
     const dot = getMediaDot(targetNode);
@@ -1249,7 +1268,7 @@ function linkGeometry(targetNode, link) {
     const sourceSlot = Number.isFinite(displaySourceId) ? Number(link.display_source_slot) || 0 : Number(link.source_slot) || 0;
     const source = getConnectionPosition(sourceNode, false, sourceSlot);
     const target = [dot.x, dot.y];
-    return { sourceNode, source, target, mid: cubicPoint(source, target, 0.5) };
+    return { sourceNode, source, target, mid: officialLinkMidpoint(canvas, source, target) };
 }
 
 function displayLinks(targetNode) {
@@ -1310,7 +1329,7 @@ function hitTestLinks(graph, x, y) {
                 if (testedRelays.has(relayId)) return;
                 testedRelays.add(relayId);
             }
-            const geometry = linkGeometry(targetNode, link);
+            const geometry = linkGeometry(targetNode, link, app.canvas);
             if (!geometry) return;
             const distance = Math.hypot(x - geometry.mid[0], y - geometry.mid[1]);
             if (distance <= 18 && (!best || distance < best.distance)) best = { targetNode, index, relayId, point: geometry.mid, distance };
@@ -1332,6 +1351,43 @@ function closeLinkMenu() {
     linkMenu?.close?.();
     linkMenu?.remove?.();
     linkMenu = null;
+}
+
+function usesInlineLinkDelete(node) {
+    return [REF2_GENERATE_NODE_CLASS, REF2_PREPARE_NODE_CLASS, "sum_QwenImage2"].includes(
+        String(node?.comfyClass || node?.type || node?.constructor?.nodeData?.name || "")
+    );
+}
+
+function inlineDeleteMatches(node, index, relayId) {
+    const active = node?.__adGuideInlineDelete;
+    if (!active) return false;
+    if (Number.isFinite(relayId)) return Number(active.relayId) === relayId;
+    return !Number.isFinite(Number(active.relayId)) && Number(active.index) === index;
+}
+
+function clearInlineLinkDelete(except = null) {
+    for (const node of app.graph?._nodes || []) {
+        if (!usesInlineLinkDelete(node) || node === except || !node.__adGuideInlineDelete) continue;
+        node.__adGuideInlineDelete = null;
+        node.setDirtyCanvas?.(true, true);
+    }
+}
+
+function toggleInlineLinkDelete(hit) {
+    const node = hit?.targetNode;
+    if (!usesInlineLinkDelete(node)) return false;
+    closeLinkMenu();
+    if (inlineDeleteMatches(node, hit.index, hit.relayId)) {
+        if (Number.isFinite(hit.relayId)) removeRelayFromTarget(node, hit.relayId);
+        else removeVirtualLink(node, hit.index);
+        node.__adGuideInlineDelete = null;
+    } else {
+        clearInlineLinkDelete(node);
+        node.__adGuideInlineDelete = { index: hit.index, relayId: hit.relayId };
+        node.setDirtyCanvas?.(true, true);
+    }
+    return true;
 }
 
 function openLinkMenu(canvas, hit, event) {
@@ -1838,46 +1894,43 @@ function drawLinks(canvas, ctx) {
         if (!isTarget(targetNode)) continue;
         const links = displayLinks(targetNode);
         const drawnRelays = new Set();
-        for (const link of links) {
+        for (let index = 0; index < links.length; index += 1) {
+            const link = links[index];
             const relayId = Number(link.display_source_id);
             if (Number.isFinite(relayId)) {
                 if (drawnRelays.has(relayId)) continue;
                 drawnRelays.add(relayId);
             }
-            const geometry = linkGeometry(targetNode, link);
+            const geometry = linkGeometry(targetNode, link, canvas);
             if (!geometry) {
                 missingLinkFound = true;
                 continue;
             }
             const highlighted = linkHighlighted(canvas, targetNode, geometry.sourceNode);
             const color = linkColor(canvas, targetNode, geometry.sourceNode, link);
-            const width = canvas.connections_width || 3;
             ctx.save();
-            ctx.lineJoin = "round";
-            ctx.shadowBlur = 0;
-            ctx.shadowColor = "transparent";
-            ctx.beginPath();
-            ctx.moveTo(geometry.source[0], geometry.source[1]);
-            ctx.bezierCurveTo(geometry.source[0] + 80, geometry.source[1], geometry.target[0] - 80, geometry.target[1], geometry.target[0], geometry.target[1]);
-            ctx.lineWidth = width + 4;
-            ctx.strokeStyle = canvas.render_connections_border !== false && !canvas.low_quality ? COLOR_LINK_BORDER : "transparent";
-            if (ctx.strokeStyle !== "transparent") ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(geometry.source[0], geometry.source[1]);
-            ctx.bezierCurveTo(geometry.source[0] + 80, geometry.source[1], geometry.target[0] - 80, geometry.target[1], geometry.target[0], geometry.target[1]);
-            ctx.lineWidth = width;
-            ctx.strokeStyle = color;
-            ctx.stroke();
+            canvas.renderLink(ctx, geometry.source, geometry.target, null, false, false, color, globalThis.LiteGraph?.RIGHT, globalThis.LiteGraph?.LEFT);
 
             const markerRadius = 9;
             const markerX = geometry.mid[0];
             const markerY = geometry.mid[1];
             const textLink = String(link.media_type || "image") === "text";
+            const inlineDelete = usesInlineLinkDelete(targetNode);
+            const deleting = inlineDeleteMatches(targetNode, index, relayId);
             ctx.beginPath();
             ctx.arc(markerX, markerY, markerRadius, 0, Math.PI * 2);
-            ctx.fillStyle = "#e53935";
+            ctx.fillStyle = deleting || !inlineDelete ? "#e53935" : "rgba(24,24,24,.96)";
             ctx.fill();
-            if (textLink) {
+            if (inlineDelete) {
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = deleting ? "#ffb3ad" : color;
+                ctx.stroke();
+                ctx.fillStyle = "#ffffff";
+                ctx.font = deleting ? "bold 15px system-ui, sans-serif" : "bold 11px system-ui, sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(deleting ? "×" : (Number.isFinite(relayId) ? "1" : String(Number(link.order) || 1)), markerX, markerY + (deleting ? 0 : 0.5));
+            } else if (textLink) {
                 ctx.beginPath();
                 ctx.moveTo(markerX - 3.5, markerY - 3.5);
                 ctx.lineTo(markerX + 3.5, markerY + 3.5);
@@ -1920,11 +1973,12 @@ function patchCanvas() {
             const [x, y] = graphPosition(this, event);
             const hit = hitTestLinks(this.graph || app.graph, x, y);
             if (hit) {
-                openLinkMenu(this, hit, event);
+                if (!toggleInlineLinkDelete(hit)) openLinkMenu(this, hit, event);
                 event?.preventDefault?.();
                 event?.stopImmediatePropagation?.();
                 return true;
             }
+            clearInlineLinkDelete();
         }
         const result = originalDown?.apply(this, arguments);
         return result;
@@ -1934,8 +1988,11 @@ function patchCanvas() {
         if (getPendingConnectorLink(canvas) || connectingOutput(canvas) || connectingInput(canvas)) return;
         const [x, y] = graphPosition(canvas, event);
         const hit = hitTestLinks(canvas.graph || app.graph, x, y);
-        if (!hit) return;
-        openLinkMenu(canvas, hit, event);
+        if (!hit) {
+            clearInlineLinkDelete();
+            return;
+        }
+        if (!toggleInlineLinkDelete(hit)) openLinkMenu(canvas, hit, event);
         event.preventDefault?.();
         event.stopPropagation?.();
         event.stopImmediatePropagation?.();
@@ -2332,6 +2389,11 @@ function mentionOptions(node) {
         const filename = link.cached ? widgetFilename(link.filename || link.path) : sourceFilename(source, type);
         const fullLabel = filename || (link.cached ? "缓存素材" : sourceLabel(source));
         const label = materialMentionLabel({ type, ordinal });
+        const rawPreviewUrl = link.cached
+            ? (type === "image"
+                ? `/view?filename=${encodeURIComponent(link.path || link.filename)}&type=input`
+                : type === "video" ? `/Apt_Preset_IO_LoadMedia_preview?path=${encodeURIComponent(link.path || link.filename)}&media=video` : "")
+            : sourcePreviewUrl(source, type);
         return {
             type,
             tag,
@@ -2344,11 +2406,7 @@ function mentionOptions(node) {
             source: link.cached ? "AD_Media_editor" : sourceLabel(source),
             sourceId: Number(link.source_id),
             sourceSlot: Number(link.source_slot) || 0,
-            previewUrl: link.cached
-                ? (type === "image"
-                    ? `/view?filename=${encodeURIComponent(link.path || link.filename)}&type=input`
-                    : type === "video" ? `/Apt_Preset_IO_LoadMedia_preview?path=${encodeURIComponent(link.path || link.filename)}&media=video` : "")
-                : sourcePreviewUrl(source, type),
+            previewUrl: link.cached && type === "video" ? getVideoFrameThumbnail(rawPreviewUrl) : rawPreviewUrl,
             cacheId: link.cache_id || "",
         };
     });
@@ -2383,7 +2441,7 @@ function findMentionOption(options, reference, mode) {
 function isLikelyVideoUrl(url) {
     const value = String(url || "").toLowerCase();
     return /\.(mp4|webm|mov|mkv|avi|m4v)(?:[?#].*)?$/.test(value)
-        || /[?&]filename=[^&]*\.(mp4|webm|mov|mkv|avi|m4v)(?:[&#]|$)/.test(value);
+        || /[?&](?:filename|path)=[^&]*\.(mp4|webm|mov|mkv|avi|m4v)(?:[&#]|$)/.test(value);
 }
 
 function mediaViewUrlFromWidgets(node, preferredNames) {
@@ -2656,6 +2714,7 @@ function getVideoFrameThumbnail(videoUrl) {
         entry.dataUrl = dataUrl;
         cleanup();
         requestMentionPreviewRefresh();
+        window.dispatchEvent(new CustomEvent(MEDIA_RELAY_EVENT, { detail: { thumbnailUrl: videoUrl } }));
     };
     const fail = () => {
         if (finished) return;
@@ -2731,11 +2790,12 @@ function getVideoFrameThumbnail(videoUrl) {
         else {
             const end = Math.max(0, duration - 0.06);
             sampleTimes = Array.from(new Set([
-                duration * 0.12,
+                0,
+                0.04,
+                0.08,
+                0.15,
+                0.25,
                 0.5,
-                duration * 0.3,
-                duration * 0.55,
-                duration * 0.8,
             ].map((time) => Number(Math.min(end, Math.max(0, time)).toFixed(3)))));
         }
         seekNextSample();
@@ -2746,6 +2806,8 @@ function getVideoFrameThumbnail(videoUrl) {
     video.load?.();
     return "";
 }
+
+globalThis.__aptPresetVideoFrameThumbnail = getVideoFrameThumbnail;
 
 function sourcePreviewUrl(node, mediaType) {
     if (!node) return "";
@@ -3926,9 +3988,10 @@ function installMediaEditorPromptInteractions(node, editor, wrap, choose) {
         choose();
         closePromptTagMenu(node);
         if (!event?.isComposing && event?.inputType !== "insertCompositionText" && !node.__adGuidePromptComposing) {
-            convertTypedMaterialMention(node, editor);
-            if (["insertFromPaste", "insertFromDrop", "insertReplacementText"].includes(event?.inputType)
-                || String(event?.data || "").length > 1) normalizePlainMaterialMentions(node, editor);
+            const converted = convertTypedMaterialMention(node, editor);
+            if (!converted && (["insertFromPaste", "insertFromDrop", "insertReplacementText"].includes(event?.inputType)
+                || String(event?.data || "").length > 1
+                || /[0-9\uFF10-\uFF19>\]})]/.test(String(event?.data || "")))) normalizePlainMaterialMentions(node, editor);
         }
         syncPromptFromEditor(node);
         if (event?.isComposing || event?.inputType === "insertCompositionText" || node.__adGuidePromptComposing) {
@@ -3944,7 +4007,7 @@ function installMediaEditorPromptInteractions(node, editor, wrap, choose) {
     });
     editor.addEventListener("compositionend", () => {
         node.__adGuidePromptComposing = false;
-        convertTypedMaterialMention(node, editor);
+        if (!convertTypedMaterialMention(node, editor)) normalizePlainMaterialMentions(node, editor);
         syncPromptFromEditor(node);
         pushPromptHistory(node);
     });
@@ -4849,7 +4912,8 @@ function choosePromptTag(node, option) {
     range.deleteContents();
     const fragment = document.createDocumentFragment();
     fragment.append(makeCaretSentinel());
-    appendTextWithBreaks(fragment, option.value || "");
+    if (isQwen2Target(node)) appendTextWithMentionChips(node, fragment, option.value || "");
+    else appendTextWithBreaks(fragment, option.value || "");
     const marker = makeCaretSentinel();
     fragment.append(marker);
     range.insertNode(fragment);
@@ -4864,12 +4928,13 @@ function renderPromptTagMenu(node) {
     const state = node?.__adGuidePromptTagMenu;
     if (!state) return;
     const { element, activeIndex } = state;
+    const options = isQwen2Target(node) ? QWEN_PROMPT_TAG_OPTIONS : PROMPT_TAG_OPTIONS;
     element.textContent = "";
     const title = document.createElement("div");
     title.className = "ad-guide-mention-menu-title";
-    title.textContent = "提示词标签";
+    title.textContent = isQwen2Target(node) ? "图像编辑约束" : "提示词标签";
     element.append(title);
-    PROMPT_TAG_OPTIONS.forEach((option, index) => {
+    options.forEach((option, index) => {
         const item = document.createElement("div");
         item.className = `ad-guide-mention-menu-item ad-guide-prompt-tag-menu-item${index === activeIndex ? " is-active" : ""}`;
         item.textContent = option.label;
@@ -4908,19 +4973,20 @@ function openPromptTagMenu(node, editor) {
 function handlePromptTagMenuKeydown(node, event) {
     const state = node?.__adGuidePromptTagMenu;
     if (!state) return false;
+    const options = isQwen2Target(node) ? QWEN_PROMPT_TAG_OPTIONS : PROMPT_TAG_OPTIONS;
     if (event.key === "Escape") {
         closePromptTagMenu(node);
         return true;
     }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         const delta = event.key === "ArrowDown" ? 1 : -1;
-        state.activeIndex = (state.activeIndex + delta + PROMPT_TAG_OPTIONS.length) % PROMPT_TAG_OPTIONS.length;
+        state.activeIndex = (state.activeIndex + delta + options.length) % options.length;
         renderPromptTagMenu(node);
         state.element.querySelector(".is-active")?.scrollIntoView?.({ block: "nearest" });
         return true;
     }
     if (event.key === "Enter" || event.key === "Tab") {
-        choosePromptTag(node, PROMPT_TAG_OPTIONS[state.activeIndex]);
+        choosePromptTag(node, options[state.activeIndex]);
         return true;
     }
     if (event.key.length === 1) closePromptTagMenu(node);
@@ -5666,7 +5732,7 @@ function syncEditorMode(node) {
     showDomEditorWidget(domWidget);
     editor.style.display = "block";
     wrap.style.display = "flex";
-    editor.dataset.placeholder = reference ? TEXT.referencePromptPlaceholder : TEXT.promptPlaceholder;
+    editor.dataset.placeholder = promptEditorPlaceholder(node);
     normalizeEditorMentionTags(node);
     applyNativeEditorTheme(wrap);
     if (!reference) closeMentionMenu(node);
@@ -6336,7 +6402,7 @@ function ensurePromptEditor(node) {
     editor.tabIndex = 0;
     editor.setAttribute("role", "textbox");
     editor.setAttribute("aria-label", "prompt");
-    editor.dataset.placeholder = isReferenceMode(node) ? TEXT.referencePromptPlaceholder : TEXT.promptPlaceholder;
+    editor.dataset.placeholder = promptEditorPlaceholder(node);
     editor.spellcheck = false;
     editor.addEventListener("beforeinput", (event) => {
         if (node.__adGuidePromptTagHashHandled) {
@@ -6357,9 +6423,10 @@ function ensurePromptEditor(node) {
     editor.addEventListener("input", (event) => {
         closePromptTagMenu(node);
         if (!event?.isComposing && event?.inputType !== "insertCompositionText" && !node.__adGuidePromptComposing) {
-            convertTypedMaterialMention(node, editor);
-            if (["insertFromPaste", "insertFromDrop", "insertReplacementText"].includes(event?.inputType)
-                || String(event?.data || "").length > 1) normalizePlainMaterialMentions(node, editor);
+            const converted = convertTypedMaterialMention(node, editor);
+            if (!converted && (["insertFromPaste", "insertFromDrop", "insertReplacementText"].includes(event?.inputType)
+                || String(event?.data || "").length > 1
+                || /[0-9\uFF10-\uFF19>\]})]/.test(String(event?.data || "")))) normalizePlainMaterialMentions(node, editor);
         }
         syncPromptFromEditor(node);
         if (event?.isComposing || event?.inputType === "insertCompositionText" || node.__adGuidePromptComposing) {
@@ -6374,7 +6441,7 @@ function ensurePromptEditor(node) {
     });
     editor.addEventListener("compositionend", () => {
         node.__adGuidePromptComposing = false;
-        convertTypedMaterialMention(node, editor);
+        if (!convertTypedMaterialMention(node, editor)) normalizePlainMaterialMentions(node, editor);
         syncPromptFromEditor(node);
         pushPromptHistory(node);
     });
@@ -7124,7 +7191,7 @@ function repairMulConfiguredWidgetValues(node, info) {
 }
 
 function buildMediaEditorUI(node) {
-    if (!isMediaEditorNode(node) || node.__adMediaEditorWidget || typeof node.addDOMWidget !== "function") return;
+    if (!isFullMediaEditorNode(node) || node.__adMediaEditorWidget || typeof node.addDOMWidget !== "function") return;
     node.properties ||= {};
     if (typeof node.properties[MEDIA_EDITOR_FILENAME_LABELS_PROP] !== "boolean") {
         node.properties[MEDIA_EDITOR_FILENAME_LABELS_PROP] = false;
@@ -7379,6 +7446,135 @@ function buildMediaEditorUI(node) {
     refreshMaterialTray(node);
     renderMediaEditorRows(node, true);
     if ((Number(node.size?.[0]) || 0) < 560) node.setSize?.([560, Math.max(360, Number(node.size?.[1]) || 0)]);
+}
+
+function buildSimpleMediaLibraryUI(node) {
+    if (!isSimpleMediaLibraryNode(node) || node.__adSimpleMediaLibraryWidget || typeof node.addDOMWidget !== "function") return;
+    node.properties ||= {};
+    node.properties[MEDIA_EDITOR_CACHE_ENABLED_PROP] = true;
+    if (typeof node.properties[MEDIA_EDITOR_FILENAME_LABELS_PROP] !== "boolean") {
+        node.properties[MEDIA_EDITOR_FILENAME_LABELS_PROP] = false;
+    }
+    cachedMediaItems(node);
+    rebuildCachedMediaLinks(node);
+    ensureLinks(node);
+    while (node.inputs?.length) {
+        if (typeof node.removeInput === "function") node.removeInput(node.inputs.length - 1);
+        else node.inputs.splice(node.inputs.length - 1, 1);
+    }
+    if (node.outputs?.[0]) {
+        node.outputs[0].name = "media";
+        node.outputs[0].label = "media";
+        node.outputs[0].type = "*";
+    }
+    const cachedWidget = getWidget(node, "cached_media");
+    if (cachedWidget) hideOriginalPromptWidget(cachedWidget);
+
+    const wrap = document.createElement("div");
+    wrap.className = "ad-guide-prompt-editor-wrap ad-simple-media-library-wrap";
+    const header = document.createElement("div");
+    header.className = "ad-simple-media-library-header";
+    const title = document.createElement("span");
+    title.textContent = ZH_BROWSER ? "素材" : "Media";
+    const nameMode = document.createElement("label");
+    nameMode.className = "ad-media-editor-name-mode";
+    nameMode.title = ZH_BROWSER ? "关闭时显示素材编号，开启时显示原文件名" : "Show original filenames instead of material numbers";
+    const nameToggle = document.createElement("input");
+    nameToggle.type = "checkbox";
+    nameToggle.checked = node.properties[MEDIA_EDITOR_FILENAME_LABELS_PROP];
+    nameToggle.setAttribute("aria-label", nameMode.title);
+    const nameTrack = document.createElement("span");
+    nameTrack.className = "ad-media-editor-name-track";
+    const nameModeText = document.createElement("span");
+    nameModeText.className = "ad-media-editor-name-mode-text";
+    nameModeText.textContent = nameToggle.checked ? "原名" : "编号";
+    nameToggle.addEventListener("pointerdown", (event) => event.stopPropagation());
+    nameToggle.addEventListener("change", (event) => {
+        event.stopPropagation();
+        node.properties[MEDIA_EDITOR_FILENAME_LABELS_PROP] = nameToggle.checked;
+        refreshMaterialTray(node);
+        node.setDirtyCanvas?.(true, true);
+        app.graph?.change?.();
+        window.dispatchEvent(new CustomEvent(MEDIA_RELAY_EVENT, { detail: { nodeId: Number(node.id) } }));
+    });
+    nameMode.append(nameToggle, nameTrack, nameModeText);
+    header.append(title, nameMode);
+    const materialTray = document.createElement("div");
+    materialTray.className = "ad-guide-material-tray";
+    materialTray.setAttribute("aria-label", ZH_BROWSER ? "素材库" : "Media library");
+    wrap.append(header, materialTray);
+    wrap.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+    node.__adGuideMaterialTray = materialTray;
+    node.__adMediaEditorNameToggle = nameToggle;
+    node.__adMediaEditorNameModeText = nameModeText;
+    const widget = node.addDOMWidget("basic_media_library", "basic_media_library", wrap, {
+        serialize: false,
+        margin: 10,
+        getMinHeight: () => (Number(materialTray.dataset.trayHeight) || 70) + 44,
+        afterResize: () => {
+            refreshMaterialTray(node);
+            node._widgetSlotsDirty = true;
+        },
+    });
+    if (!widget) return;
+    widget.serialize = false;
+    node.__adSimpleMediaLibraryWidget = widget;
+    refreshMaterialTray(node);
+    fitSimpleMediaLibraryNode(node);
+}
+
+function fitSimpleMediaLibraryNode(node) {
+    const fit = () => {
+        const width = Math.max(320, Number(node.size?.[0]) || 320);
+        const trayHeight = Number(node.__adGuideMaterialTray?.dataset?.trayHeight) || 70;
+        node.setSize?.([width, 184 + Math.max(0, trayHeight - 70)]);
+        node._widgetSlotsDirty = true;
+        node.setDirtyCanvas?.(true, true);
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(fit);
+    else setTimeout(fit, 0);
+}
+
+function installSimpleMediaLibraryNode(nodeType, nodeData) {
+    if (nodeData?.name !== MEDIA_RELAY_CLASS || nodeType.prototype.__adSimpleMediaLibraryInstalled) return;
+    nodeType.prototype.__adSimpleMediaLibraryInstalled = true;
+    const originalCreated = nodeType.prototype.onNodeCreated;
+    nodeType.prototype.onNodeCreated = function onSimpleMediaLibraryCreated() {
+        const result = originalCreated?.apply(this, arguments);
+        if (Array.isArray(this.outputs) && this.outputs.length > 1) this.outputs.splice(1);
+        setTimeout(() => buildSimpleMediaLibraryUI(this), 0);
+        return result;
+    };
+    const originalConfigure = nodeType.prototype.onConfigure;
+    nodeType.prototype.onConfigure = function onSimpleMediaLibraryConfigure(info) {
+        const result = originalConfigure?.apply(this, arguments);
+        this.properties ||= {};
+        this.properties[MEDIA_EDITOR_CACHE_ENABLED_PROP] = true;
+        if (Array.isArray(info?.properties?.[MEDIA_EDITOR_CACHED_ITEMS_PROP])) {
+            this.properties[MEDIA_EDITOR_CACHED_ITEMS_PROP] = info.properties[MEDIA_EDITOR_CACHED_ITEMS_PROP].map((item) => ({ ...item }));
+        }
+        setTimeout(() => {
+            if (Array.isArray(this.outputs) && this.outputs.length > 1) this.outputs.splice(1);
+            rebuildCachedMediaLinks(this);
+            buildSimpleMediaLibraryUI(this);
+            refreshMaterialTray(this);
+            fitSimpleMediaLibraryNode(this);
+            window.dispatchEvent(new CustomEvent(MEDIA_RELAY_EVENT, { detail: { nodeId: Number(this.id) } }));
+        }, 0);
+        return result;
+    };
+    const originalSerialize = nodeType.prototype.onSerialize;
+    nodeType.prototype.onSerialize = function onSimpleMediaLibrarySerialize(info) {
+        syncCachedMediaWidget(this);
+        const result = originalSerialize?.apply(this, arguments);
+        if (info) {
+            info.properties ||= {};
+            info.properties[MEDIA_EDITOR_CACHE_ENABLED_PROP] = true;
+            info.properties[MEDIA_EDITOR_CACHED_ITEMS_PROP] = cachedMediaItems(this).map((item) => ({ ...item }));
+        }
+        return result;
+    };
 }
 
 function installMediaEditorNode(nodeType, nodeData) {
@@ -7960,13 +8156,19 @@ function install() {
     api.addEventListener("node-feedback", syncStagePromptFromFlowFeedback);
     window.addEventListener(MEDIA_RELAY_EVENT, (event) => {
         requestMentionPreviewRefresh();
+        if (event?.detail?.thumbnailUrl) {
+            for (const node of app.graph?._nodes || []) {
+                if (isMediaEditorNode(node) && node.__adGuideMaterialTray) refreshMaterialTray(node);
+            }
+            return;
+        }
         const relayId = Number(event?.detail?.nodeId);
         if (!Number.isFinite(relayId)) return;
         const relayNode = app.graph?.getNodeById?.(relayId) || { id: relayId };
         if (isMediaEditorNode(relayNode) && !event?.detail?.promptsOnly) {
             normalizeLinks(relayNode);
             refreshMaterialTray(relayNode);
-            renderMediaEditorRows(relayNode);
+            if (isFullMediaEditorNode(relayNode)) renderMediaEditorRows(relayNode);
         }
         for (const target of app.graph?._nodes || []) {
             if (!isTarget(target) || !mediaRelayIds(target).some((value) => Number(value) === relayId)) continue;
@@ -8127,6 +8329,7 @@ function install() {
        .ad-media-editor-name-track::after { content: ""; position: absolute; left: 2px; top: 2px; width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.72); transition: transform .12s ease; }
        .ad-media-editor-name-mode input:checked + .ad-media-editor-name-track { background: rgba(0,226,187,.42); }
        .ad-media-editor-name-mode input:checked + .ad-media-editor-name-track::after { transform: translateX(11px); background: #8fffe6; }
+       .ad-simple-media-library-header { display: flex; flex: 0 0 28px; align-items: center; justify-content: space-between; min-width: 0; height: 28px; padding: 0 8px; box-sizing: border-box; border-radius: var(--ad-guide-native-widget-radius, 0); background: var(--ad-guide-native-widget-bg, #222); color: var(--ad-guide-native-widget-text, #ddd); box-shadow: inset 0 0 0 1px var(--ad-guide-native-widget-outline, rgba(255,255,255,.16)); font: 600 12px/28px system-ui, sans-serif; }
        .ad-media-editor-header > span + span, .ad-media-editor-text-cell { border-left: 1px solid var(--ad-guide-native-widget-outline, rgba(255,255,255,.16)); }
        .ad-media-editor-controls { position: absolute; right: 4px; top: 2px; display: inline-flex; gap: 3px; }
        .ad-media-editor-controls button { width: 24px; height: 22px; padding: 0; border: 0; border-radius: 4px; background: var(--ad-guide-native-widget-bg, #222); color: var(--ad-guide-native-widget-text, #ddd); box-shadow: inset 0 0 0 1px var(--ad-guide-native-widget-outline, rgba(255,255,255,.18)); cursor: pointer !important; }
@@ -8191,7 +8394,11 @@ if (!globalThis.__AD_MINIMAX_GUIDE_UI41_REGISTERED__) {
                 normalizeMulOutputs(node);
                 installSecondPassWidgetSync(node);
             }
-            if (isMediaEditorNode(node)) {
+            if (isSimpleMediaLibraryNode(node)) {
+                buildSimpleMediaLibraryUI(node);
+                refreshMaterialTray(node);
+                fitSimpleMediaLibraryNode(node);
+            } else if (isFullMediaEditorNode(node)) {
                 buildMediaEditorUI(node);
                 refreshMaterialTray(node);
                 renderMediaEditorRows(node);
@@ -8204,6 +8411,7 @@ if (!globalThis.__AD_MINIMAX_GUIDE_UI41_REGISTERED__) {
             installOutputNode(nodeType, nodeData);
             installFlowStageBeginNode(nodeType, nodeData);
             installRefineNode(nodeType, nodeData);
+            installSimpleMediaLibraryNode(nodeType, nodeData);
             installMediaEditorNode(nodeType, nodeData);
             installNode(nodeType, nodeData);
         },

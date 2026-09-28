@@ -31,10 +31,13 @@ def _qwen2_parse_refs(prompt):
     return refs
 
 
-def _qwen2_normalize_tags(prompt):
-    """将界面引用标签转换为模型正文中的标准 <imageN> 指代。"""
+def _qwen2_normalize_tags(prompt, refs=None):
+    """按首次引用顺序转换为模型正文中的标准 <imageN> 指代。"""
+    refs = refs or _qwen2_parse_refs(prompt)
+    local_indices = {global_index: local_index for local_index, global_index in enumerate(refs, start=1)}
     return _QWEN2_TAG_RE.sub(
-        lambda match: f"<image{int(match.group(1))}>", str(prompt or "")
+        lambda match: f"<image{local_indices.get(int(match.group(1)), int(match.group(1)))}>",
+        str(prompt or ""),
     )
 
 
@@ -114,8 +117,8 @@ class sum_QwenImage2:
             "hidden": {},
         }
 
-    RETURN_TYPES = ("RUN_CONTEXT", "CONDITIONING", "CONDITIONING", "LATENT")
-    RETURN_NAMES = ("context", "positive", "negative", "latent")
+    RETURN_TYPES = ("RUN_CONTEXT", "CONDITIONING", "CONDITIONING", "LATENT", "STRING")
+    RETURN_NAMES = ("context", "positive", "negative", "latent", "text")
     FUNCTION = "encode"
     CATEGORY = "Apt_Preset/chx_tool"
     DESCRIPTION = (
@@ -228,7 +231,7 @@ class sum_QwenImage2:
             latent_w = max(32, int(width) if width else 1024)
             latent_h = max(32, int(height) if height else 1024)
 
-        model_prompt = _qwen2_normalize_tags(active_prompt)
+        model_prompt = _qwen2_normalize_tags(active_prompt, refs)
         keep_vision = len(ref_latents) == 0
         positive = clip.encode_from_tokens_scheduled(
             clip.tokenize(model_prompt, images=images_vl, keep_vision=keep_vision, prevent_empty_text=True)
@@ -258,4 +261,4 @@ class sum_QwenImage2:
             clip=clip,
             vae=vae,
         )
-        return (context, positive, negative, {"samples": latent})
+        return (context, positive, negative, {"samples": latent}, model_prompt)

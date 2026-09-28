@@ -17,14 +17,20 @@ const OUTPUT_FORMAT_PROP_KEY = "prompt_composer_output_format";
 const COMPOSE_POSITION_PROP_KEY = "prompt_composer_compose_position";
 const GENERATION_MODE_PROP_KEY = "prompt_composer_generation_mode";
 const RECIPE_SYNC_MODE_PROP_KEY = "prompt_composer_recipe_sync_mode";
+const INPUT_PROMPT_MODE_PROP_KEY = "prompt_composer_input_prompt_mode";
+const INPUT_LORA_MODE_PROP_KEY = "prompt_composer_input_lora_mode";
+const LEGACY_INPUT_MODE_PROP_KEY = "prompt_composer_input_mode";
 const PARTS_WIDGET_NAME = "parts_data";
 const OUTPUT_FORMAT_WIDGET_NAME = "output_format";
 const COMPOSE_POSITION_WIDGET_NAME = "compose_position";
 const GENERATION_MODE_WIDGET_NAME = "generation_mode";
 const RECIPE_SYNC_MODE_WIDGET_NAME = "recipe_sync_mode";
+const INPUT_PROMPT_MODE_WIDGET_NAME = "input_prompt_mode";
+const INPUT_LORA_MODE_WIDGET_NAME = "input_lora_mode";
+const LEGACY_INPUT_MODE_WIDGET_NAME = "input_mode";
 const PROMPT_COMPOSER_RECIPE_KEY = "prompt_composer";
-const MIN_NODE_WIDTH = 620;
-const MIN_NODE_HEIGHT = 600;
+const MIN_NODE_WIDTH = 500;
+const MIN_NODE_HEIGHT = 560;
 const HOLD_TO_DRAG_MS = 140;
 const COMPOSER_DRAG_STYLE_ID = "pm-composer-drag-style";
 const THUMB_BASE_WIDTH = 128;
@@ -37,9 +43,9 @@ const THUMB_ZOOM_STEPS = [0.75, 1.0, 1.25, 1.5];
 const GRID_GAP = 8;
 const CARD_META_HEIGHT = 62;
 const CARD_META_HEIGHT_VIDEO = 36;
-const NODE_CHROME_HEIGHT = 86;
-const SCROLLER_PADDING_TOP = 8;
-const SCROLLER_PADDING_BOTTOM = 24;
+const NODE_CHROME_HEIGHT = 74;
+const SCROLLER_PADDING_TOP = 6;
+const SCROLLER_PADDING_BOTTOM = 16;
 const SUBJECT_NONE = 0;
 const SUBJECT_MIN = 1;
 const SUBJECT_MAX = 16;
@@ -116,8 +122,42 @@ function writeRecipeSyncMode(node, value) {
     writeToggleValue(node, RECIPE_SYNC_MODE_WIDGET_NAME, RECIPE_SYNC_MODE_PROP_KEY, value);
 }
 
+function readInputPromptMode(node) {
+    const legacyValue = String(
+        node.properties?.[LEGACY_INPUT_MODE_PROP_KEY]
+        ?? getWidgetByName(node, LEGACY_INPUT_MODE_WIDGET_NAME)?.value
+        ?? ""
+    ).trim().toLowerCase();
+    const value = readToggleValue(node, INPUT_PROMPT_MODE_WIDGET_NAME, INPUT_PROMPT_MODE_PROP_KEY, "no_prompt");
+    if (value === "no_prompt" && legacyValue === "use_input") {
+        return "use_prompt";
+    }
+    return value === "use_prompt" ? "use_prompt" : "no_prompt";
+}
+
+function writeInputPromptMode(node, value) {
+    writeToggleValue(node, INPUT_PROMPT_MODE_WIDGET_NAME, INPUT_PROMPT_MODE_PROP_KEY, value === "use_prompt" ? "use_prompt" : "no_prompt");
+}
+
+function readInputLoraMode(node) {
+    const legacyValue = String(
+        node.properties?.[LEGACY_INPUT_MODE_PROP_KEY]
+        ?? getWidgetByName(node, LEGACY_INPUT_MODE_WIDGET_NAME)?.value
+        ?? ""
+    ).trim().toLowerCase();
+    const value = readToggleValue(node, INPUT_LORA_MODE_WIDGET_NAME, INPUT_LORA_MODE_PROP_KEY, "no_lora");
+    if (value === "no_lora" && legacyValue === "use_input") {
+        return "use_lora";
+    }
+    return value === "use_lora" ? "use_lora" : "no_lora";
+}
+
+function writeInputLoraMode(node, value) {
+    writeToggleValue(node, INPUT_LORA_MODE_WIDGET_NAME, INPUT_LORA_MODE_PROP_KEY, value === "use_lora" ? "use_lora" : "no_lora");
+}
+
 function hasConnectedRecipeInput(node) {
-    return node?.inputs?.some((input) => input?.name === "recipe_data" && input.link != null) === true;
+    return node?.inputs?.some((input) => (input?.name === "compose_data" || input?.name === "recipe_data") && input.link != null) === true;
 }
 
 function isRecipeSyncEnabled(node) {
@@ -126,6 +166,97 @@ function isRecipeSyncEnabled(node) {
 
 function isComposerEditLocked(node) {
     return isRecipeSyncEnabled(node) && hasConnectedRecipeInput(node);
+}
+
+let composerPromptTextTooltip = null;
+
+function ensureComposerPromptTextTooltip() {
+    if (composerPromptTextTooltip) return composerPromptTextTooltip;
+    composerPromptTextTooltip = document.createElement("div");
+    composerPromptTextTooltip.setAttribute("data-pm-composer-prompt-tooltip", "true");
+    composerPromptTextTooltip.style.cssText = `
+        position: fixed;
+        display: none;
+        max-width: min(560px, 70vw);
+        max-height: min(340px, 52vh);
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: ${UI.panel};
+        border: 1px solid ${UI.accentBorder};
+        border-radius: 8px;
+        color: ${UI.textPrimary || "#ddd"};
+        font-size: 13px;
+        line-height: 1.45;
+        padding: 12px 14px;
+        box-shadow: 0 10px 28px rgba(0,0,0,0.55);
+        z-index: 10003;
+        pointer-events: none;
+    `;
+    document.body.appendChild(composerPromptTextTooltip);
+    return composerPromptTextTooltip;
+}
+
+function moveComposerPromptTextTooltip(x, y) {
+    if (!composerPromptTextTooltip || composerPromptTextTooltip.style.display === "none") return;
+    const margin = 14;
+    const width = composerPromptTextTooltip.offsetWidth || 360;
+    const height = composerPromptTextTooltip.offsetHeight || 180;
+    let left = x + margin;
+    let top = y + margin;
+    if (left + width > window.innerWidth - 8) {
+        left = Math.max(8, x - width - margin);
+    }
+    if (top + height > window.innerHeight - 8) {
+        top = Math.max(8, y - height - margin);
+    }
+    composerPromptTextTooltip.style.left = `${left}px`;
+    composerPromptTextTooltip.style.top = `${top}px`;
+}
+
+function showComposerPromptTextTooltip(text, x, y) {
+    const tip = ensureComposerPromptTextTooltip();
+    tip.textContent = text;
+    tip.style.display = "block";
+    moveComposerPromptTextTooltip(x, y);
+}
+
+function hideComposerPromptTextTooltip() {
+    if (composerPromptTextTooltip) {
+        composerPromptTextTooltip.style.display = "none";
+    }
+}
+
+function getComposerRefPromptText(node, ref, fallbackCategory = "") {
+    if (!ref?.name) return "";
+    const entry = getComposerEntry(node, ref.category || fallbackCategory, ref.name);
+    return String(entry?.prompt || "").trim();
+}
+
+function buildComposerPartHoverText(node, part, promptRefs, displayCategory) {
+    const refs = Array.isArray(promptRefs) ? promptRefs : [];
+    if (!refs.length) return "";
+
+    const formatHeading = (ref) => {
+        const rawCategory = String(ref.category || displayCategory || "").trim();
+        const visibleCategory = rawCategory.includes("::") ? rawCategory.split("::").pop().trim() : rawCategory;
+        return `${visibleCategory || displayCategory} : ${ref.name}`;
+    };
+
+    if (refs.length === 1) {
+        const ref = refs[0];
+        const promptText = getComposerRefPromptText(node, ref, part?.category || displayCategory);
+        if (!promptText) return formatHeading(ref);
+        return `${formatHeading(ref)}\n\n${promptText}`;
+    }
+
+    const blocks = refs.map((ref) => {
+        const promptText = getComposerRefPromptText(node, ref, part?.category || displayCategory);
+        return promptText
+            ? `${formatHeading(ref)}\n${promptText}`
+            : formatHeading(ref);
+    });
+    return blocks.join("\n\n---\n\n");
 }
 
 function snapThumbZoom(value) {
@@ -1651,11 +1782,20 @@ function extractComposerRecipeState(rawRecipeData) {
         outputFormat: String(state.output_format || "").trim().toLowerCase() || "text",
         composePosition: String(state.compose_position || "").trim().toLowerCase() || "before",
         generationMode: String(state.generation_mode || "").trim().toLowerCase() || "image",
+        inputPromptMode: String(state.input_prompt_mode || state.input_mode || "").trim().toLowerCase() === "use_prompt"
+            || String(state.input_prompt_mode || state.input_mode || "").trim().toLowerCase() === "use_input"
+            ? "use_prompt"
+            : "no_prompt",
+        inputLoraMode: String(state.input_lora_mode || state.input_mode || "").trim().toLowerCase() === "use_lora"
+            || String(state.input_lora_mode || state.input_mode || "").trim().toLowerCase() === "use_input"
+            ? "use_lora"
+            : "no_lora",
     };
 }
 
-function applyComposerRecipeState(node, state) {
+function applyComposerRecipeState(node, state, options = {}) {
     if (!node || !state || typeof state !== "object") return false;
+    const preserveModes = options?.preserveModes === true;
 
     let changed = false;
     const nextPartsData = String(state.partsData || serializeParts(state.parts || [])).trim() || "[]";
@@ -1666,16 +1806,24 @@ function applyComposerRecipeState(node, state) {
         changed = true;
     }
 
-    if (state.outputFormat && state.outputFormat !== readOutputFormat(node)) {
+    if (!preserveModes && state.outputFormat && state.outputFormat !== readOutputFormat(node)) {
         writeOutputFormat(node, state.outputFormat);
         changed = true;
     }
-    if (state.composePosition && state.composePosition !== readComposePosition(node)) {
+    if (!preserveModes && state.composePosition && state.composePosition !== readComposePosition(node)) {
         writeComposePosition(node, state.composePosition);
         changed = true;
     }
-    if (state.generationMode && state.generationMode !== readGenerationMode(node)) {
+    if (!preserveModes && state.generationMode && state.generationMode !== readGenerationMode(node)) {
         writeGenerationMode(node, state.generationMode);
+        changed = true;
+    }
+    if (!preserveModes && state.inputPromptMode && state.inputPromptMode !== readInputPromptMode(node)) {
+        writeInputPromptMode(node, state.inputPromptMode);
+        changed = true;
+    }
+    if (!preserveModes && state.inputLoraMode && state.inputLoraMode !== readInputLoraMode(node)) {
+        writeInputLoraMode(node, state.inputLoraMode);
         changed = true;
     }
 
@@ -1695,6 +1843,8 @@ function rememberComposerRecipeState(node, state) {
         outputFormat: String(state.outputFormat || "text"),
         composePosition: String(state.composePosition || "before"),
         generationMode: String(state.generationMode || "image"),
+        inputPromptMode: String(state.inputPromptMode || "no_prompt"),
+        inputLoraMode: String(state.inputLoraMode || "no_lora"),
     };
 }
 
@@ -1861,6 +2011,9 @@ function ensureHiddenComposerWidgets(node) {
     hideWidget(getWidgetByName(node, COMPOSE_POSITION_WIDGET_NAME));
     hideWidget(getWidgetByName(node, GENERATION_MODE_WIDGET_NAME));
     hideWidget(getWidgetByName(node, RECIPE_SYNC_MODE_WIDGET_NAME));
+    hideWidget(getWidgetByName(node, INPUT_PROMPT_MODE_WIDGET_NAME));
+    hideWidget(getWidgetByName(node, INPUT_LORA_MODE_WIDGET_NAME));
+    hideWidget(getWidgetByName(node, LEGACY_INPUT_MODE_WIDGET_NAME));
 }
 
 function ensureComposerUi(node) {
@@ -1886,15 +2039,31 @@ function ensureComposerUi(node) {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
-        min-height: 24px;
-        margin: 0 0 8px 0;
-        padding: 0 10px;
+        gap: 8px;
+        min-height: 22px;
+        margin: 0 0 5px 0;
+        padding: 0 8px;
         border: 1px solid rgba(78, 90, 108, 0.72);
         border-radius: 10px;
         background: rgba(34, 39, 48, 0.98);
         box-sizing: border-box;
         flex: 0 0 auto;
+    `;
+    const secondarySwitchRow = document.createElement("div");
+    secondarySwitchRow.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 22px;
+        margin: 0 0 5px 0;
+        padding: 0 8px;
+        border: 1px solid rgb(53, 118, 220);
+        border-radius: 4px;
+        background: rgb(32, 49, 74);
+        box-sizing: border-box;
+        flex: 0 0 auto;
+        transition: background 0.15s ease;
     `;
 
     const lockNotice = document.createElement("div");
@@ -1910,7 +2079,7 @@ function ensureComposerUi(node) {
         line-height: 1.3;
         flex: 0 0 auto;
     `;
-    lockNotice.textContent = "Recipe Sync is active. Execute reloads from connected recipe_data and card editing is locked.";
+    lockNotice.textContent = "Sync follows connected compose_data for card state only. Prompt selects incoming prompt or saved compose-data prompt, and LoRA adds the saved extra compose-data LoRAs.";
 
     const createInlineSwitch = ({ title, leftLabel, rightLabel, getValue, onToggle, isRightActive, isDisabled = null }) => {
         const group = document.createElement("div");
@@ -1993,61 +2162,208 @@ function ensureComposerUi(node) {
         return { group, sync };
     };
 
-    const formatSwitch = createInlineSwitch({
+    const createLabeledToggle = ({ title, label, getValue, onToggle, isActive, isDisabled = null, activeBackground = "#2f6f92", activeLabelColor = "#f3f4f6", inactiveLabelColor = "#8fb0c6", defaultLabelColor = "#d7edf8" }) => {
+        const group = document.createElement("div");
+        group.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-width: 0;
+            flex: 1 1 0;
+        `;
+        group.title = title;
+
+        const text = document.createElement("span");
+        text.textContent = label;
+        text.style.cssText = `font-size: 12px; color: ${defaultLabelColor}; white-space: nowrap; user-select: none;`;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.style.cssText = `
+            position: relative;
+            width: 34px;
+            height: 18px;
+            border: 1px solid rgba(116, 131, 154, 0.7);
+            border-radius: 999px;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            flex: 0 0 auto;
+        `;
+
+        const knob = document.createElement("span");
+        knob.style.cssText = `
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #f3f4f6;
+            transition: transform 0.16s ease, background 0.16s ease;
+            pointer-events: none;
+        `;
+        button.appendChild(knob);
+
+        const sync = () => {
+            const current = getValue();
+            const active = typeof isActive === "function" ? !!isActive(current) : false;
+            const disabled = typeof isDisabled === "function" ? !!isDisabled() : false;
+            button.dataset.active = active ? "1" : "0";
+            button.style.background = active ? activeBackground : "transparent";
+            knob.style.transform = active ? "translateX(16px)" : "translateX(0)";
+            text.style.color = active ? activeLabelColor : inactiveLabelColor;
+            button.disabled = disabled;
+            button.style.opacity = disabled ? "0.45" : "1";
+            button.style.cursor = disabled ? "default" : "pointer";
+            group.style.opacity = disabled ? "0.72" : "1";
+        };
+
+        button.onclick = (evt) => {
+            evt.preventDefault();
+            evt.stopPropagation();
+            if (typeof isDisabled === "function" && isDisabled()) {
+                sync();
+                return;
+            }
+            onToggle(getValue());
+            sync();
+            node._composerUiRender?.();
+        };
+
+        group.appendChild(text);
+        group.appendChild(button);
+        return { group, sync };
+    };
+
+    const createModeBadge = ({ title, label, active = true }) => {
+        const group = document.createElement("div");
+        group.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 0;
+            flex: 1 1 0;
+        `;
+        group.title = title;
+
+        const text = document.createElement("span");
+        text.textContent = label;
+        text.style.cssText = `font-size: 12px; color: ${active ? "#f3f4f6" : "#8fb0c6"}; white-space: nowrap; user-select: none;`;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.disabled = true;
+        button.style.cssText = `
+            position: relative;
+            width: 34px;
+            height: 18px;
+            border: 1px solid rgba(116, 131, 154, 0.7);
+            border-radius: 999px;
+            background: ${active ? "#2f6f92" : "transparent"};
+            cursor: default;
+            padding: 0;
+            flex: 0 0 auto;
+            opacity: 1;
+        `;
+
+        const knob = document.createElement("span");
+        knob.style.cssText = `
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #f3f4f6;
+            transform: ${active ? "translateX(16px)" : "translateX(0)"};
+            pointer-events: none;
+        `;
+        button.appendChild(knob);
+        group.appendChild(text);
+        group.appendChild(button);
+        return { group, sync: () => {} };
+    };
+
+    const formatSwitch = createLabeledToggle({
         title: "Switch Prompt output between text and JSON",
-        leftLabel: "TXT",
-        rightLabel: "JSON",
+        label: "JSON",
         getValue: () => readOutputFormat(node),
         onToggle: (current) => writeOutputFormat(node, current === "json" ? "text" : "json"),
-        isRightActive: (current) => current === "json",
-        isDisabled: () => isComposerEditLocked(node),
+        isActive: (current) => current === "json",
     });
-    const positionSwitch = createInlineSwitch({
-        title: "Switch whether composed parts go before or after the incoming prompt",
-        leftLabel: "Before",
-        rightLabel: "After",
+    const positionSwitch = createLabeledToggle({
+        title: "Switch whether composed parts go before or after the selected prompt source",
+        label: "After",
         getValue: () => readComposePosition(node),
         onToggle: (current) => writeComposePosition(node, current === "after" ? "before" : "after"),
-        isRightActive: (current) => current === "after",
-        isDisabled: () => isComposerEditLocked(node),
+        isActive: (current) => current === "after",
     });
-    const generationModeSwitch = createInlineSwitch({
+    const generationModeSwitch = createLabeledToggle({
         title: "Switch whether Prompt Composer uses Image or Video LoRAs",
-        leftLabel: "Image",
-        rightLabel: "Video",
+        label: "Video",
         getValue: () => readGenerationMode(node),
         onToggle: (current) => writeGenerationMode(node, current === "video" ? "image" : "video"),
-        isRightActive: (current) => current === "video",
-        isDisabled: () => isComposerEditLocked(node),
+        isActive: (current) => current === "video",
     });
-    const recipeSyncSwitch = createInlineSwitch({
-        title: "When enabled, execute clears local card edits and reloads the Prompt Composer state from connected recipe_data",
-        leftLabel: "Edit",
-        rightLabel: "Sync",
+    const recipeSyncSwitch = createLabeledToggle({
+        title: "When enabled, execute clears local card edits and reloads the Prompt Composer state from connected compose_data",
+        label: "Sync",
         getValue: () => readRecipeSyncMode(node),
         onToggle: () => {
             const nextValue = isRecipeSyncEnabled(node) ? "edit" : "sync";
             writeRecipeSyncMode(node, nextValue);
             if (nextValue === "sync" && node._composerLastRecipeState) {
-                applyComposerRecipeState(node, node._composerLastRecipeState);
+                applyComposerRecipeState(node, node._composerLastRecipeState, { preserveModes: true });
             }
         },
-        isRightActive: (current) => current === "sync",
+        isActive: (current) => current === "sync",
+        activeBackground: "#8a2f3b",
+    });
+    const inputPromptSwitch = createLabeledToggle({
+        title: "When enabled, use the prompt from compose_data instead of the live incoming prompt",
+        label: "Prompt",
+        getValue: () => readInputPromptMode(node),
+        onToggle: () => {
+            const nextValue = readInputPromptMode(node) === "use_prompt" ? "no_prompt" : "use_prompt";
+            writeInputPromptMode(node, nextValue);
+        },
+        isActive: (current) => current === "use_prompt",
+        activeBackground: "#8a2f3b",
+        defaultLabelColor: "#dbeafe",
+        inactiveLabelColor: "#dbeafe",
+    });
+    const inputLoraSwitch = createLabeledToggle({
+        title: "When enabled, use the saved LoRA input from compose_data instead of the live connected LoRA input",
+        label: "LoRA",
+        getValue: () => readInputLoraMode(node),
+        onToggle: () => {
+            const nextValue = readInputLoraMode(node) === "use_lora" ? "no_lora" : "use_lora";
+            writeInputLoraMode(node, nextValue);
+        },
+        isActive: (current) => current === "use_lora",
+        activeBackground: "#8a2f3b",
+        defaultLabelColor: "#dbeafe",
+        inactiveLabelColor: "#dbeafe",
     });
 
     switchRow.appendChild(formatSwitch.group);
     switchRow.appendChild(positionSwitch.group);
     switchRow.appendChild(generationModeSwitch.group);
-    switchRow.appendChild(recipeSyncSwitch.group);
+    secondarySwitchRow.appendChild(recipeSyncSwitch.group);
+    secondarySwitchRow.appendChild(inputPromptSwitch.group);
+    secondarySwitchRow.appendChild(inputLoraSwitch.group);
     root.appendChild(switchRow);
-    root.appendChild(lockNotice);
+    root.appendChild(secondarySwitchRow);
 
     const actionRow = document.createElement("div");
     actionRow.style.cssText = `
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin: 0 0 8px 0;
+        gap: 6px;
+        margin: 0 0 6px 0;
         padding: 0 2px;
         flex: 0 0 auto;
     `;
@@ -2060,8 +2376,8 @@ function ensureComposerUi(node) {
         button.style.cssText = `
             flex: 1 1 0;
             min-width: 70px;
-            min-height: 28px;
-            padding: 6px 8px;
+            min-height: 26px;
+            padding: 5px 8px;
             border-radius: 6px;
             border: 1px solid #444;
             background: #222;
@@ -2661,7 +2977,7 @@ function ensureComposerUi(node) {
         zoomSlider.value = String(Math.round(thumbZoom * 100));
         syncZoomLabel();
         const minCardWidth = Math.round(THUMB_BASE_WIDTH * thumbZoom);
-        const metaHeight = isVideoMode ? CARD_META_HEIGHT_VIDEO : CARD_META_HEIGHT;
+        const metaHeight = CARD_META_HEIGHT_VIDEO;
         const tileMinHeight = Math.round(minCardWidth * (4 / 3)) + metaHeight;
 
         // Flexible tracks keep rows filled while min width controls scale steps.
@@ -2669,8 +2985,6 @@ function ensureComposerUi(node) {
         grid.style.pointerEvents = isEditLocked ? "none" : "auto";
         grid.style.opacity = isEditLocked ? "0.74" : "1";
         grid.innerHTML = "";
-        lockNotice.style.display = isEditLocked ? "block" : "none";
-
         resolvedParts.forEach((part, index) => {
             const promptRefs = getPartPromptRefs(part);
             const primaryRef = promptRefs[0] || null;
@@ -2776,7 +3090,23 @@ function ensureComposerUi(node) {
                 display: block;
                 overflow: hidden;
             `;
-            thumbBtn.title = "Click to select prompt fragment(s)\nMiddle click to mute";
+            const hoverPromptText = buildComposerPartHoverText(node, part, promptRefs, getPartDisplayCategory(part) || "Category");
+            thumbBtn.title = "";
+
+            const attachPromptHoverTooltip = (el) => {
+                if (!el || !hoverPromptText) return;
+                el.addEventListener("mouseenter", (evt) => {
+                    showComposerPromptTextTooltip(hoverPromptText, evt.clientX, evt.clientY);
+                });
+                el.addEventListener("mousemove", (evt) => {
+                    moveComposerPromptTextTooltip(evt.clientX, evt.clientY);
+                });
+                el.addEventListener("mouseleave", () => {
+                    hideComposerPromptTextTooltip();
+                });
+            };
+
+            attachPromptHoverTooltip(thumbBtn);
 
             if (multiCount > 1) {
                 appendMultiPromptSlices(thumbBtn, previewThumbnails);
@@ -2954,9 +3284,7 @@ function ensureComposerUi(node) {
             label.textContent = multiCount > 1
                 ? `${displayCategory}: (Multi)`
                 : `${displayCategory}: ${primaryName}`;
-            label.title = multiCount > 1
-                ? `Subject #${padSubjectNumber(part.effective_subject_number)}\n${promptRefs.map((ref) => `${ref.category || displayCategory}: ${ref.name}`).join("\n")}`
-                : label.textContent;
+            label.title = "";
             label.style.cssText = `
                 font-size: 10px;
                 color: ${isMuted ? (UI.textMuted || "#9ca3af") : (UI.textPrimary || "#d1d5db")};
@@ -2968,6 +3296,7 @@ function ensureComposerUi(node) {
                 cursor: pointer;
                 text-decoration: ${isMuted ? "line-through" : "none"};
             `;
+            attachPromptHoverTooltip(label);
             const strengthRow = document.createElement("div");
             strengthRow.style.cssText = `
                 display: flex;
@@ -3256,6 +3585,8 @@ function ensureComposerUi(node) {
         positionSwitch.sync();
         generationModeSwitch.sync();
         recipeSyncSwitch.sync();
+        inputPromptSwitch.sync();
+        inputLoraSwitch.sync();
     };
 
     refreshComposerHeight();
@@ -3291,6 +3622,12 @@ app.registerExtension({
             if (node.properties[RECIPE_SYNC_MODE_PROP_KEY] === undefined) {
                 node.properties[RECIPE_SYNC_MODE_PROP_KEY] = readRecipeSyncMode(node);
             }
+            if (node.properties[INPUT_PROMPT_MODE_PROP_KEY] === undefined) {
+                node.properties[INPUT_PROMPT_MODE_PROP_KEY] = readInputPromptMode(node);
+            }
+            if (node.properties[INPUT_LORA_MODE_PROP_KEY] === undefined) {
+                node.properties[INPUT_LORA_MODE_PROP_KEY] = readInputLoraMode(node);
+            }
 
             node.setSize([
                 Math.max(MIN_NODE_WIDTH, node.size?.[0] || MIN_NODE_WIDTH),
@@ -3307,7 +3644,7 @@ app.registerExtension({
                 if (state) {
                     rememberComposerRecipeState(node, state);
                     if (isRecipeSyncEnabled(node)) {
-                        applyComposerRecipeState(node, state);
+                        applyComposerRecipeState(node, state, { preserveModes: true });
                     }
                 }
             });
@@ -3340,6 +3677,8 @@ app.registerExtension({
             node.properties[COMPOSE_POSITION_PROP_KEY] = readComposePosition(node);
             node.properties[GENERATION_MODE_PROP_KEY] = readGenerationMode(node);
             node.properties[RECIPE_SYNC_MODE_PROP_KEY] = readRecipeSyncMode(node);
+            node.properties[INPUT_PROMPT_MODE_PROP_KEY] = readInputPromptMode(node);
+            node.properties[INPUT_LORA_MODE_PROP_KEY] = readInputLoraMode(node);
 
             node._composerUiSyncSwitches?.();
             node._composerUiRefreshHeight?.();

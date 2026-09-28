@@ -1770,7 +1770,7 @@ export function hasWorkflowDataPayload(rawWorkflowData) {
     );
 }
 
-function hasComposeLikePayload(promptData) {
+export function hasComposeLikePayload(promptData) {
     if (!promptData || typeof promptData !== "object") return false;
     const savedFrom = String(promptData.saved_from || "").trim();
     if (savedFrom === "PromptComposerManager" || savedFrom === "ComposerManager") return true;
@@ -1781,7 +1781,7 @@ function hasComposeLikePayload(promptData) {
     return workflowData.prompt_composer && typeof workflowData.prompt_composer === "object";
 }
 
-function hasRecipeLikePayload(promptData) {
+export function hasRecipeLikePayload(promptData) {
     if (!promptData || typeof promptData !== "object") return false;
     if (hasWorkflowDataPayload(promptData.workflow_data)) return true;
     return Object.prototype.hasOwnProperty.call(promptData, "workflow_data");
@@ -1915,12 +1915,15 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
         return raw === "prompt" || raw === "recipe" || raw === "compose" || raw === "all" ? raw : "";
     })();
     const filterEmptyCategories = options?.filterEmptyCategories === true;
+    const showAllCategoriesToggle = options?.showAllCategoriesToggle === true;
+    const hideContentFilterControl = options?.hideContentFilterControl === true;
     const useComposerMultiSelectActions = multiSelectActionMode === "composer-add";
     let editMode = allowEditMode && options?.editMode === true;
     let multiSelectMode = startInMultiSelect;
     let updateSelectButton = () => {};
     let updateFooterText = () => {};
     let updateSelectionToolbar = () => {};
+    let showAllCategoriesState = false;
 
     const filterAllowedCategories = (categories) => {
         if (!allowedCategorySet || !Array.isArray(categories)) return categories;
@@ -2419,7 +2422,20 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                 contentFilterBtn.title = "Showing prompts, recipes, and compose entries";
             }
         };
+        const allCategoriesBtn = document.createElement("button");
+        const updateAllCategoriesBtn = () => {
+            if (showAllCategoriesState) {
+                allCategoriesBtn.textContent = "Category";
+                allCategoriesBtn.style.cssText = btnStyle + `background: rgba(94, 179, 123, 0.18); border-color: rgba(94, 179, 123, 0.78); color: #dff6e7;`;
+                allCategoriesBtn.title = "Showing all categories, including empty ones for the current type filter";
+            } else {
+                allCategoriesBtn.textContent = "Category";
+                allCategoriesBtn.style.cssText = btnStyle + `background: rgba(75, 85, 99, 0.12); border-color: rgba(107, 114, 128, 0.42); color: #8a93a2;`;
+                allCategoriesBtn.title = "Hide categories with no entries for the current type filter";
+            }
+        };
         updateContentFilterBtn();
+        updateAllCategoriesBtn();
         updateNsfwBtn();
         const thumbnailModelBtn = document.createElement("button");
         const updateThumbnailModelBtn = () => {
@@ -2455,6 +2471,15 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                 contentFilterBtn.style.background = "#313843";
                 contentFilterBtn.style.color = "#aaa";
             }
+        };
+        allCategoriesBtn.onmouseover = () => {
+            if (!showAllCategoriesState) {
+                allCategoriesBtn.style.background = "#38414c";
+                allCategoriesBtn.style.color = "#fff";
+            }
+        };
+        allCategoriesBtn.onmouseout = () => {
+            updateAllCategoriesBtn();
         };
         nsfwBtn.onmouseover = () => { if (!hideNSFWState) { nsfwBtn.style.background = '#38414c'; nsfwBtn.style.color = '#fff'; } };
         nsfwBtn.onmouseout = () => { if (!hideNSFWState) { nsfwBtn.style.background = '#313843'; nsfwBtn.style.color = '#aaa'; } };
@@ -2621,8 +2646,11 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
         }
 
         controlsBar.appendChild(searchWrapper);
-        if (!allowedCategories && !promptOnly) {
+        if (!allowedCategories && !promptOnly && !hideContentFilterControl) {
             controlsBar.appendChild(contentFilterBtn);
+        }
+        if (!allowedCategories && !promptOnly && showAllCategoriesToggle) {
+            controlsBar.appendChild(allCategoriesBtn);
         }
         controlsBar.appendChild(thumbnailModelBtn);
         controlsBar.appendChild(nsfwBtn);
@@ -2869,13 +2897,25 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
         };
 
         const ensureSelectedCategory = () => {
-            allCategories = filterAllowedCategories(getVisibleCategories(node, {
+            const resolveVisibleCategories = () => filterAllowedCategories(getVisibleCategories(node, {
                 hideNSFW: hideNSFWState,
                 workflowOnly,
                 contentFilter: contentFilterState,
-                filterEmptyCategories,
+                filterEmptyCategories: filterEmptyCategories && !showAllCategoriesState,
                 endpointPrefix,
             }));
+
+            allCategories = resolveVisibleCategories();
+            if (
+                allCategories.length === 0
+                && showAllCategoriesToggle
+                && filterEmptyCategories
+                && !showAllCategoriesState
+            ) {
+                showAllCategoriesState = true;
+                updateAllCategoriesBtn();
+                allCategories = resolveVisibleCategories();
+            }
             applyCategoryTypeFilter();
             applyCategorySearchFilter(searchInput?.value || "");
 
@@ -5015,7 +5055,7 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                             saveNameInput.select();
                         }
                         setCurrentPromptSelection(promptName);
-                        renderContent(searchInput.value);
+                        updateGridSelections();
                         return;
                     }
 
@@ -5040,27 +5080,12 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
 
                 if (mode === "save") {
                     card.ondblclick = async () => {
-                        if (!onSave) return;
-                        const overwriteOk = await showConfirm(
-                            "Overwrite Prompt",
-                            `Prompt "${promptName}" already exists in category "${selectedCategory}". Do you want to replace it?`,
-                            "Replace",
-                            "#c44"
-                        );
-                        if (!overwriteOk) return;
-
-                        const saveResult = await onSave({
-                            category: selectedCategory,
-                            name: promptName,
-                            overwrite: true,
-                        });
-
-                        if (saveResult?.success) {
-                            resolve(saveResult);
-                            cleanup();
-                        } else {
-                            await showInfo("Save Failed", saveResult?.error || "Failed to save workflow.");
+                        selectedSaveName = promptName;
+                        if (saveNameInput) {
+                            saveNameInput.value = promptName;
                         }
+                        setCurrentPromptSelection(promptName);
+                        await handleSaveAction();
                     };
                 } else if (requireDoubleClickToSelect || isMultiSelectActive()) {
                     card.ondblclick = () => {
@@ -5416,7 +5441,7 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                             saveNameInput.select();
                         }
                         setCurrentPromptSelection(promptName);
-                        renderContent(searchInput.value);
+                        updateCompactGridSelections();
                         return;
                     }
 
@@ -5441,27 +5466,12 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
 
                 if (mode === "save") {
                     card.ondblclick = async () => {
-                        if (!onSave) return;
-                        const overwriteOk = await showConfirm(
-                            "Overwrite Prompt",
-                            `Prompt "${promptName}" already exists in category "${selectedCategory}". Do you want to replace it?`,
-                            "Replace",
-                            "#c44"
-                        );
-                        if (!overwriteOk) return;
-
-                        const saveResult = await onSave({
-                            category: selectedCategory,
-                            name: promptName,
-                            overwrite: true,
-                        });
-
-                        if (saveResult?.success) {
-                            resolve(saveResult);
-                            cleanup();
-                        } else {
-                            await showInfo("Save Failed", saveResult?.error || "Failed to save workflow.");
+                        selectedSaveName = promptName;
+                        if (saveNameInput) {
+                            saveNameInput.value = promptName;
                         }
+                        setCurrentPromptSelection(promptName);
+                        await handleSaveAction();
                     };
                 } else if (requireDoubleClickToSelect || isMultiSelectActive()) {
                     card.ondblclick = () => {
@@ -6040,7 +6050,7 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
                             saveNameInput.select();
                         }
                         setCurrentPromptSelection(promptName);
-                        renderContent(searchInput.value);
+                        updateListSelections();
                         return;
                     }
 
@@ -6065,27 +6075,12 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
 
                 if (mode === "save") {
                     row.ondblclick = async () => {
-                        if (!onSave) return;
-                        const overwriteOk = await showConfirm(
-                            "Overwrite Prompt",
-                            `Prompt "${promptName}" already exists in category "${selectedCategory}". Do you want to replace it?`,
-                            "Replace",
-                            "#c44"
-                        );
-                        if (!overwriteOk) return;
-
-                        const saveResult = await onSave({
-                            category: selectedCategory,
-                            name: promptName,
-                            overwrite: true,
-                        });
-
-                        if (saveResult?.success) {
-                            resolve(saveResult);
-                            cleanup();
-                        } else {
-                            await showInfo("Save Failed", saveResult?.error || "Failed to save workflow.");
+                        selectedSaveName = promptName;
+                        if (saveNameInput) {
+                            saveNameInput.value = promptName;
                         }
+                        setCurrentPromptSelection(promptName);
+                        await handleSaveAction();
                     };
                 } else if (requireDoubleClickToSelect || isMultiSelectActive()) {
                     row.ondblclick = () => {
@@ -6396,6 +6391,13 @@ async function standaloneShowThumbnailBrowser(node, currentCategory, currentProm
             setBrowserContentFilter(contentFilterState);
             app.ui.settings.setSettingValue("PromptManager.BrowserContentFilter", contentFilterState);
             updateContentFilterBtn();
+            rebuildCategoryList();
+            renderContent(searchInput.value);
+        };
+
+        allCategoriesBtn.onclick = () => {
+            showAllCategoriesState = !showAllCategoriesState;
+            updateAllCategoriesBtn();
             rebuildCategoryList();
             renderContent(searchInput.value);
         };
@@ -6896,6 +6898,10 @@ function standaloneOpenPromptBrowserForSave(options = {}) {
         initialName: options.initialName || "",
         workflowOnly: options.workflowOnly === true || browserNode?._isWorkflowManager === true,
         promptOnly: options.promptOnly === true,
+        contentFilter: options.contentFilter,
+        filterEmptyCategories: options.filterEmptyCategories === true,
+        showAllCategoriesToggle: options.showAllCategoriesToggle === true,
+        hideContentFilterControl: options.hideContentFilterControl === true,
         endpointPrefix: options.endpointPrefix,
         loadPromptsFn: options.loadPromptsFn,
     });

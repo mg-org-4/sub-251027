@@ -10,7 +10,6 @@ from datetime import datetime
 import folder_paths
 import server
 from ..py.backup_manager import atomic_save, load_with_fallback, check_backup
-from ..py.thumbnail_utils import image_to_base64_thumbnail
 from ..py.workflow_data_utils import ensure_v2_recipe_data, to_json_safe_workflow_data, build_v2_recipe_data_from_prompt
 
 
@@ -201,6 +200,7 @@ _MODEL_SLOT_KEYS = ("a", "b", "c", "d")
 _LORA_INPUT_MODE_PROMPT_ONLY = "Prompt LoRAs Only"
 _LORA_INPUT_MODE_COMBINE = "Combine LoRAs"
 _LORA_INPUT_MODE_INPUT_ONLY = "Input LoRAs Only"
+_PROMPT_COMPOSER_RECIPE_KEY = "prompt_composer"
 _LORA_INPUT_MODES = (
     _LORA_INPUT_MODE_PROMPT_ONLY,
     _LORA_INPUT_MODE_COMBINE,
@@ -292,6 +292,87 @@ def _combine_multi_lora_inputs(input_a, input_b):
     return out
 
 
+def _flatten_multi_lora_slots(multi_slots):
+    flat = []
+    if not isinstance(multi_slots, dict):
+        return flat
+    for slot in _MODEL_SLOT_KEYS:
+        flat.extend(_coerce_lora_stack(multi_slots.get(slot)))
+    return flat
+
+
+def _normalize_prompt_composer_input_loras(raw_loras):
+    normalized = []
+    for path, model_strength, clip_strength in _coerce_lora_stack(raw_loras):
+        normalized.append({
+            "name": str(os.path.splitext(os.path.basename(normalize_path_separators(path)))[0] or "").strip(),
+            "path": str(path or "").strip(),
+            "model_strength": float(model_strength),
+            "clip_strength": float(clip_strength),
+            "active": True,
+            "available": True,
+            "source": "upstream",
+        })
+    return [entry for entry in normalized if entry.get("name")]
+
+
+def _prompt_composer_lora_key(item):
+    raw_path = str(item.get("path", item.get("name", "")) or "").replace("\\", "/").strip().lower()
+    leaf = os.path.basename(raw_path)
+    stem, _ext = os.path.splitext(leaf)
+    return stem or leaf
+
+
+def _merge_prompt_composer_input_data(recipe_data, input_prompt="", prompt_enabled=False, input_lora_stack=None):
+    if not isinstance(recipe_data, dict):
+        return recipe_data
+
+    payload = recipe_data.get(_PROMPT_COMPOSER_RECIPE_KEY)
+    if not isinstance(payload, dict):
+        return recipe_data
+
+    input_data = payload.get("input_data") if isinstance(payload.get("input_data"), dict) else {}
+    prompt_data = payload.get("prompt_data") if isinstance(payload.get("prompt_data"), dict) else {}
+    existing_prompt = str(input_data.get("prompt", payload.get("input_prompt", "")) or "").strip()
+    incoming_prompt = str(input_prompt or "").strip()
+    merged_prompt = existing_prompt if existing_prompt else (incoming_prompt if prompt_enabled and incoming_prompt else "")
+
+    existing_loras = _normalize_prompt_composer_input_loras(
+        input_data.get("lora_stack", payload.get("input_lora_stack", []))
+    )
+    added_loras = _normalize_prompt_composer_input_loras(input_lora_stack or []) if input_lora_stack is not None else []
+    prompt_loras = _normalize_prompt_composer_input_loras(
+        prompt_data.get("lora_stack", payload.get("prompt_lora_stack", []))
+    )
+    prompt_lora_keys = {
+        _prompt_composer_lora_key(item)
+        for item in prompt_loras
+        if _prompt_composer_lora_key(item)
+    }
+
+    merged_loras = []
+    seen = set()
+    for item in [*existing_loras, *added_loras]:
+        key = _prompt_composer_lora_key(item)
+        if not key:
+            continue
+        if key in prompt_lora_keys:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        merged_loras.append(item)
+
+    payload["input_data"] = {
+        **input_data,
+        "source": "upstream",
+        "prompt": merged_prompt,
+        "lora_stack": merged_loras,
+    }
+    recipe_data[_PROMPT_COMPOSER_RECIPE_KEY] = payload
+    return recipe_data
+
+
 class PromptManagerAdvanced:
     """
     Advanced Prompt Manager with LoRA stack integration.
@@ -345,11 +426,10 @@ class PromptManagerAdvanced:
             },
             "optional": {
                 "prompt": ("STRING", {"multiline": True, "forceInput": True, "lazy": True, "tooltip": "Connect prompt text input here"}),
-                "recipe_data": ("RECIPE_DATA", {"forceInput": True, "tooltip": "Optional saved workflow or Prompt Composer payload to preserve when saving prompts."}),
+                "manager_data": ("RECIPE_DATA,COMPOSE_DATA", {"forceInput": True, "tooltip": "Optional saved recipe or composer payload."}),
                 "lora_stack_a": ("LORA_STACK,MULTI_LORA_STACK", {"forceInput": True, "tooltip": "First LoRA stack input. Accepts LORA_STACK or MULTI_LORA_STACK."}),
                 "lora_stack_b": ("LORA_STACK,MULTI_LORA_STACK", {"forceInput": True, "tooltip": "Second LoRA stack input. Accepts LORA_STACK or MULTI_LORA_STACK."}),
                 "trigger_words": ("STRING", {"forceInput": True, "tooltip": "Comma-separated trigger words to append to prompt"}),
-                "thumbnail_image": ("IMAGE", {"tooltip": "Connect an image to use as thumbnail when saving the prompt"}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -366,7 +446,8 @@ class PromptManagerAdvanced:
     CATEGORY = "Prompt Manager"
     DESCRIPTION = "Full-featured prompt manager with multi-slot LoRA stack support, trigger words, and thumbnail browser."
     RETURN_TYPES = ("STRING", "LORA_STACK", "LORA_STACK", "RECIPE_DATA", "MULTI_LORA_STACK")
-    RETURN_NAMES = ("prompt", "lora_stack_a", "lora_stack_b", "recipe_data", "multi_lora_stack")
+    RETURN_NAMES = ("prompt", "lora_stack_a", "lora_stack_b", "manager_data", "multi_lora_stack")
+    OUTPUT_TOOLTIPS = ("", "", "", "Saved recipe or composer payload.", "")
     FUNCTION = "get_prompt"
     OUTPUT_NODE = True
 
@@ -636,12 +717,18 @@ class PromptManagerAdvanced:
         return lora_path, False
 
     def get_prompt(self, category, name, use_prompt_input, use_lora_input=_LORA_INPUT_MODE_PROMPT_ONLY,
-                   text="", prompt=None, recipe_data=None, lora_stack_a=None, lora_stack_b=None,
-                   trigger_words=None, thumbnail_image=None,
+                   text="", prompt=None, manager_data=None, lora_stack_a=None, lora_stack_b=None,
+                   trigger_words=None,
                    unique_id=None, loras_a_toggle=None, loras_b_toggle=None, loras_c_toggle=None, loras_d_toggle=None, trigger_words_toggle=None,
                    extra_pnginfo=None, api_prompt=None,
                    **kwargs):
         """Return the prompt text and filtered lora stacks based on toggle states"""
+
+        recipe_data = manager_data
+        if recipe_data is None:
+            recipe_data = kwargs.get("data")
+        if recipe_data is None:
+            recipe_data = kwargs.get("recipe_data")
 
         # ========================================
         # RESET LOGIC - Determine if we should clear toggles and start fresh
@@ -977,14 +1064,6 @@ class PromptManagerAdvanced:
             loras_c_display = self._format_loras_for_display_with_unavailable(lora_stack_c, all_preset_loras_c)
             loras_d_display = self._format_loras_for_display_with_unavailable(lora_stack_d, all_preset_loras_d)
 
-        # Convert thumbnail image to base64 if provided
-        thumbnail_base64 = None
-        if thumbnail_image is not None:
-            try:
-                thumbnail_base64 = image_to_base64_thumbnail(thumbnail_image, log_prefix="PromptManagerAdvanced")
-            except Exception as e:
-                print(f"[PromptManagerAdvanced] Failed to convert thumbnail image: {e}")
-
         # Build explicit list of unavailable lora names for frontend
         if use_input_only_loras:
             unavailable_loras_a = [l.get('name') for l in loras_a_display if l.get('available') is False]
@@ -1017,7 +1096,7 @@ class PromptManagerAdvanced:
                 "unavailable_loras_c": unavailable_loras_c,
                 "unavailable_loras_d": unavailable_loras_d,
                 "trigger_words": trigger_words_display,
-                "connected_thumbnail": thumbnail_base64,
+                "connected_thumbnail": None,
                 "should_reset": should_reset,  # Python tells JavaScript when to reset toggles
                 "lora_input_mode": lora_input_mode,
                 "use_lora_input": use_combined_loras,
@@ -1046,6 +1125,12 @@ class PromptManagerAdvanced:
         out_stack_b = processed_stack_b if processed_stack_b else []
         out_stack_c = processed_stack_c if processed_stack_c else []
         out_stack_d = processed_stack_d if processed_stack_d else []
+        active_used_input_loras = _flatten_multi_lora_slots({
+            "a": out_stack_a,
+            "b": out_stack_b,
+            "c": out_stack_c,
+            "d": out_stack_d,
+        })
 
         neg_prompt = str(workflow_fields.get('negative_prompt', '') or '')
         out_workflow_data = build_v2_recipe_data_from_prompt(
@@ -1057,6 +1142,12 @@ class PromptManagerAdvanced:
             loras_d=loras_d_display,
             source='PromptManagerAdvanced',
             base_recipe_data=resolved_workflow_data,
+        )
+        out_workflow_data = _merge_prompt_composer_input_data(
+            out_workflow_data,
+            input_prompt=current_prompt_input_text,
+            prompt_enabled=bool(use_prompt_input and current_prompt_input_text),
+            input_lora_stack=active_used_input_loras,
         )
 
         out_multi_stack = {
@@ -1070,7 +1161,7 @@ class PromptManagerAdvanced:
 
     def check_lazy_status(self, category, name, use_prompt_input, use_lora_input=_LORA_INPUT_MODE_PROMPT_ONLY,
                           text="", prompt=None, lora_stack_a=None, lora_stack_b=None,
-                          trigger_words=None, thumbnail_image=None,
+                          trigger_words=None,
                           unique_id=None, loras_a_toggle=None, loras_b_toggle=None, loras_c_toggle=None, loras_d_toggle=None,
                           trigger_words_toggle=None, extra_pnginfo=None, api_prompt=None,
                           **kwargs):

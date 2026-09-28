@@ -1,8 +1,8 @@
 """
-Prompt Composer Manager - recipe_data editor/save helper for Prompt Composer payloads.
+Prompt Composer Manager - compose_data editor/save helper for Prompt Composer payloads.
 
 Differences from Recipe Manager:
-- accepts an IMAGE input to provide/save a thumbnail alongside recipe_data
+- accepts an IMAGE input to provide/save a thumbnail alongside compose data
 - tags saved/forwarded workflow metadata as PromptComposerManager
 """
 
@@ -16,7 +16,7 @@ from .prompt_manager_adv import PromptManagerAdvanced
 
 
 class PromptComposerManager(PromptManagerAdvanced):
-    """Workflow-focused manager for Prompt Composer recipe_data with explicit thumbnail input."""
+    """Workflow-focused manager for Prompt Composer data with explicit thumbnail input."""
 
     SOURCE_NAME = "PromptComposerManager"
 
@@ -47,8 +47,8 @@ class PromptComposerManager(PromptManagerAdvanced):
                 }),
             },
             "optional": {
-                "recipe_data": ("RECIPE_DATA", {"forceInput": True, "tooltip": "Connected recipe_data to edit/forward"}),
-                "thumbnail_image": ("IMAGE", {"tooltip": "Optional image input used as the saved thumbnail when present."}),
+                "compose_data": ("RECIPE_DATA,COMPOSE_DATA", {"forceInput": True, "tooltip": "Connected compose data to edit/forward"}),
+                "image": ("IMAGE", {"tooltip": "Optional image input used as the saved thumbnail when present."}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -59,30 +59,32 @@ class PromptComposerManager(PromptManagerAdvanced):
         }
 
     CATEGORY = "Prompt Manager"
-    DESCRIPTION = "Recipe-data focused manager for Prompt Composer saves, with optional thumbnail image input."
-    RETURN_TYPES = ("RECIPE_DATA",)
-    RETURN_NAMES = ("recipe_data",)
+    DESCRIPTION = "Compose-data focused manager for Prompt Composer saves, with optional thumbnail image input."
+    RETURN_TYPES = ("COMPOSE_DATA",)
+    RETURN_NAMES = ("compose_data",)
     FUNCTION = "get_workflow"
     OUTPUT_NODE = True
 
     @classmethod
     def IS_CHANGED(cls, category, name, text="", **kwargs):
-        recipe_data = kwargs.get("recipe_data", None)
-        thumbnail_image = kwargs.get("thumbnail_image", None)
+        data = kwargs.get("compose_data", None)
+        if data is None:
+            data = kwargs.get("data", None)
+        image = kwargs.get("image", None)
         loras_a_toggle = kwargs.get("loras_a_toggle", "")
         loras_b_toggle = kwargs.get("loras_b_toggle", "")
         saved_workflow_data = kwargs.get("saved_workflow_data", "")
         thumbnail_sig = None
         try:
-            if thumbnail_image is not None:
-                thumbnail_sig = tuple(getattr(thumbnail_image, "shape", []) or [])
+            if image is not None:
+                thumbnail_sig = tuple(getattr(image, "shape", []) or [])
         except Exception:
             thumbnail_sig = "image"
         return (
             category,
             name,
             text,
-            str(recipe_data) if recipe_data else None,
+            str(data) if data else None,
             thumbnail_sig,
             loras_a_toggle or "",
             loras_b_toggle or "",
@@ -94,15 +96,21 @@ class PromptComposerManager(PromptManagerAdvanced):
         category,
         name,
         text="",
-        recipe_data=None,
-        thumbnail_image=None,
+        compose_data=None,
+        image=None,
         unique_id=None,
         loras_a_toggle=None,
         loras_b_toggle=None,
         saved_workflow_data=None,
+        **kwargs,
     ):
         prompts_data = self.load_prompts()
         source_name = self.SOURCE_NAME
+        recipe_data = compose_data
+        if recipe_data is None:
+            recipe_data = kwargs.get("data")
+        if recipe_data is None:
+            recipe_data = kwargs.get("recipe_data")
 
         def _as_workflow_dict(raw):
             if isinstance(raw, dict):
@@ -159,6 +167,8 @@ class PromptComposerManager(PromptManagerAdvanced):
         wf_model_a = get_v2_model_block(wf, "model_a") or {}
         wf_model_b = get_v2_model_block(wf, "model_b") or {}
         wf_has_model_b = isinstance(get_v2_model_block(wf, "model_b"), dict)
+        composer_payload = wf.get("prompt_composer") if isinstance(wf.get("prompt_composer"), dict) else {}
+        composer_input_data = composer_payload.get("input_data") if isinstance(composer_payload.get("input_data"), dict) else {}
         incoming_wf = live_workflow_data if isinstance(live_workflow_data, dict) else None
         incoming_has_model_b = None
         if isinstance(incoming_wf, dict):
@@ -169,7 +179,7 @@ class PromptComposerManager(PromptManagerAdvanced):
         output_text = (wf_model_a.get("positive_prompt", "") or text or "")
         generated_thumbnail = image_to_base64_thumbnail(wf.get("IMAGE"), log_prefix=source_name) if isinstance(wf, dict) else None
         incoming_thumbnail = image_to_base64_thumbnail(incoming_wf.get("IMAGE"), log_prefix=source_name) if isinstance(incoming_wf, dict) else None
-        explicit_thumbnail = image_to_base64_thumbnail(thumbnail_image, log_prefix=source_name) if thumbnail_image is not None else None
+        explicit_thumbnail = image_to_base64_thumbnail(image, log_prefix=source_name) if image is not None else None
         workflow_thumbnail = explicit_thumbnail if isinstance(explicit_thumbnail, str) and explicit_thumbnail else (
             incoming_thumbnail if isinstance(incoming_thumbnail, str) and incoming_thumbnail else (
                 generated_thumbnail if isinstance(generated_thumbnail, str) and generated_thumbnail else (
@@ -199,6 +209,16 @@ class PromptComposerManager(PromptManagerAdvanced):
                 if isinstance(lora, dict) and lora.get("name")
             ]
 
+        composer_input_loras_a = [
+            (
+                lora.get("path") or lora.get("name"),
+                lora.get("model_strength", 1.0),
+                lora.get("clip_strength", 1.0),
+            )
+            for lora in composer_input_data.get("lora_stack", [])
+            if isinstance(lora, dict) and (lora.get("path") or lora.get("name"))
+        ]
+
         merged_stack_a = list(wf_loras_a) if wf_loras_a else (list(preset_stack_a) if preset_stack_a else [])
         if wf_has_model_b:
             merged_stack_b = list(wf_loras_b) if wf_loras_b else (list(preset_stack_b) if preset_stack_b else [])
@@ -226,7 +246,7 @@ class PromptComposerManager(PromptManagerAdvanced):
                 ),
                 "loras_a": loras_a_display,
                 "loras_b": loras_b_display,
-                "input_loras_a": self._format_loras_for_display(wf_loras_a) if wf_loras_a else [],
+                "input_loras_a": self._format_loras_for_display(composer_input_loras_a) if composer_input_loras_a else [],
                 "input_loras_b": self._format_loras_for_display(wf_loras_b) if wf_loras_b else [],
                 "unavailable_loras_a": unavailable_loras_a,
                 "unavailable_loras_b": unavailable_loras_b,

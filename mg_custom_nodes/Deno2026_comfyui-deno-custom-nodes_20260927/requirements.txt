@@ -1,2 +1,0 @@
-openai-whisper>=20250625
-urllib3>=2.7,<3

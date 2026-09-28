@@ -83,7 +83,7 @@ const b = `
   --oc-text-primary: var(--input-text, #E9EDF5);
   --oc-text-secondary: var(--input-text, #8F9AAF);
   --oc-text-muted: var(--input-text, #98A3B8);
-`, d = "0.4.0", l = {
+`, d = "0.4.1", l = {
   version: d
 }, y = l.version;
 export {

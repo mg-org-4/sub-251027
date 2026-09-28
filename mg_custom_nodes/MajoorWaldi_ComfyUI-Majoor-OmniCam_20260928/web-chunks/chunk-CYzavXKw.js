@@ -1,9 +1,9 @@
 import { app as bt } from "../../scripts/app.js";
 import { api as ye } from "../../scripts/api.js";
-import { s as se, a as ae, c as Et, d as De, b as wt, e as ue, f as At, l as $e, n as be, g as ze, h as Q, m as pe, I as fe, D as yt, r as Tt, p as It, t as vt, i as kt, j as Nt, k as St, w as Rt, o as xe, q as Ot, u as Ct, T as P, v as M } from "./chunk-0uEWtnIL.js";
-import { s as jt, w as Mt } from "./chunk-DvtddYKY.js";
-import { H as Dt, O as Ut } from "./chunk-Bu3EGLOJ.js";
-import { e as He, d as Lt } from "./chunk-CCTavHJs.js";
+import { s as se, a as ae, c as Et, d as De, b as wt, e as ue, f as At, l as $e, n as be, g as ze, h as Q, m as pe, I as fe, D as yt, r as Tt, p as It, t as vt, i as kt, j as Nt, k as St, w as Rt, o as xe, q as Ot, u as Ct, T as P, v as M } from "./chunk-Cdxqkqzv.js";
+import { s as jt, w as Mt } from "./chunk-BPn4yMAp.js";
+import { H as Dt, O as Ut } from "./chunk-CUnIPhgW.js";
+import { e as He, d as Lt } from "./chunk-BSBYHXFC.js";
 class Bt {
   constructor({ capture: t, restore: n, limit: r = 100 }) {
     this.capture = t, this.restore = n, this.limit = r, this.undoStack = [], this.redoStack = [], this.restoring = !1, this.transaction = null;
@@ -2697,7 +2697,7 @@ async function wr(e, t) {
     nodeId: e.node.id,
     opener: t,
     createSession: async () => {
-      const n = ++e.workbenchGeneration, { openDirectorWorkbench: r, closeDirectorWorkbench: s } = await import("./chunk-lzu4mz3O.js").then((c) => c.h);
+      const n = ++e.workbenchGeneration, { openDirectorWorkbench: r, closeDirectorWorkbench: s } = await import("./chunk-B8xuPyIa.js").then((c) => c.h);
       if (e.disposed || n !== e.workbenchGeneration) return null;
       const a = r(e);
       e.pendingUpstreamResync && (e.pendingUpstreamResync = !1, a.syncUpstreamInputs?.());

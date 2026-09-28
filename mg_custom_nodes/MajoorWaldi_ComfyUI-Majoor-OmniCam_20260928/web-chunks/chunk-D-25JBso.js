@@ -1,6 +1,6 @@
-import { v as p, e as _, a as L, bn as D, N as O, S as T, s as ee, bg as z, bP as te } from "./chunk-0uEWtnIL.js";
-import { a as ae } from "./chunk-DvtddYKY.js";
-import { g as $, l as oe } from "./chunk-k5P5Gpla.js";
+import { v as p, e as _, a as L, bn as D, N as O, S as T, s as ee, bg as z, bP as te } from "./chunk-Cdxqkqzv.js";
+import { a as ae } from "./chunk-BPn4yMAp.js";
+import { g as $, l as oe } from "./chunk-BKve9LQi.js";
 function Ie(e, t) {
   const a = { "add-camera": "Create a new animated camera from the current view", record: "Record the primary camera preview as a proxy playblast", "load-card": "Replace the subject card with an image or video", "add-card": "Create another image or video card", "load-model": "Import a local GLB, OBJ, FBX, STL, or PLY scene", "reset-camera": "Reset the active camera transform and lens", play: "Play or stop the timeline (Space)", key: "Insert or replace a key at the playhead (I)", "auto-key": "Record camera or object edits at the playhead", "delete-key": "Delete the selected keyframe (Delete)", "copy-key": "Copy the selected keyframe (Ctrl/Cmd+C)", "paste-key": "Paste a keyframe at the playhead (Ctrl/Cmd+V)", "previous-key": "Jump to the previous keyframe (,)", "next-key": "Jump to the next keyframe (.)", "previous-frame": "Move one frame backward (Left Arrow)", "next-frame": "Move one frame forward (Right Arrow)", "toggle-camera-view": "Show or hide the camera preview strip", "update-key": "Store the current camera view in the selected key", "view-key": "Load the selected key's camera view" };
   for (const o of e.querySelectorAll("button,select,input,summary")) {

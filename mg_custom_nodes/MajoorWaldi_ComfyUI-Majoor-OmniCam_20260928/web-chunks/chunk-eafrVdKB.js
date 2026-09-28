@@ -1,10 +1,10 @@
 import { app as X } from "../../scripts/app.js";
 import { api as A } from "../../scripts/api.js";
-import { d as De, u as qe, l as je, S as Ue, b as Ve, p as Ge } from "./chunk-k5P5Gpla.js";
+import { d as De, u as qe, l as je, S as Ue, b as Ve, p as Ge } from "./chunk-BKve9LQi.js";
 import { M as We, E as Be } from "./chunk-CbqXtcpr.js";
-import { v as f, x as be, T as C, y as ze, z as He } from "./chunk-0uEWtnIL.js";
-import { c as ve, S as ye, F as xe, a as D, e as Qe, r as Ke, b as Ye, m as J, d as Z, f as Xe, s as Je, p as Ze, n as et, L as tt, g as rt } from "./chunk-1SW-eCEl.js";
-import { w as ot } from "./chunk-DvtddYKY.js";
+import { v as f, x as be, T as C, y as ze, z as He } from "./chunk-Cdxqkqzv.js";
+import { c as ve, S as ye, F as xe, a as D, e as Qe, r as Ke, b as Ye, m as J, d as Z, f as Xe, s as Je, p as Ze, n as et, L as tt, g as rt } from "./chunk-D-25JBso.js";
+import { w as ot } from "./chunk-BPn4yMAp.js";
 function at(t) {
   return t?.name === "AbortError" || t?.code === 20;
 }
@@ -1100,7 +1100,7 @@ class ar {
     return e ? e.motion_scene || e : null;
   }
   async ensurePreview() {
-    return this.preview || this.disposed ? this.preview : (this.previewLoad ||= import("./chunk-CBi5cU93.js").then(({ TrackViewer: e }) => {
+    return this.preview || this.disposed ? this.preview : (this.previewLoad ||= import("./chunk-DMAw9TUi.js").then(({ TrackViewer: e }) => {
       if (this.disposed || this.preview) return this.preview;
       const r = this.root.querySelector('[data-role="reconstruction-3d"]');
       return this.preview = r ? new e(r) : null, this.preview;
@@ -2587,7 +2587,7 @@ function po(t) {
   return (t || []).map((e, r) => [`Note ${r + 1}`, String(e)]);
 }
 function ho(t) {
-  return import("./chunk-CBi5cU93.js").then(({ TrackViewer: e }) => (t.viewerLoad = null, t.disposed || t.viewer || (t.viewer = new e(t.$("track-canvas")), t.pushTracksToViewer()), t.viewer)).catch((e) => (t.viewerLoad = null, console.warn("OmniCam track viewer unavailable", e), null));
+  return import("./chunk-DMAw9TUi.js").then(({ TrackViewer: e }) => (t.viewerLoad = null, t.disposed || t.viewer || (t.viewer = new e(t.$("track-canvas")), t.pushTracksToViewer()), t.viewer)).catch((e) => (t.viewerLoad = null, console.warn("OmniCam track viewer unavailable", e), null));
 }
 function me(t) {
   const e = t.$("frame");

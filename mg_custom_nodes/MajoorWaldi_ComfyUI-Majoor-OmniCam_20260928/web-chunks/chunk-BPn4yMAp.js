@@ -1,5 +1,5 @@
-import { P as d, c as _, v as u, S as w, A as W, e as v, B as x, s as C, a as K } from "./chunk-0uEWtnIL.js";
-import { m as M } from "./chunk-Bu3EGLOJ.js";
+import { P as d, c as _, v as u, S as w, A as W, e as v, B as x, s as C, a as K } from "./chunk-Cdxqkqzv.js";
+import { m as M } from "./chunk-CUnIPhgW.js";
 const L = 360;
 function E({ containerWidth: e, otherColumnWidth: a = 0, resizeGutterWidth: o = 18, staticMax: r }) {
   if (!Number.isFinite(e) || e <= 0) return r;

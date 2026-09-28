@@ -1,13 +1,13 @@
 import { app as Gr } from "../../scripts/app.js";
 import { api as Ve } from "../../scripts/api.js";
-import { a as xe, c as U, C as fe, E as ds, v as r, F as Xr, G as Ko, H as ze, e as le, J as so, K as Do, L as Ke, M as ms, N as Ro, T as ae, O as Yr, Q as ps, R as fs, U as hs, V as us, W as bs, X as $o, x as ir, Y as Zr, Z as Mo, _ as Jr, $ as Qr, a0 as en, a1 as tn, j as an, a2 as To, a3 as ho, a4 as cr, a5 as lr, a6 as on, o as dr, a7 as gs, a8 as ys, a9 as vs, aa as xs, ab as ks, h as ve, p as rn, i as nn, ac as mr, f as $e, ad as ws, ae as sn, t as Ss, af as js, r as cn, ag as No, ah as Cs, ai as _s, q as Es, aj as $s, ak as Ms, al as Ts, am as qo, an as As, ao as Ps, ap as Is, aq as zs, ar as Fs, as as Ls, at as Os, au as Ks, av as Ds, aw as Rs, ax as Ns, ay as qs, az as Bs, aA as Ws, aB as Vs, aC as Hs, aD as Us, aE as Gs, aF as Xs, aG as Ys, aH as Zs, aI as Js, aJ as Qs, aK as ei, aL as ti, aM as ai, aN as oi, aO as ri, aP as ni, aQ as si, aR as ii, aS as ci, aT as li, aU as di, aV as mi, aW as pi, aX as fi, aY as hi, aZ as ui, a_ as bi, a$ as gi, b0 as yi, b1 as vi, l as We, b2 as xi, b3 as uo, b4 as ki, b5 as wi, b6 as Si, b7 as ji, b8 as Ci, b9 as Ie, ba as _i, bb as ln, bc as Bo, bd as Ei, be as $i, bf as Mi, S as dn, bg as Re, bh as Ti, bi as Ai, bj as pr, bk as Wo, bl as Pi, bm as Ii, bn as zi, b as mn, bo as Fi, bp as Li, bq as Oi, br as Ki, z as Di, bs as Ri, bt as Ni, bu as qi, bv as pn, bw as Bi, bx as Wi, by as Vi, bz as Hi, bA as Ui, bB as Gi, bC as Xi, bD as Yi, bE as Zi, bF as Ji, bG as Qi, bH as ec, bI as tc, bJ as ac, bK as oc, bL as rc, bM as nc, bN as sc, bO as ic, s as cc } from "./chunk-0uEWtnIL.js";
-import { p as lc, a as dc, s as Vo, b as bo, S as fn, c as mc, C as fr, d as pc, i as fc, w as hc, e as uc, U as je, m as bc, h as Ge, f as gc, g as yc, j as vc, k as xc, r as kc, l as wc, n as Sc, E as jc } from "./chunk-gfKv27Gc.js";
-import { L as Cc, h as _c, i as jt, j as Ho, k as Ec, l as $c, o as hr, q as Mc, t as Tc, u as Ac, v as Pc, w as Ic, C as ur, c as Ct, x as hn, y as zc, z as Fc, A as Lc, B as un, D as Oc, E as Kc, G as Dc, H as Rc, I as Nc, J as qc, K as Bc, M as Wc, N as Vc, O as Hc, P as Uc, Q as Gc } from "./chunk-1SW-eCEl.js";
-import { S as Xc, b as Yc, p as Zc, l as Jc, u as Qc } from "./chunk-k5P5Gpla.js";
+import { a as xe, c as U, C as fe, E as ds, v as r, F as Xr, G as Ko, H as ze, e as le, J as so, K as Do, L as Ke, M as ms, N as Ro, T as ae, O as Yr, Q as ps, R as fs, U as hs, V as us, W as bs, X as $o, x as ir, Y as Zr, Z as Mo, _ as Jr, $ as Qr, a0 as en, a1 as tn, j as an, a2 as To, a3 as ho, a4 as cr, a5 as lr, a6 as on, o as dr, a7 as gs, a8 as ys, a9 as vs, aa as xs, ab as ks, h as ve, p as rn, i as nn, ac as mr, f as $e, ad as ws, ae as sn, t as Ss, af as js, r as cn, ag as No, ah as Cs, ai as _s, q as Es, aj as $s, ak as Ms, al as Ts, am as qo, an as As, ao as Ps, ap as Is, aq as zs, ar as Fs, as as Ls, at as Os, au as Ks, av as Ds, aw as Rs, ax as Ns, ay as qs, az as Bs, aA as Ws, aB as Vs, aC as Hs, aD as Us, aE as Gs, aF as Xs, aG as Ys, aH as Zs, aI as Js, aJ as Qs, aK as ei, aL as ti, aM as ai, aN as oi, aO as ri, aP as ni, aQ as si, aR as ii, aS as ci, aT as li, aU as di, aV as mi, aW as pi, aX as fi, aY as hi, aZ as ui, a_ as bi, a$ as gi, b0 as yi, b1 as vi, l as We, b2 as xi, b3 as uo, b4 as ki, b5 as wi, b6 as Si, b7 as ji, b8 as Ci, b9 as Ie, ba as _i, bb as ln, bc as Bo, bd as Ei, be as $i, bf as Mi, S as dn, bg as Re, bh as Ti, bi as Ai, bj as pr, bk as Wo, bl as Pi, bm as Ii, bn as zi, b as mn, bo as Fi, bp as Li, bq as Oi, br as Ki, z as Di, bs as Ri, bt as Ni, bu as qi, bv as pn, bw as Bi, bx as Wi, by as Vi, bz as Hi, bA as Ui, bB as Gi, bC as Xi, bD as Yi, bE as Zi, bF as Ji, bG as Qi, bH as ec, bI as tc, bJ as ac, bK as oc, bL as rc, bM as nc, bN as sc, bO as ic, s as cc } from "./chunk-Cdxqkqzv.js";
+import { p as lc, a as dc, s as Vo, b as bo, S as fn, c as mc, C as fr, d as pc, i as fc, w as hc, e as uc, U as je, m as bc, h as Ge, f as gc, g as yc, j as vc, k as xc, r as kc, l as wc, n as Sc, E as jc } from "./chunk-CYzavXKw.js";
+import { L as Cc, h as _c, i as jt, j as Ho, k as Ec, l as $c, o as hr, q as Mc, t as Tc, u as Ac, v as Pc, w as Ic, C as ur, c as Ct, x as hn, y as zc, z as Fc, A as Lc, B as un, D as Oc, E as Kc, G as Dc, H as Rc, I as Nc, J as qc, K as Bc, M as Wc, N as Vc, O as Hc, P as Uc, Q as Gc } from "./chunk-D-25JBso.js";
+import { S as Xc, b as Yc, p as Zc, l as Jc, u as Qc } from "./chunk-BKve9LQi.js";
 import { T as el } from "./chunk-D_M_mkHf.js";
 import { T as tl, R as al } from "./vendor-three-B8JDtKPi.js";
-import { b as ol, p as bn, a as Ao, c as Po, d as rl, r as nl, s as sl, e as il } from "./chunk-DvtddYKY.js";
-import { m as cl } from "./chunk-Bu3EGLOJ.js";
+import { b as ol, p as bn, a as Ao, c as Po, d as rl, r as nl, s as sl, e as il } from "./chunk-BPn4yMAp.js";
+import { m as cl } from "./chunk-CUnIPhgW.js";
 function gt(e, t = 0) {
   return Math.sin(e * 1.7 + t * 3.1) * 0.5 + Math.sin(e * 3.3 + t * 5.7) * 0.3 + Math.sin(e * 7.9 + t * 11.3) * 0.2;
 }
@@ -5958,7 +5958,7 @@ function sp(e, t) {
       n.currentTarget.setAttribute("aria-pressed", String(s));
     }, { signal: t });
 }
-const Ua = () => import("./chunk-Do-XZkQP.js");
+const Ua = () => import("./chunk-kaxMKRSa.js");
 function ip(e, t) {
   Ua().then(({ loadExchangeFormats: o }) => o(e, t)), e.root.querySelector('[data-act="import-camera"]')?.addEventListener("click", async () => {
     (await Ua()).pickCameraFile(e);
@@ -7633,7 +7633,7 @@ async function Cf(e) {
   (n.width !== e.canvas.width || n.height !== e.canvas.height) && (e.canvas.width = n.width, e.canvas.height = n.height, e.render());
   try {
     let s = null;
-    const i = e.root.querySelector('[data-role="encoder"]').value, { encodeDeterministicPlayblast: c, supportsDeterministicEncoding: l } = await import("./chunk-eXHIPV3s.js");
+    const i = e.root.querySelector('[data-role="encoder"]').value, { encodeDeterministicPlayblast: c, supportsDeterministicEncoding: l } = await import("./chunk-BR0g7mtV.js");
     i !== "realtime" && await l(e.canvas.width, e.canvas.height) && (s = await c(e.canvas, e.state.duration_frames, e.state.fps, async (d) => {
       e.setFrame(d, !0), e.setStatus(r("Encoding frame {value1}/{value2}…", { value1: d + 1, value2: e.state.duration_frames })), await Gn(e), await new Promise((p) => requestAnimationFrame(p));
     }, e.abortController?.signal, e.state.playblast_quality)), s || (e.setStatus(r("WebCodecs unavailable; recording realtime fallback…")), s = await Xn(e)), e.setFrame(t), await Yn(e, s);
@@ -10919,7 +10919,7 @@ class sr {
   async loadWebGLViewports() {
     let t;
     try {
-      ({ OmniWebGLViewport: t } = await import("./chunk-eXHIPV3s.js"));
+      ({ OmniWebGLViewport: t } = await import("./chunk-BR0g7mtV.js"));
     } catch (a) {
       console.warn("OmniCam WebGL unavailable; using Canvas fallback", a);
       return;
@@ -11008,7 +11008,7 @@ function Lu(e) {
       onAgentFirstOpen: async () => {
         if ($o())
           try {
-            const { createDirectorAgentPanel: o } = await import("./chunk-CqTF1pys.js");
+            const { createDirectorAgentPanel: o } = await import("./chunk-C0zVNOjD.js");
             a.agentPanel = o(a);
           } catch (o) {
             console.warn("[OmniCam] Agent panel unavailable", o);

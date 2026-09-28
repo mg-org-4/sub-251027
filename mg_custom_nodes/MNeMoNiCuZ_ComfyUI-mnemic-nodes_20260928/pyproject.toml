@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-mnemic-nodes"
+description = "Modernized the: Load Images from Path, it now has dynamic multiple outputs for the resulting file. The String Cleaning is now showing one operation only, and you can add more operations dynamically. The Save Text File With Path now has settings for overwrite and collision handling. Added a simple Find/Replace node."
+version = "3.1.0"
+license = { file = "LICENSE" }
+dependencies = ["configparser", "groq", "transformers", "torch", "tiktoken", "imageio", "tqdm", "piexif", "requests", "colorama", "opencv-python", "python-dotenv"]
+
+[project.urls]
+Repository = "https://github.com/MNeMoNiCuZ/ComfyUI-mnemic-nodes"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "mnemic"
+DisplayName = "ComfyUI-mnemic-nodes"
+Icon = ""

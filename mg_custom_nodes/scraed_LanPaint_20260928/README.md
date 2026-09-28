@@ -54,6 +54,16 @@ url={https://openreview.net/forum?id=JPC8JyOUSW}
 `v2.1.0` significantly accelerates LanPaint with a new schedule mechanism and fixes MiniMax H3 support on the latest ComfyUI.
 If your inpainting results have wierd (glowing / broken) mask boundary, check this [issue](https://github.com/scraed/LanPaint/issues/80).
 
+**🎨 NEW: LanPaint now supports Qwen-Image 2.1 - transparency, and masked image editing!**
+
+![Qwen 2.1 image edit: the canvas, the mask, the second reference and the result](https://github.com/scraed/LanPaint/blob/master/examples/Example_32/Comparison.png)
+
+Qwen 2.1's **image edit** model now works under a LanPaint mask: tell it what to change, paint over the part you want it to touch, and only that part changes. Hand it a second picture to borrow from if you want one. Check our latest [Qwen Image 2.1 Image Edit Example](#example-qwen-image-21-image-edit-masked-inpaintlanpaint-k-sampler-5-steps-of-thinking).
+
+![Qwen 2.1 before / masked / after](https://github.com/scraed/LanPaint/blob/master/examples/Example_31/Comparison.png)
+
+And if your picture carries transparency, it gets inpainted too - the rebuilt part comes back with a new outline, not just new colours. Check our latest [Qwen Image 2.1 Example](#example-qwen-image-21-inpaint-with-transparencylanpaint-k-sampler-5-steps-of-thinking).
+
 **🎬 NEW: LanPaint now supports MiniMax H3 video + audio inpainting!**
 
 | Masked Input (paint in the editor) | Mask (visible overlay) | Inpainted Result |
@@ -134,6 +144,8 @@ Check our latest [Krea2 Example](#example-krea2-inpaintlanpaint-k-sampler-3-step
   - [Wan 2.2 T2I with reference](#example-wan22-partial-inpaintlanpaint-k-sampler-5-steps-of-thinking)
   - [Qwen Image Edit 2511 2509](#example-qwen-edit-2509-inpaint)
   - [Qwen Image Edit 2508](#example-qwen-edit-2508-inpaint)
+  - [Qwen Image 2.1 Image Edit](#example-qwen-image-21-image-edit-masked-inpaintlanpaint-k-sampler-5-steps-of-thinking)
+  - [Qwen Image 2.1](#example-qwen-image-21-inpaint-with-transparencylanpaint-k-sampler-5-steps-of-thinking)
   - [Qwen Image](#example-qwen-image-inpaintlanpaint-k-sampler-5-steps-of-thinking)
   - [HiDream](#example-hidream-inpaint-lanpaint-k-sampler-5-steps-of-thinking)
   - [SD 3.5](#example-sd-35-inpaintlanpaint-k-sampler-5-steps-of-thinking)
@@ -151,7 +163,7 @@ Check our latest [Krea2 Example](#example-krea2-inpaintlanpaint-k-sampler-3-step
 
 ## Features
 
-- **Universal Compatibility** – Works instantly with almost any model (**Ideogram4, Krea2, Z-image, Z-image-base, Hunyuan, Wan 2.2, Qwen Image/Edit, Anima, HiDream, SD 3.5, Flux-series, SDXL, SD 1.5 or custom LoRAs**) and ControlNet.  
+- **Universal Compatibility** – Works instantly with almost any model (**Ideogram4, Krea2, Z-image, Z-image-base, Hunyuan, Wan 2.2, Qwen Image 2.1/Image/Edit, Anima, HiDream, SD 3.5, Flux-series, SDXL, SD 1.5 or custom LoRAs**) and ControlNet.  
 ![Inpainting Result 13](https://github.com/scraed/LanPaint/blob/master/examples/InpaintChara_13.jpg) 
 - **No Training Needed** – Works out of the box with your existing model.  
 - **Easy to Use** – Same workflow as standard ComfyUI KSampler.  
@@ -448,6 +460,20 @@ Check [Mased Qwen Edit Workflow](https://github.com/scraed/LanPaint/tree/master/
 
 
 
+### Example Qwen Image 2.1 Image Edit: Masked InPaint(LanPaint K Sampler, 5 steps of thinking)
+
+Qwen-Image 2.1's image edit model now works under a LanPaint mask: write what you want changed, paint over the part it should touch, and only that part changes - everything else, transparency included, comes back exactly as it was. In this example a second picture supplies the material for the earcups, and the headband and stitching stay as they are. Workflow and images are in `examples/Example_32`; drag `InPainted_Drag_Me_to_ComfyUI.png` into ComfyUI to load it. Use your own pictures with the official [Qwen Image 2.1 Image Edit template](https://docs.comfy.org/tutorials/image/qwen/qwen-image-2-1).
+
+![Qwen 2.1 image edit: canvas, mask, material, result](https://github.com/scraed/LanPaint/blob/master/examples/Example_32/Comparison.png)
+[View Workflow & Masks](https://github.com/scraed/LanPaint/tree/master/examples/Example_32) · [Workflow JSON](https://github.com/scraed/LanPaint/blob/master/example_workflows/Qwen_Image_2.1_Edit_Masked_Inpaint.json)
+
+### Example Qwen Image 2.1: InPaint with Transparency(LanPaint K Sampler, 5 steps of thinking)
+
+Qwen-Image 2.1 inpaints a picture's transparency along with its pixels, so the rebuilt part can come back with a new outline instead of merely new colours - here the boot's sole is replaced and the silhouette grows with it. Workflow and images are in `examples/Example_31`; drag `InPainted_Drag_Me_to_ComfyUI.png` into ComfyUI to load it.
+
+![Qwen 2.1: original, mask, result](https://github.com/scraed/LanPaint/blob/master/examples/Example_31/Comparison.png)
+[View Workflow & Masks](https://github.com/scraed/LanPaint/tree/master/examples/Example_31) · [Workflow JSON](https://github.com/scraed/LanPaint/blob/master/example_workflows/Transparent_Edit_EncodeDecode_Inpaint.json)
+
 ### Example Qwen Image: InPaint(LanPaint K Sampler, 5 steps of thinking)
 
 ![Inpainting Result 14](https://github.com/scraed/LanPaint/blob/master/examples/InpaintChara_14.jpg)  
@@ -632,6 +658,11 @@ Submit a PR to add your tutorial/video here, or open an [Issue](https://github.c
 [Working togather with crop&stitch](https://github.com/scraed/LanPaint/issues/46)
 
 ## Updates
+- 2026/09/28
+    - Add Qwen-Image 2.1 image edit support: masked, instruction-driven editing (Example_32).
+    - Add Qwen-Image 2.1 inpainting support with LanPaint KSampler (Example_31).
+    - Inpainting a picture that carries transparency now works end to end: the 2.1 VAE is 4-in/4-out, so the alpha travels through the latent and is edited alongside the pixels. Keep the inpainting mask in its own greyscale file, since 2.1's alpha channel means image transparency.
+    - `LanPaint_ImageDecode` now matches the decoded channel count to the source image, so an RGBA source comes back RGBA and an RGB source still comes back RGB.
 - 2026/08/12
     - `v2.1.0`: Significantly accelerated LanPaint using a new schedule mechanism.
     - Fix bugs for MiniMax H3 on the latest ComfyUI.

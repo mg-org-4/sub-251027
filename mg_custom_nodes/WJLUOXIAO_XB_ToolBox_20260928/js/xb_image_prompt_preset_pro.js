@@ -21,20 +21,80 @@
  */
 
 import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
 import { installNodes2BoxResize } from "./xb_compat.js";
 
-const NODE_TYPE = "XB_ImagePromptPreset";
+const NODE_TYPE = "XB_ImagePromptPresetPro";
 
 // ── 枚举（必须与 nodes_image_prompt_preset.py 的常量逐字一致） ─────────
 const LANG_ZH = "中文 [ZH]";
 const LANG_EN = "英文 [EN]";
 const LANGS = [LANG_ZH, LANG_EN];
-const MODE_TP = "常规文生图";
+const MODE_TP = "无预设";        // 不前置任何设定词，只输出正文（旧名「常规文生图」见 MODE_ALIASES）
 const MODE_3V = "人物三视图";
 const MODE_4V = "人物四视图";
 const MODE_5V = "人物五视图";
 const MODE_RGBA = "背景纯透明";
-const MODES = [MODE_TP, MODE_3V, MODE_4V, MODE_5V, MODE_RGBA];
+const MODE_UI = "图文版面";
+const MODE_INFO = "信息图";
+const MODE_STORYBOARD = "多格分镜";
+const MODE_ADBOARD = "广告分镜板";
+const MODE_KEEP_SUBJECT = "保持主体换场景";
+const MODE_LOCAL_EDIT = "局部编辑";
+const MODE_RESTORE = "老照片修复";
+const MODE_STYLIZE = "整图风格化";
+const MODE_PANO360 = "360°全景";
+const MODE_MULTI_REF = "多图指认合成";
+const MODES = [MODE_TP, MODE_3V, MODE_4V, MODE_5V, MODE_RGBA, MODE_UI, MODE_INFO, MODE_STORYBOARD, MODE_ADBOARD, MODE_KEEP_SUBJECT, MODE_LOCAL_EDIT, MODE_RESTORE, MODE_STYLIZE, MODE_PANO360, MODE_MULTI_REF];
+// 需要输入图的档位（图生图组）与推荐搭配的 SKILL
+const MODE_ALIASES = {
+  "常规文生图": "无预设",            // 0.10.x 旧名 → 新名（语义完全一致）
+  "📱 图文版面": "图文版面",
+
+  "📊 信息图": "信息图",
+
+  "🎞 多格分镜": "多格分镜",
+
+  "🎬 广告分镜板": "广告分镜板",
+
+  "🛍 保持主体换场景": "保持主体换场景",
+
+  "✏️ 局部编辑": "局部编辑",
+
+  "🧹 老照片修复": "老照片修复",
+
+  "🎨 整图风格化": "整图风格化",
+
+  "🌐 360°全景": "360°全景",
+
+  "🗂 多图指认合成": "多图指认合成",
+
+};
+const MODE_NEEDS_IMAGE = [MODE_KEEP_SUBJECT, MODE_LOCAL_EDIT, MODE_RESTORE, MODE_STYLIZE, MODE_PANO360, MODE_MULTI_REF];
+const modeNeedsImage = (mode) => MODE_NEEDS_IMAGE.includes(mode);
+const modeSkillHint = (mode) => (modeNeedsImage(mode) ? "system_prompt_edit.txt" : "system_prompt_t2i.txt");
+
+// ── t2i / i2i 两套模版条款（与 nodes_image_prompt_preset.py 逐字一致，自测会断言）──
+// · IO_I2I_COMMON：文生图档**接了图**时追加的「以输入图为准」条款
+// · 图生图档没接图时不再追加「忽略输入图」的尾条款 —— 改成直接用该档的「文生图版设定词」（PRESET_TEXT_T2I）
+const IO_I2I_COMMON = {"zh": "【本次接了输入图】以输入图为唯一依据：保持输入图中被保留部分的原样不变（人物保持面容、发型、体型与气质；物件保持外形、比例、材质、颜色与文字标识），不得改动、美化、替换或增减我未指定的部分；本档规格只作用于画面的组织与重建区域。", "en": "Attached input image(s) are the single source of truth: keep everything kept from them unchanged — for people: face, hairstyle, build and character; for objects: shape, proportions, material, colour and printed text — and never alter, beautify, replace, add or remove anything I did not ask for. This mode's spec only governs how the frame is organised and rebuilt."};
+/** 按「本档类型 + 有没有输入图」返回要追加的模版条款（仅「文生图档 + 有图」→ 以输入图为准；其余 → ""）
+ *  ⚠️ 无预设档（MODE_TP）永远返回 ""：接不接图，无预设的设定词都是空白 */
+function modeIoClause(mode, hasImage, lang) {
+  const m = (typeof MODE_ALIASES !== "undefined" && MODE_ALIASES[mode]) || mode;
+  const lg = (lang === LANG_EN) ? "en" : "zh";
+  if (!m || m === MODE_TP || MODE_NEEDS_IMAGE.includes(m)) return "";
+  return hasImage ? (IO_I2I_COMMON[lg] || "") : "";
+}
+/** 节点是否接了参考图（🖼️ 图像 端口有连线） */
+function modeHasImage(node) {
+  try {
+    const inp = (node.inputs || []).find((i) => i.name === "images");
+    return !!(inp && inp.link != null);
+  } catch (_) { return false; }
+}
+
+
 
 const ASPECT_MAP = { "1:1": 1, "16:9": 16 / 9, "9:16": 9 / 16, "4:3": 4 / 3, "3:4": 3 / 4, "21:9": 21 / 9 };
 const SIZE_STEP = 16;      // width/height 的兜底步长（实际以「空latent类型」的官方最小步长为准）
@@ -62,7 +122,7 @@ const LATENT_KIND_SPEC = {
 };
 const DEFAULT_LATENT_KIND = "Z-image";
 
-/** 各预设模式的默认预设句（可编辑字段 three_view_text）；常规文生图 = 无预设句（原样输出正文） */
+/** 各预设模式的默认预设句（可编辑字段 three_view_text）；无预设 = 不前置（原样输出正文） */
 const PRESET_TEXT_DEFAULT = {
   [MODE_3V]: {
     [LANG_ZH]: "生成平行排列的角色概念设计图，画面从左到右由四个独立面板组成：第一个面板是角色面部的精细特写肖像，第二个面板是人物正面全身站姿，第三个面板是人物侧面全身站姿，第四个面板是人物背面全身站姿。",
@@ -80,9 +140,140 @@ const PRESET_TEXT_DEFAULT = {
     [LANG_ZH]: "生成一张具有透明度的 RGBA 格式图像，包含 Alpha 通道，背景为纯透明。",
     [LANG_EN]: "Generate an RGBA image with an alpha channel and a fully transparent background.",
   },
+  [MODE_UI]: {
+    [LANG_ZH]: "这是一张完整的平面版面设计图，画面边缘即版面边缘，全出血排版，无多余边框与水印。【版面结构】按层级自上而下组织：① 顶部信息区（标题栏/状态栏，界面类需含时间、信号、电量等图标）；② 主体内容区（卡片、栏位、区块，边距统一、圆角一致、层级分明、网格对齐）；③ 底部信息区（按钮、标签、脚注）。【文字】画面中所有文字必须逐字使用我给出的原文，不得增删改字，不得生成任何我未指定的文字；字体清晰端正、字号字重按层级区分，无错字无乱码无伪文字。【风格】排版精致、留白充足、有呼吸感，配色统一克制；任何元素都不得遮挡文字。",
+    [LANG_EN]: "Produce one complete flat print layout: the image edge is the layout edge, full bleed, no extra frame or watermark. Structure top to bottom: (1) top information zone (title bar / status bar, with clock, signal and battery icons for UI); (2) main content zone (cards, columns and blocks with uniform margins, consistent corner radii, clear hierarchy, grid-aligned); (3) bottom information zone (buttons, tags, footnotes). All text must use my wording word for word, with no additions, deletions or substitutions, and no text I did not specify; crisp legible type, size and weight distinguished by hierarchy, no typos, no gibberish. Refined layout, generous breathing space, restrained unified palette; nothing may cover the text.",
+  },
+  [MODE_INFO]: {
+    [LANG_ZH]: "这是一张信息图/科普拆解图，版式整洁、以信息可读性优先，具有教学与数据可视化气质。【版面】① 顶部标题栏（主标题 + 副标题/卷号/徽标）；② 主体由多个信息模块组成，按需包含：结构拆解图、局部放大详图、编号引线说明、图例、参数表、色卡、雷达图、时间轴、关键词云；③ 模块之间用细分割线或留白分隔，网格对齐、边距统一。【编号与引线】主体图形用圆形编号点标注，旁侧以细引线连接简短说明，编号连续、不重复、不跳号。【文字】所有文字逐字使用我给出的原文，不得生成任何我未指定的文字，无错字无乱码。",
+    [LANG_EN]: "Produce an infographic / annotated explanation card: tidy layout, information legibility first, a teaching and data-visualisation feel. Layout: (1) a top title bar (main title plus subtitle, volume number or badge); (2) a body made of several information modules, optionally including a structural cutaway, zoomed detail views, numbered leader-line callouts, a legend, a parameter table, a colour swatch strip, a radar chart, a timeline and a keyword cloud; (3) modules separated by hairline rules or whitespace, grid-aligned with uniform margins. Numbering: mark the main graphic with circular numbered dots and connect short captions with thin leader lines; numbers are continuous and never repeated. All text must use my wording word for word, with no unspecified text, no typos, no gibberish.",
+  },
+  [MODE_STORYBOARD]: {
+    [LANG_ZH]: "生成一张由多个连续分镜格组成的叙事插画，输出为一张完整拼合的扁平整图，不要输出多张分离图片。【版面硬性要求】① 格数与我要求一致，所有格等宽等高；② 严格按我要求的排布方式（单横排或网格），不得擅自拆格、并格或改行数；③ 每格是独立取景，格与格之间用细边框或清晰留白分隔；④ 每格左上角标注圆形数字编号，编号连续、不重复、不跳号不缺号。【内容硬性要求】每一格都必须画出主体本人在做该格的动作，主体清晰完整、占该格画面主体；严禁出现只有背景没有人物的空格；所有格的画风、光影、色彩与主体外观保持一致，仅姿势、表情、动作与场景变化。【文字】除编号外不要生成任何文字、字幕或水印。",
+    [LANG_EN]: "Produce a narrative illustration made of several sequential storyboard panels, delivered as one fully composited flat sheet, not multiple separate files. Layout (mandatory): (1) exactly the panel count I ask for, all panels equal in width and height; (2) strictly the arrangement I ask for (single horizontal row or grid), never splitting, merging or re-flowing panels; (3) each panel is its own framing, separated by thin borders or clear gutters; (4) a circular number badge in the top-left of every panel, continuous, never repeated or skipped. Content (mandatory): every panel must show the subject itself performing that panel's action, clearly and completely, occupying the panel's main subject; never leave a panel with only background and no character; painting style, lighting, colour and the subject's look stay consistent across panels, only pose, expression, action and setting change. No text, captions or watermarks other than the numbers.",
+  },
+  [MODE_ADBOARD]: {
+    [LANG_ZH]: "生成一张商业广告分镜板/脚本视觉板，像专业品牌团队制作的提案板：既有分镜画面，也带脚本信息。【版面】① 顶部标题区（项目名/产品名 + 副标题 + 品牌标识感排版）；② 主体横向排列若干连续分镜画面，每格独立取景、格间清晰分隔；③ 每格下方或侧方配栏目文字：镜头序号、时长或时间轴、镜头说明、字幕/台词、转场提示；④ 底部可放时间轴条与总时长。【风格】排版统一精致、配色克制高级，画面具有电影感与广告质感。【文字】画面中所有文字必须逐字使用我给出的原文，不得生成任何我未指定的文字，不得出现乱码、错字或伪文字。",
+    [LANG_EN]: "Produce a commercial advertising storyboard / script visual board, like a real brand team's pitch board: storyboard frames plus script information. Layout: (1) a top title zone (project or product name, subtitle, brand-like typography); (2) a body of several sequential storyboard frames in a row, each its own framing with clear separation; (3) caption blocks under or beside each frame with shot number, duration or timeline, shot description, subtitle or dialogue and transition note; (4) an optional timeline bar and total duration at the bottom. Style: unified refined layout, restrained premium palette, cinematic advertising quality. All text must use my wording word for word, with no unspecified text, no gibberish and no fake typography.",
+  },
+  [MODE_KEEP_SUBJECT]: {
+    [LANG_ZH]: "以输入图像中的主体为唯一依据：先完整识别它的全部外观细节，再把它放入新的场景中。【必须保持】主体的外形、比例、结构、材质、颜色、文字与标识、磨损与光泽等全部细节与新画面完全一致；不得改造、不得美化、不得替换、不得增减部件；主体是人物时保持面容、五官、发型、体型与肤色不变。【必须移除】输入图中的摄影棚背景、手持、支架、阴影底板等非主体元素，以及任何不属于最终画面的杂物。【新画面】按我的要求重建场景、构图、光线与景深；主体与新场景的光影、透视、色温自然统一，接触面有合理投影，看起来就是在该空间里真实拍摄的一张画面。",
+    [LANG_EN]: "Treat the subject in the input image as the single source of truth: read every appearance detail first, then place it into a new scene. Must keep: shape, proportions, structure, material, colour, printed text and logos, wear and gloss identical to the input; do not redesign, beautify, replace, add or remove parts; for a person, keep face, features, hairstyle, build and skin tone. Must remove: studio backdrop, hands, stands, shadow board and any other non-subject elements or clutter. New frame: rebuild setting, composition, lighting and depth of field as I ask; the subject must match the new scene in light, perspective and colour temperature, sit on believable contact shadows, and look like a real photograph taken in that space.",
+  },
+  [MODE_LOCAL_EDIT]: {
+    [LANG_ZH]: "只修改我指定或标记的区域，其余部分与输入图保持完全一致（包含构图、透视、光线、色调与清晰度）。【编辑范围】仅限我指定/标记的区域或部位；未标记的内容一律不得改动、不得重绘、不得重新打光、不得改变材质。【标记优先】若输入包含标记图、掩码图或涂抹标注，则以标注范围为准，只在该范围内操作。【过渡】修改区域与周边必须在材质、纹理与光影方向上自然衔接，边界不得出现生硬接缝、色块、描边或亮度跳变。【输出】只输出修改后的一整张完整画面，不要输出对比图、标注框、箭头或任何说明文字。",
+    [LANG_EN]: "Change only the region or part I specify or mark; everything else stays exactly as in the input (composition, perspective, lighting, colour and sharpness). Scope: only my specified or marked region; anything unmarked must not be altered, repainted, relit or re-materialised. Marking wins: if the input includes an annotated, masked or painted region, operate strictly inside it. Blending: the edit must match its surroundings in material, texture and light direction, with no hard seams, colour patches, outlines or brightness jumps. Output one single finished image only, with no comparison view, boxes, arrows or explanatory text.",
+  },
+  [MODE_RESTORE]: {
+    [LANG_ZH]: "把输入的老照片修复成清晰、自然、真实的彩色照片，并保持原照片的内容与人物五官解剖完全不变。【修复】去除噪点、划痕、斑点、折痕、褪色与颗粒，恢复细节与层次、平衡高光与阴影；不得过度锐化，不得出现塑料感、蜡感或油画涂抹感。【上色】按真实肤色与材质自然上色，色调统一可信，不做夸张调色。【保持】人物面部结构、皱纹、神态、视线、头部角度、手部与持物关系、服装材质与褶皱、背景陈设与景深关系均不得改变。【输出】只输出修复后的一整张完整画面，不加边框、不加文字或水印。",
+    [LANG_EN]: "Restore the input vintage photograph into a sharp, natural, realistically colourised photo, keeping the original content and facial anatomy unchanged. Repair: remove noise, scratches, spots, creases, fading and grain; recover detail and tonal range and balance highlights and shadows; never oversharpen, never produce waxy, plastic or painterly skin. Colour: natural believable skin and material tones, unified grading, no exaggerated stylisation. Keep: facial structure, wrinkles, expression, gaze, head angle, hands and how they hold objects, garment material and folds, background props and depth of field. Output one single finished image with no border, text or watermark.",
+  },
+  [MODE_STYLIZE]: {
+    [LANG_ZH]: "把输入图整张转换为指定的视觉媒介与画风，转换必须覆盖整幅画面，不得只做局部滤镜或只改一部分物体。【保持】原图的构图、画幅比例、视角、主体位置与姿态、景物之间的空间关系、已有文字与招牌的位置及可读内容不得改变；不得新增标语、字幕或水印。【转换】按我要求的画风重绘每一个物体：笔触、色层、材质表现与光色关系统一；光的方向与原图一致。【输出】只输出转换后的一整张完整画面。",
+    [LANG_EN]: "Convert the whole input image into the requested visual medium and style; the conversion must cover the entire frame, not a local filter or only some objects. Keep: composition, aspect ratio, viewpoint, subject placement and pose, spatial relations between objects, and the position and legible content of existing signage and text; add no slogans, captions or watermarks. Convert: repaint every object in the requested style with consistent brushwork, colour layering, material rendering and light-colour relationships; light direction matches the original. Output one single converted image.",
+  },
+  [MODE_PANO360]: {
+    [LANG_ZH]: "把输入的单视角照片扩展成一张完整的 360 度全景图。【投影】使用真正的等距圆柱投影（equirectangular），水平覆盖 360 度、垂直覆盖 180 度，包含头顶天空与脚下地面；左右两端无缝衔接，形成一张连续完整的场景。【补全】以输入图为基础，把相机背后的环境合理延伸（地面、墙体、植被、天空，光照方向一致），不得出现重复、断裂或接缝。【保持】输入图中的主体只出现一次，其外观、姿态以及与周围景物的相对关系保持原样，不得镜像或复制。【输出】严格 2:1 画幅比例，例如 2880x1440。",
+    [LANG_EN]: "Extend the input single-view photograph into a complete 360-degree panorama. Projection: true equirectangular, covering 360 degrees horizontally and 180 degrees vertically, including the sky overhead and the ground below; left and right edges must join seamlessly into one continuous scene. Completion: extend the environment behind the camera plausibly (ground, walls, vegetation, sky, consistent light direction) with no repeated or broken areas. Keep: the subject appears exactly once, with its appearance, pose and relationship to surrounding objects unchanged, never mirrored or duplicated. Output at exactly a 2:1 aspect ratio, for example 2880x1440.",
+  },
+  [MODE_MULTI_REF]: {
+    [LANG_ZH]: "按图号使用我提供的多张参考图，合成一张全新画面。【指认规则】场景与环境取自我指定的那一张图；其余各图分别提供角色外观或物件本体；我未指认的图不参与画面。【保持】被引用的角色保持面容、发型与体型一致；被引用的物件保持形状、材质、颜色与标识文字一致；不得替换、美化或增减部件。【重建】按我的要求安排构图、站位、光线与景深，所有元素统一在同一空间的光影与透视中，接触关系与投影合理。【文字】除我明确要求的外，不生成任何文字或水印。",
+    [LANG_EN]: "Use the reference images I provide by their index numbers and composite one brand-new image. Mapping: the scene and environment come from the image I designate; the other images supply either character likeness or an object itself; images I do not reference do not appear. Keep: referenced characters keep the same face, hairstyle and build; referenced objects keep the same shape, material, colour and printed text; no replacement, beautifying, additions or removals. Rebuild: arrange composition, staging, lighting and depth of field as I ask; all elements share one consistent space with matching light, perspective, contact and shadows. No text or watermark unless I explicitly ask for it.",
+  },
 };
 /** 某模式某语言下的默认预设句（无预设句的模式 → 空串） */
 const defaultPresetOf = (mode, lang) => ((PRESET_TEXT_DEFAULT[mode] || {})[lang] || "");
+
+/* ── 模版（文生图 / 图生图）：每个预设模式都有两套设定词 ────────────────────────
+ * · 自动 = 按有没有接参考图判断（没接 → 文生图，接了 → 图生图）
+ * · 图生图档（6 档）：PRESET_TEXT_DEFAULT = 图生图版，PRESET_TEXT_T2I = 文生图版
+ * · 文生图档（8 档）：PRESET_TEXT_DEFAULT = 文生图版，「图生图」版 = 原文 + 以输入图为准条款
+ * ⚠️ 必须与 nodes_image_prompt_preset.py 的 IO_MODES / PRESET_TEXT_T2I / preset_text_for 逐字一致（自测断言）
+ */
+const IO_AUTO = "自动";
+const IO_T2I = "文生图";
+const IO_I2I = "图生图";
+const IO_MODES = [IO_AUTO, IO_T2I, IO_I2I];
+/** 图生图档专用文本（文生图模版） */
+const PRESET_TEXT_T2I = {
+    "保持主体换场景": {
+      "zh": "生成一张主体清晰的画面：先完整确定主体的全部外观细节，再把它放进我要求的新场景中。【必须保持】主体的外形、比例、结构、材质、颜色、文字与标识、磨损与光泽等全部细节前后一致、符合真实物理；不得改造、不得美化、不得替换、不得增减部件；主体是人物时保持面容、五官、发型、体型与肤色自然可信。【必须干净】画面中不得出现摄影棚背景、手持、支架、阴影底板等杂物，也不得有任何不属于最终画面的元素。【新画面】按我的要求营造场景、构图、光线与景深；主体与新场景的光影、透视、色温自然统一，接触面有合理投影，看起来就是在该空间里真实拍摄的一张画面。",
+      "en": "Generate a frame with a clearly defined subject: first settle every appearance detail of the subject, then place it into the new scene I ask for. Must keep: shape, proportions, structure, material, colour, printed text and logos, wear and gloss stay self-consistent and physically believable; do not redesign, beautify, replace, add or remove parts; for a person, keep face, features, hairstyle, build and skin tone natural and convincing. Must be clean: no studio backdrop, hands, stands, shadow board or any element that does not belong in the final frame. New frame: build the setting, composition, lighting and depth of field as I ask; the subject must match the scene in light, perspective and colour temperature, sit on believable contact shadows, and look like a real photograph taken in that space."
+    },
+    "局部编辑": {
+      "zh": "生成一张完整画面，并把我的改动直接做进画面里。【改动范围】只按我的要求改我指定的部位，其余内容保持稳定一致：不得顺手重绘、不得重新打光、不得改变材质与配色。【过渡】改动区域与周边必须在材质、纹理与光影方向上自然衔接，边界不得出现生硬接缝、色块、描边或亮度跳变。【输出】只输出最终的一整张完整画面，不要输出对比图、标注框、箭头或任何说明文字。",
+      "en": "Generate one complete frame with my change built directly into the image. Scope: change only the part I ask for; keep everything else stable and consistent — do not incidentally repaint, relight, or alter materials and palette. Blending: the changed area must match its surroundings in material, texture and light direction, with no hard seams, colour patches, outlines or brightness jumps. Output one single finished frame only, with no comparison view, boxes, arrows or explanatory text."
+    },
+    "老照片修复": {
+      "zh": "直接生成一张清晰、自然、细节完整的照片，并带有老照片翻新后的质感。【画面】主体与场景按我的描述生成，人物面部结构、五官解剖与比例自然准确，手部与持物关系合理。【修复感】不要噪点、划痕、斑点、折痕、褪色与颗粒，细节与层次完整、高光与阴影平衡；不得过度锐化，不得出现塑料感、蜡感或油画涂抹感。【色彩】按真实肤色与材质自然上色，色调统一可信，不做夸张调色。【输出】只输出一整张完整画面，不加边框、不加文字或水印。",
+      "en": "Generate directly a sharp, natural, fully detailed photograph with the look of a restored vintage print. Frame: build the subject and setting from my description, with natural accurate facial structure, anatomy and proportions, and believable hands and grip. Restoration feel: no noise, scratches, spots, creases, fading or grain; complete detail and tonal range, balanced highlights and shadows; never oversharpen, never produce waxy, plastic or painterly skin. Colour: natural believable skin and material tones, unified grading, no exaggerated stylisation. Output one single finished image with no border, text or watermark."
+    },
+    "整图风格化": {
+      "zh": "生成一张完整的全新画面，并整体转换成我要求的视觉媒介与画风，转换必须覆盖整幅画面，不得只做局部滤镜或只改一部分物体。【画面】构图、画幅比例、视角与主体由我的描述决定，主体位置与姿态清晰合理。【转换】画面里的每一个物体都按该画风重绘：笔触、色层、材质表现与光色关系统一；光的方向明确一致。【文字】除我明确要求的外不生成任何文字、标语、字幕或水印。【输出】只输出一整张完整画面。",
+      "en": "Generate one complete new frame and convert the whole of it into the requested visual medium and style; the conversion must cover the entire frame, not a local filter or only some objects. Frame: composition, aspect ratio, viewpoint and subject come from my description, with the subject clearly and plausibly placed and posed. Convert: repaint every object in that style with consistent brushwork, colour layering, material rendering and light-colour relationships; keep one clear light direction. Text: no text, slogans, captions or watermarks unless I explicitly ask for them. Output one single complete frame."
+    },
+    "360°全景": {
+      "zh": "生成一张完整的 360 度全景图。【投影】使用真正的等距圆柱投影（equirectangular），水平覆盖 360 度、垂直覆盖 180 度，包含头顶天空与脚下地面；左右两端无缝衔接，形成一张连续完整的场景。【补全】以输入图为基础，把相机背后的环境合理延伸（地面、墙体、植被、天空，光照方向一致），不得出现重复、断裂或接缝。【保持】输入图中的主体只出现一次，其外观、姿态以及与周围景物的相对关系保持原样，不得镜像或复制。【输出】严格 2:1 画幅比例，例如 2880x1440。",
+      "en": "Generate a complete 360-degree panorama. Projection: true equirectangular, covering 360 degrees horizontally and 180 degrees vertically, including the sky overhead and the ground below; left and right edges must join seamlessly into one continuous scene. Completion: extend the environment behind the camera plausibly (ground, walls, vegetation, sky, consistent light direction) with no repeated or broken areas. Keep: the subject appears exactly once, with its appearance, pose and relationship to surrounding objects unchanged, never mirrored or duplicated. Output at exactly a 2:1 aspect ratio, for example 2880x1440."
+    },
+    "多图指认合成": {
+      "zh": "直接按我的描述生成一张全新画面。【画面】按我的要求安排主体、场景、构图、站位、光线与景深，所有元素统一在同一空间的光影与透视中，接触关系与投影合理。【一致性】同一主体在各处的外观保持一致，不得替换、美化或增减部件。【文字】除我明确要求的外，不生成任何文字或水印。",
+      "en": "Generate one brand-new image directly from my description. Frame: arrange subjects, setting, composition, staging, lighting and depth of field as I ask; all elements share one consistent space with matching light, perspective, contact and shadows. Consistency: keep each subject's look identical everywhere, with no replacement, beautifying, additions or removals. Text: no text or watermark unless I explicitly ask for it."
+    }
+  };
+const ioModeOf = (v) => { const s = String(v == null ? "" : v).trim(); return IO_MODES.includes(s) ? s : IO_AUTO; };
+/** 把「自动」按有没有接参考图解析成 文生图 / 图生图 */
+const resolveIoMode = (io, hasImage) => {
+  const m = ioModeOf(io);
+  if (m !== IO_AUTO) return m;
+  return hasImage ? IO_I2I : IO_T2I;
+};
+/** 该模式的默认模版（图生图档默认图生图，其余默认文生图） */
+const modeDefaultIo = (mode) => (MODE_NEEDS_IMAGE.includes(mode) ? IO_I2I : IO_T2I);
+/** 该模式在某模版下的**默认**设定词（io 已归一为 文生图 / 图生图）
+ *  ⚠️ PRESET_TEXT_DEFAULT 的键是「中文 [ZH]/英文 [EN]」，PRESET_TEXT_T2I 的键是 "zh"/"en" */
+const presetTextOf = (mode, lang, io) => {
+  if (!MODES.includes(mode)) return "";
+  if (mode === MODE_TP) return "";       // 无预设：接不接图、哪个模版 → 设定词都是空白
+  const lg = (lang === LANG_EN) ? "en" : "zh";
+  const base = ((PRESET_TEXT_DEFAULT[mode] || {})[lang] || "");
+  if (io === IO_T2I) {
+    if (!MODE_NEEDS_IMAGE.includes(mode)) return base;              // 文生图档 → 原文
+    return (((PRESET_TEXT_T2I[mode] || {})[lg]) || base);           // 图生图档 → 文生图版
+  }
+  if (MODE_NEEDS_IMAGE.includes(mode)) return base;                 // 图生图档 → 原文
+  const clause = modeIoClause(mode, true, lang);                    // 文生图档 → 原文 + 条款
+  return clause ? ((base ? base + " " : "") + clause).trim() : base;
+};
+/** 该模式所有模版 × 所有语言的默认文本（判断「用户没改过」用）
+ *  · 无预设档额外把它算「默认」：IO_I2I_COMMON 条款（早期版本在「图生图模版」下把它当设定词
+ *    存进了 widget / 存档）+ **所有内置预设句**（节点上 three_view_text 的老默认值就是三视图
+ *    预设句 → 无预设档必须当空白，不能当成用户自定义继续前置） */
+const allDefaultTextsOf = (mode) => {
+  const out = [];
+  for (const lg of LANGS) for (const io of [IO_T2I, IO_I2I]) {
+    const t = presetTextOf(mode, lg, io).trim();
+    if (t && !out.includes(t)) out.push(t);
+  }
+  if (mode === MODE_TP) {
+    for (const k of ["zh", "en"]) {
+      const c = String(IO_I2I_COMMON[k] || "").trim();
+      if (c && !out.includes(c)) out.push(c);
+    }
+    for (const table of [PRESET_TEXT_DEFAULT, PRESET_TEXT_T2I]) {
+      for (const texts of Object.values(table)) {
+        for (const t of Object.values(texts || {})) {
+          const s = String(t || "").trim();
+          if (s && !out.includes(s)) out.push(s);
+        }
+      }
+    }
+  }
+  return out;
+};
+/** 存档值是不是「没改过」（等于任一默认 / 旧条款）→ 是则不算自定义 */
+const isDefaultPresetText = (mode, text) => !!String(text || "").trim()
+  && allDefaultTextsOf(mode).includes(String(text).trim());
 /** 兼容旧引用：三视图预设句 */
 const THREE_VIEW_DEFAULT = PRESET_TEXT_DEFAULT[MODE_3V];
 
@@ -94,15 +285,20 @@ const THREE_VIEW_DEFAULT = PRESET_TEXT_DEFAULT[MODE_3V];
  *   { "人物三视图|中文 [ZH]": "用户改过的设定词", … }   ← 只存与默认不同的那条
  * 键里带语言：默认设定词本身就是中英两套，用户改的哪一套就记哪一套。
  */
-const presetKeyOf = (mode, lang) => `${mode}|${lang}`;
+const presetKeyOf = (mode, io, lang) => `${mode}|${io}|${lang}`;
 function parsePresetTexts(raw) {
   const out = {};
   if (!raw || typeof raw !== "object") return out;
   for (const [k, v] of Object.entries(raw)) {
-    const seg = String(k).split("|");
-    if (seg.length !== 2 || !MODES.includes(seg[0]) || !LANGS.includes(seg[1])) continue;
     if (typeof v !== "string" || !v.trim()) continue;
-    out[`${seg[0]}|${seg[1]}`] = v;    // 保留原文（含换行 / 尾随空格）
+    const seg = String(k).split("|");
+    if (seg.length === 3) {                       // 新格式：模式|模版|语言
+      if (!MODES.includes(seg[0]) || !IO_MODES.includes(seg[1]) || !LANGS.includes(seg[2])) continue;
+      out[`${seg[0]}|${seg[1]}|${seg[2]}`] = v;
+    } else if (seg.length === 2) {                // 旧格式：模式|语言 → 按该档默认模版归档
+      if (!MODES.includes(seg[0]) || !LANGS.includes(seg[1])) continue;
+      out[`${seg[0]}|${modeDefaultIo(seg[0])}|${seg[1]}`] = v;
+    }
   }
   return out;
 }
@@ -1410,6 +1606,7 @@ function defaultSettings() {
     auto_save: true,
     elements: { selected: {}, custom: {}, noted: {}, rel: {} },
     preset_texts: {},   // 用户改过的预设句（设定词）：{"模式|语言": "文本"}（换模式/换语言不丢）
+    llm: xbrLlmDefaults(),          // 融合「✨ 提示词增强反推」的 LLM 配置段
   };
 }
 
@@ -1484,6 +1681,7 @@ function parseSettings(raw) {
     }
   }
   cfg.elements.rel = rel;
+  cfg.llm = xbrParseLlm(data.llm);   // 融合「✨ 提示词增强反推」的 LLM 配置段
   return cfg;
 }
 
@@ -1545,10 +1743,10 @@ function rebuildBody(settings, index, lang) {
   return parts.join(sepOf(lang));
 }
 /** 最终成句（与后端 build_prompt 逐行一致：预设句 + 正文）—— 三个值均来自节点表面参数 */
-function finalPrompt(mode, presetText, lang, body) {
+function finalPrompt(mode, presetText, lang, body, io) {
   const core = String(body || "").trim();
-  if (!PRESET_TEXT_DEFAULT[mode]) return core;          // 常规文生图 → 无预设句
-  const preset = String(presetText || "").trim() || defaultPresetOf(mode, lang);
+  if (!PRESET_TEXT_DEFAULT[mode]) return core;          // 无预设 → 不前置
+  const preset = String(presetText || "").trim() || presetTextOf(mode, lang, io || IO_T2I);
   if (!core) return preset;
   if (lang === LANG_EN) return preset.replace(/[.\s]+$/, "") + ". " + core;
   return preset.replace(/[。．.\s]+$/, "") + "。" + core;
@@ -1659,11 +1857,11 @@ function openPanel(ctx, panelId) {
   const refreshPreview = (fromEl) => {
     const body = ctx.body.get();
     if (fromEl !== preview) preview.value = body;
-    headCount.textContent = `${body.length} 字 → 成句 ${finalPrompt(surf.mode, surf.presetText, surf.lang, body).length} 字`;
+    headCount.textContent = `${body.length} 字 → 成句 ${finalPrompt(surf.mode, surf.presetText, surf.lang, body, surf.io).length} 字`;
     const hasPreset = !!PRESET_TEXT_DEFAULT[surf.mode];
     presetChip.style.display = hasPreset ? "block" : "none";
     if (hasPreset) {
-      const t = String(surf.presetText || "") || defaultPresetOf(surf.mode, surf.lang);
+      const t = String(surf.presetText || "") || presetTextOf(surf.mode, surf.lang, surf.io || IO_T2I);
       presetChip.textContent = `📌 自动前置（${surf.mode}设定词，可在节点表面「预设句」框里改；改过的按模式记住、换模式不丢）：` + (t.length > 150 ? t.slice(0, 150) + "…" : t);
     }
   };
@@ -1966,7 +2164,7 @@ function renderCategoryPanel(box, api, catId) {
       notify(t ? "已按已选元素重建正文" : "当前没有已选元素（重建后正文为空）", t ? "success" : "warning");
     }),
     smallBtn("📋 复制成句", "border:1px solid #555;background:#2a2a2a;color:#ccc;padding:6px 12px;", "复制最终成句（三视图模式下含预设句）", () => {
-      copyText(finalPrompt(surf.mode, surf.presetText, surf.lang, bodyGet()));
+      copyText(finalPrompt(surf.mode, surf.presetText, surf.lang, bodyGet(), surf.io));
     }),
     smallBtn("⬆️ 导出词表", "border:1px solid #6b9b5b;background:#3a5a2a;color:#d7f0c8;padding:6px 12px;", "把「自建槽位 + 已选 + 描述」导出成 JSON 备份", () => exportJson(s)),
     smallBtn("⬇️ 导入词表", "border:1px solid #6b9b5b;background:#3a5a2a;color:#d7f0c8;padding:6px 12px;", "从 JSON 恢复「自建槽位 + 已选 + 描述」（合并，不覆盖内置词表）", () => importJson((obj) => {
@@ -2487,6 +2685,9 @@ function setupNode(node) {
   };
   snapshotWidget(w3v);
 
+  // 模版切换（文生图 / 图生图）：基础节点没有这个 widget → null，逻辑自动按「文生图」走
+  const wIo = findWidget(node, "io_mode");
+
   // ── 预设句（设定词）存档：用户改过的那条按「模式|语言」存进节点 ──────────────
   // 切换模式 / 切换语言一律取「该键的存档 → 该键的默认」，所以用户改过的设定词不会被冲掉。
   // ⚠️ 写入用「原样 JSON 合并」——不能走 persistSettings（那会丢掉 Pro 的 llm 段等其它键）。
@@ -2495,20 +2696,25 @@ function setupNode(node) {
     try { return parsePresetTexts(parseSettings(readWidgetValue(findWidget(node, "manager_settings"))).preset_texts); }
     catch (_) { return {}; }
   };
-  const savedPresetOf = (mode, lang) => presetStoreOf()[presetKeyOf(mode, lang)] || "";
-  /** 该「模式 × 语言」最终生效的设定词：用户改过的存档优先，否则用默认 */
-  const presetTextFor = (mode, lang) => savedPresetOf(mode, lang) || defaultPresetOf(mode, lang);
+  const savedPresetOf = (mode, io, lang) => presetStoreOf()[presetKeyOf(mode, io, lang)] || "";
+  /** 该「模式 × 模版 × 语言」最终生效的设定词：用户改过的存档优先，否则用默认
+   *  （存档值等于任一默认 / 旧条款 → 视为「没改过」 → 用当前模版的默认） */
+  const presetTextFor = (mode, io, lang) => {
+    const s = savedPresetOf(mode, io, lang);
+    if (s && !isDefaultPresetText(mode, s)) return s;
+    return presetTextOf(mode, lang, io);
+  };
   /** 存 / 清一条设定词存档（与默认一致 → 清掉存档，保持工作流干净） */
-  const writePresetStore = (mode, lang, text) => {
+  const writePresetStore = (mode, io, lang, text) => {
     try {
       let data = {};
       try { data = JSON.parse(String(readWidgetValue(findWidget(node, "manager_settings")) || "{}")) || {}; }
       catch (_) { data = {}; }
       if (!data || typeof data !== "object") data = {};
       const store = parsePresetTexts(data.preset_texts);
-      const key = presetKeyOf(mode, lang);
+      const key = presetKeyOf(mode, io, lang);
       const t = String(text ?? "");
-      if (!t.trim() || t === defaultPresetOf(mode, lang)) delete store[key];
+      if (!t.trim() || t === presetTextOf(mode, lang, io)) delete store[key];
       else store[key] = t;
       if (Object.keys(store).length) data.preset_texts = store; else delete data.preset_texts;
       setWidgetValue(findWidget(node, "manager_settings"), JSON.stringify(data));
@@ -2519,6 +2725,18 @@ function setupNode(node) {
   const hideInternal = () => {
     hideWidget(findWidget(node, "internal_prompt"));
     hideWidget(findWidget(node, "manager_settings"));
+    // 融合「✨ 提示词增强反推」：这些参数只在弹窗里配置（节点表面不暴露）
+    hideWidget(findWidget(node, "backend"));
+    hideWidget(findWidget(node, "preset"));
+    hideWidget(findWidget(node, "task_preset"));
+    hideWidget(findWidget(node, "open_api_settings"));
+    hideWidget(findWidget(node, "output_lang"));     // 语言只留：LLM设置 里的「输出语言」
+    hideWidget(findWidget(node, "latent_kind"));     // → 「✨ 增强预设」弹窗
+    hideWidget(findWidget(node, "preset_mode"));     // → 「✨ 增强预设」弹窗
+    hideWidget(findWidget(node, "three_view_text")); // 设定词 → 只在「✨ 增强预设」弹窗里编辑（用户要求：不在节点表面显示）
+    hideWidget(findWidget(node, "skill_name"));      // SKILL 选择 → 只在「✨ 预设参数」弹窗里选
+    hideWidget(findWidget(node, "skill_mode"));      // SKILL 三态 → 只在「✨ 预设参数」弹窗里选
+    hideWidget(findWidget(node, "io_mode"));         // 模版（文生图/图生图）→ 只在「✨ 预设参数」弹窗里选
     refreshNodes2View(node);
     node.setDirtyCanvas?.(true, true);
   };
@@ -2562,14 +2780,18 @@ function setupNode(node) {
     });
     btnRow.append(btn);
   }
+  // 第 1 行按钮（融合「✨ 提示词增强反推」）：🤖 LLM设置 ｜ ✨ 增强预设 ｜ 📖 使用说明
+  container.appendChild(xbrBuildButtonRow(node));
+  // 第 2 行：8 个元素分类按钮
   container.appendChild(btnRow);
 
   // ③ 提示词框（flex:1 1 auto 吃掉剩余高度；原来的「生成详情」状态行已按要求删除）
-  const promptLab = el("div", "font-size:12px;color:#bbb;flex:0 0 auto;", "📝 节点提示词（与面板预览框双向同步）");
   const promptBox = el("textarea", BOX_CSS + "width:100%;flex:1 1 auto;min-height:300px;resize:none;line-height:1.6;font-size:12px;overflow-y:auto;");
   promptBox.spellcheck = false;
-  promptBox.placeholder = "点上方 8 个按钮开面板、点选项行加入元素，或直接在这里写提示词…";
-  container.append(promptLab, promptBox);
+  promptBox.placeholder = "点上方按钮开面板、点选项行加入元素，或直接在这里写提示词…\n接了「🖼️ 图像」时：这里写的是修改要求，例：把背景换成草地 → 最终只输出修改后的画面提示词\n「📝 提示词」端口接线后本框锁定";
+  // 标题行（左标签 + 右「📋 复制」）+ 参数设定显示（Pro 新增；同时挂上端口锁定与执行回写）
+  const xbrHeadAndInfo = xbrBuildPromptHeader(node, promptBox);
+  container.append(xbrHeadAndInfo[0], promptBox, xbrHeadAndInfo[1]);
 
   // ── 提示词框 ↔ internal_prompt ──
   const syncPromptBoxFromWidget = () => {
@@ -2579,9 +2801,12 @@ function setupNode(node) {
   promptBox.addEventListener("input", () => { setWidgetValue(ipWidget, promptBox.value); });
 
   // ── 表面参数（原「⚙️ 输出设置」面板的 4 项已上提到节点表面）──
+  /** 当前模版（文生图 / 图生图）：自动 → 按「🖼️ 图像」有没有接线判断 */
+  const curIoMode = () => resolveIoMode(ioModeOf(wIo ? readWidgetValue(wIo) : ""), modeHasImage(node));
   const surfaceOf = () => ({
     lang: pickOpt(LANGS, readWidgetValue(wLang), LANG_ZH),
     mode: pickOpt(MODES, readWidgetValue(wMode), MODE_TP),
+    io: curIoMode(),
     kind: pickOpt(LATENT_KINDS, readWidgetValue(wKind), DEFAULT_LATENT_KIND),
     presetText: String(readWidgetValue(w3v) ?? ""),
   });
@@ -2655,7 +2880,8 @@ function setupNode(node) {
             if (v === lastAppliedPreset) return;          // 程序化写入的回声 → 忽略
             lastAppliedPreset = v;
             setWidgetValue(w3v, v);
-            writePresetStore(surfaceOf().mode, surfaceOf().lang, v);
+            const s = surfaceOf();
+            writePresetStore(s.mode, s.io, s.lang, v);
           } catch (_) {}
         };
         live.addEventListener("change", commitUserEdit);
@@ -2682,10 +2908,11 @@ function setupNode(node) {
     try { node.setDirtyCanvas?.(true, true); } catch (_) {}
   };
 
-  // 预设句输入框：常规文生图以外的 4 个模式（三视图/四视图/五视图/背景纯透明）都显示（一次性隐藏/显示，不做任何 setSize，不会抖动）
+  // 预设句输入框：无预设以外的模式（三视图/四视图/五视图/背景纯透明 等）都显示（一次性隐藏/显示，不做任何 setSize，不会抖动）
   const applyPresetTextVisibility = () => {
     try {
-      if (PRESET_TEXT_DEFAULT[surfaceOf().mode]) { showWidget(w3v); stylePresetTextBox(); } else hideWidget(w3v);
+      // Pro：设定词只在「✨ 增强预设」弹窗里编辑 → 节点表面始终隐藏（不把选项参数暴露在外面）
+      hideWidget(w3v);
     } catch (_) {}
     refreshNodes2View(node);
     // 2.0 下 Vue 可能稍后才把原生 widget 的 DOM 挂上/重建 → 几个时机各补一次样式与节点标记
@@ -2751,16 +2978,23 @@ function setupNode(node) {
     const cur = String(readWidgetValue(w3v) ?? "");
     if (cur === lastAppliedPreset) return;                                     // 程序化写入的回声 → 忽略
     lastAppliedPreset = cur;
-    writePresetStore(surfaceOf().mode, surfaceOf().lang, cur);
+    const s = surfaceOf();
+    writePresetStore(s.mode, s.io, s.lang, cur);
   });
-  hook(wMode, () => {                                                          // 换模式 = 显/隐预设句框 +
-    const { mode, lang } = surfaceOf();                                        //   取该模式的「用户存档 → 默认」
-    if (defaultPresetOf(mode, lang)) setPresetText(presetTextFor(mode, lang)); //   （改过的设定词不会被冲掉）
+  hook(wMode, () => {                                                          // 换模式 = 显/隐设定词框 +
+    const { mode, lang, io } = surfaceOf();                                    //   取该「模式 × 模版」的「用户存档 → 默认」
+    setPresetText(presetTextFor(mode, io, lang));                              //   （改过的设定词不会被冲掉；无预设 → 写空）
     applyPresetTextVisibility();
   });
-  hook(wLang, () => {                                                          // 换语言 = 同模式按下语言取「存档 → 默认」
-    const { mode, lang } = surfaceOf();
-    if (defaultPresetOf(mode, lang)) setPresetText(presetTextFor(mode, lang));
+  hook(wLang, () => {                                                          // 换语言 = 同模式同模版按下语言取「存档 → 默认」
+    const { mode, lang, io } = surfaceOf();
+    setPresetText(presetTextFor(mode, io, lang));
+  });
+  hook(wIo, () => {                                                            // 换模版（文生图/图生图）= 换设定词那一套
+    const { mode, lang, io } = surfaceOf();
+    setPresetText(presetTextFor(mode, io, lang));
+    try { node.__qbrRefreshInfo?.(); } catch (_) {}
+    try { node.__xbrRefreshInfo?.(); } catch (_) {}
   });
   hook(wB, () => {                                                             // batch 超出当前类型上限 → 就近钳制
     const sp = latentSpec(surfaceOf().kind);
@@ -2772,7 +3006,9 @@ function setupNode(node) {
   // ── 隐藏字段的幽灵端口清理（V1 没有 socketless，高级字段也可能冒出端口） ──
   const killGhost = () => {
     try {
-      for (const nm of ["internal_prompt", "manager_settings"]) {
+      for (const nm of ["internal_prompt", "manager_settings", "backend", "preset", "task_preset",
+                         "open_api_settings", "output_lang", "latent_kind", "preset_mode", "three_view_text",
+                         "skill_name", "skill_mode", "io_mode"]) {
         const idx = (node.inputs || []).findIndex((i) => i.name === nm);
         if (idx < 0) continue;
         if (typeof node.removeInput === "function") node.removeInput(idx);
@@ -2807,8 +3043,8 @@ function setupNode(node) {
   };
   // 高度常量（提前声明：widget 的布局回调可能在后面才被调用，避免 TDZ）
   const TEXT_MIN_H = 300;   // 提示词框最小高度（节点再小也不低于它；节点变大则跟随）
-  const DOM_FIXED_H = 116;  // 按钮区 2 行(66) + 标签(17) + 内边距/间距(≈33)
-  const DOM_MIN_H = 411;    // DOM 区最小高度 = 按钮区 66 + 间距 12 + 标签 17 + 输入框 300 + 内边距 16
+  const DOM_FIXED_H = 308;  // Pro：按钮区 3 行(102) + 标签(17) + 信息区(150+6) + 内边距/间距(≈33)
+  const DOM_MIN_H = 603;    // Pro：DOM 区最小高度 = 按钮区 102 + 间距 12 + 标签 17 + 输入框 300 + 信息区 156 + 内边距 16
   if (widget) {
     try { delete widget.computeSize; } catch (_) { widget.computeSize = undefined; }
     widget.options = widget.options || {};
@@ -2952,10 +3188,16 @@ function setupNode(node) {
     syncPromptBoxFromWidget();
     applyKindLimits();       // 按当前空latent类型同步 step / 上下限
     applyPresetTextVisibility();
-    // 预设句：以「用户存档 → 默认」为准（widget 值本就随工作流存着；这里兜底空值 / 被清空的情况）
+    // 设定词：以「用户存档 → 当前模版默认」为准
+    //   · 空 → 当前模版默认（无预设 → 默认就是空 → 保持空）；
+    //   · 等于别的模版 / 语言的默认 / 任一内置预设句（老工作流存的是另一套，或节点老默认句）→ 也换成当前模版默认；
+    //   · 用户改过的 → 一个字不动。
     {
-      const m = surfaceOf().mode, l = surfaceOf().lang;
-      if (defaultPresetOf(m, l) && !String(readWidgetValue(w3v) ?? "").trim()) setPresetText(presetTextFor(m, l));
+      const m = surfaceOf().mode, l = surfaceOf().lang, iom = surfaceOf().io;
+      const nowTxt = presetTextOf(m, l, iom);
+      const cur = String(readWidgetValue(w3v) ?? "").trim();
+      if (!cur) { if (nowTxt) setPresetText(presetTextFor(m, iom, l)); }
+      else if (cur !== nowTxt && allDefaultTextsOf(m).includes(cur)) setPresetText(presetTextFor(m, iom, l));
     }
     const ar = String(readWidgetValue(wAR) ?? "Free");
     const [nw, nh] = normalizeSize(ar, readWidgetValue(wW), readWidgetValue(wH), sizeOpt());
@@ -2965,6 +3207,7 @@ function setupNode(node) {
     }
     refreshSize();
   };
+  node._xbEl = container;   // 调试 / 自动化定位锚点
   node.__ippSyncPromptBox = syncPromptBoxFromWidget;
   // 供 Pro 弹窗（✨ 增强预设）读写设定词：取「存档 → 默认」/ 写 widget / 存进节点
   node.__ippPresetTextFor = presetTextFor;
@@ -2988,8 +3231,907 @@ function setupNode(node) {
   };
 }
 
+/* ============================================================================
+ *  ✨ 提示词增强反推（融合进「🖼️ 生图提示词预设Pro」）
+ *  ---------------------------------------------------------------------------
+ *  节点表面新增：2 个按钮（🤖 大语言模型配置 ｜ ✨ 提示词增强预设）
+ *                + 「✅ 启用 LLM 反推」开关（节点表面参数，默认关）
+ *                + 提示词框标题行（右侧「📋 复制」）+ 参数设定显示（只读摘要）
+ *                + 「📝 提示词」端口接线 → 提示词框锁定（二选一）
+ *  弹窗：导演台同款二级弹窗（底部：自动保存 + 字号 + 界面缩放 + 取消/💾 保存）
+ *  配置：manager_settings.llm = { model, run, params, extra_system }（与后端 _llm_section 对齐）
+ *  说明：本块所有标识符统一 xbr/XBR 前缀，避免与生图预设面板既有函数/常量重名。
+ * ========================================================================== */
+
+const XBR_DEFAULT_PROVIDER = "OpenAI 兼容 (OpenAI/DeepSeek/Qwen/GLM/Kimi/Ollama/vLLM/LM Studio)";
+const XBR_API_DEFAULTS = {
+  provider: XBR_DEFAULT_PROVIDER,
+  model: "deepseek-v4-flash-vision-exp",
+  api_key: "",
+  base_url: "https://api.deepseek.com/v1",
+  temperature: 0.6,
+  max_tokens: 8192,
+  thinking: "disabled",
+};
+const XBR_BACKENDS = [
+  { value: "本地模型", label: "本地模型 [local]" },
+  { value: "在线 API", label: "在线API [api]" },
+];
+const XBR_INFERENCE_MODES = ["one by one", "images", "video"];
+const XBR_SEED_MODES = ["randomize", "fixed", "increment", "decrement"];
+/** SKILL 三态：自动 = 按预设模式适配；手动 = 用选择的那一个；不用 = 完全不生效 */
+const XBR_SKILL_MODES = ["自动", "手动", "不用"];
+/** 模版三态：自动 = 按有没有接参考图判断；文生图 / 图生图 = 手动指定 */
+const XBR_IO_MODES = ["自动", "文生图", "图生图"];
+const XBR_SEED_LABEL = { randomize: "随机", fixed: "固定", increment: "增加", decrement: "减少" };
+const XBR_PANEL_BUTTONS = [
+  { id: "llm", label: "🤖 LLM设置", title: "🤖 LLM设置", subtitle: "LLM 反推的后端与推理配置；本弹窗里的「输出语言」是全节点唯一的语言设置（决定词表加载语言 + 最终提示词语言）。" },
+  { id: "preset", label: "✨ 预设参数", title: "✨ 预设参数", subtitle: "空latent类型 / 预设模式 / 增强预设（= 提示词设定）/ 反推预设 / 追加设定 / SKILL。提示词正文在节点上的提示词框里编辑。" },
+];
+const XBR_API_ENDPOINT = "/xb_toolbox/llm_api_settings";
+
+/* ── 数值 / 解析助手 ─────────────────────────────────────── */
+function xbrNum(v, d, lo, hi) {
+  let x = Number(v);
+  if (!Number.isFinite(x)) x = d;
+  if (lo !== undefined) x = Math.max(lo, x);
+  if (hi !== undefined) x = Math.min(hi, x);
+  return x;
+}
+function xbrInt(v, d, lo, hi) { return Math.round(xbrNum(v, d, lo, hi)); }
+function xbrFlag(v, d) {
+  if (v === undefined || v === null || v === "") return d;
+  return (typeof v === "string") ? ["1", "true", "yes", "on", "开启"].includes(v.trim().toLowerCase()) : !!v;
+}
+function xbrPick(v, allowed, d) { return allowed.includes(v) ? v : d; }
+
+const XBR_INFERENCE_MODES_ = XBR_INFERENCE_MODES;
+function xbrLlmDefaults() {
+  return {
+    model: { model: "", mmproj: "None", chat_handler: "None", n_ctx: 8192, vram_limit: -1, image_min_tokens: 0, image_max_tokens: 0 },
+    run: { inference_mode: "one by one", max_frames: 24, max_size: 256, seed: 0, seed_control: "randomize", force_offload: false, save_states: false, strip_thinking: true },
+    params: {
+      max_tokens: 6144, top_k: 40, top_p: 0.9, min_p: 0.05, typical_p: 1.0, temperature: 0.6,
+      repeat_penalty: 1.12, frequency_penalty: 0.0, present_penalty: 0.0,
+      mirostat_mode: 0, mirostat_eta: 0.1, mirostat_tau: 5.0, state_uid: -1,
+    },
+    extra_system: "",
+  };
+}
+/** 解析 manager_settings.llm（缺失/非法一律安全回落） */
+function xbrParseLlm(raw) {
+  const d = (raw && typeof raw === "object") ? raw : {};
+  const cfg = xbrLlmDefaults();
+  const m = (d.model && typeof d.model === "object") ? d.model : {};
+  cfg.model.model = String(m.model ?? "");
+  cfg.model.mmproj = String(m.mmproj ?? "None");
+  cfg.model.chat_handler = String(m.chat_handler ?? "None");
+  cfg.model.n_ctx = xbrInt(m.n_ctx, cfg.model.n_ctx, 1024, 327680);
+  cfg.model.vram_limit = xbrInt(m.vram_limit, cfg.model.vram_limit, -1, 1024);
+  cfg.model.image_min_tokens = xbrInt(m.image_min_tokens, 0, 0, 4096);
+  cfg.model.image_max_tokens = xbrInt(m.image_max_tokens, 0, 0, 4096);
+
+  const r = (d.run && typeof d.run === "object") ? d.run : {};
+  cfg.run.inference_mode = xbrPick(r.inference_mode, XBR_INFERENCE_MODES, cfg.run.inference_mode);
+  cfg.run.max_frames = xbrInt(r.max_frames, cfg.run.max_frames, 2, 1024);
+  cfg.run.max_size = xbrInt(r.max_size, cfg.run.max_size, 128, 16384);
+  cfg.run.seed = xbrInt(r.seed, cfg.run.seed, 0, Number.MAX_SAFE_INTEGER);
+  cfg.run.seed_control = xbrPick(r.seed_control, XBR_SEED_MODES, cfg.run.seed_control);
+  cfg.run.force_offload = xbrFlag(r.force_offload, cfg.run.force_offload);
+  cfg.run.save_states = xbrFlag(r.save_states, cfg.run.save_states);
+  cfg.run.strip_thinking = xbrFlag(r.strip_thinking, cfg.run.strip_thinking);   // 模型输出思考过程时自动过滤
+
+  const p = (d.params && typeof d.params === "object") ? d.params : {};
+  cfg.params.max_tokens = xbrInt(p.max_tokens, cfg.params.max_tokens, 0, 262144);
+  cfg.params.top_k = xbrInt(p.top_k, cfg.params.top_k, 0, 1000);
+  cfg.params.top_p = xbrNum(p.top_p, cfg.params.top_p, 0, 1);
+  cfg.params.min_p = xbrNum(p.min_p, cfg.params.min_p, 0, 1);
+  cfg.params.typical_p = xbrNum(p.typical_p, cfg.params.typical_p, 0, 1);
+  cfg.params.temperature = xbrNum(p.temperature, cfg.params.temperature, 0, 2);
+  cfg.params.repeat_penalty = xbrNum(p.repeat_penalty, cfg.params.repeat_penalty, 0, 10);
+  cfg.params.frequency_penalty = xbrNum(p.frequency_penalty, cfg.params.frequency_penalty, 0, 1);
+  cfg.params.present_penalty = xbrNum(p.present_penalty, cfg.params.present_penalty, 0, 2);
+  cfg.params.mirostat_mode = xbrInt(p.mirostat_mode, cfg.params.mirostat_mode, 0, 2);
+  cfg.params.mirostat_eta = xbrNum(p.mirostat_eta, cfg.params.mirostat_eta, 0, 1);
+  cfg.params.mirostat_tau = xbrNum(p.mirostat_tau, cfg.params.mirostat_tau, 0, 10);
+  cfg.params.state_uid = xbrInt(p.state_uid, cfg.params.state_uid, -1, 999999);
+  cfg.extra_system = String(d.extra_system ?? "");
+  return cfg;
+}
+
+/* ── 节点 widget 读写 ─────────────────────────────────────── */
+function xbrWidget(node, name) { return (node?.widgets || []).find((w) => w?.name === name); }
+function xbrWidgetVal(node, name) { return readWidgetValue(xbrWidget(node, name)); }
+/** fire=true 时同步触发该 widget 原有回调（基础面板靠回调做步长/预设句框/尺寸联动） */
+function xbrSetWidget(node, name, val, fire) {
+  const w = xbrWidget(node, name);
+  setWidgetValue(w, val);
+  if (fire) { try { w?.callback?.(val); } catch (_) {} }
+}
+function xbrHint(text) { return el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", text); }
+function xbrWidgetOptions(node, name) {
+  const w = xbrWidget(node, name);
+  const o = w?.options?.values ?? w?.options;
+  return Array.isArray(o) ? o.slice() : [];
+}
+function xbrCurJson(node) {
+  try {
+    const raw = readWidgetValue(findWidget(node, "manager_settings"));
+    const d = JSON.parse(raw || "{}");
+    return (d && typeof d === "object") ? d : {};
+  } catch (_) { return {}; }
+}
+function xbrSaveJson(node, patch) {
+  const cur = xbrCurJson(node);
+  Object.assign(cur, patch || {});
+  persistSettings(node, cur);
+  return cur;
+}
+
+/* ── 预设设定词（每个预设模式都有「文生图 / 图生图」两套）─────────────────────
+ * · 用户改过的按「模式|模版|语言」存进节点（基础面板的 preset_texts 存档）；
+ * · 弹窗读「存档 → 当前模版默认」，提交时同步写 widget + 存档。 */
+function xbrPresetStore(node) {
+  try { return parsePresetTexts(xbrCurJson(node).preset_texts); } catch (_) { return {}; }
+}
+function xbrPresetTextFor(node, mode, lang, io) {
+  const key = presetKeyOf(mode, io, lang);
+  const t = xbrPresetStore(node)[key];
+  // 存档里的值等于任一默认 / 旧条款 → 视为「没改过」 → 用当前模版的默认（无预设 = 空）
+  if (t && String(t).trim() && !isDefaultPresetText(mode, t)) return t;
+  return (presetTextOf(mode, lang, io) || "");
+}
+/** 当前模版（文生图 / 图生图）：自动 → 按「🖼️ 图像」有没有接线判断 */
+function xbrResolveIo(node, ioRaw) {
+  const has = (typeof modeHasImage === "function") && modeHasImage(node);
+  return (typeof resolveIoMode === "function") ? resolveIoMode(ioRaw, has) : "文生图";
+}
+
+/* ── 预设选项按「输出语言」过滤 ───────────────────────────────
+ * 预设名的语言标签形如 "Z-Image Turbo [ZH]" / "Normal - 描述 [EN]"；
+ * 输出语言选中文 → 增强预设 / 反推预设 只列 [ZH] 项，选英文 → 只列 [EN] 项。 */
+function xbrLangTagOf(v) {
+  const m = String(v == null ? "" : v).match(/[\[［](ZH|EN)[\]］]\s*$/i);
+  return m ? m[1].toUpperCase() : "";
+}
+function xbrFilterByLang(opts, lang) {
+  const want = xbrLangTagOf(lang);
+  if (!want) return opts.slice();
+  const hit = opts.filter((o) => xbrLangTagOf(o) === want);
+  return hit.length ? hit : opts.slice();      // 全无语言标签（老预设）→ 全量兜底
+}
+/** 语言变了：优先换到「同名的另一语言项」，否则取该语言第一项 */
+function xbrSnapPreset(opts, cur, lang) {
+  const list = xbrFilterByLang(opts, lang);
+  if (list.includes(cur)) return cur;
+  const base = String(cur == null ? "" : cur).replace(/\s*[\[［](ZH|EN)[\]］]\s*$/i, "").trim();
+  const same = list.find((o) => String(o).replace(/\s*[\[［](ZH|EN)[\]］]\s*$/i, "").trim() === base);
+  return same || list[0] || cur;
+}
+
+/* ── 在线 API（存 ComfyUI user 目录，Key 不进工作流）──────── */
+async function xbrApiGet() {
+  const resp = await api.fetchApi(XBR_API_ENDPOINT);
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data?.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
+  return { settings: data.settings || {}, providers: data.providers || [] };
+}
+async function xbrApiPut(payload) {
+  const resp = await api.fetchApi(XBR_API_ENDPOINT, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || !data?.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
+  return data.settings || payload;
+}
+function xbrNormApi(raw) {
+  const x = { ...XBR_API_DEFAULTS, ...(raw && typeof raw === "object" ? raw : {}) };
+  x.provider = String(x.provider || "").trim() || XBR_DEFAULT_PROVIDER;
+  x.model = String(x.model ?? "").trim() || XBR_API_DEFAULTS.model;
+  x.base_url = String(x.base_url ?? "").trim() || XBR_API_DEFAULTS.base_url;
+  x.api_key = String(x.api_key ?? "");
+  x.temperature = xbrNum(x.temperature, XBR_API_DEFAULTS.temperature, 0, 2);
+  x.max_tokens = xbrInt(x.max_tokens, XBR_API_DEFAULTS.max_tokens, 1, 262144);
+  x.thinking = (x.thinking === "enabled") ? "enabled" : "disabled";
+  return x;
+}
+
+/* ── 本地模型候选（取「📦 模型加载器」的 object_info，单一真相）── */
+let xbrModelLists = null;
+async function xbrLoadModelLists(force) {
+  if (xbrModelLists && !force) return xbrModelLists;
+  try {
+    const resp = await api.fetchApi("/object_info/XB_llamaModelLoader");
+    const data = await resp.json();
+    const req = data?.XB_llamaModelLoader?.input?.required || {};
+    xbrModelLists = {
+      model: Array.isArray(req.model?.[0]) ? req.model[0] : [],
+      mmproj: Array.isArray(req.mmproj?.[0]) ? req.mmproj[0] : ["None"],
+      chat_handler: Array.isArray(req.chat_handler?.[0]) ? req.chat_handler[0] : ["None"],
+    };
+  } catch (_) {
+    xbrModelLists = { model: [], mmproj: ["None"], chat_handler: ["None"] };
+  }
+  return xbrModelLists;
+}
+
+/* ── 控件：数字 / 密码 / 单选行 / 种子行 ─────────────────── */
+function xbrNumberControl(value, opts, onChange) {
+  const i = el("input", BOX_CSS + "min-width:0;");
+  i.type = "number";
+  i.value = value ?? 0;
+  if (opts) {
+    if (opts.min !== undefined) i.min = opts.min;
+    if (opts.max !== undefined) i.max = opts.max;
+    i.step = opts.step ?? 1;
+  }
+  i.addEventListener("change", () => {
+    let v = parseFloat(i.value);
+    if (!Number.isFinite(v)) v = opts?.min ?? 0;
+    if (opts?.min !== undefined) v = Math.max(opts.min, v);
+    if (opts?.max !== undefined) v = Math.min(opts.max, v);
+    i.value = v;
+    onChange(v);
+  });
+  return i;
+}
+function xbrPasswordControl(value, placeholder, onChange) {
+  const i = el("input", BOX_CSS + "min-width:0;");
+  i.type = "password";
+  i.value = value ?? "";
+  if (placeholder) i.placeholder = placeholder;
+  i.autocomplete = "new-password";
+  i.spellcheck = false;
+  i.addEventListener("change", () => onChange(i.value.trim()));
+  return i;
+}
+function xbrTextControl(value, placeholder, onChange) {
+  const i = el("input", BOX_CSS + "min-width:0;");
+  i.type = "text";
+  i.value = value ?? "";
+  if (placeholder) i.placeholder = placeholder;
+  i.spellcheck = false;
+  i.addEventListener("change", () => onChange(i.value.trim()));
+  return i;
+}
+/** 导演台同款「种子 + 生成后控制（随机/固定/增加/减少）」一行 */
+function xbrSeedRow(run, onChange) {
+  const g = el("div", "display:flex;align-items:center;gap:10px;margin-bottom:10px;");
+  g.append(el("label", "flex:0 0 160px;font-size:13px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;", "种子"));
+  const i = xbrNumberControl(run.seed, { min: 0, max: Number.MAX_SAFE_INTEGER, step: 1 }, (v) => { run.seed = Math.round(v); onChange?.(); });
+  i.style.flex = "1 1 0";
+  const ctrl = smallBtn("", "flex:1 1 0;min-width:0;background:#b45309;border:1px solid #d97706;color:#fff;text-align:center;", "生成后控制：点击在 随机 / 固定 / 增加 / 减少 间切换", null);
+  const cur = () => (XBR_SEED_LABEL[run.seed_control] ? run.seed_control : "randomize");
+  const render = () => {
+    ctrl.textContent = "🔁 " + XBR_SEED_LABEL[cur()];
+    ctrl.title = "生成后控制：随机 = 每次运行后自动换新种子；固定 = 锁定当前值；增加/减少 = 每次运行后 ±1。点击切换";
+  };
+  ctrl.addEventListener("click", () => {
+    run.seed_control = XBR_SEED_MODES[(XBR_SEED_MODES.indexOf(cur()) + 1) % XBR_SEED_MODES.length];
+    render();
+    onChange?.();
+  });
+  render();
+  g.append(i, ctrl);
+  return g;
+}
+
+/* ── 弹窗外壳（与生图预设面板同风格；底部：自动保存 + 字号 + 界面缩放）── */
+let xbrModal = null;
+function xbrDialog({ label, title, subtitle, width = 820, autoSaveRef = null, onCommit = null, onImmediate = null, onChange = null, onClose = null }) {
+  const overlay = el("div", "position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:10300;display:flex;align-items:center;justify-content:center;overflow:auto;");
+  const dialog = el("section", `background:#1c1c1e;border:1px solid #333;border-radius:8px;width:${width}px;max-width:94vw;` +
+    "max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 40px rgba(0,0,0,.6);flex:0 0 auto;color:#ddd;font-size:13px;");
+  dialog.dataset.xbrProModal = label;
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-label", label);
+
+  const header = el("div", "padding:18px 20px;border-bottom:1px solid #444;");
+  header.append(el("div", "font-size:17px;font-weight:700;color:#eee;", title));
+  if (subtitle) header.append(el("div", "font-size:12px;color:#999;margin-top:5px;line-height:1.6;", subtitle));
+  const body = el("div", "padding:16px 20px;overflow-y:auto;flex:1;min-height:200px;");
+  const error = el("div", "color:#e55;font-size:12px;margin:0 20px;min-height:14px;");
+  const footer = el("div", "padding:12px 20px;border-top:1px solid #444;display:flex;justify-content:flex-end;gap:10px;align-items:center;background:#18181a;border-bottom-left-radius:8px;border-bottom-right-radius:8px;");
+  const left = el("div", "display:flex;align-items:center;gap:16px;margin-right:auto;flex-wrap:wrap;");
+
+  let autoCb = null;
+  if (autoSaveRef) {
+    const autoRow = el("label", "display:flex;align-items:center;gap:6px;font-size:13px;color:#999;cursor:pointer;user-select:none;");
+    autoCb = el("input", "width:18px;height:18px;accent-color:#f59e0b;cursor:pointer;");
+    autoCb.type = "checkbox";
+    autoCb.checked = autoSaveRef.value !== false;
+    autoCb.title = "开启后：弹窗内改动会自动保存（防抖）；关闭后需手动点「💾 保存」";
+    autoCb.addEventListener("change", () => { autoSaveRef.value = autoCb.checked; try { onImmediate?.(); } catch (_) {} });
+    autoRow.append(autoCb, el("span", "", "自动保存"));
+    left.append(autoRow);
+  }
+  const zoomRow = buildZoomRow(dialog);
+  zoomRow.title = "调整面板文本编辑字号（与本节点其它面板共享记忆）";
+  const uiRow = buildUIRow(dialog);
+  uiRow.title = "调整整个弹窗界面大小（不缩放网页/画布；Ctrl/⌘+滚轮 也可）";
+  left.append(zoomRow, uiRow);
+
+  const cancelBtn = el("button", "background:transparent;border:1px solid #555;color:#fff;border-radius:4px;padding:8px 20px;font-size:14px;cursor:pointer;font-family:inherit;", "取消");
+  const saveBtn = onCommit ? el("button", "background:#2d5a88;color:#fff;border:none;border-radius:4px;padding:8px 20px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;", "💾 保存") : null;
+  footer.append(left, cancelBtn);
+  if (saveBtn) footer.append(saveBtn);
+  dialog.append(header, body, error, footer);
+  overlay.append(dialog);
+  document.body.append(overlay);
+  zoomApplyContainer(dialog);
+  uiApply(dialog);
+  bindWheelZoom(dialog);
+
+  let timer = null;
+  const close = () => {
+    clearTimeout(timer);
+    try { overlay.remove(); } catch (_) {}
+    if (xbrModal && xbrModal.overlay === overlay) xbrModal = null;
+    try { onClose?.(); } catch (_) {}
+  };
+  const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); close(); } };
+  document.addEventListener("keydown", onKey, true);
+  cancelBtn.addEventListener("click", close);
+  overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) close(); });
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      if (saveBtn.disabled) return;
+      saveBtn.disabled = true;
+      saveBtn.textContent = "保存中…";
+      error.textContent = "";
+      try { await onCommit(); close(); }
+      catch (e) { error.textContent = "保存失败：" + ((e && e.message) || e); saveBtn.disabled = false; saveBtn.textContent = "💾 保存"; }
+    });
+  }
+  // 自动保存（导演台同款：改动后防抖提交）
+  body.addEventListener("change", () => {
+    try { onChange?.(); } catch (_) {}
+    if (autoSaveRef && autoSaveRef.value === false) { try { onImmediate?.(); } catch (_) {} return; }
+    clearTimeout(timer);
+    timer = setTimeout(() => { try { onCommit?.(); } catch (_) {} }, 800);
+  });
+  const shell = { overlay, dialog, body, error, close };
+  xbrModal = shell;
+  return shell;
+}
+
+/* ── 弹窗内容：🤖 大语言模型配置 ─────────────────────────── */
+function xbrRenderLlm(body, node, draft, ctx) {
+  const s = draft.settings.llm;
+
+  body.append(makeSectionTitle("输出语言（全节点唯一的语言设置）"));
+  body.append(field("输出语言", selectControl(LANGS, draft.lang, (v) => {
+    draft.lang = v;
+    // 换语言 → 未在弹窗里改过设定词时，跟着取该语言同模版的「存档 → 默认」
+    if (!draft.presetTouched) draft.presetText = xbrPresetTextFor(node, draft.mode, v, xbrResolveIo(node, draft.ioMode));
+    // 语言决定预设可选范围：增强预设 / 反推预设 自动换到同语言的同名项（没有则取该语言第一项）
+    draft.preset = xbrSnapPreset(xbrWidgetOptions(node, "preset"), draft.preset, v);
+    draft.task_preset = xbrSnapPreset(xbrWidgetOptions(node, "task_preset"), draft.task_preset, v);
+  })));
+  body.append(xbrHint("本项是唯一的语言设置：① 词表 / 设定词 / 预设句按哪种语言加载　② 增强预设与反推预设只列该语言的选项　③ 最终输出的提示词语言。"));
+
+  body.append(makeSectionTitle("提示词增强反推（总开关在节点表面的「启用 LLM 反推」）"));
+
+  body.append(makeSectionTitle("LLM 后端"));
+  body.append(field("LLM 后端", radioRow(XBR_BACKENDS, draft.backend, (v) => { draft.backend = v; ctx.rerender(); })));
+
+  if (draft.backend !== "在线 API") {
+    body.append(makeSectionTitle("本地 LLM 模型"));
+    const lists = xbrModelLists || { model: [], mmproj: ["None"], chat_handler: ["None"] };
+    const llm = s.model;
+    const models = lists.model.length ? lists.model : (llm.model ? [llm.model] : []);
+    if (!llm.model && models.length) llm.model = models[0];
+    body.append(field("强制卸载", checkboxControl(s.run.force_offload, "LLM 用完即卸载，释放显存", (v) => { s.run.force_offload = v; })));
+    if (models.length) body.append(field("模型", selectControl(models, llm.model, (v) => { llm.model = v; })));
+    else body.append(field("模型", xbrTextControl(llm.model, "未找到本地 LLM 模型（.gguf 放到 models/LLM）", (v) => { llm.model = v; })));
+    body.append(field("视觉模块 mmproj", selectControl(lists.mmproj.length ? lists.mmproj : ["None"], llm.mmproj, (v) => { llm.mmproj = v; })));
+    body.append(field("Chat Handler", selectControl(lists.chat_handler.length ? lists.chat_handler : ["None"], llm.chat_handler, (v) => { llm.chat_handler = v; })));
+    body.append(field("上下文长度 n_ctx", xbrNumberControl(llm.n_ctx, { min: 1024, max: 327680, step: 128 }, (v) => { llm.n_ctx = Math.round(v); })));
+    body.append(field("显存上限 vram_limit (GB)", xbrNumberControl(llm.vram_limit, { min: -1, max: 1024, step: 1 }, (v) => { llm.vram_limit = Math.round(v); })));
+    body.append(field("图像最小 tokens", xbrNumberControl(llm.image_min_tokens, { min: 0, max: 4096, step: 32 }, (v) => { llm.image_min_tokens = Math.round(v); })));
+    body.append(field("图像最大 tokens", xbrNumberControl(llm.image_max_tokens, { min: 0, max: 4096, step: 32 }, (v) => { llm.image_max_tokens = Math.round(v); })));
+
+    const p = s.params;
+    body.append(field("max_tokens", xbrNumberControl(p.max_tokens, { min: 0, max: 262144, step: 1 }, (v) => { p.max_tokens = Math.round(v); })));
+    body.append(field("top_k", xbrNumberControl(p.top_k, { min: 0, max: 1000, step: 1 }, (v) => { p.top_k = Math.round(v); })));
+    body.append(field("top_p", xbrNumberControl(p.top_p, { min: 0, max: 1, step: 0.01 }, (v) => { p.top_p = v; })));
+    body.append(field("min_p", xbrNumberControl(p.min_p, { min: 0, max: 1, step: 0.01 }, (v) => { p.min_p = v; })));
+    body.append(field("typical_p", xbrNumberControl(p.typical_p, { min: 0, max: 1, step: 0.01 }, (v) => { p.typical_p = v; })));
+    body.append(field("temperature", xbrNumberControl(p.temperature, { min: 0, max: 2, step: 0.01 }, (v) => { p.temperature = v; })));
+    body.append(field("repeat_penalty", xbrNumberControl(p.repeat_penalty, { min: 0, max: 10, step: 0.01 }, (v) => { p.repeat_penalty = v; })));
+    body.append(field("frequency_penalty", xbrNumberControl(p.frequency_penalty, { min: 0, max: 1, step: 0.01 }, (v) => { p.frequency_penalty = v; })));
+    body.append(field("present_penalty", xbrNumberControl(p.present_penalty, { min: 0, max: 2, step: 0.01 }, (v) => { p.present_penalty = v; })));
+    body.append(field("mirostat_mode", xbrNumberControl(p.mirostat_mode, { min: 0, max: 2, step: 1 }, (v) => { p.mirostat_mode = Math.round(v); })));
+    body.append(field("mirostat_eta", xbrNumberControl(p.mirostat_eta, { min: 0, max: 1, step: 0.01 }, (v) => { p.mirostat_eta = v; })));
+    body.append(field("mirostat_tau", xbrNumberControl(p.mirostat_tau, { min: 0, max: 10, step: 0.01 }, (v) => { p.mirostat_tau = v; })));
+  }
+
+  if (draft.backend === "在线 API") {
+    body.append(makeSectionTitle("在线 API"));
+    const a = draft.api || (draft.api = { ...XBR_API_DEFAULTS });
+    body.append(field("服务商", selectControl(ctx.providers, a.provider, (v) => { a.provider = v; })));
+    body.append(field("模型", xbrTextControl(a.model, XBR_API_DEFAULTS.model, (v) => { a.model = v; })));
+    body.append(field("API Key", xbrPasswordControl(a.api_key, "sk-… 保存在本地，不写入工作流", (v) => { a.api_key = v; })));
+    body.append(field("Base URL", xbrTextControl(a.base_url, XBR_API_DEFAULTS.base_url, (v) => { a.base_url = v; })));
+    body.append(field("temperature", xbrNumberControl(a.temperature, { min: 0, max: 2, step: 0.01 }, (v) => { a.temperature = v; })));
+    body.append(field("max_tokens", xbrNumberControl(a.max_tokens, { min: 1, max: 262144, step: 1 }, (v) => { a.max_tokens = Math.round(v); })));
+    body.append(field("thinking", selectControl(["disabled", "enabled"], a.thinking, (v) => { a.thinking = v; })));
+    body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "默认：deepseek-v4-flash-vision-exp ｜ https://api.deepseek.com/v1（可改）。配置保存在本地 ComfyUI user 目录，不会写入工作流。"));
+  }
+
+  body.append(makeSectionTitle("随机种子"));
+  body.append(xbrSeedRow(s.run, () => ctx.touch?.()));
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "点「🔁」切换生成后控制：随机 = 运行后自动换新种子；固定 = 锁定；增加/减少 = 运行后 ±1（后端算完会回写）。"));
+
+  body.append(makeSectionTitle("指令推理"));
+  body.append(field("推理模式", selectControl(XBR_INFERENCE_MODES, s.run.inference_mode, (v) => { s.run.inference_mode = v; })));
+  body.append(field("最大帧数", xbrNumberControl(s.run.max_frames, { min: 2, max: 1024, step: 1 }, (v) => { s.run.max_frames = Math.round(v); })));
+  body.append(field("最大尺寸", xbrNumberControl(s.run.max_size, { min: 128, max: 16384, step: 64 }, (v) => { s.run.max_size = Math.round(v); })));
+  body.append(field("保存对话状态", checkboxControl(s.run.save_states, "在内存中保留本次对话上下文，多轮连续反推", (v) => { s.run.save_states = v; })));
+  body.append(field("状态 UID", xbrNumberControl(s.params.state_uid, { min: -1, max: 999999, step: 1 }, (v) => { s.params.state_uid = Math.round(v); })));
+  body.append(field("🧠 过滤思考过程", checkboxControl(s.run.strip_thinking,
+    "模型把「思考过程 / 推理段 / 工作流程」一起输出时，自动只保留最终提示词", (v) => { s.run.strip_thinking = v; })));
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.65;margin:2px 0 8px;",
+    "开启后＝① 系统提示词末尾追加「只输出最终提示词」硬规则　② 仍漏出思考时自动剔除思考标签、"
+    + "Final Output / 最终输出 标记之前的推理段与代码围栏（拿不到内容则原文保留）。"));
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "提示词正文在节点上的提示词框里编辑；「📝 提示词」端口接线后该框锁定。"));
+}
+
+/* ── 弹窗内容：✨ 提示词增强预设 ─────────────────────────── */
+function xbrRenderPreset(body, node, draft, ctx) {
+  const s = draft.settings.llm;
+
+  body.append(makeSectionTitle("生图预设"));
+  body.append(field("空latent类型", selectControl(LATENT_KINDS, draft.kind, (v) => { draft.kind = v; })));
+  body.append(xbrHint("空latent类型：选你正在用的模型即可（形状 / 下采样 / 尺寸步长自动适配 8/16/32）。"));
+  // ── 模版（文生图 / 图生图）：决定用哪一套设定词（每个预设模式都有两套）──
+  body.append(field("模版", radioRow(XBR_IO_MODES, draft.ioMode, (v) => {
+    draft.ioMode = v;
+    // 换模版 → 未改过时立即换成对应那套设定词（改过的按「模式|模版|语言」存着不会被冲掉）
+    if (!draft.presetTouched) draft.presetText = xbrPresetTextFor(node, draft.mode, draft.lang, xbrResolveIo(node, v));
+    ctx.rerender();
+  })));
+  body.append(xbrHint("模版：自动 = 按「🖼️ 图像」有没有接线判断；文生图 / 图生图 = 手动指定。每个预设模式都有两套设定词，切模版会直接换掉下面「设定词」那一栏的内容。"));
+  body.append(field("预设模式", selectControl(MODES, draft.mode, (v) => {
+    draft.mode = v;
+    // 换模式 → 立刻取该「模式 × 模版」的设定词（用户改过的存档 → 默认），改过的不会被冲掉
+    draft.presetTouched = false;
+    draft.presetText = xbrPresetTextFor(node, v, draft.lang, xbrResolveIo(node, draft.ioMode));
+    ctx.rerender();     // 有/无设定词的模式之间切换 → 重画「设定词」区
+  })));
+  // 当前模版 + 本档提示
+  const needsImgP = (typeof modeNeedsImage === "function") && modeNeedsImage(draft.mode);
+  const hasImgP = (typeof modeHasImage === "function") && modeHasImage(node);
+  const ioNowP = xbrResolveIo(node, draft.ioMode);
+  body.append(el("div", "font-size:11px;color:#8fb;line-height:1.7;margin:2px 0 4px;",
+    "当前模版：" + ioNowP
+    + (draft.ioMode === "自动" ? ("（自动：" + (hasImgP ? "检测到 🖼️ 图像已接线" : "未接 🖼️ 图像") + "）")
+                              : "（手动指定）")
+    + (needsImgP ? "　❗本档属于图生图档" : "")));
+  body.append(el("div", "font-size:11px;color:" + (needsImgP ? "#d9a441" : "#888") + ";line-height:1.7;margin:2px 0 8px;",
+    (draft.mode === MODE_TP)
+      ? "无预设：接不接参考图、哪个模版，都不会前置设定词（下面「设定词」栏保持空白；想加就自己写）。"
+      : (needsImgP
+          ? (ioNowP === "文生图"
+              ? "⚠️ 本档属于「图生图」，但当前是文生图模版：下面用的是从零生成的写法（不依赖任何输入图）。把参考图接到 🖼️ 图像即可切回图生图模版。"
+              : "本档属于「图生图」：需开启 ✅ 启用 LLM 反推，并把参考图接到 🖼️ 图像。")
+          : (ioNowP === "图生图"
+              ? "本档属于「文生图」，当前用图生图模版：设定词末尾会追加「以输入图为准」的条款，需接参考图。"
+              : "本档属于「文生图」：不接图也行；接图后把模版改成「图生图」（或保持自动）会追加「以输入图为准」的条款。"))));
+
+  // ── 设定词（按「模式 × 模版 × 语言」取；只在弹窗里编辑，节点表面不显示）──
+  //    无预设档：这一栏**照样显示**，只是内容空白（用户可以自己写）
+  const modeDef = presetTextOf(draft.mode, draft.lang, ioNowP);
+  {
+    body.append(makeSectionTitle("设定词（" + ioNowP + "模版）"));
+    draft.presetText = String(draft.presetText || "");
+    if (modeDef && !draft.presetText.trim()) draft.presetText = modeDef;
+    const taP = textareaControl(draft.presetText, (v) => { draft.presetText = v; draft.presetTouched = true; },
+      "width:100%;box-sizing:border-box;min-height:180px;resize:vertical;");
+    taP.placeholder = modeDef
+      ? "该模式在「" + ioNowP + "」模版下的设定词；改过的按「模式 + 模版 + 语言」记进节点，换模式 / 换模版 / 换语言都不丢"
+      : "无预设：本档不前置设定词（保持空白即可；在这里写内容就会作为设定词置顶）";
+    taP.spellcheck = false;
+    body.append(taP);
+    const taRow = el("div", "display:flex;align-items:center;gap:10px;margin:6px 0 4px;");
+    if (modeDef) {
+      taRow.append(smallBtn("♻️ 恢复默认", "border:1px solid #555;background:#2a2a2a;color:#ccc;padding:4px 10px;",
+        "把设定词恢复为该模式 × 该模版 × 该语言的默认文本",
+        () => { draft.presetText = modeDef; draft.presetTouched = false; ctx.rerender(); }));
+    }
+    taRow.append(el("span", "font-size:11px;color:#888;",
+      !modeDef ? (draft.presetText.trim() ? "当前 = 自定义" : "当前 = 空白（不前置设定词）")
+               : (draft.presetText === modeDef ? "当前 = 默认" : "当前 = 自定义")));
+    body.append(taRow);
+    if (modeDef) {
+      body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
+        "· 最终输出时，设定词会原封不动加在增强后提示词的最顶端；\n"
+        + "· LLM 只增强正文，把设定词当作增强参考，不会改写它；\n"
+        + "· 改过的设定词随节点保存，换模式 / 换模版 / 换语言都会取回你改过的那一版。"));
+    } else {
+      body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
+        "· 无预设档：不管接不接参考图，节点都不会自动前置设定词；\n"
+        + "· 如果在这一栏写了内容，它会作为增强参考交给 LLM、并原封不动置于最终提示词最顶端。"));
+    }
+  }
+
+  body.append(makeSectionTitle("增强预设（= 提示词设定 / system prompt）"));
+  const presetOpts = xbrFilterByLang(xbrWidgetOptions(node, "preset"), draft.lang);
+  if (presetOpts.length) body.append(field("增强预设", selectControl(presetOpts, draft.preset, (v) => { draft.preset = v; })));
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;",
+    `该预设内容即「🧩 提示词设定」输出的正文，同时作为 LLM 反推的系统提示词；只列与输出语言 ${draft.lang} 相符的预设。`));
+
+  body.append(makeSectionTitle("反推预设"));
+  const taskOpts = xbrFilterByLang(xbrWidgetOptions(node, "task_preset"), draft.lang);
+  if (taskOpts.length) body.append(field("反推预设", selectControl(taskOpts, draft.task_preset, (v) => { draft.task_preset = v; })));
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;", "带 * 的预设里 * 是必填占位符，由节点上的提示词框或外接「📝 提示词」填入。"));
+
+  body.append(makeSectionTitle("追加设定（可留空）"));
+  const ta = textareaControl(s.extra_system, (v) => { s.extra_system = v; },
+    "width:100%;box-sizing:border-box;min-height:200px;resize:vertical;");
+  ta.placeholder = "追加在增强预设之后的额外要求，例：只输出一行、不要解释过程…";
+  ta.spellcheck = false;
+  body.append(ta);
+
+  // ── SKILL（系统提示词）：常驻三态 自动 / 手动 / 不用 ──
+  body.append(makeSectionTitle("SKILL（系统提示词）"));
+  const skillOpts = xbrWidgetOptions(node, "skill_name");
+  if (!skillOpts.length) skillOpts.push("不使用");
+  if (!skillOpts.includes(draft.skill)) draft.skill = skillOpts[0];
+  if (!XBR_SKILL_MODES.includes(draft.skillMode)) draft.skillMode = "自动";
+  body.append(field("SKILL 模式", radioRow(XBR_SKILL_MODES, draft.skillMode, (v) => { draft.skillMode = v; ctx.rerender(); })));
+  if (draft.skillMode === "手动") {
+    body.append(field("SKILL选择", selectControl(skillOpts, draft.skill, (v) => { draft.skill = v; })));
+  } else if (draft.skillMode === "自动") {
+    const autoFileP = (typeof modeSkillHint === "function") ? modeSkillHint(draft.mode) : "-";
+    body.append(el("div", "font-size:11px;color:#8fb;margin:2px 0 8px;",
+      "自动：本档（" + draft.mode + "）→ " + autoFileP));
+  } else {
+    body.append(el("div", "font-size:11px;color:#d9a441;margin:2px 0 8px;",
+      "不用：SKILL 完全不生效（即使下面选过文件也不会送进 LLM）。"));
+  }
+  const foxRowP = el("div", "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 8px;");
+  foxRowP.append(smallBtn("📂 打开 SKILL 文件夹", "border:1px solid #555;background:#2a2a2a;color:#ccc;padding:4px 10px;",
+    "在资源管理器里打开 support_llama/skills，方便新增 / 编辑技能文件",
+    async () => {
+      try {
+        const r = await fetch("/xb_toolbox/skill_folder");
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.ok === false) notify("打开失败：" + (j.info || r.status), "error");
+        else notify("已打开：" + (j.path || "skills"), "success");
+      } catch (e) { notify("打开失败：" + ((e && e.message) || e), "error"); }
+    }));
+  body.append(foxRowP);
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.6;margin:2px 0 8px;",
+    "技能文件放在 XB_ToolBox/support_llama/skills（.txt / .md）：选中后整段作为 LLM 反推的 system prompt。"));
+  body.append(el("div", "font-size:11px;color:#888;line-height:1.75;margin:6px 0 8px;",
+    "· 自动（默认）= 按预设模式适配：图生图档 → system_prompt_edit，其余 → system_prompt_t2i；\n"
+    + "· 手动 = 用「SKILL选择」里选中的那个文件；\n"
+    + "· 不用 = 完全不生效（哪怕选了文件）；\n"
+    + "· 选中技能后：技能放在系统提示词最前面当角色与总规则，且**不再叠加**节点的语言提示\n"
+    + "  （这两个技能文件自带语言决策与输出契约，叠加会打架）；\n"
+    + "· 「✅ 启用 LLM 反推」关闭时 SKILL 不参与；新增技能文件后刷新页面即可出现在下拉里。"));
+}
+
+/* ── 弹窗内容：📖 使用说明 ───────────────────────────────── */
+function xbrRenderHelp(body) {
+  const lines = [
+    "【一句话】",
+    "  XB-BOX 生图提示词预设Pro = 「🖼️ 生图提示词预设」+「✨ 提示词增强反推」融合成 1 个节点",
+    "  左边拼提示词，右边配画布，中间还能让 AI 帮你写、帮你看图改图",
+    "",
+    "【三步上手】",
+    "  1. 📊 空latent 接采样器；📝 提示词 接文本编码器",
+    "  2. 点第 2 行的分类按钮挑词；短句直接写在节点提示词框里",
+    "  3. 想让 AI 代写：开 ✅ 启用 LLM 反推，先到 🤖 LLM设置 选好模型或填好 API",
+    "",
+    "【节点表面】",
+    "  · 第 1 行按钮：🤖 LLM设置 ｜ ✨ 预设参数",
+    "  · 第 2 行按钮：🎨 风格 ｜ 📐 视角 ｜ 👤 主体 ｜ 🕺 姿态 ｜ 👗 装扮 ｜ 🎒 道具 ｜ 💡 光影 ｜ 🏞️ 背景",
+    "  · 画幅比例 / 宽度 / 高度 / 生成数量：数值会按当前空latent类型的官方步长自动对齐",
+    "  · ✅ 启用 LLM 反推：关 = 只输出拼装好的提示词，不加载模型、不调 API",
+    "  · 提示词框右上角 📋 复制；下面是参数设定显示，实时告诉你当前是什么配置",
+    "",
+    "【元素面板怎么用】",
+    "  · 点选项行 = 加入提示词，再点一下 = 移除",
+    "  · 悬停选项行可以看它的中文与英文写法",
+    "  · 【添加详细描述】给该词条写补充说明，会跟着一起成句",
+    "  · ➕ / ➖ 自建专属词条，✎ 编辑名称",
+    "  · 搜索框与「全部加入」只作用于当前子类",
+    "",
+    "【输入端口】",
+    "  · 📝 提示词：外接提示词；接线后节点上的提示词框会锁定",
+    "  · 🖼️ 图像：外接图像 / 视频帧",
+    "  · 只有文字 = 把这段文字写成完整的画面提示词",
+    "  · 只有图 = 看图写提示词",
+    "  · 有图 + 有文字 = 看图改图：先识图，再把文字当【修改指令】执行，最终只输出修改后的画面提示词，",
+    "    不会写成「原本…被替换为…」；万一模型写成对比式，节点会自动让它重写一次",
+    "",
+    "【输出端口】",
+    "  · 📝 提示词：最终提示词，直接进文本编码器",
+    "  · 📊 空latent：第二位，直接进采样器",
+    "  · 📋 提示词列表：按行拆分，方便批量处理",
+    "  · 🧩 提示词设定：本次的提示词设定，即增强预设 + 输出语言 + 追加设定 + 设定词",
+    "",
+    "【空latent 类型】",
+    "  Anima / Boogu / Flux2 / Hunyuan / Krea2 / Qwen-image / SD3 / SDXL / Z-image",
+    "  选你正在用的模型即可：通道数、下采样、尺寸步长、batch 上限会自动切换",
+    "",
+    "【预设模式】",
+    "【预设模式】（每档自带一段设定词，可自由修改）",
+    "  · 文生图组：无预设 / 人物三视图 / 人物四视图 / 人物五视图 / 背景纯透明 /",
+    "    图文版面 / 信息图 / 多格分镜 / 广告分镜板",
+    "  · 图生图组（需接参考图）：保持主体换场景 / 局部编辑 /",
+    "    老照片修复 / 整图风格化 / 360°全景 / 多图指认合成",
+    "  · 设定词可以自由修改，改过的那一版按「模式 + 语言」记在节点里，换模式 / 换语言都不会丢",
+    "  · 点 ♻️ 恢复默认 一键回到官方文本；启用 LLM 时设定词另作增强参考交给模型",
+    "  · 启用 LLM 时，设定词只作为增强参考交给模型，输出时由节点原封不动加在最顶端",
+    "",
+    "【文生图 / 图生图两套模版（全自动切换）】",
+    "  · 没接 🖼️ 图像 → 走文生图模版：从零生成的写法，不会出现「参考输入图」类条款",
+    "  · 接了 🖼️ 图像 → 走图生图模版：自动追加「以输入图为准」的条款，按序号引用第 1…N 张图",
+    "  · 两种模版不用手动切：面板会显示当前用的是哪套 + 自动追加的条款原文",
+    "  · 图生图档没接图也不会报错：会自动改成从零生成的写法（并在日志里提醒）",
+    "",
+    "【SKILL 技能（系统提示词）】",
+    "  · ✨ 预设参数 → SKILL：support_llama/skills 里的 txt 整段当 LLM 的 system prompt",
+    "    面板里点「📂 打开 SKILL 文件夹」可直接打开，新增后刷新页面即出现在下拉",
+    "  · SKILL 模式（常驻三选一，默认自动）：",
+    "      ◆ 自动 = 按预设模式适配：图生图档 → system_prompt_edit.txt，其余 → system_prompt_t2i.txt",
+    "      ◆ 手动 = 用「SKILL选择」里选中的那个文件",
+    "      ◆ 不用 = SKILL 完全不生效（哪怕选过文件）",
+    "  · 选中后系统提示词 = 技能 + 增强预设 + 设定词参考 + 追加设定 + 任务块",
+    "  · 技能自带语言与输出契约 → 选中时不再叠加节点的语言提示（避免互相对打）",
+    "  · 勾选开关关掉 ✅ 启用 LLM 反推时 SKILL 不参与",
+    "",
+    "【语言只有一处】",
+    "  🤖 LLM设置 → 输出语言，它同时决定：词表与设定词按哪种语言加载、",
+    "  增强预设与反推预设只列哪种语言的选项、最终提示词是中文还是英文",
+    "",
+    "【输出为什么总是干净的】",
+    "  · 🧠 过滤思考过程 默认开：系统提示词末尾有最高优先级的「只输出最终提示词」硬规则",
+    "  · 模型仍吐思考过程时，自动剔掉思考标签、Final Output / 最终输出 之前的推理段与代码围栏",
+    "  · 拿不到内容就原样保留，绝不会把你的提示词清空",
+    "",
+    "【保存】",
+    "  · 弹窗底部：☑ 自动保存（默认开）、字号 A− / A+、界面 − / %",
+    "  · 所有配置随工作流保存；在线 API 的 Key 存在 ComfyUI 用户目录，不写进工作流",
+    "  · 「取消」丢弃未保存改动",
+    "",
+    "【常见问题】",
+    "  · 报「未选择本地模型」：去 🤖 LLM设置 选一个 .gguf，或者切到在线 API",
+    "  · 在线 API 报错：检查服务商 / 模型名 / Base URL / API Key",
+    "  · 想让结果更贴原图：温度调低一点，或换一档更偏描述的增强预设",
+    "  · 节点表面参数很少？故意的：选项都收在弹窗里，表面只留最常动的几个",
+    "  · 改完参数要重新执行节点才生效",
+  ];
+  body.append(el("div", "font-size:12px;color:#bbb;line-height:1.9;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;", lines.join("\n")));
+}
+
+const XBR_PANEL_RENDER = { llm: xbrRenderLlm, preset: xbrRenderPreset, help: xbrRenderHelp };
+
+async function xbrOpenModal(node, panelId) {
+  if (xbrModal) { try { xbrModal.close(); } catch (_) {} }
+  const meta = XBR_PANEL_BUTTONS.find((b) => b.id === panelId) || XBR_PANEL_BUTTONS[0];
+  const cur = xbrCurJson(node);
+  const autoSaveRef = { value: cur.auto_save !== false };
+  const draft = {
+    settings: { llm: xbrParseLlm(cur.llm) },
+    backend: String(xbrWidgetVal(node, "backend") ?? XBR_BACKENDS[0].value),
+    preset: String(xbrWidgetVal(node, "preset") ?? ""),
+    task_preset: String(xbrWidgetVal(node, "task_preset") ?? ""),
+    lang: xbrPick(String(xbrWidgetVal(node, "output_lang") ?? ""), LANGS, LANGS[0]),
+    kind: xbrPick(String(xbrWidgetVal(node, "latent_kind") ?? ""), LATENT_KINDS, LATENT_KINDS[0]),
+    mode: xbrPick(String(xbrWidgetVal(node, "preset_mode") ?? ""), MODES, MODES[0]),
+    // 模版（自动 / 文生图 / 图生图）
+    ioMode: (() => { const v = String(xbrWidgetVal(node, "io_mode") ?? ""); return XBR_IO_MODES.includes(v) ? v : "自动"; })(),
+    // 设定词（每个预设模式两套）：弹窗内草稿 + 「用户是否改过」标记
+    //   widget 里是「遗留默认句 / 任一内置预设句」→ 视为没改过 → 取「存档 → 当前模版默认」（无预设 = 空）
+    presetText: (() => {
+      const w = String(xbrWidgetVal(node, "three_view_text") ?? "");
+      const md = xbrPick(String(xbrWidgetVal(node, "preset_mode") ?? ""), MODES, MODES[0]);
+      const lg = xbrPick(String(xbrWidgetVal(node, "output_lang") ?? ""), LANGS, LANGS[0]);
+      const ioW = String(xbrWidgetVal(node, "io_mode") ?? "");
+      if (w.trim() && !isDefaultPresetText(md, w)) return w;
+      return xbrPresetTextFor(node, md, lg, xbrResolveIo(node, XBR_IO_MODES.includes(ioW) ? ioW : "自动"));
+    })(),
+    presetTouched: false,
+    // SKILL 选择（support_llama/skills 里的技能文件 = system prompt）
+    skill: String(xbrWidgetVal(node, "skill_name") ?? ""),
+    skillMode: (() => { const v = String(xbrWidgetVal(node, "skill_mode") ?? ""); return XBR_SKILL_MODES.includes(v) ? v : "自动"; })(),
+  };
+  // 预设选项与输出语言对齐（旧工作流可能存着异语言的预设名）
+  draft.preset = xbrSnapPreset(xbrWidgetOptions(node, "preset"), draft.preset, draft.lang);
+  draft.task_preset = xbrSnapPreset(xbrWidgetOptions(node, "task_preset"), draft.task_preset, draft.lang);
+
+  let apiSaved = null, providers = [XBR_DEFAULT_PROVIDER];
+  if (panelId === "llm") {
+    try {
+      const r = await xbrApiGet();
+      apiSaved = xbrNormApi(r.settings);
+      if (r.providers?.length) providers = r.providers;
+    } catch (_) { apiSaved = xbrNormApi(node.__xbrProApiInfo); }
+    node.__xbrProApiInfo = apiSaved;
+    draft.api = { ...apiSaved };
+  }
+
+  const commit = async () => {
+    if (panelId === "llm" && draft.api && apiSaved
+      && JSON.stringify(xbrNormApi(draft.api)) !== JSON.stringify(apiSaved)) {
+      try {
+        apiSaved = xbrNormApi(await xbrApiPut(xbrNormApi(draft.api)));
+        draft.api = { ...apiSaved };
+        node.__xbrProApiInfo = apiSaved;
+      } catch (e) { notify("API 配置保存失败：" + ((e && e.message) || e), "error"); }
+    }
+    xbrSetWidget(node, "output_lang", draft.lang, true);      // 唯一语言设置
+    xbrSetWidget(node, "latent_kind", draft.kind, true);      // 触发基础面板的步长/上限联动
+    xbrSetWidget(node, "preset_mode", draft.mode, true);      // 触发预设句框显隐
+    xbrSetWidget(node, "io_mode", draft.ioMode);               // 模版：自动 / 文生图 / 图生图
+    xbrSetWidget(node, "skill_name", draft.skill);             // SKILL = LLM 的 system prompt
+    xbrSetWidget(node, "skill_mode", draft.skillMode);          // 自动 / 手动 / 不用
+    // 设定词：写进节点 widget（原样）+ 按「模式|模版|语言」存档 → 换模式 / 换模版 / 换语言都不丢
+    //   ⚠️ 一律写（包含「无预设」时写空串）→ 顺手把 widget 里的遗留默认句清掉
+    try {
+      const ioCommit = xbrResolveIo(node, draft.ioMode);
+      node.__ippSetPreset?.(draft.presetText);
+      node.__ippWritePreset?.(draft.mode, ioCommit, draft.lang, draft.presetText);
+    } catch (_) {}
+    xbrSetWidget(node, "backend", draft.backend, true);
+    xbrSetWidget(node, "preset", draft.preset, true);
+    xbrSetWidget(node, "task_preset", draft.task_preset, true);
+    xbrSaveJson(node, { llm: draft.settings.llm, auto_save: autoSaveRef.value !== false });
+    try { node.__xbrProRefreshInfo?.(); } catch (_) {}
+  };
+  const immediate = () => { xbrSaveJson(node, { auto_save: autoSaveRef.value !== false }); };
+
+  const readonly = (panelId === "help");
+  const body = xbrDialog({
+    label: meta.title,
+    title: meta.title,
+    subtitle: meta.subtitle,
+    autoSaveRef: readonly ? null : autoSaveRef,
+    onCommit: readonly ? null : commit,
+    onImmediate: readonly ? null : immediate,
+    onChange: readonly ? null : () => { try { node.__xbrProRefreshInfo?.(); } catch (_) {} },
+  }).body;
+
+  const ctx = {
+    providers,
+    rerender: () => { body.replaceChildren(); renderInto(); },
+    touch: () => {},
+  };
+  function renderInto() {
+    try { XBR_PANEL_RENDER[panelId](body, node, draft, ctx); }
+    catch (e) { body.append(el("div", "color:#e55;font-size:12px;", "面板渲染失败：" + ((e && e.message) || e))); }
+  }
+  renderInto();
+  if (panelId === "llm" && xbrModelLists === null) xbrLoadModelLists().then(() => ctx.rerender());
+}
+
+/* ── 按钮区 / 提示词框标题行 / 参数设定显示 / 锁定 ─────────── */
+function xbrBuildButtonRow(node) {
+  const grid = el("div", "display:grid;grid-template-columns:repeat(" + Math.max(1, XBR_PANEL_BUTTONS.length) + ",1fr);grid-auto-rows:30px;gap:6px;flex:0 0 auto;");
+  for (const b of XBR_PANEL_BUTTONS) {
+    const btn = el("button", "width:100%;height:30px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:6px;border:2px solid #5b9bd5;background:#3a3a3a;color:#eee;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:inherit;", b.label);
+    btn.title = `打开「${b.title}」弹窗`;
+    btn.dataset.xbrProBtn = b.id;
+    btn.addEventListener("mousedown", (e) => e.stopPropagation());
+    btn.addEventListener("mouseenter", () => { btn.style.background = "#4a4a4a"; });
+    btn.addEventListener("mouseleave", () => { btn.style.background = "#3a3a3a"; });
+    btn.addEventListener("click", (e) => { e.stopPropagation(); xbrOpenModal(node, b.id); });
+    grid.append(btn);
+  }
+  return grid;
+}
+
+/** 显示窗取值：去掉括号注释与语言标签（[ZH]/[EN]），只留干净的值 */
+function xbrClean(v) {
+  let s = String(v == null ? "" : v);
+  s = s.replace(/\s*[\[［][^\]］]*[\]］]\s*$/g, "");      // 尾部 [ZH] / [EN] 之类的语言标签
+  s = s.replace(/（[^）]*）|\([^)]*\)/g, "");                 // 中英文括号注释
+  return s.trim();
+}
+
+/** 参数设定显示（只读摘要 7 行；按用户要求：不显示括号与注释） */
+function xbrInfoLines(node, promptText) {
+  const llm = xbrParseLlm(xbrCurJson(node).llm);
+  const useLlm = !!xbrWidgetVal(node, "use_llm");
+  const backend = String(xbrWidgetVal(node, "backend") ?? "");
+  const pMode = String(xbrWidgetVal(node, "preset_mode") ?? "");
+  const pIo = xbrResolveIo(node, String(xbrWidgetVal(node, "io_mode") ?? ""));
+  const line1 = `📊 空latent：${xbrClean(xbrWidgetVal(node, "latent_kind"))} ｜ ${xbrWidgetVal(node, "width")}x${xbrWidgetVal(node, "height")} ｜ 数量 ${xbrWidgetVal(node, "batch_size")}`;
+  // 只显示选项名称（预设模式 + 模版），不再显示设定词的状态
+  const line2 = `🎨 预设模式：${xbrClean(pMode)} ｜ 模版：${pIo}`;
+  const line3 = `🌐 输出语言：${xbrClean(xbrWidgetVal(node, "output_lang"))}`;
+  const line4 = useLlm
+    ? (backend === "在线 API"
+      ? `🤖 LLM 反推：已启用 ｜ 在线API ｜ ${xbrClean((node.__xbrProApiInfo?.model) || XBR_API_DEFAULTS.model)}`
+      : `🤖 LLM 反推：已启用 ｜ 本地模型 ｜ ${xbrClean(llm.model.model) || "未选择模型"}`)
+    : "🤖 LLM 反推：未启用";
+  const line5 = `✨ 预设参数：${xbrClean(xbrWidgetVal(node, "preset")) || "-"} ｜ 🎯 反推预设：${xbrClean(xbrWidgetVal(node, "task_preset")) || "-"}`;
+  const line6 = `⚙️ 温度 ${llm.params.temperature} · top_k ${llm.params.top_k} · top_p ${llm.params.top_p} · max_tokens ${llm.params.max_tokens} ｜ ${xbrClean(llm.run.inference_mode)} ｜ 种子 ${llm.run.seed}`;
+  const line7 = `📝 提示词：${(promptText || "").length} 字`;
+  return [line1, line2, line3, line4, line5, line6, line7].join("\n");
+}
+
+/** 提示词框标题行（左标签 + 右复制）+ 参数设定显示；并挂上端口锁定/执行回写/摘要刷新 */
+function xbrBuildPromptHeader(node, promptBox) {
+  const head = el("div", "display:flex;align-items:center;gap:8px;flex:0 0 auto;");
+  const lab = el("div", "font-size:12px;color:#bbb;", "📝 节点提示词（与面板预览框双向同步）");
+  const copy = smallBtn("📋 复制", "margin-left:auto;", "复制提示词框内容", () => { copyText(promptBox.value || ""); });
+  head.append(lab, copy);
+
+  const infoBox = el("div", "flex:0 0 auto;height:150px;overflow:auto;background:#1c1c1e;border:1px solid #333;border-radius:6px;padding:6px 9px;font-size:11px;line-height:1.65;color:#b9c6d2;white-space:pre-wrap;box-sizing:border-box;font-family:ui-monospace,Consolas,monospace;");
+  infoBox.dataset.captureWheel = "true";
+  infoBox.title = "当前配置摘要（只读）";
+
+  const refresh = () => { try { infoBox.textContent = xbrInfoLines(node, promptBox.value); } catch (_) {} };
+  node.__xbrProRefreshInfo = refresh;
+  node.__ippRefreshInfo = refresh;   // 基础面板改了设定词存档也会来刷这条摘要
+
+  // 「📝 提示词」端口接线 → 锁定提示词框（二选一）
+  const updateLock = () => {
+    try {
+      const inp = (node.inputs || []).find((i) => i.name === "text");
+      const linked = !!inp && inp.link != null;
+      promptBox.readOnly = linked;
+      promptBox.style.background = linked ? "#141416" : "#1d1d1d";
+      promptBox.style.color = linked ? "#8a8a8a" : "#ccc";
+      promptBox.title = linked ? "已由「📝 提示词」端口控制，断开连线后恢复编辑" : "";
+      lab.textContent = linked ? "📝 提示词已锁定（由「📝 提示词」端口控制）" : "📝 节点提示词（与面板预览框双向同步）";
+      lab.style.color = linked ? "#d9a441" : "#bbb";
+    } catch (_) {}
+  };
+  const prevConn = node.onConnectionsChange;
+  node.onConnectionsChange = function (...a) {
+    const r = prevConn?.apply(this, a);
+    setTimeout(updateLock, 0);
+    return r;
+  };
+  updateLock();
+
+  // 生成后控制：后端算好的「下一次种子」回写进 manager_settings.llm.run.seed
+  const prevExecuted = node.onExecuted;
+  node.onExecuted = function (msg) {
+    const r = prevExecuted?.apply(this, arguments);
+    try {
+      const ns = msg?.seed?.[0];
+      if (ns !== undefined && ns !== null && ns !== "") {
+        const cur = xbrCurJson(node);
+        const llm = xbrParseLlm(cur.llm);
+        if (Number(ns) !== Number(llm.run.seed)) {
+          llm.run.seed = Math.max(0, Math.round(Number(ns)) || 0);
+          xbrSaveJson(node, { llm });
+        }
+      }
+      refresh();
+    } catch (_) {}
+    return r;
+  };
+
+  // 表面参数变化 → 摘要刷新（只 setDirtyCanvas，不动用 setSize）
+  for (const nm of ["latent_kind", "output_lang", "preset_mode", "use_llm", "backend", "preset", "task_preset", "width", "height", "batch_size", "aspect_ratio"]) {
+    const w = xbrWidget(node, nm);
+    if (!w || w.__xbrProHooked) continue;
+    w.__xbrProHooked = true;
+    const orig = w.callback;
+    w.callback = function (...a) {
+      const r = orig?.apply(this, a);
+      setTimeout(refresh, 0);
+      return r;
+    };
+  }
+  promptBox.addEventListener("input", () => { setTimeout(refresh, 0); });
+
+  xbrApiGet().then((r) => { node.__xbrProApiInfo = xbrNormApi(r.settings); refresh(); }).catch(() => { refresh(); });
+  setTimeout(refresh, 0);
+  return [head, infoBox];
+}
+
 app.registerExtension({
-  name: "XB.ImagePromptPreset",
+  name: "XB.ImagePromptPresetPro",
   async beforeRegisterNodeDef(nodeType, nodeData) {
     if (nodeData?.name !== NODE_TYPE) return;
     const orig = nodeType.prototype.onNodeCreated;

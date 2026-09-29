@@ -1,0 +1,65 @@
+tests/
+tools/*
+!tools/__init__.py
+!tools/p20_file_backed_tensor_poc.py
+!tools/verify_runtime.py
+.pytest_cache/
+**/__pycache__/
+*.pyc
+*.pyo
+# Local backup archives are not distribution assets. The official workflow
+# archive is re-included explicitly below.
+*.zip
+
+# Internal source/development records and the source-tree Manifest are not part
+# of the Registry archive. REGISTRY_MANIFEST.sha256 covers the staged package.
+AGENTS.md
+PROJECT_STATE.md
+WORKLOG.md
+MANIFEST.sha256
+
+# Repository-only automation and test configuration are not runtime assets.
+.github/
+.gitignore
+.gitattributes
+pytest.ini
+
+# Ship current V3.9 and retained V3.8X2 public contracts. Historical validation notes,
+# version-specific design documents, and their screenshots stay in source.
+docs/*
+!docs/N2B_BRANCH_PROVENANCE_CONTRACT_V1.md
+!docs/V38_OPEN_INTEGRATION_CONTRACT.md
+!docs/V38_RELEASE_AND_MIGRATION.md
+
+# README launch illustrations: include only the current V3.9 guide assets.
+!docs/images/
+docs/images/*
+!docs/images/v39/
+docs/images/v39/*
+!docs/images/v39/v38x2-feature-summary-historical.png
+!docs/images/v39/v39-feature-summary.png
+!docs/images/v39/v39-reference-images-node.png
+!docs/images/v39/v39-sampler-node.png
+
+# Ship the separate V3.9 and V3.8X2 workflows. The V3.8X2 standard ZIP also
+# contains V3.9; its helper-explicit ZIP remains the V3.8X2-only alias.
+# External custom-node dependencies are documented, not bundled.
+examples/*
+!examples/workflows/
+examples/workflows/*
+!examples/workflows/MiniMax_H3_Continuum_V38X2.json
+!examples/workflows/MiniMax_H3_Continuum_V38X2.zip
+!examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.json
+!examples/workflows/MiniMax_H3_Continuum_V38X2+Decode_Cache_Helper.zip
+!examples/workflows/MiniMax_H3_Continuum_V39_Reference_Inline.json
+!examples/workflows/MiniMax_H3_Continuum_V39_Reference_Inline.zip
+!examples/workflows/MiniMax_H3_Continuum_V39.json
+!examples/workflows/MiniMax_H3_Continuum_V39.zip
+!examples/MiniMax_H3_Continuum_V39.json
+!examples/MiniMax_H3_Continuum_V38X2.json
+
+# Current loader migration instructions.
+!docs/LOADER_PERSISTENCE_REPAIR.md
+!docs/TIMELINE_VIDEO_EXPERIMENTAL.md
+!docs/V39_REFERENCE_INLINE.md
+.h3-timeline-experimental.json

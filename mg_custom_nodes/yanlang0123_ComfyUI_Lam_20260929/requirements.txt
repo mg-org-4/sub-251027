@@ -1,0 +1,33 @@
+openai>=1.55.3
+opencv-python
+edge_tts
+matplotlib
+scikit-image
+omegaconf
+pytorch_lightning
+pandas
+kornia
+qrcode
+uiautomation
+imageio
+imageio-ffmpeg
+tensorflow
+yacs
+pydub
+filterpy
+facexlib
+librosa
+face_alignment
+pyzbar
+redis
+zhipuai
+# opencv-contrib-python
+websocket-client
+insightface
+basiclibrary-py
+pymediainfo
+
+# JyComposeVideo (GPU-accelerated video compositing)
+moviepy>=2.0
+numpy>=1.24
+Pillow>=10.0

@@ -353,6 +353,17 @@ function normalizeComposerFilename(name, fallback = "prompt_composer_data.json")
     return trimmed.toLowerCase().endsWith(".json") ? trimmed : `${trimmed}.json`;
 }
 
+function buildComposerExportTimestamp(date = new Date()) {
+    const pad = (value) => String(value).padStart(2, "0");
+    const year = pad(Number(date?.getFullYear?.() || 0) % 100);
+    const month = pad((date?.getMonth?.() || 0) + 1);
+    const day = pad(date?.getDate?.() || 1);
+    const hours = pad(date?.getHours?.() || 0);
+    const minutes = pad(date?.getMinutes?.() || 0);
+    const seconds = pad(date?.getSeconds?.() || 0);
+    return `${year}.${month}.${day}_${hours}.${minutes}.${seconds}`;
+}
+
 function joinComposerBrowserPath(base, leaf) {
     if (!base || !leaf) return leaf || base || "";
     const cleanBase = String(base).replace(/[\\/]+$/, "");
@@ -1057,7 +1068,7 @@ function getDownloadFilenameFromResponse(response, fallback = "prompt_composer_j
     return match?.[1] ? String(match[1]).trim() : fallback;
 }
 
-async function pickComposerImportFile() {
+export async function pickComposerImportFile() {
     if (window.showOpenFilePicker) {
         try {
             const [handle] = await window.showOpenFilePicker({
@@ -1092,7 +1103,7 @@ async function pickComposerImportFile() {
     });
 }
 
-async function inspectComposerImportFile(file) {
+export async function inspectComposerImportFile(file) {
     const formData = new FormData();
     formData.set("file", file, file.name || "upload");
     const response = await fetch(`${COMPOSER_ENDPOINT_PREFIX}/inspect-import-file`, {
@@ -1106,7 +1117,7 @@ async function inspectComposerImportFile(file) {
     return result;
 }
 
-async function replaceComposerLibraryFromFile(file) {
+export async function replaceComposerLibraryFromFile(file) {
     const formData = new FormData();
     formData.set("file", file, file.name || "upload");
     formData.set("backup_existing", "true");
@@ -1121,7 +1132,7 @@ async function replaceComposerLibraryFromFile(file) {
     return result;
 }
 
-async function mergeComposerLibraryFromFile(file, mode) {
+export async function mergeComposerLibraryFromFile(file, mode) {
     const formData = new FormData();
     formData.set("file", file, file.name || "upload");
     formData.set("mode", mode || "skip_existing");
@@ -1136,7 +1147,7 @@ async function mergeComposerLibraryFromFile(file, mode) {
     return result;
 }
 
-async function showComposerExportSelectionDialog(node) {
+export async function showComposerExportSelectionDialog(node) {
     const entries = getOrderedComposerTypeEntriesForExport(node).map(([typeFile, typeData]) => ({
         typeFile: String(typeFile || ""),
         name: String(typeData?.name || "").trim() || String(typeFile || "").replace(/\.json$/i, "") || "Prompt Group",
@@ -1263,7 +1274,7 @@ async function exportComposerJsonLibrary(node) {
             return;
         }
         const blob = await response.blob();
-        triggerBrowserDownload(blob, getDownloadFilenameFromResponse(response, "prompt_composer_jsons.zip"));
+        triggerBrowserDownload(blob, getDownloadFilenameFromResponse(response, `prompt_composer_jsons_${buildComposerExportTimestamp()}.zip`));
     } catch (error) {
         console.error("[PromptComposer] Error exporting JSONs:", error);
         await showInfo("Export Failed", error?.message || "Failed to export Prompt Composer JSONs.");
@@ -2408,14 +2419,14 @@ function ensureComposerUi(node) {
         onClick: () => exportComposerJsonLibrary(node),
     }));
     actionRow.appendChild(createToolbarActionButton({
-        label: "Open JSONs",
-        title: "Replace the current Prompt Composer library with prompt-group JSONs from a ZIP or JSON file",
-        onClick: () => openComposerJsonLibrary(node),
-    }));
-    actionRow.appendChild(createToolbarActionButton({
         label: "Import JSONs",
         title: "Import prompt-group JSONs from a ZIP or JSON file into the current library",
         onClick: () => mergeComposerJsonLibrary(node),
+    }));
+    actionRow.appendChild(createToolbarActionButton({
+        label: "Replace JSONs",
+        title: "Replace the current Prompt Composer library with prompt-group JSONs from a ZIP or JSON file",
+        onClick: () => openComposerJsonLibrary(node),
     }));
     root.appendChild(actionRow);
 
@@ -3135,7 +3146,7 @@ function ensureComposerUi(node) {
             subjectBadge.type = "button";
             subjectBadge.textContent = `#${padSubjectNumber(part.effective_subject_number)}`;
             subjectBadge.title = part.effective_subject_number === SUBJECT_NONE
-                ? "Not a subject. Click to assign Subject 01, right-click for options."
+                ? "Not a subject. Click to attach to the previous subject, right-click for options."
                 : part.subject_locked
                 ? "Custom subject. Click to advance, Shift-click to go back, right-click for auto mode."
                 : "Auto subject. Click to create a custom subject, right-click for options.";
@@ -3169,10 +3180,12 @@ function ensureComposerUi(node) {
                 const delta = evt.shiftKey ? -1 : 1;
                 const next = [...readParts(node)];
                 if (!next[index]) return;
-                const baseSubject = part.effective_subject_number === SUBJECT_NONE ? SUBJECT_MIN : part.effective_subject_number;
+                const subjectNumber = part.effective_subject_number === SUBJECT_NONE
+                    ? getInheritedSubjectDefaults(next.slice(0, index)).subject_number
+                    : nextSubjectNumber(part.effective_subject_number, delta);
                 next[index] = normalizePart({
                     ...next[index],
-                    subject_number: nextSubjectNumber(baseSubject, delta),
+                    subject_number: subjectNumber,
                     subject_locked: true,
                 });
                 writeParts(node, next);
@@ -3183,9 +3196,14 @@ function ensureComposerUi(node) {
                 evt.stopPropagation();
                 const next = [...readParts(node)];
                 if (!next[index]) return;
+                const resetSubject = categoryShouldBeNonSubject(node, next[index].category)
+                    ? { subject_number: SUBJECT_NONE, subject_locked: true }
+                    : categoryStartsNewSubject(node, next[index].category)
+                        ? inferPartSubjectState(node, next[index].category, null, getInheritedSubjectDefaults(next.slice(0, index)), { bumpSubject: true })
+                        : { subject_locked: false };
                 next[index] = normalizePart({
                     ...next[index],
-                    subject_locked: false,
+                    ...resetSubject,
                 });
                 writeParts(node, next);
                 render();

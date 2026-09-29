@@ -99,11 +99,50 @@ def _format_duration(seconds):
     return f"{mins}m {round(s - mins * 60)}s"
 
 
+# Group identity is an explicit Forge reference choice, never inferred from the brief.
+_COUNT_WORD = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+
+
+def _images(references):
+    return [r for r in references if r.get("kind") == "image"]
+
+
+def picture_groups(references):
+    """Only groups of two or more subject pictures share a reference line."""
+    by_id = {}
+    for n, ref in enumerate(_images(references), 1):
+        group = ref.get("subject_group")
+        if ref.get("role") == "subject" and isinstance(group, str) and group:
+            by_id.setdefault(group, []).append(n)
+    return [{"pictures": nums} for nums in by_id.values() if len(nums) >= 2]
+
+
+def _group_line(group, references):
+    tags = [f"<Picture {n}>" for n in group["pictures"]]
+    count = _COUNT_WORD[len(tags)] if len(tags) < len(_COUNT_WORD) else str(len(tags))
+    every = "both" if len(tags) == 2 else f"all {count}"
+    note = f"subject — ONE subject shown in {count} pictures: define a single <Subject N> citing {every}; no standalone picture lines"
+    bits = [", ".join(tags), note]
+    pictures = _images(references)
+    for n in group["pictures"]:
+        ref = pictures[n - 1]
+        if ref.get("keep"):
+            bits.append(f"keep (<Picture {n}>): {ref['keep']}")
+        if ref.get("drop"):
+            bits.append(f"drop (<Picture {n}>): {ref['drop']}")
+    return "- " + " · ".join(bits)
+
+
 def format_references(references, mode):
     """Director label lines for each reference, and the labels of the pictures."""
     counters = {"Picture": 0, "Video": 0, "Audio": 0}
     lines, pictures = [], []
     base_mode = mode in BASE_MODES
+    grouped = {}
+    if mode == "REF2VA":
+        for group in picture_groups(references):
+            for n in group["pictures"]:
+                grouped[n] = group
     for ref in references:
         kind = ref.get("kind")
         labels = _STREAM_EMITS.get(ref.get("stream"), ["Video"]) if kind == "video" else [_KIND_LABEL.get(kind, "Picture")]
@@ -121,6 +160,13 @@ def format_references(references, mode):
                 bits.append("audio track only; the video picture is not referenced")
             elif label == "Audio":
                 bits.append("voice — audio signal")
+            elif label == "Picture" and counters["Picture"] in grouped:
+                # One line for the group, where its first picture falls. The
+                # other members are still attached and numbered.
+                group = grouped[counters["Picture"]]
+                if counters["Picture"] == group["pictures"][0]:
+                    lines.append(_group_line(group, references))
+                continue
             else:
                 role = ref.get("role")
                 note = (_BASE_NOTE.get(role) if base_mode else None) or _ROLE_NOTE.get(role)
@@ -266,6 +312,25 @@ def builder_fields(segments, mode):
         "soundscape": value("Soundscape"),
         "music": value("Music"),
     }
+
+
+def group_warnings(subject_definitions, references):
+    """Warn only when separate Subject entries explicitly cite split group members.
+
+    Free-form prose without picture citations is inconclusive; don't pretend
+    this mechanical check can judge character identity or visual similarity.
+    """
+    starts = list(re.finditer(r"(?m)^\s*(?:[-*]\s*)?<Subject\s+\d+>", str(subject_definitions or ""), re.I))
+    blocks = [subject_definitions[m.start():starts[i + 1].start() if i + 1 < len(starts) else None]
+              for i, m in enumerate(starts)]
+    warnings = []
+    for group in picture_groups(references):
+        required = set(group["pictures"])
+        cited = [{int(n) for n in re.findall(r"<Picture\s+(\d+)>", block, re.I)} & required for block in blocks]
+        if len([part for part in cited if part]) >= 2 and not any(required <= part for part in cited):
+            labels = ", ".join(str(n) for n in group["pictures"])
+            warnings.append(f"Pictures {labels} were grouped as one subject, but the draft defines them under separate Subjects. Review subject_definitions before applying.")
+    return warnings
 
 
 # ── Simple prompt mode: a port of PromptForge's server/h3-simple.mjs ──────
@@ -870,6 +935,8 @@ def _generate(body, input_directory, release_memory, stop):
     fields = builder_fields(segments, mode)
     simple = simple_prompt(fields, mode, duration)
     warnings = check_prompt(fields, mode, duration, simple, bundle["max_output_chars"])
+    if mode == "REF2VA":
+        warnings += group_warnings(fields["ref"]["subject_definitions"], references)
     if not unloaded and local_gpu:
         warnings.append("This server cannot unload its model; it is still holding VRAM on this machine.")
     return {

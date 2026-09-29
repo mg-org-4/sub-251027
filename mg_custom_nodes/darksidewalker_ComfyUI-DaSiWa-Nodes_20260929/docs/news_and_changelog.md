@@ -2,9 +2,13 @@
 
 Collection-wide news and change history for the DaSiWa Custom Nodes — one place to see what changed across every node. Per-node deep dives (UI guides, wiring, options) stay in their own docs, linked from the README.
 
-This changelog covers **2026-07-05 → 2026-09-27**. Older history lives in the git log. Entries within each section are listed **newest first**.
+This changelog covers **2026-07-05 → 2026-09-28**. Older history lives in the git log. Entries within each section are listed **newest first**.
 
 ## News
+
+- **System Monitor layout (09-28, 0.4.64, #59):** Lite defaults to its own top row instead of crowding ComfyUI controls; a horizontal-only resize handle wraps complete meters without cropping their values. The drag grip stays meter-height. The monitor reattaches after ComfyUI rebuilds its toolbar when the Properties panel toggles. The settings menu opens within the viewport, and background/content opacity controls are independently adjustable. The Free Memory button remains beside the top controls in every monitor placement. [Monitor guide →](system_monitor.md)
+
+- **H3 Forge subject-aware grouping (09-28, 0.4.63):** REF2VA picture rows can explicitly share a subject group; separate remains the default. Forge presents those pictures together to the prompt model and warns when distinct subject definitions cite members separately. Group choices persist with the Director workflow; no automatic inference from the Idea. [Director guide →](minimax_h3_director.md#prompt-forge-optional)
 
 - **H3 Continuity media and prompt fixes (09-27, 0.4.62):** Source probing, normalization and Forge tail images now use PyAV libraries without requiring external FFmpeg executables. Single-frame sources and trims retain a visible frame. Continuation prompts weld the overlap seam while allowing a requested change of pace, sound or camera afterward; Forge follows an existing next-action draft when no new idea is given. Director canvas dimensions are reapplied on restore and serialization, and saved continuity text is preserved. Windows AMD telemetry uses ADLX with a CIM fallback. [Continuity guide →](h3_continuity.md)
 
@@ -74,6 +78,8 @@ Quick reference for the version bumps inside this window, newest first:
 
 | Version | Date | Headline |
 |---|---|---|
+| 0.4.64 | 09-28 | System Monitor independent default row, remount on Properties toggle, horizontal wrapping resize, viewport-aware menu and opacity controls (#59) |
+| 0.4.63 | 09-28 | H3 Forge explicit subject-aware picture groups and split-definition warning |
 | 0.4.62 | 09-27 | H3 Continuity PyAV media path and single-frame fixes; seam-aware prompts, canvas/serialization fixes; Windows AMD ADLX telemetry |
 | 0.4.61 | 09-26 | H3 Continuity Advanced overlay; ∞ Save new takes button; workflow-persisted session state |
 | 0.4.60 | 09-26 | H3 Forge: vision GGUF support and authenticated OpenAI-compatible servers |
@@ -126,6 +132,8 @@ Quick reference for the version bumps inside this window, newest first:
 ## Changelog
 
 ### MiniMax H3 Director (v1)
+
+- **09-28 (0.4.63):** **H3 Forge subject-aware grouping:** REF2VA can group subject pictures explicitly in the Forge reference rows; default Separate leaves pictures independent. The grouping is stored with the workflow and groups are shown before generation. A Python check warns when the model explicitly splits one group across separate `<Subject N>` definitions, without claiming to judge unlabeled prose or image identity. [Forge guide →](minimax_h3_director.md#prompt-forge-optional)
 
 - **09-27 (0.4.62):** **Continuity media and seam policy:** Uploaded-source probing, 24 fps normalization, and Forge tail extraction use PyAV rather than external FFmpeg commands. Single-frame source videos and trimmed one-frame ranges are retained. The automatic prompt matches motion, camera and sound at the overlap seam but permits an explicit next action after it; Forge keeps the current next-action draft when the new idea is empty. Director resolution is reapplied on restore and serialization; saved continuity text remains unchanged by normalization. [Media migration and limits →](h3_pyav_migration.md)
 

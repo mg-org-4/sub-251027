@@ -57,13 +57,16 @@ maxsize = 10  # 队列的最大长度
 client=None
 userHistory={}
 if len(Config().ai.keys())>0:
-    if Config().ai['ai_type']=='glm4' and ZhipuAI_IS_INIT:
-        client = ZhipuAI(api_key=Config().ai['api_key'])
-    elif Config().ai['ai_type']=='openAi' and OpenAI_IS_INIT:
-        client = OpenAI(
-            api_key=Config().ai['api_key'],
-            base_url=Config().ai['base_url'],
-        )
+    try:
+        if Config().ai['ai_type']=='glm4' and ZhipuAI_IS_INIT:
+            client = ZhipuAI(api_key=Config().ai['api_key'])
+        elif Config().ai['ai_type']=='openAi' and OpenAI_IS_INIT:
+            client = OpenAI(
+                api_key=Config().ai['api_key'],
+                base_url=Config().ai['base_url'],
+            )
+    except Exception as e:
+        logging.warning("AI客户端初始化失败，微信页面功能将继续可用：%s", e)
 
 def chat_completion(userId):
     tools=get_lm4_tools()
@@ -466,7 +469,7 @@ def send_sync(self, event, data, sid=None,port=None): #继承父类的send_sync�
         self.messages.put_nowait, (event, data, sid))
     
 MAXIMUM_HISTORY_SIZE = 10000
-def task_done(self, item_id,history_result,status: Optional['PromptQueue.ExecutionStatus']=None):
+def task_done(self, item_id,history_result,status: Optional['PromptQueue.ExecutionStatus']=None, process_item=None):
     print('----------task_done--------')
     if status==None:
         self.history[item_id] = history_result
@@ -481,6 +484,9 @@ def task_done(self, item_id,history_result,status: Optional['PromptQueue.Executi
         status_dict: Optional[dict] = None
         if status is not None:
             status_dict = copy.deepcopy(status._asdict())
+
+        if process_item is not None:
+            prompt = process_item(prompt)
 
         self.history[prompt[1]] = {
             "prompt": prompt,

@@ -1,0 +1,14 @@
+[Chunk 1]
+An eye-level medium-wide camera tracks alongside the red-coated woman in @R1 and the navy-top woman in @R4 as they walk from screen left to screen right through a bright covered walkway. Preserve their distinct faces, hairstyles and clothes; adapt their poses to walking. Both remain clearly visible and keep walking as the chunk ends, with open space on the right.
+overall_soundscape: Footsteps and quiet walkway ambience. No dialogue.
+non_diegetic_music: N/A
+
+[Chunk 2]
+Continuation of Chunk 1. Keep the same tracking camera, lighting and walking direction. As the chunk begins, the teal-coated woman in @R9 enters from screen right and joins the red-coated woman in @R1 and the navy-top woman in @R4. Preserve all three distinct faces, hairstyles and clothes. Show all three together through the middle of the chunk. Then the navy-top woman turns into a side passage and walks out of view before the chunk ends. The red-coated and teal-coated women keep walking together.
+overall_soundscape: Continuous footsteps and quiet walkway ambience. No dialogue.
+non_diegetic_music: N/A
+
+[Chunk 3]
+Continuation of Chunk 2. The red-coated woman in @R1 and the teal-coated woman in @R9 continue walking side by side in the same direction. Preserve their distinct faces, hairstyles and clothes, and keep the same eye-level medium-wide tracking camera and lighting. Both remain clearly visible through the end. The side passage recedes behind them as their steady walk continues.
+overall_soundscape: Continuous footsteps and quiet walkway ambience. No dialogue.
+non_diegetic_music: N/A

@@ -176,6 +176,7 @@ Download the current V3.8X2 workflow: [JSON](examples/workflows/MiniMax_H3_Conti
 
 ## Prompt and skill downloads
 
+- [V3.9 Reference Images prompt skill](write-h3-v39-reference-prompts/SKILL.md) | [ZIP](write-h3-v39-reference-prompts.zip) — for fixed `@R1`–`@R9` image slots and per-chunk assignments. Use it with the V3.9 Reference Images node; it is separate from the general Continuum prompt skill below.
 - [LLM system prompt ZIP](H3-Continuum-LLM-System-Prompt-v1.zip) — system instructions and reference material for Continuum prompt authoring.
 - [Continuum prompt skill ZIP](H3-Continuum-Skill-v1.zip) — general chunk-aware prompt authoring for Codex and other compatible agents.
 - [Continuum Dance Director skill ZIP](minimax-h3-continuum-dance-director.zip) — long-form choreography prompts for one primary dancer, with body and camera continuity across chunks.

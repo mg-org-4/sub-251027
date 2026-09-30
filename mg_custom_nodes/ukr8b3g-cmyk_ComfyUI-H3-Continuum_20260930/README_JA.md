@@ -169,6 +169,7 @@ V3.8X2 Workflow：[JSON](examples/workflows/MiniMax_H3_Continuum_V38X2.json)／[
 
 ## プロンプト・スキルのダウンロード
 
+- [V3.9 Reference Images用プロンプトスキル本文](write-h3-v39-reference-prompts/SKILL.md)／[ZIP](write-h3-v39-reference-prompts.zip)：固定の`@R1`～`@R9`とチャンク別の画像割り当てに対応します。V3.9のReference Imagesノード用で、下記の汎用Continuumスキルとは別です。
 - [LLM用システムプロンプトZIP](H3-Continuum-LLM-System-Prompt-v1.zip)：Continuum向けプロンプト作成のシステム指示と詳細資料。
 - [Continuum専用プロンプトスキルZIP](H3-Continuum-Skill-v1.zip)：Codexなどで使う、チャンク構成に対応した汎用プロンプト作成スキル。
 - [Continuum Dance DirectorスキルZIP](minimax-h3-continuum-dance-director.zip)：主役のダンサー1人を対象に、チャンク間の身体動作とカメラの連続性を考慮した長尺ダンス用プロンプトを作成するスキル。

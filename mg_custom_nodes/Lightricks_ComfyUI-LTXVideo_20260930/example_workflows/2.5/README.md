@@ -47,6 +47,17 @@ These keep the distilled 2.5 backbone and add an IC-LoRA so a guide (video, imag
 | [LTX-2.5_ICLoRA_Inpaint_Two_Stage_Distilled.json](./LTX-2.5_ICLoRA_Inpaint_Two_Stage_Distilled.json) | Fill masked regions of a reference video (two-stage). Source audio can stay frozen. |
 | [LTX-2.5_ICLoRA_Outpaint_Two_Stage_Distilled.json](./LTX-2.5_ICLoRA_Outpaint_Two_Stage_Distilled.json) | Extend the canvas of a reference video (two-stage). Same in/outpaint LoRA as inpaint. |
 
+### Tiled Fusion (large-canvas IC-LoRA)
+
+These keep one latent canvas and fuse overlapping spatial tiles after every denoise step (`LTXVTiledFusionSampler`). Use them when the canvas is larger than the LoRA window. They share the same subgraph layout as the other 2.5 graphs (Load Models, Inputs, Preprocess, Generate, Decode). **Get Tiling Sizes** and the canvas resize live inside **Preprocess**; the size combos (`tile_size` / `initial_canvas_size` = qHD / HD / FullHD, `output_size` = FullHD / 4K / 8K) are widgets on that subgraph. Source frames come from Load Video. The node emits model-legal canvases (multiples of 32, `tile_frames` = 8n+1); a **Tiling sizes** preview sits below Preprocess. There is no first-frame still / `use image input` / I2V bypass. `use_tiled_encode` on the guide node stays **false**; `use_streaming` is on so each temporal window gets a fresh IC-LoRA encode.
+
+Upscale prompts should describe **look and style** (lighting, palette, film stock, sharpness, grade), not named objects, people, or props — anything you name can stamp into every spatial tile after upscale. Native (dynamic 4K/8K): the stage-1 prompt describes the **change** you want on the input video (plus enhance / API / [prompting guide](https://docs.ltx.io/open-source-model/usage-guides/prompting-guide)); the stage-2 prompt is look/style only, because only that pass uses spatial tiling. The negative prompt is used as written.
+
+| Workflow | What it does |
+| -------- | ------------ |
+| [LTX-2.5_V2V_TiledFusion_Upscale.json](./LTX-2.5_V2V_TiledFusion_Upscale.json) | **V2V upscale.** Preprocess resizes the guide to `output_size` (FullHD / 4K / 8K), then 8 fused steps with the detail refiner. Tiles come from `tile_size` (HD). |
+| [LTX-2.5_V2V_TiledFusion_Native_4K_8K.json](./LTX-2.5_V2V_TiledFusion_Native_4K_8K.json) | **V2V native / dynamic 4K/8K.** Stage 1 at `initial_canvas_size` FullHD (8 steps, Day-To-Night IC-LoRA). Latent ×2 (×4 when `output_size` is 8K), then 3 fused steps with a fresh prompt and the original clip resized to output. Optional second IC-LoRA on stage 2. |
+
 ## Which workflow should I use?
 
 ```text
@@ -63,6 +74,10 @@ Do you have an existing video to edit or follow?
 │  │    → LTX-2.5_ICLoRA_Union_Control_Distilled.json
 │  ├─ Keep the footage, change appearance (identity / style LoRA)
 │  │    → LTX-2.5_V2V_ICLoRA_Single_Stage_Distilled.json
+│  ├─ Upscale an existing clip at full HD / 4K / 8K (tiled fusion)
+│  │    → LTX-2.5_V2V_TiledFusion_Upscale.json
+│  ├─ Viewport-style 4K/8K ladder (full HD, then ×2 / ×4)
+│  │    → LTX-2.5_V2V_TiledFusion_Native_4K_8K.json
 │  ├─ Fill a masked region
 │  │    → LTX-2.5_ICLoRA_Inpaint_Two_Stage_Distilled.json
 │  └─ Grow the frame / canvas
@@ -99,5 +114,7 @@ Two-stage is the better default when you care about spatial detail. Single-stage
 | Motion Track | 1 | — | Image + drawn tracks | Directed motion from a still |
 | Inpaint two-stage | 2 | 2× spatial | Video + mask (+ frozen audio) | Replacing a region |
 | Outpaint two-stage | 2 | 2× spatial | Video + target size (+ frozen audio) | Extending the frame |
+| Tiled Fusion upscale | 1 | — | Source video as IC-LoRA guide | Detail-refine at full HD / 4K / 8K |
+| Tiled Fusion native 4K/8K | 2 | 2× or 4× latent | Stage 1 Day-To-Night + stage 2 original@x2 | Large-canvas V2V ladder |
 
 Python / pipeline equivalents of these ideas live in [pipeline-selection.md](https://github.com/Lightricks/LTX-2/blob/main/packages/ltx-pipelines/docs/pipeline-selection.md) in the LTX-2 repo.

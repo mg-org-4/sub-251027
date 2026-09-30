@@ -63,8 +63,22 @@ cannot fuse. Ancestral methods add independent noise per tile and can seam.
 not replace an untiled composition pass when the LoRA is generating a new look
 at a canvas far above the trained window.
 
-Take `SAMPLER` from `KSamplerSelect` (`euler`) and sigmas from
-`Manual Sigmas` (descending, ending at 0). Keep `use_tiled_encode` **false** on
-every `LTXAddVideoICLoRAGuide`. Turn `use_streaming` **on** and set the same
-`tile_frames` on the guide and the sampler when the clip is longer than one
-window.
+## Example workflows
+
+Under [`example_workflows/2.5/`](./example_workflows/2.5/):
+
+| Graph | What it shows |
+| ----- | ------------- |
+| [`LTX-2.5_V2V_TiledFusion_Upscale.json`](./example_workflows/2.5/LTX-2.5_V2V_TiledFusion_Upscale.json) | Detail-refine IC-LoRA; `output_size` FullHD / 4K / 8K, HD tiles |
+| [`LTX-2.5_V2V_TiledFusion_Native_4K_8K.json`](./example_workflows/2.5/LTX-2.5_V2V_TiledFusion_Native_4K_8K.json) | Stage-1 FullHD composition, then 4K or 8K refine |
+
+All of them take `SAMPLER` from `KSamplerSelect` (`euler`) and sigmas from
+`Manual Sigmas` (descending, ending at 0). Size combos live on **Preprocess**
+(Get Tiling Sizes + canvas resize are inside that subgraph). Keep
+`use_tiled_encode` **false** on every `LTXAddVideoICLoRAGuide`. Turn
+`use_streaming` **on** and set the same `tile_frames` on the guide and the
+sampler when the clip is longer than one window.
+
+Prompt for look and style only — lighting, palette, sharpness, grade. Do not
+name specific objects in the scene; after upscale, named details can appear in
+every spatial tile. The negative prompt is used as written.

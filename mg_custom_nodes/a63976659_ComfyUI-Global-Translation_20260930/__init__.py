@@ -1,0 +1,316 @@
+"""
+ComfyUI-Translation 插件主初始化文件
+主要功能：提供多语言翻译服务的后端API，管理翻译配置和资源文件
+版本: 2.0 (多国语言版)
+"""
+
+import os
+import json
+import platform
+import sys
+import shutil
+import atexit
+import server
+import folder_paths
+from aiohttp import web
+from pathlib import Path
+
+# 插件版本信息
+VERSION = "2.0"
+# 插件名称
+ADDON_NAME = "ComfyUI-Global-Translation"
+# ComfyUI 主程序路径
+COMFY_PATH = Path(folder_paths.__file__).parent
+# 当前插件路径
+CUR_PATH = Path(__file__).parent
+
+
+def load_config():
+    config_path = CUR_PATH.joinpath("config.json")
+    default_config = {"translation_enabled": True, "locale": "zh-CN", "button_style": "gradient", "disabled_plugins": [], "translate_options": True}
+    if config_path.exists():
+        try:
+            config_data = try_get_json(config_path)
+            default_config.update(config_data)
+        except Exception:
+            pass
+    return default_config
+
+# 全局配置变量 - 存储翻译启用状态和当前语言
+GLOBAL_CONFIG = load_config()
+
+
+def try_get_json(path: Path):
+    """尝试使用不同编码读取JSON文件"""
+    for coding in ["utf-8", "gbk"]:
+        try:
+            return json.loads(path.read_text(encoding=coding))
+        except Exception:
+            continue
+    return {}
+
+
+def sanitize_locale(locale):
+    """校验调用方传入的语言代码，防止路径穿越出插件目录。
+    仅接受插件目录下的单层目录名：拒绝非字符串、绝对路径、含 .. 或分隔符的路径，
+    并用 realpath + commonpath 兜底确认解析结果仍在插件目录内。
+    通过校验返回原始 locale 字符串，否则返回 None。"""
+    if not isinstance(locale, str) or not locale:
+        return None
+    p = Path(locale)
+    if p.is_absolute() or ".." in p.parts or len(p.parts) != 1:
+        return None
+    base = os.path.realpath(CUR_PATH)
+    candidate = os.path.realpath(os.path.join(base, *p.parts))
+    try:
+        if os.path.commonpath([base, candidate]) != base:
+            return None
+    except ValueError:
+        # Windows 下不同盘符等场景 commonpath 会抛错，一律视为非法
+        return None
+    return locale
+
+
+# ============================================================
+# 【石头(Q:34720803)优化更新】翻译数据递归深合并
+# 解决不同翻译文件含同名节点类时子字典被整体覆盖的问题
+# ============================================================
+def deep_merge_translation(base, incoming):
+    """递归合并翻译字典。
+    不同翻译文件可能包含同一个节点类名（同一节点的不同实现/分支很常见），
+    若整体 update 会让后加载的文件把先加载文件的 inputs/widgets/outputs/ui
+    等子字典全部冲掉。这里对子字典按键互补合并；title/description 等字符串
+    仍以后加载者为准。扁平的字符串字典走此函数时行为与 update 完全一致。"""
+    for key, value in incoming.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            deep_merge_translation(base[key], value)
+        else:
+            base[key] = value
+    return base
+
+
+def get_nodes_translation(locale, disabled_plugins=None):
+    path = CUR_PATH.joinpath(locale, "Nodes")
+    if not path.exists():
+        path = CUR_PATH.joinpath("en_US", "Nodes")
+    if not path.exists():
+        return {}
+    disabled = set(disabled_plugins or [])
+    translations = {}
+    for jpath in path.glob("*.json"):
+        if jpath.stem in disabled:
+            continue
+        # 【石头(Q:34720803)优化更新】由浅合并 update 改为递归深合并
+        deep_merge_translation(translations, try_get_json(jpath))
+    return translations
+
+
+def get_category_translation(locale):
+    cats = {}
+    for cat_json in CUR_PATH.joinpath(locale, "Categories").glob("*.json"):
+        cats.update(try_get_json(cat_json))
+    path = CUR_PATH.joinpath(locale, "NodeCategory.json")
+    if not path.exists():
+        path = CUR_PATH.joinpath("en_US", "NodeCategory.json")
+    if path.exists():
+        cats.update(try_get_json(path))
+    return cats
+
+
+def get_menu_translation(locale):
+    menus = {}
+    for menu_json in CUR_PATH.joinpath(locale, "Menus").glob("*.json"):
+        menus.update(try_get_json(menu_json))
+    path = CUR_PATH.joinpath(locale, "Menu.json")
+    if not path.exists():
+        path = CUR_PATH.joinpath("en_US", "Menu.json")
+    if path.exists():
+        menus.update(try_get_json(path))
+    return menus
+
+
+def compile_translation(locale, disabled_plugins=None):
+    nodes_translation = get_nodes_translation(locale, disabled_plugins)
+    node_category_translation = get_category_translation(locale)
+    menu_translation = get_menu_translation(locale)
+
+    return json.dumps({
+        "Nodes": nodes_translation,
+        "NodeCategory": node_category_translation,
+        "Menu": menu_translation
+    }, ensure_ascii=False)
+
+
+def compress_json(data, method="gzip"):
+    if method == "gzip":
+        import gzip
+        return gzip.compress(data.encode("utf-8"))
+    return data
+
+
+@server.PromptServer.instance.routes.get("/translation_node/get_locales")
+async def get_locales(request: web.Request):
+    """
+    API端点: 获取支持的语言列表
+    扫描插件目录，返回所有包含语言文件的文件夹名称
+    """
+    locales = []
+    for item in CUR_PATH.iterdir():
+        if item.is_dir() and item.name not in [".git", "js", "__pycache__"]:
+            # 简单判断该目录下是否有 Nodes, Categories 或 Menu.json
+            if item.joinpath("Nodes").exists() or item.joinpath("Menu.json").exists() or item.joinpath("NodeCategory.json").exists():
+                locales.append(item.name)
+    if not locales:
+        locales = ["en_US", "zh-CN"]
+    return web.Response(status=200, body=json.dumps(locales), headers={"Content-Type": "application/json"})
+
+
+@server.PromptServer.instance.routes.post("/translation_node/get_translation")
+async def get_translation(request: web.Request):
+    post = await request.post()
+    locale = post.get("locale", GLOBAL_CONFIG.get("locale", "zh-CN"))
+    if sanitize_locale(locale) is None:
+        return web.Response(status=400, body=json.dumps({"error": "invalid locale"}), headers={"Content-Type": "application/json"})
+    accept_encoding = request.headers.get("Accept-Encoding", "")
+    json_data = "{}"
+    headers = {}
+
+    # 翻译的启用/停用由前端决定：默认不翻译，前端在跟随 Comfy.Locale 或用户手动开启时才会请求本接口。
+    # 因此服务端不再按 translation_enabled 拦截，仅按请求的 locale 返回对应译文。
+    disabled_plugins = GLOBAL_CONFIG.get("disabled_plugins", [])
+
+    try:
+        json_data = compile_translation(locale, disabled_plugins)
+        if "gzip" in accept_encoding:
+            json_data = compress_json(json_data, method="gzip")
+            headers["Content-Encoding"] = "gzip"
+    except Exception:
+        pass
+
+    return web.Response(status=200, body=json_data, headers=headers)
+
+
+@server.PromptServer.instance.routes.get("/translation_node/get_config")
+async def get_config(request: web.Request):
+    # 每次从磁盘重新读取，确保前端始终拿到最后一次保存的配置
+    # （避免启动时读取失败回退默认值后，内存与磁盘长期分歧）
+    global GLOBAL_CONFIG
+    GLOBAL_CONFIG = load_config()
+    return web.Response(status=200, body=json.dumps(GLOBAL_CONFIG), headers={"Content-Type": "application/json"})
+
+
+@server.PromptServer.instance.routes.get("/translation_node/get_plugin_list")
+async def get_plugin_list(request: web.Request):
+    """
+    API端点: 获取当前语言的插件翻译文件列表
+    返回所有 JSON 文件名（不含扩展名）
+    """
+    # 优先用前端传入的实际翻译语言（与 get_translation 同源），回退磁盘配置，
+    # 避免语言改为跟随 Comfy.Locale 后磁盘 locale 滞后导致列表与实际翻译语言不一致
+    locale = request.query.get("locale") or GLOBAL_CONFIG.get("locale", "zh-CN")
+    if sanitize_locale(locale) is None:
+        return web.Response(status=400, body=json.dumps({"error": "invalid locale"}), headers={"Content-Type": "application/json"})
+    path = CUR_PATH.joinpath(locale, "Nodes")
+    plugins = sorted([f.stem for f in path.glob("*.json")]) if path.exists() else []
+    return web.Response(status=200, body=json.dumps(plugins, ensure_ascii=False), headers={"Content-Type": "application/json"})
+
+
+@server.PromptServer.instance.routes.post("/translation_node/set_config")
+async def set_config(request: web.Request):
+    try:
+        post = await request.post()
+        enabled = post.get("translation_enabled", "true").lower() == "true"
+        locale = post.get("locale", "zh-CN")
+        button_style = post.get("button_style", "gradient")
+
+        # 解析禁用插件列表
+        disabled_plugins_str = post.get("disabled_plugins", "[]")
+        try:
+            disabled_plugins = json.loads(disabled_plugins_str)
+            if not isinstance(disabled_plugins, list):
+                disabled_plugins = []
+        except (json.JSONDecodeError, TypeError):
+            disabled_plugins = []
+
+        # 解析选项翻译开关
+        translate_options = post.get("translate_options", "true").lower() == "true"
+
+        config_data = {
+            "translation_enabled": enabled,
+            "locale": locale,
+            "button_style": button_style,
+            "disabled_plugins": disabled_plugins,
+            "translate_options": translate_options
+        }
+        config_path = CUR_PATH.joinpath("config.json")
+
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, indent=2, ensure_ascii=False)
+
+        global GLOBAL_CONFIG
+        GLOBAL_CONFIG = config_data
+
+        return web.Response(status=200, body=json.dumps({"success": True, "config": config_data}), headers={"Content-Type": "application/json"})
+    except Exception as e:
+        return web.Response(status=500, body=json.dumps({"success": False, "error": str(e)}), headers={"Content-Type": "application/json"})
+
+
+def rmtree(path: Path):
+    if not path.exists():
+        return
+    if Path(path.resolve()).as_posix() != path.as_posix():
+        path.unlink()
+        return
+    if path.is_file():
+        path.unlink()
+    elif path.is_dir():
+        if path.name == ".git":
+            if platform.system() == "darwin":
+                from subprocess import call
+                call(['rm', '-rf', path.as_posix()])
+            elif platform.system() == "Windows":
+                os.system(f'rd/s/q "{path.as_posix()}"')
+            return
+        for child in path.iterdir():
+            rmtree(child)
+        try:
+            path.rmdir()
+        except BaseException:
+            pass
+
+
+def register():
+    import nodes
+    translation_node_ext_path = COMFY_PATH.joinpath("web", "extensions", ADDON_NAME)
+    if hasattr(nodes, "EXTENSION_WEB_DIRS"):
+        rmtree(translation_node_ext_path)
+        return
+    
+    try:
+        if os.name == "nt":
+            try:
+                import _winapi
+                _winapi.CreateJunction(CUR_PATH.as_posix(), translation_node_ext_path.as_posix())
+            except WindowsError:
+                shutil.copytree(CUR_PATH.as_posix(), translation_node_ext_path.as_posix(), ignore=shutil.ignore_patterns(".git"))
+        else:
+            shutil.copytree(CUR_PATH.as_posix(), translation_node_ext_path.as_posix(), ignore=shutil.ignore_patterns(".git"))
+    except Exception:
+        pass
+
+
+def unregister():
+    translation_node_ext_path = COMFY_PATH.joinpath("web", "extensions", ADDON_NAME)
+    try:
+        rmtree(translation_node_ext_path)
+    except BaseException:
+        pass
+
+register()
+atexit.register(unregister)
+
+NODE_CLASS_MAPPINGS = {}
+WEB_DIRECTORY = "./js"
+
+__all__ = ["NODE_CLASS_MAPPINGS", "WEB_DIRECTORY"]
+__version__ = VERSION

@@ -1,0 +1,628 @@
+{
+    "DaSiWa_EnhancedVideoCombine": {
+        "title": "DaSiWa_增强视频合并",
+        "inputs": {
+            "images": "图像",
+            "audio": "音频"
+        },
+        "widgets": {
+            "frame_rate": "帧率",
+            "codec": "编码格式",
+            "container": "容器格式",
+            "bit_depth": "位深度",
+            "quality": "质量",
+            "log_level": "日志级别",
+            "pingpong": "乒乓模式",
+            "save_metadata": "保存元数据",
+            "filename_prefix": "文件名前缀",
+            "save_output": "保存输出",
+            "pass_frames": "传递帧",
+            "crop_to_audio": "裁剪至音频",
+            "audio_codec": "音频编码",
+            "audio_bitrate": "音频比特率",
+            "save_first_frame": "保存首帧",
+            "save_last_frame": "保存末帧"
+        },
+        "outputs": {
+            "frames": "帧",
+            "filename": "文件名"
+        },
+        "description": "将图像批次合并为高质量视频，自动选择NVENC/GPU，支持可选的乒乓播放、ComfyUI工作流元数据及MP4备用方案。"
+    },
+    "DaSiWa_InpaintCropPrep": {
+        "title": "DaSiWa_修复裁剪准备",
+        "inputs": {
+            "image": "图像",
+            "mask": "遮罩"
+        },
+        "widgets": {
+            "target_width": "目标宽度",
+            "target_height": "目标高度",
+            "mask_blur": "遮罩模糊",
+            "mask_min": "遮罩最小值",
+            "mask_max": "遮罩最大值",
+            "grow_px": "扩展像素",
+            "can_shrink": "可缩小"
+        },
+        "outputs": {
+            "cropped_image": "裁剪后图像",
+            "cropped_mask": "裁剪后遮罩",
+            "bbox_x": "边界框X坐标",
+            "bbox_y": "边界框Y坐标",
+            "bbox_w": "边界框宽度",
+            "bbox_h": "边界框高度"
+        },
+        "description": "为修复准备图像和遮罩：提取边界、裁剪、缩放。"
+    },
+    "DaSiWa_InpaintComposite": {
+        "title": "DaSiWa_修复合成",
+        "inputs": {
+            "destination": "目标",
+            "source": "源",
+            "mask": "遮罩"
+        },
+        "widgets": {
+            "x": "X坐标",
+            "y": "Y坐标",
+            "w": "宽度",
+            "h": "高度",
+            "correction_method": "校正方法"
+        },
+        "outputs": {
+            "image": "图像"
+        },
+        "description": "将修复后的补丁合成回原始图像，支持颜色校正。"
+    },
+    "DaSiWa_LLMModelSelector": {
+        "title": "DaSiWa_LLM模型选择器",
+        "inputs": {},
+        "widgets": {
+            "model": "模型",
+            "custom_path": "自定义路径",
+            "hf_repo_id": "HF仓库ID",
+            "hf_revision": "HF修订版本",
+            "download_if_missing": "缺失时下载",
+            "backend": "后端",
+            "task": "任务",
+            "device": "设备",
+            "dtype": "数据类型",
+            "quantization": "量化",
+            "cache_mode": "缓存模式",
+            "trust_remote_code": "信任远程代码",
+            "attention_implementation": "注意力实现",
+            "kv_cache_implementation": "KV缓存实现",
+            "kv_cache_quant_backend": "KV缓存量化后端",
+            "kv_cache_nbits": "KV缓存位数",
+            "kv_cache_residual_length": "KV缓存残差长度",
+            "llama_n_ctx": "Llama上下文窗口",
+            "llama_n_gpu_layers": "Llama GPU层数",
+            "llama_n_threads": "Llama线程数",
+            "llama_chat_format": "Llama聊天格式",
+            "ollama_model": "Ollama模型",
+            "ollama_url": "Ollama地址",
+            "ollama_timeout": "Ollama超时时间"
+        },
+        "outputs": {
+            "llm_config": "LLM配置"
+        },
+        "description": "DaSiWa LLM模型选择器：从ComfyUI/models/llm中选择本地transformers LLM/VLM文件夹，并配置缓存、数据类型、设备及卸载行为。"
+    },
+    "DaSiWa_LLMAnalyze": {
+        "title": "DaSiWa_LLM分析",
+        "inputs": {
+            "llm_config": "LLM配置",
+            "images": "图像",
+            "text_input": "文本输入"
+        },
+        "widgets": {
+            "system_prompt_preset": "系统提示预设",
+            "system_prompt": "系统提示",
+            "prompt": "提示词",
+            "max_new_tokens": "最大新词元",
+            "max_input_tokens": "最大输入词元",
+            "temperature": "温度",
+            "top_p": "Top_p",
+            "repetition_penalty": "重复惩罚",
+            "use_kv_cache": "使用KV缓存",
+            "seed": "随机种子",
+            "max_frames": "最大帧数",
+            "frame_stride": "帧步长",
+            "frame_strategy": "帧策略",
+            "resize_max_px": "最大调整像素",
+            "resize_algorithm": "调整算法",
+            "memory_cleanup": "内存清理"
+        },
+        "outputs": {
+            "response": "响应",
+            "info": "信息"
+        },
+        "description": "DaSiWa LLM分析：对连接的文本、图像或VHS/视频帧批次运行本地文本或视觉语言模型，并返回字符串响应。"
+    },
+    "DaSiWa_LTX2LoraLoader": {
+        "title": "DaSiWa_LTX2 LoRA加载器",
+        "inputs": {
+            "model": "模型",
+            "clip": "CLIP"
+        },
+        "widgets": {
+            "stack_data": "堆叠数据",
+            "model_type": "模型类型",
+            "use_cache": "启用 LoRA 文件缓存",
+            "available_loras": "可用 LoRA 列表"
+        },
+        "outputs": {
+            "MODEL": "模型",
+            "CLIP": "CLIP"
+        },
+        "description": "DaSiWa高级LoRA加载器：堆叠普通图像/视频LoRA或LTX-2.3视频/音频LoRA。音频分离仅适用于LTX-2.3。"
+    },
+    "DaSiWa_MetadataConfig": {
+        "title": "DaSiWa_元数据配置",
+        "inputs": {
+            "node_positive": "正向节点",
+            "node_negative": "负向节点",
+            "node_model": "模型节点",
+            "node_latent": "Latent节点",
+            "node_noise": "噪声节点",
+            "node_sigmas": "西格玛节点",
+            "node_sampler": "采样器节点",
+            "extra_metadata": "额外元数据",
+            "text_positive": "正向文本",
+            "text_negative": "负向文本",
+            "text_steps": "步数文本",
+            "text_cfg": "CFG文本",
+            "text_sampler": "采样器文本",
+            "text_scheduler": "调度器文本",
+            "text_seed": "随机种子文本",
+            "text_model": "模型文本",
+            "save_output": "保存输出"
+        },
+        "widgets": {
+            "save_workflow": "保存工作流",
+            "model_hash": "模型哈希"
+        },
+        "outputs": {
+            "config": "配置"
+        },
+        "description": "DaSiWa元数据配置：将工作流元数据设置及可选的自动检测链接收集为紧凑的配置输出，供图像保存器使用。"
+    },
+    "DaSiWa_MetadataImageSaver": {
+        "title": "DaSiWa_元数据图像保存器",
+        "inputs": {
+            "images": "图像",
+            "metadata_config": "元数据配置",
+            "extra_metadata": "额外元数据"
+        },
+        "widgets": {
+            "filename_prefix": "文件名前缀",
+            "file_format": "文件格式",
+            "compression": "压缩",
+            "save_output": "保存输出"
+        },
+        "outputs": {
+            "filename": "文件名",
+            "metadata": "元数据"
+        },
+        "description": "DaSiWa元数据图像保存器：保存带有ComfyUI工作流数据及A1111/Civitai兼容生成元数据的PNG或WebP图像。"
+    },
+    "DaSiWa_MetadataImageSaverFull": {
+        "title": "DaSiWa_元数据图像保存器完整版",
+        "inputs": {
+            "images": "图像组",
+            "metadata_config": "元数据配置",
+            "extra_metadata": "额外元数据",
+            "node_positive": "正向节点",
+            "node_negative": "负向节点",
+            "node_model": "模型节点",
+            "node_latent": "Latent节点",
+            "node_noise": "噪声节点",
+            "node_sigmas": "西格玛节点",
+            "node_sampler": "采样器节点",
+            "text_positive": "正向提示词",
+            "text_negative": "负向提示词",
+            "text_steps": "步数",
+            "text_cfg": "CFG 值",
+            "text_sampler": "采样器",
+            "text_scheduler": "调度器",
+            "text_seed": "随机种子",
+            "text_model": "文本模型"
+        },
+        "widgets": {
+            "filename_prefix": "文件名前缀",
+            "file_format": "文件格式",
+            "compression": "压缩级别",
+            "save_output": "保存输出",
+            "save_workflow": "保存工作流",
+            "model_hash": "模型哈希"
+        },
+        "outputs": {
+            "filename": "文件名",
+            "metadata": "元数据"
+        },
+        "description": "DaSiWa元数据图像保存器完整版：高级保存器变体，所有元数据检测及手动覆盖端口均直接暴露在节点上。"
+    },
+    "DaSiWa_CreateExtraMetadata": {
+        "title": "DaSiWa_创建额外元数据",
+        "inputs": {
+            "extra_metadata": "额外元数据"
+        },
+        "widgets": {
+            "key": "键",
+            "value": "值"
+        },
+        "outputs": {
+            "EXTRA_METADATA": "额外元数据"
+        },
+        "description": "DaSiWa创建额外元数据：为图像保存器创建或扩展自定义元数据键值对。"
+    },
+    "DaSiWa_RandomStringPicker": {
+        "title": "DaSiWa_随机字符串选择器",
+        "inputs": {
+            "text": "文本"
+        },
+        "widgets": {},
+        "outputs": {
+            "text": "文本"
+        },
+        "description": "DaSiWa随机字符串选择器：传递文本，同时将每个{A|B|C}组替换为随机选中的选项"
+    },
+    "DaSiWa_RTX_UpscalerRefiner": {
+        "title": "DaSiWa_RTX_放大精修",
+        "inputs": {
+            "images": "图像"
+        },
+        "widgets": {
+            "denoise": "降噪",
+            "deblur": "去模糊",
+            "scale": "缩放",
+            "megapixels": "百万像素",
+            "width": "宽度",
+            "height": "高度",
+            "device_id": "设备ID",
+            "empty_cache": "清空缓存",
+            "denoise_quality": "降噪质量",
+            "deblur_quality": "去模糊质量",
+            "upscale": "放大",
+            "upscale_quality": "放大质量",
+            "resize_type": "调整大小类型",
+            "divisible_by": "可整除值",
+            "ratio_preset": "比例预设",
+            "resize_method": "调整大小方法",
+            "use_mmap": "使用磁盘映射",
+            "auto_unload_models": "自动卸载模型"
+        },
+        "outputs": {
+            "images": "图像"
+        },
+        "description": "DaSiWa RTX放大与优化器：高性能3次处理节点。1. 优化阶段：以源分辨率运行，使用NVIDIA RTX视觉效果清理噪点或模糊。2. 放大阶段：使用VSR或高比特率模式将图像放大4倍。逐帧处理，以在视频批次中保持低VRAM占用"
+    },
+    "DaSiWa_ResolutionScaleCalculator": {
+        "title": "DaSiWa_分辨率缩放计算器",
+        "inputs": {
+            "image": "图像"
+        },
+        "widgets": {
+            "resolution_preset": "分辨率预设",
+            "aspect_preset_when_not_image": "非图像时的比例预设",
+            "no_scale": "不缩放",
+            "scale_from_image": "从图像缩放",
+            "swap_aspect_when_not_image": "非图像时交换比例",
+            "custom_aspect_width": "自定义比例宽度",
+            "custom_aspect_height": "自定义比例高度",
+            "mode": "模式",
+            "custom_divisor": "自定义除数"
+        },
+        "outputs": {
+            "width_int": "整数宽度",
+            "height_int": "整数高度",
+            "width_float": "浮点宽度",
+            "height_float": "浮点高度"
+        },
+        "description": "DaSiWa分辨率缩放计算器：基于目标百万像素区域计算数学精确的分辨率。- 标准模式：纯数学缩放。- WAN/LTX模式：对齐到32像素边界（WAN/LTX VAE必需）。- 不缩放：覆盖所有计算，直接输出源图像尺寸"
+    },
+    "DaSiWa_TorchResize": {
+        "title": "DaSiWa_Torch调整大小",
+        "inputs": {
+            "image": "图像"
+        },
+        "widgets": {
+            "size_mode": "尺寸模式",
+            "aspect_mode": "比例模式",
+            "target_width": "目标宽度",
+            "target_height": "目标高度",
+            "scale_multiplier": "缩放倍数",
+            "interpolation": "插值",
+            "gamma_correct": "伽马校正",
+            "divisible_by": "可整除值",
+            "pad_color": "填充颜色",
+            "crop_position": "裁剪位置",
+            "batch_size": "批次大小",
+            "max_batch_megapixels": "最大批次百万像素",
+            "cache_size": "缓存大小"
+        },
+        "outputs": {
+            "image": "图像"
+        },
+        "description": "适用于ComfyUI图像的无依赖PyTorch批量调整大小工具。支持像素级精确的最近邻、双线性、双三次、区域及缓存可分离Lanczos重采样"
+    },
+    "DaSiWa_NodeStatusSwitch": {
+        "title": "DaSiWa_节点状态切换",
+        "inputs": {},
+        "widgets": {
+            "enabled": "启用",
+            "trigger_on": "触发条件",
+            "action": "操作"
+        },
+        "outputs": {
+            "enabled_out": "启用输出"
+        },
+        "description": "DaSiWa节点状态开关：根据布尔状态静音或绕过连接的目标节点，带有启用输出用于开关链式连接"
+    },
+    "DaSiWa_Watermark": {
+        "title": "DaSiWa_水印",
+        "inputs": {
+            "images": "图像"
+        },
+        "widgets": {
+            "watermark_path": "水印路径",
+            "position": "位置",
+            "scale": "缩放",
+            "resampling": "重采样",
+            "transparency": "透明度",
+            "rotation": "旋转",
+            "padding_x": "X轴填充",
+            "padding_y": "Y轴填充",
+            "optical_padding": "光学填充",
+            "optical_strength": "光学强度",
+            "random_switches": "随机开关",
+            "fade": "淡入淡出",
+            "fade_margin": "淡入淡出边距",
+            "randomize_position": "随机位置",
+            "random_seed": "随机种子"
+        },
+        "outputs": {},
+        "description": "DaSiWa水印：专业级水印叠加节点，具备稳定的CPU合成能力。将输出批次存储在RAM中，从初始化的源帧开始混合以避免闪烁，支持双三次/Lanczos缩放、旋转及“光学填充”以实现完美视觉对齐"
+    },
+    "DaSiWa_WildcardPresetPromptBuilder": {
+        "title": "DaSiWa_提示词预设提示构建器",
+        "inputs": {
+            "positive_input": "正向输入",
+            "negative_input": "负向输入"
+        },
+        "widgets": {
+            "style": "风格",
+            "seed": "随机种子",
+            "token_budget": "令牌预算",
+            "selection_state": "选择状态",
+            "reroll": "重新随机",
+            "auto_reroll": "自动重新随机"
+        },
+        "outputs": {
+            "positive_prompt": "正向提示词",
+            "negative_prompt": "负向提示词"
+        },
+        "description": "从内置的双风格提示词库构建正向和负向提示词。选择项及权重存储在工作流中"
+    },
+    "DaSiWa_SeedControl": {
+        "title": "DaSiWa_独立种子控制器",
+        "description": "独立的种子控制节点，复用 MiniMax H3 Director 的种子交互体验：随机/固定模式、64 位无符号种子、重新随机/恢复上次种子、近 10 次历史，以及输出 NOISE 对象供下游采样器直接使用。",
+        "inputs": {
+            "seed": "外部种子输入"
+        },
+        "widgets": {
+            "seed_value": "本地种子值",
+            "seed_control_state": "种子控制状态",
+            "Local seed value. The panel edits this; leave the native widget hidden.": "本地种子值，由前端面板编辑；原生控件保持隐藏即可。",
+            "Persisted seed-control state (JSON): mode, last_seed and recent seeds.": "持久化的种子控制状态（JSON）：模式、上次种子及历史种子列表。",
+            "Optional external seed. When linked, the local controls are disabled and this value is passed through.": "可选的外部种子输入：连接后本地控件被禁用，直接透传连接的值。"
+        },
+        "outputs": {
+            "seed": "种子",
+            "noise": "噪声"
+        }
+    },
+    "PathchComfyKitchenAttentionDaSiWa": {
+        "title": "🪛 DaSiWa_Comfy Kitchen INT8 注意力补丁",
+        "description": "为模型打补丁，运行时使用 Comfy Kitchen INT8 注意力实现以节省显存。若 Comfy Kitchen 不可用则回退到 ComfyUI 默认注意力。",
+        "inputs": {
+            "model": "模型"
+        },
+        "widgets": {},
+        "outputs": {
+            "MODEL": "模型"
+        }
+    },
+    "MiniMaxH3Director": {
+        "title": "🎬 DaSiWa_MiniMax H3 导演",
+        "description": "MiniMax H3 视频/音频生成导演节点：整合时间轴、参考媒体与提示词构建，输出包含完整指导信息的导演配置，供 MiniMax H3 Director Guide 节点使用。",
+        "inputs": {
+            "fl2va_model": "FL2VA 模型",
+            "ref2va_model": "REF2VA 模型",
+            "external_width_overwrite": "外部宽度覆盖",
+            "external_height_overwrite": "外部高度覆盖",
+            "external_prompt_overwrite": "外部提示词覆盖"
+        },
+        "widgets": {
+            "mode": "模式",
+            "prompt": "提示词",
+            "width": "宽度",
+            "height": "高度",
+            "duration": "时长",
+            "ref_image_size": "参考图尺寸",
+            "frame_rate": "帧率"
+        },
+        "outputs": {
+            "guide": "导演指南",
+            "duration": "时长",
+            "positive_prompt": "正向提示词",
+            "width": "宽度",
+            "height": "高度",
+            "model": "模型",
+            "fl2va_requested": "请求 FL2VA",
+            "inpaint_requested": "请求修复",
+            "frame_rate": "帧率"
+        },
+        "ui": {
+            "Model Mode:": "模型模式：",
+            "Image Inpaint": "图像修复",
+            "Prompt Mode:": "提示词模式：",
+            "Simple": "简易",
+            "Structured": "结构化",
+            "Use the simple prompt editor": "使用简易提示词编辑器",
+            "Use the structured prompt editor": "使用结构化提示词编辑器",
+            "One image reference; output exactly one frame through Get Image from Batch.": "单张图像参考；通过「从批次获取图像」恰好输出一帧。",
+            "Remove": "移除",
+            "Clear": "清空",
+            "Remove all media and prompts": "移除全部媒体与提示词",
+            "Nothing to clear yet": "暂无可清空的内容",
+            "Nothing to clear.": "暂无可清空的内容。",
+            "Open MiniMax H3 Director documentation on GitHub": "在 GitHub 上打开 MiniMax H3 导演文档",
+            "T2VA · no input frame": "T2VA · 无输入帧",
+            "I2VA · one opening-frame slot": "I2VA · 一个首帧槽位",
+            "FL2VA · opening and closing-frame slots": "FL2VA · 首帧与尾帧槽位",
+            "L2VA · one closing-frame slot": "L2VA · 一个尾帧槽位",
+            "Image Inpaint · exactly one image · outputs one frame through Get Image from Batch · no video/audio": "图像修复 · 恰好一张图像 · 通过「从批次获取图像」输出一帧 · 无视频/音频",
+            "REF2VA · up to 9 image, 3 video, and 3 audio slots · 12 combined files maximum": "REF2VA · 最多 9 个图像、3 个视频和 3 个音频槽位 · 合计最多 12 个文件",
+            "ASPECT": "画幅",
+            "RESOLUTION": "分辨率",
+            "INPUT SCALING": "输入缩放",
+            "Auto": "自动",
+            "CUSTOM": "自定义",
+            "Native (ShortEdge 768px)": "原生（短边 768px）",
+            "Off": "关闭",
+            "Native (ShortEdge 2048px)": "原生（短边 2048px）",
+            "Target · Selected Aspect & Resolution": "目标 · 所选画幅与分辨率",
+            "Fit": "适应",
+            "Fill and crop": "填充并裁剪",
+            "Fit and pad": "适应并补边",
+            "Long side with divisible crop": "长边对齐整除裁剪",
+            "0.26 MP - Preview": "0.26 MP - 预览",
+            "0.36 MP - Small": "0.36 MP - 小",
+            "0.52 MP - SD": "0.52 MP - 标清",
+            "0.65 MP - Balanced": "0.65 MP - 均衡",
+            "0.83 MP - HD": "0.83 MP - 高清",
+            "1.05 MP - HD+": "1.05 MP - 高清+",
+            "1.20 MP - HD++": "1.20 MP - 高清++",
+            "1.35 MP - 2K lite": "1.35 MP - 2K 轻量",
+            "1.75 MP - QHD": "1.75 MP - 超清",
+            "2.10 MP - FHD": "2.10 MP - 全高清",
+            "3.30 MP - QHD+": "3.30 MP - 超清+",
+            "4.75 MP - 2K Pro": "4.75 MP - 2K 专业",
+            "6.50 MP - Production": "6.50 MP - 制片",
+            "8.30 MP - UHD": "8.30 MP - 超高清",
+            "General": "常规",
+            "Horizontal": "横向",
+            "Square": "方形",
+            "Vertical": "竖向",
+            "Skip input scaling — references are sent to MiniMax at their original size.": "跳过输入缩放——参考素材以原始尺寸发送给 MiniMax。",
+            "Scale references down only when their short edge exceeds 2048 px; smaller inputs pass through untouched.": "仅在参考素材短边超过 2048 像素时缩小；更小的输入原样通过、不作处理。",
+            "Resize references to the selected Aspect & Resolution box (stretch, aspect not preserved).": "将参考素材调整到所选画幅与分辨率框（拉伸，不保持宽高比）。",
+            "Scale references to fit inside the target box while preserving their aspect ratio.": "缩放参考素材，使其在保持宽高比的前提下适配目标框。",
+            "Scale references to cover the target box, preserving aspect, then crop the overflow.": "在保持宽高比的前提下缩放参考素材以铺满目标框，然后裁剪溢出部分。",
+            "Scale references to fit inside the target box, preserving aspect, then pad the empty edges.": "在保持宽高比的前提下缩放参考素材以适配目标框，然后填充空白边缘。",
+            "Scale so the long side matches the target, then crop to an exact, divisible target size.": "缩放使长边与目标一致，然后裁剪为精确且可整除的目标尺寸。",
+            "RATIO W": "比例 宽",
+            "RATIO H": "比例 高",
+            "Megapixels": "百万像素",
+            "Fixed pixels": "固定像素",
+            "WIDTH": "宽度",
+            "HEIGHT": "高度",
+            "External width/height overwrite · Director sizing and input scaling disabled": "外部宽高覆盖 · 导演尺寸设定与输入缩放已禁用",
+            "Image/Video": "图像/视频",
+            "Image/Video · selected": "图像/视频 · 已选中",
+            "audio": "音频",
+            "audio · selected": "音频 · 已选中",
+            "Video only": "仅视频",
+            "Audio only": "仅音频",
+            "Video + embedded audio": "视频 + 内嵌音频",
+            "Full source-duration scale": "完整源时长缩放",
+            "Full audio waveform; crop markers show the selected reference window": "完整音频波形；裁剪标记标示所选参考区间",
+            "Decoding audio waveform…": "正在解码音频波形…",
+            "Open preview and details": "打开预览与详情",
+            "T2VA prompt builder": "T2VA 提示词构建器",
+            "I2VA prompt builder": "I2VA 提示词构建器",
+            "FL2VA prompt builder": "FL2VA 提示词构建器",
+            "L2VA prompt builder": "L2VA 提示词构建器",
+            "REF2VA prompt builder": "REF2VA 提示词构建器",
+            "Image Inpaint prompt builder": "图像修复提示词构建器",
+            "T2VA simple prompt": "T2VA 简易提示词",
+            "I2VA simple prompt": "I2VA 简易提示词",
+            "FL2VA simple prompt": "FL2VA 简易提示词",
+            "L2VA simple prompt": "L2VA 简易提示词",
+            "REF2VA simple prompt": "REF2VA 简易提示词",
+            "Image Inpaint simple prompt": "图像修复简易提示词",
+            "REF2VA prompt builder — write freely; headers are added automatically": "REF2VA 提示词构建器——自由书写即可，字段标题会自动添加",
+            "Prompt": "提示词",
+            "Insert [Shot N]": "插入 [镜头 N]",
+            "Prefill Labels & Summary": "预填标签与摘要",
+            "Generate Subject/Picture/Video/Audio labels from inserted media and fill summary template": "根据已插入的媒体生成主体/图像/视频/音频标签，并填充摘要模板",
+            "Preview Prompt": "预览提示词",
+            "Show the full prompt that will be sent upstream": "查看即将发送给上游的完整提示词",
+            "External prompt detected — builder fields are disabled.": "检测到外部提示词——构建器字段已禁用。",
+            "Write the complete MiniMax H3 prompt...": "在此编写完整的 MiniMax H3 提示词…",
+            "[Shot 1] Start your scene description here...": "[Shot 1] 在此开始描述你的场景…",
+            "Describe ambient sounds, dialogue, effects...": "描述环境音、对白、音效…",
+            "N/A or describe background score...": "填 N/A，或描述背景音乐…",
+            "<Subject 1> is the woman in <Picture 1>, with short dark hair and a red coat.\n<Picture 1> is the opening-frame anchor for [Shot 1].\n<Subject 2> is the walking motion taken from <Video 1>.\n<Video 1> provides the camera path and pacing structure.\n<Audio 1> is the voice-timbre reference for <Subject 1>.": "<Subject 1> 是 <Picture 1> 中的女性，留黑色短发、穿红色外套。\n<Picture 1> 是 [Shot 1] 的首帧锚点。\n<Subject 2> 是取自 <Video 1> 的行走动作。\n<Video 1> 提供镜头运镜路径与节奏结构。\n<Audio 1> 是 <Subject 1> 的音色参考。",
+            "[reference generation + audio reference] Use <Subject 1> from <Picture 1>, the motion and pacing of <Video 1>, and the voice character of <Audio 1>.": "[reference generation + audio reference] 使用 <Picture 1> 中的 <Subject 1>、<Video 1> 的动作与节奏，以及 <Audio 1> 的声音特征。",
+            "<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - identity and clothing remain consistent.\n<Picture 1> ([Shot 1] first frame): fully_preserved - opening composition anchor.\n<Subject 2> (motion transferred to <Subject 1>): attribute_transfer - walk rhythm is applied to <Subject 1>.\n<Video 1> (pacing structure): weak_reference - general timing and camera rhythm are retained.\n<Audio 1>: reference - timbre and delivery are followed without copying the signal.": "<Subject 1>（出现在 [Shot 1]、[Shot 2]）：fully_preserved - 身份与服装保持一致。\n<Picture 1>（[Shot 1] 首帧）：fully_preserved - 开场构图锚点。\n<Subject 2>（动作迁移到 <Subject 1>）：attribute_transfer - 步态节奏应用到 <Subject 1>。\n<Video 1>（节奏结构）：weak_reference - 保留大致时机与镜头节奏。\n<Audio 1>：reference - 遵循音色与表达方式，但不复制原始信号。",
+            "[Shot 1] ... [Shot 2] At 00:04.500, ...": "[Shot 1] …… [Shot 2] 在 00:04.500，……",
+            "Audio environment description...": "音频环境描述…",
+            "N/A or background score...": "填 N/A，或描述背景音乐…",
+            "Close and save (Escape or click outside)": "关闭并保存（Esc 或点击外部）",
+            "Start:": "起始：",
+            "End:": "结束：",
+            "▶ Play crop": "▶ 播放裁剪片段",
+            "Playing crop…": "裁剪片段播放中…",
+            "Play only the current crop range": "仅播放当前裁剪区间",
+            "Drag the highlighted crop to move it; drag either end marker to resize it.": "拖动高亮裁剪区可移动；拖动两端标记可调整大小。",
+            "Save": "保存",
+            "Cancel": "取消",
+            "Full media preview": "完整媒体预览",
+            "Done": "完成",
+            "Copy": "复制",
+            "All media and prompts cleared.": "已清空全部媒体与提示词。",
+            "FL2VA supports image references only; video and audio are unavailable.": "FL2VA 仅支持图像参考，视频与音频不可用。",
+            "This media type is not available in the selected MiniMax mode.": "所选 MiniMax 模式不支持此媒体类型。",
+            "FL2VA supports image references only; select the Image/Video lane.": "FL2VA 仅支持图像参考；请选择图像/视频轨道。",
+            "Upload failed": "上传失败",
+            "T2VA has no input lanes.": "T2VA 没有输入轨道。",
+            "This mode does not support audio references.": "此模式不支持音频参考。",
+            "Audio lane selected. Paste files here with Ctrl+V.": "已选择音频轨道。可用 Ctrl+V 在此粘贴文件。",
+            "Image/Video lane selected. Paste files here with Ctrl+V.": "已选择图像/视频轨道。可用 Ctrl+V 在此粘贴文件。"
+        }
+    },
+    "MiniMaxH3DirectorGuide": {
+        "title": "🎬 DaSiWa_MiniMax H3 导演执行器",
+        "description": "将导演指南转换为原生 MiniMax H3 节点调用：根据指南的模式，调用 MiniMaxH3ImageToVideo 或 MiniMaxH3ReferenceToVideo，生成 conditioning 与 latent。",
+        "inputs": {
+            "clip": "CLIP",
+            "vae": "VAE",
+            "guide": "导演指南",
+            "audio_vae": "音频 VAE"
+        },
+        "widgets": {},
+        "outputs": {
+            "positive": "正向 conditioning",
+            "latent": "Latent"
+        }
+    },
+    "MiniMaxH3Cache": {
+        "title": "⚡ DaSiWa_MiniMax H3 残差缓存",
+        "description": "为 MiniMax H3 模型添加近似整块残差缓存：在选定的步数范围内复用上一次的 block-stack 输出，跳过昂贵的重计算以提升速度。阈值越高跳过越多，可能降低保真度。",
+        "inputs": {
+            "model": "模型"
+        },
+        "widgets": {
+            "reuse_threshold": "复用阈值",
+            "start_percent": "起始百分比",
+            "end_percent": "结束百分比",
+            "max_steps": "最大跳过步数",
+            "device": "设备",
+            "verbose": "详细日志"
+        },
+        "outputs": {
+            "MODEL": "模型"
+        }
+    }
+}

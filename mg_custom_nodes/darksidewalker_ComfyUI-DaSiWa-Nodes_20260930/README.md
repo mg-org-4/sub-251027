@@ -70,13 +70,14 @@ MiniMax H3 Cache ──► Patch Comfy Kitchen Attention ──► Guider / Samp
 
 ### 💎 RTX Upscaler & Refiner
 
-State-of-the-art image and video enhancement using NVIDIA RTX Video SDK. It executes up to three sequential passes (Denoise, Deblur, and Upscale) in a single node, processing frame-by-frame to keep VRAM usage predictable and low.
+NVIDIA RTX Video SDK enhancement with Denoise, Deblur and VSR/High Bitrate upscaling. Processing uses bounded frame windows and produces one standard ComfyUI `IMAGE` batch.
 
 - **Refine:** Independent Denoise and Deblur passes (both off by default).
 - **Upscale:** AI-powered VSR and High Bitrate upscaling.
 - **Smart Sizing:** Multiple resize modes including Constant Megapixel targets.
-- **Efficiency:** Frame-by-frame processing for minimal VRAM usage.
-- **Memory Control:** The output batch is allocated lazily (like the reference NVIDIA node — the kernel decides, no up-front memory pressure, no temp file). A disk-backed (mmap) fallback (`use_mmap`, off by default) is opt-in for very long video batches: when enabled it is the last tier of the VRAM -> RAM -> disk chain, taken only when available RAM is still short after automatic model unloading (`auto_unload_models`, on by default). **Warning:** enabling `use_mmap` writes a multi-giB `.mmap` temp file to your temp drive for the whole run.
+- **Efficiency:** Internal `chunking` (on, 16 frames by default) bounds processing intermediates; the final output remains a single `IMAGE` batch.
+- **Lossless output storage:** `lossless_fp16` (on by default) uses FP16 only if every output value round-trips exactly and memory headroom permits; typical VSR output remains FP32.
+- **Memory Control:** Full input and output batches still scale with video duration and may be cached by ComfyUI; internal chunking is not constant-memory streaming. The output is allocated lazily in VRAM or RAM. Optional `use_mmap` enables a disk-backed last resort (off by default); `auto_unload_models` is on by default.
 
 ![RTX_UpscalerRefiner.png](assets/RTX_UpscalerRefiner.png)
 
@@ -234,14 +235,14 @@ IMAGE ────────────────────────�
 
 ### 🖥️ System Monitor
 
-A compact telemetry bar that defaults to its own row below ComfyUI's top controls, leaving Run, panel navigation, and custom-node buttons accessible.
+A compact telemetry bar that defaults to its own row below ComfyUI's top controls; switching to Ultra compact docks a small card on the right.
 
 - **Multi-GPU Support:** Separate metrics per GPU device (NVIDIA, AMD, Intel) labeled as GPU0, GPU1, etc.
 - **Resource Metrics:** CPU, RAM, SWAP/Pagefile, DISK, GPU Utilization, GPU VRAM, and GPU Temperature.
 - **Visual Feedback:** Color-coded borders and proportional background fills (0–100%) for instant at-a-glance assessment.
-- **Lite / Full Modes:** Lite defaults to one row of meters; Full shows detailed values and live 60-second graphs.
-- **Resizable Lite Bar:** Drag its corner horizontally; meters keep their size and wrap into new rows as the bar narrows. Reset to default Lite bar from its menu.
-- **Dock or Float:** Keep the separate top row, dock left or right, or drag the dotted grip to float the monitor. Placement and width persist across reloads.
+- **Lite / Ultra compact / Full Modes:** Lite defaults to a top toolbar row; Ultra compact switches to a right-docked card with every enabled metric visible; Full shows detailed values and live 60-second graphs.
+- **Resizable Lite Bar:** Drag its corner horizontally; meters keep their size and wrap into new rows as the bar narrows. Reset to the default Lite bar from its menu.
+- **Dock or Float:** The default is a separate top row; Ultra compact switches to the right. Either mode can then be docked elsewhere or floated. Placement and Lite width persist across reloads.
 - **Viewport-Aware Menu:** The settings menu opens toward available screen space; separate background and drawing/text/lines opacity sliders are also available in ComfyUI Settings.
 - **Cross-Platform:** Works on Linux and Windows with automatic fallback detection for GPU tools.
 - **Container-safe:** In containers and sandboxes where parts of `/proc` are missing (e.g. `/proc/vmstat`), probes degrade to `n/a` instead of warning every second. Set `DASWA_SYSTEM_MONITOR=0` (also `false`/`no`/`off`/`disable`) to fully stop the backend polling thread.
@@ -254,6 +255,10 @@ A compact telemetry bar that defaults to its own row below ComfyUI's top control
 **Full mode**
 
 ![DaSiWa_System_Monitor-full.png](assets/DaSiWa_System_Monitor-full.png)
+
+**Ultra-Compact mode**
+
+![Ultra compact system monitor](assets/DaSiWa_System_Monitor-ultracompact.png)
 
 [Full documentation →](docs/system_monitor.md)
 

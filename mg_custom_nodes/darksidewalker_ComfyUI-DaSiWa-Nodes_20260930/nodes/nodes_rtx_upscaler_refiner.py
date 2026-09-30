@@ -431,6 +431,24 @@ def _create_vfx_effect(VideoSuperRes, q_level, device_index: int):
 
     raise last_type_error
 
+def _lossless_fp16_image_batch(images, chunk_frames):
+    """Check exactness in bounded windows before making a full-size FP16 copy."""
+    if images.dtype != torch.float32:
+        return images
+    window_frames = min(chunk_frames, max(1, MAX_CHUNK_OUTPUT_PIXELS // max(1, images.shape[1] * images.shape[2])))
+    for start in range(0, len(images), window_frames):
+        part = images[start:start + window_frames]
+        if not torch.equal(part.to(torch.float16).to(torch.float32), part):
+            return images
+    half_bytes = images.numel() * 2
+    if images.device.type == "cuda":
+        if not _can_fit_in_vram(half_bytes, images.device):
+            return images
+    elif images.device.type == "cpu" and not can_allocate_in_ram(half_bytes):
+        return images
+    return images.to(torch.float16)
+
+
 def _close_vfx_effect(effect):
     for method_name in ("close", "destroy", "unload"):
         method = getattr(effect, method_name, None)
@@ -449,6 +467,18 @@ def _run_vfx_effect(effect, frame, cuda_device):
     res = effect.run(frame)
     torch.cuda.synchronize(cuda_device)
     return torch.from_dlpack(res.image).clone().contiguous()
+
+def _run_vfx_effect_into(effect, frame, row, cuda_device):
+    """Copy the SDK-owned output directly before the next SDK call reuses it."""
+    if not frame.is_contiguous():
+        frame = frame.contiguous()
+    torch.cuda.current_stream(cuda_device).synchronize()
+    result = effect.run(frame)
+    torch.cuda.synchronize(cuda_device)
+    borrowed = torch.from_dlpack(result.image)
+    row.copy_(borrowed.permute(1, 2, 0))
+    row.clamp_(0.0, 1.0)
+
 
 @contextlib.contextmanager
 def _maybe_vfx_effect(vfx_api, enabled, mode, quality, device_index, out_width, out_height):
@@ -521,6 +551,9 @@ class DaSiWa_RTX_UpscalerRefiner:
                 "empty_cache": ("BOOLEAN", {"default": False, "description": "Run a lightweight GC + empty_cache before allocation; also calls model_management.soft_empty_cache() to ask ComfyUI models to unload, which can free VRAM but may slow subsequent nodes."}),
                 "use_mmap": ("BOOLEAN", {"default": False, "description": "OFF (default): never use disk — the output is allocated lazily in memory (VRAM when it fits, otherwise RAM) and the kernel decides, like the reference NVIDIA node. **WARN:** enable this ONLY for very long video batches that genuinely exceed available RAM; when on, disk is used as the last tier of the VRAM -> RAM -> disk chain and a multi-giB .mmap temp file is written to your temp drive for the whole run."}),
                 "auto_unload_models": ("BOOLEAN", {"default": True, "description": "When VRAM/RAM is insufficient for the output, automatically unload ComfyUI-managed models (like the manual 'empty cache' but a full unload) and re-check before falling back to disk. Off: skip the unload and fall back directly."}),
+                "chunking": ("BOOLEAN", {"default": True, "description": "Process frames in bounded internal chunks; output remains one standard IMAGE batch."}),
+                "lossless_fp16": ("BOOLEAN", {"default": True, "description": "Use FP16 for output storage only when every FP32 pixel round-trips exactly; otherwise keep FP32. May provide no saving for typical VSR output."}),
+                "chunk_frames": ("INT", {"default": 16, "min": 1, "max": 1024, "step": 1, "description": "Maximum frames per internal output-processing chunk."}),
             },
         }
 
@@ -563,6 +596,9 @@ class DaSiWa_RTX_UpscalerRefiner:
         empty_cache=False,
         use_mmap=False,
         auto_unload_models=True,
+        chunking=True,
+        lossless_fp16=True,
+        chunk_frames=16,
     ):
         if not torch.cuda.is_available():
             raise RuntimeError("NVIDIA RTX VFX requires CUDA. No CUDA devices found.")
@@ -587,8 +623,11 @@ class DaSiWa_RTX_UpscalerRefiner:
             # For simplicity, if upscale is off, we use source dimensions.
             target_width, target_height = source_width, source_height
 
+        if not isinstance(chunk_frames, int) or chunk_frames < 1:
+            raise ValueError("chunk_frames must be at least 1")
         if not has_effects:
-            return (images[:, :, :, :3],)
+            frames = images[:, :, :, :3]
+            return (_lossless_fp16_image_batch(frames, chunk_frames) if lossless_fp16 else frames,)
 
         if upscale_enabled and target_width * target_height < source_width * source_height:
             log_dasiwa(
@@ -607,7 +646,6 @@ class DaSiWa_RTX_UpscalerRefiner:
 
         out_device = images.device
         out_dtype = images.dtype
-        output_shape = (batch_size, target_height, target_width, 3)
         projected_bytes = _projected_output_bytes(batch_size, target_width, target_height, out_dtype)
         log_dasiwa(
             "RTX Upscaler & Refiner",
@@ -615,7 +653,7 @@ class DaSiWa_RTX_UpscalerRefiner:
             f"frames={batch_size}, output={projected_bytes / 1024 ** 3:.2f} GiB.",
         )
         out, mmap_path = _allocate_output_tensor(
-            output_shape, out_dtype, out_device,
+            (batch_size, target_height, target_width, 3), out_dtype, out_device,
             soft_empty_cache=empty_cache,
             allow_mmap=use_mmap,
             auto_unload_models=auto_unload_models,
@@ -642,58 +680,63 @@ class DaSiWa_RTX_UpscalerRefiner:
                         device_id, target_width, target_height
                     ) as upscale_effect:
 
-                        for start in range(0, batch_size, frames_per_chunk):
-                            end = min(start + frames_per_chunk, batch_size)
-                            chunk = (
-                                images[start:end, :, :, :3]
-                                .to(device=cuda_device, dtype=torch.float32, non_blocking=True)
-                                .permute(0, 3, 1, 2)
-                                .contiguous()
-                            )
-                            for local_index in range(end - start):
-                                global_index = start + local_index
-                                frame = chunk[local_index]
+                        step = chunk_frames if chunking else (batch_size or 1)
+                        for start in range(0, batch_size, step):
+                            stop = min(start + step, batch_size)
+                            for batch_start in range(start, stop, frames_per_chunk):
+                                batch_end = min(batch_start + frames_per_chunk, stop)
+                                chunk = (
+                                    images[batch_start:batch_end, :, :, :3]
+                                    .to(device=cuda_device, dtype=torch.float32, non_blocking=True)
+                                    .permute(0, 3, 1, 2)
+                                    .contiguous()
+                                )
+                                for local_index in range(batch_end - batch_start):
+                                    global_index = batch_start + local_index
+                                    frame = chunk[local_index]
+                                    assert out is not None
+                                    row = out[global_index]
 
-                                if denoise_effect:
-                                    frame = _run_vfx_effect(denoise_effect, frame, cuda_device)
+                                    if denoise_effect:
+                                        if not deblur and not upscale_enabled:
+                                            _run_vfx_effect_into(denoise_effect, frame, row, cuda_device)
+                                            continue
+                                        frame = _run_vfx_effect(denoise_effect, frame, cuda_device)
 
-                                if deblur_effect:
-                                    frame = _run_vfx_effect(deblur_effect, frame, cuda_device)
+                                    if deblur_effect:
+                                        if not upscale_enabled:
+                                            _run_vfx_effect_into(deblur_effect, frame, row, cuda_device)
+                                            continue
+                                        frame = _run_vfx_effect(deblur_effect, frame, cuda_device)
 
-                                if upscale_enabled:
-                                    if fit_to_target_aspect:
-                                        frame = _fit_frame_to_target_aspect(
-                                            frame, target_width, target_height, resize_method
+                                    if upscale_enabled:
+                                        if fit_to_target_aspect:
+                                            frame = _fit_frame_to_target_aspect(
+                                                frame, target_width, target_height, resize_method
+                                            )
+                                        if upscale_effect:
+                                            _run_vfx_effect_into(upscale_effect, frame, row, cuda_device)
+                                            continue
+
+                                    if out_device == cuda_device and out_dtype == frame.dtype:
+                                        row.copy_(frame.permute(1, 2, 0), non_blocking=True)
+                                        row.clamp_(0.0, 1.0)
+                                    else:
+                                        row.copy_(
+                                            frame.permute(1, 2, 0).clamp(0.0, 1.0),
+                                            non_blocking=(out_device.type == "cuda"),
                                         )
-                                    if upscale_effect:
-                                        frame = _run_vfx_effect(upscale_effect, frame, cuda_device)
 
-                                row = out[global_index]  # (H,W,3) view into the output, on out_device
-                                if out_device == cuda_device and out_dtype == frame.dtype:
-                                    # In-VRAM path: zero extra buffers. A zero-copy permute
-                                    # view feeds an in-place copy into the row, then clamp
-                                    # in place (the row aliases the output, never the input).
-                                    # Matches the reference node's single in-place write.
-                                    row.copy_(frame.permute(1, 2, 0), non_blocking=True)
-                                    row.clamp_(0.0, 1.0)
-                                else:
-                                    # Cross-device/dtype path (e.g. CPU output): one
-                                    # materialized buffer for the transpose + clamp; the
-                                    # copy_ below transfers and casts into the row.
-                                    row.copy_(
-                                        frame.permute(1, 2, 0).clamp(0.0, 1.0),
-                                        non_blocking=(out_device.type == "cuda"),
-                                    )
+                                torch.cuda.synchronize(cuda_device)
+                                if out_device.type == "cuda":
+                                    torch.cuda.synchronize(out_device)
+                                del chunk
 
-                            torch.cuda.synchronize(cuda_device)
-                            if out_device.type == "cuda":
-                                torch.cuda.synchronize(out_device)
-                            del chunk
-
-        # Proactive cleanup: force GC to release mmap files immediately,
-        # preventing swap/pagefile buildup from lingering temp tensors.
+        # Cleanup only after the effect has finished; outputs remain owned by ComfyUI.
         force_gc_and_cleanup(_temporary_output_directory())
 
+        if lossless_fp16:
+            out = _lossless_fp16_image_batch(out, chunk_frames)
         return (out,)
 
 NODE_CLASS_MAPPINGS = {

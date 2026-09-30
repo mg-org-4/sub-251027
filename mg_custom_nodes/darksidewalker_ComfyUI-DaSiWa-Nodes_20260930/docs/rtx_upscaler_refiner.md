@@ -55,6 +55,16 @@ Check these settings first when users report degraded quality:
 | **device_id** | If you have multiple GPUs, set this to the index of your RTX card (usually `0`). |
 | **use_mmap** | **Off** (default): disk is never used — the output is allocated lazily in memory (VRAM when it fits, otherwise RAM) and the kernel decides. **On**: opt-in disk-backed (mmap) fallback as the last tier of the VRAM -> RAM -> disk chain; it writes a multi-giB `.mmap` temp file to your temp drive for the whole run. Only enable it for very long video batches that genuinely exceed available RAM. |
 | **auto_unload_models** | **On** (default): when free VRAM/RAM is insufficient for the output, unloads ComfyUI-managed models (a full `unload_all_models`, like the manual empty-cache path but more thorough) and re-checks before falling back to disk. **Off**: fall back immediately without unloading. |
+| **chunking / chunk_frames** | **On** (default), 16 frames: internally bound the processing loop while retaining the regular node's **one IMAGE batch** output for standard ComfyUI nodes. This does **not** bound the total input/output allocation. |
+| **lossless_fp16** | **On** (default): store the complete output as FP16 only if *all* FP32 pixels round-trip exactly; otherwise keep FP32. It checks in windows and skips the full conversion if memory headroom is insufficient. NVIDIA VFX still receives FP32; typical VSR output usually remains FP32. |
+
+## Regular IMAGE workflow (local test)
+
+`Load Video → Get Video Components → DaSiWa RTX Upscaler & Refiner → Enhanced Video Combine` uses one ordinary ComfyUI `IMAGE` batch throughout. Link `Get Video Components.audio` to the Combine node's `audio` input and its `fps` to `frame_rate`. The RTX node processes bounded internal frame windows and copies the final SDK output directly into each output frame before the SDK can reuse its buffer. Existing saved node and widget positions remain unchanged; the three optional controls were appended.
+
+**Memory limit:** `Get Video Components` materializes the entire input, the RTX node allocates the entire output batch, and ComfyUI may cache both after the run. Internal `chunking` limits only processing intermediates—not total RAM or VRAM across a long video. `lossless_fp16` reduces output storage only when **every FP32 pixel survives FP32 → FP16 → FP32 exactly** and memory headroom permits the conversion; otherwise the complete output remains FP32. NVIDIA VFX still receives FP32. Typical VSR output is unlikely to qualify. Neither switch provides constant-memory upscaling of arbitrarily long videos.
+
+Workflows saved with the removed experimental `(Chunked)` RTX and `(Chunks)` Combine nodes must be rewired to the regular RTX and Enhanced Video Combine nodes; the old node IDs are no longer registered.
 
 ## 💾 Disk-Backed (mmap) Output — `use_mmap`
 

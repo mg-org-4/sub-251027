@@ -1619,7 +1619,9 @@ function resolveSubjectAssignments(parts) {
         if (part.muted) {
             return {
                 ...part,
-                effective_subject_number: clampSubjectNumber(currentSubject, SUBJECT_MIN),
+                effective_subject_number: part.subject_locked
+                    ? part.subject_number
+                    : clampSubjectNumber(currentSubject, SUBJECT_MIN),
             };
         }
         if (part.subject_locked && part.subject_number !== SUBJECT_NONE) {
@@ -2541,6 +2543,17 @@ function ensureComposerUi(node) {
         return true;
     };
 
+    const clearMutedComposerParts = () => {
+        if (isComposerEditLocked(node)) return false;
+        const parts = readParts(node);
+        const remaining = parts.filter((part) => part.muted !== true);
+        if (remaining.length === parts.length) return false;
+        writeParts(node, remaining);
+        clearSelectedPartIndices(node);
+        render();
+        return true;
+    };
+
     const showBackgroundContextMenu = (evt) => {
         evt.preventDefault();
         evt.stopPropagation();
@@ -2560,31 +2573,34 @@ function ensureComposerUi(node) {
             box-shadow: 0 4px 12px rgba(0,0,0,0.45);
         `;
 
-        const hasParts = readParts(node).length > 0;
-        const disabled = !hasParts || isComposerEditLocked(node);
-
-        const item = document.createElement("div");
-        item.textContent = "Clear Node";
-        item.style.cssText = `
-            padding: 7px 12px;
-            font-size: 12px;
-            color: ${disabled ? "#666" : "#ddd"};
-            cursor: ${disabled ? "default" : "pointer"};
-            user-select: none;
-        `;
-        if (!disabled) {
-            item.onmouseenter = () => {
-                item.style.background = UI.accentSoft || "rgba(56,130,246,0.2)";
-            };
-            item.onmouseleave = () => {
-                item.style.background = "transparent";
-            };
-            item.onclick = () => {
-                removeContextMenu();
-                clearComposerNode();
-            };
-        }
-        menu.appendChild(item);
+        const parts = readParts(node);
+        const editLocked = isComposerEditLocked(node);
+        const addItem = (label, disabled, action) => {
+            const item = document.createElement("div");
+            item.textContent = label;
+            item.style.cssText = `
+                padding: 7px 12px;
+                font-size: 12px;
+                color: ${disabled ? "#666" : "#ddd"};
+                cursor: ${disabled ? "default" : "pointer"};
+                user-select: none;
+            `;
+            if (!disabled) {
+                item.onmouseenter = () => {
+                    item.style.background = UI.accentSoft || "rgba(56,130,246,0.2)";
+                };
+                item.onmouseleave = () => {
+                    item.style.background = "transparent";
+                };
+                item.onclick = () => {
+                    removeContextMenu();
+                    action();
+                };
+            }
+            menu.appendChild(item);
+        };
+        addItem("Clear All Nodes", editLocked || parts.length === 0, clearComposerNode);
+        addItem("Clear Muted Nodes", editLocked || !parts.some((part) => part.muted === true), clearMutedComposerParts);
 
         document.body.appendChild(menu);
         node._composerContextMenu = menu;
@@ -3146,10 +3162,10 @@ function ensureComposerUi(node) {
             subjectBadge.type = "button";
             subjectBadge.textContent = `#${padSubjectNumber(part.effective_subject_number)}`;
             subjectBadge.title = part.effective_subject_number === SUBJECT_NONE
-                ? "Not a subject. Click to attach to the previous subject, right-click for options."
+                ? "Not a subject. Click to attach to the previous subject, middle- or right-click to reset."
                 : part.subject_locked
-                ? "Custom subject. Click to advance, Shift-click to go back, right-click for auto mode."
-                : "Auto subject. Click to create a custom subject, right-click for options.";
+                ? "Custom subject. Click to advance, Shift-click to go back, middle- or right-click to reset."
+                : "Auto subject. Click to create a custom subject, middle- or right-click to reset.";
             subjectBadge.style.cssText = `
                 position: absolute;
                 left: 4px;
@@ -3168,7 +3184,25 @@ function ensureComposerUi(node) {
                 box-sizing: border-box;
                 cursor: pointer;
             `;
+            const resetSubjectBadge = () => {
+                const next = [...readParts(node)];
+                if (!next[index]) return;
+                const resetSubject = categoryShouldBeNonSubject(node, next[index].category)
+                    ? { subject_number: SUBJECT_NONE, subject_locked: true }
+                    : categoryStartsNewSubject(node, next[index].category)
+                        ? inferPartSubjectState(node, next[index].category, null, getInheritedSubjectDefaults(next.slice(0, index)), { bumpSubject: true })
+                        : { subject_locked: false };
+                next[index] = normalizePart({
+                    ...next[index],
+                    ...resetSubject,
+                });
+                writeParts(node, next);
+                render();
+            };
             subjectBadge.addEventListener("mousedown", (evt) => {
+                if (evt.button === 1) {
+                    evt.preventDefault();
+                }
                 evt.stopPropagation();
             });
             subjectBadge.addEventListener("mouseup", (evt) => {
@@ -3191,22 +3225,16 @@ function ensureComposerUi(node) {
                 writeParts(node, next);
                 render();
             });
+            subjectBadge.addEventListener("auxclick", (evt) => {
+                if (evt.button !== 1) return;
+                evt.preventDefault();
+                evt.stopPropagation();
+                resetSubjectBadge();
+            });
             subjectBadge.addEventListener("contextmenu", (evt) => {
                 evt.preventDefault();
                 evt.stopPropagation();
-                const next = [...readParts(node)];
-                if (!next[index]) return;
-                const resetSubject = categoryShouldBeNonSubject(node, next[index].category)
-                    ? { subject_number: SUBJECT_NONE, subject_locked: true }
-                    : categoryStartsNewSubject(node, next[index].category)
-                        ? inferPartSubjectState(node, next[index].category, null, getInheritedSubjectDefaults(next.slice(0, index)), { bumpSubject: true })
-                        : { subject_locked: false };
-                next[index] = normalizePart({
-                    ...next[index],
-                    ...resetSubject,
-                });
-                writeParts(node, next);
-                render();
+                resetSubjectBadge();
             });
             thumbBtn.appendChild(subjectBadge);
 
@@ -3259,6 +3287,7 @@ function ensureComposerUi(node) {
 
             const inlineAddBtn = document.createElement("button");
             inlineAddBtn.type = "button";
+            inlineAddBtn.dataset.composerPartInlineAdd = "1";
             inlineAddBtn.textContent = "+";
             inlineAddBtn.title = "Add a new prompt part after this one";
             inlineAddBtn.style.cssText = `
@@ -3567,9 +3596,13 @@ function ensureComposerUi(node) {
     }, true);
 
     root.addEventListener("contextmenu", (evt) => {
+        if (evt.target?.closest?.("[data-composer-part-inline-add='1']")) {
+            showBackgroundContextMenu(evt);
+            return;
+        }
         if (evt.target?.closest?.("[data-composer-part-card='1']")) return;
-        if (evt.target?.closest?.("[data-composer-part-add='1']")) return;
-        if (evt.target?.closest?.("input, button, textarea, select")) return;
+        if (evt.target?.closest?.("input, textarea, select")) return;
+        if (evt.target?.closest?.("button") && !evt.target?.closest?.("[data-composer-part-add='1']")) return;
         showBackgroundContextMenu(evt);
     }, true);
 

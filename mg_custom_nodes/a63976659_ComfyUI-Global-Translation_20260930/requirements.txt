@@ -1,0 +1,4 @@
+# No extra pip packages are required.
+# This is a pure UI translation extension: everything it imports at runtime
+# (aiohttp, server, folder_paths, nodes, and the Python standard library) is
+# already provided by ComfyUI itself.

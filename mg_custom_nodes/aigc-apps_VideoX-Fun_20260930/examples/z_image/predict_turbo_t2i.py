@@ -1,0 +1,199 @@
+import os
+import sys
+
+import torch
+from diffusers import FlowMatchEulerDiscreteScheduler
+
+current_file_path = os.path.abspath(__file__)
+project_roots = [os.path.dirname(current_file_path), os.path.dirname(os.path.dirname(current_file_path)), os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))]
+for project_root in project_roots:
+    sys.path.insert(0, project_root) if project_root not in sys.path else None
+
+from videox_fun.dist import set_multi_gpus_devices, shard_model
+from videox_fun.models import (AutoencoderKL, AutoTokenizer, Qwen3ForCausalLM,
+                               ZImageTransformer2DModel)
+from videox_fun.pipeline import ZImagePipeline
+from videox_fun.utils import (FlowDPMSolverMultistepScheduler,
+                              FlowUniPCMultistepScheduler,
+                              apply_gpu_memory_mode, merge_lora, unmerge_lora)
+
+# GPU memory mode, which can be chosen in [model_full_load, model_full_load_and_qfloat8, model_cpu_offload, model_cpu_offload_and_qfloat8, model_group_offload, sequential_cpu_offload].
+# model_full_load means that the entire model will be moved to the GPU.
+# 
+# model_full_load_and_qfloat8 means that the entire model will be moved to the GPU,
+# and the transformer model has been quantized to float8, which can save more GPU memory. 
+# 
+# model_cpu_offload means that the entire model will be moved to the CPU after use, which can save some GPU memory.
+# 
+# model_cpu_offload_and_qfloat8 indicates that the entire model will be moved to the CPU after use, 
+# and the transformer model has been quantized to float8, which can save more GPU memory. 
+# 
+# model_group_offload transfers internal layer groups between CPU/CUDA, 
+# balancing memory efficiency and speed between full-module and leaf-level offloading methods.
+# 
+# sequential_cpu_offload means that each layer of the model will be moved to the CPU after use, 
+# resulting in slower speeds but saving a large amount of GPU memory.
+GPU_memory_mode     = "model_cpu_offload"
+# Multi GPUs config
+# Please ensure that the product of ulysses_degree and ring_degree equals the number of GPUs used. 
+# For example, if you are using 8 GPUs, you can set ulysses_degree = 2 and ring_degree = 4.
+# If you are using 1 GPU, you can set ulysses_degree = 1 and ring_degree = 1.
+ulysses_degree      = 1
+ring_degree         = 1
+# Use FSDP to save more GPU memory in multi gpus.
+fsdp_dit            = False
+fsdp_text_encoder   = False
+# Compile will give a speedup in fixed resolution and need a little GPU memory. 
+# The compile_dit is not compatible with the fsdp_dit and sequential_cpu_offload.
+compile_dit         = False
+
+# model path
+model_name          = "models/Diffusion_Transformer/Z-Image-Turbo"
+
+# Choose the sampler in "Flow", "Flow_Unipc", "Flow_DPM++"
+sampler_name        = "Flow"
+
+# Load pretrained model if need
+transformer_path    = None
+vae_path            = None
+lora_path           = None
+
+# Other params
+sample_size         = [1728, 992]
+
+# Use torch.float16 if GPU does not support torch.bfloat16
+# Some graphics cards, such as v100, 2080ti, do not support torch.bfloat16
+weight_dtype        = torch.bfloat16
+# Please use as detailed a prompt as possible to describe the object that needs to be generated.
+prompt              = "一位年轻女子站在阳光明媚的海岸线上，白裙在轻拂的海风中微微飘动。她拥有一头鲜艳的紫色长发，在风中轻盈舞动，发间系着一个精致的黑色蝴蝶结，与身后柔和的蔚蓝天空形成鲜明对比。她面容清秀，眉目精致，透着一股甜美的青春气息；神情柔和，略带羞涩，目光静静地凝望着远方的地平线，双手自然交叠于身前，仿佛沉浸在思绪之中。在她身后，是辽阔无垠、波光粼粼的大海，阳光洒在海面上，映出温暖的金色光晕。"
+negative_prompt     = " "
+guidance_scale      = 0.00
+seed                = 43
+num_inference_steps = 9
+lora_weight         = 0.55
+save_path           = "samples/z-image-t2i"
+
+device = set_multi_gpus_devices(ulysses_degree, ring_degree)
+
+transformer = ZImageTransformer2DModel.from_pretrained(
+    model_name, 
+    subfolder="transformer",
+    low_cpu_mem_usage=True,
+    torch_dtype=weight_dtype,
+).to(weight_dtype)
+
+if transformer_path is not None:
+    print(f"From checkpoint: {transformer_path}")
+    if transformer_path.endswith("safetensors"):
+        from safetensors.torch import load_file
+        state_dict = load_file(transformer_path)
+    else:
+        state_dict = torch.load(transformer_path, map_location="cpu")
+    state_dict = state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+
+    m, u = transformer.load_state_dict(state_dict, strict=False)
+    print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
+
+# Get Vae
+vae = AutoencoderKL.from_pretrained(
+    model_name, 
+    subfolder="vae"
+).to(weight_dtype)
+
+if vae_path is not None:
+    print(f"From checkpoint: {vae_path}")
+    if vae_path.endswith("safetensors"):
+        from safetensors.torch import load_file
+        state_dict = load_file(vae_path)
+    else:
+        state_dict = torch.load(vae_path, map_location="cpu")
+    state_dict = state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+
+    m, u = vae.load_state_dict(state_dict, strict=False)
+    print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
+
+# Get tokenizer and text_encoder
+tokenizer = AutoTokenizer.from_pretrained(
+    model_name, subfolder="tokenizer"
+)
+text_encoder = Qwen3ForCausalLM.from_pretrained(
+    model_name, subfolder="text_encoder", torch_dtype=weight_dtype,
+    low_cpu_mem_usage=True,
+)
+
+# Get Scheduler
+Chosen_Scheduler = {
+    "Flow": FlowMatchEulerDiscreteScheduler,
+    "Flow_Unipc": FlowUniPCMultistepScheduler,
+    "Flow_DPM++": FlowDPMSolverMultistepScheduler,
+}[sampler_name]
+scheduler = Chosen_Scheduler.from_pretrained(
+    model_name, 
+    subfolder="scheduler"
+)
+
+pipeline = ZImagePipeline(
+    vae=vae,
+    tokenizer=tokenizer,
+    text_encoder=text_encoder,
+    transformer=transformer,
+    scheduler=scheduler,
+)
+
+if ulysses_degree > 1 or ring_degree > 1:
+    from functools import partial
+    transformer.enable_multi_gpus_inference()
+    if fsdp_dit:
+        shard_fn = partial(shard_model, device_id=device, param_dtype=weight_dtype, module_to_wrapper=list(transformer.layers))
+        pipeline.transformer = shard_fn(pipeline.transformer)
+        print("Add FSDP DIT")
+    if fsdp_text_encoder:
+        shard_fn = partial(shard_model, device_id=device, param_dtype=weight_dtype, module_to_wrapper=list(text_encoder.model.layers))
+        pipeline.text_encoder = shard_fn(pipeline.text_encoder)
+        print("Add FSDP TEXT ENCODER")
+
+if compile_dit:
+    for i in range(len(pipeline.transformer.transformer_blocks)):
+        pipeline.transformer.transformer_blocks[i] = torch.compile(pipeline.transformer.transformer_blocks[i])
+    print("Add Compile")
+
+# Quantize (when the mode carries an "_and_<quant>" suffix) and then place the pipeline.
+# The order lives inside the helper: quantization has to happen before the offload hooks
+# are installed.
+apply_gpu_memory_mode(pipeline, GPU_memory_mode, device, weight_dtype, exclude_module_name=['x_pad_token', 'cap_pad_token'])
+
+generator = torch.Generator(device=device).manual_seed(seed)
+
+if lora_path is not None:
+    pipeline = merge_lora(pipeline, lora_path, lora_weight, device=device, dtype=weight_dtype)
+
+with torch.no_grad():
+    sample = pipeline(
+        prompt      = prompt, 
+        height      = sample_size[0],
+        width       = sample_size[1],
+        generator   = generator,
+        guidance_scale = guidance_scale,
+        num_inference_steps = num_inference_steps,
+    ).images
+
+if lora_path is not None:
+    pipeline = unmerge_lora(pipeline, lora_path, lora_weight, device=device, dtype=weight_dtype)
+
+def save_results():
+    if not os.path.exists(save_path):
+        os.makedirs(save_path, exist_ok=True)
+
+    index = len([path for path in os.listdir(save_path)]) + 1
+    prefix = str(index).zfill(8)
+    video_path = os.path.join(save_path, prefix + ".png")
+    image = sample[0]
+    image.save(video_path)
+    print(f"Saved image to: {video_path}")
+
+if ulysses_degree * ring_degree > 1:
+    import torch.distributed as dist
+    if dist.get_rank() == 0:
+        save_results()
+else:
+    save_results()

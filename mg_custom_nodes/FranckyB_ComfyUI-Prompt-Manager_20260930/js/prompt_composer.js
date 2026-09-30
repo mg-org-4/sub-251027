@@ -1,0 +1,3756 @@
+import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
+import { PM_UI_PALETTE as UI } from "./ui_palette.js";
+import { DEFAULT_THUMBNAIL, showInfo, showConfirm } from "./prompt_manager_advanced.js";
+import { showThumbnailBrowser } from "./prompt_browser.js";
+import {
+    loadComposerPrompts,
+    getComposerEntry,
+    flattenComposerLibrary,
+    COMPOSER_ENDPOINT_PREFIX,
+    resolveComposerCategoryKey,
+} from "./prompt_composer_common.js";
+
+const PARTS_PROP_KEY = "prompt_composer_parts";
+const THUMB_ZOOM_PROP_KEY = "prompt_composer_thumb_zoom";
+const OUTPUT_FORMAT_PROP_KEY = "prompt_composer_output_format";
+const COMPOSE_POSITION_PROP_KEY = "prompt_composer_compose_position";
+const GENERATION_MODE_PROP_KEY = "prompt_composer_generation_mode";
+const RECIPE_SYNC_MODE_PROP_KEY = "prompt_composer_recipe_sync_mode";
+const INPUT_PROMPT_MODE_PROP_KEY = "prompt_composer_input_prompt_mode";
+const INPUT_LORA_MODE_PROP_KEY = "prompt_composer_input_lora_mode";
+const LEGACY_INPUT_MODE_PROP_KEY = "prompt_composer_input_mode";
+const PARTS_WIDGET_NAME = "parts_data";
+const OUTPUT_FORMAT_WIDGET_NAME = "output_format";
+const COMPOSE_POSITION_WIDGET_NAME = "compose_position";
+const GENERATION_MODE_WIDGET_NAME = "generation_mode";
+const RECIPE_SYNC_MODE_WIDGET_NAME = "recipe_sync_mode";
+const INPUT_PROMPT_MODE_WIDGET_NAME = "input_prompt_mode";
+const INPUT_LORA_MODE_WIDGET_NAME = "input_lora_mode";
+const LEGACY_INPUT_MODE_WIDGET_NAME = "input_mode";
+const PROMPT_COMPOSER_RECIPE_KEY = "prompt_composer";
+const MIN_NODE_WIDTH = 500;
+const MIN_NODE_HEIGHT = 560;
+const HOLD_TO_DRAG_MS = 140;
+const COMPOSER_DRAG_STYLE_ID = "pm-composer-drag-style";
+const THUMB_BASE_WIDTH = 128;
+const COMPOSER_BACKUP_BROWSER_DIR = "/mnt/Neuralnet/ComfyUI/user/default/prompt_backups";
+const DEFAULT_THUMB_ZOOM = 1.0;
+const RESET_THUMB_ZOOM = 1.0;
+const MIN_THUMB_ZOOM = 0.75;
+const MAX_THUMB_ZOOM = 1.5;
+const THUMB_ZOOM_STEPS = [0.75, 1.0, 1.25, 1.5];
+const GRID_GAP = 8;
+const CARD_META_HEIGHT = 62;
+const CARD_META_HEIGHT_VIDEO = 36;
+const NODE_CHROME_HEIGHT = 74;
+const SCROLLER_PADDING_TOP = 6;
+const SCROLLER_PADDING_BOTTOM = 16;
+const SUBJECT_NONE = 0;
+const SUBJECT_MIN = 1;
+const SUBJECT_MAX = 16;
+const SUBJECT_ACCENTS = [
+    { border: "hsla(205, 88%, 60%, 0.95)", soft: "hsla(205, 88%, 60%, 0.18)", strong: "hsla(205, 88%, 44%, 0.95)", text: "hsl(205, 100%, 96%)" },
+    { border: "hsla(40, 92%, 60%, 0.95)", soft: "hsla(40, 92%, 60%, 0.18)", strong: "hsla(40, 92%, 44%, 0.95)", text: "hsl(48, 100%, 96%)" },
+    { border: "hsla(92, 72%, 56%, 0.95)", soft: "hsla(92, 72%, 56%, 0.18)", strong: "hsla(92, 72%, 40%, 0.95)", text: "hsl(92, 100%, 96%)" },
+    { border: "hsla(8, 84%, 64%, 0.95)", soft: "hsla(8, 84%, 64%, 0.18)", strong: "hsla(8, 84%, 48%, 0.95)", text: "hsl(8, 100%, 96%)" },
+    { border: "hsla(248, 80%, 68%, 0.95)", soft: "hsla(248, 80%, 68%, 0.18)", strong: "hsla(248, 80%, 52%, 0.95)", text: "hsl(248, 100%, 97%)" },
+    { border: "hsla(155, 72%, 48%, 0.95)", soft: "hsla(155, 72%, 48%, 0.18)", strong: "hsla(155, 72%, 34%, 0.95)", text: "hsl(155, 100%, 96%)" },
+    { border: "hsla(332, 78%, 62%, 0.95)", soft: "hsla(332, 78%, 62%, 0.18)", strong: "hsla(332, 78%, 46%, 0.95)", text: "hsl(332, 100%, 97%)" },
+    { border: "hsla(92, 72%, 56%, 0.95)", soft: "hsla(92, 72%, 56%, 0.18)", strong: "hsla(92, 72%, 40%, 0.95)", text: "hsl(92, 100%, 96%)" },
+];
+
+function getWidgetByName(node, name) {
+    return node.widgets?.find((w) => w.name === name) || null;
+}
+
+function hideWidget(widget) {
+    if (!widget) return;
+    widget.type = "converted-widget";
+    widget.computeSize = () => [0, -4];
+    widget.hidden = true;
+    widget.draw = function () {};
+}
+
+function readToggleValue(node, widgetName, propKey, fallbackValue) {
+    const propValue = String(node.properties?.[propKey] ?? "").trim();
+    if (propValue) return propValue;
+    const widgetValue = String(getWidgetByName(node, widgetName)?.value ?? "").trim();
+    return widgetValue || fallbackValue;
+}
+
+function writeToggleValue(node, widgetName, propKey, value) {
+    const normalized = String(value || "").trim();
+    const widget = getWidgetByName(node, widgetName);
+    if (widget) {
+        widget.value = normalized;
+    }
+    node.properties = node.properties || {};
+    node.properties[propKey] = normalized;
+    app.graph.setDirtyCanvas(true, true);
+}
+
+function readOutputFormat(node) {
+    return readToggleValue(node, OUTPUT_FORMAT_WIDGET_NAME, OUTPUT_FORMAT_PROP_KEY, "text");
+}
+
+function writeOutputFormat(node, value) {
+    writeToggleValue(node, OUTPUT_FORMAT_WIDGET_NAME, OUTPUT_FORMAT_PROP_KEY, value);
+}
+
+function readComposePosition(node) {
+    return readToggleValue(node, COMPOSE_POSITION_WIDGET_NAME, COMPOSE_POSITION_PROP_KEY, "before");
+}
+
+function writeComposePosition(node, value) {
+    writeToggleValue(node, COMPOSE_POSITION_WIDGET_NAME, COMPOSE_POSITION_PROP_KEY, value);
+}
+
+function readGenerationMode(node) {
+    return readToggleValue(node, GENERATION_MODE_WIDGET_NAME, GENERATION_MODE_PROP_KEY, "image");
+}
+
+function writeGenerationMode(node, value) {
+    writeToggleValue(node, GENERATION_MODE_WIDGET_NAME, GENERATION_MODE_PROP_KEY, value);
+}
+
+function readRecipeSyncMode(node) {
+    return readToggleValue(node, RECIPE_SYNC_MODE_WIDGET_NAME, RECIPE_SYNC_MODE_PROP_KEY, "edit");
+}
+
+function writeRecipeSyncMode(node, value) {
+    writeToggleValue(node, RECIPE_SYNC_MODE_WIDGET_NAME, RECIPE_SYNC_MODE_PROP_KEY, value);
+}
+
+function readInputPromptMode(node) {
+    const legacyValue = String(
+        node.properties?.[LEGACY_INPUT_MODE_PROP_KEY]
+        ?? getWidgetByName(node, LEGACY_INPUT_MODE_WIDGET_NAME)?.value
+        ?? ""
+    ).trim().toLowerCase();
+    const value = readToggleValue(node, INPUT_PROMPT_MODE_WIDGET_NAME, INPUT_PROMPT_MODE_PROP_KEY, "no_prompt");
+    if (value === "no_prompt" && legacyValue === "use_input") {
+        return "use_prompt";
+    }
+    return value === "use_prompt" ? "use_prompt" : "no_prompt";
+}
+
+function writeInputPromptMode(node, value) {
+    writeToggleValue(node, INPUT_PROMPT_MODE_WIDGET_NAME, INPUT_PROMPT_MODE_PROP_KEY, value === "use_prompt" ? "use_prompt" : "no_prompt");
+}
+
+function readInputLoraMode(node) {
+    const legacyValue = String(
+        node.properties?.[LEGACY_INPUT_MODE_PROP_KEY]
+        ?? getWidgetByName(node, LEGACY_INPUT_MODE_WIDGET_NAME)?.value
+        ?? ""
+    ).trim().toLowerCase();
+    const value = readToggleValue(node, INPUT_LORA_MODE_WIDGET_NAME, INPUT_LORA_MODE_PROP_KEY, "no_lora");
+    if (value === "no_lora" && legacyValue === "use_input") {
+        return "use_lora";
+    }
+    return value === "use_lora" ? "use_lora" : "no_lora";
+}
+
+function writeInputLoraMode(node, value) {
+    writeToggleValue(node, INPUT_LORA_MODE_WIDGET_NAME, INPUT_LORA_MODE_PROP_KEY, value === "use_lora" ? "use_lora" : "no_lora");
+}
+
+function hasConnectedRecipeInput(node) {
+    return node?.inputs?.some((input) => (input?.name === "compose_data" || input?.name === "recipe_data") && input.link != null) === true;
+}
+
+function isRecipeSyncEnabled(node) {
+    return readRecipeSyncMode(node) === "sync";
+}
+
+function isComposerEditLocked(node) {
+    return isRecipeSyncEnabled(node) && hasConnectedRecipeInput(node);
+}
+
+let composerPromptTextTooltip = null;
+
+function ensureComposerPromptTextTooltip() {
+    if (composerPromptTextTooltip) return composerPromptTextTooltip;
+    composerPromptTextTooltip = document.createElement("div");
+    composerPromptTextTooltip.setAttribute("data-pm-composer-prompt-tooltip", "true");
+    composerPromptTextTooltip.style.cssText = `
+        position: fixed;
+        display: none;
+        max-width: min(560px, 70vw);
+        max-height: min(340px, 52vh);
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: ${UI.panel};
+        border: 1px solid ${UI.accentBorder};
+        border-radius: 8px;
+        color: ${UI.textPrimary || "#ddd"};
+        font-size: 13px;
+        line-height: 1.45;
+        padding: 12px 14px;
+        box-shadow: 0 10px 28px rgba(0,0,0,0.55);
+        z-index: 10003;
+        pointer-events: none;
+    `;
+    document.body.appendChild(composerPromptTextTooltip);
+    return composerPromptTextTooltip;
+}
+
+function moveComposerPromptTextTooltip(x, y) {
+    if (!composerPromptTextTooltip || composerPromptTextTooltip.style.display === "none") return;
+    const margin = 14;
+    const width = composerPromptTextTooltip.offsetWidth || 360;
+    const height = composerPromptTextTooltip.offsetHeight || 180;
+    let left = x + margin;
+    let top = y + margin;
+    if (left + width > window.innerWidth - 8) {
+        left = Math.max(8, x - width - margin);
+    }
+    if (top + height > window.innerHeight - 8) {
+        top = Math.max(8, y - height - margin);
+    }
+    composerPromptTextTooltip.style.left = `${left}px`;
+    composerPromptTextTooltip.style.top = `${top}px`;
+}
+
+function showComposerPromptTextTooltip(text, x, y) {
+    const tip = ensureComposerPromptTextTooltip();
+    tip.textContent = text;
+    tip.style.display = "block";
+    moveComposerPromptTextTooltip(x, y);
+}
+
+function hideComposerPromptTextTooltip() {
+    if (composerPromptTextTooltip) {
+        composerPromptTextTooltip.style.display = "none";
+    }
+}
+
+function getComposerRefPromptText(node, ref, fallbackCategory = "") {
+    if (!ref?.name) return "";
+    const entry = getComposerEntry(node, ref.category || fallbackCategory, ref.name);
+    return String(entry?.prompt || "").trim();
+}
+
+function buildComposerPartHoverText(node, part, promptRefs, displayCategory) {
+    const refs = Array.isArray(promptRefs) ? promptRefs : [];
+    if (!refs.length) return "";
+
+    const formatHeading = (ref) => {
+        const rawCategory = String(ref.category || displayCategory || "").trim();
+        const visibleCategory = rawCategory.includes("::") ? rawCategory.split("::").pop().trim() : rawCategory;
+        return `${visibleCategory || displayCategory} : ${ref.name}`;
+    };
+
+    if (refs.length === 1) {
+        const ref = refs[0];
+        const promptText = getComposerRefPromptText(node, ref, part?.category || displayCategory);
+        if (!promptText) return formatHeading(ref);
+        return `${formatHeading(ref)}\n\n${promptText}`;
+    }
+
+    const blocks = refs.map((ref) => {
+        const promptText = getComposerRefPromptText(node, ref, part?.category || displayCategory);
+        return promptText
+            ? `${formatHeading(ref)}\n${promptText}`
+            : formatHeading(ref);
+    });
+    return blocks.join("\n\n---\n\n");
+}
+
+function snapThumbZoom(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return DEFAULT_THUMB_ZOOM;
+    let nearest = THUMB_ZOOM_STEPS[0];
+    let bestDistance = Math.abs(numeric - nearest);
+    for (const step of THUMB_ZOOM_STEPS) {
+        const distance = Math.abs(numeric - step);
+        if (distance < bestDistance) {
+            nearest = step;
+            bestDistance = distance;
+        }
+    }
+    return nearest;
+}
+
+function clampThumbZoom(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return DEFAULT_THUMB_ZOOM;
+    const bounded = Math.max(MIN_THUMB_ZOOM, Math.min(MAX_THUMB_ZOOM, numeric));
+    return snapThumbZoom(bounded);
+}
+
+function readThumbZoom(node) {
+    const raw = node.properties?.[THUMB_ZOOM_PROP_KEY];
+    return clampThumbZoom(raw ?? DEFAULT_THUMB_ZOOM);
+}
+
+function writeThumbZoom(node, zoom) {
+    node.properties = node.properties || {};
+    node.properties[THUMB_ZOOM_PROP_KEY] = clampThumbZoom(zoom);
+    app.graph.setDirtyCanvas(true, true);
+}
+
+function getComposerCategories(node) {
+    return Object.keys(node?.prompts || {})
+        .filter((name) => String(name || "").trim() && String(name) !== "__meta__");
+}
+
+function getOrderedComposerCategories(node) {
+    const categories = getComposerCategories(node);
+    const typeEntries = Object.entries(node?.composerPromptLibrary?._types_ || {});
+    const hasExplicitTypeOrder = typeEntries.some(([, typeData]) => Number.isInteger(Number(typeData?.order)));
+    if (!typeEntries.length) {
+        return [...categories].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    }
+
+    const orderedTypeEntries = [...typeEntries].sort((a, b) => {
+        if (hasExplicitTypeOrder) {
+            const aOrder = Number.isInteger(Number(a[1]?.order)) ? Number(a[1].order) : Number.POSITIVE_INFINITY;
+            const bOrder = Number.isInteger(Number(b[1]?.order)) ? Number(b[1].order) : Number.POSITIVE_INFINITY;
+            if (aOrder !== bOrder) return aOrder - bOrder;
+        }
+        return String(a[0] || "").localeCompare(String(b[0] || ""), undefined, { sensitivity: "base" });
+    });
+
+    const categoryOrder = new Map();
+    let nextIndex = 0;
+    for (const [typeFile, typeData] of orderedTypeEntries) {
+        const categoryNames = Object.keys(typeData?.categories || {}).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+        for (const categoryName of categoryNames) {
+            const resolvedKey = resolveComposerCategoryKey(node?.prompts || {}, `${typeFile}::${categoryName}`);
+            if (resolvedKey && !categoryOrder.has(resolvedKey)) {
+                categoryOrder.set(resolvedKey, nextIndex++);
+            }
+        }
+    }
+
+    return [...categories].sort((a, b) => {
+        const resolvedA = resolveComposerCategoryKey(node?.prompts || {}, a);
+        const resolvedB = resolveComposerCategoryKey(node?.prompts || {}, b);
+        const aIndex = categoryOrder.has(resolvedA) ? categoryOrder.get(resolvedA) : Number.POSITIVE_INFINITY;
+        const bIndex = categoryOrder.has(resolvedB) ? categoryOrder.get(resolvedB) : Number.POSITIVE_INFINITY;
+        if (aIndex !== bIndex) return aIndex - bIndex;
+        return String(resolvedA || a).localeCompare(String(resolvedB || b), undefined, { sensitivity: "base" });
+    });
+}
+
+function getDefaultComposerPickerCategory(node) {
+    const categories = getOrderedComposerCategories(node);
+    return categories[0] || "";
+}
+
+function getComposerExportData(node) {
+    return node?.composerPromptLibrary && typeof node.composerPromptLibrary === "object"
+        ? node.composerPromptLibrary
+        : { __meta__: { schema_version: 2, storage: "type_files" }, _types_: {} };
+}
+
+function normalizeComposerFilename(name, fallback = "prompt_composer_data.json") {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) return fallback;
+    return trimmed.toLowerCase().endsWith(".json") ? trimmed : `${trimmed}.json`;
+}
+
+function buildComposerExportTimestamp(date = new Date()) {
+    const pad = (value) => String(value).padStart(2, "0");
+    const year = pad(Number(date?.getFullYear?.() || 0) % 100);
+    const month = pad((date?.getMonth?.() || 0) + 1);
+    const day = pad(date?.getDate?.() || 1);
+    const hours = pad(date?.getHours?.() || 0);
+    const minutes = pad(date?.getMinutes?.() || 0);
+    const seconds = pad(date?.getSeconds?.() || 0);
+    return `${year}.${month}.${day}_${hours}.${minutes}.${seconds}`;
+}
+
+function joinComposerBrowserPath(base, leaf) {
+    if (!base || !leaf) return leaf || base || "";
+    const cleanBase = String(base).replace(/[\\/]+$/, "");
+    const cleanLeaf = String(leaf).replace(/^[\\/]+/, "");
+    return `${cleanBase}/${cleanLeaf}`;
+}
+
+function composerBrowserBasename(path) {
+    const normalized = String(path || "").replace(/\\/g, "/");
+    const idx = normalized.lastIndexOf("/");
+    return idx >= 0 ? normalized.slice(idx + 1) : normalized;
+}
+
+async function fetchComposerBrowserListing(path = "") {
+    const params = new URLSearchParams();
+    if (path) params.set("path", path);
+    params.set("kind", "json");
+    const query = params.toString();
+    const response = await fetch(`/prompt-extractor/path-browser/list${query ? `?${query}` : ""}`);
+    if (!response.ok) {
+        let message = `Request failed (${response.status})`;
+        try {
+            const err = await response.json();
+            if (err?.error) message = err.error;
+        } catch {
+            // ignore
+        }
+        throw new Error(message);
+    }
+    return await response.json();
+}
+
+async function requestComposerFilename(defaultValue = "prompt_composer_data.json") {
+    return await new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+        `;
+
+        const dialog = document.createElement("div");
+        dialog.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(520px, calc(100vw - 48px));
+            background: ${UI.panel || "hsl(216 11% 15%)"};
+            border: 1px solid ${UI.panelBorder || "hsl(216 20% 65% / 0.24)"};
+            border-radius: 10px;
+            padding: 18px 20px;
+            box-shadow: 0 10px 32px rgba(0,0,0,0.45);
+            color: ${UI.textPrimary || "hsl(0 0% 87%)"};
+            z-index: 10000;
+            box-sizing: border-box;
+        `;
+
+        dialog.innerHTML = `
+            <div style="font-size: 16px; font-weight: 700; margin-bottom: 10px;">Save Prompt Composer JSON</div>
+            <div style="color: ${UI.textMuted || "hsl(0 0% 67%)"}; line-height: 1.45; margin-bottom: 12px;">
+                Choose a filename for the exported Prompt Composer library.
+            </div>
+            <input class="filename-input" type="text" value="${String(defaultValue || "prompt_composer_data.json").replace(/"/g, "&quot;")}" style="width: 100%; height: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid ${UI.inputBorder || "hsl(218 10% 41%)"}; background: ${UI.inputBg || "hsl(220 15% 10%)"}; color: ${UI.textPrimary || "hsl(0 0% 87%)"}; box-sizing: border-box; margin-bottom: 16px;" />
+            <div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
+                <button class="cancel-btn" style="padding: 7px 12px; background: ${UI.buttonBg || "hsl(219 16% 18%)"}; color: ${UI.textPrimary || "hsl(0 0% 87%)"}; border: 1px solid ${UI.inputBorder || "hsl(218 10% 41%)"}; border-radius: 7px; cursor: pointer;">Cancel</button>
+                <button class="save-btn" style="padding: 7px 12px; background: ${UI.accentSoft || "hsl(208 73% 57% / 0.16)"}; color: #dbeafe; border: 1px solid ${UI.accentBorder || "hsl(208 73% 57% / 0.65)"}; border-radius: 7px; cursor: pointer;">Save</button>
+            </div>
+        `;
+
+        const input = dialog.querySelector(".filename-input");
+
+        const cleanup = () => {
+            overlay.parentNode?.removeChild(overlay);
+            dialog.parentNode?.removeChild(dialog);
+            document.removeEventListener("keydown", onKeyDown, true);
+        };
+
+        const finish = (value) => {
+            cleanup();
+            resolve(value);
+        };
+
+        const onKeyDown = (event) => {
+            if (event.key === "Escape") {
+                finish(null);
+            } else if (event.key === "Enter") {
+                event.preventDefault();
+                finish(normalizeComposerFilename(input?.value, defaultValue));
+            }
+        };
+
+        dialog.querySelector(".cancel-btn").onclick = () => finish(null);
+        dialog.querySelector(".save-btn").onclick = () => finish(normalizeComposerFilename(input?.value, defaultValue));
+        overlay.onclick = () => finish(null);
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(dialog);
+        document.addEventListener("keydown", onKeyDown, true);
+        input?.focus();
+        input?.select();
+    });
+}
+
+async function selectComposerSaveTarget(defaultValue = "prompt_composer_data.json") {
+    if (window.showSaveFilePicker) {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: normalizeComposerFilename(defaultValue, "prompt_composer_data.json"),
+                types: [{
+                    description: "JSON Files",
+                    accept: { "application/json": [".json"] },
+                }],
+            });
+            if (!handle) return null;
+            return { mode: "handle", handle };
+        } catch (err) {
+            if (err?.name === "AbortError") return null;
+            console.warn("[PromptComposer] Save picker failed, trying directory picker:", err);
+        }
+    }
+
+    if (window.showDirectoryPicker) {
+        try {
+            const directoryHandle = await window.showDirectoryPicker();
+            if (!directoryHandle) return null;
+            const filename = await requestComposerFilename(defaultValue);
+            if (!filename) return null;
+            const handle = await directoryHandle.getFileHandle(filename, { create: true });
+            return { mode: "handle", handle };
+        } catch (err) {
+            if (err?.name === "AbortError") return null;
+            console.warn("[PromptComposer] Directory picker failed, falling back to download:", err);
+        }
+    }
+
+    const filename = await requestComposerFilename(defaultValue);
+    if (!filename) return null;
+    return { mode: "download", filename };
+}
+
+async function loadComposerLibraryFile(filePath) {
+    const response = await api.fetchApi(`${COMPOSER_ENDPOINT_PREFIX}/load-prompts-file`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: filePath }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result?.success) {
+        throw new Error(result?.error || "Failed to load JSON file.");
+    }
+    return result.data;
+}
+
+async function showComposerJsonBrowser({
+    mode = "save",
+    title = "Save Prompt Composer JSON",
+    confirmLabel = "Save Here",
+    defaultFilename = "prompt_composer_data.json",
+} = {}) {
+    return await new Promise((resolve) => {
+        const preferredStartDir = COMPOSER_BACKUP_BROWSER_DIR;
+        const isSaveMode = mode === "save";
+        let currentDir = "";
+        let currentParent = null;
+        let roots = [];
+        let currentFiles = [];
+        let currentDirs = [];
+        let selectedFilePath = "";
+
+        const overlay = document.createElement("div");
+        overlay.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.74);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        const dialog = document.createElement("div");
+        dialog.style.cssText = `
+            background: #17191d;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 4px;
+            width: min(920px, calc(100vw - 48px));
+            height: min(700px, calc(100vh - 48px));
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 18px 42px rgba(0,0,0,0.48);
+        `;
+
+        const header = document.createElement("div");
+        header.style.cssText = `
+            padding: 10px 14px 8px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        `;
+
+        const topRow = document.createElement("div");
+        topRow.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap:12px;";
+        topRow.innerHTML = `
+            <h3 style="margin:0; color:#e5e7eb; font-size:14px; font-weight:600; letter-spacing:0.01em;">${title}</h3>
+            <button class="close-btn" style="background:none; border:none; color:#8b9098; font-size:22px; cursor:pointer; padding:0; width:28px; height:28px;">×</button>
+        `;
+        header.appendChild(topRow);
+
+        const navRow = document.createElement("div");
+        navRow.style.cssText = "display:flex; gap:6px; align-items:center; flex-wrap:nowrap;";
+        const makeNavButton = (label) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = label;
+            button.style.cssText = "background:#23262b; border:1px solid rgba(255,255,255,0.08); border-radius:3px; color:#cfd5de; min-width:28px; height:28px; padding:0 8px; cursor:pointer; font-size:11px;";
+            button.onmouseover = () => { button.style.background = "#2a2e34"; };
+            button.onmouseout = () => { button.style.background = "#23262b"; };
+            return button;
+        };
+        const upBtn = makeNavButton("◀");
+        const refreshBtn = makeNavButton("↻");
+        const inputBtn = makeNavButton("In");
+        const outputBtn = makeNavButton("Out");
+        const homeBtn = makeNavButton("Home");
+        const pathInput = document.createElement("input");
+        pathInput.type = "text";
+        pathInput.placeholder = "Paste folder path and press Enter";
+        pathInput.style.cssText = "flex:1; min-width:240px; height:30px; font-size:12px; color:#e5e7eb; background:#111317; border:1px solid rgba(255,255,255,0.08); border-radius:3px; padding:0 10px; box-sizing:border-box;";
+        navRow.appendChild(upBtn);
+        navRow.appendChild(refreshBtn);
+        navRow.appendChild(inputBtn);
+        navRow.appendChild(outputBtn);
+        navRow.appendChild(homeBtn);
+        navRow.appendChild(pathInput);
+        header.appendChild(navRow);
+
+        const body = document.createElement("div");
+        body.style.cssText = "flex:1; min-height:0; overflow:hidden; padding:10px 14px 0 14px; display:flex; flex-direction:column; gap:0;";
+        const listHeader = document.createElement("div");
+        listHeader.textContent = "Name";
+        listHeader.style.cssText = "height:30px; display:flex; align-items:center; padding:0 12px; background:#212121; color:#d7dbe1; font-size:12px; border:1px solid rgba(255,255,255,0.08); border-bottom:none; box-sizing:border-box;";
+        const listing = document.createElement("div");
+        listing.style.cssText = "flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:0; background:#17191d; border:1px solid rgba(255,255,255,0.08);";
+        body.appendChild(listHeader);
+        body.appendChild(listing);
+
+        const footer = document.createElement("div");
+        footer.style.cssText = `
+            padding: 10px 14px 14px 14px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
+        const filenameRow = document.createElement("div");
+        filenameRow.style.cssText = "display:flex; align-items:center; gap:10px;";
+        const filenameLabel = document.createElement("span");
+        filenameLabel.textContent = "Name:";
+        filenameLabel.style.cssText = "font-size:12px; color:#d7dbe1; min-width:48px;";
+        const filenameInput = document.createElement("input");
+        filenameInput.type = "text";
+        filenameInput.value = isSaveMode ? normalizeComposerFilename(defaultFilename, "prompt_composer_data.json") : "";
+        filenameInput.readOnly = !isSaveMode;
+        filenameInput.style.cssText = "flex:1; height:32px; padding:0 10px; border-radius:3px; border:1px solid rgba(255,255,255,0.08); background:#111317; color:#e5e7eb; box-sizing:border-box;";
+        filenameRow.appendChild(filenameLabel);
+        filenameRow.appendChild(filenameInput);
+        footer.appendChild(filenameRow);
+
+        const footerButtons = document.createElement("div");
+        footerButtons.style.cssText = "display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;";
+        const cancelBtn = document.createElement("button");
+        cancelBtn.type = "button";
+        cancelBtn.textContent = "Cancel";
+        cancelBtn.style.cssText = "padding:7px 12px; background:#2a2f36; color:#e5e7eb; border:1px solid rgba(255,255,255,0.14); border-radius:7px; cursor:pointer;";
+        const saveBtn = document.createElement("button");
+        saveBtn.type = "button";
+        saveBtn.textContent = confirmLabel;
+        saveBtn.style.cssText = "padding:7px 12px; background:#23262b; color:#e5e7eb; border:1px solid rgba(255,255,255,0.14); border-radius:3px; cursor:pointer;";
+        footerButtons.appendChild(cancelBtn);
+        footerButtons.appendChild(saveBtn);
+        footer.appendChild(footerButtons);
+
+        dialog.appendChild(header);
+        dialog.appendChild(body);
+        dialog.appendChild(footer);
+        overlay.appendChild(dialog);
+
+        const cleanup = () => {
+            overlay.parentNode?.removeChild(overlay);
+            document.removeEventListener("keydown", onKeyDown, true);
+        };
+
+        const finish = (value) => {
+            cleanup();
+            resolve(value);
+        };
+
+        const renderListing = () => {
+            listing.innerHTML = "";
+            pathInput.value = currentDir || "";
+            upBtn.disabled = !currentParent;
+            upBtn.style.opacity = currentParent ? "1" : "0.45";
+
+            if (!currentDir && !roots.length) {
+                const empty = document.createElement("div");
+                empty.textContent = "No locations available.";
+                empty.style.cssText = "text-align:center; padding:40px; color:#888;";
+                listing.appendChild(empty);
+                return;
+            }
+
+            if (!currentDir && roots.length) {
+                roots.forEach((rootPath) => {
+                    const item = document.createElement("button");
+                    item.type = "button";
+                    item.textContent = rootPath;
+                    item.style.cssText = "text-align:left; min-height:38px; padding:0 12px; background:#17191d; color:#dce6f2; border:none; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer;";
+                    item.onmouseover = () => { item.style.background = "#1f2937"; };
+                    item.onmouseout = () => { item.style.background = "#17191d"; };
+                    item.onclick = async () => {
+                        currentDir = rootPath;
+                        await loadListing(rootPath);
+                    };
+                    listing.appendChild(item);
+                });
+                return;
+            }
+
+            if (!currentDirs.length && !currentFiles.length) {
+                const empty = document.createElement("div");
+                empty.textContent = "This folder is empty";
+                empty.style.cssText = "padding:12px; color:#6b7280; font-size:12px; border-bottom:1px solid rgba(255,255,255,0.04);";
+                listing.appendChild(empty);
+                return;
+            }
+
+            currentDirs.forEach((dir) => {
+                const item = document.createElement("button");
+                item.type = "button";
+                item.textContent = dir.name;
+                item.style.cssText = "text-align:left; min-height:40px; padding:0 12px; background:#17191d; color:#dce6f2; border:none; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer;";
+                item.onmouseover = () => { item.style.background = "#1d344d"; };
+                item.onmouseout = () => { item.style.background = "#17191d"; };
+                item.onclick = async () => {
+                    currentDir = dir.path;
+                    selectedFilePath = "";
+                    if (!isSaveMode) {
+                        filenameInput.value = "";
+                    }
+                    await loadListing(dir.path);
+                };
+                listing.appendChild(item);
+            });
+
+            currentFiles.forEach((file) => {
+                const item = document.createElement("button");
+                item.type = "button";
+                item.textContent = file.name;
+                item.style.cssText = "text-align:left; min-height:40px; padding:0 12px; background:#17191d; color:#dbeafe; border:none; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer;";
+                item.onmouseover = () => { item.style.background = "#125d90"; };
+                item.onmouseout = () => { item.style.background = "#17191d"; };
+                item.onclick = () => {
+                    selectedFilePath = file.path || joinComposerBrowserPath(currentDir, file.name);
+                    filenameInput.value = file.name;
+                    item.style.background = "#125d90";
+                };
+                item.ondblclick = async () => {
+                    selectedFilePath = file.path || joinComposerBrowserPath(currentDir, file.name);
+                    filenameInput.value = file.name;
+                    await confirmSelection();
+                };
+                listing.appendChild(item);
+            });
+        };
+
+        const loadListing = async (targetPath = currentDir) => {
+            listing.innerHTML = '<div style="text-align:center; padding:40px; color:#888;">Loading...</div>';
+            try {
+                let data = await fetchComposerBrowserListing(targetPath || "");
+                if (data.mode === "roots") {
+                    roots = Array.isArray(data.roots) ? data.roots : [];
+                    if (!targetPath) {
+                        currentDir = roots[0] || "";
+                        if (currentDir) {
+                            data = await fetchComposerBrowserListing(currentDir);
+                        } else {
+                            currentParent = null;
+                            currentDirs = [];
+                            currentFiles = [];
+                            renderListing();
+                            return;
+                        }
+                    }
+                }
+
+                currentDir = data.current_path || currentDir || targetPath || "";
+                currentParent = data.parent_path || null;
+                roots = Array.isArray(data.roots) ? data.roots : roots;
+                currentDirs = Array.isArray(data.dirs) ? data.dirs : [];
+                currentFiles = Array.isArray(data.files) ? data.files : [];
+                renderListing();
+                return true;
+            } catch (error) {
+                console.error("[PromptComposer] Error loading save browser listing:", error);
+                listing.innerHTML = `<div style="text-align:center; padding:40px; color:rgba(220,53,69,0.9);">${String(error?.message || "Error loading folders")}</div>`;
+                return false;
+            }
+        };
+
+        const confirmSelection = async () => {
+            if (!isSaveMode) {
+                if (!selectedFilePath) {
+                    await showInfo("Open Failed", "Choose a JSON file first.");
+                    return;
+                }
+                finish(selectedFilePath);
+                return;
+            }
+
+            const filename = normalizeComposerFilename(filenameInput.value, defaultFilename);
+            if (!currentDir) {
+                await showInfo("Save Failed", "Choose a target folder first.");
+                return;
+            }
+            if (!filename) {
+                await showInfo("Save Failed", "Enter a filename first.");
+                return;
+            }
+            const existing = currentFiles.some((file) => String(file?.name || "").trim().toLowerCase() === filename.toLowerCase());
+            if (existing) {
+                const overwrite = await showConfirm(
+                    "Overwrite JSON",
+                    `A file named "${filename}" already exists in this folder. Overwrite it?`,
+                    "Overwrite",
+                    "rgba(56, 130, 246, 0.96)"
+                );
+                if (!overwrite) {
+                    return;
+                }
+            }
+            finish(joinComposerBrowserPath(currentDir, filename));
+        };
+
+        const onKeyDown = async (event) => {
+            if (event.key === "Escape") {
+                finish(null);
+            } else if (event.key === "Enter" && document.activeElement === pathInput) {
+                event.preventDefault();
+                const next = pathInput.value.trim();
+                if (next) {
+                    currentDir = next;
+                    await loadListing(next);
+                }
+            } else if (event.key === "Enter" && (document.activeElement === filenameInput || !isSaveMode)) {
+                event.preventDefault();
+                await confirmSelection();
+            }
+        };
+
+        topRow.querySelector(".close-btn").onclick = () => finish(null);
+        cancelBtn.onclick = () => finish(null);
+        saveBtn.onclick = async () => {
+            await confirmSelection();
+        };
+        overlay.onclick = (event) => {
+            if (event.target === overlay) finish(null);
+        };
+        upBtn.onclick = async () => {
+            if (!currentParent) return;
+            currentDir = currentParent;
+            selectedFilePath = "";
+            if (!isSaveMode) {
+                filenameInput.value = "";
+            }
+            await loadListing(currentDir);
+        };
+        refreshBtn.onclick = async () => {
+            await loadListing(currentDir);
+        };
+        inputBtn.onclick = async () => {
+            const inputRoot = Array.isArray(roots) ? roots[0] : "";
+            if (!inputRoot) return;
+            currentDir = inputRoot;
+            selectedFilePath = "";
+            if (!isSaveMode) {
+                filenameInput.value = "";
+            }
+            await loadListing(currentDir);
+        };
+        outputBtn.onclick = async () => {
+            const outputRoot = Array.isArray(roots) ? roots[1] : "";
+            if (!outputRoot) return;
+            currentDir = outputRoot;
+            selectedFilePath = "";
+            if (!isSaveMode) {
+                filenameInput.value = "";
+            }
+            await loadListing(currentDir);
+        };
+        homeBtn.onclick = async () => {
+            currentDir = COMPOSER_BACKUP_BROWSER_DIR;
+            selectedFilePath = "";
+            if (!isSaveMode) {
+                filenameInput.value = "";
+            }
+            await loadListing(currentDir);
+        };
+
+        document.body.appendChild(overlay);
+        document.addEventListener("keydown", onKeyDown, true);
+        void (async () => {
+            const loadedPreferred = await loadListing(preferredStartDir);
+            if (!loadedPreferred) {
+                await loadListing("");
+            }
+        })();
+        if (isSaveMode) {
+            filenameInput.focus();
+            filenameInput.select();
+        } else {
+            pathInput.focus();
+        }
+    });
+}
+
+function findExistingComposerCategoryName(promptsData, category) {
+    const normalized = String(category || "").trim().toLowerCase();
+    if (!normalized || !promptsData || typeof promptsData !== "object") return null;
+    return Object.keys(promptsData).find((existing) => String(existing || "").trim().toLowerCase() === normalized) || null;
+}
+
+function getComposerPromptEntries(categoryData) {
+    if (!categoryData || typeof categoryData !== "object") return {};
+    if (categoryData._prompts_ && typeof categoryData._prompts_ === "object") return categoryData._prompts_;
+    return Object.fromEntries(
+        Object.entries(categoryData).filter(([key, value]) => key !== "__meta__" && !String(key || "").startsWith("_") && value && typeof value === "object")
+    );
+}
+
+function findExistingComposerPromptName(categoryData, promptName) {
+    const normalized = String(promptName || "").trim().toLowerCase();
+    if (!normalized) return null;
+    return Object.keys(getComposerPromptEntries(categoryData)).find((existing) => String(existing || "").trim().toLowerCase() === normalized) || null;
+}
+
+function analyzeComposerImportConflicts(promptsData, importedData) {
+    const existingPromptsData = flattenComposerLibrary(promptsData);
+    const nextPromptsData = flattenComposerLibrary(importedData);
+    const conflicts = {
+        duplicatePrompts: [],
+        duplicateCategorySettings: [],
+    };
+
+    for (const [category, entries] of Object.entries(nextPromptsData || {})) {
+        if (category === "__meta__" || !entries || typeof entries !== "object") continue;
+        const existingCategory = findExistingComposerCategoryName(existingPromptsData, category);
+        const basePrompt = typeof entries?._base_prompt_ === "string" ? entries._base_prompt_.trim() : "";
+        const promptType = typeof entries?._prompt_type_ === "string" ? entries._prompt_type_.trim() : "";
+        const promptPrefix = typeof entries?._prompt_prefix_ === "string" ? entries._prompt_prefix_.trim() : "";
+
+        if (existingCategory && (basePrompt || promptType || promptPrefix)) {
+            conflicts.duplicateCategorySettings.push({ category, existingCategory });
+        }
+
+        const existingCategoryData = existingCategory ? existingPromptsData?.[existingCategory] : null;
+        for (const [promptName] of Object.entries(getComposerPromptEntries(entries))) {
+            const existingPrompt = findExistingComposerPromptName(existingCategoryData, promptName);
+            if (existingPrompt) {
+                conflicts.duplicatePrompts.push({
+                    category,
+                    existingCategory: existingCategory || category,
+                    name: promptName,
+                    existingPrompt,
+                });
+            }
+        }
+    }
+
+    return conflicts;
+}
+
+function showComposerImportModeDialog({ duplicatePromptCount = 0, duplicateCategorySettingsCount = 0 }) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+        `;
+
+        const dialog = document.createElement("div");
+        dialog.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(640px, calc(100vw - 48px));
+            background: ${UI.panel || "hsl(216 11% 15%)"};
+            border: 1px solid ${UI.panelBorder || "hsl(216 20% 65% / 0.24)"};
+            border-radius: 10px;
+            padding: 18px 20px;
+            box-shadow: 0 10px 32px rgba(0,0,0,0.45);
+            color: ${UI.textPrimary || "hsl(0 0% 87%)"};
+            z-index: 10000;
+            box-sizing: border-box;
+        `;
+
+        const summaryLines = [];
+        if (duplicatePromptCount > 0) {
+            summaryLines.push(`${duplicatePromptCount} duplicate prompt${duplicatePromptCount === 1 ? "" : "s"}`);
+        }
+        if (duplicateCategorySettingsCount > 0) {
+            summaryLines.push(`${duplicateCategorySettingsCount} existing categor${duplicateCategorySettingsCount === 1 ? "y" : "ies"} with settings`);
+        }
+
+        dialog.innerHTML = `
+            <div style="font-size: 16px; font-weight: 700; margin-bottom: 10px;">Merge Composer JSONs</div>
+            <div style="color: ${UI.textMuted || "hsl(0 0% 67%)"}; line-height: 1.45; margin-bottom: 14px; white-space: normal; word-break: break-word;">
+                The imported file contains prompt-group JSONs that may overlap with your current Prompt Composer library.<br><br>
+                ${summaryLines.length ? summaryLines.join("<br>") : "Choose how overlapping entries should be handled."}
+            </div>
+            <div style="color: ${UI.textHint || "hsl(216 15% 65%)"}; line-height: 1.45; margin-bottom: 18px;">
+                <strong>Keep Existing:</strong> preserve current prompts and category settings when names collide.<br>
+                <strong>Replace Existing:</strong> overwrite current prompts and category settings with the imported file.
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
+                <button class="cancel-btn" style="padding: 8px 14px; background: ${UI.buttonBg || "hsl(219 16% 18%)"}; color: ${UI.textPrimary || "hsl(0 0% 87%)"}; border: 1px solid ${UI.inputBorder || "hsl(218 10% 41%)"}; border-radius: 6px; cursor: pointer;">Cancel</button>
+                <button class="skip-btn" style="padding: 8px 14px; background: ${UI.buttonBg || "hsl(219 16% 18%)"}; color: ${UI.textPrimary || "hsl(0 0% 87%)"}; border: 1px solid ${UI.inputBorder || "hsl(218 10% 41%)"}; border-radius: 6px; cursor: pointer;">Keep Existing</button>
+                <button class="replace-btn" style="padding: 8px 14px; background: ${UI.accent || "hsl(208 73% 57% / 0.9)"}; color: #fff; border: 1px solid transparent; border-radius: 6px; cursor: pointer;">Replace Existing</button>
+            </div>
+        `;
+
+        const cleanup = () => {
+            overlay.parentNode?.removeChild(overlay);
+            dialog.parentNode?.removeChild(dialog);
+            document.removeEventListener("keydown", onKeyDown, true);
+        };
+
+        const finish = (result) => {
+            cleanup();
+            resolve(result);
+        };
+
+        const onKeyDown = (event) => {
+            if (event.key === "Escape") finish("cancel");
+        };
+
+        dialog.querySelector(".cancel-btn").onclick = () => finish("cancel");
+        dialog.querySelector(".skip-btn").onclick = () => finish("skip_existing");
+        dialog.querySelector(".replace-btn").onclick = () => finish("replace_existing");
+        overlay.onclick = () => finish("cancel");
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(dialog);
+        document.addEventListener("keydown", onKeyDown, true);
+        dialog.querySelector(".skip-btn")?.focus();
+    });
+}
+
+function applyComposerPromptData(node, prompts) {
+    const library = prompts && typeof prompts === "object" ? prompts : {};
+    node.composerPromptLibrary = library;
+    node.composerPrompts = flattenComposerLibrary(library);
+    node.prompts = node.composerPrompts;
+    node._composerUiRender?.();
+    app.graph.setDirtyCanvas(true, true);
+}
+
+function getOrderedComposerTypeEntriesForExport(node) {
+    const types = getComposerExportData(node)?._types_ || {};
+    const entries = Object.entries(types);
+    const hasExplicitOrder = entries.some(([, typeData]) => Number.isInteger(Number(typeData?.order)));
+    return entries.sort((a, b) => {
+        if (hasExplicitOrder) {
+            const aOrder = Number.isInteger(Number(a[1]?.order)) ? Number(a[1].order) : Number.POSITIVE_INFINITY;
+            const bOrder = Number.isInteger(Number(b[1]?.order)) ? Number(b[1].order) : Number.POSITIVE_INFINITY;
+            if (aOrder !== bOrder) return aOrder - bOrder;
+        }
+        return String(a[0] || "").localeCompare(String(b[0] || ""), undefined, { sensitivity: "base" });
+    });
+}
+
+function triggerBrowserDownload(blob, filename) {
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename || "prompt_composer_jsons.zip";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
+function getDownloadFilenameFromResponse(response, fallback = "prompt_composer_jsons.zip") {
+    const disposition = String(response.headers.get("content-disposition") || "");
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    return match?.[1] ? String(match[1]).trim() : fallback;
+}
+
+export async function pickComposerImportFile() {
+    if (window.showOpenFilePicker) {
+        try {
+            const [handle] = await window.showOpenFilePicker({
+                multiple: false,
+                types: [{
+                    description: "Prompt Composer JSONs",
+                    accept: {
+                        "application/json": [".json"],
+                        "application/zip": [".zip"],
+                    },
+                }],
+            });
+            return handle ? await handle.getFile() : null;
+        } catch (error) {
+            if (error?.name === "AbortError") return null;
+            console.warn("[PromptComposer] Browser file picker failed, falling back to input element:", error);
+        }
+    }
+
+    return await new Promise((resolve) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".zip,.json,application/zip,application/json";
+        input.style.display = "none";
+        input.addEventListener("change", () => {
+            const [file] = Array.from(input.files || []);
+            input.remove();
+            resolve(file || null);
+        }, { once: true });
+        document.body.appendChild(input);
+        input.click();
+    });
+}
+
+export async function inspectComposerImportFile(file) {
+    const formData = new FormData();
+    formData.set("file", file, file.name || "upload");
+    const response = await fetch(`${COMPOSER_ENDPOINT_PREFIX}/inspect-import-file`, {
+        method: "POST",
+        body: formData,
+    });
+    const result = await response.json();
+    if (!response.ok || !result?.success) {
+        throw new Error(result?.error || "Failed to inspect Prompt Composer JSONs.");
+    }
+    return result;
+}
+
+export async function replaceComposerLibraryFromFile(file) {
+    const formData = new FormData();
+    formData.set("file", file, file.name || "upload");
+    formData.set("backup_existing", "true");
+    const response = await fetch(`${COMPOSER_ENDPOINT_PREFIX}/replace-prompts`, {
+        method: "POST",
+        body: formData,
+    });
+    const result = await response.json();
+    if (!response.ok || !result?.success) {
+        throw new Error(result?.error || "Failed to replace Prompt Composer JSONs.");
+    }
+    return result;
+}
+
+export async function mergeComposerLibraryFromFile(file, mode) {
+    const formData = new FormData();
+    formData.set("file", file, file.name || "upload");
+    formData.set("mode", mode || "skip_existing");
+    const response = await fetch(`${COMPOSER_ENDPOINT_PREFIX}/import-prompts`, {
+        method: "POST",
+        body: formData,
+    });
+    const result = await response.json();
+    if (!response.ok || !result?.success) {
+        throw new Error(result?.error || "Failed to merge Prompt Composer JSONs.");
+    }
+    return result;
+}
+
+export async function showComposerExportSelectionDialog(node) {
+    const entries = getOrderedComposerTypeEntriesForExport(node).map(([typeFile, typeData]) => ({
+        typeFile: String(typeFile || ""),
+        name: String(typeData?.name || "").trim() || String(typeFile || "").replace(/\.json$/i, "") || "Prompt Group",
+    }));
+    if (!entries.length) {
+        await showInfo("Save Failed", "There are no prompt-group JSONs to export.");
+        return null;
+    }
+
+    return await new Promise((resolve) => {
+        const selected = new Set(entries.map((entry) => entry.typeFile));
+        const overlay = document.createElement("div");
+        overlay.style.cssText = `position:fixed; inset:0; background:rgba(0,0,0,0.72); z-index:9999; display:flex; align-items:center; justify-content:center;`;
+
+        const dialog = document.createElement("div");
+        dialog.style.cssText = `width:min(860px, calc(100vw - 48px)); max-height:min(760px, calc(100vh - 48px)); background:${UI.panel || "hsl(216 11% 15%)"}; border:1px solid ${UI.panelBorder || "hsl(216 20% 65% / 0.24)"}; border-radius:10px; box-shadow:0 10px 32px rgba(0,0,0,0.45); color:${UI.textPrimary || "hsl(0 0% 87%)"}; display:flex; flex-direction:column; overflow:hidden;`;
+
+        const header = document.createElement("div");
+        header.style.cssText = "padding:16px 18px 10px 18px; border-bottom:1px solid rgba(255,255,255,0.08);";
+        header.innerHTML = `
+            <div style="font-size:16px; font-weight:700; margin-bottom:8px;">Save JSONs</div>
+            <div style="color:${UI.textMuted || "hsl(0 0% 67%)"}; line-height:1.45;">Select one or more prompt-group JSONs to save as a ZIP.</div>
+        `;
+
+        const body = document.createElement("div");
+        body.style.cssText = "padding:16px 18px; overflow:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px;";
+
+        const footer = document.createElement("div");
+        footer.style.cssText = "padding:12px 18px 18px 18px; border-top:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; gap:10px; flex-wrap:wrap;";
+        const selectionInfo = document.createElement("div");
+        selectionInfo.style.cssText = `margin-right:auto; font-size:12px; color:${UI.textMuted || "hsl(0 0% 67%)"};`;
+
+        const makeButton = (label, primary = false) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = label;
+            button.style.cssText = `padding:8px 12px; border-radius:7px; cursor:pointer; border:1px solid ${primary ? (UI.accentBorder || "hsl(208 73% 57% / 0.65)") : (UI.inputBorder || "hsl(218 10% 41%)")}; background:${primary ? (UI.accentSoft || "hsl(208 73% 57% / 0.16)") : (UI.buttonBg || "hsl(219 16% 18%)")}; color:${primary ? "#dbeafe" : (UI.textPrimary || "hsl(0 0% 87%)")};`;
+            return button;
+        };
+
+        const clearBtn = makeButton("Clear");
+        const selectAllBtn = makeButton("Select All");
+        const cancelBtn = makeButton("Cancel");
+        const saveBtn = makeButton("Save ZIP", true);
+
+        const cardEls = new Map();
+        const syncSelection = () => {
+            for (const entry of entries) {
+                const card = cardEls.get(entry.typeFile);
+                if (!card) continue;
+                const isSelected = selected.has(entry.typeFile);
+                card.style.background = isSelected ? (UI.accentSoft || "hsl(208 73% 57% / 0.16)") : (UI.cardBg || "hsl(219 16% 18%)");
+                card.style.borderColor = isSelected ? (UI.accentBorder || "hsl(208 73% 57% / 0.65)") : (UI.inputBorder || "hsl(218 10% 41%)");
+            }
+            selectionInfo.textContent = `${selected.size} selected`;
+            saveBtn.disabled = selected.size === 0;
+            saveBtn.style.opacity = selected.size === 0 ? "0.55" : "1";
+            saveBtn.style.cursor = selected.size === 0 ? "not-allowed" : "pointer";
+        };
+
+        for (const entry of entries) {
+            const card = document.createElement("button");
+            card.type = "button";
+            card.style.cssText = `text-align:left; min-height:96px; border:1px solid ${UI.inputBorder || "hsl(218 10% 41%)"}; border-radius:10px; background:${UI.cardBg || "hsl(219 16% 18%)"}; color:${UI.textPrimary || "hsl(0 0% 87%)"}; padding:12px; cursor:pointer; display:flex; flex-direction:column; gap:8px;`;
+            card.innerHTML = `
+                <div style="font-size:13px; font-weight:700; line-height:1.3; word-break:break-word;">${entry.name}</div>
+                <div style="font-size:11px; color:${UI.textMuted || "hsl(0 0% 67%)"}; word-break:break-word;">${entry.typeFile}</div>
+            `;
+            card.onclick = () => {
+                if (selected.has(entry.typeFile)) selected.delete(entry.typeFile);
+                else selected.add(entry.typeFile);
+                syncSelection();
+            };
+            cardEls.set(entry.typeFile, card);
+            body.appendChild(card);
+        }
+
+        const finish = (value) => {
+            overlay.remove();
+            resolve(value);
+        };
+
+        clearBtn.onclick = () => {
+            selected.clear();
+            syncSelection();
+        };
+        selectAllBtn.onclick = () => {
+            entries.forEach((entry) => selected.add(entry.typeFile));
+            syncSelection();
+        };
+        cancelBtn.onclick = () => finish(null);
+        saveBtn.onclick = () => finish(entries.filter((entry) => selected.has(entry.typeFile)).map((entry) => entry.typeFile));
+        overlay.onclick = (event) => {
+            if (event.target === overlay) finish(null);
+        };
+
+        footer.append(selectionInfo, clearBtn, selectAllBtn, cancelBtn, saveBtn);
+        dialog.append(header, body, footer);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        syncSelection();
+    });
+}
+
+async function exportComposerJsonLibrary(node) {
+    try {
+        const selectedTypeFiles = await showComposerExportSelectionDialog(node);
+        if (!Array.isArray(selectedTypeFiles) || selectedTypeFiles.length === 0) return;
+
+        const response = await fetch(`${COMPOSER_ENDPOINT_PREFIX}/export-selected-zip`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type_files: selectedTypeFiles }),
+        });
+        if (!response.ok) {
+            let message = "Failed to export Prompt Composer JSONs.";
+            try {
+                const result = await response.json();
+                if (result?.error) message = String(result.error);
+            } catch {
+                // ignore
+            }
+            await showInfo("Export Failed", message);
+            return;
+        }
+        const blob = await response.blob();
+        triggerBrowserDownload(blob, getDownloadFilenameFromResponse(response, `prompt_composer_jsons_${buildComposerExportTimestamp()}.zip`));
+    } catch (error) {
+        console.error("[PromptComposer] Error exporting JSONs:", error);
+        await showInfo("Export Failed", error?.message || "Failed to export Prompt Composer JSONs.");
+    }
+}
+
+async function openComposerJsonLibrary(node) {
+    const file = await pickComposerImportFile();
+    if (!file) return;
+
+    try {
+        const inspected = await inspectComposerImportFile(file);
+        const confirmed = await showConfirm(
+            "Open Prompt Composer JSONs",
+            `You are about to replace all Prompt Composer prompts with "${file.name}" (${Number(inspected?.type_count || 0)} group${Number(inspected?.type_count || 0) === 1 ? "" : "s"}). Continue?`,
+            "Replace All",
+            UI.accent || "hsl(208 73% 57% / 0.9)"
+        );
+        if (!confirmed) return;
+
+        const result = await replaceComposerLibraryFromFile(file);
+
+        applyComposerPromptData(node, result.library || result.prompts || {});
+        await loadComposerPrompts(node);
+        const typeCount = Number(result?.type_count || inspected?.type_count || 0);
+        const categoryCount = Number(result?.category_count || inspected?.category_count || 0);
+        const promptCount = Number(result?.prompt_count || inspected?.prompt_count || 0);
+        await showInfo("Open Complete", `Replaced the library with ${typeCount} group${typeCount === 1 ? "" : "s"}, ${categoryCount} categor${categoryCount === 1 ? "y" : "ies"}, and ${promptCount} prompt${promptCount === 1 ? "" : "s"}.`);
+    } catch (error) {
+        console.error("[PromptComposer] Error opening JSONs:", error);
+        await showInfo("Open Failed", error?.message || "Failed to open Prompt Composer JSONs.");
+    }
+}
+
+async function mergeComposerJsonLibrary(node) {
+    const file = await pickComposerImportFile();
+    if (!file) return;
+
+    try {
+        const inspected = await inspectComposerImportFile(file);
+        const data = inspected.library;
+
+        const conflicts = analyzeComposerImportConflicts(getComposerExportData(node), data);
+        let importMode = "skip_existing";
+        if (conflicts.duplicatePrompts.length > 0 || conflicts.duplicateCategorySettings.length > 0) {
+            importMode = await showComposerImportModeDialog({
+                duplicatePromptCount: conflicts.duplicatePrompts.length,
+                duplicateCategorySettingsCount: conflicts.duplicateCategorySettings.length,
+            });
+            if (importMode === "cancel") return;
+        }
+
+        const result = await mergeComposerLibraryFromFile(file, importMode);
+
+        applyComposerPromptData(node, result.library || result.prompts || {});
+        await loadComposerPrompts(node);
+        const typeCount = Number(result?.type_count || inspected?.type_count || 0);
+        const imported = Number(result?.imported_prompts || 0);
+        const skippedPrompts = Number(result?.skipped_prompts || 0);
+        const importedCategorySettings = Number(result?.imported_category_settings || 0);
+        const skippedCategorySettings = Number(result?.skipped_category_settings || 0);
+        const categoriesCreated = Number(result?.created_categories || 0);
+        const summaryParts = [`Imported ${imported} prompt${imported === 1 ? "" : "s"}`];
+        if (typeCount > 0) {
+            summaryParts.push(`processed ${typeCount} group${typeCount === 1 ? "" : "s"}`);
+        }
+        if (categoriesCreated > 0) {
+            summaryParts.push(`created ${categoriesCreated} categor${categoriesCreated === 1 ? "y" : "ies"}`);
+        }
+        if (importedCategorySettings > 0) {
+            summaryParts.push(`updated ${importedCategorySettings} category setting${importedCategorySettings === 1 ? "" : "s"}`);
+        }
+        const keptExisting = skippedPrompts + skippedCategorySettings;
+        if (keptExisting > 0) {
+            summaryParts.push(`kept ${keptExisting} existing item${keptExisting === 1 ? "" : "s"}`);
+        }
+        await showInfo("Merge Complete", `${summaryParts.join(", ")}.`);
+    } catch (error) {
+        console.error("[PromptComposer] Error merging JSONs:", error);
+        await showInfo("Merge Failed", error?.message || "Failed to merge Prompt Composer JSONs.");
+    }
+}
+
+function buildPromptPreviewThumbnails(node, category, prompts) {
+    const names = Array.isArray(prompts) ? prompts : [];
+    return names
+        .slice(0, 10)
+        .map((name) => getComposerEntry(node, category, name)?.thumbnail || DEFAULT_THUMBNAIL);
+}
+
+function appendMultiPromptSlices(container, thumbnails) {
+    const images = Array.isArray(thumbnails) ? thumbnails.filter((value) => String(value || "").trim()) : [];
+    if (!images.length) return;
+
+    const sliceLayer = document.createElement("div");
+    sliceLayer.style.cssText = `
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        border-radius: inherit;
+        pointer-events: none;
+    `;
+
+    const count = images.length;
+    const slantPct = Math.min(22, 72 / count);
+    const dividerPct = Math.min(1.2, Math.max(0.55, 3 / count));
+    const clampPct = (value) => Math.max(0, Math.min(100, value));
+    const boundaryTop = (index) => {
+        if (index <= 0) return 0;
+        if (index >= count) return 100;
+        return clampPct((index / count) * 100 + (slantPct / 2));
+    };
+    const boundaryBottom = (index) => {
+        if (index <= 0) return 0;
+        if (index >= count) return 100;
+        return clampPct((index / count) * 100 - (slantPct / 2));
+    };
+
+    images.forEach((thumbnail, index) => {
+        const slice = document.createElement("div");
+        const leftTop = boundaryTop(index);
+        const rightTop = boundaryTop(index + 1);
+        const leftBottom = boundaryBottom(index);
+        const rightBottom = boundaryBottom(index + 1);
+        slice.style.cssText = `
+            position: absolute;
+            inset: 0;
+            background-image: linear-gradient(180deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.28)), url(${thumbnail});
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            clip-path: polygon(${leftTop}% 0%, ${rightTop}% 0%, ${rightBottom}% 100%, ${leftBottom}% 100%);
+        `;
+        sliceLayer.appendChild(slice);
+    });
+
+    for (let index = 1; index < count; index += 1) {
+        const divider = document.createElement("div");
+        const topCenter = boundaryTop(index);
+        const bottomCenter = boundaryBottom(index);
+        const topLeft = clampPct(topCenter - (dividerPct / 2));
+        const topRight = clampPct(topCenter + (dividerPct / 2));
+        const bottomLeft = clampPct(bottomCenter - (dividerPct / 2));
+        const bottomRight = clampPct(bottomCenter + (dividerPct / 2));
+        divider.style.cssText = `
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.82);
+            clip-path: polygon(${topLeft}% 0%, ${topRight}% 0%, ${bottomRight}% 100%, ${bottomLeft}% 100%);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14);
+        `;
+        sliceLayer.appendChild(divider);
+    }
+
+    container.appendChild(sliceLayer);
+}
+
+function ensureComposerDragStyles() {
+    if (document.getElementById(COMPOSER_DRAG_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = COMPOSER_DRAG_STYLE_ID;
+    style.textContent = `
+.pm-composer-card-drag-active {
+    outline: 2px dotted rgba(255, 255, 255, 0.95);
+    outline-offset: -2px;
+    animation: pm-composer-drag-pulse 0.85s linear infinite;
+}
+
+@keyframes pm-composer-drag-pulse {
+    0% {
+        outline-color: rgba(255, 255, 255, 0.45);
+    }
+    50% {
+        outline-color: rgba(255, 255, 255, 1);
+    }
+    100% {
+        outline-color: rgba(255, 255, 255, 0.45);
+    }
+}
+
+.pm-composer-zoom-row {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    display: flex;
+    align-items: center;
+    padding: 1px 3px;
+    border: 1px solid rgba(116, 131, 154, 0.55);
+    border-radius: 0;
+    background: rgba(17, 22, 30, 0.82);
+    box-sizing: border-box;
+    flex-shrink: 0;
+    z-index: 2;
+}
+
+.pm-composer-zoom-slider {
+    width: 120px;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.pm-composer-zoom-slider:focus {
+    outline: none;
+}
+
+.pm-composer-zoom-slider::-webkit-slider-runnable-track {
+    height: 1px;
+    background: rgba(229, 231, 235, 0.9);
+    border-radius: 0;
+}
+
+.pm-composer-zoom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 7px;
+    height: 7px;
+    background: #e5e7eb;
+    border: 1px solid rgba(15, 23, 42, 0.9);
+    border-radius: 0;
+    margin-top: -3px;
+}
+
+.pm-composer-zoom-slider::-moz-range-track {
+    height: 1px;
+    background: rgba(229, 231, 235, 0.9);
+    border: none;
+    border-radius: 0;
+}
+
+.pm-composer-zoom-slider::-moz-range-thumb {
+    width: 7px;
+    height: 7px;
+    background: #e5e7eb;
+    border: 1px solid rgba(15, 23, 42, 0.9);
+    border-radius: 0;
+}
+`;
+    document.head.appendChild(style);
+}
+
+function clampStrength(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 1.0;
+    return Math.max(0, Math.min(5, numeric));
+}
+
+function clampSubjectNumber(value, fallback = SUBJECT_MIN) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(SUBJECT_NONE, Math.min(SUBJECT_MAX, Math.round(numeric)));
+}
+
+function padSubjectNumber(value) {
+    if (clampSubjectNumber(value) === SUBJECT_NONE) return "NS";
+    return String(clampSubjectNumber(value)).padStart(2, "0");
+}
+
+function getSubjectAccent(subjectNumber) {
+    const normalized = clampSubjectNumber(subjectNumber);
+    if (normalized === SUBJECT_NONE) {
+        return {
+            border: "rgba(122, 131, 148, 0.88)",
+            soft: "rgba(122, 131, 148, 0.12)",
+            strong: "rgba(80, 88, 104, 0.95)",
+            text: "#eef2f7",
+        };
+    }
+    return SUBJECT_ACCENTS[(normalized - SUBJECT_MIN) % SUBJECT_ACCENTS.length];
+}
+
+function normalizePromptRef(ref, fallbackCategory = "") {
+    if (!ref || typeof ref !== "object") return null;
+    const category = String(ref.category || fallbackCategory || "").trim();
+    const name = String(ref.name || ref.prompt || "").trim();
+    if (!name) return null;
+    return { category, name };
+}
+
+function derivePromptRefs(category, prompts) {
+    const fallbackCategory = String(category || "").trim();
+    return (Array.isArray(prompts) ? prompts : [])
+        .map((name) => String(name || "").trim())
+        .filter((name) => name.length > 0)
+        .map((name) => ({ category: fallbackCategory, name }));
+}
+
+function getPartPromptRefs(part) {
+    const fallbackCategory = String(part?.category || "").trim();
+    const explicitRefs = Array.isArray(part?.prompt_refs)
+        ? part.prompt_refs.map((ref) => normalizePromptRef(ref, fallbackCategory)).filter(Boolean)
+        : [];
+    if (explicitRefs.length > 0) return explicitRefs;
+    return derivePromptRefs(fallbackCategory, part?.prompts);
+}
+
+function getPartCategories(part) {
+    return Array.from(new Set(getPartPromptRefs(part)
+        .map((ref) => String(ref.category || "").trim())
+        .filter(Boolean)));
+}
+
+function getPartDisplayCategory(part) {
+    const categories = getPartCategories(part);
+    if (categories.length > 1) return "Multiple Categories";
+    if (categories.length === 1) return categories[0];
+    return String(part?.category || "").trim();
+}
+
+function buildSelectedPromptsByCategory(part) {
+    const selected = {};
+    getPartPromptRefs(part).forEach((ref) => {
+        const category = String(ref.category || "").trim();
+        const name = String(ref.name || "").trim();
+        if (!category || !name) return;
+        if (!selected[category]) selected[category] = [];
+        selected[category].push(name);
+    });
+    return selected;
+}
+
+function normalizePart(part) {
+    const category = String(part?.category || "").trim();
+    const promptRefs = getPartPromptRefs(part);
+    const prompts = promptRefs.map((ref) => ref.name);
+    return {
+        category: category || promptRefs[0]?.category || "",
+        prompts,
+        prompt_refs: promptRefs,
+        strength: clampStrength(part?.strength ?? 1.0),
+        subject_number: clampSubjectNumber(part?.subject_number ?? part?.subject ?? SUBJECT_MIN),
+        subject_locked: !!(part?.subject_locked ?? part?.subject_manual ?? false),
+        muted: part?.muted === true,
+    };
+}
+
+function resolveSubjectAssignments(parts) {
+    const normalizedParts = Array.isArray(parts) ? parts.map((part) => normalizePart(part)) : [];
+    let currentSubject = SUBJECT_MIN;
+    return normalizedParts.map((part) => {
+        if (part.muted) {
+            return {
+                ...part,
+                effective_subject_number: part.subject_locked
+                    ? part.subject_number
+                    : clampSubjectNumber(currentSubject, SUBJECT_MIN),
+            };
+        }
+        if (part.subject_locked && part.subject_number !== SUBJECT_NONE) {
+            currentSubject = clampSubjectNumber(part.subject_number, currentSubject);
+        }
+        const effectiveSubjectNumber = part.subject_locked && part.subject_number === SUBJECT_NONE
+            ? SUBJECT_NONE
+            : clampSubjectNumber(
+                part.subject_locked ? part.subject_number : currentSubject,
+                currentSubject,
+            );
+        if (effectiveSubjectNumber !== SUBJECT_NONE) {
+            currentSubject = effectiveSubjectNumber;
+        }
+        return {
+            ...part,
+            effective_subject_number: effectiveSubjectNumber,
+        };
+    });
+}
+
+function getInheritedSubjectDefaults(parts) {
+    const resolved = resolveSubjectAssignments(parts);
+    if (!resolved.length) {
+        return { subject_number: SUBJECT_MIN, subject_locked: false, has_subject: false, has_parts: false };
+    }
+    let lastSubjectNumber = SUBJECT_MIN;
+    let hasSubject = false;
+    for (const part of resolved) {
+        if (part.effective_subject_number === SUBJECT_NONE) continue;
+        lastSubjectNumber = clampSubjectNumber(part.effective_subject_number, SUBJECT_MIN);
+        hasSubject = true;
+    }
+    return {
+        subject_number: lastSubjectNumber,
+        subject_locked: false,
+        has_subject: hasSubject,
+        has_parts: true,
+    };
+}
+
+function nextSubjectNumber(value, delta) {
+    const current = clampSubjectNumber(value);
+    const span = SUBJECT_MAX - SUBJECT_MIN + 1;
+    const offset = ((current - SUBJECT_MIN + delta) % span + span) % span;
+    return SUBJECT_MIN + offset;
+}
+
+function getCategoryPromptType(node, category) {
+    const resolvedCategory = resolveComposerCategoryKey(node?.prompts || {}, category);
+    const raw = node?.prompts?.[resolvedCategory]?._prompt_type_;
+    return String(raw || "").trim().toLowerCase();
+}
+
+function getCategorySubjectType(node, category) {
+    const resolvedCategory = resolveComposerCategoryKey(node?.prompts || {}, category);
+    const raw = node?.prompts?.[resolvedCategory]?._subject_type_;
+    return String(raw || "").trim().toLowerCase();
+}
+
+function categoryShouldBeNonSubject(node, category) {
+    return getCategorySubjectType(node, category) === "non_subject";
+}
+
+function categoryStartsNewSubject(node, category) {
+    return getCategorySubjectType(node, category) === "new_subject";
+}
+
+function inferPartSubjectState(node, category, basePart = null, inheritedDefaults = null, options = null) {
+    if (categoryShouldBeNonSubject(node, category)) {
+        return {
+            subject_number: SUBJECT_NONE,
+            subject_locked: true,
+        };
+    }
+
+    if (basePart && basePart.subject_locked && basePart.subject_number !== SUBJECT_NONE) {
+        return {
+            subject_number: clampSubjectNumber(basePart.subject_number),
+            subject_locked: true,
+        };
+    }
+
+    if (basePart && !basePart.subject_locked && basePart.subject_number !== SUBJECT_NONE) {
+        return {
+            subject_number: clampSubjectNumber(basePart.subject_number),
+            subject_locked: false,
+        };
+    }
+
+    const inherited = inheritedDefaults || { subject_number: SUBJECT_MIN, subject_locked: false, has_subject: false, has_parts: false };
+    const shouldBumpSubject = options?.bumpSubject === true;
+    let subjectNumber = clampSubjectNumber(inherited.subject_number ?? SUBJECT_MIN);
+    if (shouldBumpSubject) {
+        subjectNumber = inherited.has_subject
+            ? nextSubjectNumber(subjectNumber, 1)
+            : SUBJECT_MIN;
+    }
+
+    // A new-subject category must persist the bumped number as a subject anchor.
+    // Leaving it unlocked makes both the UI resolver and backend runtime collapse
+    // it back onto the previously active subject.
+    return {
+        subject_number: subjectNumber,
+        subject_locked: shouldBumpSubject,
+    };
+}
+
+function advanceInheritedSubjectDefaults(currentDefaults, part) {
+    const nextDefaults = {
+        subject_number: clampSubjectNumber(currentDefaults?.subject_number ?? SUBJECT_MIN),
+        subject_locked: false,
+        has_subject: currentDefaults?.has_subject === true,
+        has_parts: true,
+    };
+    if (clampSubjectNumber(part?.subject_number ?? SUBJECT_NONE, SUBJECT_NONE) !== SUBJECT_NONE) {
+        nextDefaults.subject_number = clampSubjectNumber(part.subject_number, SUBJECT_MIN);
+        nextDefaults.has_subject = true;
+    }
+    return nextDefaults;
+}
+
+function parseParts(raw) {
+    try {
+        const parsed = JSON.parse(raw || "[]");
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .map((part) => normalizePart(part))
+            .filter((part) => part.prompt_refs.length > 0 || part.category.length > 0);
+    } catch {
+        return [];
+    }
+}
+
+function serializeParts(parts) {
+    const normalized = (Array.isArray(parts) ? parts : [])
+        .map((part) => normalizePart(part))
+        .filter((part) => part.prompt_refs.length > 0 || part.category.length > 0);
+    return JSON.stringify(normalized);
+}
+
+function parseJsonObjectSafe(value, fallback = null) {
+    if (!value) return fallback;
+    if (typeof value === "object") return value;
+    if (typeof value !== "string") return fallback;
+    try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === "object" ? parsed : fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+function extractComposerRecipeState(rawRecipeData) {
+    const recipeData = parseJsonObjectSafe(rawRecipeData, null);
+    if (!recipeData || typeof recipeData !== "object") return null;
+    const state = recipeData[PROMPT_COMPOSER_RECIPE_KEY];
+    if (!state || typeof state !== "object") return null;
+
+    let partsPayload = "[]";
+    if (typeof state.parts_data === "string" && state.parts_data.trim()) {
+        partsPayload = state.parts_data;
+    } else if (Array.isArray(state.parts)) {
+        partsPayload = JSON.stringify(state.parts);
+    }
+
+    const parts = parseParts(partsPayload);
+    return {
+        parts,
+        partsData: serializeParts(parts),
+        outputFormat: String(state.output_format || "").trim().toLowerCase() || "text",
+        composePosition: String(state.compose_position || "").trim().toLowerCase() || "before",
+        generationMode: String(state.generation_mode || "").trim().toLowerCase() || "image",
+        inputPromptMode: String(state.input_prompt_mode || state.input_mode || "").trim().toLowerCase() === "use_prompt"
+            || String(state.input_prompt_mode || state.input_mode || "").trim().toLowerCase() === "use_input"
+            ? "use_prompt"
+            : "no_prompt",
+        inputLoraMode: String(state.input_lora_mode || state.input_mode || "").trim().toLowerCase() === "use_lora"
+            || String(state.input_lora_mode || state.input_mode || "").trim().toLowerCase() === "use_input"
+            ? "use_lora"
+            : "no_lora",
+    };
+}
+
+function applyComposerRecipeState(node, state, options = {}) {
+    if (!node || !state || typeof state !== "object") return false;
+    const preserveModes = options?.preserveModes === true;
+
+    let changed = false;
+    const nextPartsData = String(state.partsData || serializeParts(state.parts || [])).trim() || "[]";
+    const currentPartsData = serializeParts(readParts(node));
+    if (nextPartsData !== currentPartsData) {
+        writeParts(node, state.parts || parseParts(nextPartsData));
+        clearSelectedPartIndices(node);
+        changed = true;
+    }
+
+    if (!preserveModes && state.outputFormat && state.outputFormat !== readOutputFormat(node)) {
+        writeOutputFormat(node, state.outputFormat);
+        changed = true;
+    }
+    if (!preserveModes && state.composePosition && state.composePosition !== readComposePosition(node)) {
+        writeComposePosition(node, state.composePosition);
+        changed = true;
+    }
+    if (!preserveModes && state.generationMode && state.generationMode !== readGenerationMode(node)) {
+        writeGenerationMode(node, state.generationMode);
+        changed = true;
+    }
+    if (!preserveModes && state.inputPromptMode && state.inputPromptMode !== readInputPromptMode(node)) {
+        writeInputPromptMode(node, state.inputPromptMode);
+        changed = true;
+    }
+    if (!preserveModes && state.inputLoraMode && state.inputLoraMode !== readInputLoraMode(node)) {
+        writeInputLoraMode(node, state.inputLoraMode);
+        changed = true;
+    }
+
+    if (changed) {
+        node._composerUiSyncSwitches?.();
+        node._composerUiRender?.();
+        app.graph.setDirtyCanvas(true, true);
+    }
+    return changed;
+}
+
+function rememberComposerRecipeState(node, state) {
+    if (!node || !state || typeof state !== "object") return;
+    node._composerLastRecipeState = {
+        parts: Array.isArray(state.parts) ? state.parts.map((part) => ({ ...part })) : [],
+        partsData: String(state.partsData || "[]"),
+        outputFormat: String(state.outputFormat || "text"),
+        composePosition: String(state.composePosition || "before"),
+        generationMode: String(state.generationMode || "image"),
+        inputPromptMode: String(state.inputPromptMode || "no_prompt"),
+        inputLoraMode: String(state.inputLoraMode || "no_lora"),
+    };
+}
+
+function getPartsWidget(node) {
+    return getWidgetByName(node, PARTS_WIDGET_NAME);
+}
+
+function readParts(node) {
+    const widget = getPartsWidget(node);
+    const propRaw = String(node.properties?.[PARTS_PROP_KEY] || "").trim();
+    if (propRaw) return parseParts(propRaw);
+    return parseParts(widget?.value || "[]");
+}
+
+function writeParts(node, parts) {
+    const payload = serializeParts(parts);
+    const widget = getPartsWidget(node);
+    if (widget) {
+        widget.value = payload;
+    }
+    node.properties = node.properties || {};
+    node.properties[PARTS_PROP_KEY] = payload;
+    app.graph.setDirtyCanvas(true, true);
+}
+
+function getSelectedPartIndices(node, partCount = null) {
+    const raw = node?._composerSelectedPartIndices;
+    const values = raw instanceof Set ? Array.from(raw) : (Array.isArray(raw) ? raw : []);
+    return values
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value >= 0 && (partCount === null || value < partCount))
+        .sort((a, b) => a - b);
+}
+
+function setSelectedPartIndices(node, indices, partCount = null) {
+    const next = new Set(
+        (Array.isArray(indices) ? indices : [])
+            .map((value) => Number(value))
+            .filter((value) => Number.isInteger(value) && value >= 0 && (partCount === null || value < partCount))
+    );
+    node._composerSelectedPartIndices = next;
+}
+
+function clearSelectedPartIndices(node) {
+    node._composerSelectedPartIndices = new Set();
+}
+
+function toggleSelectedPartIndex(node, index, partCount = null) {
+    const next = new Set(getSelectedPartIndices(node, partCount));
+    if (next.has(index)) {
+        next.delete(index);
+    } else {
+        next.add(index);
+    }
+    node._composerSelectedPartIndices = next;
+    return next;
+}
+
+function buildPartsFromBrowserSelection(node, selection, inheritedSubject, basePart = null, preferredCategory = "") {
+    if (!selection || !Array.isArray(selection.prompts) || selection.prompts.length === 0) {
+        return [];
+    }
+
+    const normalizedPreferredCategory = resolveComposerCategoryKey(node?.prompts || {}, preferredCategory) || String(preferredCategory || "").trim();
+    const normalizedBasePart = basePart ? normalizePart(basePart) : null;
+    const selectionMode = String(selection.selectionMode || "combine").trim().toLowerCase();
+    let currentInheritedSubject = {
+        subject_number: clampSubjectNumber(inheritedSubject?.subject_number ?? SUBJECT_MIN),
+        subject_locked: false,
+        has_subject: inheritedSubject?.has_subject === true,
+        has_parts: inheritedSubject?.has_parts === true,
+    };
+    const buildPart = (category, prompts, bumpSubject = false, promptRefs = null) => {
+        const subjectState = inferPartSubjectState(node, category, normalizedBasePart, currentInheritedSubject, {
+            bumpSubject,
+        });
+        const nextPart = normalizePart({
+            category,
+            prompts,
+            prompt_refs: promptRefs,
+            strength: normalizedBasePart?.strength ?? 1.0,
+            muted: normalizedBasePart?.muted === true,
+            subject_number: subjectState.subject_number,
+            subject_locked: subjectState.subject_locked,
+        });
+        currentInheritedSubject = advanceInheritedSubjectDefaults(currentInheritedSubject, nextPart);
+        return nextPart;
+    };
+
+    const buildPartsForCategory = (category, prompts) => {
+        const resolvedCategory = resolveComposerCategoryKey(node?.prompts || {}, category) || String(category || "").trim();
+        const refs = Array.isArray(prompts)
+            ? prompts
+                .map((name) => ({ category: resolvedCategory, name: String(name || "").trim() }))
+                .filter((ref) => ref.name.length > 0)
+            : [];
+        if (!refs.length) return [];
+
+        const shouldBumpSubject = !normalizedBasePart && categoryStartsNewSubject(node, resolvedCategory);
+        if (selectionMode === "split") {
+            return refs.map((ref, promptIndex) => buildPart(resolvedCategory, [ref.name], shouldBumpSubject && promptIndex === 0, [ref]));
+        }
+        return [buildPart(resolvedCategory, refs.map((ref) => ref.name), shouldBumpSubject, refs)];
+    };
+
+    const pickPrimaryInsertedCategory = (entries) => {
+        const resolvedEntries = entries
+            .map(([category, prompts]) => ({
+                category: resolveComposerCategoryKey(node?.prompts || {}, category) || String(category || "").trim(),
+                prompts,
+            }))
+            .filter((entry) => entry.category && Array.isArray(entry.prompts) && entry.prompts.length > 0);
+        if (!resolvedEntries.length) return "";
+
+        const newSubjectEntry = resolvedEntries.find((entry) => categoryStartsNewSubject(node, entry.category));
+        if (newSubjectEntry) return newSubjectEntry.category;
+
+        const subjectEntry = resolvedEntries.find((entry) => !categoryShouldBeNonSubject(node, entry.category));
+        if (subjectEntry) return subjectEntry.category;
+
+        return resolvedEntries[0].category;
+    };
+
+    if (selection.selectionsByCategory && Object.keys(selection.selectionsByCategory).length > 0) {
+        const entries = Object.entries(selection.selectionsByCategory)
+            .filter(([, prompts]) => Array.isArray(prompts) && prompts.length > 0)
+            .sort((a, b) => {
+                if (!normalizedPreferredCategory) return 0;
+                const resolvedA = resolveComposerCategoryKey(node?.prompts || {}, a[0]) || a[0];
+                const resolvedB = resolveComposerCategoryKey(node?.prompts || {}, b[0]) || b[0];
+                if (resolvedA === normalizedPreferredCategory) return -1;
+                if (resolvedB === normalizedPreferredCategory) return 1;
+                return 0;
+            });
+        if (selectionMode !== "split" && entries.length > 1) {
+            const primaryCategory = normalizedBasePart?.category
+                || pickPrimaryInsertedCategory(entries)
+                || normalizedPreferredCategory
+                || resolveComposerCategoryKey(node?.prompts || {}, entries[0]?.[0] || "")
+                || entries[0]?.[0]
+                || "";
+            const promptRefs = entries.flatMap(([category, prompts]) => (Array.isArray(prompts) ? prompts : [])
+                .map((name) => ({
+                    category: resolveComposerCategoryKey(node?.prompts || {}, category) || String(category || "").trim(),
+                    name: String(name || "").trim(),
+                }))
+                .filter((ref) => ref.name.length > 0));
+            if (!promptRefs.length) return [];
+            const shouldBumpSubject = !normalizedBasePart && categoryStartsNewSubject(node, primaryCategory);
+            return [buildPart(primaryCategory, promptRefs.map((ref) => ref.name), shouldBumpSubject, promptRefs)];
+        }
+        return entries.flatMap(([category, prompts]) => buildPartsForCategory(category, prompts));
+    }
+
+    const category = resolveComposerCategoryKey(node?.prompts || {}, selection.category || normalizedBasePart?.category || "")
+        || String(selection.category || normalizedBasePart?.category || "").trim();
+    const prompts = selection.prompts.filter((name) => String(name || "").trim());
+    return buildPartsForCategory(category, prompts);
+}
+
+function ensureHiddenComposerWidgets(node) {
+    hideWidget(getPartsWidget(node));
+    hideWidget(getWidgetByName(node, OUTPUT_FORMAT_WIDGET_NAME));
+    hideWidget(getWidgetByName(node, COMPOSE_POSITION_WIDGET_NAME));
+    hideWidget(getWidgetByName(node, GENERATION_MODE_WIDGET_NAME));
+    hideWidget(getWidgetByName(node, RECIPE_SYNC_MODE_WIDGET_NAME));
+    hideWidget(getWidgetByName(node, INPUT_PROMPT_MODE_WIDGET_NAME));
+    hideWidget(getWidgetByName(node, INPUT_LORA_MODE_WIDGET_NAME));
+    hideWidget(getWidgetByName(node, LEGACY_INPUT_MODE_WIDGET_NAME));
+}
+
+function ensureComposerUi(node) {
+    if (node._composerUiAttached) return;
+    ensureComposerDragStyles();
+
+    const root = document.createElement("div");
+    root.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        box-sizing: border-box;
+        margin-top: -6px;
+        padding: 0;
+        overflow: hidden;
+        position: relative;
+    `;
+
+    const switchRow = document.createElement("div");
+    switchRow.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 22px;
+        margin: 0 0 5px 0;
+        padding: 0 8px;
+        border: 1px solid rgba(78, 90, 108, 0.72);
+        border-radius: 10px;
+        background: rgba(34, 39, 48, 0.98);
+        box-sizing: border-box;
+        flex: 0 0 auto;
+    `;
+    const secondarySwitchRow = document.createElement("div");
+    secondarySwitchRow.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 22px;
+        margin: 0 0 5px 0;
+        padding: 0 8px;
+        border: 1px solid rgb(53, 118, 220);
+        border-radius: 4px;
+        background: rgb(32, 49, 74);
+        box-sizing: border-box;
+        flex: 0 0 auto;
+        transition: background 0.15s ease;
+    `;
+
+    const lockNotice = document.createElement("div");
+    lockNotice.style.cssText = `
+        display: none;
+        margin: 0 0 8px 0;
+        padding: 6px 10px;
+        border: 1px solid rgba(47, 111, 146, 0.85);
+        border-radius: 8px;
+        background: rgba(25, 53, 68, 0.78);
+        color: #d7edf8;
+        font-size: 11px;
+        line-height: 1.3;
+        flex: 0 0 auto;
+    `;
+    lockNotice.textContent = "Sync follows connected compose_data for card state only. Prompt selects incoming prompt or saved compose-data prompt, and LoRA adds the saved extra compose-data LoRAs.";
+
+    const createInlineSwitch = ({ title, leftLabel, rightLabel, getValue, onToggle, isRightActive, isDisabled = null }) => {
+        const group = document.createElement("div");
+        group.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 0;
+            flex: 1 1 0;
+        `;
+        group.title = title;
+
+        const left = document.createElement("span");
+        left.textContent = leftLabel;
+        left.style.cssText = "font-size: 12px; color: #b9c2ce; white-space: nowrap; user-select: none;";
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.style.cssText = `
+            position: relative;
+            width: 34px;
+            height: 18px;
+            border: 1px solid rgba(116, 131, 154, 0.7);
+            border-radius: 999px;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            flex: 0 0 auto;
+        `;
+
+        const knob = document.createElement("span");
+        knob.style.cssText = `
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #f3f4f6;
+            transition: transform 0.16s ease, background 0.16s ease;
+            pointer-events: none;
+        `;
+        button.appendChild(knob);
+
+        const right = document.createElement("span");
+        right.textContent = rightLabel;
+        right.style.cssText = "font-size: 12px; color: #b9c2ce; white-space: nowrap; user-select: none;";
+
+        const sync = () => {
+            const current = getValue();
+            const active = typeof isRightActive === "function" ? !!isRightActive(current) : false;
+            const disabled = typeof isDisabled === "function" ? !!isDisabled() : false;
+            button.dataset.active = active ? "1" : "0";
+            button.style.background = active ? "#2f6f92" : "transparent";
+            knob.style.transform = active ? "translateX(16px)" : "translateX(0)";
+            left.style.color = active ? "#8d97a5" : "#f3f4f6";
+            right.style.color = active ? "#f3f4f6" : "#8d97a5";
+            button.disabled = disabled;
+            button.style.opacity = disabled ? "0.45" : "1";
+            button.style.cursor = disabled ? "default" : "pointer";
+            group.style.opacity = disabled ? "0.72" : "1";
+        };
+
+        button.onclick = (evt) => {
+            evt.preventDefault();
+            evt.stopPropagation();
+            if (typeof isDisabled === "function" && isDisabled()) {
+                sync();
+                return;
+            }
+            onToggle(getValue());
+            sync();
+            node._composerUiRender?.();
+        };
+
+        group.appendChild(left);
+        group.appendChild(button);
+        group.appendChild(right);
+        return { group, sync };
+    };
+
+    const createLabeledToggle = ({ title, label, getValue, onToggle, isActive, isDisabled = null, activeBackground = "#2f6f92", activeLabelColor = "#f3f4f6", inactiveLabelColor = "#8fb0c6", defaultLabelColor = "#d7edf8" }) => {
+        const group = document.createElement("div");
+        group.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-width: 0;
+            flex: 1 1 0;
+        `;
+        group.title = title;
+
+        const text = document.createElement("span");
+        text.textContent = label;
+        text.style.cssText = `font-size: 12px; color: ${defaultLabelColor}; white-space: nowrap; user-select: none;`;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.style.cssText = `
+            position: relative;
+            width: 34px;
+            height: 18px;
+            border: 1px solid rgba(116, 131, 154, 0.7);
+            border-radius: 999px;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            flex: 0 0 auto;
+        `;
+
+        const knob = document.createElement("span");
+        knob.style.cssText = `
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #f3f4f6;
+            transition: transform 0.16s ease, background 0.16s ease;
+            pointer-events: none;
+        `;
+        button.appendChild(knob);
+
+        const sync = () => {
+            const current = getValue();
+            const active = typeof isActive === "function" ? !!isActive(current) : false;
+            const disabled = typeof isDisabled === "function" ? !!isDisabled() : false;
+            button.dataset.active = active ? "1" : "0";
+            button.style.background = active ? activeBackground : "transparent";
+            knob.style.transform = active ? "translateX(16px)" : "translateX(0)";
+            text.style.color = active ? activeLabelColor : inactiveLabelColor;
+            button.disabled = disabled;
+            button.style.opacity = disabled ? "0.45" : "1";
+            button.style.cursor = disabled ? "default" : "pointer";
+            group.style.opacity = disabled ? "0.72" : "1";
+        };
+
+        button.onclick = (evt) => {
+            evt.preventDefault();
+            evt.stopPropagation();
+            if (typeof isDisabled === "function" && isDisabled()) {
+                sync();
+                return;
+            }
+            onToggle(getValue());
+            sync();
+            node._composerUiRender?.();
+        };
+
+        group.appendChild(text);
+        group.appendChild(button);
+        return { group, sync };
+    };
+
+    const createModeBadge = ({ title, label, active = true }) => {
+        const group = document.createElement("div");
+        group.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 0;
+            flex: 1 1 0;
+        `;
+        group.title = title;
+
+        const text = document.createElement("span");
+        text.textContent = label;
+        text.style.cssText = `font-size: 12px; color: ${active ? "#f3f4f6" : "#8fb0c6"}; white-space: nowrap; user-select: none;`;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.disabled = true;
+        button.style.cssText = `
+            position: relative;
+            width: 34px;
+            height: 18px;
+            border: 1px solid rgba(116, 131, 154, 0.7);
+            border-radius: 999px;
+            background: ${active ? "#2f6f92" : "transparent"};
+            cursor: default;
+            padding: 0;
+            flex: 0 0 auto;
+            opacity: 1;
+        `;
+
+        const knob = document.createElement("span");
+        knob.style.cssText = `
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #f3f4f6;
+            transform: ${active ? "translateX(16px)" : "translateX(0)"};
+            pointer-events: none;
+        `;
+        button.appendChild(knob);
+        group.appendChild(text);
+        group.appendChild(button);
+        return { group, sync: () => {} };
+    };
+
+    const formatSwitch = createLabeledToggle({
+        title: "Switch Prompt output between text and JSON",
+        label: "JSON",
+        getValue: () => readOutputFormat(node),
+        onToggle: (current) => writeOutputFormat(node, current === "json" ? "text" : "json"),
+        isActive: (current) => current === "json",
+    });
+    const positionSwitch = createLabeledToggle({
+        title: "Switch whether composed parts go before or after the selected prompt source",
+        label: "After",
+        getValue: () => readComposePosition(node),
+        onToggle: (current) => writeComposePosition(node, current === "after" ? "before" : "after"),
+        isActive: (current) => current === "after",
+    });
+    const generationModeSwitch = createLabeledToggle({
+        title: "Switch whether Prompt Composer uses Image or Video LoRAs",
+        label: "Video",
+        getValue: () => readGenerationMode(node),
+        onToggle: (current) => writeGenerationMode(node, current === "video" ? "image" : "video"),
+        isActive: (current) => current === "video",
+    });
+    const recipeSyncSwitch = createLabeledToggle({
+        title: "When enabled, execute clears local card edits and reloads the Prompt Composer state from connected compose_data",
+        label: "Sync",
+        getValue: () => readRecipeSyncMode(node),
+        onToggle: () => {
+            const nextValue = isRecipeSyncEnabled(node) ? "edit" : "sync";
+            writeRecipeSyncMode(node, nextValue);
+            if (nextValue === "sync" && node._composerLastRecipeState) {
+                applyComposerRecipeState(node, node._composerLastRecipeState, { preserveModes: true });
+            }
+        },
+        isActive: (current) => current === "sync",
+        activeBackground: "#8a2f3b",
+    });
+    const inputPromptSwitch = createLabeledToggle({
+        title: "When enabled, use the prompt from compose_data instead of the live incoming prompt",
+        label: "Prompt",
+        getValue: () => readInputPromptMode(node),
+        onToggle: () => {
+            const nextValue = readInputPromptMode(node) === "use_prompt" ? "no_prompt" : "use_prompt";
+            writeInputPromptMode(node, nextValue);
+        },
+        isActive: (current) => current === "use_prompt",
+        activeBackground: "#8a2f3b",
+        defaultLabelColor: "#dbeafe",
+        inactiveLabelColor: "#dbeafe",
+    });
+    const inputLoraSwitch = createLabeledToggle({
+        title: "When enabled, use the saved LoRA input from compose_data instead of the live connected LoRA input",
+        label: "LoRA",
+        getValue: () => readInputLoraMode(node),
+        onToggle: () => {
+            const nextValue = readInputLoraMode(node) === "use_lora" ? "no_lora" : "use_lora";
+            writeInputLoraMode(node, nextValue);
+        },
+        isActive: (current) => current === "use_lora",
+        activeBackground: "#8a2f3b",
+        defaultLabelColor: "#dbeafe",
+        inactiveLabelColor: "#dbeafe",
+    });
+
+    switchRow.appendChild(formatSwitch.group);
+    switchRow.appendChild(positionSwitch.group);
+    switchRow.appendChild(generationModeSwitch.group);
+    secondarySwitchRow.appendChild(recipeSyncSwitch.group);
+    secondarySwitchRow.appendChild(inputPromptSwitch.group);
+    secondarySwitchRow.appendChild(inputLoraSwitch.group);
+    root.appendChild(switchRow);
+    root.appendChild(secondarySwitchRow);
+
+    const actionRow = document.createElement("div");
+    actionRow.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0 0 6px 0;
+        padding: 0 2px;
+        flex: 0 0 auto;
+    `;
+
+    const createToolbarActionButton = ({ label, title, onClick }) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.title = title;
+        button.style.cssText = `
+            flex: 1 1 0;
+            min-width: 70px;
+            min-height: 26px;
+            padding: 5px 8px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #222;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            box-sizing: border-box;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        button.onclick = async (evt) => {
+            evt.preventDefault();
+            evt.stopPropagation();
+            await onClick();
+        };
+        return button;
+    };
+
+    actionRow.appendChild(createToolbarActionButton({
+        label: "Save JSONs",
+        title: "Export selected Prompt Composer prompt-group JSONs as a ZIP file",
+        onClick: () => exportComposerJsonLibrary(node),
+    }));
+    actionRow.appendChild(createToolbarActionButton({
+        label: "Import JSONs",
+        title: "Import prompt-group JSONs from a ZIP or JSON file into the current library",
+        onClick: () => mergeComposerJsonLibrary(node),
+    }));
+    actionRow.appendChild(createToolbarActionButton({
+        label: "Replace JSONs",
+        title: "Replace the current Prompt Composer library with prompt-group JSONs from a ZIP or JSON file",
+        onClick: () => openComposerJsonLibrary(node),
+    }));
+    root.appendChild(actionRow);
+
+    const scroller = document.createElement("div");
+    scroller.style.cssText = `
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        background: ${UI.inputBg || "#1a1d22"};
+        border: 2px solid ${UI.accentBorder || "hsl(208 73% 57% / 0.65)"};
+        padding: ${SCROLLER_PADDING_TOP}px 8px ${SCROLLER_PADDING_BOTTOM}px 8px;
+        box-sizing: border-box;
+        scrollbar-width: thin;
+    `;
+
+    const grid = document.createElement("div");
+    grid.style.cssText = `
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+        gap: ${GRID_GAP}px;
+        justify-content: start;
+        align-content: start;
+    `;
+
+    scroller.appendChild(grid);
+    root.appendChild(scroller);
+
+    const DRAG_SCROLL_EDGE_THRESHOLD = 96;
+    const DRAG_SCROLL_MAX_STEP = 42;
+
+    const maybeAutoScrollDuringDrag = (clientY) => {
+        if (!node._composerIsDragging) return;
+        const rect = scroller.getBoundingClientRect();
+        if (!rect || rect.height <= 0) return;
+
+        const distanceFromTop = clientY - rect.top;
+        const distanceFromBottom = rect.bottom - clientY;
+
+        if (distanceFromTop >= 0 && distanceFromTop < DRAG_SCROLL_EDGE_THRESHOLD) {
+            const intensity = 1 - (distanceFromTop / DRAG_SCROLL_EDGE_THRESHOLD);
+            scroller.scrollTop -= Math.max(6, Math.round(DRAG_SCROLL_MAX_STEP * intensity));
+            return;
+        }
+
+        if (distanceFromBottom >= 0 && distanceFromBottom < DRAG_SCROLL_EDGE_THRESHOLD) {
+            const intensity = 1 - (distanceFromBottom / DRAG_SCROLL_EDGE_THRESHOLD);
+            scroller.scrollTop += Math.max(6, Math.round(DRAG_SCROLL_MAX_STEP * intensity));
+        }
+    };
+
+    scroller.addEventListener("dragover", (evt) => {
+        maybeAutoScrollDuringDrag(evt.clientY);
+    });
+
+    const zoomRow = document.createElement("div");
+    zoomRow.className = "pm-composer-zoom-row";
+
+    const zoomSlider = document.createElement("input");
+    zoomSlider.type = "range";
+    zoomSlider.min = String(Math.round(MIN_THUMB_ZOOM * 100));
+    zoomSlider.max = String(Math.round(MAX_THUMB_ZOOM * 100));
+    zoomSlider.step = "25";
+    zoomSlider.value = String(Math.round(readThumbZoom(node) * 100));
+    zoomSlider.title = "Thumbnail zoom (right-click to reset)";
+    zoomSlider.className = "pm-composer-zoom-slider";
+
+    const syncZoomLabel = () => {
+        zoomSlider.value = String(Math.round(clampThumbZoom(Number(zoomSlider.value) / 100) * 100));
+    };
+    syncZoomLabel();
+
+    zoomSlider.addEventListener("input", () => {
+        const zoom = clampThumbZoom(Number(zoomSlider.value) / 100);
+        writeThumbZoom(node, zoom);
+        syncZoomLabel();
+        render();
+    });
+
+    zoomSlider.addEventListener("contextmenu", (evt) => {
+        evt.preventDefault();
+        const zoom = RESET_THUMB_ZOOM;
+        zoomSlider.value = String(Math.round(zoom * 100));
+        writeThumbZoom(node, zoom);
+        render();
+    });
+
+    zoomRow.appendChild(zoomSlider);
+    root.appendChild(zoomRow);
+
+    const removeContextMenu = () => {
+        if (node._composerContextMenu && node._composerContextMenu.parentNode) {
+            node._composerContextMenu.parentNode.removeChild(node._composerContextMenu);
+        }
+        node._composerContextMenu = null;
+    };
+
+    const clearPartSelection = () => {
+        if (getSelectedPartIndices(node).length === 0) return false;
+        clearSelectedPartIndices(node);
+        render();
+        return true;
+    };
+
+    const clearComposerNode = () => {
+        if (isComposerEditLocked(node)) return false;
+        const parts = readParts(node);
+        if (!parts.length) return false;
+        writeParts(node, []);
+        clearSelectedPartIndices(node);
+        render();
+        return true;
+    };
+
+    const clearMutedComposerParts = () => {
+        if (isComposerEditLocked(node)) return false;
+        const parts = readParts(node);
+        const remaining = parts.filter((part) => part.muted !== true);
+        if (remaining.length === parts.length) return false;
+        writeParts(node, remaining);
+        clearSelectedPartIndices(node);
+        render();
+        return true;
+    };
+
+    const showBackgroundContextMenu = (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        removeContextMenu();
+
+        const menu = document.createElement("div");
+        menu.style.cssText = `
+            position: fixed;
+            left: ${evt.clientX}px;
+            top: ${evt.clientY}px;
+            background: ${UI.panel || "#2a2a2a"};
+            border: 1px solid ${UI.inputBorder || "#444"};
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 10050;
+            min-width: 130px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+        `;
+
+        const parts = readParts(node);
+        const editLocked = isComposerEditLocked(node);
+        const addItem = (label, disabled, action) => {
+            const item = document.createElement("div");
+            item.textContent = label;
+            item.style.cssText = `
+                padding: 7px 12px;
+                font-size: 12px;
+                color: ${disabled ? "#666" : "#ddd"};
+                cursor: ${disabled ? "default" : "pointer"};
+                user-select: none;
+            `;
+            if (!disabled) {
+                item.onmouseenter = () => {
+                    item.style.background = UI.accentSoft || "rgba(56,130,246,0.2)";
+                };
+                item.onmouseleave = () => {
+                    item.style.background = "transparent";
+                };
+                item.onclick = () => {
+                    removeContextMenu();
+                    action();
+                };
+            }
+            menu.appendChild(item);
+        };
+        addItem("Clear All Nodes", editLocked || parts.length === 0, clearComposerNode);
+        addItem("Clear Muted Nodes", editLocked || !parts.some((part) => part.muted === true), clearMutedComposerParts);
+
+        document.body.appendChild(menu);
+        node._composerContextMenu = menu;
+
+        const close = (e) => {
+            if (!menu.contains(e.target)) {
+                removeContextMenu();
+                document.removeEventListener("mousedown", close, true);
+                document.removeEventListener("contextmenu", close, true);
+            }
+        };
+
+        setTimeout(() => {
+            document.addEventListener("mousedown", close, true);
+            document.addEventListener("contextmenu", close, true);
+        }, 0);
+    };
+
+    const resolveContextPartIndices = (parts, partIndex) => {
+        const selectedIndices = getSelectedPartIndices(node, parts.length);
+        if (selectedIndices.length > 1) {
+            return selectedIndices;
+        }
+        return [partIndex].filter((value) => Number.isInteger(value) && value >= 0 && value < parts.length);
+    };
+
+    const updateContextParts = (partIndex, updater) => {
+        const parts = readParts(node);
+        const contextIndices = resolveContextPartIndices(parts, partIndex);
+        if (!contextIndices.length || typeof updater !== "function") {
+            return { changed: false, contextIndices, parts };
+        }
+
+        const next = [...parts];
+        let changed = false;
+        for (const index of contextIndices) {
+            const currentPart = next[index];
+            if (!currentPart) continue;
+            const updatedPart = updater(currentPart, index, contextIndices, next);
+            if (!updatedPart) continue;
+            next[index] = normalizePart(updatedPart);
+            changed = true;
+        }
+
+        if (changed) {
+            writeParts(node, next);
+            setSelectedPartIndices(node, contextIndices, next.length);
+            render();
+        }
+
+        return { changed, contextIndices, parts: next };
+    };
+
+    const mergeSelectedPromptParts = (indices = null) => {
+        const parts = readParts(node);
+        const selectedIndices = Array.isArray(indices) && indices.length > 0
+            ? indices.filter((value) => Number.isInteger(value) && value >= 0 && value < parts.length).sort((a, b) => a - b)
+            : getSelectedPartIndices(node, parts.length);
+        if (selectedIndices.length < 2) return false;
+
+        const selectedParts = selectedIndices.map((index) => normalizePart(parts[index]));
+        const category = selectedParts[0]?.category || "";
+        if (!selectedParts.every((part) => part.category === category)) {
+            return false;
+        }
+
+        const seenPrompts = new Set();
+        const mergedPrompts = [];
+        const mergedPromptRefs = [];
+        selectedParts.forEach((part) => {
+            getPartPromptRefs(part).forEach((ref) => {
+                const key = `${String(ref.category || "").trim().toLowerCase()}::${String(ref.name || "").trim().toLowerCase()}`;
+                if (!key || seenPrompts.has(key)) return;
+                seenPrompts.add(key);
+                mergedPrompts.push(ref.name);
+                mergedPromptRefs.push(ref);
+            });
+        });
+        if (!mergedPrompts.length) return false;
+
+        const mergedPart = normalizePart({
+            ...selectedParts[0],
+            prompts: mergedPrompts,
+            prompt_refs: mergedPromptRefs,
+        });
+
+        const selectedIndexSet = new Set(selectedIndices);
+        const insertionIndex = selectedIndices[0];
+        const next = [];
+        parts.forEach((part, index) => {
+            if (index === insertionIndex) {
+                next.push(mergedPart);
+                return;
+            }
+            if (selectedIndexSet.has(index)) {
+                return;
+            }
+            next.push(part);
+        });
+
+        writeParts(node, next);
+        setSelectedPartIndices(node, [insertionIndex], next.length);
+        render();
+        return true;
+    };
+
+    const splitPromptParts = (indices = null) => {
+        const parts = readParts(node);
+        const targetIndices = Array.isArray(indices) && indices.length > 0
+            ? indices.filter((value) => Number.isInteger(value) && value >= 0 && value < parts.length).sort((a, b) => a - b)
+            : getSelectedPartIndices(node, parts.length);
+        if (!targetIndices.length) return false;
+
+        const replacementSelection = [];
+        const targetIndexSet = new Set(targetIndices);
+        const next = [];
+        let changed = false;
+
+        parts.forEach((rawPart, index) => {
+            if (!targetIndexSet.has(index)) {
+                next.push(rawPart);
+                return;
+            }
+
+            const normalizedPart = normalizePart(rawPart);
+            const promptRefs = getPartPromptRefs(normalizedPart);
+            if (promptRefs.length < 2) {
+                replacementSelection.push(next.length);
+                next.push(rawPart);
+                return;
+            }
+
+            changed = true;
+            promptRefs.forEach((ref) => {
+                replacementSelection.push(next.length);
+                next.push(normalizePart({
+                    ...normalizedPart,
+                    category: ref.category || normalizedPart.category,
+                    prompts: [ref.name],
+                    prompt_refs: [ref],
+                }));
+            });
+        });
+
+        if (!changed) return false;
+
+        writeParts(node, next);
+        setSelectedPartIndices(node, replacementSelection, next.length);
+        render();
+        return true;
+    };
+
+    const showPartContextMenu = (evt, partIndex) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        removeContextMenu();
+
+        const menu = document.createElement("div");
+        menu.style.cssText = `
+            position: fixed;
+            left: ${evt.clientX}px;
+            top: ${evt.clientY}px;
+            background: ${UI.panel || "#2a2a2a"};
+            border: 1px solid ${UI.inputBorder || "#444"};
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 10050;
+            min-width: 130px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+        `;
+
+        const addItem = (label, onClick, disabled = false) => {
+            const item = document.createElement("div");
+            item.textContent = label;
+            item.style.cssText = `
+                padding: 7px 12px;
+                font-size: 12px;
+                color: ${disabled ? "#666" : "#ddd"};
+                cursor: ${disabled ? "default" : "pointer"};
+                user-select: none;
+            `;
+            if (!disabled) {
+                item.onmouseenter = () => {
+                    item.style.background = UI.accentSoft || "rgba(56,130,246,0.2)";
+                };
+                item.onmouseleave = () => {
+                    item.style.background = "transparent";
+                };
+                item.onclick = () => {
+                    removeContextMenu();
+                    onClick();
+                };
+            }
+            menu.appendChild(item);
+        };
+
+        const parts = readParts(node);
+        const resolvedParts = resolveSubjectAssignments(parts);
+        const resolvedPart = resolvedParts[partIndex] || null;
+        const contextIndices = resolveContextPartIndices(parts, partIndex);
+        const canMergeContextParts = contextIndices.length > 1 && contextIndices.every((index) => {
+            const current = normalizePart(parts[index]);
+            return current.category === normalizePart(parts[contextIndices[0]]).category;
+        });
+        const contextParts = contextIndices.map((index) => resolvedParts[index]).filter(Boolean);
+        const allMuted = contextParts.length > 0 && contextParts.every((part) => part?.muted === true);
+        const anySplitCandidate = contextParts.some((part) => (part?.prompts?.length || 0) >= 2);
+        const anyAutoEligible = contextParts.some((part) => part?.subject_locked && part?.effective_subject_number !== SUBJECT_NONE);
+        const anyNotSubjectEligible = contextParts.some((part) => part?.effective_subject_number !== SUBJECT_NONE);
+
+        addItem(
+            resolvedPart?.effective_subject_number === SUBJECT_NONE
+                ? "Not Subject"
+                : resolvedPart?.subject_locked
+                ? `Subject #${padSubjectNumber(resolvedPart.subject_number)} (custom)`
+                : `Subject #${padSubjectNumber(resolvedPart?.effective_subject_number ?? SUBJECT_MIN)} (auto)`,
+            () => {},
+            true,
+        );
+        addItem(contextIndices.length > 1 ? (allMuted ? "Unmute Prompts" : "Mute Prompts") : (resolvedPart?.muted ? "Unmute Prompt" : "Mute Prompt"), () => {
+            updateContextParts(partIndex, (currentPart) => ({
+                ...currentPart,
+                muted: !allMuted,
+            }));
+        });
+        if (contextIndices.length > 1) {
+            addItem(`Merge Prompts (${contextIndices.length})`, () => {
+                mergeSelectedPromptParts(contextIndices);
+            }, !canMergeContextParts);
+        }
+        addItem("Split Prompts", () => {
+            splitPromptParts(contextIndices);
+        }, !anySplitCandidate);
+        addItem("Subject +1", () => {
+            updateContextParts(partIndex, (currentPart, index) => {
+                const currentResolved = resolvedParts[index] || normalizePart(currentPart);
+                const baseSubject = currentResolved?.effective_subject_number ?? SUBJECT_MIN;
+                return {
+                    ...currentPart,
+                    subject_number: nextSubjectNumber(baseSubject, 1),
+                    subject_locked: true,
+                };
+            });
+        });
+        addItem("Subject -1", () => {
+            updateContextParts(partIndex, (currentPart, index) => {
+                const currentResolved = resolvedParts[index] || normalizePart(currentPart);
+                const baseSubject = currentResolved?.effective_subject_number ?? SUBJECT_MIN;
+                return {
+                    ...currentPart,
+                    subject_number: nextSubjectNumber(baseSubject, -1),
+                    subject_locked: true,
+                };
+            });
+        });
+        addItem("Subject Auto", () => {
+            updateContextParts(partIndex, (currentPart, index) => {
+                const currentResolved = resolvedParts[index] || normalizePart(currentPart);
+                return {
+                    ...currentPart,
+                    subject_number: currentResolved?.effective_subject_number === SUBJECT_NONE
+                        ? SUBJECT_MIN
+                        : currentResolved?.effective_subject_number,
+                    subject_locked: false,
+                };
+            });
+        }, !anyAutoEligible);
+        addItem("Not Subject", () => {
+            updateContextParts(partIndex, (currentPart) => ({
+                ...currentPart,
+                subject_number: SUBJECT_NONE,
+                subject_locked: true,
+            }));
+        }, !anyNotSubjectEligible);
+        addItem("Delete", () => {
+            const contextIndexSet = new Set(contextIndices);
+            const next = parts.filter((_, idx) => !contextIndexSet.has(idx));
+            writeParts(node, next);
+            clearSelectedPartIndices(node);
+            render();
+        });
+
+        document.body.appendChild(menu);
+        node._composerContextMenu = menu;
+
+        const close = (e) => {
+            if (!menu.contains(e.target)) {
+                removeContextMenu();
+                document.removeEventListener("mousedown", close, true);
+                document.removeEventListener("contextmenu", close, true);
+            }
+        };
+
+        setTimeout(() => {
+            document.addEventListener("mousedown", close, true);
+            document.addEventListener("contextmenu", close, true);
+        }, 0);
+    };
+
+    const openBrowserForPart = async (index) => {
+        const parts = readParts(node);
+        const part = parts[index] || { category: "", prompts: [], strength: 1.0, subject_number: SUBJECT_MIN, subject_locked: false };
+        const inheritedSubject = getInheritedSubjectDefaults(parts.slice(0, index));
+        const promptRefs = getPartPromptRefs(part);
+        const currentPrompt = promptRefs[0]?.name || part.prompts[0] || "";
+        const hasMultiSelection = promptRefs.length > 1 || (Array.isArray(part.prompts) && part.prompts.length > 1);
+        const initialCategory = promptRefs[0]?.category || part.category || getDefaultComposerPickerCategory(node);
+        const initialCategoryTypeFilter = getCategoryPromptType(node, initialCategory) || "__all__";
+        const selection = await showThumbnailBrowser(node, initialCategory, currentPrompt, {
+            title: "Select Prompt Composer Part",
+            multiSelect: true,
+            startInMultiSelect: hasMultiSelection,
+            multiCategorySelect: true,
+            endpointPrefix: COMPOSER_ENDPOINT_PREFIX,
+            promptOnly: true,
+            selectedPrompts: part.prompts,
+            selectedPromptsByCategory: buildSelectedPromptsByCategory(part),
+            loadPromptsFn: loadComposerPrompts,
+            preferenceScope: "composer",
+            initialCategoryTypeFilter,
+            multiSelectActionMode: "composer-add",
+            promptStrength: part.strength,
+            thumbnailGenerationMode: readGenerationMode(node),
+        });
+
+        if (!selection || !Array.isArray(selection.prompts) || selection.prompts.length === 0) return;
+
+        const replacementParts = buildPartsFromBrowserSelection(node, selection, inheritedSubject, part, part.category || "");
+        if (!replacementParts.length) return;
+
+        const next = [...parts];
+        next.splice(index, 1, ...replacementParts);
+
+        clearSelectedPartIndices(node);
+        writeParts(node, next);
+        render();
+    };
+
+    const insertBrowserPartAfter = async (index) => {
+        const parts = readParts(node);
+        const basePart = parts[index] || null;
+        const inheritedSubject = getInheritedSubjectDefaults(parts.slice(0, index + 1));
+        const initialCategory = basePart?.category || getDefaultComposerPickerCategory(node);
+        const initialCategoryTypeFilter = getCategoryPromptType(node, initialCategory) || "__all__";
+        const selection = await showThumbnailBrowser(node, initialCategory, "", {
+            title: "Add Prompt Composer Part",
+            multiSelect: true,
+            multiCategorySelect: true,
+            endpointPrefix: COMPOSER_ENDPOINT_PREFIX,
+            promptOnly: true,
+            selectedPrompts: [],
+            loadPromptsFn: loadComposerPrompts,
+            preferenceScope: "composer",
+            initialCategoryTypeFilter,
+            multiSelectActionMode: "composer-add",
+            thumbnailGenerationMode: readGenerationMode(node),
+        });
+
+        if (!selection || !Array.isArray(selection.prompts) || selection.prompts.length === 0) {
+            return;
+        }
+
+        const addedParts = buildPartsFromBrowserSelection(node, selection, inheritedSubject, null, initialCategory || "");
+        if (!addedParts.length) {
+            return;
+        }
+
+        const next = [...parts];
+        next.splice(index + 1, 0, ...addedParts);
+        clearSelectedPartIndices(node);
+        writeParts(node, next);
+        render();
+    };
+
+    const reorderPart = (fromIndex, toIndex) => {
+        const parts = readParts(node);
+        if (fromIndex === toIndex) return;
+        if (fromIndex < 0 || fromIndex >= parts.length) return;
+        if (toIndex < 0 || toIndex >= parts.length) return;
+        const next = [...parts];
+        const [moved] = next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, moved);
+        writeParts(node, next);
+        render();
+    };
+
+    const setPartStrength = (index, value) => {
+        const next = readParts(node);
+        if (!next[index]) return;
+        next[index].strength = clampStrength(value);
+        writeParts(node, next);
+    };
+
+    const render = () => {
+        const parts = readParts(node);
+        const resolvedParts = resolveSubjectAssignments(parts);
+        const selectedPartIndexSet = new Set(getSelectedPartIndices(node, resolvedParts.length));
+        const isVideoMode = readGenerationMode(node) === "video";
+        const isEditLocked = isComposerEditLocked(node);
+        const thumbZoom = readThumbZoom(node);
+        zoomSlider.value = String(Math.round(thumbZoom * 100));
+        syncZoomLabel();
+        const minCardWidth = Math.round(THUMB_BASE_WIDTH * thumbZoom);
+        const metaHeight = CARD_META_HEIGHT_VIDEO;
+        const tileMinHeight = Math.round(minCardWidth * (4 / 3)) + metaHeight;
+
+        // Flexible tracks keep rows filled while min width controls scale steps.
+        grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${minCardWidth}px, 1fr))`;
+        grid.style.pointerEvents = isEditLocked ? "none" : "auto";
+        grid.style.opacity = isEditLocked ? "0.74" : "1";
+        grid.innerHTML = "";
+        resolvedParts.forEach((part, index) => {
+            const promptRefs = getPartPromptRefs(part);
+            const primaryRef = promptRefs[0] || null;
+            const entry = primaryRef
+                ? getComposerEntry(node, primaryRef.category || part.category, primaryRef.name)
+                : null;
+            const thumb = entry?.thumbnail || DEFAULT_THUMBNAIL;
+            const multiCount = promptRefs.length || part.prompts.length;
+            const previewThumbnails = multiCount > 1
+                ? promptRefs.slice(0, 10).map((ref) => getComposerEntry(node, ref.category || part.category, ref.name)?.thumbnail || DEFAULT_THUMBNAIL)
+                : [thumb];
+            const subjectAccent = getSubjectAccent(part.effective_subject_number);
+            const isSubjectAnchor = !!part.subject_locked && part.effective_subject_number !== SUBJECT_NONE;
+            const isMuted = part.muted === true;
+            const isSelectedPart = selectedPartIndexSet.has(index);
+
+            const card = document.createElement("div");
+            card.dataset.composerPartCard = "1";
+            const cardBorderColor = subjectAccent.border;
+            const cardShadowParts = [];
+            if (isSubjectAnchor) {
+                cardShadowParts.push(`0 0 0 1px ${subjectAccent.soft}`);
+            }
+            if (isSelectedPart) {
+                cardShadowParts.push(`0 0 0 2px ${UI.accentBorder || "hsl(208 73% 57% / 0.65)"} inset`);
+            }
+            card.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                border: ${isSubjectAnchor ? 2 : 1}px solid ${cardBorderColor};
+                border-radius: 6px;
+                background: linear-gradient(180deg, ${subjectAccent.soft}, ${UI.cardBg || "#2b3340"} 42%);
+                padding: 4px;
+                box-sizing: border-box;
+                min-height: ${tileMinHeight}px;
+                box-shadow: ${cardShadowParts.length ? cardShadowParts.join(", ") : "none"};
+                opacity: ${isMuted ? "0.5" : "1"};
+                filter: ${isMuted ? "grayscale(0.45)" : "none"};
+            `;
+            card.oncontextmenu = (evt) => showPartContextMenu(evt, index);
+            card.draggable = false;
+
+            card.addEventListener("dragstart", (evt) => {
+                if (node._composerDragSourceIndex !== index) {
+                    evt.preventDefault();
+                    return;
+                }
+                node._composerIsDragging = true;
+                if (evt.dataTransfer) {
+                    evt.dataTransfer.effectAllowed = "move";
+                    evt.dataTransfer.setData("text/plain", String(index));
+                }
+                card.style.opacity = "0.65";
+                card.style.cursor = "grabbing";
+                card.classList.add("pm-composer-card-drag-active");
+            });
+
+            card.addEventListener("dragend", () => {
+                card.draggable = false;
+                card.style.opacity = "1";
+                card.style.borderColor = cardBorderColor;
+                card.style.cursor = "default";
+                card.style.outline = "none";
+                node._composerDragSourceIndex = null;
+                node._composerIsDragging = false;
+                card.classList.remove("pm-composer-card-drag-active");
+            });
+
+            card.addEventListener("dragover", (evt) => {
+                if (node._composerDragSourceIndex === null || node._composerDragSourceIndex === index) return;
+                evt.preventDefault();
+                maybeAutoScrollDuringDrag(evt.clientY);
+                card.style.outline = `2px dashed ${UI.accentBorder || "hsl(208 73% 57% / 0.65)"}`;
+            });
+
+            card.addEventListener("dragleave", () => {
+                card.style.outline = "none";
+            });
+
+            card.addEventListener("drop", (evt) => {
+                evt.preventDefault();
+                card.style.outline = "none";
+                const fromIndex = Number(node._composerDragSourceIndex);
+                if (!Number.isInteger(fromIndex)) return;
+                reorderPart(fromIndex, index);
+            });
+
+            const thumbBtn = document.createElement("button");
+            thumbBtn.type = "button";
+            thumbBtn.style.cssText = `
+                width: 100%;
+                aspect-ratio: 3 / 4;
+                border: 1px solid ${UI.inputBorder || "#445064"};
+                border-radius: 4px;
+                background-image: ${multiCount > 1 ? "none" : `url(${thumb})`};
+                background-size: contain;
+                background-repeat: no-repeat;
+                background-position: center;
+                background-color: #1a1a1a;
+                cursor: pointer;
+                position: relative;
+                display: block;
+                overflow: hidden;
+            `;
+            const hoverPromptText = buildComposerPartHoverText(node, part, promptRefs, getPartDisplayCategory(part) || "Category");
+            thumbBtn.title = "";
+
+            const attachPromptHoverTooltip = (el) => {
+                if (!el || !hoverPromptText) return;
+                el.addEventListener("mouseenter", (evt) => {
+                    showComposerPromptTextTooltip(hoverPromptText, evt.clientX, evt.clientY);
+                });
+                el.addEventListener("mousemove", (evt) => {
+                    moveComposerPromptTextTooltip(evt.clientX, evt.clientY);
+                });
+                el.addEventListener("mouseleave", () => {
+                    hideComposerPromptTextTooltip();
+                });
+            };
+
+            attachPromptHoverTooltip(thumbBtn);
+
+            if (multiCount > 1) {
+                appendMultiPromptSlices(thumbBtn, previewThumbnails);
+            }
+
+            const togglePartMuted = () => {
+                const next = [...readParts(node)];
+                if (!next[index]) return;
+                next[index] = normalizePart({
+                    ...next[index],
+                    muted: !(next[index]?.muted === true),
+                });
+                writeParts(node, next);
+                render();
+            };
+
+            const handleAuxClick = (evt) => {
+                if (evt.button !== 1) return;
+                evt.preventDefault();
+                evt.stopPropagation();
+                togglePartMuted();
+            };
+            card.addEventListener("auxclick", handleAuxClick);
+
+            const subjectBadge = document.createElement("button");
+            subjectBadge.type = "button";
+            subjectBadge.textContent = `#${padSubjectNumber(part.effective_subject_number)}`;
+            subjectBadge.title = part.effective_subject_number === SUBJECT_NONE
+                ? "Not a subject. Click to attach to the previous subject, middle- or right-click to reset."
+                : part.subject_locked
+                ? "Custom subject. Click to advance, Shift-click to go back, middle- or right-click to reset."
+                : "Auto subject. Click to create a custom subject, middle- or right-click to reset.";
+            subjectBadge.style.cssText = `
+                position: absolute;
+                left: 4px;
+                top: 4px;
+                min-width: 26px;
+                height: 18px;
+                border-radius: 9px;
+                background: ${part.subject_locked ? subjectAccent.strong : "rgba(15,23,42,0.82)"};
+                border: 1px solid ${subjectAccent.border};
+                color: ${subjectAccent.text};
+                font-size: 10px;
+                line-height: 16px;
+                text-align: center;
+                font-weight: 700;
+                padding: 0 5px;
+                box-sizing: border-box;
+                cursor: pointer;
+            `;
+            const resetSubjectBadge = () => {
+                const next = [...readParts(node)];
+                if (!next[index]) return;
+                const resetSubject = categoryShouldBeNonSubject(node, next[index].category)
+                    ? { subject_number: SUBJECT_NONE, subject_locked: true }
+                    : categoryStartsNewSubject(node, next[index].category)
+                        ? inferPartSubjectState(node, next[index].category, null, getInheritedSubjectDefaults(next.slice(0, index)), { bumpSubject: true })
+                        : { subject_locked: false };
+                next[index] = normalizePart({
+                    ...next[index],
+                    ...resetSubject,
+                });
+                writeParts(node, next);
+                render();
+            };
+            subjectBadge.addEventListener("mousedown", (evt) => {
+                if (evt.button === 1) {
+                    evt.preventDefault();
+                }
+                evt.stopPropagation();
+            });
+            subjectBadge.addEventListener("mouseup", (evt) => {
+                evt.stopPropagation();
+            });
+            subjectBadge.addEventListener("click", (evt) => {
+                evt.preventDefault();
+                evt.stopPropagation();
+                const delta = evt.shiftKey ? -1 : 1;
+                const next = [...readParts(node)];
+                if (!next[index]) return;
+                const subjectNumber = part.effective_subject_number === SUBJECT_NONE
+                    ? getInheritedSubjectDefaults(next.slice(0, index)).subject_number
+                    : nextSubjectNumber(part.effective_subject_number, delta);
+                next[index] = normalizePart({
+                    ...next[index],
+                    subject_number: subjectNumber,
+                    subject_locked: true,
+                });
+                writeParts(node, next);
+                render();
+            });
+            subjectBadge.addEventListener("auxclick", (evt) => {
+                if (evt.button !== 1) return;
+                evt.preventDefault();
+                evt.stopPropagation();
+                resetSubjectBadge();
+            });
+            subjectBadge.addEventListener("contextmenu", (evt) => {
+                evt.preventDefault();
+                evt.stopPropagation();
+                resetSubjectBadge();
+            });
+            thumbBtn.appendChild(subjectBadge);
+
+            if (isMuted) {
+                const mutedBadge = document.createElement("div");
+                mutedBadge.textContent = "MUTED";
+                mutedBadge.style.cssText = `
+                    position: absolute;
+                    left: 4px;
+                    bottom: 4px;
+                    min-width: 40px;
+                    height: 18px;
+                    border-radius: 9px;
+                    background: rgba(15,23,42,0.88);
+                    border: 1px solid rgba(148, 163, 184, 0.75);
+                    color: #e5e7eb;
+                    font-size: 9px;
+                    line-height: 16px;
+                    text-align: center;
+                    font-weight: 700;
+                    padding: 0 6px;
+                    box-sizing: border-box;
+                    letter-spacing: 0.05em;
+                `;
+                thumbBtn.appendChild(mutedBadge);
+            }
+
+            if (multiCount > 1) {
+                const badge = document.createElement("div");
+                badge.textContent = `+${multiCount}`;
+                badge.style.cssText = `
+                    position: absolute;
+                    right: 4px;
+                    top: 4px;
+                    min-width: 18px;
+                    height: 18px;
+                    border-radius: 9px;
+                    background: rgba(15,23,42,0.85);
+                    border: 1px solid ${UI.accentBorder || "hsl(208 73% 57% / 0.65)"};
+                    color: #dbeafe;
+                    font-size: 10px;
+                    line-height: 16px;
+                    text-align: center;
+                    font-weight: bold;
+                    padding: 0 4px;
+                    box-sizing: border-box;
+                `;
+                thumbBtn.appendChild(badge);
+            }
+
+            const inlineAddBtn = document.createElement("button");
+            inlineAddBtn.type = "button";
+            inlineAddBtn.dataset.composerPartInlineAdd = "1";
+            inlineAddBtn.textContent = "+";
+            inlineAddBtn.title = "Add a new prompt part after this one";
+            inlineAddBtn.style.cssText = `
+                position: absolute;
+                right: 4px;
+                bottom: 4px;
+                width: 18px;
+                height: 18px;
+                border-radius: 999px;
+                border: 1px solid ${UI.accentBorder || "hsl(208 73% 57% / 0.65)"};
+                background: rgba(15,23,42,0.9);
+                color: #dbeafe;
+                font-size: 13px;
+                line-height: 1;
+                font-weight: 700;
+                padding: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                box-sizing: border-box;
+                z-index: 2;
+            `;
+            inlineAddBtn.addEventListener("mousedown", (evt) => {
+                evt.stopPropagation();
+            });
+            inlineAddBtn.addEventListener("mouseup", (evt) => {
+                evt.stopPropagation();
+            });
+            inlineAddBtn.addEventListener("click", async (evt) => {
+                evt.preventDefault();
+                evt.stopPropagation();
+                clearSelectedPartIndices(node);
+                await insertBrowserPartAfter(index);
+            });
+            thumbBtn.appendChild(inlineAddBtn);
+
+            const label = document.createElement("div");
+            const displayCategory = getPartDisplayCategory(part) || "Category";
+            const primaryName = primaryRef?.name || part.prompts[0] || "Select";
+            label.textContent = multiCount > 1
+                ? `${displayCategory}: (Multi)`
+                : `${displayCategory}: ${primaryName}`;
+            label.title = "";
+            label.style.cssText = `
+                font-size: 10px;
+                color: ${isMuted ? (UI.textMuted || "#9ca3af") : (UI.textPrimary || "#d1d5db")};
+                line-height: 1.2;
+                text-align: center;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                cursor: pointer;
+                text-decoration: ${isMuted ? "line-through" : "none"};
+            `;
+            attachPromptHoverTooltip(label);
+            const strengthRow = document.createElement("div");
+            strengthRow.style.cssText = `
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            `;
+
+            const makeAdjustBtn = (labelText, delta) => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.textContent = labelText;
+                btn.style.cssText = `
+                    width: 22px;
+                    height: 22px;
+                    border: 1px solid ${UI.inputBorder || "#445064"};
+                    border-radius: 4px;
+                    background: ${UI.buttonBg || "#232a36"};
+                    color: ${UI.textPrimary || "#d1d5db"};
+                    cursor: pointer;
+                    font-size: 12px;
+                    line-height: 1;
+                    padding: 0;
+                `;
+                btn.onclick = (evt) => {
+                    evt.stopPropagation();
+                    const current = clampStrength(strengthInput.value);
+                    const nextValue = clampStrength(current + delta);
+                    strengthInput.value = nextValue.toFixed(2);
+                    setPartStrength(index, nextValue);
+                };
+                return btn;
+            };
+
+            const strengthInput = document.createElement("input");
+            strengthInput.type = "text";
+            strengthInput.value = clampStrength(part.strength).toFixed(2);
+            strengthInput.style.cssText = `
+                flex: 1;
+                min-width: 0;
+                height: 22px;
+                border: 1px solid ${UI.inputBorder || "#445064"};
+                border-radius: 4px;
+                background: ${UI.inputBg || "#181d25"};
+                color: ${UI.textPrimary || "#d1d5db"};
+                font-size: 11px;
+                text-align: center;
+                box-sizing: border-box;
+                padding: 0 4px;
+            `;
+
+            const commitStrengthInput = () => {
+                const nextValue = clampStrength(strengthInput.value);
+                strengthInput.value = nextValue.toFixed(2);
+                setPartStrength(index, nextValue);
+            };
+
+            strengthInput.addEventListener("keydown", (evt) => {
+                if (evt.key === "Enter") {
+                    evt.preventDefault();
+                    commitStrengthInput();
+                    strengthInput.blur();
+                }
+            });
+            strengthInput.addEventListener("blur", commitStrengthInput);
+
+            const decBtn = makeAdjustBtn("<", -0.1);
+            const incBtn = makeAdjustBtn(">", 0.1);
+
+            strengthRow.appendChild(decBtn);
+            strengthRow.appendChild(strengthInput);
+            strengthRow.appendChild(incBtn);
+
+            let holdTimer = null;
+            let dragArmed = false;
+
+            const clearHoldTimer = () => {
+                if (holdTimer) {
+                    clearTimeout(holdTimer);
+                    holdTimer = null;
+                }
+            };
+
+            const disarmDrag = () => {
+                dragArmed = false;
+                card.draggable = false;
+                card.style.borderColor = cardBorderColor;
+                card.style.cursor = "default";
+                card.classList.remove("pm-composer-card-drag-active");
+                node._composerDragSourceIndex = null;
+            };
+
+            const armDrag = () => {
+                dragArmed = true;
+                node._composerDragSourceIndex = index;
+                card.draggable = true;
+                card.style.borderColor = UI.accentBorder || "hsl(208 73% 57% / 0.65)";
+                card.style.cursor = "grab";
+                card.classList.add("pm-composer-card-drag-active");
+            };
+
+            const onPressStart = (evt) => {
+                if (evt.button === 1) {
+                    evt.preventDefault();
+                    evt.stopPropagation();
+                    return;
+                }
+                if (evt.button !== 0) return;
+                dragArmed = false;
+                clearHoldTimer();
+                window.addEventListener("mouseup", onGlobalMouseUp, true);
+                holdTimer = setTimeout(armDrag, HOLD_TO_DRAG_MS);
+            };
+
+            const onPressCancel = () => {
+                if (!dragArmed) {
+                    clearHoldTimer();
+                }
+            };
+
+            const onGlobalMouseUp = () => {
+                clearHoldTimer();
+                if (dragArmed && !node._composerIsDragging) {
+                    disarmDrag();
+                }
+                window.removeEventListener("mouseup", onGlobalMouseUp, true);
+            };
+
+            const onPressEnd = async (evt) => {
+                if (evt.button !== 0) return;
+                clearHoldTimer();
+                window.removeEventListener("mouseup", onGlobalMouseUp, true);
+                if (!dragArmed) {
+                    evt.stopPropagation();
+                    if (evt.ctrlKey || evt.metaKey) {
+                        toggleSelectedPartIndex(node, index, resolvedParts.length);
+                        render();
+                        return;
+                    }
+                    if (isMuted) {
+                        clearSelectedPartIndices(node);
+                        togglePartMuted();
+                        return;
+                    }
+                    clearSelectedPartIndices(node);
+                    await openBrowserForPart(index);
+                } else if (!node._composerIsDragging) {
+                    disarmDrag();
+                }
+            };
+
+            [thumbBtn, label].forEach((el) => {
+                el.addEventListener("mousedown", onPressStart);
+                el.addEventListener("mouseleave", onPressCancel);
+                el.addEventListener("mouseup", onPressEnd);
+                el.addEventListener("auxclick", handleAuxClick);
+            });
+
+            card.appendChild(thumbBtn);
+            card.appendChild(label);
+            card.appendChild(strengthRow);
+            grid.appendChild(card);
+        });
+
+        const addCard = document.createElement("button");
+        addCard.type = "button";
+        addCard.dataset.composerPartAdd = "1";
+        addCard.style.cssText = `
+            min-height: ${tileMinHeight}px;
+            border: 1px dashed ${UI.accentBorder || "hsl(208 73% 57% / 0.65)"};
+            border-radius: 6px;
+            background: ${UI.panel || "#1f2937"};
+            color: ${UI.textMuted || "#9ca3af"};
+            cursor: pointer;
+            font-size: 24px;
+            line-height: 1;
+        `;
+        addCard.textContent = "+";
+        addCard.title = "Add prompt part";
+        addCard.onclick = async (evt) => {
+            const parts = readParts(node);
+            if (parts.length > 0) {
+                clearSelectedPartIndices(node);
+                await insertBrowserPartAfter(parts.length - 1);
+                return;
+            }
+
+            const inheritedSubject = getInheritedSubjectDefaults(parts);
+            const initialCategory = getDefaultComposerPickerCategory(node);
+            const initialCategoryTypeFilter = getCategoryPromptType(node, initialCategory) || "__all__";
+            const selection = await showThumbnailBrowser(node, initialCategory, "", {
+                title: "Add Prompt Composer Part",
+                multiSelect: true,
+                multiCategorySelect: true,
+                endpointPrefix: COMPOSER_ENDPOINT_PREFIX,
+                promptOnly: true,
+                selectedPrompts: [],
+                loadPromptsFn: loadComposerPrompts,
+                preferenceScope: "composer",
+                initialCategoryTypeFilter,
+                multiSelectActionMode: "composer-add",
+                thumbnailGenerationMode: readGenerationMode(node),
+            });
+
+            if (!selection || !Array.isArray(selection.prompts) || selection.prompts.length === 0) {
+                return;
+            }
+
+            const next = [...parts];
+            const addedParts = buildPartsFromBrowserSelection(node, selection, inheritedSubject, null, initialCategory || "");
+            if (!addedParts.length) {
+                return;
+            }
+            next.push(...addedParts);
+            clearSelectedPartIndices(node);
+            writeParts(node, next);
+            render();
+        };
+
+        addCard.addEventListener("dragover", (evt) => {
+            if (node._composerDragSourceIndex === null || node._composerDragSourceIndex === undefined) return;
+            evt.preventDefault();
+            maybeAutoScrollDuringDrag(evt.clientY);
+        });
+
+        addCard.addEventListener("drop", (evt) => {
+            evt.preventDefault();
+            const fromIndex = Number(node._composerDragSourceIndex);
+            if (!Number.isInteger(fromIndex)) return;
+            const parts = readParts(node);
+            if (fromIndex < 0 || fromIndex >= parts.length) return;
+            const next = [...parts];
+            const [moved] = next.splice(fromIndex, 1);
+            next.push(moved);
+            writeParts(node, next);
+            render();
+        });
+
+        grid.appendChild(addCard);
+
+        node._composerUiRefreshHeight?.();
+    };
+
+    root.addEventListener("mousedown", (evt) => {
+        if (evt.button !== 0 || evt.ctrlKey || evt.metaKey) return;
+        if (evt.target?.closest?.("[data-composer-part-card='1']")) return;
+        if (evt.target?.closest?.("[data-composer-part-add='1']")) return;
+        if (evt.target?.closest?.("input, button, textarea, select")) return;
+        removeContextMenu();
+        clearPartSelection();
+    }, true);
+
+    root.addEventListener("contextmenu", (evt) => {
+        if (evt.target?.closest?.("[data-composer-part-inline-add='1']")) {
+            showBackgroundContextMenu(evt);
+            return;
+        }
+        if (evt.target?.closest?.("[data-composer-part-card='1']")) return;
+        if (evt.target?.closest?.("input, textarea, select")) return;
+        if (evt.target?.closest?.("button") && !evt.target?.closest?.("[data-composer-part-add='1']")) return;
+        showBackgroundContextMenu(evt);
+    }, true);
+
+    const computeComposerHeight = () => {
+        const nodeHeight = Number(node?.size?.[1]) || MIN_NODE_HEIGHT;
+        return Math.max(180, nodeHeight - NODE_CHROME_HEIGHT);
+    };
+
+    const computeComposerMinHeight = () => {
+        return Math.max(180, MIN_NODE_HEIGHT - NODE_CHROME_HEIGHT);
+    };
+
+    const refreshComposerHeight = () => {
+        const h = computeComposerHeight();
+        root.style.setProperty("--comfy-widget-min-height", `${computeComposerMinHeight()}px`);
+        root.style.setProperty("--comfy-widget-height", `${h}px`);
+    };
+
+    const widget = node.addDOMWidget("prompt_composer_ui", "div", root, {
+        serialize: false,
+        hideOnZoom: false,
+        getMinHeight: () => computeComposerMinHeight(),
+        getHeight: () => "100%",
+    });
+
+    node._composerUiAttached = true;
+    node._composerUiRender = render;
+    node._composerUiRefreshHeight = refreshComposerHeight;
+    node._composerUiSyncSwitches = () => {
+        formatSwitch.sync();
+        positionSwitch.sync();
+        generationModeSwitch.sync();
+        recipeSyncSwitch.sync();
+        inputPromptSwitch.sync();
+        inputLoraSwitch.sync();
+    };
+
+    refreshComposerHeight();
+    node._composerUiSyncSwitches();
+    render();
+}
+
+app.registerExtension({
+    name: "PromptComposer",
+    async beforeRegisterNodeDef(nodeType, nodeData) {
+        if (nodeData.name !== "PromptComposer") return;
+
+        const onNodeCreated = nodeType.prototype.onNodeCreated;
+        nodeType.prototype.onNodeCreated = function () {
+            const result = onNodeCreated?.apply(this, arguments);
+            const node = this;
+
+            ensureHiddenComposerWidgets(node);
+            if (!node.properties) node.properties = {};
+            if (node.properties[PARTS_PROP_KEY] === undefined) {
+                const existing = getPartsWidget(node)?.value || "[]";
+                node.properties[PARTS_PROP_KEY] = String(existing || "[]");
+            }
+            if (node.properties[OUTPUT_FORMAT_PROP_KEY] === undefined) {
+                node.properties[OUTPUT_FORMAT_PROP_KEY] = readOutputFormat(node);
+            }
+            if (node.properties[COMPOSE_POSITION_PROP_KEY] === undefined) {
+                node.properties[COMPOSE_POSITION_PROP_KEY] = readComposePosition(node);
+            }
+            if (node.properties[GENERATION_MODE_PROP_KEY] === undefined) {
+                node.properties[GENERATION_MODE_PROP_KEY] = readGenerationMode(node);
+            }
+            if (node.properties[RECIPE_SYNC_MODE_PROP_KEY] === undefined) {
+                node.properties[RECIPE_SYNC_MODE_PROP_KEY] = readRecipeSyncMode(node);
+            }
+            if (node.properties[INPUT_PROMPT_MODE_PROP_KEY] === undefined) {
+                node.properties[INPUT_PROMPT_MODE_PROP_KEY] = readInputPromptMode(node);
+            }
+            if (node.properties[INPUT_LORA_MODE_PROP_KEY] === undefined) {
+                node.properties[INPUT_LORA_MODE_PROP_KEY] = readInputLoraMode(node);
+            }
+
+            node.setSize([
+                Math.max(MIN_NODE_WIDTH, node.size?.[0] || MIN_NODE_WIDTH),
+                Math.max(MIN_NODE_HEIGHT, node.size?.[1] || MIN_NODE_HEIGHT),
+            ]);
+
+            ensureComposerUi(node);
+
+            api.addEventListener("prompt-composer-update", (event) => {
+                if (String(event?.detail?.node_id) !== String(node.id)) return;
+                const state = extractComposerRecipeState({
+                    [PROMPT_COMPOSER_RECIPE_KEY]: event?.detail?.prompt_composer,
+                });
+                if (state) {
+                    rememberComposerRecipeState(node, state);
+                    if (isRecipeSyncEnabled(node)) {
+                        applyComposerRecipeState(node, state, { preserveModes: true });
+                    }
+                }
+            });
+
+            loadComposerPrompts(node).then(() => {
+                node._composerUiSyncSwitches?.();
+                node._composerUiRefreshHeight?.();
+                node._composerUiRender?.();
+                app.graph.setDirtyCanvas(true, true);
+            });
+
+            return result;
+        };
+
+        const onConfigure = nodeType.prototype.onConfigure;
+        nodeType.prototype.onConfigure = function (info) {
+            const result = onConfigure?.apply(this, arguments);
+            const node = this;
+
+            ensureHiddenComposerWidgets(node);
+            ensureComposerUi(node);
+
+            const widget = getPartsWidget(node);
+            if (widget && typeof widget.value === "string") {
+                node.properties = node.properties || {};
+                node.properties[PARTS_PROP_KEY] = widget.value;
+            }
+            node.properties = node.properties || {};
+            node.properties[OUTPUT_FORMAT_PROP_KEY] = readOutputFormat(node);
+            node.properties[COMPOSE_POSITION_PROP_KEY] = readComposePosition(node);
+            node.properties[GENERATION_MODE_PROP_KEY] = readGenerationMode(node);
+            node.properties[RECIPE_SYNC_MODE_PROP_KEY] = readRecipeSyncMode(node);
+            node.properties[INPUT_PROMPT_MODE_PROP_KEY] = readInputPromptMode(node);
+            node.properties[INPUT_LORA_MODE_PROP_KEY] = readInputLoraMode(node);
+
+            node._composerUiSyncSwitches?.();
+            node._composerUiRefreshHeight?.();
+            node._composerUiRender?.();
+            loadComposerPrompts(node).then(() => {
+                node._composerUiSyncSwitches?.();
+                node._composerUiRefreshHeight?.();
+                node._composerUiRender?.();
+                app.graph.setDirtyCanvas(true, true);
+            });
+            return result;
+        };
+
+        const onResize = nodeType.prototype.onResize;
+        nodeType.prototype.onResize = function (size) {
+            size[0] = Math.max(MIN_NODE_WIDTH, size[0]);
+            size[1] = Math.max(MIN_NODE_HEIGHT, size[1]);
+            const result = onResize ? onResize.apply(this, arguments) : size;
+            this._composerUiRefreshHeight?.();
+            this._composerUiRender?.();
+            return result;
+        };
+    },
+});

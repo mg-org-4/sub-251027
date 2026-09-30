@@ -157,7 +157,13 @@ async function browserChecks() {
                 const navigation = node.root.querySelector(".h3c-toolbar .h3c-scroll-bottom");
                 check(navigation?.getAttribute("aria-label") === "Scroll to bottom",
                     type + ": accessible bottom navigation in the scene toolbar");
-                check(navigation.getBoundingClientRect().height >= 44, "Bottom button has a tablet-sized tap target");
+                const navigationBounds = navigation.getBoundingClientRect();
+                const peers = [...navigation.parentElement.querySelectorAll("button")].filter(button => button !== navigation);
+                check(navigationBounds.height > 0 && peers.every(button =>
+                    Math.abs(button.getBoundingClientRect().height - navigationBounds.height) <= 1),
+                    "Bottom navigation matches the other toolbar button heights");
+                check(Math.abs(navigation.nextElementSibling.getBoundingClientRect().top - navigationBounds.top) <= 1,
+                    "Bottom navigation aligns with the adjacent raw JSON button");
                 navigation.click();
                 await wait(40);
                 check(Math.abs(node.root.scrollTop - (node.root.scrollHeight - node.root.clientHeight)) <= 1,
@@ -175,6 +181,50 @@ async function browserChecks() {
                 check(cards()[0] === firstCard && JSON.stringify(node.size) === before.size && requests === before.requests,
                     "Navigation does not rebuild cards, resize nodes, or request backend work");
                 node.root.scrollTop = 0;
+            };
+            const checkJsonNavigation = () => {
+                node.root.scrollTop = node.root.scrollHeight;
+                const area = node.root.querySelector(".h3c-json");
+                const navigation = node.root.querySelector(".h3c-json-navigation");
+                const top = navigation?.querySelector('[aria-label="Scroll raw JSON to top"]');
+                const bottom = navigation?.querySelector('[aria-label="Scroll raw JSON to bottom"]');
+                check(top?.type === "button" && bottom?.type === "button" && top.title && bottom.title,
+                    type + ": raw JSON has accessible top/bottom buttons and tooltips");
+                const actions = node.root.querySelector(".h3c-json-actions");
+                check(actions.scrollWidth <= actions.clientWidth, "Raw JSON controls fit the narrow editor");
+                check([top, bottom].every(button =>
+                    Math.abs(button.getBoundingClientRect().height - actions.firstElementChild.getBoundingClientRect().height) <= 1),
+                    "Raw JSON arrows use the standard action button height");
+                const original = area.value;
+                const before = {plan:plan(), state:JSON.stringify(node._h3ChainEditor.plan),
+                    properties:JSON.stringify(node.properties), size:JSON.stringify(node.size), requests,
+                    scroll:node.root.scrollTop, x:window.scrollX, y:window.scrollY};
+                const others = graph._nodes.filter(other => other !== node && other.root?.isConnected)
+                    .map(other => [other.root, other.root.scrollTop, other.root.querySelector(".h3c-json")?.scrollTop]);
+                for (const value of [original, "Unapplied, invalid JSON draft\n".repeat(100), "{}", ""]) {
+                    area.value = value;
+                    area.setSelectionRange(2, 7, "backward");
+                    const selection = [area.selectionStart, area.selectionEnd, area.selectionDirection].join();
+                    const limit = area.scrollHeight - area.clientHeight;
+                    check(value.length < 3 ? limit === 0 : limit > 0, "JSON navigation covers long drafts and non-overflowing text");
+                    area.scrollTop = 0;
+                    bottom.click();
+                    check(Math.abs(area.scrollTop - limit) <= 1, "Bottom arrow reaches the current JSON draft's end");
+                    top.click();
+                    check(area.scrollTop === 0, "Top arrow returns to the first JSON line");
+                    check(area.value === value && [area.selectionStart, area.selectionEnd, area.selectionDirection].join() === selection,
+                        "JSON navigation preserves unapplied text and selection");
+                }
+                check(plan() === before.plan && JSON.stringify(node._h3ChainEditor.plan) === before.state,
+                    "JSON scrolling never applies or changes the Plan");
+                check(JSON.stringify(node.properties) === before.properties,
+                    "JSON scrolling leaves properties unchanged");
+                check(node.root.scrollTop === before.scroll && window.scrollX === before.x && window.scrollY === before.y
+                    && others.every(([root, scroll, jsonScroll]) => root.scrollTop === scroll
+                        && root.querySelector(".h3c-json")?.scrollTop === jsonScroll), "JSON arrows scroll only their own text area");
+                check(node.root.querySelector(".h3c-json") === area && JSON.stringify(node.size) === before.size
+                    && requests === before.requests, "JSON navigation does not rerender, resize, or contact the backend");
+                area.value = original;
             };
             check(node.root.scrollHeight > node.root.clientHeight, "Expanded scenes overflow the editor for navigation testing");
             await checkScrollToBottom();
@@ -267,6 +317,7 @@ async function browserChecks() {
             click("Raw JSON");
             await wait(40);
             await checkScrollToBottom();
+            checkJsonNavigation();
             click("Hide raw JSON");
             await wait(40);
             // Navigation fits the minimum-width, tablet-sized editor viewport.
@@ -274,7 +325,9 @@ async function browserChecks() {
             const toolbar = node.root.querySelector(".h3c-toolbar");
             check(toolbar.scrollWidth <= toolbar.clientWidth, "Scene toolbar fits the minimum editor width");
             click("Collapse all");
-            node.root.scrollTop = 0;
+            click("Raw JSON");
+            await wait(40);
+            checkJsonNavigation(); // Reopened JSON controls bind to the new text area.
         }
     } catch (error) { report.failures.push(error.stack || String(error)); }
     document.body.setAttribute("data-report", btoa(JSON.stringify(report)));

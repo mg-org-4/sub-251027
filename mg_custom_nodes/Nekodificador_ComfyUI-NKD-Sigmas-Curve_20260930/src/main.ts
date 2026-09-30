@@ -378,7 +378,7 @@ comfyApp.registerExtension({
       // flipped ±1px each reflow, re-triggering setSize → ResizeObserver. The
       // border-box offsetHeight is an integer and transform-independent.
       const remeasureBar = () => {
-        const barEl = container.querySelector(".nkd-bar") as HTMLElement | null;
+        const barEl = container.querySelector(".nkd-sc-bar") as HTMLElement | null;
         const measured = barEl ? barEl.offsetHeight : 0;
         if (measured > 0 && measured !== barH) {
           barH = measured;
@@ -400,7 +400,7 @@ comfyApp.registerExtension({
       // Re-measure whenever the bar grows or shrinks (e.g. reference row appearing)
       const barObserver = new ResizeObserver(remeasureBar);
       requestAnimationFrame(() => {
-        const barEl = container.querySelector(".nkd-bar") as HTMLElement | null;
+        const barEl = container.querySelector(".nkd-sc-bar") as HTMLElement | null;
         if (barEl) barObserver.observe(barEl);
       });
 

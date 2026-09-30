@@ -2,7 +2,7 @@
   <div class="nkd-root">
 
     <!-- ── Controls bar – row 1 ──────────────────────────────────────────── -->
-    <div class="nkd-bar">
+    <div class="nkd-sc-bar">
       <div class="nkd-row nkd-row--controls">
 
         <!-- Interpolation mode -->
@@ -1221,7 +1221,7 @@ onMounted(() => {
 }
 
 /* ── Controls bar (single container, internal row separators) ──────────── */
-.nkd-bar {
+.nkd-sc-bar {
   display: flex;
   flex-direction: column;
   background: var(--comfy-menu-bg, #1a1c22);

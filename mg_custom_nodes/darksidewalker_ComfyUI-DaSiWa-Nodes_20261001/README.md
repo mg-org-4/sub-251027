@@ -8,6 +8,8 @@ Use **ComfyUI → Settings → Other → DaSiWa → ...** to enable or disable e
 
 ## Included Nodes
 
+### ♾️ Seamless Loop
+
 ### 🎬 MiniMax H3 Director
 
 > 🎬 MiniMax H3 Director — The Ultimate One-Stop Video Creation Pipeline: Experience the most advanced, feature-complete MiniMax H3 Director node available for ComfyUI. Built as a comprehensive production hub, it seamlessly merges timeline-based multi-modal authoring, intelligent LLM/VLM Prompt Forge assistance, deep RefMod persona control, and high-precision continuity extensions into a single, unified workflow. Whether starting from text, images, or an existing H3 video, the Director serves as your central command deck for end-to-end synchronized video and audio generation.
@@ -28,7 +30,7 @@ Use **ComfyUI → Settings → Other → DaSiWa → ...** to enable or disable e
 - 💾 **Save/Load packs:** reference files, prompt and RefMod selections; append/overwrite with mode-limit and missing-file checks.
 - 🧩 **Native H3 routing:** Director + Guide forward to built-in H3 nodes; selected-model lazy loading and name-bound REF2VA inputs; optional prompt and width/height overwrite sockets.
 - 🎞️ **Frame rate:** 0.1–240 FLOAT input (default 24) and matching output for downstream nodes; Image Inpaint outputs a still.
-- ⚡ **Optional performance nodes:** MiniMax H3 Cache and Patch Comfy Kitchen Attention patch the connected model; cache storage supports CUDA/CPU fallback. These are separate nodes, not Director modes.
+- ⚡ **Optional performance node:** MiniMax H3 Cache patches the connected model; cache storage supports CUDA/CPU fallback. It is a separate node, not a Director mode.
 - 💎 **Optional output processing:** RTX Upscaler & Refiner offers denoise/deblur/VSR upscale with frame-by-frame memory control; Watermark Overlay adds branding; Enhanced Video Combine encodes/muxes audio, previews output and optionally exports first/last PNG frames to ComfyUI Assets. Wire these downstream as needed; H3 latent upscaling is not shipped.
 
 [Full documentation, UI guide, and prompting reference →](docs/minimax_h3_director.md)
@@ -42,7 +44,7 @@ An approximate, model-scoped whole-block-stack residual cache for ComfyUI's nati
 - **MODEL PATCH:** clones only the connected MiniMax H3 `MODEL`; no global model-class monkey patch.
 - **CONTROLLED REUSE:** sampled audio/video-token relative-L1 threshold, 15–90% sampling window, and a bounded number of consecutive cache hits.
 - **STORAGE:** auto / CUDA / CPU cached-residual storage with CPU fallback if automatic storage runs out of VRAM.
-- **COMPATIBILITY:** preserves ComfyUI block replacements and transformer options; can be chained with **Patch Comfy Kitchen Attention**.
+- **COMPATIBILITY:** preserves ComfyUI block replacements, transformer options, and model-scoped optimized-attention overrides.
 - **PDD HEAD BANK:** works with ComfyUI's PDD LoRA head bank (0.34+). The node passes the PDD sigma-schedule arguments automatically, so cache and PDD coexist with no extra setup.
 - **PER-TOKEN MASKS:** honors per-token video and audio denoise masks, running masked rows at their own strength exactly like Core, so cached and region-masked generations match Core quality.
 - **QUALITY:** approximate optimization—higher cache thresholds trade fidelity for more skipped block-stack evaluations.
@@ -51,20 +53,30 @@ An approximate, model-scoped whole-block-stack residual cache for ComfyUI's nati
 
 ---
 
-### 🔥 Patch Comfy Kitchen Attention
+### 🏷️ Lable (DaSiWa)
 
-A one-input model patch that swaps the connected model's attention backend to Comfy Kitchen INT8 attention at runtime.
+Workflow-only labels for the classic canvas and Nodes 2.0. Add **Lable (DaSiWa)** from **DaSiWa / utilities**, then double-click it to edit.
 
-- **Model-scoped:** clones only the connected `MODEL` and sets its optimized-attention override; it never monkey-patches ComfyUI globally.
-- **Safe fallback:** if Comfy Kitchen INT8 attention is unavailable in your ComfyUI build, it falls back to the ComfyUI default attention and logs the decision.
-- **Chainable:** works before or after **MiniMax H3 Cache** — both are model-clone patches and compose in either order.
+- Font previews, alignment, rotation, independent text/background opacity, and sliders with editable numbers.
+- 48 color swatches, RGB picker, editable HEX values, and a screen-eyedropper icon. Native ComfyUI node colors respect label opacity.
+- Embedded PNG/JPEG/WebP images: auto-scaled background, floating beside text, or above/below text. Images travel with saved workflows.
+- Drag, resize, fit to text, and pin/click-through. No rgthree dependency, server route, or execution node.
 
-```text
-MiniMax H3 Model Loader
-          │
-          ▼
-MiniMax H3 Cache ──► Patch Comfy Kitchen Attention ──► Guider / Sampler
-```
+[Full documentation and compatibility →](docs/lable.md)
+
+---
+
+![Seamless Loop](assets/DaSiWa-Seamless-Loop.png)
+
+One `IMAGE` batch in, one `IMAGE` batch out. A native RIFE/FILM safetensors combo selects a checkpoint from `models/frame_interpolation/`.
+
+- Automatic trim/overlap selection using PSNR/MSE, local SSIM, edges, temporal differences and exposure analysis.
+- Bidirectional native interpolation, eased overlap morphing and bounded local color correction; original middle frames remain unchanged.
+- `exact_endpoint` is off by default for continuous cyclic playback; enable it only when identical first/last pixels are required.
+- No additional dependency, `.pth` loader, model download or video-encoding step. Output duration can change; audio must be aligned downstream.
+- Arbitrary footage cannot be guaranteed visually seamless. The node logs residual temporal discontinuities instead of claiming perfect motion from endpoint equality.
+
+[Usage, research, model compatibility and verification →](docs/seamless_loop.md)
 
 ---
 

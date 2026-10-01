@@ -1,0 +1,8 @@
+# Project exclude paths
+/XTRA
+/__pycache__
+/.idea
+/TermList*.json
+/___backup.pyw
+/ComfyUI-noEmbryo.iml
+*.pyc

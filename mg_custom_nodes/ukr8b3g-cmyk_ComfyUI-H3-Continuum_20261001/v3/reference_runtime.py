@@ -25,7 +25,7 @@ from ..reference import (
     prepare_reference_assets,
     resolve_reference_image_inputs,
 )
-from ..v2.h3_builder import encode_prompt_conditioning
+from ..v2.h3_builder import encode_prompt_conditioning, encode_prompt_conditioning_cached
 from .reference_effective_plan import PictureMap, compile_group_picture_map
 from .reference_routing import REFERENCE_SLOT_IDS, ReferenceRoutingSchedule
 
@@ -243,6 +243,8 @@ class ReferenceRoutingRuntime:
         timeline_video_assets: Any = None,
         reference_encode_cache: bool = False,
         cache_event: Any = None,
+        prompt_conditioning_cache: bool = False,
+        prompt_cache_event: Any = None,
         expected_group_contract: dict[str, Any] | None = None,
         first_frame_hash: str = "none",
         last_frame_hash: str = "none",
@@ -314,6 +316,22 @@ class ReferenceRoutingRuntime:
                 last_image=presented_last_image,
                 reference_audio_assets=reference_audio_assets,
                 timeline_video_assets=timeline_video_assets,
+            )
+        elif (prompt_conditioning_cache and not self.has_selected_references
+              and reference_audio_assets is None and timeline_video_assets is None
+              and terminal_prompt_policy is None):
+            # The Sequence caller enables this only for Fixed, reference-free
+            # runs. Reuse the V3.8 cache and its conservative CLIP guards; keep
+            # route/storage validation above and group metadata below intact.
+            conditioning = encode_prompt_conditioning_cached(
+                clip, effective_prompt,
+                first_image=first_image,
+                last_image=presented_last_image,
+                first_image_fingerprint=first_frame_hash,
+                last_image_fingerprint=(last_frame_hash
+                                        if presented_last_image is not None else "none"),
+                cache_enabled=True,
+                cache_event=prompt_cache_event,
             )
         else:
             conditioning = encode_prompt_conditioning(

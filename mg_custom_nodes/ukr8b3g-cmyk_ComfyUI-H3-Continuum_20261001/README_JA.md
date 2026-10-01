@@ -8,6 +8,20 @@
 
 *V3.8X2の画像も比較用に残しています。画像内の「CURRENT MAIN」は作成当時の表記で、現在の`main`はV3.9です。V3.8 SamplerとV3.8X2 Workflowは利用できますが、Reference配線はV3.9へ自動変換されません。*
 
+## main更新：V3.9の条件付け準備の速度修正（2026-10-01）
+
+**Prompt Format = Fixedかつ有効なReference Imagesがない場合**に、V3.9で余分なプロンプト条件付けの準備が繰り返される経路を修正しました。入力が同じ場合に既存の上限付きconditioningキャッシュを再利用します。First Imageは利用できます。List／Timeline、有効なReference Images、Reference Audio、Timeline Video、終端ペアのgroupは従来の経路を維持します。Decode Cache Helperとは別の修正で、Samplingは省略しません。
+
+検証した`2 × 5秒`・480×640・First Imageの条件では、group準備が約**10.76秒から0.013秒**へ短縮しました。修正後の同セッション比較（warm-up後、各版3回）では、全体時間の中央値は**V3.8が273.58秒、V3.9が273.78秒**で測定範囲も重なり、以前の約6％差は見られなくなりました。全Workflow／モデル／GPUでの解決や、GPU演算そのものの高速化を確認したという意味ではありません。
+
+Continuumを`main`から更新し、Python修正を読み込むため**ComfyUIを完全に再起動**してください。確認済み：**CPU 1558 PASS／1 skipped、GPU生成8回すべて成功**（ComfyUI 0.38.0／RTX 5060 Ti 16 GB）。Seed、チャンク／フレーム契約、Run Storage、V3.8X2／V3.9公式Workflow・ZIP、過去Releaseは変更していません。今回もmainのソース修正で、新Release／Registry公開ではありません。
+
+## main更新：Review表示の復元修正（2026-10-01）
+
+別のWorkflowタブへ切り替えて戻ると、保存済みTakeが残っていてもReview操作が消える問題を修正しました。Workflowの復元完了後に履歴を取得し、古い画面の非同期結果は反映しません。実際に生成設定を変えた場合のReview／Take適用ガードは維持し、元の設定に戻すと操作が復帰します。
+
+カスタムノードを`main`から更新後、ブラウザーを更新して新しいJavaScriptを読み込んでください。確認済み：Frontend回帰60/60、関連CPU試験108件、Chromeのタブ5往復とBase Seed変更／復元。Take管理データは不変です。Sampling、Run Storage契約、V3.8X2／V3.9のWorkflowファイルと過去Releaseは変更していません。この修正のGPU継続生成は未検証です。[詳細と検証範囲](docs/REVIEW_RESTORATION_REPAIR.md)。
+
 ## 最初に：V3.9とV3.8X2
 
 ComfyUIの **Templates → ComfyUI-H3-Continuum** には、今回選んだ[V3.9公式Workflow](examples/workflows/MiniMax_H3_Continuum_V39.json)と、別の[V3.8X2 Workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json)を2件表示します。[V3.8X2 Workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip)には、**V3.8X2とV3.9の両JSON**を同梱しました。[V3.9単独ZIP](examples/workflows/MiniMax_H3_Continuum_V39.zip)も残します。いずれもWorkflow用ZIPで、カスタムノード本体のインストーラーではありません。V3.8 Samplerは残るので既存のV3.8X2 Workflowは使えます。ただしV3.9へReference配線や保存済みRun／Takeは自動移行しません。旧Workflowを保存しておき、新しい作業ではV3.9専用Workflowを開いてください。
@@ -18,7 +32,7 @@ ComfyUIの **Templates → ComfyUI-H3-Continuum** には、今回選んだ[V3.9�
 
 V3.9.0は`main`の現行ソースです。今回のmain更新は新しいGitHub ReleaseやComfyUI Registry公開ではなく、過去のReleaseとtagは残します。設定済み1024×1024のReference-only GPU/APIテストは通っていますが、無改変の公式テンプレート初期設定とブラウザー保存・再読込は別の受入項目です。古い環境を厳密に再現するには対応する過去のRelease／tagとWorkflowを使用してください。現行mainにもV3.8 Samplerを残し、V3.8X2 Workflowを使えるようにしています。
 
-`pyproject.toml`の宣言上はComfyUI `>=0.32.0`ですが、現行の実生成・GPU検証基準はComfyUI `0.34.2`です。最低宣言版でV3.9の実機動作を確認済みという意味ではありません。最新の記録済みWindows CPU試験は`1536 passed / 1 skipped / 0 failed`、別環境のLinux再実行報告は`1534 passed / 3 skipped / 0 failed`です。これらは現行公式テンプレートの実ブラウザー保存・再読込やGPU受入を代替しません。
+`pyproject.toml`の宣言上はComfyUI `>=0.32.0`ですが、以前の実生成・GPU検証はComfyUI `0.34.2`、上記の限定したFixedキャッシュ比較は`0.38.0`で行いました。最低宣言版でV3.9の実機動作を確認済みという意味ではありません。最新の記録済みWindows CPU試験は`1558 passed / 1 skipped / 0 failed`、以前の別環境Linux再実行報告は`1534 passed / 3 skipped / 0 failed`で、今回追加したキャッシュ試験は含みません。これらは無改変の公式テンプレートの実ブラウザー保存・再読込やGPU受入を代替しません。
 
 ## V3.9 Reference Images
 

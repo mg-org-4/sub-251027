@@ -8,6 +8,20 @@
 
 *This V3.8X2 card is retained for comparison. Its “CURRENT MAIN” label describes the time it was made; V3.9 is current now. The V3.8 Sampler and V3.8X2 workflow remain available, but their Reference wiring is not automatically converted to V3.9.*
 
+## V3.9 performance fix on main (2026-10-01)
+
+V3.9 could repeat unnecessary prompt-conditioning preparation when **Prompt Format = Fixed** and **no Reference Images are selected**. This repair reuses the existing bounded conditioning cache when its inputs are unchanged. First Image is supported; List/Timeline prompts, selected Reference Images, Reference Audio, Timeline Video and terminal-pair groups keep their existing paths. This is not the Decode Cache Helper and does not skip Sampling.
+
+In the tested `2 × 5 s`, 480×640 First Image workflow, group preparation fell from about **10.76 s to 0.013 s**. In the post-fix same-session comparison (three measured runs per version, after warm-up), median total time was **273.58 s for V3.8 vs 273.78 s for V3.9**; the ranges overlapped. The earlier roughly 6% gap was no longer observed under these conditions. This does **not** establish a speed fix for every workflow, model or GPU, or a GPU-kernel speedup.
+
+Update Continuum from `main` and **fully restart ComfyUI** to load the Python changes. Validation: **1558 CPU tests passed, 1 skipped; all 8 GPU generation runs succeeded** on ComfyUI 0.38.0 / RTX 5060 Ti 16 GB. Seeds, chunk/frame contracts, Run Storage, V3.8X2/V3.9 official workflows and ZIPs, and historical Releases are unchanged. This is a main-branch fix, not a new Release or Registry package.
+
+## Review restoration fix on main (2026-10-01)
+
+Switching to another workflow and back could hide Review actions even though saved Takes still existed. This frontend repair waits for workflow restoration before reading history and ignores stale results from previous graphs. Real generation-setting changes still disable Review/Take application; restoring the original settings re-enables the actions.
+
+Update the custom node from `main`, then refresh the browser to load the new JavaScript. Validation: 60/60 frontend regression cases, 108 focused CPU tests, five Chrome tab round trips, and a Chrome Base Seed edit/restore test; saved Take metadata stayed unchanged. Sampling, Run Storage contracts, V3.8X2/V3.9 workflow files and historical Releases are unchanged. GPU continuation was not tested for this repair. [Details and verification limits](docs/REVIEW_RESTORATION_REPAIR.md).
+
 ## Start here: V3.9 and the retained V3.8X2 workflow
 
 The ComfyUI **Templates → ComfyUI-H3-Continuum** gallery offers two separate entries: the user-selected [V3.9 workflow](examples/workflows/MiniMax_H3_Continuum_V39.json) and [V3.8X2 workflow](examples/workflows/MiniMax_H3_Continuum_V38X2.json). The [V3.8X2 workflow ZIP](examples/workflows/MiniMax_H3_Continuum_V38X2.zip) contains **both unchanged JSON workflows** for one-download setup; the [V3.9 ZIP](examples/workflows/MiniMax_H3_Continuum_V39.zip) contains only V3.9. These are workflow archives, not custom-node installers. The V3.8 Sampler remains available, so existing V3.8X2 workflows still load. V3.9 does not automatically convert their Reference connections or saved Runs/Takes: preserve the old workflow and open the dedicated V3.9 graph for new work.
@@ -18,7 +32,7 @@ In the helper, `All chunks` uses connected images throughout; `Per chunk` provid
 
 V3.9.0 is the current source version on `main`. This source update is **not** a new GitHub Release or ComfyUI Registry publication; existing Releases and tags are left in place. Configured 1024×1024 Reference-only GPU/API runs succeeded, but the unchanged default template and browser save/reload remain separate acceptance gates. For a reproducible older environment, use the matching historical Release/tag and workflow; the retained V3.8 Sampler on current `main` specifically supports V3.8X2 workflows.
 
-`pyproject.toml` declares ComfyUI `>=0.32.0`; the current real-generation/GPU validation baseline is ComfyUI `0.34.2`. The minimum declaration does not establish V3.9 runtime acceptance on 0.32.0. The latest recorded Windows CPU run is `1536 passed / 1 skipped / 0 failed`; a separate Linux rerun report records `1534 passed / 3 skipped / 0 failed`. Neither replaces browser save/reload or GPU acceptance for the current official template.
+`pyproject.toml` declares ComfyUI `>=0.32.0`; earlier real-generation/GPU validation used ComfyUI `0.34.2`, and the scoped Fixed cache comparison above used `0.38.0`. The minimum declaration does not establish V3.9 runtime acceptance on 0.32.0. The latest recorded Windows CPU run is `1558 passed / 1 skipped / 0 failed`; the earlier separate Linux rerun report records `1534 passed / 3 skipped / 0 failed` and does not include the new cache tests. Neither replaces browser save/reload or GPU acceptance for the unchanged official template.
 
 ## V3.9 Reference Images
 

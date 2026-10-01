@@ -59,7 +59,7 @@ function environment() {
   vm.runInNewContext(referenceSource+'\n'+src+`\nglobalThis.testFns={configureNode,loadTakeHistory,takeCatalog,selectTakeOffset,selectTakeAction,reviewStatus,reviewSettingsChanged,synchronizeReviewQueue};`,sandbox);
   app.extension.setup();
   const f=sandbox.testFns;
-  function makeNode(id=312,run='fixture',nodeClass='H3ContinuumSamplerV38'){
+  function makeNode(id=312,run='fixture',nodeClass='H3ContinuumSamplerV38',configure=true){
     const v={prompt_mode:'Auto',chunks:3,chunk_seconds:5,aspect:'Auto from First Image',
       preset:'Draft — 0.30 MP',custom_mp:.3,continuity:'Balanced — 22 frames',base_seed:123,
       control_after_generate:'fixed',audio_continuity:true,continuation_backend:'Standard',
@@ -77,7 +77,7 @@ function environment() {
       serialize(){return {widgets_values:this.widgets.map(w=>w.value)};},
       configure(info){info.widgets_values.forEach((v,i)=>{if(this.widgets[i])this.widgets[i].value=v;});}
     };
-    graph._nodes.push(n);f.configureNode(n);return n;
+    graph._nodes.push(n);if(configure)f.configureNode(n);return n;
   }
   const w=(n,name)=>n.widgets.find(w=>w.name===name);
   async function inputs(n){
@@ -91,7 +91,13 @@ function environment() {
     const result=await api.queuePrompt(0,data,options);
     for(const x of n.widgets)x.afterQueued?.({isPartialExecution:false});return result;}
   async function emit(type,detail){await Promise.all((listeners.get(type)||[]).map(cb=>cb({type,detail})));await sleep();await sleep();}
+  async function finishRestore(){
+    await app.extension.afterConfigureGraph();
+    await Promise.all(graph._nodes.map(n=>n.__h3ContinuumHistoryRequest?.promise));
+    await sleep();
+  }
   return {f,api,app,w,inputs,queue,emit,makeNode,submissions,setSaved:p=>{saved=p;},
+    finishRestore,
     getSaved:()=>saved,getFetchCount:()=>fetchCount,setQueueHook:h=>queueHook=h,setFetchHook:h=>fetchHook=h,
     failQueue:e=>nextError=e,visible:(n,name)=>!w(n,name)?.hidden,
     async load(n,p){saved=p;await f.loadTakeHistory(n,{force:true});n.__h3ContinuumIntuitiveUxRefresh?.();},
@@ -568,6 +574,106 @@ await test('V39 loaded node removes only unused old Reference sockets',async e=>
  e.app.extension.loadedGraphNode(n);
  assert.deepEqual(n.inputs.map(input=>input.name),['reference_images']);
  assert.match(e.w(n,'Reference Plan Inspector').value,/Configured only/);
+});
+for(const nodeClass of ['H3ContinuumSamplerV38','H3ContinuumSamplerV39']) {
+await test(`${nodeClass}: recreated tab waits for saved identity and upstream links`,async e=>{
+ const saved=project(1),before=JSON.stringify(saved);e.setSaved(saved);
+ e.app.extension.beforeConfigureGraph?.();
+ const n=e.makeNode(312,'',nodeClass,false);e.app.extension.nodeCreated(n);
+ const reads=e.getFetchCount();
+ e.w(n,'run_name').value='fixture';e.w(n,'generation_mode').value='Review Each Chunk';
+ e.app.extension.loadedGraphNode(n);
+ assert.equal(e.getFetchCount(),reads,'restoration must not fetch a default Run');
+ // Core recreates nodes, then restores upstream nodes and link objects.
+ const source={id:900,comfyClass:'Text',mode:0,widgets:[{name:'text',value:'A quiet scene.'}],inputs:[]};
+ e.app.graph._nodes.push(source);e.app.graph.links[42]={origin_id:900,origin_slot:0};
+ n.inputs.push({name:'sequence_prompt',link:42});await e.finishRestore();
+ assert.equal(n.__h3ContinuumHistoryRun,'fixture');assert(!e.f.reviewSettingsChanged(n));
+ for(const name of ['Use it and continue','Try this chunk again','Use it and finish the rest','Render History'])assert(e.visible(n,name),name);
+ e.w(n,'Render History').callback();assert(e.visible(n,'Use This Take'));assert(!e.w(n,'Use This Take').disabled);
+ assert.equal(JSON.stringify(saved),before);assert.equal(e.submissions.length,0);
+});
+}
+await test('ten rapid recreated tabs reject every obsolete history response',async e=>{
+ const pending=[];e.setFetchHook(url=>new Promise(resolve=>pending.push({url,resolve})));
+ const old=[];
+ for(let i=0;i<10;i++){
+  e.app.extension.beforeConfigureGraph?.();
+  for(const n of e.app.graph._nodes){n.onRemoved?.();old.push(n);}e.app.graph._nodes=[];
+  const n=e.makeNode(312,`run-${i}`,'H3ContinuumSamplerV39',false);
+  e.w(n,'generation_mode').value='Review Each Chunk';e.app.extension.nodeCreated(n);e.app.extension.loadedGraphNode(n);
+  await e.app.extension.afterConfigureGraph();
+ }
+ assert.equal(pending.length,10);
+ const latest=e.app.graph._nodes[0];
+ for(let i=9;i>=0;i--)pending[i].resolve({ok:true,status:200,json:async()=>project(1,3,`r-${i}`,`run-${i}`)});
+ await Promise.all([...old,latest].map(n=>n.__h3ContinuumHistoryRequest?.promise));await sleep();
+ assert.equal(latest.__h3ContinuumTakeProject.canonical_storage_revision_id,'r-9');
+ assert(old.every(n=>!n.__h3ContinuumTakeProject));assert(e.visible(latest,'Use it and continue'));
+ assert.equal(e.submissions.length,0);
+});
+await test('API graph restoration without a before hook still reloads history',async e=>{
+ const n=e.makeNode();await e.load(n,null);e.setSaved(project(1));
+ e.w(n,'generation_mode').value='Review Each Chunk';await e.finishRestore();
+ assert(e.visible(n,'Use it and continue'));assert(!e.f.reviewSettingsChanged(n));
+});
+await test('manually added sampler loads history after deferred setup',async e=>{
+ e.setSaved(project(1));const n=e.makeNode(312,'fixture','H3ContinuumSamplerV39',false);
+ e.w(n,'generation_mode').value='Review Each Chunk';e.app.extension.nodeCreated(n);
+ assert.equal(e.getFetchCount(),0);await n.__h3ContinuumConfigurePending?.promise;
+ await n.__h3ContinuumHistoryRequest?.promise;await sleep();
+ assert(e.visible(n,'Use it and continue'));
+});
+await test('real edits while restored history is pending retain the settings guard',async e=>{
+ let release;e.setFetchHook(()=>new Promise(resolve=>release=resolve));
+ e.app.extension.beforeConfigureGraph?.();const n=e.makeNode(312,'fixture','H3ContinuumSamplerV39',false);
+ e.w(n,'generation_mode').value='Review Each Chunk';e.app.extension.nodeCreated(n);
+ await e.app.extension.afterConfigureGraph();e.w(n,'base_seed').value=999;
+ release({ok:true,status:200,json:async()=>project(1)});await n.__h3ContinuumHistoryRequest?.promise;
+ assert(e.f.reviewSettingsChanged(n));assert(!e.visible(n,'Use it and continue'));
+});
+await test('same revision graph refresh cannot erase an existing real edit',async e=>{
+ const n=e.makeNode();e.w(n,'generation_mode').value='Review Each Chunk';await e.load(n,project(1));
+ e.w(n,'base_seed').value=999;await e.finishRestore();
+ assert(e.f.reviewSettingsChanged(n));assert(!e.visible(n,'Use it and continue'));
+});
+await test('graph epoch rejects old results even if the same node remains attached',async e=>{
+ const n=e.makeNode();await e.load(n,null);let release;
+ e.setFetchHook(()=>new Promise(resolve=>release=resolve));const request=e.f.loadTakeHistory(n,{force:true});
+ e.app.extension.beforeConfigureGraph?.();
+ release({ok:true,status:200,json:async()=>project(1)});await request;
+ assert(!n.__h3ContinuumTakeProject);
+ e.setFetchHook(null);e.setSaved(project(1));e.w(n,'generation_mode').value='Review Each Chunk';
+ await e.finishRestore();assert(e.visible(n,'Use it and continue'));
+});
+await test('removed sampler cancels deferred setup without fetching or mutating it',async e=>{
+ e.setSaved(project(1));const n=e.makeNode(312,'fixture','H3ContinuumSamplerV39',false);
+ e.app.extension.nodeCreated(n);const setup=n.__h3ContinuumConfigurePending?.promise;
+ n.onRemoved();e.app.graph._nodes=[];await setup;
+ assert.equal(e.getFetchCount(),0);assert(!n.__h3ContinuumTakeProject);
+});
+await test('initial restored history read preserves saved Take selection fields',async e=>{
+ e.app.extension.beforeConfigureGraph?.();e.setSaved(project(1));
+ const n=e.makeNode(312,'fixture','H3ContinuumSamplerV39',false);e.app.extension.nodeCreated(n);
+ e.w(n,'take_group').value=1;e.w(n,'take_revision_id').value='r1-g1';
+ // One-shot actions are normalized separately by the existing load hook.
+ e.app.extension.loadedGraphNode(n);await e.finishRestore();
+ assert.equal(e.w(n,'take_group').value,1);assert.equal(e.w(n,'take_revision_id').value,'r1-g1');
+});
+await test('restored missing or failed history reports accurately and can retry',async e=>{
+ const n=e.makeNode();await e.load(n,null);await e.finishRestore();
+ assert(!n.__h3ContinuumTakeProject);assert(!n.__h3ContinuumTakeError);
+ e.setFetchHook(async()=>({ok:false,status:500}));await e.finishRestore();
+ assert.match(e.w(n,'Ready to Queue').headline,/unavailable/);
+ e.setFetchHook(null);e.setSaved(project(1));e.w(n,'generation_mode').value='Review Each Chunk';
+ await e.finishRestore();assert(e.visible(n,'Use it and continue'));assert(!n.__h3ContinuumTakeError);
+});
+await test('failed graph load releases hydration gate for subsequent manual nodes',async e=>{
+ e.app.extension.beforeConfigureGraph?.();e.app.extension.onGraphLoadError?.();
+ e.setSaved(project(1));const n=e.makeNode(312,'fixture','H3ContinuumSamplerV39',false);
+ e.w(n,'generation_mode').value='Review Each Chunk';e.app.extension.nodeCreated(n);
+ await n.__h3ContinuumConfigurePending?.promise;await n.__h3ContinuumHistoryRequest?.promise;await sleep();
+ assert(e.visible(n,'Use it and continue'));
 });
 console.log(JSON.stringify(results,null,2));if(results.some(r=>!r.pass))process.exitCode=1;
 })();

@@ -731,6 +731,17 @@ function readySummary(node) {
         headline:"Chunk saved — output incomplete", detail:node.__h3ContinuumOutputFailure.message,
     };
     if (node.__h3ContinuumQueueNotice) return {headline:"Check saved progress", detail:node.__h3ContinuumQueueNotice};
+    if (findWidget(node, RUN_STORAGE_WIDGET)?.value === "Save + Auto Resume") {
+        if (reviewGraphHydrating || node.__h3ContinuumConfigurePending) return {
+            headline: "Restoring Review", detail: "Waiting for Workflow settings and connections.",
+        };
+        if (node.__h3ContinuumHistoryRequest) return {
+            headline: "Loading saved progress", detail: "Reading this Run's Review and Render History.",
+        };
+        if (node.__h3ContinuumTakeError) return {
+            headline: "Review history unavailable", detail: node.__h3ContinuumTakeError,
+        };
+    }
     const missing = requiredConnectionNames(node);
     if (missing.length) {
         return {
@@ -1881,7 +1892,13 @@ function clearTakeSelection(node) {
 }
 
 async function loadTakeHistory(node, options = {}) {
+    // Creation precedes saved widget/link restoration. Never bind a Run or
+    // settings baseline to that intermediate graph.
+    if (reviewGraphHydrating || node.__h3ContinuumConfigurePending) return false;
+    if (!reviewNodeAttached(node)) return false;
     const runName = takeRunName(node);
+    const epoch = reviewGraphEpoch;
+    node.__h3ContinuumTakeInitialLoad = true;
     const requestedSettings = options.reviewedSettings ?? node.__h3ContinuumReadReviewSettings?.();
     const identityChanged = node.__h3ContinuumHistoryRun !== runName;
     if (identityChanged) {
@@ -1892,14 +1909,18 @@ async function loadTakeHistory(node, options = {}) {
         delete node.__h3ContinuumQueueNotice;
         delete node.__h3ContinuumReviewedSettings;
         delete node.__h3ContinuumReviewedSettingsKey;
-        clearTakeSelection(node);
+        // The first read must not rewrite a saved explicit Take selection.
+        if (node.__h3ContinuumHistoryRunInitialized) clearTakeSelection(node);
+        node.__h3ContinuumHistoryRunInitialized = true;
     }
     if (!options.force && node.__h3ContinuumHistoryRequest?.runName === runName) {
         return node.__h3ContinuumHistoryRequest.promise;
     }
     const token = Number(node.__h3ContinuumTakeLoadToken || 0) + 1;
     node.__h3ContinuumTakeLoadToken = token;
-    const current = () => node.__h3ContinuumTakeLoadToken === token && takeRunName(node) === runName;
+    const current = () => epoch === reviewGraphEpoch && !reviewGraphHydrating
+        && reviewNodeAttached(node)
+        && node.__h3ContinuumTakeLoadToken === token && takeRunName(node) === runName;
     if (!runName) {
         node.__h3ContinuumTakeProject = null;
         delete node.__h3ContinuumTakeError;
@@ -1941,13 +1962,19 @@ async function loadTakeHistory(node, options = {}) {
             node.__h3ContinuumTakeError = String(error?.message || error);
             return false;
         } finally {
-            if (current()) node.__h3ContinuumProductionUxRefresh?.();
+            if (current()) {
+                node.__h3ContinuumIntuitiveUxRefresh?.();
+                node.__h3ContinuumProductionUxRefresh?.();
+            }
         }
     })();
     node.__h3ContinuumHistoryRequest = { runName, token, promise };
     try { return await promise; }
     finally {
-        if (node.__h3ContinuumHistoryRequest?.token === token) delete node.__h3ContinuumHistoryRequest;
+        if (node.__h3ContinuumHistoryRequest?.token === token) {
+            delete node.__h3ContinuumHistoryRequest;
+            if (current()) node.__h3ContinuumIntuitiveUxRefresh?.();
+        }
     }
 }
 
@@ -2601,6 +2628,7 @@ function configureProductionReviewUx(node) {
     if (!node.__h3ContinuumReviewRemovalGuard) {
         const previous = node.onRemoved;
         node.onRemoved = function(...args) {
+            this.__h3ContinuumConfigurePending?.cancel();
             this.__h3ContinuumTakeLoadToken = Number(this.__h3ContinuumTakeLoadToken || 0) + 1;
             for (const [id, records] of reviewPrompts) {
                 const remaining = records.filter(record => record.node !== this);
@@ -2761,8 +2789,8 @@ function applyV38View(node) {
     if (!isModernSamplerClass(node.comfyClass)) return;
     node.__h3ContinuumIntuitiveUxRefresh?.();
     node.__h3ContinuumProductionUxRefresh?.();
-    if (!node.__h3ContinuumTakeInitialLoad) {
-        node.__h3ContinuumTakeInitialLoad = true;
+    if (!reviewGraphHydrating && !node.__h3ContinuumConfigurePending
+        && reviewNodeAttached(node) && !node.__h3ContinuumTakeInitialLoad) {
         void loadTakeHistory(node);
     }
     node.setDirtyCanvas?.(true, true);
@@ -3231,11 +3259,45 @@ function configureNode(node) {
     return projectWidget;
 }
 
+let reviewGraphEpoch = 0;
+let reviewGraphHydrating = false;
+
+function reviewNodeAttached(node) {
+    const graph = node.graph || app.graph;
+    return Boolean(graph && (graph.getNodeById?.(node.id) === node
+        || graph._nodes?.includes(node)));
+}
+
 function configureNodeAfterSetup(node) {
+    // Coalesce the existing deferred setup passes and expose their completion.
+    // No extra guessed delay: history waits for the actual final setup pass.
+    let pending = node.__h3ContinuumConfigurePending;
+    if (pending?.epoch !== reviewGraphEpoch) {
+        pending?.cancel();
+        const epoch = reviewGraphEpoch;
+        let finish;
+        pending = { epoch, timers: [], promise: new Promise(resolve => { finish = resolve; }) };
+        pending.cancel = () => {
+            for (const timer of pending.timers) clearTimeout(timer);
+            if (node.__h3ContinuumConfigurePending === pending) delete node.__h3ContinuumConfigurePending;
+            finish();
+        };
+        node.__h3ContinuumConfigurePending = pending;
+        for (const delay of [0, 100]) {
+            pending.timers.push(setTimeout(() => {
+                try {
+                    if (epoch === reviewGraphEpoch && reviewNodeAttached(node)) configureNode(node);
+                } finally {
+                    if (delay === 100) {
+                        pending.cancel();
+                        if (epoch === reviewGraphEpoch && reviewNodeAttached(node)) applyV38View(node);
+                    }
+                }
+            }, delay));
+        }
+    }
     configureNode(node);
-    const configureDeferred = () => configureNode(node);
-    setTimeout(configureDeferred, 0);
-    setTimeout(configureDeferred, 100);
+    return pending.promise;
 }
 
 app.registerExtension({
@@ -3282,6 +3344,18 @@ app.registerExtension({
         });
     },
 
+    beforeConfigureGraph() {
+        reviewGraphEpoch++;
+        reviewGraphHydrating = true;
+        for (const node of app.graph?._nodes || []) node.__h3ContinuumConfigurePending?.cancel();
+    },
+
+    onGraphLoadError() {
+        reviewGraphEpoch++;
+        reviewGraphHydrating = false;
+        for (const node of app.graph?._nodes || []) node.__h3ContinuumConfigurePending?.cancel();
+    },
+
     nodeCreated(node) {
         configureNodeAfterSetup(node);
     },
@@ -3294,10 +3368,22 @@ app.registerExtension({
         configureNodeAfterSetup(node);
     },
 
-    afterConfigureGraph() {
-        for (const node of [...(app.graph?._nodes || [])]) {
+    async afterConfigureGraph() {
+        // API graph loading can call this hook without beforeConfigureGraph.
+        const epoch = reviewGraphEpoch;
+        reviewGraphHydrating = true;
+        const nodes = [...(app.graph?._nodes || [])];
+        const pending = [];
+        for (const node of nodes) {
             migrateReferenceImageInputs(node);
-            configureNodeAfterSetup(node);
+            pending.push(configureNodeAfterSetup(node));
+        }
+        await Promise.all(pending);
+        if (epoch !== reviewGraphEpoch) return;
+        reviewGraphHydrating = false;
+        for (const node of nodes) {
+            if (!isModernSamplerClass(node.comfyClass) || !reviewNodeAttached(node)) continue;
+            void loadTakeHistory(node, { force: true, reviewedSettings: reviewSettingsSnapshot(node) });
         }
     },
 

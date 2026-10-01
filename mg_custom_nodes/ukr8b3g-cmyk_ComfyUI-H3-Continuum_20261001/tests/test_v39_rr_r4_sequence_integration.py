@@ -12,6 +12,8 @@ from ComfyUI_H3_Continuum_Join.constants import (
     DIAGNOSTICS_BASIC,
     DIAGNOSTICS_OFF,
     PROMPT_MODE_FIXED,
+    PROMPT_MODE_LIST,
+    PROMPT_MODE_TIMELINE,
     V2_CONTINUITY_OPTIONS,
 )
 from ComfyUI_H3_Continuum_Join.temporal import audio_latent_t, video_latent_t
@@ -117,9 +119,10 @@ def _router(*, slots, selected_by_slot, chunks=3, terminal=False):
 
 
 def _run(runtime, router, *, chunks=3, limit=None, first=None, last=None,
-         session=None, script="running", diagnostics=DIAGNOSTICS_BASIC):
+         session=None, script="running", diagnostics=DIAGNOSTICS_BASIC,
+         prompt_cache=False, prompt_mode=PROMPT_MODE_FIXED):
     prompt_plan = make_prompt_plan(
-        mode=PROMPT_MODE_FIXED, script=script, chunks=chunks,
+        mode=prompt_mode, script=script, chunks=chunks,
         chunk_seconds=5.0,
     )
     return sequence.run_sequence_with_reference_routing(
@@ -132,7 +135,50 @@ def _run(runtime, router, *, chunks=3, limit=None, first=None, last=None,
         diagnostics_mode=diagnostics, reroll_from_chunk=0,
         reroll_nonce=0, strict_compatibility=False, debug=False,
         session=session, latent_only=True, max_new_physical_groups=limit,
+        capture_refine_context=prompt_cache, prompt_conditioning_cache=prompt_cache,
     )
+
+
+@pytest.mark.parametrize("mode,script,cached", [
+    (PROMPT_MODE_FIXED, "running", True),
+    (PROMPT_MODE_TIMELINE, "[0-5s]\nrunning\n[5-10s]\nrunning", False),
+    (PROMPT_MODE_LIST, '["running", "running"]', False),
+])
+def test_r0_prompt_cache_is_fixed_only_and_keeps_sampling_contract(monkeypatch, mode, script, cached):
+    first = _image(0.1)
+    runtime = _runtime(monkeypatch, first=first)
+    runtime.clip.patcher = SimpleNamespace(patches_uuid="patch-a")
+    router = _router(slots={}, selected_by_slot={}, chunks=2)
+    entries, _, session, *_ = _run(
+        runtime, router, chunks=2, first=first, script=script,
+        prompt_cache=True, prompt_mode=mode,
+    )
+    assert len(entries) == 2 and len(runtime.samples) == 2
+    assert len(runtime.clip.calls) == (1 if cached else 2)
+    assert [item["prompt"] for item in runtime.samples] == ["running", "running"]
+    assert [item["refs"] for item in runtime.samples] == [[], []]
+    assert [entry["seed"] for entry in entries] == [entry["seed"] for entry in session["chunks"]]
+    assert len(router.observed_group_contracts) == 2
+
+
+def test_r0_cache_on_off_cpu_replay_preserves_latents_seeds_and_storage_descriptors(monkeypatch):
+    from .test_audit_boundary_repairs import assert_nested_equal
+    from ComfyUI_H3_Continuum_Join.v2 import session as session_module
+    import uuid
+    # Fix only fresh-session bookkeeping; compare all execution data unchanged.
+    monkeypatch.setattr(session_module.uuid, "uuid4", lambda: uuid.UUID(int=42))
+    monkeypatch.setattr(session_module, "_now_iso", lambda: "2026-10-01T00:00:00+00:00")
+    first = _image(0.1)
+    outcomes = []
+    for enabled in (False, True):
+        runtime = _runtime(monkeypatch, first=first)
+        runtime.clip.patcher = SimpleNamespace(patches_uuid="patch-a")
+        router = _router(slots={}, selected_by_slot={}, chunks=2)
+        entries, state, session, *_ = _run(
+            runtime, router, chunks=2, first=first, prompt_cache=enabled,
+        )
+        outcomes.append((entries, state, session, router.observed_group_contracts))
+    assert_nested_equal(outcomes[1], outcomes[0])
 
 
 def test_review_limited_sequence_prepares_only_groups_to_generate(monkeypatch):

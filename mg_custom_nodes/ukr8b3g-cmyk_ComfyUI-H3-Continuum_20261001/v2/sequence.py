@@ -16,6 +16,7 @@ from ..constants import (
     DIAGNOSTICS_FULL, DIAGNOSTICS_OFF, DIAGNOSTICS_OPTIONS, FPS,
     CONTINUUM_ACTUAL_PREFIX_STEPS, SEAM_CORRECTION_AUTO, SEAM_CORRECTION_OFF,
     SEAM_CORRECTION_OPTIONS, V2_CONTINUITY_AUTO, normalize_diagnostics_mode,
+    PROMPT_MODE_FIXED,
 )
 from ..continuation import POLICY_REPLACE, prepare_conditioning
 from ..driving_audio import (
@@ -1014,6 +1015,10 @@ def _run_runtime_internal(*,model:Any,clip:Any,video_vae:Any,audio_vae:Any,sampl
                 timeline_video_assets=timeline_video_assets,
                 reference_encode_cache=reference_encode_cache,
                 cache_event=reference_encode_cache_events.append,
+                prompt_conditioning_cache=bool(
+                    prompt_conditioning_cache and plan["mode"] == PROMPT_MODE_FIXED
+                ),
+                prompt_cache_event=prompt_cache_events.append,
                 expected_group_contract=(reference_storage_plan.group_for(sequence_index+1)
                                          if reference_storage_plan is not None else None),
                 first_frame_hash=assets.first_frame_hash,

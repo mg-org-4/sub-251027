@@ -2,6 +2,7 @@ import { app } from "../../../scripts/app.js";
 import { getCache, beginUndoTransaction, endUndoTransaction, getSetting, apiFetch, requestJson, toast, promptDialog, pickFile, loadGroupTags } from "./util.js";
 import { renderTagPill, SURFACE_CLASS, injectTagStyles, previewUrl, previewKey, saveCover } from "./tagview.js";
 import { showPreviewFor, hidePreviewPanel } from "./preview.js";
+import { tagKey } from "./parser.js";
 
 // Class on preview <img> elements so cleanup can target them precisely.
 const PREVIEW_CLASS = "ere-menu-preview";
@@ -29,6 +30,16 @@ const MENU_MIN_WIDTH = 160;
 const MENU_MAX_WIDTH = 320;
 // Editing a sentence in a 320px column is editing it through a letterbox.
 const TEXT_MENU_WIDTH = 460;
+
+// A group pill's `mode`: absent is "file", the tags as the group file has them on and off.
+const GROUP_MODES = [
+    { id: "file", label: "File" },
+    { id: "single", label: "Single" },
+    { id: "multi", label: "Multi" },
+];
+
+/** Rounded to the step grid, so repeated steps do not collect float slop. */
+export const stepStrength = (strength, delta) => parseFloat(((strength ?? 1.0) + delta).toFixed(2));
 
 // A menu can open before any node has mounted a widget, so the tag styles are ensured here too.
 injectTagStyles();
@@ -210,6 +221,15 @@ export class DynamicContextMenu {
 
         let currentHighlightIndex = enabledOptions.indexOf(this.highlighted);
         let handled = false;
+
+        const strength = this.options[this.highlighted];
+        if (strength?.type === 'strength_control' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+            strength.nudge((e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 0.1 : 0.05));
+            const label = this.renderedOptionElements[this.highlighted]?.querySelector("span");
+            if (label) label.textContent = strength.label();
+            e.preventDefault(); e.stopPropagation();
+            return true;
+        }
 
         switch (e.key) {
             case "ArrowUp":
@@ -422,6 +442,50 @@ export class DynamicContextMenu {
                     accept(e.dataTransfer?.files?.[0]);
                 });
                 item.appendChild(pane);
+                break;
+            }
+            case 'strength_control': {
+                // `nudge(delta)` and `reset()` apply the change; `label()` reads it back.
+                item.className = "litemenu-entry submenu";
+                item.style.cssText = "display: flex; justify-content: space-between; align-items: center;";
+                const label = document.createElement("span");
+                label.textContent = option.label();
+                const apply = (change) => { change(); label.textContent = option.label(); };
+                const step = (text, sign) => {
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "ere-menu-step";
+                    btn.textContent = text;
+                    btn.onclick = (e) => { e.stopPropagation(); apply(() => option.nudge(sign * (e.shiftKey ? 0.1 : 0.05))); };
+                    return btn;
+                };
+                item.append(step("◀", -1), label, step("▶", 1));
+                item.addEventListener("mouseenter", () => this.setHighlight(index));
+                item.addEventListener("mousedown", (e) => {
+                    // preventDefault also keeps the middle button from starting the browser's autoscroll.
+                    if (e.button === 1) {
+                        e.preventDefault(); e.stopPropagation();
+                        apply(() => option.reset());
+                        return;
+                    }
+                    if (e.button !== 0 || e.target.nodeName === "BUTTON") return;
+                    e.preventDefault(); e.stopPropagation();
+                    const startX = e.clientX;
+                    let steps = 0;
+                    // One undo transaction, or every 5px tick becomes its own step.
+                    beginUndoTransaction();
+                    const onMouseMove = (moveEvent) => {
+                        const next = Math.round((moveEvent.clientX - startX) / 5);
+                        if (next === steps) return;
+                        apply(() => option.nudge((next - steps) * 0.05));
+                        steps = next;
+                    };
+                    window.addEventListener('mousemove', onMouseMove, true);
+                    window.addEventListener('mouseup', () => {
+                        window.removeEventListener('mousemove', onMouseMove, true);
+                        endUndoTransaction();
+                    }, { capture: true, once: true });
+                });
                 break;
             }
             default:
@@ -858,9 +922,6 @@ export function parseFilePrefix(raw) {
     const m = String(raw ?? "").trim().match(/^<?(lora|embedding|group):(.*)$/i);
     return m ? { type: m[1].toLowerCase(), query: m[2].replace(/>$/, "") } : null;
 }
-
-/** A tag as the CSV spells it, so a prompt's `blue_eyes`, `\(x\)` or `@artist` compares equal to the suggestion. */
-export const tagKey = name => String(name ?? "").trim().replace(/^@/, "").replace(/\\([()])/g, "$1").replace(/_/g, " ").toLowerCase();
 
 // A new context menu for csv tags
 export class TagContextMenu extends DynamicContextMenu {
@@ -1320,9 +1381,15 @@ export class TagEditContextMenu extends DynamicContextMenu {
         // 2.
         // Strength Control (not for groups)
         if (this.tag.type !== 'group') {
-             this.options.push({ name: 'strength', type: 'strength_control' });
+            const setStrength = (value) => { this.tag.strength = value; this.onSelect(this.updateTag()); };
+            this.options.push({
+                type: 'strength_control',
+                label: () => `Strength: ${this.tag.strength.toFixed(2)}`,
+                nudge: (delta) => setStrength(stepStrength(this.tag.strength, delta)),
+                reset: () => setStrength(1.0),
+            });
         }
-        
+
         // 3.
         // Info Panel (for lora triggers, group contents)
         if (this.isSpecialType) {
@@ -1332,8 +1399,22 @@ export class TagEditContextMenu extends DynamicContextMenu {
                 this.options.push({ type: 'info_panel', content: infoPanelContent, disabled: true });
             }
         }
-        
+
         this.options.push({ type: 'separator' });
+
+        // A group's selection mode, right under the tags it picks from.
+        if (this.tag.type === 'group') {
+            const current = this.tag.mode || "file";
+            this.options.push({
+                name: "Mode",
+                submenu: GROUP_MODES.map(mode => ({
+                    name: mode.label,
+                    checked: mode.id === current,
+                    disabled: mode.id === current,
+                    callback: () => this.setGroupMode(mode.id),
+                })),
+            });
+        }
 
         if (this.isSpecialType) {
             this.options.push({
@@ -1455,63 +1536,12 @@ export class TagEditContextMenu extends DynamicContextMenu {
 
     renderSingleItem(item, option, index) {
         switch(option.type) {
-            case 'strength_control':
-                item.className = "litemenu-entry submenu";
-                item.style.display = "flex";
-                item.style.justifyContent = "space-between";
-                item.style.alignItems = "center";
-                
-                const textSpan = document.createElement("span");
-                const strengthDisplay = () => `Strength: ${this.tag.strength.toFixed(2)}`;
-                textSpan.textContent = strengthDisplay();
-                
-                const createButton = (text, onClick) => {
-                    const btn = document.createElement("button");
-                    btn.type = "button";
-                    btn.className = "ere-menu-step";
-                    btn.textContent = text;
-                    btn.onclick = (e) => { e.stopPropagation(); onClick(e); };
-                    return btn;
-                };
-
-                const updateDisplay = () => { 
-                    textSpan.textContent = strengthDisplay(); 
-                    this.onSelect(this.updateTag());
-                };
-                const decBtn = createButton("◀", (e) => { this.tag.strength = parseFloat((this.tag.strength - (e.shiftKey ? 0.1 : 0.05)).toFixed(2)); updateDisplay(); });
-                const incBtn = createButton("▶", (e) => { this.tag.strength = parseFloat((this.tag.strength + (e.shiftKey ? 0.1 : 0.05)).toFixed(2)); updateDisplay(); });
-                item.append(decBtn, textSpan, incBtn);
-
-                item.addEventListener("mouseenter", () => {
-                    if (!option.disabled) this.setHighlight(index);
-                });
-
-                // Add drag functionality.
-                // One undo transaction, or every 5px tick becomes its own step.
-                item.addEventListener('mousedown', (e) => {
-                    if (e.button !== 0 || e.target.nodeName === "BUTTON") return;
-                    e.preventDefault(); e.stopPropagation();
-                    let startX = e.clientX, startValue = this.tag.strength;
-                    beginUndoTransaction();
-                    const onMouseMove = (moveEvent) => {
-                        this.tag.strength = parseFloat((startValue + Math.round((moveEvent.clientX - startX) / 5) * 0.05).toFixed(2));
-                        updateDisplay();
-                    };
-                    const onMouseUp = () => {
-                        window.removeEventListener('mousemove', onMouseMove, true);
-                        endUndoTransaction();
-                    };
-                    window.addEventListener('mousemove', onMouseMove, true);
-                    window.addEventListener('mouseup', onMouseUp, { capture: true, once: true });
-                });
-                break;
-            
             case 'info_panel':
                 // ere-surface so createPill's pills pick up the rules the nodes use.
                 item.className = `litemenu-entry submenu disabled ${SURFACE_CLASS}`;
                 item.style.cssText = "max-width: 100%; display: flex; flex-wrap: wrap; gap: 5px; opacity: 1;";
                 // Apply half opacity only for non-interactive group previews
-                if (this.tag.type === 'group') {
+                if (this.tag.type === 'group' && !this.tag.mode) {
                     item.style.opacity = "0.6";
                 }
                 if (Array.isArray(option.content)) {
@@ -1551,24 +1581,6 @@ export class TagEditContextMenu extends DynamicContextMenu {
             return true;
         }
 
-        if (this.highlighted !== -1) {
-            const highlightedOption = this.options[this.highlighted];
-            if (highlightedOption.type === 'strength_control') {
-                const step = e.shiftKey ? 0.1 : 0.05;
-                let handled = false;
-                if (e.key === 'ArrowLeft') { this.tag.strength = parseFloat((this.tag.strength - step).toFixed(2)); handled = true; }
-                if (e.key === 'ArrowRight') { this.tag.strength = parseFloat((this.tag.strength + step).toFixed(2)); handled = true; }
-                if (handled) {
-                    // Find the rendered element and update its display
-                    const strengthControlElement = this.root.querySelector('.litemenu-entry[style*="justify-content"] span');
-                    if (strengthControlElement) strengthControlElement.textContent = `Strength: ${this.tag.strength.toFixed(2)}`;
-                    this.onSelect(this.updateTag());
-                    e.preventDefault(); e.stopPropagation();
-                    return true;
-                }
-            }
-        }
-        // Fallback to parent for default navigation (Up/Down from input, etc.)
         return super.handleKeyboard(e);
     }
     
@@ -1578,8 +1590,9 @@ export class TagEditContextMenu extends DynamicContextMenu {
             // Update the tag object with the new file info
             this.tag.name = selectedFile.name;
             this.tag.extension = selectedFile.extension;
-            // When switching to a new file, clear any triggers from the old one.
+            // When switching to a new file, clear any triggers or picks from the old one.
             this.tag.triggers = [];
+            if (this.tag.mode) this.tag.content = [];
 
             // First, save the change.
             // The saveCallback from prompt.js will update the node data.
@@ -1627,16 +1640,44 @@ export class TagEditContextMenu extends DynamicContextMenu {
     }
 
     processGroupTags(groupTags) {
+        const members = Array.isArray(groupTags) ? groupTags.filter(t => t?.name) : [];
+        if (!this.tag.mode) return members.map(t => renderTagPill(t));
+
+        // Picks the file no longer has stay listed, so they can still be dropped.
+        const orphans = (this.tag.content || []).filter(c => !members.some(m => m.name === c.name));
+        const all = [...members, ...orphans];
         const pills = [];
-        if (groupTags && Array.isArray(groupTags) && groupTags.length > 0) {
-            // Show all tags, not just active ones
-            groupTags.forEach(tag => {
-                if (tag.name) { // Ensure tag has a name
-                    pills.push(this.createPill(tag, false));
-                }
+        const build = (member) => {
+            const picked = (this.tag.content || []).some(c => c.name === member.name);
+            const el = renderTagPill({ ...member, active: picked });
+            if (orphans.includes(member)) el.classList.add("ere-missing");
+            el.style.cursor = "pointer";
+            el.addEventListener("click", () => {
+                const content = this.tag.content || [];
+                const keep = this.tag.mode === "single" ? [] : content.filter(c => c.name !== member.name);
+                const next = picked ? keep : [...keep, { ...member, active: true }];
+                // File order, not click order: it is the order the prompt gets. A kept pick keeps its stored copy.
+                this.tag.content = all.map(m => next.find(c => c.name === m.name)).filter(Boolean);
+                this.onSelect(this.updateTag());
+                all.forEach((m, i) => { const fresh = build(m); pills[i].replaceWith(fresh); pills[i] = fresh; });
             });
-        }
+            return el;
+        };
+        pills.push(...all.map(build));
         return pills;
+    }
+
+    /** "file" drops the selection entirely; the other two start from nothing picked. */
+    async setGroupMode(mode) {
+        if (mode === "file") {
+            delete this.tag.mode;
+            delete this.tag.content;
+        } else {
+            this.tag.mode = mode;
+            this.tag.content = [];
+        }
+        this.onSelect(this.updateTag());
+        await this.init();
     }
 
     /** A pill for the info panel: a read-only tag from a group, or a lora trigger word whose "active" means "included in the prompt" and toggles on click. */

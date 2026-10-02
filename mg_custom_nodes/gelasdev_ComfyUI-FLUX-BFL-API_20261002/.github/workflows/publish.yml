@@ -1,0 +1,34 @@
+name: Publish to Comfy registry
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "pyproject.toml"
+
+permissions:
+  issues: write
+
+jobs:
+  publish-node:
+    name: Publish Custom Node to registry
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'gelasdev' }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      # comfy-cli sends $COMFY_NODE_CHANGELOG as the version's changelog (the registry's "Updates" section)
+      - name: Build registry changelog from CHANGELOG.md
+        run: |
+          {
+            echo "COMFY_NODE_CHANGELOG<<CHANGELOG_EOF"
+            python3 .github/scripts/registry_changelog.py
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_ENV"
+      - name: Publish Custom Node
+        uses: Comfy-Org/publish-node-action@v1
+        with:
+          ## Add your own personal access token to your Github Repository secrets and reference it here.
+          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}

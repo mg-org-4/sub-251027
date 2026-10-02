@@ -39,6 +39,7 @@ The node returns a patched `MODEL` and `CLIP`. Use those outputs for the rest of
 - `block_start`: First transformer block to affect. Default: `0`.
 - `block_end`: Last transformer block to affect. Default: `27`.
 - `block_stride`: Affect every Nth block in the selected range. Default: `1`.
+- `debug`: Optional diagnostics: `off` (default), `log`, or `measure`. `measure` runs an additional model forward pass for comparison.
 
 ## Notes
 

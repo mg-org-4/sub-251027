@@ -415,6 +415,7 @@ def test_size_source_frontend_migrates_legacy_and_disables_the_correct_widgets(t
             _js_function(source, "setWidgetVisible", "hidePersistentWidget"),
             _js_function(source, "hidePersistentWidget", "settingValue"),
             _js_function(source, "attachRefresh", "transientProductionWidgets"),
+            _js_function(source, "linkedInput", "removeUnusedLegacyInputs"),
             _js_function(
                 source,
                 "configureResolutionPresetWidgets",

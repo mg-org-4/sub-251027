@@ -8,6 +8,16 @@
 
 *This V3.8X2 card is retained for comparison. Its “CURRENT MAIN” label describes the time it was made; V3.9 is current now. The V3.8 Sampler and V3.8X2 workflow remain available, but their Reference wiring is not automatically converted to V3.9.*
 
+## External INT Width/Height fix on main (2026-10-01)
+
+Fixed the visible Width/Height input binding in both V3.8 and V3.9. External INT connections now stay aligned with their displayed controls through workflow save/reload and tab switching. Connected controls are read-only; their displayed numbers are saved Manual reserve values, not a prediction of the upstream node's runtime output. Disconnecting restores local editing.
+
+To set exact dimensions from Core **Int** nodes, choose **Size Source = Manual** and connect the Width and Height INT inputs. **First Image** still uses the image and Resolution setting; connected dimensions do not override it or automatically change Size Source. If no active First Image is available, the existing Manual fallback applies. Dimension validation and backend input order/defaults are unchanged.
+
+Validation: **1569 CPU tests passed, 1 skipped**, including 22/22 new frontend regression cases and 60/60 existing Review cases; Chrome save/reload and five tab round trips for both versions. One V3.9 GPU smoke run with external INT values produced exactly **480×640, 96 frames at 24 fps, with 4-second audio** in **107.3 s** (20 sampling steps); the entire saved video decoded successfully. This is a short single-condition check, not long-form or all-model acceptance. Sampling, Run Storage, the earlier Review/cache repairs, official workflow JSONs/ZIPs and historical Releases are unchanged.
+
+Update Continuum from `main`, then **hard-refresh the browser (Ctrl+F5)** to load the new JavaScript. This fix alone does not require a ComfyUI backend restart; restart normally if the update also brings Python changes or new node definitions. This remains a main-source fix, not a new Release or Registry package.
+
 ## V3.9 performance fix on main (2026-10-01)
 
 V3.9 could repeat unnecessary prompt-conditioning preparation when **Prompt Format = Fixed** and **no Reference Images are selected**. This repair reuses the existing bounded conditioning cache when its inputs are unchanged. First Image is supported; List/Timeline prompts, selected Reference Images, Reference Audio, Timeline Video and terminal-pair groups keep their existing paths. This is not the Decode Cache Helper and does not skip Sampling.
@@ -32,7 +42,7 @@ In the helper, `All chunks` uses connected images throughout; `Per chunk` provid
 
 V3.9.0 is the current source version on `main`. This source update is **not** a new GitHub Release or ComfyUI Registry publication; existing Releases and tags are left in place. Configured 1024×1024 Reference-only GPU/API runs succeeded, but the unchanged default template and browser save/reload remain separate acceptance gates. For a reproducible older environment, use the matching historical Release/tag and workflow; the retained V3.8 Sampler on current `main` specifically supports V3.8X2 workflows.
 
-`pyproject.toml` declares ComfyUI `>=0.32.0`; earlier real-generation/GPU validation used ComfyUI `0.34.2`, and the scoped Fixed cache comparison above used `0.38.0`. The minimum declaration does not establish V3.9 runtime acceptance on 0.32.0. The latest recorded Windows CPU run is `1558 passed / 1 skipped / 0 failed`; the earlier separate Linux rerun report records `1534 passed / 3 skipped / 0 failed` and does not include the new cache tests. Neither replaces browser save/reload or GPU acceptance for the unchanged official template.
+`pyproject.toml` declares ComfyUI `>=0.32.0`; earlier real-generation/GPU validation used ComfyUI `0.34.2`, and the scoped Fixed cache comparison above used `0.38.0`. The minimum declaration does not establish V3.9 runtime acceptance on 0.32.0. The latest recorded Windows CPU run is `1569 passed / 1 skipped / 0 failed`; the earlier separate Linux rerun report records `1534 passed / 3 skipped / 0 failed` and does not include the new cache or external INT tests. Neither replaces browser save/reload or GPU acceptance for the unchanged official template.
 
 ## V3.9 Reference Images
 

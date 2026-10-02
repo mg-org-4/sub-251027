@@ -8,6 +8,16 @@
 
 *V3.8X2の画像も比較用に残しています。画像内の「CURRENT MAIN」は作成当時の表記で、現在の`main`はV3.9です。V3.8 SamplerとV3.8X2 Workflowは利用できますが、Reference配線はV3.9へ自動変換されません。*
 
+## main更新：外部INTによるWidth／Height入力の修正（2026-10-01）
+
+V3.8／V3.9のWidth／Height入力と表示コントロールの対応を修正しました。外部INTの接続位置をWorkflow保存・再読込やタブ切替後も維持します。接続中の欄は編集不可になり、表示する数値は保存済みのManual予備値です。上流ノードが実行時に出す値を推測して表示するものではありません。接続を外すと手動編集に戻ります。
+
+Coreの **Int** ノードから正確な幅・高さを指定する場合は、**Size Source = Manual**にしてWidth／HeightのINT入力へ接続してください。**First Image**は引き続き画像とResolution設定からサイズを決めます。INTを接続しても優先順位やSize Sourceは自動で変わりません。有効なFirst Imageがない場合は従来のManualフォールバックを使います。寸法検証、Backend入力順序・初期値は変更していません。
+
+確認済み：**全CPU試験1569 PASS／1 skipped**（新Frontend試験22/22・既存Review試験60/60を含む）、両バージョンのChrome保存・再読込とタブ5往復。外部INTを使ったV3.9のGPUテスト1回では、**480×640・24fps・96フレーム・映像／音声とも4秒**を正確に出力しました。20ステップ、全体**107.3秒**で、保存動画の全フレームを正常にデコードできました。短い単一条件の確認であり、長時間継続や全モデルでの受入確認ではありません。Sampling、Run Storage、先行するReview／キャッシュ修正、公式Workflow JSON／ZIP、過去Releaseは変更していません。
+
+Continuumを`main`から更新し、**ブラウザーをCtrl+F5で強制更新**してください。このJavaScript修正だけならComfyUI本体の再起動は不要です。同時にPython修正や新ノード定義も更新された場合は通常どおり再起動してください。今回もmainのソース修正で、新Release／Registry公開ではありません。
+
 ## main更新：V3.9の条件付け準備の速度修正（2026-10-01）
 
 **Prompt Format = Fixedかつ有効なReference Imagesがない場合**に、V3.9で余分なプロンプト条件付けの準備が繰り返される経路を修正しました。入力が同じ場合に既存の上限付きconditioningキャッシュを再利用します。First Imageは利用できます。List／Timeline、有効なReference Images、Reference Audio、Timeline Video、終端ペアのgroupは従来の経路を維持します。Decode Cache Helperとは別の修正で、Samplingは省略しません。
@@ -32,7 +42,7 @@ ComfyUIの **Templates → ComfyUI-H3-Continuum** には、今回選んだ[V3.9�
 
 V3.9.0は`main`の現行ソースです。今回のmain更新は新しいGitHub ReleaseやComfyUI Registry公開ではなく、過去のReleaseとtagは残します。設定済み1024×1024のReference-only GPU/APIテストは通っていますが、無改変の公式テンプレート初期設定とブラウザー保存・再読込は別の受入項目です。古い環境を厳密に再現するには対応する過去のRelease／tagとWorkflowを使用してください。現行mainにもV3.8 Samplerを残し、V3.8X2 Workflowを使えるようにしています。
 
-`pyproject.toml`の宣言上はComfyUI `>=0.32.0`ですが、以前の実生成・GPU検証はComfyUI `0.34.2`、上記の限定したFixedキャッシュ比較は`0.38.0`で行いました。最低宣言版でV3.9の実機動作を確認済みという意味ではありません。最新の記録済みWindows CPU試験は`1558 passed / 1 skipped / 0 failed`、以前の別環境Linux再実行報告は`1534 passed / 3 skipped / 0 failed`で、今回追加したキャッシュ試験は含みません。これらは無改変の公式テンプレートの実ブラウザー保存・再読込やGPU受入を代替しません。
+`pyproject.toml`の宣言上はComfyUI `>=0.32.0`ですが、以前の実生成・GPU検証はComfyUI `0.34.2`、上記の限定したFixedキャッシュ比較は`0.38.0`で行いました。最低宣言版でV3.9の実機動作を確認済みという意味ではありません。最新の記録済みWindows CPU試験は`1569 passed / 1 skipped / 0 failed`、以前の別環境Linux再実行報告は`1534 passed / 3 skipped / 0 failed`で、新しいキャッシュ／外部INT試験は含みません。これらは無改変の公式テンプレートの実ブラウザー保存・再読込やGPU受入を代替しません。
 
 ## V3.9 Reference Images
 

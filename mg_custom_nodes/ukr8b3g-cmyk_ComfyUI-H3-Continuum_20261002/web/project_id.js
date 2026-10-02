@@ -685,6 +685,17 @@ function frameSizeLabel(width, height) {
     return `${Math.round(Number(width) || 0)} × ${Math.round(Number(height) || 0)}`;
 }
 
+function manualSizeLabel(node) {
+    const widthLinked = linkedInput(node, [WIDTH_WIDGET]);
+    const heightLinked = linkedInput(node, [HEIGHT_WIDGET]);
+    if (widthLinked && heightLinked) return "Width / Height from connected INT inputs";
+    const width = findWidget(node, WIDTH_WIDGET)?.value;
+    const height = findWidget(node, HEIGHT_WIDGET)?.value;
+    if (widthLinked) return `Width from connected input • Height ${compactValue(height, 0)}`;
+    if (heightLinked) return `Width ${compactValue(width, 0)} • Height from connected input`;
+    return frameSizeLabel(width, height);
+}
+
 function requiredConnectionNames(node) {
     const labels = {
         model: "Model",
@@ -750,15 +761,13 @@ function readySummary(node) {
         };
     }
     const sizeSource = findWidget(node, SIZE_SOURCE_WIDGET)?.value;
-    const width = findWidget(node, WIDTH_WIDGET)?.value;
-    const height = findWidget(node, HEIGHT_WIDGET)?.value;
     if (
         sizeSource === SIZE_SOURCE_FIRST_IMAGE
         && !activeLinkedInput(node, ["first_frame"])
     ) {
         return {
             headline: "Check First Image",
-            detail: `Size Source is First Image, but no active image is connected. Queue fallback: ${frameSizeLabel(width, height)}.`,
+            detail: `Size Source is First Image, but no active image is connected. ${linkedInput(node, [WIDTH_WIDGET, HEIGHT_WIDGET]) ? "Fallback size" : "Queue fallback"}: ${manualSizeLabel(node)}.`,
         };
     }
     const chunks = Math.max(1, Number(findWidget(node, CHUNKS_WIDGET)?.value || 1));
@@ -787,7 +796,7 @@ function readySummary(node) {
         : `${compactValue(chunks)} × ${compactValue(seconds)}s = ${durationLabel(node)}`;
     const output = sizeSource === SIZE_SOURCE_FIRST_IMAGE
         ? "First Image"
-        : `Manual ${frameSizeLabel(width, height)}`;
+        : `Manual ${manualSizeLabel(node)}`;
     return {
         headline: "Ready to Queue",
         detail: `${duration} • ${output}${reviewing ? " • Review each chunk" : ""}`,
@@ -802,6 +811,14 @@ function setWidgetTooltip(widget, tooltip) {
 }
 
 function facadeWidgetTooltip(node, name) {
+    if ([FACADE_WIDTH_WIDGET, FACADE_HEIGHT_WIDGET].includes(name)) {
+        const source = name === FACADE_WIDTH_WIDGET ? WIDTH_WIDGET : HEIGHT_WIDGET;
+        if (linkedInput(node, [source])) return (
+            `Connected INT supplies ${name} at execution; the displayed number is the saved Manual reserve. `
+            + "Disconnect to edit it. First Image sizing still uses the image and Resolution; "
+            + "the connected dimension applies only to Manual sizing or a missing-image fallback."
+        );
+    }
     if (name === FACADE_CHUNKS_WIDGET) {
         const reviewing = findWidget(node, GENERATION_MODE_WIDGET)?.value === GENERATION_MODE_REVIEW;
         const chunks = Math.max(1, Number(findWidget(node, CHUNKS_WIDGET)?.value || 1));
@@ -940,6 +957,8 @@ function addFacadeProxyWidget(
             name,
             fromSource(source.value),
             (value) => {
+                if ([WIDTH_WIDGET, HEIGHT_WIDGET].includes(sourceName)
+                    && linkedInput(node, [sourceName])) return;
                 if (onSet) {
                     onSet(value, source);
                 } else {
@@ -976,34 +995,40 @@ function moveFacadeWidgetsToFront(node, orderedNames) {
     node.widgets.splice(0, node.widgets.length, ...ordered, ...remainder);
 }
 
-function configureDurationInputSlots(node) {
-    // Core lays out widget sockets using the direct widget binding, not the
-    // getWidgetFromSlot override used for drawing and disabled-state lookup.
-    for (const [source, facade] of [[CHUNKS_WIDGET, FACADE_CHUNKS_WIDGET], ["chunk_seconds", FACADE_SECONDS_WIDGET]]) {
-        const slot = node.inputs?.find((input) => input.widget?.name === source);
-        if (slot) slot._widget = findWidget(node, facade);
-    }
-    node._widgetSlotsDirty = true;
-    if (node.__h3ContinuumDurationSlots || typeof node.getWidgetFromSlot !== "function"
-        || typeof node.getSlotFromWidget !== "function") return;
+function configureFacadeInputSlots(node) {
     const names = new Map([
         [CHUNKS_WIDGET, FACADE_CHUNKS_WIDGET],
         ["chunk_seconds", FACADE_SECONDS_WIDGET],
+        [WIDTH_WIDGET, FACADE_WIDTH_WIDGET],
+        [HEIGHT_WIDGET, FACADE_HEIGHT_WIDGET],
     ]);
+    // Core lays out widget sockets using the direct widget binding, not the
+    // getWidgetFromSlot override used for drawing and disabled-state lookup.
+    // Search current slots on every configure pass: graph restore replaces them.
+    for (const [source, facade] of names) {
+        const slot = node.inputs?.find((input) => (input.widget?.name || input.name) === source);
+        const widget = findWidget(node, facade);
+        if (slot && widget) slot._widget = widget;
+    }
+    node._widgetSlotsDirty = true;
+    if (node.__h3ContinuumFacadeSlots || typeof node.getWidgetFromSlot !== "function"
+        || typeof node.getSlotFromWidget !== "function") return;
     const getWidget = node.getWidgetFromSlot;
     const getSlot = node.getSlotFromWidget;
     // Keep Core input names/configuration intact; only map their visible controls.
     node.getWidgetFromSlot = function(slot) {
-        const facade = names.get(slot.widget?.name);
+        const facade = names.get(slot?.widget?.name || slot?.name);
         return facade ? findWidget(this, facade) : getWidget.call(this, slot);
     };
     node.getSlotFromWidget = function(widget) {
         for (const [source, facade] of names) {
-            if (widget?.name === facade) return getSlot.call(this, findWidget(this, source));
+            if (widget?.name === facade) return this.inputs?.find(
+                (input) => (input.widget?.name || input.name) === source,
+            ) || getSlot.call(this, findWidget(this, source));
         }
         return getSlot.call(this, widget);
     };
-    node.__h3ContinuumDurationSlots = true;
+    node.__h3ContinuumFacadeSlots = true;
 }
 
 function moveNamedWidgetsToFront(node, orderedNames) {
@@ -1090,7 +1115,6 @@ function configureIntuitiveV38Ux(node) {
         34,
     );
     const readyWidget = addFacadeInfoWidget(node, FACADE_READY_WIDGET, "ready", 62);
-    configureDurationInputSlots(node);
 
     const outputFacade = addFacadeProxyWidget(node, {
         type: "combo",
@@ -1233,6 +1257,7 @@ function configureIntuitiveV38Ux(node) {
     ];
     node.__h3ContinuumFacadeOrder = orderedNames;
     moveFacadeWidgetsToFront(node, orderedNames);
+    configureFacadeInputSlots(node);
     installProductionSerializationGuard(node);
 
     const refresh = () => {
@@ -1305,9 +1330,13 @@ function configureIntuitiveV38Ux(node) {
             customResolution,
         );
         for (const name of [FACADE_WIDTH_WIDGET, FACADE_HEIGHT_WIDGET]) {
+            const source = name === FACADE_WIDTH_WIDGET ? WIDTH_WIDGET : HEIGHT_WIDGET;
+            const facade = facadeProductionWidgets(node).find((widget) => widget.name === name);
+            const connected = linkedInput(node, [source]);
+            if (facade) facade.disabled = firstImage || connected;
             setWidgetVisible(
-                facadeProductionWidgets(node).find((widget) => widget.name === name),
-                !firstImage,
+                facade,
+                !firstImage || connected,
             );
         }
         setWidgetVisible(
@@ -2954,8 +2983,8 @@ function configureResolutionPresetWidgets(node) {
                 ? 1
                 : 16 / 9;
         const [width, height] = presetSize(ratio);
-        widthWidget.value = width;
-        heightWidget.value = height;
+        if (!linkedInput(node, [WIDTH_WIDGET])) widthWidget.value = width;
+        if (!linkedInput(node, [HEIGHT_WIDGET])) heightWidget.value = height;
         sizeSourceWidget.value = SIZE_SOURCE_MANUAL;
     };
     migrateLegacyAspect();
@@ -2968,12 +2997,14 @@ function configureResolutionPresetWidgets(node) {
         const firstImage = sizeSourceWidget.value === SIZE_SOURCE_FIRST_IMAGE;
         const geometry = firstImage ? firstImageGeometry() : null;
         if (geometry) {
-            [widthWidget.value, heightWidget.value] = presetSize(
+            const [width, height] = presetSize(
                 geometry.width / geometry.height,
             );
+            if (!linkedInput(node, [WIDTH_WIDGET])) widthWidget.value = width;
+            if (!linkedInput(node, [HEIGHT_WIDGET])) heightWidget.value = height;
         }
-        widthWidget.disabled = firstImage;
-        heightWidget.disabled = firstImage;
+        widthWidget.disabled = firstImage || linkedInput(node, [WIDTH_WIDGET]);
+        heightWidget.disabled = firstImage || linkedInput(node, [HEIGHT_WIDGET]);
         presetWidget.disabled = !firstImage;
         widthWidget.tooltip = firstImage
             ? "Resolved from First Image at Queue time. The displayed value updates when exact frontend image geometry is available."

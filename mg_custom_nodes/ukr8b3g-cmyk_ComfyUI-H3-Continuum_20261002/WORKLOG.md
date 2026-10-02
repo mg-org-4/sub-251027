@@ -2015,3 +2015,29 @@ D:\Codex\_snapshots\ComfyUI-H3-Continuum\pre-rollback-after-00038-fail-20260821_
 - Snapshotted the authoritative ComfyUI_W source (635 files) before the version/documentation update. Kept the user's official V3.9 JSON byte-identical and retained the separate V3.8X2 Sampler, workflow JSON and historical GitHub Releases.
 - Bumped package metadata to 3.9.0, made README EN/JA and install/package guidance V3.9-first, retained V3.8X2 compatibility and both Templates, and reconciled the accepted Timeline Video Experimental documentation from the existing main branch. Updated integrity manifests and release-metadata tests.
 - Full Windows CPU suite passed `1536 passed / 1 skipped / 0 failed`; `git diff --check` passed. This GitHub main-source publication does not create a tag, new Release, Registry package or new GPU run. Default V3.9 template browser save/reload and GPU acceptance remain pending.
+
+## 2026-10-01 — Local R0 / Fixed cache repair CPU gate
+
+- Snapshot verified before changes. Two Production modules now connect reference-free Fixed groups to the existing bounded conditioning cache; no V3.8 execution or public schema changes.
+- Baseline 27 PASS; old-code Fixed integration produced two CLIP calls, corrected code one. Added 22 cache/parity/guard cases; focused 49 PASS and full CPU 1558 PASS / 1 skipped after resolving temporary-directory permission errors with a fresh D-drive basetemp.
+- GPU conditions and 8-run order are frozen in the local `v39-r0-fixed-cache-20261001/gpu_pack` evidence directory. Backend reload and GPU verification pending; no publication.
+
+## 2026-10-01 — R0 / Fixed cache GPU completion
+
+- User restarted ComfyUI_W normally; verified PID 4832 and empty queue, then executed exactly 8 frozen API runs. All successful, no Sampling skip/OOM; all seed/frame/context/AV contracts preserved. Warm V39 cache hits=2, encodes=0 on each of 3 measured runs.
+- Same-session warm total V38 273.579s / V39 273.779s (+0.073%), overlapping ranges; Sampling host-wall 255.961s / 256.350s (+0.152%). V39 group preparation 0.012874s versus previous-session 10.762069s. The cache-path fix is confirmed; exact universal performance parity and GPU-kernel claims are not made.
+- Existing user backend remains running, runner exited cleanly, no publication. Full evidence and report are in `v39-r0-fixed-cache-20261001/gpu_pack/results_20261001_150955`.
+
+## 2026-10-01 — R0 / Fixed main publication preparation
+
+- User authorized main publication after the CPU/GPU gate. Verified main still points to `29e0ce3dd3431ba83ab25f8900e856902ec76c7f`, with the same base tree as this source checkout; saved a verified 10-file pre-publication snapshot.
+- Added EN/JA README guidance for the reference-free Fixed cache path, full ComfyUI restart, 1558 CPU PASS / 1 skipped and 8 successful GPU runs. Limited timing claims to the recorded workflow and overlapping post-fix same-session ranges; no universal speed or CUDA-kernel claim.
+- Official workflow JSONs/ZIPs, legacy V3.8X2, prior Review repair, package version and historical Releases remain unchanged. Exact local/remote commit IDs and post-publication checks are recorded in a separate publication receipt under the test evidence root.
+
+## 2026-10-01 — Issue #25 external INT dimensions and main publication preparation
+
+- Bound current Width/Height input slots to the existing visible Facade after proxy creation, protected linked Manual reserve values and made connected dimension controls read-only. No backend schema, Sampling, Run Storage, Review lifecycle or Fixed cache change.
+- Old code failed 20/22 new actual-JS cases; repair passed 22/22, with existing Review fixture 60/60 and focused CPU 217 PASS. Chrome confirmed V38/V39 save/reload, five tab round trips, one/both-axis API links and First Image reserve protection. Actual upstream INT changes still withdraw Review actions.
+- Exactly one approved GPU generation completed: V39 480x640 external INT, Manual + First Image, Fixed prompt, 1x4 seconds, 20 steps; 107.318s total / 98.695s Sampling host wall. Saved AV is 4 seconds, 96 video frames at 24 fps; offline full decode passed. Initial 2-second setting was rejected before GPU Sampling. Step count is established by backend diagnostics, not absent WebSocket step callbacks.
+- User accepted this resolution smoke gate and requested main commit/push. Added EN/JA README guidance; a verified selected-file pre-publication snapshot protects 10 files. Original workflows/ZIPs, historical Releases and user-managed backend are untouched. Publication receipt and final CPU/integrity results are kept under the Issue25 evidence directory; no new Release/Registry package.
+- Final source CPU suite: 1569 PASS / 1 skipped in 106.02s, compileall and diff checks passed. Registry Manifest 143 / development Manifest 419 entries verified; protected Production Python94 and Take metadata hash remain unchanged. Subsequent edits only record these results in documents/manifests and receive the targeted Manifest recheck before commit.

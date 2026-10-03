@@ -398,10 +398,17 @@ Master the Pixaroma suite with our video guides and workflow deep-dives:
 
 ## 🛠 Changelog
 
-### **October 2, 2026 · v1.4.185**
+### **October 3, 2026 · v1.4.188**
+- **Fixed: in Nodes 2.0 the wheel scrolls long prompts** when "Scroll the field" is set, in every Pixaroma text box, instead of always zooming.
+- **Save Image: Civitai info now includes your prompt** from Prompt, Prompt Stack, Prompt Multi or Text Join, and no longer records wrong text in a few setups.
+- **Ctrl+S in a Pixaroma prompt box saves the workflow** instead of opening the browser's save window.
+- **Prompt: Replace no longer sends hidden line breaks,** and the expanded box updates when you edit a tag.
+
+### **October 2, 2026 · v1.4.185–v1.4.187**
+- **AI Prompt and Music Prompt: saving remembers the preset you edited.** Its name is filled in, so pressing Enter updates it. An edited built-in one is offered as "(mine)". Music Prompt now also asks before replacing another set with the same name.
 - **Info: Delete.** Right-click a button and choose Delete, or press Delete in its reading window, which asks first. Ctrl+Z brings it back.
 - **Prompt Each: the prompt boxes fit their text again** when a workflow opens and when you make the node wider, with no scrollbar.
-- **Fixed: in Nodes 2.0, Ctrl+Z turned every Info button into an empty box** that could not be clicked.
+- **Fixed: in Nodes 2.0, after Ctrl+Z Pixaroma nodes kept their old controls,** so what you typed was lost and Info buttons went blank.
 
 ### **October 1, 2026 · v1.4.183–v1.4.184**
 - **NEW: Info Pixaroma.** A small button on the canvas that opens a note to read. Pick a title, icon and colour, or start from Read me, Download Models, Run Times and more. Also in the canvas right-click menu, under Add Label.

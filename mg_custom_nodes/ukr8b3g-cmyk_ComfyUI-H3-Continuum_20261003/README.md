@@ -4,6 +4,12 @@
 
 *V3.9 is current on `main`: fixed Image 1–9 slots, per-chunk Reference selection, and one Reference Images connection to the V3.9 Sampler.*
 
+## Getting started video
+
+[H3 Continuum V3.9 — Getting Started: Chunks, Prompts & Reference Images](https://youtu.be/AKJxBXaiG6Q) (12:26)
+
+Learn basic First Image setup, chunk settings, Review/Take retries, Timeline prompting, and Reference Images. Includes English narration and subtitles, seven timestamped chapters, version-labeled UI stills, and actual generated examples.
+
 ![H3 Continuum V3.8X2 feature card from its original release](docs/images/v39/v38x2-feature-summary-historical.png)
 
 *This V3.8X2 card is retained for comparison. Its “CURRENT MAIN” label describes the time it was made; V3.9 is current now. The V3.8 Sampler and V3.8X2 workflow remain available, but their Reference wiring is not automatically converted to V3.9.*

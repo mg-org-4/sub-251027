@@ -4,6 +4,12 @@
 
 *現在の`main`はV3.9です。Image 1～9の固定番号、チャンク別のReference選択、V3.9 Samplerへの1本の接続が新しい操作です。*
 
+## V3.9の基本操作を動画で見る
+
+[H3 Continuum V3.9 — Getting Started: Chunks, Prompts & Reference Images](https://youtu.be/AKJxBXaiG6Q)（12分26秒）
+
+First Imageの基本設定、チャンクの設定、Review／Takeでの再試行、Timeline形式のプロンプト、Reference Imagesの使い方を紹介します。英語のナレーションと字幕、7つのチャプターがあり、バージョンを明記したUIの静止画と実際の生成例で説明します。
+
 ![公開当時のH3 Continuum V3.8X2機能紹介画像](docs/images/v39/v38x2-feature-summary-historical.png)
 
 *V3.8X2の画像も比較用に残しています。画像内の「CURRENT MAIN」は作成当時の表記で、現在の`main`はV3.9です。V3.8 SamplerとV3.8X2 Workflowは利用できますが、Reference配線はV3.9へ自動変換されません。*

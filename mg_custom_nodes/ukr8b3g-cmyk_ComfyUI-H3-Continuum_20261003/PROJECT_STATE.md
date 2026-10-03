@@ -1,5 +1,10 @@
 # Project State
 
+## V3.9 getting-started tutorial (2026-10-02)
+
+- Published tutorial: https://youtu.be/AKJxBXaiG6Q (12:26), with English narration/subtitles and seven timestamped chapters. Covers basic First Image setup, chunks, Review/Take retries, Timeline prompts, and Reference Images using version-labeled UI stills and actual generated examples.
+- English and Japanese front-page READMEs link to it immediately after the V3.9 introduction.
+
 ## Issue #25 — external INT dimensions, main publication candidate (2026-10-01)
 
 - Verified against main `21a857115d2a2e1bfe71a4fcdf417c2d1d0edba8`, installed ComfyUI 0.38.0 / frontend 1.53.6. Source and runtime JS matched before repair. Runtime snapshot: `pre-issue25-external-int-size-20261001_182740` (641 files); source selected-file snapshot: `pre-issue25-external-int-source-20261001_182742` (7 files).

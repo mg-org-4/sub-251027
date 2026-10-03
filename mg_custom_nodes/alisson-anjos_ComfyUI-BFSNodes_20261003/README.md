@@ -123,6 +123,41 @@ The offset is applied only to appearance/reference inputs. Guide videos, masks, 
 and target video positions remain unchanged. In **LTX Multiple Controls**, the field is named
 `identity_temporal_offset_latents` and affects only `identity_image`.
 
+## Shot Planner / Shot Loop (1.48.0)
+
+Split a long video into shots a video model can follow (at camera cuts via PySceneDetect, fixed
+length, or by hand on a timeline), set a reference image and prompt per shot, run the rest of the
+workflow once per shot, and join the results back with the original timing and soundtrack.
+
+- **BFS Shot Planner** — interactive timeline (thumbnails, cut detector curve, draggable
+  boundaries, per-shot reference gallery and prompt). Outputs the shots as a ComfyUI list, so
+  every node downstream runs once per shot.
+- **BFS Shot Unpack** — guide frames, references, prompt and length of one shot, for any model.
+- **BFS Shot H3 Conditioning** — MiniMax H3 conditioning for one shot with the native nodes
+  (aligned guide and/or native reference video).
+- **BFS Shot Join** — concatenates, trims to the true lengths, cross-fades soft joins, returns audio.
+
+**Cast (1.49.0)**: *Find people* tracks faces through the video (InsightFace) and groups them
+into people. Link each person to a reference and every shot uses the reference of the person
+with the most screen time in it; optionally split where the main person changes and run only the
+shots where a linked person appears.
+
+Two run modes: *auto loop* (all shots in one run) and *queue loop* (one shot per run, stored on
+disk, re-queued automatically; nodes after the join only run on the last shot). See
+[`web/docs/BFSShotPlanner.md`](web/docs/BFSShotPlanner.md).
+
+Shots can also be cropped to a **SAM 3 mask** (text or points per shot) and pasted back by the join, continue
+from the previous shot's result, and get **VLM suggestions** (what to segment, a shot description for the
+prompt, run/skip) from a Qwen3-VL connected to the planner.
+
+## H3 Duet / Side Panel (1.50.0)
+
+Training-free split-screen generation for MiniMax H3 (TSC's latent pin): a panel (the source clip
+or a reference) is pinned beside the video with a noise mask, the video is generated in sync with
+it, and the panel is cropped off before decoding. **BFS H3 Duet** does it all in one node, **BFS Shot H3 Duet** renders each shot of the Shot Loop that way (or with an aligned guide for body-swap LoRAs);
+**BFS H3 Side Panel** + **BFS H3 Side Panel Crop** are the building blocks. Optional aligned latent
+guide. See [`web/docs/BFSH3Duet.md`](web/docs/BFSH3Duet.md).
+
 ## Requirements
 
 - ComfyUI

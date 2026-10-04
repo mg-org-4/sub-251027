@@ -169,8 +169,68 @@ def generation_size(src_w: int, src_h: int, megapixels: float, multiple: int) ->
     return w, h
 
 
+def audio_info(path: str) -> dict:
+    """Whether the video has a usable audio track (PyAV, no ffmpeg binary needed)."""
+    try:
+        import av
+        with av.open(path) as c:
+            if not c.streams.audio:
+                return {"has_audio": False, "reason": "no audio track"}
+            st = c.streams.audio[0]
+            cc = st.codec_context
+            ch = getattr(cc, "channels", 0) or (len(cc.layout.channels) if getattr(cc, "layout", None) else 0)
+            return {"has_audio": True, "sample_rate": int(cc.sample_rate or 0), "channels": int(ch or 0),
+                    "codec": cc.name}
+    except Exception as exc:  # noqa: BLE001
+        return {"has_audio": False, "reason": f"audio unreadable ({type(exc).__name__})"}
+
+
+def silence(seconds: float, sample_rate: int = 44100, channels: int = 2) -> dict:
+    """A silent AUDIO of the given length: Create Video and friends always get a valid track."""
+    n = max(1, int(round(max(0.0, seconds) * sample_rate)))
+    return {"waveform": torch.zeros(1, channels, n), "sample_rate": sample_rate}
+
+
+def _usable(audio: dict | None) -> bool:
+    try:
+        return audio is not None and audio["waveform"].ndim == 3 and audio["waveform"].shape[-1] > 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _read_audio_av(path: str, sample_rate: int) -> dict | None:
+    """PyAV fallback when the ffmpeg binary is missing."""
+    import av
+    with av.open(path) as c:
+        if not c.streams.audio:
+            return None
+        st = c.streams.audio[0]
+        layout = "stereo" if (getattr(st.codec_context, "channels", 2) or 2) >= 2 else "mono"
+        rs = av.AudioResampler(format="fltp", layout=layout, rate=sample_rate)
+        chunks = []
+        for fr in c.decode(st):
+            for r in rs.resample(fr):
+                chunks.append(r.to_ndarray())
+        for r in rs.resample(None):
+            chunks.append(r.to_ndarray())
+    if not chunks:
+        return None
+    a = np.concatenate(chunks, axis=1).astype(np.float32)
+    return {"waveform": torch.from_numpy(a)[None], "sample_rate": sample_rate}
+
+
 def _read_audio(path: str, sample_rate: int = 44100) -> dict | None:
-    """Decode the whole soundtrack as float32 [1, C, T] with ffmpeg; None when silent."""
+    """Decode the whole soundtrack as float32 [1, C, T] (ffmpeg, else PyAV); None when there is none."""
+    a = _read_audio_ffmpeg(path, sample_rate)
+    if not _usable(a):
+        try:
+            a = _read_audio_av(path, sample_rate)
+        except Exception:  # noqa: BLE001 - audio is optional
+            a = None
+    return a if _usable(a) else None
+
+
+def _read_audio_ffmpeg(path: str, sample_rate: int = 44100) -> dict | None:
     try:
         probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries",
                                 "stream=channels", "-of", "csv=p=0", path],
@@ -242,7 +302,7 @@ def analyze(path: str, fps: float, thumbs: int = 120, thumb_h: int = 72) -> dict
     for j, fr in enumerate(frames_for_thumbs):
         ok, buf = cv2.imencode(".jpg", cv2.cvtColor(fr, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 70])
         th.append({"f": int(j * k), "src": "data:image/jpeg;base64," + base64.b64encode(buf.tobytes()).decode()})
-    out = dict(info, fps=float(fps), n=n, thumbs=th, thumb_w=tw, thumb_h=thumb_h,
+    out = dict(info, fps=float(fps), n=n, thumbs=th, thumb_w=tw, thumb_h=thumb_h, audio=audio_info(path),
                raw=[round(float(x), 4) for x in raw], score=[round(float(x), 3) for x in score])
     _ANALYSIS_CACHE[key] = out
     return out
@@ -352,7 +412,7 @@ DEFAULT_PLAN = {
     "sensitivity": 0.5, "max_parts": 0, "max_total_s": 0.0, "bounds": [], "segs": [],
     "global_ref": "", "global_ref2": "", "global_prompt": "", "megapixels": 0.15, "multiple": 32,
     "detector": "adaptive", "run": "auto", "filters": {}, "skip_fill": "original",
-    "cast": {}, "cast_assign": True, "cast_split": False, "cast_only": False, "mask_cfg": {}, "vlm_cfg": {},
+    "cast": {}, "cast_assign": True, "cast_split": False, "cast_only": False, "mask_cfg": {}, "vlm_cfg": {}, "audio_mode": "auto", "ref_details": {},
 }
 
 
@@ -918,8 +978,9 @@ def mask_preview(path: str, analysis: dict, start: int, length: int, spec: dict,
 
 # ---------------------------------------------------------------------------- VLM suggestions (optional)
 
-DEFAULT_VLM = {"enabled": False, "frames": 3, "max_tokens": 320, "auto_segment": True, "auto_shot": True,
-               "instruction": ""}
+DEFAULT_VLM = {"enabled": False, "frames": 3, "max_tokens": 1024, "auto_segment": True, "auto_shot": True,
+               "instruction": "", "describe_preset": "full body", "describe_custom": "",
+               "write_prompt": False, "write_task": "character swap", "write_change": ""}
 _VLM: dict[str, Any] = {}            # the VLM connected to a planner (kept for the panel's Analyse button)
 _VLM_CACHE: dict[tuple, dict] = {}
 
@@ -962,6 +1023,28 @@ def _node_boundary() -> None:
         pass
 
 
+def vlm_generate(clip, prompt: str, images: torch.Tensor, max_tokens: int) -> str:
+    """Text from a vision-language CLIP. Some models end the answer before writing anything for some wordings:
+    retry with a reworded request, then with sampling, and clean leftovers of the chat template."""
+    from comfy_extras.nodes_textgen import TextGenerate
+    tries = [(prompt, {"sampling_mode": "off"}),
+             ("Look at the picture(s) carefully. " + prompt + " Write the answer now.", {"sampling_mode": "off"}),
+             (prompt, {"sampling_mode": "on", "temperature": 0.7, "top_k": 40, "top_p": 0.9, "min_p": 0.0,
+                       "repetition_penalty": 1.05, "presence_penalty": 0.0, "seed": 1})]
+    text = ""
+    for q, mode in tries:
+        text = TextGenerate.execute(clip=clip, prompt=q, max_length=int(max_tokens), sampling_mode=mode,
+                                    image=images, mtp="off").args[0]
+        _node_boundary()
+        text = str(text or "").strip()
+        for junk in ("assistant\n", "assistant:", "assistant"):
+            if text.lower().startswith(junk):
+                text = text[len(junk):].strip()
+        if text:
+            break
+    return text
+
+
 def vlm_cfg(cfg: dict | None) -> dict:
     out = dict(DEFAULT_VLM)
     out.update({k: v for k, v in (cfg or {}).items() if v is not None})
@@ -996,16 +1079,256 @@ def vlm_shot(clip, path: str, analysis: dict, start: int, end: int, cfg: dict) -
     imgs = torch.from_numpy(np.stack(_read_frames(path, src[picks], size)).astype(np.float32) / 255.0)
     extra = ("\n" + cfg["instruction"].strip()) if str(cfg.get("instruction") or "").strip() else ""
     q = VLM_QUESTION.format(n=n, extra=extra)
-    text = TextGenerate.execute(clip=clip, prompt=q, max_length=int(cfg["max_tokens"]),
-                                sampling_mode={"sampling_mode": "off"}, image=imgs,
-                                mtp="off").args[0]
-    _node_boundary()
+    text = vlm_generate(clip, q, imgs, int(cfg["max_tokens"]))
 
     out = _parse_json(text)
     out = {"segment": str(out.get("segment") or "").strip(), "shot": str(out.get("shot") or "").strip(),
            "people": out.get("people"), "recommend": str(out.get("recommend") or "run").lower(),
            "reason": str(out.get("reason") or "").strip(), "raw": "" if out else text}
     _VLM_CACHE[key] = out
+    return out
+
+
+# ---------------------------------------------------------------------------- reference descriptions (VLM)
+
+DESCRIBE_PRESETS = {
+    "full body": ("Describe the person in these reference pictures for a video-generation prompt: one paragraph of "
+                  "3 to 5 sentences in English. Only what is visible: apparent gender and age, skin tone and texture, "
+                  "face shape and distinctive facial features (eyes, eyebrows, nose, lips, facial hair, wrinkles, "
+                  "freckles), hair colour, length, texture and style (hairline, parting, bald areas), body build and "
+                  "proportions, then the clothing piece by piece with colours and materials, shoes and accessories. "
+                  "Describe only physical traits and clothing: never the pose, gesture, action, expression, "
+                  "camera, framing or background. Concrete words only: no negations, no names, no opinions."),
+    "head / face": ("Describe the head and face of the person in these reference pictures for a video-generation "
+                    "prompt: one paragraph of 3 to 4 sentences in English. Only what is visible: apparent gender and "
+                    "age, skin tone and texture, head and face shape, eyes, eyebrows, nose, lips, jawline, ears, "
+                    "facial hair, wrinkles, freckles or marks, glasses, and the hair: colour, length, texture, style, "
+                    "hairline. Describe only physical traits: never the pose, head angle, gaze, expression, action, "
+                    "camera or background. Concrete words only: no negations, no names, no opinions."),
+    "face attributes": ("Describe this face in a short comma-separated attribute list, in exactly this style: \"Male, oval "
+                        "face shape, average-sized head with strong jawline, light brown skin, dark eyes, black tousled "
+                        "hair, silver hoop earring.\" Cover, in order: gender, head/face shape and proportions (e.g. "
+                        "oval/round/square/heart-shaped, narrow/wide, jaw structure, whether the head reads as "
+                        "small/average/large relative to the shoulders), skin tone, eye color, hair color and style, and any "
+                        "distinctive features (facial hair, jewelry, makeup, glasses, etc.). Physical traits only, never "
+                        "the pose, expression or background. Only output the description, nothing else."),
+    "outfit": ("Describe only what the person in these reference pictures wears, piece by piece, for a "
+               "video-generation prompt: garments, colours, materials, fit, shoes and accessories, in 2 or 3 "
+               "sentences in English. Never the pose, action or background. No negations, no names."),
+}
+_DESCRIBE_CACHE: dict[tuple, str] = {}
+
+
+def _image_key(img: torch.Tensor | None) -> str:
+    if img is None:
+        return ""
+    x = torch.nn.functional.interpolate(img[:1, ..., :3].movedim(-1, 1).float(), size=(32, 32), mode="area")
+    return hashlib.sha1((x * 255).round().to(torch.uint8).numpy().tobytes()).hexdigest()[:16]
+
+
+def describe_instruction(cfg: dict) -> str:
+    preset = cfg.get("describe_preset", "full body")
+    if preset == "custom":
+        return str(cfg.get("describe_custom") or DESCRIBE_PRESETS["full body"]).strip()
+    return DESCRIBE_PRESETS.get(preset, DESCRIBE_PRESETS["full body"])
+
+
+def vlm_describe(clip, images: list, instruction: str, max_tokens: int = 320) -> str:
+    """One description for a set of reference pictures (e.g. a close-up and a full-body photo of one person)."""
+    images = [im for im in images if im is not None]
+    if not images:
+        return ""
+    key = (tuple(_image_key(im) for im in images), instruction, id(clip), int(max_tokens))
+    if key in _DESCRIBE_CACHE:
+        return _DESCRIBE_CACHE[key]
+    from comfy_extras.nodes_textgen import TextGenerate
+    _status("Describing the references with the VLM", force=True)
+    side = 448   # same size for the batch: letterbox every picture on grey
+    batch = []
+    for im in images:
+        x = im[:1, ..., :3].movedim(-1, 1).float()
+        s = side / max(x.shape[-2:])
+        nh, nw = max(2, int(x.shape[-2] * s)), max(2, int(x.shape[-1] * s))
+        x = torch.nn.functional.interpolate(x, size=(nh, nw), mode="bilinear", align_corners=False)
+        canvas = torch.full((1, 3, side, side), 0.5)
+        canvas[:, :, (side - nh) // 2:(side - nh) // 2 + nh, (side - nw) // 2:(side - nw) // 2 + nw] = x
+        batch.append(canvas)
+    imgs = torch.cat(batch, 0).movedim(1, -1).clamp(0, 1)
+    text = vlm_generate(clip, instruction, imgs, int(max_tokens))
+    text = " ".join(str(text).replace("```", " ").split())
+    _DESCRIBE_CACHE[key] = text
+    return text
+
+
+def ref_set_key(ref: str, ref2: str) -> str:
+    """Key of a reference set in plan['ref_details'] (edited descriptions)."""
+    return f"{ref or ''}|{ref2 or ''}"
+
+
+# ---------------------------------------------------------------------------- prompt writer (VLM)
+
+WRITER_TASKS = ["character swap", "style", "setting", "appearance", "lighting / weather", "custom"]
+
+WRITER_INSTRUCTION = """You write the prompt for MiniMax H3, a video model, for a split-screen "duet": the KEPT FOOTAGE (the first {nf} images, one camera shot in time order) stays exactly as it is in one half of the frame, and the other half is generated moving in sync with it. {refs_txt}
+
+Task: {task}. {change}
+
+Rules (render-tested, follow them exactly):
+1. Never describe the kept footage's performer, face, hair, clothes, props or room, not even to contrast them: whatever you name gets drawn, whatever you leave out is copied from the kept footage.
+2. The kept footage has no tag: call it "the kept footage". Never write <Video 1>.
+3. In the shot paragraph, restate the new look with two or three concrete words from the reference pictures (hair, outfit, face){face_rule}.
+4. Describe what the camera records in the kept footage: distance, angle and movement, where the subject is, and what they do, one sentence per real action, in time order.
+5. Write only what is seen. No negations (no "not", "no", "never", "without"), no quality words ("realistic", "high quality", "cinematic").
+6. Keep the literal text {{layout}} exactly where it is in the template.
+
+Output exactly these six sections in this order, nothing before or after:
+
+subject_definitions:
+{subject_line}
+
+summary:
+[reference generation] The target video is a split screen: the kept footage beside <the generated half>, which moves in sync with it.
+
+retention_analysis:
+<one line per subject: "... fully_preserved - ... are retained.">
+The kept footage: fully_preserved - the panel is kept exactly.
+
+detailed_description:
+The target video is in <style and medium>. {{layout}}
+
+[Shot 1] <camera, framing, the subject restated, the actions>
+
+overall_soundscape:
+<the sounds of the scene>
+
+non_diegetic_music:
+None."""
+
+TASK_SUBJECT = {
+    "character swap": '"<Subject 1> is the person whose appearance comes from <Picture 1>[ and <Picture 2>]: <face, hair, skin, outfit piece by piece, from the pictures>."',
+    "style": '"The kept footage is the motion reference of the split screen." (and, when there are reference pictures, "<Picture 1> is the style reference.")',
+    "setting": '"<Subject 1> is the place: <the requested place with two or three concrete details>." (from <Picture 1> when given)',
+    "appearance": '"<Subject 1> is the performer of the kept footage, now <the requested look in concrete seen words>."',
+    "lighting / weather": '"The kept footage is the motion reference of the split screen."',
+    "custom": '"<Subject 1> is ..." for whatever the change brings in, from the pictures when given.',
+}
+
+TASK_HINTS = {
+    "character swap": "Replace the performer with the person from the reference pictures; the place stays the same room.",
+    "style": "Keep the same performance and camera, redrawn in the requested style.",
+    "setting": "Keep the same performer and performance, moved to the requested place.",
+    "appearance": "Keep the same performance, with the performer's look changed as requested.",
+    "lighting / weather": "Keep the same performance and place, under the requested light or weather.",
+    "custom": "Do what the change below asks, keeping the kept footage's performance and camera in sync.",
+}
+
+
+def _letterbox_batch(images: list, side: int = 448) -> torch.Tensor:
+    batch = []
+    for im in images:
+        x = im[:1, ..., :3].movedim(-1, 1).float()
+        s = side / max(x.shape[-2:])
+        nh, nw = max(2, int(x.shape[-2] * s)), max(2, int(x.shape[-1] * s))
+        x = torch.nn.functional.interpolate(x, size=(nh, nw), mode="bilinear", align_corners=False)
+        canvas = torch.full((1, 3, side, side), 0.5)
+        canvas[:, :, (side - nh) // 2:(side - nh) // 2 + nh, (side - nw) // 2:(side - nw) // 2 + nw] = x
+        batch.append(canvas)
+    return torch.cat(batch, 0).movedim(1, -1).clamp(0, 1)
+
+
+def _clean_written(text: str) -> str:
+    t = text.replace("```", "").strip()
+    i = t.find("subject_definitions:")
+    if i > 0:
+        t = t[i:]
+    t = t.replace("<Video 1>", "the kept footage")
+    if "{layout}" not in t and "detailed_description:" in t:
+        a = t.index("detailed_description:") + len("detailed_description:")
+        nl = t.find("\n[Shot", a)
+        cut = nl if nl > 0 else len(t)
+        t = t[:cut].rstrip() + " {layout}\n" + t[cut:]
+    return t
+
+
+def vlm_write_prompt(clip, path: str, analysis: dict, start: int, end: int, refs: list, task: str, change: str,
+                     max_tokens: int = 1024, frames: int = 4) -> str:
+    """A duet prompt for one shot, written by the VLM from frames of the shot and the reference pictures."""
+    src = _timeline(analysis["n_src"], analysis["fps_src"], float(analysis["fps"]))
+    n = max(1, min(8, int(frames)))
+    picks = np.clip(np.linspace(start, end - 1, n).round().astype(int), 0, analysis["n"] - 1)
+    fr = [torch.from_numpy(f.astype(np.float32) / 255.0)[None] for f in _read_frames(path, src[picks], None)]
+    return write_duet_prompt(clip, fr, refs, task, change, max_tokens)
+
+
+def write_duet_prompt(clip, frames: list, refs: list, task: str, change: str, max_tokens: int = 1024,
+                      mode: str = "canvas") -> str:
+    """A duet prompt from frames of the kept footage ([1,H,W,3] each) and the reference pictures. The VLM only fills
+    a few fields (look, medium, camera and actions, sounds); the six REF2VA sections are assembled here, so a small
+    model cannot break the format."""
+    refs = [r for r in refs if r is not None]
+    fr = [f for f in frames if f is not None]
+    key = ("write2", tuple(_image_key(f) for f in fr), tuple(_image_key(r) for r in refs), task, change, id(clip),
+           int(max_tokens), mode)
+    if key in _DESCRIBE_CACHE:
+        return _DESCRIBE_CACHE[key]
+    _status("Writing the prompt with the VLM", force=True)
+    swap = task == "character swap" and bool(refs)
+    # two separate questions: mixing the clip's frames and the reference photos in one batch makes the VLM
+    # describe the reference photo (studio, standing still) as if it were the video
+    look = ""
+    if swap:
+        look = vlm_describe(clip, refs, "Describe the person in these reference pictures in ONE sentence of concrete seen "
+                            "words: apparent gender and age, face, hair colour, length and style, skin, and the clothing "
+                            "piece by piece with colours. Physical traits and clothing only: never the pose, expression, "
+                            "camera or background.", max_tokens).strip().rstrip(".")
+    q = (f"These {len(fr)} images are frames, in time order, of one camera shot of a video. "
+         "Answer with one JSON object only, no code fence:\n{"
+         + '"medium": "what the video is, e.g. handheld vertical smartphone footage under soft window light", '
+         + '"shot": "the camera distance, angle and movement, then what the person does, in time order, one short '
+           'sentence per real action; call them the person and never describe their face, hair or clothes", '
+         + '"sounds": "the sounds of the scene in a few words"}')
+    text = vlm_generate(clip, q, _letterbox_batch(fr), max_tokens)
+    d = _parse_json(text)
+    medium = str(d.get("medium") or "real camera footage").strip().rstrip(".")
+    shot = str(d.get("shot") or "").strip()
+    sounds = str(d.get("sounds") or "the sounds of the kept footage").strip().rstrip(".")
+    for w in ("The person", "the person"):
+        shot = shot.replace(w, "<Subject 1>" if swap else w)
+    pics = " and ".join(f"<Picture {k + 1}>" for k in range(len(refs)))
+    chg = change.strip().rstrip(".")
+    split = mode != "shifted"
+    lead = ("a split screen: the kept footage beside " if split else "")
+    if swap:
+        defs = f"<Subject 1> is the person whose appearance comes from {pics}" + (f": {look}." if look else ".")
+        if chg:
+            defs += f" {chg}."
+        who = "<Subject 1>"
+        summary = (f"[reference generation] The target video is {lead}<Subject 1>, who " if split else
+                   "[reference generation] The target video shows <Subject 1>, who ") + "moves in sync with the kept footage, in the same place."
+        keep = f"<Subject 1> (appears in [Shot 1]): fully_preserved - the face, hair and clothing from {pics} are retained."
+        short = ", ".join(look.split(", ")[:3]) if look else ""
+        restate = f" <Subject 1>, the face from <Picture 1>{', ' + short if short else ''}, performs every movement in sync with the kept footage."
+        style = f"The target video is in a realistic style, as {medium}."
+    else:
+        what = {"style": f"redrawn as {chg or 'the requested style'}", "setting": f"moved to {chg or 'the requested place'}",
+                "appearance": f"with the performer now {chg or 'changed'}", "lighting / weather": f"under {chg or 'the new light'}",
+                }.get(task, chg or "changed as requested")
+        defs = (f"<Subject 1> is the place: {chg}." if task == "setting" and chg else
+                "The kept footage is the motion reference.") + (f" {pics} show the look to follow." if refs else "")
+        summary = (f"[reference generation] The target video is {lead}the same performance, {what}." if split else
+                   f"[reference generation] The target video shows the same performance as the kept footage, {what}.")
+        keep = f"The performance and camera: fully_preserved - every movement and expression in sync with the kept footage."
+        restate = f" The same performance, {what}, in sync with the kept footage."
+        style = (f"The target video is in {chg}." if task == "style" and chg else f"The target video is in a realistic style, as {medium}.")
+    out = "\n\n".join([
+        "subject_definitions:\n" + defs,
+        "summary:\n" + summary,
+        "retention_analysis:\n" + keep + "\nThe kept footage: fully_preserved - the panel is kept exactly.",
+        "detailed_description:\n" + style + " {layout}\n\n[Shot 1] " + (shot or "The same framing and camera as the kept footage.") + restate,
+        "overall_soundscape:\n" + (sounds[0].upper() + sounds[1:] if sounds else "The sounds of the kept footage") + ".",
+        "non_diegetic_music:\nNone.",
+    ])
+    _DESCRIBE_CACHE[key] = out
     return out
 
 
@@ -1165,7 +1488,7 @@ class BFSShotPlanner:
             raise ValueError("BFS Shot Planner: no shot is left to run (all disabled or filtered out).")
         W, H = generation_size(a["width"], a["height"], float(p["megapixels"]), int(p["multiple"]))
         src = _timeline(a["n_src"], a["fps_src"], fps)
-        audio = _read_audio(path)
+        audio = _read_audio(path) if p.get("audio_mode", "auto") != "silent" else None
         g_ref = ref_image if ref_image is not None else _load_image(p.get("global_ref", ""))
         g_ref2 = ref_image_2 if ref_image_2 is not None else _load_image(p.get("global_ref2", ""))
         g_prompt = prompt if prompt is not None else p.get("global_prompt", "")
@@ -1202,8 +1525,26 @@ class BFSShotPlanner:
             return out or [_grey()]
 
         used_refs, used_refs2 = unique("ref", g_ref), unique("ref2", g_ref2)
+        details = p.get("ref_details") or {}
+
+        def fill_details(text, rname, r2name, rimg, r2img):
+            """{details} = the description of this shot's references: edited in the panel, else from the VLM."""
+            if "{details}" not in text:
+                return text
+            d = details.get(ref_set_key(rname, r2name), "")
+            if not d and vlm is not None:
+                d = vlm_describe(vlm, [rimg, r2img], describe_instruction(vcfg), int(vcfg["max_tokens"]))
+            return text.replace("{details}", d)
+
         # the VLM answers for every shot first: switching between it and SAM 3 mid-generation breaks the VLM
         vlm_out = {i: vlm_shot(vlm, path, a, segs[i]["start"], segs[i]["end"], vcfg) for i in todo} if use_vlm else {}
+        written = {}
+        if vlm is not None and vcfg.get("write_prompt"):   # the VLM writes the prompt of every shot without its own
+            for i in todo:
+                if not segs[i]["prompt"]:
+                    written[i] = vlm_write_prompt(vlm, path, a, segs[i]["start"], segs[i]["end"],
+                                                  [ref_for(segs[i]["ref"], g_ref), ref_for(segs[i]["ref2"], g_ref2)],
+                                                  vcfg["write_task"], vcfg["write_change"], int(vcfg["max_tokens"]))
         shots = []
         for i, s in enumerate(segs):
             if i not in todo:
@@ -1249,17 +1590,20 @@ class BFSShotPlanner:
                 "cut_before": s["cut_before"], "width": ft.shape[2], "height": ft.shape[1], "frames": ft,
                 "crop": crop, "full_frames": full_frames,
                 "ref": ref, "ref2": ref2,
-                "prompt": (s["prompt"] or g_prompt or "").replace(
+                "prompt": fill_details((s["prompt"] or written.get(i) or g_prompt or "").replace(
                     "{shot}", sug["shot"] if (sug and vcfg["auto_shot"]) else ""),
+                    s["ref"] or g_names["ref"], s["ref2"] or g_names["ref2"], ref, ref2),
                 "audio": _slice_audio(audio, s["start"] / fps, s["gen_len"] / fps),
                 "run_id": rid, "queue": queue,
                 "chain": s["chain"], "chain_frame": s["chain_frame"], "chain_image": chain_img,
                 "prev_length": prev_len,
+                "source": {"path": path, "frames": [int(x) for x in src[idx]]},
             })
         if suggestions:
             _notify("bfs-shotloop-vlm", {"video": p["video"], "segs": suggestions})
         total = sum(s["end"] - s["start"] for s in segs)
-        full_audio = _slice_audio(audio, segs[0]["start"] / fps, total / fps) if audio else None
+        # no (usable) soundtrack: a silent track of the right length, so Create Video never gets None
+        full_audio = _slice_audio(audio, segs[0]["start"] / fps, total / fps) if audio else silence(total / fps)
         full_total = sum(s["end"] - s["start"] for s in all_segs)
         timeline = {"path": path, "fps": fps, "width": W, "height": H, "fill": p.get("skip_fill", "original"),
                     "audio": _slice_audio(audio, all_segs[0]["start"] / fps, full_total / fps) if audio else None,
@@ -1363,6 +1707,79 @@ class BFSShotRepack:
         return (out,)
 
 
+SETTING_MODES = ["off", "on (generation size)", "on (source size, slower)"]
+
+
+def tv_static(img: torch.Tensor, mask: torch.Tensor, grow: float = 0.03, seed: int = 0) -> torch.Tensor:
+    """[1,H,W,3] with the masked region (dilated by `grow` of the short side) covered in black-and-white TV static,
+    TSC's 'person noised out' setting picture: the place is seen in full detail, the person is not."""
+    H, W = img.shape[1:3]
+    m = torch.nn.functional.interpolate(mask.float().reshape(1, 1, *mask.shape[-2:]), size=(H, W), mode="nearest")[0, 0]
+    g = max(1, int(min(H, W) * grow))
+    m = torch.nn.functional.max_pool2d(m[None, None], 2 * g + 1, stride=1, padding=g)[0, 0] > 0.5
+    gen = torch.Generator().manual_seed(seed)
+    grain = 2
+    n = (torch.rand((H + grain - 1) // grain, (W + grain - 1) // grain, generator=gen) > 0.5).float()
+    n = n.repeat_interleave(grain, 0).repeat_interleave(grain, 1)[:H, :W]
+    out = img.clone()
+    out[0][m] = n[m][:, None].expand(-1, 3).to(out)
+    return out
+
+
+def setting_picture(shot: dict, mode: str, mask: torch.Tensor | None = None) -> torch.Tensor:
+    """The middle frame of the shot with the person covered in TV static. Mask: the given one, else the shot's SAM 3
+    crop mask, else SAM 3 'person' on that frame."""
+    src = shot.get("source") or {}
+    k = len(shot["frames"]) // 2
+    if mode == SETTING_MODES[2] and src.get("path"):
+        f = _read_frames(src["path"], np.array([src["frames"][min(k, len(src["frames"]) - 1)]]), None)[0]
+        img = torch.from_numpy(f.astype(np.float32) / 255.0)[None]
+        short = min(img.shape[1:3])
+        if short > 2048:   # what H3's 'max' reference size keeps anyway
+            s = 2048 / short
+            img = torch.nn.functional.interpolate(img.movedim(-1, 1), scale_factor=s, mode="bilinear",
+                                                  align_corners=False).movedim(1, -1)
+    else:
+        full = shot.get("full_frames")
+        img = (full if full is not None else shot["frames"])[k:k + 1]
+    if mask is not None:
+        m = mask[min(k, mask.shape[0] - 1)] if mask.ndim == 3 else mask
+    elif shot.get("crop") is not None:
+        cm = shot["crop"]["mask"]
+        m = cm[min(k, cm.shape[0] - 1)]
+    else:
+        spec = dict(DEFAULT_MASK, text="person", max_objects=8)
+        small = torch.nn.functional.interpolate(img.movedim(-1, 1), size=_fit_size(img.shape[1:3], 640),
+                                                mode="bilinear", align_corners=False).movedim(1, -1)
+        m = segment_frames(small, spec)[0]
+        _node_boundary()
+    return tv_static(img, m)
+
+
+def _fit_size(hw, side: int) -> tuple[int, int]:
+    s = side / max(hw)
+    return max(32, int(hw[0] * s) // 2 * 2), max(32, int(hw[1] * s) // 2 * 2)
+
+
+def setting_line(k: int, swap: bool) -> str:
+    who = "<Subject 1>" if swap else "the performer"
+    return (f"<Picture {k}> shows the setting, the same place as the kept footage in full detail; the noise patch in it "
+            f"is where {who} stands.")
+
+
+def add_setting(text: str, k: int, swap: bool) -> str:
+    """`{setting}` becomes <Picture k>; without it, a sentence goes at the end of subject_definitions."""
+    if "{setting}" in text:
+        return text.replace("{setting}", f"<Picture {k}>")
+    line = setting_line(k, swap)
+    if "subject_definitions:" in text:
+        a = text.index("subject_definitions:")
+        b = text.find("\n\n", a)
+        b = len(text) if b < 0 else b
+        return text[:b].rstrip() + " " + line + text[b:]
+    return (text.rstrip() + "\n\n" + line).strip()
+
+
 class BFSShotH3Conditioning:
     """Native MiniMax H3 conditioning for one shot: references, prompt and the shot as a guide."""
 
@@ -1404,11 +1821,30 @@ class BFSShotH3Conditioning:
                                        "tooltip": "shifted RoPE only: empty RoPE steps (2x2 patches) between video and panel. Keep it small "
                                                   "against the video width (0-2 at low resolution): a gap close to the "
                                                   "video's width makes the model draw its own split screen."}),
+                "task": (["planner prompt"] + WRITER_TASKS, {"default": "planner prompt", "tooltip":
+                    "Optional prompt writer for the duet. 'planner prompt' (default) uses the shot's prompt from the "
+                    "planner as it is. A task writes the prompt of every shot in the duet format instead: with a VLM "
+                    "connected it looks at the shot and its references and writes it; without one, a template for the "
+                    "task. Needs duet on (canvas or shifted RoPE). See the written text on the prompt output."}),
+                "instruction": ("STRING", {"default": "", "multiline": True, "tooltip":
+                    "What changes, in seen words, for the task: 'a 1990s anime cel style', 'a sunny beach at sunset', "
+                    "'an elderly woman with short grey hair'. Empty is fine for character swap (the person comes from "
+                    "the references)."}),
+                "vlm": ("CLIP", {"tooltip": "Optional VLM (CLIPLoader with a Qwen3-VL text encoder) that writes the "
+                                            "prompt when a task is chosen. Without it the task's template is used."}),
+                "setting_ref": (SETTING_MODES, {"default": "off", "tooltip":
+                    "TSC's trick: one more reference picture, the shot's middle frame with the person covered in TV "
+                    "static, so the model sees the place in full detail (the panel / guide is often small). It is "
+                    "the last <Picture n>; a sentence about it is added to subject_definitions (or write {setting} "
+                    "where you want its tag). Mask: setting_mask, else the shot's SAM 3 crop mask, else SAM 3 "
+                    "'person' on that frame. 'source size' uses the video's own resolution (up to 2048 short edge): "
+                    "sharper, slower."}),
+                "setting_mask": ("MASK", {"tooltip": "Optional mask of the person to cover in the setting picture."}),
             },
         }
 
-    RETURN_TYPES = ("CONDITIONING", "LATENT", "MODEL")
-    RETURN_NAMES = ("positive", "latent", "model")
+    RETURN_TYPES = ("CONDITIONING", "LATENT", "MODEL", "STRING")
+    RETURN_NAMES = ("positive", "latent", "model", "prompt")
     FUNCTION = "condition"
     CATEGORY = "BFS/shot loop"
     DESCRIPTION = ("Build MiniMax H3 conditioning for one shot with the native nodes: Reference to Video "
@@ -1416,8 +1852,13 @@ class BFSShotH3Conditioning:
 
     def condition(self, shot, clip, vae, guide_mode, use_ref_2, first_frame, ref_image_size,
                   audio_vae=None, with_audio=False, duet="off", model=None, panel_position="left", panel_size=1.0,
-                  panel_noise=0.0, rope_gap=0.0):
+                  panel_noise=0.0, rope_gap=0.0, task="planner prompt", instruction="", vlm=None,
+                  setting_ref="off", setting_mask=None):
         from comfy_extras.nodes_minimax_h3 import MiniMaxH3AddGuide, MiniMaxH3ReferenceToVideo
+        try:
+            from .bfs_h3_side_panel import build_prompt, layout_text, make_info
+        except ImportError:
+            from bfs_h3_side_panel import build_prompt, layout_text, make_info
         refs = {}
         if shot["ref"] is not None:
             refs["ref_image_0"] = shot["ref"]
@@ -1429,7 +1870,44 @@ class BFSShotH3Conditioning:
         audio = shot["audio"] if (with_audio and audio_vae is not None) else None
         native = guide_mode in (self.GUIDE_MODES[1], self.GUIDE_MODES[2])
         aligned = guide_mode in (self.GUIDE_MODES[0], self.GUIDE_MODES[2])
-        kwargs = dict(clip=clip, prompt=shot["prompt"], width=shot["width"], height=shot["height"],
+        on_canvas = duet != "off"
+        rope_mode = "shifted" if duet == "shifted RoPE" else "canvas"
+        text = shot["prompt"] or ""
+        if task and task != "planner prompt":
+            if not on_canvas:
+                raise ValueError("the prompt writer (task) writes duet prompts: set duet to canvas or shifted RoPE, "
+                                 "or set task to 'planner prompt'")
+            if vlm is not None:
+                fr = shot["frames"]
+                idx = sorted(set(np.linspace(0, fr.shape[0] - 1, min(4, fr.shape[0])).round().astype(int).tolist()))
+                text = write_duet_prompt(vlm, [fr[i:i + 1] for i in idx], list(refs.values()), task, instruction,
+                                         1024, rope_mode)
+                _node_boundary()
+            else:
+                text = build_prompt(task if task != "custom" else "appearance", instruction, len(refs), 0, rope_mode)
+        setting = setting_picture(shot, setting_ref, setting_mask) if setting_ref and setting_ref != "off" else None
+        if setting is not None:
+            if ref_image_size == "match":   # keep 'match' for the people, the setting keeps its own size
+                for k, r in list(refs.items()):
+                    sc = min(1.0, math.sqrt(shot["width"] * shot["height"] / (r.shape[1] * r.shape[2])))
+                    if sc < 1.0:
+                        refs[k] = torch.nn.functional.interpolate(
+                            r[:1].movedim(-1, 1), size=(max(16, int(r.shape[1] * sc)), max(16, int(r.shape[2] * sc))),
+                            mode="bilinear", align_corners=False).movedim(1, -1)
+                if setting_ref == SETTING_MODES[1]:
+                    sc = min(1.0, math.sqrt(shot["width"] * shot["height"] / (setting.shape[1] * setting.shape[2])))
+                    if sc < 1.0:
+                        setting = torch.nn.functional.interpolate(
+                            setting.movedim(-1, 1), size=(int(setting.shape[1] * sc), int(setting.shape[2] * sc)),
+                            mode="bilinear", align_corners=False).movedim(1, -1)
+                ref_image_size = "max"
+            refs[f"ref_image_{len(refs)}"] = setting
+            text = add_setting(text, len(refs), task == "character swap" or "<Subject 1>" in text)
+        if "{layout}" in text:
+            fill = layout_text(make_info(shot["width"], shot["height"], panel_position, panel_size, 0), rope_mode) \
+                if on_canvas else ""
+            text = text.replace("{layout}", fill).replace("  ", " ")
+        kwargs = dict(clip=clip, prompt=text, width=shot["width"], height=shot["height"],
                       length=shot["gen_length"], ref_image_size=ref_image_size, vae=vae,
                       audio_vae=audio_vae, ref_images=refs or None)
         if native:
@@ -1437,7 +1915,6 @@ class BFSShotH3Conditioning:
             if audio is not None:
                 kwargs["ref_video_audios"] = {"ref_video_audio_1": audio}
         positive, latent = MiniMaxH3ReferenceToVideo.execute(**kwargs).args[:2]
-        on_canvas = duet != "off"
         if aligned and (not on_canvas or audio is not None):
             positive = MiniMaxH3AddGuide.execute(positive=positive, latent=latent, frame_idx=0, vae=vae,
                                                  audio_vae=audio_vae if audio is not None else None,
@@ -1465,7 +1942,7 @@ class BFSShotH3Conditioning:
                 if model is None:
                     raise ValueError("duet 'shifted RoPE' needs the model input (and its model output in the sampler)")
                 model = patch_model_rope(model, info, rope_gap)
-        return (positive, latent, model)
+        return (positive, latent, model, text)
 
 
 class BFSShotJoin:
@@ -1590,6 +2067,8 @@ class BFSShotJoin:
         video = torch.cat(out, 0)
         fps = float(shots[order[0]]["fps"])
         a = audio[0] if audio else None
+        if not _usable(a):   # no soundtrack: a silent one, so Create Video always gets valid audio
+            return (video, silence(video.shape[0] / fps), fps)
         if a is not None:
             n = int(round(video.shape[0] / fps * a["sample_rate"]))
             wf = a["waveform"][..., :n]
@@ -1642,6 +2121,8 @@ def _join_timeline_impl(self, images, shots, crossfade, audio, tl):
                                      "cut_before": seg["cut_before"]}, L, orig))
     video = torch.cat(out, 0)
     a = (audio[0] if audio else None) or tl.get("audio")
+    if not _usable(a):
+        return (video, silence(video.shape[0] / fps), fps)
     if a is not None:
         sr = a["sample_rate"]; base = tl["segs"][0]["start"]
         if tl.get("fill", "original") == "drop":
@@ -1936,8 +2417,10 @@ try:
         try:
             clip = _VLM.get("clip")
             if clip is None:
-                raise ValueError("No VLM yet: connect a CLIPLoader with qwen3vl_4b / qwen3vl_8b to the planner's "
-                                 "vlm input and run the workflow once, then Analyse works from the panel.")
+                raise ValueError("The panel has no VLM yet. Connect the VLM (a CLIPLoader with a Qwen3-VL text encoder, "
+                                 "the same one Generate Text uses) to the planner's vlm input and run the workflow once "
+                                 "(Queue): ComfyUI only hands models to nodes when they run. After that the panel's "
+                                 "VLM buttons use it.")
             p = _load_plan(json.dumps(body.get("plan", {})))
             path = _input_path(p["video"])
             a = analyze(path, float(p["fps"]))
@@ -1953,6 +2436,57 @@ try:
         except Exception as exc:  # noqa: BLE001
             return web.json_response({"error": f"{type(exc).__name__}: {exc}"}, status=500)
         return web.json_response({"segs": out})
+
+    @PromptServer.instance.routes.post("/bfs/shotloop/describe")
+    async def _bfs_shot_describe(request):
+        """Descriptions for reference sets: body {plan, sets: [[ref, ref2], ...]} -> {texts: {key: text}}."""
+        body = await request.json()
+        try:
+            clip = _VLM.get("clip")
+            if clip is None:
+                raise ValueError("The panel has no VLM yet. Connect the VLM (a CLIPLoader with a Qwen3-VL text encoder, "
+                                 "the same one Generate Text uses) to the planner's vlm input and run the workflow once "
+                                 "(Queue): ComfyUI only hands models to nodes when they run. After that the panel's "
+                                 "VLM buttons use it.")
+            p = _load_plan(json.dumps(body.get("plan", {})))
+            cfg = vlm_cfg(p.get("vlm_cfg"))
+            sets = [tuple(x) for x in body.get("sets", []) if any(x)]
+
+            def work():
+                out = {}
+                for r1, r2 in sets:
+                    out[ref_set_key(r1, r2)] = vlm_describe(clip, [_load_image(r1) if r1 else None, _load_image(r2) if r2 else None],
+                                                            describe_instruction(cfg), int(cfg["max_tokens"]))
+                return out
+            texts = await _off_loop(work)
+        except Exception as exc:  # noqa: BLE001
+            return web.json_response({"error": f"{type(exc).__name__}: {exc}"}, status=500)
+        return web.json_response({"texts": texts})
+
+    @PromptServer.instance.routes.post("/bfs/shotloop/write")
+    async def _bfs_shot_write(request):
+        """The VLM writes one shot's duet prompt: body {plan, index} -> {prompt}."""
+        body = await request.json()
+        try:
+            clip = _VLM.get("clip")
+            if clip is None:
+                raise ValueError("The panel has no VLM yet. Connect the VLM to the planner's vlm input and run the "
+                                 "workflow once (Queue): ComfyUI only hands models to nodes when they run.")
+            p = _load_plan(json.dumps(body.get("plan", {})))
+            path = _input_path(p["video"])
+            cfg = vlm_cfg(p.get("vlm_cfg"))
+
+            def work():
+                a = analyze(path, float(p["fps"]))
+                seg = resolve_plan(p, a, path)[int(body.get("index", 0))]
+                r1 = _load_image(seg["ref"] or p.get("global_ref", "")) if (seg["ref"] or p.get("global_ref")) else None
+                r2 = _load_image(seg["ref2"] or p.get("global_ref2", "")) if (seg["ref2"] or p.get("global_ref2")) else None
+                return vlm_write_prompt(clip, path, a, seg["start"], seg["end"], [r1, r2], cfg["write_task"],
+                                        cfg["write_change"], int(cfg["max_tokens"]))
+            text = await _off_loop(work)
+        except Exception as exc:  # noqa: BLE001
+            return web.json_response({"error": f"{type(exc).__name__}: {exc}"}, status=500)
+        return web.json_response({"prompt": text})
 
     @PromptServer.instance.routes.post("/bfs/shotloop/cast")
     async def _bfs_shot_cast(request):

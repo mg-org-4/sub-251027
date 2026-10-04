@@ -205,8 +205,12 @@ def panel_mask(info: dict, latent_t: int, hold: str, target_mask: torch.Tensor |
     return m
 
 
-def layout_text(info: dict) -> str:
-    """How the kept region is named in a prompt (TSC's wording: 42-58% of the canvas is 'the LEFT half')."""
+def layout_text(info: dict, rope_mode: str = "canvas") -> str:
+    """How the kept region is named in a prompt (TSC's wording: 42-58% of the canvas is 'the LEFT half').
+    shifted RoPE: the video sits on its own grid, so a split-screen sentence would make the model split the video
+    itself; the sentence then only says that the whole frame follows the kept footage."""
+    if rope_mode == "shifted":
+        return "The whole frame shows the generated video, moving in sync with the kept footage frame by frame."
     pos = info["position"]
     side = {"left": "LEFT", "right": "RIGHT", "top": "TOP", "bottom": "BOTTOM"}[pos]
     other = {"left": "RIGHT", "right": "LEFT", "top": "BOTTOM", "bottom": "TOP"}[pos]
@@ -291,6 +295,23 @@ def patch_model_rope(model, info: dict, gap_patches: float):
     return patched
 
 
+def latent_mask(mask: torch.Tensor, latent_t: int, h: int, w: int, grow: int = 1) -> torch.Tensor:
+    """Pixel mask frames [F,H,W] (1 = regenerate) -> [1,1,T,h,w] on H3's latent grid: a latent cell regenerates when
+    any of its pixels or frames does (frames per latent step: 1, 4, 4, 4, 4...)."""
+    m = mask.float()
+    if m.ndim == 4:
+        m = m[..., 0]
+    m = torch.nn.functional.adaptive_max_pool2d(m[:, None], (h, w))[:, 0]
+    if grow > 0:
+        m = torch.nn.functional.max_pool2d(m[:, None], 2 * grow + 1, 1, grow)[:, 0]
+    out, f = [], 0
+    for k in range(latent_t):
+        n = FRAME_PER_TOKEN[k % 5]
+        seg = m[min(f, m.shape[0] - 1):min(f + n, m.shape[0])] if f < m.shape[0] else m[-1:]
+        out.append(seg.amax(0)); f += n
+    return (torch.stack(out)[None, None] > 0.5).float()
+
+
 def _encode(vae, frames: torch.Tensor) -> torch.Tensor:
     return vae.encode(frames[..., :3])
 
@@ -315,10 +336,10 @@ class BFSH3SidePanel:
                 "size": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 1.5, "step": 0.01,
                                    "tooltip": "Strip size as a fraction of the video's height (top/bottom) or width (left/right), snapped to 32 px."}),
                 "fit": (FITS, {"default": "contain", "tooltip": "contain keeps the whole panel on gray; cover fills the strip and crops; stretch distorts."}),
-                "gap": ("INT", {"default": 0, "min": 0, "max": 8, "tooltip": "Gray separator between panel and video, in 32 px patches (held like the panel)."}),
+                "gap": ("INT", {"default": 0, "min": 0, "max": 8, "advanced": True, "tooltip": "Gray separator between panel and video, in 32 px patches (held like the panel)."}),
                 "panel_noise": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01,
                                           "tooltip": "0 pins the panel exactly. 0.05-0.15 lets the model loosen it a little when the result copies too much of it (TSC's SOURCE NOISE)."}),
-                "hold": (HOLDS, {"default": "all frames", "tooltip": "all frames: the panel is held for the whole clip. first latent frame: only the start is held, the rest of the strip is generated (and cropped)."}),
+                "hold": (HOLDS, {"default": "all frames", "advanced": True, "tooltip": "all frames: the panel is held for the whole clip. first latent frame: only the start is held, the rest of the strip is generated (and cropped)."}),
             },
             "optional": {
                 "guide": ("IMAGE", {"tooltip": "Aligned latent guide (e.g. the source video), placed in the video area. 5, 22, 39... (17k+5) frames, or one image."}),
@@ -334,7 +355,8 @@ class BFSH3SidePanel:
                    "duet) and BFS H3 Side Panel Crop removes it before decoding. Works with or without an aligned guide.\n\n"
                    + PANEL_PROMPT_HINT)
 
-    def apply(self, positive, latent, vae, panel, position, size, fit, gap, hold, panel_noise=0.0, guide=None, guide_frame_idx=0):
+    def apply(self, positive, latent, vae, panel, position, size, fit, gap, hold, panel_noise=0.0, guide=None, guide_frame_idx=0,
+              keep_video=None, keep_mask=None):
         samples = latent["samples"]
         if not getattr(samples, "is_nested", False) or samples.tensors[0].ndim != 5:
             raise ValueError("BFS H3 Side Panel expects a MiniMax H3 AV latent")
@@ -352,10 +374,15 @@ class BFSH3SidePanel:
         strip_lat = _encode(vae, strip_px).to(video)
         if strip_lat.shape[2] != T:
             raise ValueError(f"panel latent has {strip_lat.shape[2]} frames, the video {T}")
-        canvas = join_latent(video, strip_lat, position)
-
         old_mask = latent.get("noise_mask")
         target_mask = old_mask.tensors[0] if getattr(old_mask, "is_nested", False) else old_mask
+        if keep_mask is not None:
+            # inpainting inside the duet: the video area starts from keep_video and only the masked region is regenerated
+            src = keep_video if keep_video is not None else panel
+            idx = [min(i, src.shape[0] - 1) for i in range(F)]
+            video = _encode(vae, _resize(src[idx], W, H, "cover")).to(video)
+            target_mask = latent_mask(keep_mask, T, h, w)
+        canvas = join_latent(video, strip_lat, position)
         vmask = panel_mask(info, T, hold, target_mask, panel_noise)
         amask = (old_mask.tensors[1] if getattr(old_mask, "is_nested", False) else torch.ones_like(audio))
         out_latent = dict(latent)
@@ -427,8 +454,9 @@ class BFSH3SidePanelCrop:
         return (out_latent, out_images)
 
 
-def build_prompt(task: str, instruction: str, n_pictures: int, n_videos: int) -> str:
-    """A six-section REF2VA prompt for a duet task. `{layout}` stays in it and is filled at render time."""
+def build_prompt(task: str, instruction: str, n_pictures: int, n_videos: int, rope_mode: str = "canvas") -> str:
+    """A six-section REF2VA prompt for a duet task. `{layout}` stays in it and is filled at render time.
+    shifted: no split-screen wording (it makes the model split the video itself)."""
     inst = instruction.strip().rstrip(".")
     pics = [f"<Picture {i}>" for i in range(1, n_pictures + 1)]
     pics_txt = " and ".join(pics) if len(pics) <= 2 else ", ".join(pics[:-1]) + " and " + pics[-1]
@@ -465,7 +493,12 @@ def build_prompt(task: str, instruction: str, n_pictures: int, n_videos: int) ->
         "overall_soundscape:\nThe sounds of the kept footage, in sync.",
         "non_diegetic_music:\nNone.",
     ]
-    return "\n\n".join(sections)
+    text = "\n\n".join(sections)
+    if rope_mode == "shifted":
+        text = (text.replace("The target video is a split screen: the kept footage beside ", "The target video shows ")
+                .replace("who moves in sync with it", "who moves in sync with the kept footage")
+                .replace("the motion reference of the split screen", "the motion reference"))
+    return text
 
 
 def h3_render(model, clip, vae, audio_vae, prompt, refs, width, height, length, steps, sampler_name, scheduler,
@@ -481,7 +514,7 @@ def h3_render(model, clip, vae, audio_vae, prompt, refs, width, height, length, 
     from comfy_extras.nodes_minimax_h3 import MiniMaxH3AddGuide, MiniMaxH3ReferenceToVideo
     from comfy_extras.nodes_custom_sampler import Guider_Basic, Noise_RandomNoise, SamplerCustomAdvanced
 
-    text = layout_text(make_info(width, height, position, size, gap * PATCH_PX)) if panel is not None else ""
+    text = layout_text(make_info(width, height, position, size, gap * PATCH_PX), rope_mode) if panel is not None else ""
     prompt = prompt.replace("{layout}", text)
     refs = {k: v for k, v in (refs or {}).items() if v}
     positive, latent = MiniMaxH3ReferenceToVideo.execute(
@@ -517,6 +550,8 @@ def h3_render(model, clip, vae, audio_vae, prompt, refs, width, height, length, 
     if audio_vae is not None:
         from comfy_extras.nodes_audio import vae_decode_audio
         audio = vae_decode_audio(audio_vae, {"samples": audio_lat})
+    if audio is None:   # no audio VAE: a silent track of the video's length, so Create Video gets valid audio
+        audio = {"waveform": torch.zeros(1, 2, max(1, int(round(images.shape[0] / 24.0 * 44100)))), "sample_rate": 44100}
     return images, audio, canvas, text, cropped, prompt
 
 
@@ -538,6 +573,7 @@ def _resolve_prompt(prompt: str, task: str, instruction: str, n_pictures: int, n
 
 try:
     from comfy_api.latest import io as _io
+    PANEL_INFO_T = _io.Custom("BFS_H3_PANEL")
 except ImportError:  # unit tests without ComfyUI
     _io = None
 
@@ -581,22 +617,22 @@ if _io is not None:
                     _io.Int.Input("length", default=0, min=0, max=3600, tooltip="Frames at 24 fps, snapped to 17k+5. 0 = the guide's or panel clip's length."),
                     _io.Combo.Input("position", options=POSITIONS, default="left"),
                     _io.Float.Input("size", default=1.0, min=0.1, max=1.5, step=0.01, tooltip="Panel size against the video (1.0 = two equal halves)."),
-                    _io.Combo.Input("fit", options=FITS, default="contain", tooltip="contain keeps the whole clip (smaller, with grey around) so nothing is cropped; cover fills the panel and crops; stretch distorts."),
-                    _io.Int.Input("gap", default=0, min=0, max=8, tooltip="Grey separator in 32 px patches (pixels, held)."),
+                    _io.Combo.Input("fit", advanced=True, options=FITS, default="contain", tooltip="contain keeps the whole clip (smaller, with grey around) so nothing is cropped; cover fills the panel and crops; stretch distorts."),
+                    _io.Int.Input("gap", advanced=True, default=0, min=0, max=8, tooltip="Grey separator in 32 px patches (pixels, held)."),
                     _io.Float.Input("panel_noise", default=0.0, min=0.0, max=1.0, step=0.01, tooltip=
                         "0 copies the panel exactly (swaps, light). 0.1-0.2 gives room for big changes (style, creatures)."),
-                    _io.Combo.Input("hold", options=HOLDS, default=HOLDS[0]),
-                    _io.Combo.Input("rope_mode", options=ROPE_MODES, default="canvas", tooltip=
+                    _io.Combo.Input("hold", advanced=True, options=HOLDS, default=HOLDS[0]),
+                    _io.Combo.Input("rope_mode", advanced=True, options=ROPE_MODES, default="canvas", tooltip=
                         "canvas: panel and video share one wide grid (TSC). shifted (BFS): the video keeps the RoPE "
                         "positions of a render without the panel and the panel sits past its edge."),
-                    _io.Float.Input("rope_gap", default=0.0, min=0.0, max=256.0, step=1.0, tooltip="shifted only: empty RoPE steps (2x2 patches) between video and panel. Keep it small against the video width (0-2 at low resolution): a large gap makes the model draw its own split screen."),
-                    _io.Combo.Input("ref_image_size", options=["match", "max"], default="match"),
+                    _io.Float.Input("rope_gap", advanced=True, default=0.0, min=0.0, max=256.0, step=1.0, tooltip="shifted only: empty RoPE steps (2x2 patches) between video and panel. Keep it small against the video width (0-2 at low resolution): a large gap makes the model draw its own split screen."),
+                    _io.Combo.Input("ref_image_size", advanced=True, options=["match", "max"], default="match"),
                     _io.Int.Input("steps", default=20, min=1, max=200),
                     _io.Combo.Input("sampler_name", options=samplers, default="euler"),
                     _io.Combo.Input("scheduler", options=schedulers, default="beta"),
                     _io.Int.Input("seed", default=42, min=0, max=0xffffffffffffffff, control_after_generate=True),
-                    _io.Boolean.Input("decode_canvas", default=False, tooltip="Also decode the whole canvas, to check the sync."),
-                    _io.Int.Input("guide_frame_idx", default=0, min=-9999, max=9999, optional=True),
+                    _io.Boolean.Input("decode_canvas", advanced=True, default=False, tooltip="Also decode the whole canvas, to check the sync."),
+                    _io.Int.Input("guide_frame_idx", advanced=True, default=0, min=-9999, max=9999, optional=True),
                     _io.Autogrow.Input("ref_images", optional=True, template=_io.Autogrow.TemplatePrefix(
                         input=_io.Image.Input("ref_image", tooltip="<Picture n>, in order"), prefix="ref_image_", min=0, max=9)),
                     _io.Autogrow.Input("ref_videos", optional=True, template=_io.Autogrow.TemplatePrefix(
@@ -633,6 +669,101 @@ if _io is not None:
                                              rope_mode, rope_gap))
 
 
+if _io is not None:
+    class BFSH3DuetConditioning(_io.ComfyNode):
+        """Duet conditioning only (no sampling): references + prompt (written by a VLM from the task when connected)
+        + the pinned panel. Goes into BasicGuider / SamplerCustomAdvanced; BFS H3 Side Panel Crop before VAE Decode."""
+
+        @classmethod
+        def define_schema(cls):
+            return _io.Schema(
+                node_id="BFSH3DuetConditioning",
+                display_name="BFS H3 Duet Conditioning (prompt writer)",
+                category="BFS/MiniMax H3",
+                description=("MiniMax H3 duet conditioning for your own sampler. The panel (the source clip) is pinned beside "
+                             "the video. The prompt: yours if you write one; otherwise a connected VLM writes it in the duet "
+                             "format from the task and instruction, looking at the clip and the references; otherwise a "
+                             "draft. Outputs positive + latent (with the panel's noise mask) + model (RoPE shift applied in "
+                             "shifted mode) + panel_info for BFS H3 Side Panel Crop.\n\n" + PANEL_PROMPT_HINT + "\n\n" + CREDIT),
+                inputs=[
+                    _io.Clip.Input("clip", tooltip="The MiniMax H3 text encoder (Qwen3-VL 32B)."),
+                    _io.Vae.Input("vae"),
+                    _io.Image.Input("panel", tooltip="The clip pinned beside the video (copied in sync), or a picture."),
+                    _io.Combo.Input("task", options=["character swap", "style", "setting", "appearance", "lighting / weather", "custom"],
+                                    default="character swap", tooltip="What to do. With a VLM connected it writes the prompt for this task."),
+                    _io.String.Input("instruction", default="", multiline=True, tooltip=
+                        "What changes, in seen words: 'a 1990s anime cel style', 'a sunny beach at sunset', 'an elderly woman with "
+                        "short grey hair', or for custom anything you want done. Empty is fine for character swap (the person "
+                        "comes from the pictures)."),
+                    _io.String.Input("prompt", default="", multiline=True, tooltip=
+                        "Your own prompt (wins over the VLM and the draft). " + PANEL_PROMPT_HINT),
+                    _io.Int.Input("width", default=448, min=32, max=4096, step=32),
+                    _io.Int.Input("height", default=800, min=32, max=4096, step=32),
+                    _io.Int.Input("length", default=0, min=0, max=3600, tooltip="Frames (17k+5). 0 = the panel clip's length."),
+                    _io.Combo.Input("position", options=POSITIONS, default="left"),
+                    _io.Float.Input("size", default=1.0, min=0.1, max=1.5, step=0.01),
+                    _io.Float.Input("panel_noise", default=0.0, min=0.0, max=1.0, step=0.01,
+                                    tooltip="0 pins the panel exactly; 0.1-0.2 for big changes."),
+                    _io.Combo.Input("rope_mode", options=ROPE_MODES, default="canvas",
+                                    tooltip="canvas (one wide grid) or shifted (connect the model and use the model output)."),
+                    _io.Combo.Input("fit", options=FITS, default="contain", advanced=True),
+                    _io.Int.Input("gap", default=0, min=0, max=8, advanced=True),
+                    _io.Combo.Input("hold", options=HOLDS, default=HOLDS[0], advanced=True),
+                    _io.Float.Input("rope_gap", default=0.0, min=0.0, max=256.0, step=1.0, advanced=True),
+                    _io.Combo.Input("ref_image_size", options=["match", "max"], default="match", advanced=True),
+                    _io.Int.Input("vlm_max_tokens", default=1024, min=128, max=4096, advanced=True),
+                    _io.Clip.Input("vlm", optional=True, tooltip="Optional VLM (CLIPLoader with a Qwen3-VL text encoder) that writes the prompt."),
+                    _io.Model.Input("model", optional=True, tooltip="Needed for rope_mode = shifted."),
+                    _io.Vae.Input("audio_vae", optional=True),
+                    _io.Image.Input("guide", optional=True, tooltip="Optional aligned latent guide in the video area."),
+                    _io.Mask.Input("keep_mask", optional=True, tooltip=
+                        "Inpainting inside the duet: 1 = regenerate (e.g. the person, dilated), 0 = keep. The video area "
+                        "starts from keep_video (or the panel clip) and only the masked region is generated, so the "
+                        "background and its light stay pixel-exact."),
+                    _io.Image.Input("keep_video", optional=True, tooltip="The video kept outside the mask (default: the panel clip)."),
+                    _io.Autogrow.Input("ref_images", optional=True, template=_io.Autogrow.TemplatePrefix(
+                        input=_io.Image.Input("ref_image", tooltip="<Picture n>, in order"), prefix="ref_image_", min=0, max=9)),
+                ],
+                outputs=[_io.Conditioning.Output(display_name="positive"), _io.Latent.Output(display_name="latent"),
+                         _io.Model.Output(display_name="model"), PANEL_INFO_T.Output(display_name="panel_info"),
+                         _io.String.Output(display_name="prompt"), _io.Image.Output(display_name="canvas_preview")],
+            )
+
+        @classmethod
+        def execute(cls, clip, vae, panel, task, instruction, prompt, width, height, length, position, size, panel_noise,
+                    rope_mode, fit, gap, hold, rope_gap, ref_image_size, vlm_max_tokens, vlm=None, model=None,
+                    audio_vae=None, guide=None, ref_images=None, keep_mask=None, keep_video=None):
+            from comfy_extras.nodes_minimax_h3 import MiniMaxH3ReferenceToVideo
+            refs = [v for v in (ref_images or {}).values() if v is not None]
+            if length <= 0:
+                length = panel.shape[0] if panel.shape[0] >= 5 else 124
+            text = prompt if prompt and prompt.strip() else ""
+            if not text and vlm is not None:
+                try:
+                    from .bfs_shot_loop import write_duet_prompt
+                except ImportError:
+                    write_duet_prompt = None
+                if write_duet_prompt:
+                    idx = sorted(set(int(round(x)) for x in torch.linspace(0, panel.shape[0] - 1, min(4, panel.shape[0])).tolist()))
+                    text = write_duet_prompt(vlm, [panel[i:i + 1] for i in idx], refs, task, instruction, int(vlm_max_tokens),
+                                             rope_mode)
+            if not text:
+                text = build_prompt(task if task != "custom" else "appearance", instruction, len(refs), 0, rope_mode)
+            info = make_info(width, height, position, size, gap * PATCH_PX)
+            text = text.replace("{layout}", layout_text(info, rope_mode))
+            positive, latent = MiniMaxH3ReferenceToVideo.execute(
+                clip=clip, prompt=text, width=width, height=height, length=length, ref_image_size=ref_image_size, vae=vae,
+                audio_vae=audio_vae, ref_images={f"ref_image_{i}": r for i, r in enumerate(refs)} or None).args[:2]
+            positive, latent, info, preview, _ = BFSH3SidePanel().apply(
+                positive, latent, vae, panel, position, size, fit, gap, hold, panel_noise, guide, 0,
+                keep_video=keep_video, keep_mask=keep_mask)
+            if rope_mode == "shifted":
+                if model is None:
+                    raise ValueError("rope_mode 'shifted' needs the model input (use the node's model output in the sampler)")
+                model = patch_model_rope(model, info, rope_gap)
+            return _io.NodeOutput(positive, latent, model, info, text, preview)
+
+
 class BFSShotH3Duet:
     """One shot of the shot loop, rendered with MiniMax H3: the shot pinned in a panel (duet), the shot as an
     aligned guide, or both. Planner -> this -> BFS Shot Join."""
@@ -656,18 +787,19 @@ class BFSShotH3Duet:
                                   "per-shot or global prompt in the Planner)."}),
                 "instruction": ("STRING", {"default": "", "tooltip": "What changes, in a few seen words (see BFS H3 Duet)."}),
                 "use_ref_2": ("BOOLEAN", {"default": True}),
-                "position": panel_req["position"], "size": panel_req["size"], "fit": (FITS, {"default": "contain", "tooltip": "contain keeps the whole clip (smaller, with grey around) so nothing is cropped"}),
+                "position": panel_req["position"], "size": panel_req["size"],
+                "fit": (FITS, {"default": "contain", "advanced": True, "tooltip": "contain keeps the whole clip (smaller, with grey around) so nothing is cropped"}),
                 "gap": panel_req["gap"], "panel_noise": panel_req["panel_noise"],
-                "ref_image_size": (["match", "max"], {"default": "match"}),
+                "ref_image_size": (["match", "max"], {"default": "match", "advanced": True}),
                 "steps": ("INT", {"default": 20, "min": 1, "max": 200}),
                 "sampler_name": (samplers, {"default": "euler"}),
                 "scheduler": (schedulers, {"default": "beta"}),
                 "seed": ("INT", {"default": 42, "min": 0, "max": 0xffffffffffffffff, "control_after_generate": True}),
-                "decode_canvas": ("BOOLEAN", {"default": False}),
+                "decode_canvas": ("BOOLEAN", {"default": False, "advanced": True}),
             },
             "optional": {"audio_vae": ("VAE",),
-                         "rope_mode": (ROPE_MODES, {"default": "canvas"}),
-                         "rope_gap": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 256.0, "step": 1.0})},
+                         "rope_mode": (ROPE_MODES, {"default": "canvas", "advanced": True}),
+                         "rope_gap": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 256.0, "step": 1.0, "advanced": True})},
         }
 
     RETURN_TYPES = ("IMAGE", "AUDIO", "IMAGE", "STRING", "STRING")
@@ -721,3 +853,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 if _io is not None:
     NODE_CLASS_MAPPINGS["BFSH3Duet"] = BFSH3Duet
     NODE_DISPLAY_NAME_MAPPINGS["BFSH3Duet"] = "BFS H3 Duet (pinned panel, all in one)"
+    NODE_CLASS_MAPPINGS["BFSH3DuetConditioning"] = BFSH3DuetConditioning
+    NODE_DISPLAY_NAME_MAPPINGS["BFSH3DuetConditioning"] = "BFS H3 Duet Conditioning (prompt writer)"

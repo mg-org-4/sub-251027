@@ -16,10 +16,18 @@ The panel is cut off before decoding, so it never reaches the output.
 | node | what it does |
 |---|---|
 | **BFS H3 Duet** | Everything in one node: native references + prompt, the pinned panel, an optional latent guide, sampling (euler / beta / CFG 1), decode and crop. Leave `panel` empty for a plain guided render. Outputs the generated video, its audio, the whole canvas (to check the sync) and the layout sentence for the prompt. |
-| **BFS Shot H3 Conditioning** (duet option) | The shot loop's H3 conditioning can pin the shot's own clip as a duet panel too: *duet* = canvas or shifted RoPE (route the model through the node for the shift). BFS Shot Join cuts the panel off by itself, so the rest of the workflow (sampler, decode) stays as it is. |
+| **BFS Shot H3 Conditioning** (duet option) | The shot loop's H3 conditioning can pin the shot's own clip as a duet panel too: *duet* = canvas or shifted RoPE (route the model through the node for the shift). BFS Shot Join cuts the panel off by itself, so the rest of the workflow (sampler, decode) stays as it is. Optional prompt writer: pick a *task* (character swap, style, setting, appearance, lighting / weather, custom) and an *instruction*; with a VLM on its *vlm* input it writes each shot's duet prompt from the shot and its references, otherwise a template for the task (*planner prompt*, the default, keeps the planner's prompt). The written text comes out on *prompt*. Optional *setting_ref* (TSC's tip): one more reference, the shot's middle frame with the person covered in TV static, so the model sees the place in full detail; it is the last `<Picture n>` (write `{setting}` for its tag, otherwise a sentence is added to subject_definitions). |
 | **BFS Shot H3 Duet** | One shot of the shot loop (Planner -> this -> BFS Shot Join): *duet* pins the shot's own clip beside the video (no LoRA needed), *guide* puts the shot on the generated frames as a latent guide (for body-swap LoRAs), *duet + guide* does both. Write `{layout}` in the prompt to insert the split-screen sentence. |
+| **BFS H3 Duet Conditioning (prompt writer)** | Conditioning only, for your own sampler: references + the pinned panel + the prompt. Write your prompt, or connect a VLM (`vlm`, a CLIPLoader with a Qwen3-VL text encoder) and it writes the prompt in the duet format from **task** + **instruction**, looking at the clip and the references (it fills a few fields; the node assembles the six sections). Outputs positive, latent (with the panel's mask), model (RoPE shift applied in shifted mode), panel_info and the prompt used. Chain: → BasicGuider / SamplerCustomAdvanced → **BFS H3 Side Panel Crop** (latent) → VAE Decode. |
 | **BFS H3 Side Panel** | Only the canvas: takes the conditioning and AV latent from Reference to Video, adds the pinned strip (and the guide), and returns them for your own sampler. Guides already added with Add Guide for MiniMax H3 are moved onto the canvas. |
 | **BFS H3 Side Panel Crop** | Removes the strip from the sampled latent (before VAE Decode) or from decoded images. |
+
+## First time?
+
+Click **❓ How to use** on the node: a window with drawings of every setting (panel side, size, contain/cover,
+gap, hold, canvas vs shifted RoPE) and how to write the task, instruction and prompt. The node shows only the main
+settings; *fit, gap, hold, rope_mode, rope_gap, ref_image_size, decode_canvas, guide_frame_idx* are under the
+node's advanced settings, with defaults that work.
 
 ## What to pin
 
@@ -99,6 +107,7 @@ None.
 | hold | pin the panel for the whole clip, or only its first latent frame |
 | guide | optional aligned latent guide in the video area (what the body-swap LoRAs use) |
 | rope_mode | *canvas*: panel and video share one wide grid (TSC). *shifted*: the video keeps the RoPE positions of a render without the panel, and the panel sits past its edge |
+| (prompt in shifted mode) | With *shifted*, `{layout}` becomes "the whole frame shows the generated video, moving in sync with the kept footage": do not describe a split screen there, or the model splits the video itself. *canvas* keeps the split-screen wording and follows the framing more closely (recommended). |
 | rope_gap | *shifted* only: empty RoPE steps (2x2 patches) between video and panel; the panel moves away in position without any pixels in between. Keep it small against the video width: at 320 px wide (10 patches) a gap of 8 made the model draw its own split screen; 0 works everywhere |
 
 ## Notes from tests

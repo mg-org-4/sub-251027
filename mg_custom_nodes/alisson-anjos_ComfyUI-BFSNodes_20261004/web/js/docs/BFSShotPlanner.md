@@ -19,7 +19,7 @@ every shot inside that range.
 | **BFS Shot Planner** | Pick a video, split it on a timeline, set a reference and prompt per shot. Outputs the shots as a ComfyUI **list**. |
 | **BFS Shot Unpack** | Opens one shot into plain values: guide frames, reference, second reference, prompt, length, first frame, audio, size, index. Use it with any model. |
 | **BFS Shot Repack** | Puts edited pieces back into a shot: Unpack's `shot` output goes to Repack's `shot`, the edited piece (e.g. the reference with its background removed) to its input. Unconnected inputs keep their values; timing, cuts and audio are unchanged. |
-| **BFS Shot H3 Conditioning** | Ready-made MiniMax H3 conditioning for one shot, built with the native nodes (Reference to Video + Add Guide). Optional *duet*: the shot's clip pinned in a side panel (canvas or shifted RoPE; route the model through the node for the shift); the join cuts the panel off. |
+| **BFS Shot H3 Conditioning** | Ready-made MiniMax H3 conditioning for one shot, built with the native nodes (Reference to Video + Add Guide). Optional *duet*: the shot's clip pinned in a side panel (canvas or shifted RoPE; route the model through the node for the shift); the join cuts the panel off. Optional prompt writer: pick a *task* (character swap, style, setting, appearance, lighting / weather, custom) and an *instruction*; with a VLM on its *vlm* input it writes each shot's duet prompt from the shot and its references, otherwise a template for the task (*planner prompt*, the default, keeps the planner's prompt). The written text comes out on *prompt*. Optional *setting_ref* (TSC's tip): one more reference, the shot's middle frame with the person covered in TV static, so the model sees the place in full detail; it is the last `<Picture n>` (write `{setting}` for its tag, otherwise a sentence is added to subject_definitions). |
 | **BFS Shot Join** | Concatenates the decoded shots in order, trims each to its true length, cross-fades soft joins and returns the soundtrack. With *comparison* on it also returns a side-by-side video (original shot \| references \| result) with the shot's info and your *label* on top and its prompt below, ready for Create Video. |
 | **BFS Shot H3 Duet** | Renders one shot with H3: the shot's clip pinned beside the video (duet, no LoRA), the shot as an aligned guide (for body-swap LoRAs), or both. |
 
@@ -61,6 +61,14 @@ camera cuts.
 
 *Max seconds / shot* is converted to frames and snapped down to the grid (4.5 s at 24 fps =
 107 frames for H3). *Max shots* and *Max total seconds* cap a long source.
+
+## Audio
+
+The source card shows whether the video has a usable audio track (rate, channels) or why not. *Use the
+video's audio* or *silent track*. Without a usable track (none, unreadable, or silent chosen) the planner's
+`audio`, BFS Shot Join's `audio` and the H3 Duet nodes return a **silent track of the right length** instead
+of nothing, so Create Video / Save Video always work. Audio is read with ffmpeg, or with PyAV when the ffmpeg
+binary is missing.
 
 ## Preview
 
@@ -147,6 +155,39 @@ framing, action) and whether to run it. In the **VLM** card: *Use the VLM when t
 suggestions at run time (mask text for shots without one; `{shot}` in a prompt becomes that shot's
 description), *Analyse shots* asks from the panel (after one run with the VLM connected), and each shot's
 editor shows its suggestion with buttons to apply it. The summary output lists them too.
+
+## Describe references ({details})
+
+The VLM can describe the references, for any task (not tied to swaps). In the **VLM** card pick an instruction
+preset: *full body* (face, hair, skin, age, build, clothing piece by piece), *head / face*, *face attributes* (a
+short comma-separated list), *outfit*, or *custom* (your own instruction). **📝 Describe refs** writes one
+description per reference set: the global references, every shot's and every cast person's. They are saved in
+the plan and editable. Write **`{details}`** anywhere in a prompt and every shot gets the description of its own
+references; a set without a description is described by the VLM at run time.
+
+The VLM buttons in the panel work after the workflow has run once with the VLM connected (ComfyUI only hands
+models to nodes when they run). Tested with Qwen3-VL 8B; some smaller or modified models return empty answers
+for some wordings: the planner retries with a reworded request and with sampling, but if a preset stays empty,
+use the 8B or another preset.
+
+## Settings reference
+
+Every setting in the panel has a hover tooltip (ⓘ). The main ones:
+
+| setting | what it does |
+|---|---|
+| Mode | Camera cuts (shots start at cuts, long ones split evenly) or fixed length |
+| Detector / Sensitivity | PySceneDetect adaptive or content, or the built-in one; higher sensitivity finds more cuts |
+| Frame grid | frame counts the model accepts (H3 17n+5, LTX/Wan 8n+1, Wan 4n+1) |
+| Max / Min seconds per shot | longest shot sent to the model; shorter shots merge into a neighbour |
+| Timeline fps | the frame rate the planner works on (generation and audio use it) |
+| Max shots / Max total seconds | test on the first shots or seconds only |
+| Megapixels / Size multiple | generation size at the source's aspect ratio, snapped to the multiple |
+| Run | auto loop (all shots in one run) or queue loop (one shot per run, stored on disk) |
+| Skipped shots in the output | keep the original video there or remove those shots |
+| Mask: padding / expand / feather / temporal expand / blockify | crop context, paste-back growth and softness, flicker hold, square blocks |
+| Mask: threshold / max objects / paste back | SAM 3 text matching, objects tracked, paste only the mask or the whole box |
+| VLM: frames per shot / max tokens | how much the VLM sees and how long it may answer |
 
 ## Continuity between shots
 

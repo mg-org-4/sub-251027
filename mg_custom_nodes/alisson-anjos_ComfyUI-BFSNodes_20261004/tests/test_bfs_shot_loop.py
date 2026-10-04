@@ -299,6 +299,16 @@ class DuetPanelCropTest(unittest.TestCase):
         self.assertIs(SL.crop_panel(canvas, {"width": 64}), canvas)  # no panel
 
 
+class SilentAudioTest(unittest.TestCase):
+    def test_join_without_audio_returns_a_silent_track(self):
+        imgs = [torch.full((39, 8, 8, 3), 0.5)]
+        video, a, fps = SL.BFSShotJoin()._join_all(imgs, [_shot(0, 0, 24, gen=39)], [0])
+        self.assertEqual(tuple(a["waveform"].shape[:2]), (1, 2))
+        self.assertEqual(a["waveform"].shape[-1], 44100)        # 24 frames at 24 fps = 1 s
+        self.assertEqual(float(a["waveform"].abs().max()), 0.0)
+        self.assertFalse(SL._usable({"waveform": torch.zeros(1, 2, 0), "sample_rate": 44100}))
+
+
 class RepackTest(unittest.TestCase):
     def test_replaces_only_connected_pieces_and_fits_the_guide(self):
         shot = dict(_shot(0, 0, 20, gen=22), width=8, height=8, frames=torch.zeros(22, 8, 8, 3),
@@ -312,6 +322,90 @@ class RepackTest(unittest.TestCase):
         self.assertEqual(tuple(out["frames"].shape), (22, 8, 8, 3))
         self.assertEqual(out["prompt"], "new")
         self.assertEqual(out["length"], 20)
+
+
+class ConditioningWriterTest(unittest.TestCase):
+    """The optional prompt writer of BFS Shot H3 Conditioning (template path, no models)."""
+
+    def setUp(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        import bfs_h3_side_panel as SP
+        self.SP, self.seen = SP, {}
+        seen = self.seen
+
+        class R2V:
+            @staticmethod
+            def execute(**kw):
+                seen["prompt"] = kw["prompt"]
+                return types.SimpleNamespace(args=("pos", "lat"))
+
+        mod = types.ModuleType("comfy_extras.nodes_minimax_h3")
+        mod.MiniMaxH3ReferenceToVideo, mod.MiniMaxH3AddGuide = R2V, R2V
+        self._old = {k: sys.modules.get(k) for k in ("comfy_extras", "comfy_extras.nodes_minimax_h3")}
+        sys.modules["comfy_extras"] = types.ModuleType("comfy_extras")
+        sys.modules["comfy_extras.nodes_minimax_h3"] = mod
+        self._apply = SP.BFSH3SidePanel.apply
+        SP.BFSH3SidePanel.apply = lambda self, pos, lat, *a, **k: (pos, lat, {"position": "left"}, None, None)
+        self._patch = SP.patch_model_rope
+        SP.patch_model_rope = lambda m, info, gap: "patched"
+
+    def tearDown(self):
+        self.SP.BFSH3SidePanel.apply, self.SP.patch_model_rope = self._apply, self._patch
+        for k, v in self._old.items():
+            if v is None:
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = v
+
+    def _shot(self):
+        return dict(prompt="my own {layout} prompt", width=448, height=800, gen_length=22,
+                    frames=torch.zeros(22, 8, 8, 3), ref=torch.zeros(1, 4, 4, 3), ref2=None, audio=None)
+
+    def _run(self, **kw):
+        c = SL.BFSShotH3Conditioning()
+        return c.condition(self._shot(), "clip", "vae", "none", True, "none", "match", **kw)
+
+    def test_planner_prompt_is_default_and_layout_filled(self):
+        out = self._run()
+        self.assertEqual(out[3], "my own prompt")
+        out = self._run(duet="canvas")
+        self.assertIn("LEFT half is the kept footage", out[3])
+        self.assertEqual(self.seen["prompt"], out[3])
+
+    def test_task_template_follows_the_duet_mode(self):
+        out = self._run(duet="canvas", task="character swap")
+        self.assertIn("split screen", out[3])
+        self.assertIn("<Picture 1>", out[3])
+        out = self._run(duet="shifted RoPE", model="m", task="character swap")
+        self.assertNotIn("split screen", out[3])
+        self.assertEqual(out[2], "patched")
+
+    def test_setting_picture_is_the_last_reference_with_static(self):
+        seen = {}
+        orig = sys.modules["comfy_extras.nodes_minimax_h3"].MiniMaxH3ReferenceToVideo.execute
+
+        def capture(**kw):
+            seen.update(kw)
+            return orig(**kw)
+        sys.modules["comfy_extras.nodes_minimax_h3"].MiniMaxH3ReferenceToVideo.execute = staticmethod(capture)
+        shot = self._shot()
+        shot["frames"] = torch.full((22, 8, 8, 3), 0.5)
+        mask = torch.zeros(22, 8, 8)
+        mask[:, 2:4, 2:4] = 1
+        out = SL.BFSShotH3Conditioning().condition(shot, "clip", "vae", "none", True, "none", "match", duet="canvas",
+                                                    task="character swap", setting_ref="on (generation size)",
+                                                    setting_mask=mask)
+        refs = list(seen["ref_images"].values())
+        self.assertEqual(len(refs), 2)
+        pic = refs[-1][0]
+        self.assertTrue(((pic[3, 3] == 0) | (pic[3, 3] == 1)).all())      # static inside the (grown) mask
+        self.assertTrue(torch.allclose(pic[7, 7], torch.tensor(0.5)))   # the place outside it
+        self.assertIn("<Picture 2> shows the setting", out[3])
+        self.assertEqual(SL.add_setting("a {setting} b", 3, True), "a <Picture 3> b")
+
+    def test_task_needs_duet(self):
+        with self.assertRaises(ValueError):
+            self._run(task="style", instruction="anime")
 
 
 if __name__ == "__main__":

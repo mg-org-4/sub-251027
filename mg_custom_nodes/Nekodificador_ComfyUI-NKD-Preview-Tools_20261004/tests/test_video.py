@@ -122,8 +122,8 @@ def test_odd_dimensions_are_cropped_to_even_for_yuv420p():
 def test_prores_profiles_pick_the_right_pixel_format():
     """The profile IS the quality setting for ProRes, and only 4444 carries alpha.
 
-    Also settles, by measurement, whether alpha survives here - it does NOT through vp9, and
-    guessing either way would be exactly the mistake that test pins down.
+    Also settles, by measurement, that alpha survives here; guessing either way would be
+    exactly the mistake that test pins down.
     """
     rgba = ramp(4, channels=4)
     rgba[:, :, :24, 3] = 0.0                          # left half transparent
@@ -141,11 +141,72 @@ def test_prores_profiles_pick_the_right_pixel_format():
                 frame = next(c.decode(video=0)).to_ndarray(format="rgba")
             left, right = int(frame[0, 0, 3]), int(frame[0, 40, 3])
             if profile == "4444":
-                # The pack's ONE working alpha path. vp9 loses it; this keeps it.
                 assert left < 16 and right > 240, (profile, left, right)
             else:
                 assert left > 240, (profile, "alpha where the profile has no plane")
     print("  ok  test_prores_profiles_pick_the_right_pixel_format")
+
+
+def test_trim_cuts_only_the_saved_file():
+    """A trim writes just those frames (and that stretch of audio); the VIDEO output and
+    the player keep the whole clip, so the brackets can be dragged back out."""
+    import json as J
+
+    import folder_paths
+    import nkd_video
+    from nkd_video import parse_trim, trim_audio
+
+    assert parse_trim("", 10) is None
+    assert parse_trim(J.dumps({"in": 0, "out": 9}), 10) is None      # the whole clip
+    assert parse_trim(J.dumps({"in": 7, "out": 2}), 10) == (2, 7)    # dragged past
+    assert parse_trim(J.dumps({"in": -3, "out": 99}), 10) is None
+    wave = {"waveform": torch.arange(48000.0).view(1, 1, -1), "sample_rate": 48000}
+    cut = trim_audio(wave, 12, 23, 24.0)["waveform"]          # the second half-second
+    assert cut.shape[-1] == 24000 and cut[0, 0, 0] == 24000
+
+    class FakeHidden:
+        unique_id = "12"
+        extra_pnginfo = None
+        prompt = None
+
+    node = nkd_video.NKDVideoViewer
+    with tempfile.TemporaryDirectory() as out, tempfile.TemporaryDirectory() as tmp:
+        orig, orig_tmp = folder_paths.get_output_directory, folder_paths.get_temp_directory
+        folder_paths.get_output_directory = lambda: out
+        folder_paths.get_temp_directory = lambda: tmp
+        node.hidden = FakeHidden()
+        try:
+            r = node.execute(images=ramp(6), fps=24.0,
+                             format={"format": "mp4 / h264", "crf": 30.0},
+                             filename_prefix="t/clip", save_output=True,
+                             versioning="off", numbering="none",
+                             trim=J.dumps({"in": 1, "out": 3}))
+            meta = r.ui.as_dict()["nkd_meta"][0]
+            assert probe(r.result[1])["frames"] == 3
+            assert meta["frame_count"] == 6 and meta["saved_frames"] == 3
+            player = os.path.join(tmp, "t", meta["player"]["filename"])
+            assert meta["player"]["type"] == "temp" and probe(player)["frames"] == 6
+            assert r.result[0].get_components().images.shape[0] == 6
+            assert sorted(os.listdir(os.path.join(out, "t"))) == ["clip.mp4"]
+        finally:
+            node.hidden = None
+            folder_paths.get_output_directory, folder_paths.get_temp_directory = orig, orig_tmp
+            nkd_video._ENCODED.clear()
+    print("  ok  test_trim_cuts_only_the_saved_file")
+
+
+def test_prores_keeps_more_than_8_bits():
+    """ProRes gets 16-bit input, so a ramp finer than 8-bit steps survives in the file."""
+    ramp16 = torch.linspace(0.40, 0.41, 64).view(1, 1, 64, 1).expand(2, 32, 64, 3).contiguous()
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "deep.mov")
+        encode_video(ramp16, path, FORMATS["mov / prores"], 24.0, 0, None, None, None, None,
+                     profile="hq")
+        with av.open(path) as c:
+            row = next(c.decode(video=0)).to_ndarray(format="rgb48le")[16, :, 1]
+    # 0.40..0.41 spans ~2.5 8-bit codes; a 10-bit path keeps several times more levels.
+    assert len(set(row.tolist())) > 6, sorted(set(row.tolist()))
+    print("  ok  test_prores_keeps_more_than_8_bits")
 
 
 def test_pingpong_doubles_the_clip_minus_the_shared_ends():
@@ -228,14 +289,21 @@ def test_opus_resamples_rather_than_refusing():
     print("  ok  test_opus_resamples_rather_than_refusing")
 
 
-def test_rgba_input_encodes_cleanly_with_alpha_flattened():
-    """RGBA must not crash either codec, and the alpha is knowingly dropped.
+def read_rgba(path):
+    """First frame as RGBA. vp9 goes through libvpx: FFmpeg's built-in vp9 decoder drops
+    the alpha plane, which once made it look like the encoder did."""
+    with av.open(path) as c:
+        stream = c.streams.video[0]
+        if stream.codec_context.name == "vp9":
+            dec = av.CodecContext.create("libvpx-vp9", "r")
+            frame = next(f for p in c.demux(stream) for f in dec.decode(p))
+        else:
+            frame = next(c.decode(stream))
+        return frame.to_ndarray(format="rgba")
 
-    Pins the measured reality rather than the hoped-for one: WebM's vp9 alpha plane lives
-    in BlockAdditional, which only the ffmpeg CLI assembles, so nothing PyAV can express
-    round-trips it. If a future PyAV changes that, this test fails and the claim gets
-    revisited on purpose.
-    """
+
+def test_rgba_keeps_alpha_on_vp9_and_flattens_on_h264():
+    """vp9 writes `yuva420p` and the alpha comes back; h264 has no plane and drops it."""
     rgba = ramp(6, channels=4)
     rgba[:, :, :24, 3] = 0.0                          # left half fully transparent
     with tempfile.TemporaryDirectory() as d:
@@ -243,10 +311,68 @@ def test_rgba_input_encodes_cleanly_with_alpha_flattened():
             path = os.path.join(d, "a." + FORMATS[key]["ext"])
             encode_video(rgba, path, FORMATS[key], 24.0, 30.0, "veryfast", None, None, None)
             assert probe(path)["frames"] == 6, key
-            with av.open(path) as c:
-                frame = next(c.decode(video=0)).to_ndarray(format="rgba")
-            assert frame[0, 0, 3] == 255, (key, "alpha unexpectedly survived - revisit")
-    print("  ok  test_rgba_input_encodes_cleanly_with_alpha_flattened")
+            frame = read_rgba(path)
+            if key == "webm / vp9":
+                assert frame[0, 0, 3] < 16 and frame[0, 40, 3] > 240, (key, frame[0, :, 3])
+            else:
+                assert frame[0, 0, 3] == 255, key
+    print("  ok  test_rgba_keeps_alpha_on_vp9_and_flattens_on_h264")
+
+
+def test_execute_gives_rgba_clips_a_transparent_preview():
+    """An RGBA clip in a format the browser can't show transparent gets `<stem>.alpha.webm`
+    beside it; a vp9 render points at itself; plain RGB gets nothing."""
+    import folder_paths
+    import nkd_video
+
+    class FakeHidden:
+        unique_id = "11"
+        extra_pnginfo = None
+        prompt = None
+
+    rgba = ramp(4, channels=4)
+    rgba[:, :, :24, 3] = 0.0
+    node = nkd_video.NKDVideoViewer
+    with tempfile.TemporaryDirectory() as out, tempfile.TemporaryDirectory() as tmp:
+        orig = folder_paths.get_output_directory
+        orig_tmp = folder_paths.get_temp_directory
+        folder_paths.get_output_directory = lambda: out
+        folder_paths.get_temp_directory = lambda: tmp
+        node.hidden = FakeHidden()
+        try:
+            def go(images, fmt, name):
+                r = node.execute(images=images, fps=24.0, format=fmt,
+                                 filename_prefix=f"a/{name}", save_output=True,
+                                 versioning="off", numbering="none")
+                return r, r.ui.as_dict()["nkd_meta"][0]
+
+            for fmt, name in (({"format": "mp4 / h264", "crf": 30.0}, "h"),
+                              ({"format": "mov / prores", "profile": "hq"}, "p")):
+                r, meta = go(rgba, fmt, name)
+                item = meta["player"]
+                assert item == {"filename": f"{name}.preview.webm", "subfolder": "a",
+                                "type": "temp"}, item
+                assert meta["transparent"] is True
+                frame = read_rgba(os.path.join(tmp, "a", item["filename"]))
+                assert frame[0, 0, 3] < 16 and frame[0, 40, 3] > 240
+                # The twin plays instead, so no poster - not even for ProRes.
+                assert meta["poster"] is None, meta["poster"]
+                video = r.result[0].get_components()
+                assert video.images.shape[-1] == 3 and video.alpha.shape[-1] == 1
+
+            _, meta = go(rgba, {"format": "webm / vp9", "crf": 30.0}, "v")
+            assert meta["player"]["filename"] == "v.webm", meta["player"]
+
+            _, meta = go(ramp(4), {"format": "mp4 / h264", "crf": 30.0}, "rgb")
+            assert meta["player"] is None
+            # output/ holds the renders and nothing else.
+            assert sorted(os.listdir(os.path.join(out, "a"))) ==                 ["h.mp4", "p.mov", "rgb.mp4", "v.webm"], os.listdir(os.path.join(out, "a"))
+        finally:
+            node.hidden = None
+            folder_paths.get_output_directory = orig
+            folder_paths.get_temp_directory = orig_tmp
+            nkd_video._ENCODED.clear()
+    print("  ok  test_execute_gives_rgba_clips_a_transparent_preview")
 
 
 def test_gif_shares_one_palette_across_the_whole_clip():
@@ -548,9 +674,11 @@ def test_execute_wires_up_every_format():
     }
     assert set(opts) == set(FORMATS), "a format was added without a case here"
 
-    with tempfile.TemporaryDirectory() as out:
+    with tempfile.TemporaryDirectory() as out, tempfile.TemporaryDirectory() as tmp:
         orig = folder_paths.get_output_directory
+        orig_tmp = folder_paths.get_temp_directory
         folder_paths.get_output_directory = lambda: out
+        folder_paths.get_temp_directory = lambda: tmp
         try:
             for key, extra in opts.items():
                 r = nkd_video.NKDVideoViewer.execute(
@@ -578,10 +706,16 @@ def test_execute_wires_up_every_format():
                 needs_poster = FORMATS[key]["poster"]
                 assert bool(meta["poster"]) == needs_poster, (key, meta["poster"])
                 if needs_poster:
-                    on_disk = os.path.join(out, shown["subfolder"], meta["poster"])
+                    # A preview artefact: temp/, never next to the render in output/.
+                    poster = meta["poster"]
+                    assert poster["type"] == "temp", (key, poster)
+                    on_disk = os.path.join(tmp, poster["subfolder"], poster["filename"])
                     assert os.path.isfile(on_disk), (key, on_disk)
+            leftovers = [f for _, _, fs in os.walk(out) for f in fs if "poster" in f]
+            assert not leftovers, leftovers
         finally:
             folder_paths.get_output_directory = orig
+            folder_paths.get_temp_directory = orig_tmp
             nkd_video._ENCODED.clear()
     print("  ok  test_execute_wires_up_every_format")
 

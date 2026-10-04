@@ -43,8 +43,8 @@ export interface VideoInfo {
   preview: "video" | "image" | "none";
   /** MIME + codec string to ask `canPlayType` about, when `preview` is "video". */
   mime?: string | null;
-  /** Fallback still, relative to the same subfolder, when the browser cannot play it. */
-  poster?: string | null;
+  /** Fallback still (in temp/), when the browser cannot play the render. */
+  poster?: MediaRef | null;
   format: string;
   size: number;
   /** Absolute path on the server, for the copy button. */
@@ -56,7 +56,19 @@ export interface VideoInfo {
   reference?: MediaRef | null;
   /** The `_labeled` review copy (always h264/mp4), when any widgets are tracked. */
   labeled?: MediaRef | null;
+  /** What the player plays instead of the render: the whole clip while a trim is set,
+   *  or a transparent vp9 copy where the format can't show alpha. */
+  player?: MediaRef | null;
+  /** The player copy carries alpha: show it over a checkerboard. */
+  transparent?: boolean;
+  /** Frames written to disk; fewer than `frame_count` while a trim is set. */
+  saved_frames?: number;
 }
+
+/** Canvas px around a trim bracket that grab it instead of seeking. */
+const TRIM_HIT = 7;
+
+const VP9 = 'video/webm; codecs="vp9"';
 
 /** Tallest the picture is allowed to get, in logical px. Widening the node must NOT grow
  *  the monitor - same reasoning, and same number, as the timeline's preview. */
@@ -94,6 +106,7 @@ export class VideoViewer {
   private readonly still: HTMLImageElement;   // GIF has no seekable stream; show it as-is
   private readonly scrub: HTMLCanvasElement;
   private readonly status: HTMLElement;
+  private readonly bar: HTMLElement;
   private readonly playBtn: HTMLButtonElement;
   private readonly loopBtn: HTMLButtonElement;
   private readonly muteBtn: HTMLButtonElement;
@@ -136,6 +149,13 @@ export class VideoViewer {
    *  download button and the path line keep pointing at the render. */
   private showLabels = false;
   private labelsBtn: HTMLButtonElement;
+  /** In/out frames of the stretch that gets SAVED (inclusive); -1 out = the last frame.
+   *  Stored in the node's hidden `trim` widget: it changes what is written to disk. */
+  private trimIn = 0;
+  private trimOut = -1;
+  private trimDrag: "in" | "out" | null = null;
+  /** Called with the `trim` widget's new value, "" when every frame is kept. */
+  onTrim: ((value: string) => void) | null = null;
   /** Persisted on the node, not in a widget: what the viewer is doing does not change what
    *  the graph produces, and an input would re-encode the video on every toggle. */
   onState: ((s: { loop: boolean; muted: boolean; compare: CompareMode;
@@ -168,7 +188,7 @@ export class VideoViewer {
 
     this.scrub = el("canvas", "nkd-vid-scrub", this.root);
 
-    const bar = el("div", "nkd-tl-bar", this.root);
+    const bar = this.bar = el("div", "nkd-tl-bar nkd-vid-bar", this.root);
     this.playBtn = button(bar, "pi pi-play", "Play / pause (Space)", () => this.toggle());
     button(bar, "pi pi-step-backward", "Previous frame (←)", () => this.step(-1));
     button(bar, "pi pi-step-forward", "Next frame (→)", () => this.step(1));
@@ -245,7 +265,13 @@ export class VideoViewer {
     const labeled = info.labeled ?? null;
     this.labelsBtn.style.display = labeled ? "" : "none";
     this.labelsBtn.classList.toggle("on", this.showLabels && !!labeled);
-    this.shown = this.showLabels && labeled ? labeled : ref;
+    // The player's own copy when the backend made one (the whole clip under a trim, or a
+    // transparent vp9 one), as long as this browser decodes it. The labeled review copy
+    // still wins when asked for.
+    const player = info.player && (!info.transparent || this.video.canPlayType(VP9) !== "")
+      ? info.player : null;
+    this.shown = this.showLabels && labeled ? labeled : player ?? ref;
+    this.stage.classList.toggle("nkd-vid-alpha", this.shown === player && !!info.transparent);
     const url = viewUrl(this.shown);
     this.link.href = viewUrl(ref);
     this.link.setAttribute("download", ref.filename);
@@ -275,9 +301,7 @@ export class VideoViewer {
       this.video.load();
       this.video.style.display = "none";
       this.still.style.display = "";
-      this.still.src = info.poster
-        ? viewUrl({ ...ref, filename: info.poster })
-        : url;
+      this.still.src = info.poster ? viewUrl(info.poster) : url;
     }
     // The path line and the download button always point at the RENDER, never at the
     // poster: the poster is a preview artefact, not the thing that was asked for.
@@ -510,6 +534,70 @@ export class VideoViewer {
     }, 2000);
   }
 
+  /** The trim brackets only make sense on the clip they cut: not on the labeled copy,
+   *  which is already the trimmed file. */
+  private get trimmable(): boolean {
+    return this.playable && !!this.info && this.shown !== this.info.labeled;
+  }
+
+  /**
+   * The width the controls need to sit on ONE line: their own widths plus the gaps, the
+   * separators and the bar's padding. Summed from the children rather than read off the bar,
+   * whose width is just whatever the node gives it. The readout lives on its own line, so it
+   * doesn't count, and neither does the folder button's auto margin.
+   */
+  barMinWidth(): number {
+    const kids = (Array.from(this.bar.children) as HTMLElement[])
+      .filter((k) => k !== this.status && k.offsetWidth > 0);
+    const css = getComputedStyle(this.bar);
+    const px = (v: string) => parseFloat(v) || 0;
+    let sum = px(css.paddingLeft) + px(css.paddingRight)
+      + px(css.borderLeftWidth) + px(css.borderRightWidth)
+      + px(css.columnGap) * Math.max(0, kids.length - 1);
+    for (const k of kids) {
+      sum += k.offsetWidth;
+      if (!k.querySelector(".pi-folder-open")) sum += px(getComputedStyle(k).marginLeft);
+    }
+    return Math.ceil(sum);
+  }
+
+  private get lastFrame(): number { return Math.max(0, (this.info?.frame_count ?? 1) - 1); }
+
+  private get range(): [number, number] {
+    const last = this.lastFrame;
+    const b = this.trimOut < 0 ? last : Math.min(this.trimOut, last);
+    return [Math.min(this.trimIn, b), b];
+  }
+
+  /** Restore the brackets from the `trim` widget. */
+  setTrim(value: string): void {
+    try {
+      const d = value ? JSON.parse(value) : null;
+      this.trimIn = Math.max(0, Math.round(d?.in ?? 0));
+      this.trimOut = d ? Math.round(d.out) : -1;
+    } catch {
+      this.trimIn = 0;
+      this.trimOut = -1;
+    }
+    this.draw();
+  }
+
+  private emitTrim(): void {
+    const [a, b] = this.range;
+    const whole = a === 0 && b === this.lastFrame;
+    if (whole) { this.trimIn = 0; this.trimOut = -1; }
+    this.onTrim?.(whole ? "" : JSON.stringify({ in: a, out: b }));
+    this.draw();
+  }
+
+  /** Put the in (or out) bracket on frame `f`, pushing the other one if it is in the way. */
+  private setBracket(which: "in" | "out", f: number): void {
+    const [a, b] = this.range;
+    f = Math.max(0, Math.min(this.lastFrame, f));
+    if (which === "in") { this.trimIn = f; this.trimOut = Math.max(b, f); }
+    else { this.trimOut = f; this.trimIn = Math.min(a, f); }
+  }
+
   private step(delta: number): void {
     if (!this.playable) return;
     this.video.pause();
@@ -553,6 +641,7 @@ export class VideoViewer {
     if (this.showLabels && this.info?.labeled) {
       return this.video.canPlayType('video/mp4; codecs="avc1.42E01E"') !== "";
     }
+    if (this.shown && this.shown === this.info?.player) return true;  // checked in setSource
     if (this.info?.preview !== "video") return false;
     const mime = this.info.mime;
     if (!mime) return true;
@@ -569,7 +658,20 @@ export class VideoViewer {
   }
 
   private wire(): void {
+    // While a trim is set, playback stays inside it and loops there, so what you watch is
+    // what gets saved.
+    const keepInRange = () => {
+      if (!this.trimmable || this.video.paused) return;
+      const [a, b] = this.range;
+      if (a === 0 && b === this.lastFrame) return;
+      const f = Math.floor(this.video.currentTime * this.fps + 1e-4);
+      if (f > b || f < a) {
+        if (f > b && !this.video.loop) { this.video.pause(); this.seekFrame(b); return; }
+        this.video.currentTime = (a + 0.5) / this.fps;
+      }
+    };
     const tick = () => {
+      keepInRange();
       this.draw();
       this.syncReference();
       this.raf = this.video.paused ? 0 : requestAnimationFrame(tick);
@@ -578,6 +680,7 @@ export class VideoViewer {
       // Playing is not seeking: drop any pending target so `frame` reads the live time
       // again, or the readout would freeze on wherever the last scrub left it.
       this.want = -1;
+      keepInRange();
       this.syncButtons();
       if (!this.raf) this.raf = requestAnimationFrame(tick);
     });
@@ -604,17 +707,52 @@ export class VideoViewer {
       // PENDING position, so it tracks the pointer even while the decode is catching up.
       this.draw();
     };
+    /** The bracket under the pointer, if any: the nearer one when both are close. */
+    const bracketAt = (e: MouseEvent): "in" | "out" | null => {
+      if (!this.trimmable) return null;
+      const r = this.scrub.getBoundingClientRect();
+      const x = (e.clientX - r.left) * (this.scrub.clientWidth / Math.max(1, r.width));
+      const [xa, xb] = this.range.map((f) => this.frameX(f, this.scrub.clientWidth));
+      const da = Math.abs(x - xa), db = Math.abs(x - xb);
+      if (Math.min(da, db) > TRIM_HIT) return null;
+      return da < db || (da === db && x < xa) ? "in" : "out";
+    };
+    const frameAt = (e: PointerEvent) => {
+      const r = this.scrub.getBoundingClientRect();
+      const t = Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width)));
+      return Math.round(t * this.lastFrame);
+    };
+    // Dragging a bracket shows the frame it sits on: the first (or last) one saved.
+    const moveBracket = (e: PointerEvent) => {
+      this.setBracket(this.trimDrag!, frameAt(e));
+      this.seekFrame(frameAt(e));
+      this.draw();
+    };
     this.scrub.addEventListener("pointerdown", (e) => {
       if (!this.playable) return;
-      this.dragging = true;
+      this.trimDrag = bracketAt(e);
+      this.dragging = !this.trimDrag;
       this.scrub.setPointerCapture(e.pointerId);
       this.video.pause();
-      at(e);
+      if (this.trimDrag) moveBracket(e); else at(e);
     });
-    this.scrub.addEventListener("pointermove", (e) => { if (this.dragging) at(e); });
+    this.scrub.addEventListener("pointermove", (e) => {
+      if (this.trimDrag) moveBracket(e);
+      else if (this.dragging) at(e);
+      else this.scrub.style.cursor = bracketAt(e) ? "ew-resize" : "";
+    });
     this.scrub.addEventListener("pointerup", (e) => {
+      if (this.trimDrag) this.emitTrim();
+      this.trimDrag = null;
       this.dragging = false;
       this.scrub.releasePointerCapture(e.pointerId);
+    });
+    // Double-click a bracket to send it back to its end of the clip.
+    this.scrub.addEventListener("dblclick", (e) => {
+      const which = bracketAt(e);
+      if (!which) return;
+      if (which === "in") this.trimIn = 0; else this.trimOut = -1;
+      this.emitTrim();
     });
 
     // Dragging the divider. On the STAGE, not the divider itself: a 2 px line is a
@@ -670,6 +808,12 @@ export class VideoViewer {
       else if (k === "j") { this.shuttle(-1); handled(); }
       else if (k === "k") { this.video.pause(); this.syncButtons(); handled(); }
       else if (k === "home") { this.seekFrame(0); handled(); }
+      // I and O, as in any editor: the in or out of the saved stretch, on the playhead.
+      else if ((k === "i" || k === "o") && this.trimmable) {
+        this.setBracket(k === "i" ? "in" : "out", this.frame);
+        this.emitTrim();
+        handled();
+      }
       else if (k === "end") { this.seekFrame(Number.MAX_SAFE_INTEGER); handled(); }
     });
 
@@ -716,7 +860,9 @@ export class VideoViewer {
   private buildStrip(w: number, dpr: number): HTMLCanvasElement {
     const info = this.info!;
     const duration = info.frame_count / this.fps;
-    const step = 48;
+    // One frame per slot at the clip's own proportions. A fixed slot squeezed every frame
+    // into it, so a 16:9 clip came out narrow and stretched tall.
+    const step = Math.max(16, Math.round(SCRUB_H * info.width / Math.max(1, info.height)));
     const columns = Math.ceil(w / step);
     // Cheap proxy for "how many stills exist now": sample the columns we are about to draw.
     let have = 0;
@@ -745,6 +891,31 @@ export class VideoViewer {
     return this.strip;
   }
 
+  private frameX(f: number, w: number): number {
+    return (f / Math.max(1, this.lastFrame)) * w;
+  }
+
+  /** What falls outside the saved stretch is dimmed; the brackets mark its ends. */
+  private drawTrim(ctx: CanvasRenderingContext2D, w: number): void {
+    const [a, b] = this.range;
+    const xa = this.frameX(a, w), xb = this.frameX(b, w);
+    const cut = a > 0 || b < this.lastFrame;
+    if (cut) {
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, 0, xa, SCRUB_H);
+      ctx.fillRect(xb, 0, w - xb, SCRUB_H);
+    }
+    ctx.fillStyle = cut ? "#ffd166" : "rgba(255,209,102,0.55)";
+    const bracket = (x: number, dir: 1 | -1) => {
+      const x0 = Math.round(x) - (dir > 0 ? 0 : 3);
+      ctx.fillRect(x0, 0, 3, SCRUB_H);
+      ctx.fillRect(dir > 0 ? x0 : x0 - 4, 0, 7, 3);
+      ctx.fillRect(dir > 0 ? x0 : x0 - 4, SCRUB_H - 3, 7, 3);
+    };
+    bracket(xa, 1);
+    bracket(xb, -1);
+  }
+
   draw(): void {
     const dpr = window.devicePixelRatio || 1;
     const w = this.scrub.clientWidth || 1;
@@ -767,9 +938,10 @@ export class VideoViewer {
     if (this.shown && this.playable) {
       ctx.drawImage(this.buildStrip(w, dpr), 0, 0, w, SCRUB_H);
 
-      const px = (this.frame / Math.max(1, info.frame_count - 1)) * w;
+      const px = this.frameX(this.frame, w);
       ctx.fillStyle = "rgba(74,180,255,0.20)";
       ctx.fillRect(0, 0, px, SCRUB_H);
+      if (this.trimmable) this.drawTrim(ctx, w);
       ctx.fillStyle = "#4ab4ff";
       ctx.fillRect(Math.round(px) - 1, 0, 2, SCRUB_H);
     } else {
@@ -787,9 +959,12 @@ export class VideoViewer {
 
     const rate = this.video.playbackRate !== 1 && !this.video.paused
       ? ` · ${this.video.playbackRate}x` : "";
+    const [ta, tb] = this.range;
+    const trimNote = this.trimmable && (ta > 0 || tb < this.lastFrame)
+      ? ` · saves ${ta}–${tb} (${tb - ta + 1} f)` : "";
     this.status.textContent = this.playable
       ? `f ${this.frame} / ${info.frame_count - 1} · ${info.fps.toFixed(2)} fps · `
-        + `${info.width}x${info.height} · ${humanSize(info.size)}${rate}`
+        + `${info.width}x${info.height} · ${humanSize(info.size)}${rate}${trimNote}`
       : `${info.frame_count} frames · ${info.width}x${info.height} · ${humanSize(info.size)}`;
   }
 

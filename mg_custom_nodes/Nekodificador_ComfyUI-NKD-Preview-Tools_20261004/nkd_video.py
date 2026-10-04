@@ -195,7 +195,7 @@ FORMATS = {
 
 # prores_ks profile numbers, straight from ffmpeg.
 #
-# **4444 is the pack's only working alpha path.**
+# **4444 is the only profile with an alpha plane** (vp9 is the pack's other alpha path).
 #
 # The pixel format here is what the encoder is ASKED for, which is not what ends up in the
 # file, and asking for the stored one directly fails to open. So this is the value that has
@@ -268,6 +268,27 @@ def remember_render(node_key: str, images, audio_wave, settings: tuple, ext: str
     }
 
 
+def parse_trim(text: str, frames: int) -> tuple[int, int] | None:
+    """The `trim` widget's `{"in": a, "out": b}` (inclusive frames) clamped to the clip,
+    or None when it keeps every frame."""
+    try:
+        data = json.loads(text) if text else None
+        a, b = int(data["in"]), int(data["out"])
+    except (ValueError, TypeError, KeyError):
+        return None
+    a, b = sorted((max(0, min(frames - 1, a)), max(0, min(frames - 1, b))))
+    return None if (a, b) == (0, frames - 1) else (a, b)
+
+
+def trim_audio(audio: dict | None, a: int, b: int, fps: float) -> dict | None:
+    """The stretch of `audio` under frames a..b."""
+    if not isinstance(audio, dict) or audio.get("waveform") is None:
+        return audio
+    rate = audio["sample_rate"]
+    s0, s1 = round(a * rate / fps), round((b + 1) * rate / fps)
+    return {**audio, "waveform": audio["waveform"][..., s0:s1]}
+
+
 def _decompose(media):
     """(images, audio, fps or None) out of an IMAGE, a MASK or a VIDEO.
 
@@ -326,6 +347,12 @@ def _to_u8(frame: torch.Tensor, channels: int) -> np.ndarray:
     return (frame[..., :channels] * 255).clamp(0, 255).byte().cpu().numpy()
 
 
+def _to_u16(frame: torch.Tensor, channels: int) -> np.ndarray:
+    """One frame as HxWxC uint16, for ProRes: its 10/12-bit planes are wasted on 8-bit input."""
+    return ((frame[..., :channels].float() * 65535).round().clamp(0, 65535)
+            .to(torch.int32).cpu().numpy().astype(np.uint16))
+
+
 def _add_audio_stream(container, audio: dict | None, codec: str | None,
                       max_seconds: float):
     """Declare the audio stream and prepare its source frame.
@@ -374,18 +401,17 @@ def encode_video(images: torch.Tensor, path: str, spec: dict, fps: float,
                  profile: str | None = None) -> None:
     """h264 / vp9 / ProRes through PyAV.
 
-    **Alpha survives on ProRes 4444 and nowhere else.** Both halves checked,
-    by encoding a half-transparent clip and reading it back:
+    **Alpha survives on ProRes 4444 and vp9.** Both checked by encoding a half-transparent
+    clip and reading it back:
 
     - **ProRes 4444: yes.** Comes back with alpha 0 on one side and 255 on the other.
-    - **vp9: no**, however it is asked. WebM carries a vp9 alpha plane in `BlockAdditional`,
-      which the ffmpeg CLI assembles as a second stream; libavformat does not, so nothing
-      PyAV can express produces it - with or without `auto-alt-ref 0`. The core's `SaveWEBM`
-      sets `yuva420p` and implies otherwise.
+    - **vp9: yes, as `yuva420p`.** The alpha plane lives in WebM's `BlockAdditional`, and
+      only libvpx decodes it: FFmpeg's built-in `vp9` decoder (what `container.decode`
+      picks) silently drops it, which is what made this look impossible once. Browsers use
+      libvpx, so the file plays transparent in Chrome.
     - h264 has no alpha path at all.
 
-    Everywhere except 4444 the alpha is flattened. Promising it would be a lie that only
-    turns up once someone composites the result.
+    Everywhere else the alpha is flattened.
     """
     # mp4 drops any tag it does not recognise unless `use_metadata_tags` is on, so without
     # this the embedded prompt silently vanishes. `faststart` earns its place separately:
@@ -415,7 +441,6 @@ def encode_video(images: torch.Tensor, path: str, spec: dict, fps: float,
         stream.width = images.shape[2]
         stream.height = images.shape[1]
         stream.bit_rate = 0
-        alpha = False
         if spec["vcodec"] == "prores_ks":
             # ProRes is quality-by-PROFILE, not by crf: the profile picks the bitrate class
             # and the pixel format together, and 4444 is the only one with an alpha plane.
@@ -424,7 +449,8 @@ def encode_video(images: torch.Tensor, path: str, spec: dict, fps: float,
             stream.options = {"profile": str(number)}
             alpha = number == 4 and images.shape[-1] == 4
         else:
-            stream.pix_fmt = "yuv420p"
+            alpha = spec["vcodec"] == "libvpx-vp9" and images.shape[-1] == 4
+            stream.pix_fmt = "yuva420p" if alpha else "yuv420p"
             stream.options = {"crf": str(int(crf))}
             if preset and spec["vcodec"] == "libx264":
                 stream.options["preset"] = preset
@@ -432,10 +458,13 @@ def encode_video(images: torch.Tensor, path: str, spec: dict, fps: float,
         prepared = _add_audio_stream(
             container, audio, spec["acodec"], len(images) / max(fps, 1e-6))
 
-        fmt = "rgba" if alpha else "rgb24"
+        channels = 4 if alpha else 3
+        if spec["vcodec"] == "prores_ks":
+            fmt, convert = ("rgba64le" if alpha else "rgb48le"), _to_u16
+        else:
+            fmt, convert = ("rgba" if alpha else "rgb24"), _to_u8
         for frame in images:
-            packet = stream.encode(av.VideoFrame.from_ndarray(
-                _to_u8(frame, 4 if alpha else 3), format=fmt))
+            packet = stream.encode(av.VideoFrame.from_ndarray(convert(frame, channels), format=fmt))
             container.mux(packet)
             if pbar:
                 pbar.update(1)
@@ -909,6 +938,12 @@ class NKDVideoViewer(io.ComfyNode):
                             "values burned in. Off keeps the marks but skips the file. "
                             "With save output off, the labeled copy still goes to "
                             "output/ — in a test run it is the file worth keeping."),
+                # Set by dragging the in/out brackets on the scrub bar (src/video). Last in
+                # the list so saved workflows keep their positional widget values.
+                io.String.Input("trim", default="", multiline=False, socketless=True,
+                                tooltip="Frames to save, set on the scrub bar. Only the "
+                                        "saved file is trimmed: the video output and the "
+                                        "player keep the whole clip."),
             ],
             outputs=[io.Video.Output("video"), io.String.Output("filepath")],
             hidden=[io.Hidden.prompt, io.Hidden.extra_pnginfo, io.Hidden.unique_id],
@@ -1058,7 +1093,7 @@ class NKDVideoViewer(io.ComfyNode):
     def execute(cls, images=None, video=None, audio=None, fps=24.0, format=None,
                 filename_prefix="video/NKD", save_output=True, pingpong=False,
                 versioning="off", version=1, numbering="counter", reference=None,
-                filename="", labels="", labeled_copy=True):
+                filename="", labels="", labeled_copy=True, trim=""):
         key = (format or {}).get("format", "mp4 / h264")
         spec = FORMATS[key]
 
@@ -1094,6 +1129,16 @@ class NKDVideoViewer(io.ComfyNode):
         if pingpong and len(images) > 2:
             # Drop the shared end frames, or the loop stutters on a doubled first and last.
             images = torch.cat([images, torch.flip(images[1:-1], dims=[0])])
+
+        # Trim cuts what is WRITTEN, nothing else (Neko's call): the VIDEO output and the
+        # player keep the whole clip, so the brackets can always be dragged back out. The
+        # frames are the player's, i.e. after pingpong.
+        cut = parse_trim(trim, len(images))
+        saved, saved_audio = images, audio
+        if cut:
+            saved = images[cut[0]:cut[1] + 1]
+            saved_audio = trim_audio(audio, cut[0], cut[1], fps)
+        render_settings = settings + (cut,)
 
         folder = (folder_paths.get_output_directory() if save_output
                   else folder_paths.get_temp_directory())
@@ -1156,7 +1201,7 @@ class NKDVideoViewer(io.ComfyNode):
         # Same bytes as last time? Copy them. Bumping a version must not cost a re-encode.
         # A sequence is a directory, so `copy2` cannot stand in for the encode; copytree can,
         # but only onto a path that does not exist yet.
-        reuse = reusable_render(node_key, src_images, src_audio, settings, spec["ext"])
+        reuse = reusable_render(node_key, src_images, src_audio, render_settings, spec["ext"])
         same_place = reuse and os.path.abspath(reuse) == os.path.abspath(path)
         opts = format or {}
         if reuse and not same_place:
@@ -1165,21 +1210,21 @@ class NKDVideoViewer(io.ComfyNode):
             else:
                 shutil.copy2(reuse, path)
         elif not reuse:
-            pbar = comfy.utils.ProgressBar(len(images))
+            pbar = comfy.utils.ProgressBar(len(saved))
             if seq_dir:
-                encode_png_sequence(images, seq_dir, stem,
+                encode_png_sequence(saved, seq_dir, stem,
                                     int(opts.get("padding", 4)), pbar)
             elif spec["vcodec"]:
-                encode_video(images, path, spec, fps, opts.get("crf", 19.0),
-                             opts.get("preset"), audio, metadata, pbar,
+                encode_video(saved, path, spec, fps, opts.get("crf", 19.0),
+                             opts.get("preset"), saved_audio, metadata, pbar,
                              profile=opts.get("profile"))
             elif spec["ext"] == "webp":
-                encode_webp(images, path, fps, int(opts.get("quality", 85)),
+                encode_webp(saved, path, fps, int(opts.get("quality", 85)),
                             bool(opts.get("lossless", False)), pbar)
             else:
-                encode_gif(images, path, fps, int(opts.get("colors", 256)),
+                encode_gif(saved, path, fps, int(opts.get("colors", 256)),
                            bool(opts.get("dither", True)), pbar)
-        remember_render(node_key, src_images, src_audio, settings, spec["ext"], path)
+        remember_render(node_key, src_images, src_audio, render_settings, spec["ext"], path)
 
         # The `_labeled` review copy: the same frames with the tracked widget values
         # burned in, written NEXT TO the clean render so a folder of takes says what each
@@ -1208,25 +1253,57 @@ class NKDVideoViewer(io.ComfyNode):
             lkey = f"{node_key}:labeled"
             # The label TEXT is part of the identity: same frames with different values
             # tracked is a different burn.
-            lsettings = settings + ("\n".join(lines),)
+            lsettings = render_settings + ("\n".join(lines),)
             reuse_l = reusable_render(lkey, src_images, src_audio, lsettings, "mp4")
             if reuse_l and os.path.abspath(reuse_l) != os.path.abspath(labeled_path):
                 shutil.copy2(reuse_l, labeled_path)
             elif not reuse_l:
-                encode_video(burn_labels(images, lines), labeled_path,
-                             FORMATS["mp4 / h264"], fps, 19.0, "veryfast", audio,
-                             metadata, comfy.utils.ProgressBar(len(images)))
+                encode_video(burn_labels(saved, lines), labeled_path,
+                             FORMATS["mp4 / h264"], fps, 19.0, "veryfast", saved_audio,
+                             metadata, comfy.utils.ProgressBar(len(saved)))
             remember_render(lkey, src_images, src_audio, lsettings, "mp4", labeled_path)
 
-        # A fallback still, for anything the browser cannot open.
+        # Preview artefacts (the player's own copy, the poster) are for the node's player,
+        # not part of the render, so they go to temp/ - which ComfyUI empties - under the
+        # same subfolder, and output/ holds only what was asked for. `subfolder` already
+        # passed get_save_image_path's containment check.
+        preview_dir = os.path.join(folder_paths.get_temp_directory(), subfolder)
+
+        # What the player plays when the render itself won't do: the whole clip while a
+        # trim is set, or a transparent one where the format can't show alpha (h264 has
+        # none, no browser plays ProRes or a PNG sequence). vp9 when the frames carry alpha,
+        # so it plays over a checkerboard; h264 otherwise. An untrimmed vp9 render already
+        # is that copy.
+        transparent = images.shape[-1] == 4
+        player_ref = None
+        if transparent and spec["ext"] == "webm" and not cut:
+            player_ref = {"filename": file, "subfolder": subfolder,
+                          "type": "output" if save_output else "temp"}
+        elif cut or (transparent and spec["ext"] in ("mp4", "mov", "png")):
+            twin = FORMATS["webm / vp9" if transparent else "mp4 / h264"]
+            player_ref = {"filename": f"{stem}.preview.{twin['ext']}", "subfolder": subfolder,
+                          "type": "temp"}
+            player_path = os.path.join(preview_dir, player_ref["filename"])
+            os.makedirs(preview_dir, exist_ok=True)
+            pkey = f"{node_key}:player"
+            reuse_p = reusable_render(pkey, src_images, src_audio, settings, twin["ext"])
+            if reuse_p and os.path.abspath(reuse_p) != os.path.abspath(player_path):
+                shutil.copy2(reuse_p, player_path)
+            elif not reuse_p:
+                encode_video(images, player_path, twin, fps, 30.0, "veryfast", audio, None,
+                             comfy.utils.ProgressBar(len(images)))
+            remember_render(pkey, src_images, src_audio, settings, twin["ext"], player_path)
+
+        # A fallback still, for anything the browser cannot open. Not needed when the
+        # player has its own copy to play.
+        # ponytail: a browser without vp9 then gets no still; every current one has vp9.
         preview = spec["preview"]
-        poster_file = None
-        if spec["poster"]:
-            poster_file = f"{stem}.poster.png"
-            write_poster(images, os.path.join(
-                seq_dir if seq_dir else full_folder, poster_file))
-            if seq_dir:
-                poster_file = f"{stem}/{poster_file}"
+        poster_ref = None
+        if spec["poster"] and player_ref is None:
+            poster_ref = {"filename": f"{stem}.poster.png", "subfolder": subfolder,
+                          "type": "temp"}
+            os.makedirs(preview_dir, exist_ok=True)
+            write_poster(images, os.path.join(preview_dir, poster_ref["filename"]))
 
         result = {
             "filename": file,
@@ -1242,7 +1319,7 @@ class NKDVideoViewer(io.ComfyNode):
             # The viewer asks canPlayType about this and falls back to the poster if the
             # answer is no. Only the browser can settle it — see FORMATS.
             "mime": spec["mime"],
-            "poster": poster_file,
+            "poster": poster_ref,
             "format": key,
             "size": _tree_size(path),
             "path": path,
@@ -1255,7 +1332,15 @@ class NKDVideoViewer(io.ComfyNode):
             "labeled": ({"filename": labeled_file, "subfolder": l_sub,
                          "type": "output"}
                         if labeled_file else None),
+            # The copy the player plays instead of the render (see above), and whether it
+            # carries alpha.
+            "player": player_ref,
+            "transparent": bool(transparent and player_ref),
+            # Frames written to disk: fewer than `frame_count` while a trim is set.
+            "saved_frames": len(saved),
         }
+        # VIDEO keeps colour and alpha apart (the core encoders choke on 4 channels).
         out = InputImpl.VideoFromComponents(
-            Types.VideoComponents(images=images, audio=audio, frame_rate=Fraction(fps)))
+            Types.VideoComponents(images=images[..., :3], audio=audio, frame_rate=Fraction(fps),
+                                  alpha=images[..., 3:] if images.shape[-1] == 4 else None))
         return io.NodeOutput(out, path, ui=NKDVideoUI(result, info))

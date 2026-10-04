@@ -97,6 +97,15 @@ const CSS = `
   background: #000; border: 1px solid #3a3d46; border-radius: 6px;
   overflow: hidden;
 }
+/* Transparent clips: a checkerboard shows where the alpha is. */
+.nkd-vid-stage.nkd-vid-alpha {
+  background: repeating-conic-gradient(#2a2c33 0 25%, #1c1e24 0 50%) 0 0 / 16px 16px;
+}
+/* Viewer bar: the controls on one line with "show in folder" closing it, the clip's
+   readout on a line of its own underneath. The folder button is added late (once the
+   server is known to be local), so it is placed by CSS rather than by DOM order. */
+.nkd-vid-bar .nkd-tl-status { order: 1; flex-basis: 100%; margin-left: 0; padding: 0 2px; }
+.nkd-vid-bar > .nkd-tl-btn:has(> .pi-folder-open) { margin-left: auto; }
 .nkd-vid-el {
   position: absolute; inset: 0;
   width: 100%; height: 100%; object-fit: contain; display: block;

@@ -1,0 +1,29 @@
+[project]
+name = "ComfyUI-VibeVoice"
+description = "VibeVoice TTS Updated! Expressive, long-form, multi-speaker conversational audio"
+version = "2.12.1"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+
+dependencies = ["torch", "torchaudio", "numpy", "huggingface_hub", "accelerate", "soundfile", "tqdm", "safetensors", "transformers", "diffusers", "bitsandbytes"]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Environment :: GPU :: NVIDIA CUDA",
+]
+
+[project.optional-dependencies]
+# Optional audio-resampling fallbacks. torchaudio (a hard dependency) is the
+# primary resampler; scipy/librosa are only used if torchaudio is unavailable.
+# The node never requires librosa and degrades gracefully without it.
+audio-extra = ["scipy", "librosa"]
+
+[project.urls]
+Homepage = "https://github.com/wildminder/ComfyUI-VibeVoice"
+Documentation = "https://github.com/wildminder/ComfyUI-VibeVoice#readme"
+Repository = "https://github.com/wildminder/ComfyUI-VibeVoice"
+Issues = "https://github.com/wildminder/ComfyUI-VibeVoice/issues"
+
+[tool.comfy]
+PublisherId = "wildai"
+DisplayName = "WM VibeVoice TTS"
+requires-comfyui = ">=0.28.0"

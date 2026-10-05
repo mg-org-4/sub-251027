@@ -50,6 +50,7 @@
 `26.` [💾 Save Image — PaBoKor (Павел К.)](#ru-26-save-image)  
 `27.` [🖌️ Kontext Presets — OreX (Олег К.)](#ru-27-kontext-presets)  
 `28.` [🎬✂️ Trim Video To Audio — PaBoKor (Павел К.)](#ru-28-trim-video-to-audio)  
+`29.` [🎭 Mask Selection — OreX (Олег К.)](#ru-29-mask-selection)  
 `+` [🧰 Экспорт/импорт workflow как изображения](#ru-extra-workflow-image)  
 
 ### 📝 Описание узлов
@@ -479,6 +480,22 @@ AI-ретушь кожи через модель ModelScope (`damo/cv_unet_skin_
   - **trim** — аудио никогда не удлиняется: если оно длиннее видео, обрезается по его длине; если короче — остаётся как есть.
 - Вывод: обрезанное видео со встроенным звуком (`video`) и его итоговая длительность в секундах (`duration_sec`).
 
+<a id="ru-29-mask-selection"></a>
+#### 29. 🎭 Mask Selection
+Автор: OreX (Олег К.)
+
+Создаёт маску выбранных частей человека с помощью многоклассовой модели MediaPipe. Может одновременно выделять несколько категорий и при необходимости уточнять края маски.
+
+**Узел поддерживает:**
+- Пакетную обработку изображений через вход `images`.
+- Независимый выбор категорий `face`, `hair`, `body`, `clothes`, `accessories` и `background`; выбранные категории объединяются в одну маску. Если все категории отключены, возвращается пустая маска.
+- Настраиваемый порог вероятности `confidence`, определяющий, какие пиксели попадут в маску.
+- Четыре способа уточнения краёв: `VITMatte`, `VITMatte(local)`, `PyMatting` и `GuidedFilter`. Обработку краёв можно полностью отключить параметром `process_detail`.
+- Управление областью неопределённых краёв через `detail_erode` и `detail_dilate`, а также финальным контрастом маски через `black_point` и `white_point`.
+- Выбор `cuda` или `cpu` для VITMatte и ограничение рабочего разрешения параметром `max_megapixels` для экономии памяти.
+- Автоматическую загрузку модели MediaPipe `selfie_multiclass_256x256.tflite` из официального хранилища Google в `ComfyUI/models/mediapipe/`, если файла ещё нет.
+- Два выхода: исходное изображение с маской в альфа-канале (`image`) и отдельная маска ComfyUI (`mask`).
+
 <a id="ru-extra-workflow-image"></a>
 ### 🧰 Дополнительно: экспорт/импорт workflow как изображения
 
@@ -545,6 +562,7 @@ You can support this project via this link: ❤️❤️❤️ **[D O N A T](htt
 `26.` [💾 Save Image — PaBoKor (Pavel K.)](#en-26-save-image)  
 `27.` [🖌️ Kontext Presets — OreX (Oleg K.)](#en-27-kontext-presets)  
 `28.` [🎬✂️ Trim Video To Audio — PaBoKor (Pavel K.)](#en-28-trim-video-to-audio)  
+`29.` [🎭 Mask Selection — OreX (Oleg K.)](#en-29-mask-selection)  
 `+` [🧰 Workflow image export/import](#en-extra-workflow-image)  
 
 ### 📝 Node descriptions
@@ -973,6 +991,22 @@ Trims the video track to the audio length. Useful when a model generates video s
   - **pad_silence** (default) — the audio is not cut; silence (at most one frame long) is appended up to the frame boundary; video and audio lengths match and not a single sample of the voice-over is lost — best for joining clips afterwards.
   - **trim** — the audio is never extended: if it is longer than the video it is cut to the video length; if shorter, it is left as is.
 - Output: the trimmed video with embedded audio (`video`) and its final duration in seconds (`duration_sec`).
+
+<a id="en-29-mask-selection"></a>
+#### 29. 🎭 Mask Selection
+Author: OreX (Oleg K.)
+
+Creates a mask of selected human parts using MediaPipe's multiclass segmentation model. Multiple categories can be selected at once, with optional edge refinement.
+
+**The node supports:**
+- Batch image processing through the `images` input.
+- Independent `face`, `hair`, `body`, `clothes`, `accessories`, and `background` category switches; enabled categories are merged into one mask. If every category is disabled, the node returns an empty mask.
+- An adjustable `confidence` threshold that controls which pixels are included in the mask.
+- Four edge-refinement methods: `VITMatte`, `VITMatte(local)`, `PyMatting`, and `GuidedFilter`. Refinement can be disabled completely with `process_detail`.
+- Control over the uncertain edge region with `detail_erode` and `detail_dilate`, plus final mask contrast adjustment with `black_point` and `white_point`.
+- `cuda` or `cpu` selection for VITMatte and a `max_megapixels` processing limit to reduce memory use.
+- Automatic download of the MediaPipe `selfie_multiclass_256x256.tflite` model from Google's official model storage into `ComfyUI/models/mediapipe/` when the file is missing.
+- Two outputs: the source image with the mask in its alpha channel (`image`) and a separate ComfyUI mask (`mask`).
 
 <a id="en-extra-workflow-image"></a>
 ### 🧰 Extra: workflow image export/import

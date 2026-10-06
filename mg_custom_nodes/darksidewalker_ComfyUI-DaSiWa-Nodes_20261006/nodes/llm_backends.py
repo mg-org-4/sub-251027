@@ -23,6 +23,108 @@ class ForgeError(Exception):
         self.code, self.message, self.raw = code, message, raw
 
 
+# ── Context room ──────────────────────────────────────────────────────────
+# The H3 instructions alone are ~10k tokens, so pictures do not fit in the
+# default 16,384: nine square ones need ~19k before a word is written, and
+# llama.cpp then fails with a bare "llama_decode returned 1". Where the
+# context is ours to set (a local GGUF, Ollama) each picture adds its own room
+# on top of the default, so one picture costs a little and nine reach 32,768;
+# a square one really takes ~1,090 tokens, so each has room to spare. The
+# request is estimated first for an advisory warning, not a hard refusal:
+# only the selected tokenizer/backend can establish its actual token count.
+# An OpenAI-compatible server's context is its own; a context error from one
+# is translated, never retried without the pictures.
+CONTEXT_PER_PICTURE = 1820
+CONTEXT_STEP = 256
+# Include the full requested answer budget in the advisory estimate.
+REPLY_ROOM = NUM_PREDICT
+# Estimates, not a tokenizer: about 3.8 characters per token for this
+# English/markdown text, and Qwen-VL's one token per 32x32 pixels after the
+# Forge's own resize (other vision models use as many or fewer).
+CHARS_PER_TOKEN = 3.8
+_PATCH = 32
+
+
+def image_tokens(image_b64):
+    from PIL import Image
+    with Image.open(io.BytesIO(base64.b64decode(image_b64))) as im:
+        w, h = im.size
+    return -(-w // _PATCH) * -(-h // _PATCH) + 4
+
+
+def estimate_tokens(system, user, images_b64=()):
+    text = len(str(system or "")) + len(str(user or ""))
+    return int(text / CHARS_PER_TOKEN) + sum(image_tokens(b) for b in images_b64 or ())
+
+
+def context_for(num_ctx, images_b64):
+    """The context to load with: the default plus room for each picture sent."""
+    pictures = len(images_b64 or ())
+    if not pictures:
+        return int(num_ctx)
+    need = int(num_ctx) + pictures * CONTEXT_PER_PICTURE
+    return -(-need // CONTEXT_STEP) * CONTEXT_STEP
+
+
+def sets_its_context(kind, name):
+    """True where the context size is ours to choose and is not enforced by a
+    server: a local GGUF, and Ollama (which would silently cut the request)."""
+    return kind == "ollama" or (kind == "local" and str(name).lower().endswith(".gguf"))
+
+
+def check_fits(kind, name, system, user, images_b64, num_ctx):
+    """Warn about estimated overflow; never reject on a character heuristic."""
+    if not sets_its_context(kind, name):
+        return
+    need = estimate_tokens(system, user, images_b64) + REPLY_ROOM
+    if need > num_ctx:
+        log_dasiwa("H3 Forge", f"Approximate token estimate {need:,} (including reply) exceeds "
+                   f"{num_ctx:,} context; continuing because actual token usage depends on the model. "
+                   "If the backend runs out of room, shorten the text or use fewer pictures.")
+
+
+def server_context_error(body_text):
+    """A context-size refusal from llama-server, llama-swap or LM Studio, or None."""
+    text = str(body_text or "").lower()
+    if any(w in text for w in ("out of memory", "failed to allocate")):
+        return None
+    if "context" in text and any(w in text for w in ("exceed", "too long", "too many tokens")):
+        return ForgeError("too_long", "The model server refused this draft as longer than its context size. Use fewer "
+                                      "pictures, or raise the server's context (llama-server -c / --ctx-size, or the "
+                                      "model's context length in LM Studio).")
+    return None
+
+
+def local_context_error(exc, num_ctx, pictures, gguf=True):
+    """llama.cpp's own failures, said plainly: out of context, or out of memory.
+
+    Out of context reads "llama_decode returned 1" while the text is read and
+    "Failed to evaluate chunk: error code 1" while a picture is (llama-cpp-
+    python 0.3.36, measured on 0.4.78 with nine pictures at 16,384).
+
+    A transformers model has no context to set; it runs out of memory on the
+    pictures themselves (a 4B on a 32 GB V100 with nine square pictures:
+    SDPA asks for another 10 GiB), so that message names no context size."""
+    text = str(exc)
+    if not gguf:
+        if "out of memory" in text.lower():
+            return ForgeError("memory", "Not enough GPU memory for this model"
+                                        + (f" with {pictures} picture{'' if pictures == 1 else 's'}. Use fewer pictures, "
+                                           "untick 'Let the model see the pictures', or pick a GGUF or smaller model."
+                                           if pictures else ". Pick a smaller model."))
+        return None
+    if "llama_context" in text or "out of memory" in text.lower() or "failed to allocate" in text.lower():
+        return ForgeError("memory", f"Not enough GPU memory to run this model with {num_ctx:,} tokens of context"
+                                    f"{' for the pictures' if pictures else ''}. "
+                                    + ("Pictures need the larger context; draft without them (untick 'Let the model "
+                                       "see the pictures') or pick a smaller model." if pictures else "Pick a smaller model."))
+    if re.search(r"(?:llama_decode returned|Failed to evaluate chunk: error code)\s+1\b", text):
+        return ForgeError("too_long", f"The model ran out of room ({num_ctx:,} tokens) while reading the instructions"
+                                      f"{' and pictures' if pictures else ''}. "
+                                      f"{'Use fewer pictures.' if pictures else 'Shorten the idea.'}")
+    return None
+
+
 DEFAULT_OLLAMA = "http://127.0.0.1:11434"
 
 
@@ -608,6 +710,13 @@ class Local:
                                                   temperature, top_p, 1.0, -1, 0, True)
                 if cancel is not None and cancel.is_set():
                     raise ForgeError("cancelled", CANCELLED)
+        except ForgeError:
+            raise
+        except Exception as exc:
+            mapped = local_context_error(exc, num_ctx, len(images_b64 or ()), gguf)
+            if mapped:
+                raise mapped from None
+            raise
         finally:
             if loaded is not None:
                 try:

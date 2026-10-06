@@ -26,7 +26,7 @@ from PIL import Image
 from huggingface_hub import snapshot_download, hf_hub_download
 from transformers import AutoProcessor, AutoTokenizer, BitsAndBytesConfig
 
-from chat_service import normalize_minimax_output
+from chat_service import ensure_minimax_dialogue, normalize_minimax_output
 from wildcard_util import expand_wildcard_tokens
 from qwenvl_presets import (
     VL_PRESET_NAMES, VL_PROMPTS, VL_DURATIONS,
@@ -1217,6 +1217,7 @@ class QwenVLBase:
             )
             
             text = normalize_minimax_output(text, preset_prompt, has_image=image is not None, duration=duration)
+            text = ensure_minimax_dialogue(text, prompt, preset_prompt, has_image=image is not None)
 
             # Validate output before caching — reject "ready/waiting" responses
             # that occur when the model treats the system prompt as a conversation
@@ -1407,6 +1408,7 @@ STYLE_TAG_OPTIONS = [
     "None",
     "[ANIME]",
     "[PHOTOREALISTIC]",
+    "[SEMIREALANIME]",
     "[3DCG]",
     "[CARTOON]",
     "[CLAYMATION]",
@@ -1422,6 +1424,7 @@ STYLE_TAG_OPTIONS = [
 STYLE_TAG_DESCRIPTIONS = {
     "ANIME":        "2D-animated, cel-shaded, vibrant anime color palette, clean lineart, anime-style lighting",
     "PHOTOREALISTIC": "Live-action, cinematic photorealism, natural skin textures, realistic lighting, shallow depth of field",
+    "SEMIREALANIME": "Semi-realistic 2.5D anime digital painting, lineless painterly rendering — anime facial features and character design with soft volumetric shading, smooth airbrushed gradients, glossy skin highlights, subsurface scattering, cinematic lighting and atmospheric depth; between anime illustration and 3D render, avoid flat cel-shading and hard lineart",
     "3DCG":         "3D CG rendered, subsurface scattering, physically based rendering, cinematic 3D animation",
     "CARTOON":      "2D cartoon, bold outlines, flat colors, exaggerated expressions, cartoon-style animation",
     "CLAYMATION":   "Claymation, stop-motion clay texture, handcrafted look, visible fingerprints, studio lighting",

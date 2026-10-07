@@ -1,0 +1,86 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { NextConfig } from 'next';
+
+const backendHost = process.env.BACKEND_HOST || '127.0.0.1';
+const backendPort = Number(process.env.BACKEND_PORT) || 8009;
+const backendUrl = `http://${backendHost}:${backendPort}`;
+const configDir = path.dirname(fileURLToPath(import.meta.url));
+const staticExport = process.env.NEXT_OUTPUT_EXPORT === '1';
+
+const nextConfig: NextConfig = {
+  // Next 15.5 name for the dev rewrite-proxy body limit; Next 16 renames it to `proxyClientMaxBodySize`.
+  experimental: { middlewareClientMaxBodySize: 100 * 1024 * 1024 },
+  ...(staticExport ? { output: 'export' as const } : {}),
+  ...(staticExport ? { images: { unoptimized: true } } : {}),
+  outputFileTracingRoot: path.join(configDir, '..', '..', '..'),
+  ...(staticExport ? {} : { async rewrites() {
+    return [
+      { 
+        source: '/ws', 
+        destination: `${backendUrl}/ws` 
+      },
+      { 
+        source: '/healthz', 
+        destination: `${backendUrl}/healthz` 
+      },
+      { 
+        source: '/readyz', 
+        destination: `${backendUrl}/readyz` 
+      },
+      { 
+        source: '/models', 
+        destination: `${backendUrl}/models` 
+      },
+      { 
+        source: '/status', 
+        destination: `${backendUrl}/status` 
+      },
+      { 
+        source: '/router/:path*', 
+        destination: `${backendUrl}/router/:path*` 
+      },
+      {
+        source: '/generation-capabilities',
+        destination: `${backendUrl}/generation-capabilities`,
+      },
+      {
+        source: '/assets',
+        destination: `${backendUrl}/assets`,
+      },
+      {
+        source: '/assets/:path*',
+        destination: `${backendUrl}/assets/:path*`,
+      },
+      {
+        source: '/prompt-system-config',
+        destination: `${backendUrl}/prompt-system-config`,
+      },
+      {
+        source: '/curated-presets',
+        destination: `${backendUrl}/curated-presets`,
+      },
+      {
+        source: '/curated-presets/:path*',
+        destination: `${backendUrl}/curated-presets/:path*`,
+      },
+      {
+        source: '/lora',
+        destination: `${backendUrl}/lora`,
+      },
+      {
+        source: '/lora/:path*',
+        destination: `${backendUrl}/lora/:path*`,
+      },
+    ];
+  } }),
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.jsonl$/,
+      type: 'asset/source',
+    });
+    return config;
+  },
+};
+
+export default nextConfig;

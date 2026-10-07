@@ -1,81 +1,28 @@
 {
   "id": "c83297aa-d6a1-454f-aa89-cc086d1fe8f6",
   "revision": 0,
-  "last_node_id": 202,
-  "last_link_id": 559,
+  "last_node_id": 205,
+  "last_link_id": 563,
   "nodes": [
-    {
-      "id": 2,
-      "type": "OTUNetLoaderW8A8",
-      "pos": [
-        2796.1201982547864,
-        822.8912021720323
-      ],
-      "size": [
-        331.71875,
-        225.96875
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "pre_lora",
-          "shape": 7,
-          "type": "PRE_LORA",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            334
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "int8-fast",
-        "ver": "1.3.4",
-        "Node name for S&R": "OTUNetLoaderW8A8"
-      },
-      "widgets_values": [
-        "Krea2-Turbo-int8-ConvRot.safetensors",
-        "default",
-        "flux2",
-        false,
-        true,
-        "Dynamic"
-      ],
-      "widgets_values_named": {
-        "unet_name": "Krea2-Turbo-int8-ConvRot.safetensors",
-        "weight_dtype": "default",
-        "model_type": "flux2",
-        "on_the_fly_quantization": false,
-        "enable_convrot": true,
-        "lora_mode": "Dynamic"
-      }
-    },
     {
       "id": 5,
       "type": "ModelAttentionBackend",
       "pos": [
-        2800.4854700494607,
-        1808.1285509928157
+        2818.1443130992325,
+        1275.092500898988
       ],
       "size": [
         225,
         76.71875
       ],
       "flags": {},
-      "order": 7,
+      "order": 9,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 334
+          "link": 560
         }
       ],
       "outputs": [
@@ -104,15 +51,15 @@
       "id": 6,
       "type": "VAELoader",
       "pos": [
-        2821.744788490546,
-        1420.5858918508682
+        2833.517383789513,
+        1156.357018594466
       ],
       "size": [
         270,
         79.765625
       ],
       "flags": {},
-      "order": 1,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -140,15 +87,15 @@
       "id": 7,
       "type": "CLIPLoader",
       "pos": [
-        2820.267601112218,
-        1098.815798088666
+        2799.3385982459195,
+        962.77712976169
       ],
       "size": [
         342.265625,
         139.765625
       ],
       "flags": {},
-      "order": 2,
+      "order": 1,
       "mode": 0,
       "showAdvanced": false,
       "inputs": [],
@@ -197,7 +144,7 @@
         33.984375
       ],
       "flags": {},
-      "order": 11,
+      "order": 10,
       "mode": 0,
       "inputs": [
         {
@@ -233,13 +180,13 @@
         127.734375
       ],
       "flags": {},
-      "order": 13,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 557
+          "link": 562
         },
         {
           "name": "positive",
@@ -286,7 +233,7 @@
         82
       ],
       "flags": {},
-      "order": 3,
+      "order": 2,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -327,7 +274,7 @@
       "flags": {
         "collapsed": false
       },
-      "order": 14,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
@@ -389,7 +336,7 @@
         61.984375
       ],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -425,7 +372,7 @@
         1146.015625
       ],
       "flags": {},
-      "order": 5,
+      "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -451,7 +398,7 @@
         73.515625
       ],
       "flags": {},
-      "order": 15,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
@@ -494,7 +441,7 @@
       "flags": {
         "collapsed": false
       },
-      "order": 16,
+      "order": 18,
       "mode": 0,
       "inputs": [
         {
@@ -578,7 +525,7 @@
         102
       ],
       "flags": {},
-      "order": 10,
+      "order": 12,
       "mode": 0,
       "inputs": [
         {
@@ -624,15 +571,15 @@
       "id": 200,
       "type": "Krea2TCharacterLoraImageOnly",
       "pos": [
-        3592.3261191819565,
-        1838.5056439294801
+        3090.6587522746613,
+        1790.7158909313846
       ],
       "size": [
-        353.0552734375,
-        126
+        471.03712376401035,
+        161.9999580567858
       ],
       "flags": {},
-      "order": 12,
+      "order": 13,
       "mode": 4,
       "inputs": [
         {
@@ -646,7 +593,7 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            557
+            563
           ]
         },
         {
@@ -675,15 +622,15 @@
       "id": 201,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        3199.329375019794,
-        1827.5045325288197
+        2814.717746986549,
+        1462.653210307573
       ],
       "size": [
-        378.12466306905435,
-        196.58752854692867
+        319.9053949684671,
+        114.00000253606433
       ],
       "flags": {},
-      "order": 9,
+      "order": 11,
       "mode": 0,
       "inputs": [
         {
@@ -727,7 +674,7 @@
         106
       ],
       "flags": {},
-      "order": 6,
+      "order": 5,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -754,6 +701,130 @@
         "height": 2048,
         "batch_size": 1
       }
+    },
+    {
+      "id": 203,
+      "type": "UNETLoader",
+      "pos": [
+        2816.5931066556213,
+        830.2568665256101
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            560
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.37.0",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "Krea2-Turbo-int8-ConvRot.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "Krea2-Turbo-int8-ConvRot.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    {
+      "id": 204,
+      "type": "Krea2SelectiveLoraLoaderModelOnlyProjection",
+      "pos": [
+        3104.936100312704,
+        1995.1638053410156
+      ],
+      "size": [
+        441.6864065080325,
+        256.0720523532097
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 563
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            562
+          ]
+        },
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Krea2SelectiveLoraLoaderModelOnlyProjection"
+      },
+      "widgets_values": [
+        "character.safetensors",
+        1,
+        false,
+        false,
+        false,
+        false
+      ],
+      "widgets_values_named": {
+        "lora_name": "character.safetensors",
+        "strength_model": 1,
+        "load_projection": false,
+        "load_textfusion": false,
+        "load_txtmlp": false,
+        "debug": false
+      },
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 205,
+      "type": "Note",
+      "pos": [
+        3575.9773532696468,
+        2037.8657564794355
+      ],
+      "size": [
+        455.86411908363425,
+        176.81054623655643
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Krea2 Selective LoRA Loader Model Only (Projection Split) Note",
+      "properties": {},
+      "widgets_values": [
+        "-test with load_textfusion ON vs OFF , OFF is the optimal option"
+      ],
+      "widgets_values_named": {
+        "text": "-test with load_textfusion ON vs OFF , OFF is the optimal option"
+      },
+      "color": "#232",
+      "bgcolor": "#353"
     }
   ],
   "links": [
@@ -804,14 +875,6 @@
       25,
       0,
       "IMAGE"
-    ],
-    [
-      334,
-      2,
-      0,
-      5,
-      0,
-      "MODEL"
     ],
     [
       476,
@@ -878,14 +941,6 @@
       "MODEL"
     ],
     [
-      557,
-      200,
-      0,
-      16,
-      0,
-      "MODEL"
-    ],
-    [
       558,
       202,
       0,
@@ -898,6 +953,30 @@
       5,
       0,
       198,
+      0,
+      "MODEL"
+    ],
+    [
+      560,
+      203,
+      0,
+      5,
+      0,
+      "MODEL"
+    ],
+    [
+      562,
+      204,
+      0,
+      16,
+      0,
+      "MODEL"
+    ],
+    [
+      563,
+      200,
+      0,
+      204,
       0,
       "MODEL"
     ]
@@ -928,18 +1007,6 @@
       "flags": {}
     },
     {
-      "id": 3,
-      "title": "nodes/model",
-      "bounding": [
-        3050.6407693057045,
-        1721.444451407914,
-        958.4257914976747,
-        406.1260153400517
-      ],
-      "color": "#88A",
-      "flags": {}
-    },
-    {
       "id": 4,
       "title": "5 · GENERATION CONTROLS & SAMPLING",
       "bounding": [
@@ -950,15 +1017,27 @@
       ],
       "color": "#9e4d4d",
       "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "Character LoRA Loaders, choose the one you like",
+      "bounding": [
+        3081.5521979858954,
+        1721.3123468163099,
+        485.01705077471024,
+        548.6934369473124
+      ],
+      "color": "#88A",
+      "flags": {}
     }
   ],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.45949729863636846,
+      "scale": 0.5559917313500078,
       "offset": [
-        -1909.9748379054136,
-        -197.06023801827263
+        -1829.8056784817036,
+        -830.1481038132542
       ]
     },
     "frontendVersion": "1.53.6"

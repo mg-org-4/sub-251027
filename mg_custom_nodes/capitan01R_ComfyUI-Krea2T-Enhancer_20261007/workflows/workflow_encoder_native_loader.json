@@ -1,8 +1,8 @@
 {
   "id": "7ec0e7c7-8eb1-4add-ad8f-e4f8d6839355",
   "revision": 0,
-  "last_node_id": 145,
-  "last_link_id": 504,
+  "last_node_id": 146,
+  "last_link_id": 506,
   "nodes": [
     {
       "id": 1,
@@ -22,12 +22,12 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 487
+          "link": 505
         }
       ],
       "outputs": [
         {
-          "name": "MODEL",
+          "name": "model",
           "type": "MODEL",
           "links": [
             501
@@ -229,7 +229,7 @@
       ],
       "size": [
         225,
-        81.984375
+        82
       ],
       "flags": {},
       "order": 2,
@@ -444,60 +444,6 @@
       }
     },
     {
-      "id": 88,
-      "type": "OTUNetLoaderW8A8",
-      "pos": [
-        1534.4508728909964,
-        1201.2800030686558
-      ],
-      "size": [
-        331.71875,
-        225.96875
-      ],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "pre_lora",
-          "shape": 7,
-          "type": "PRE_LORA",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            256,
-            487
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "int8-fast",
-        "ver": "1.3.4",
-        "Node name for S&R": "OTUNetLoaderW8A8"
-      },
-      "widgets_values": [
-        "Krea2-Turbo-int8-ConvRot.safetensors",
-        "default",
-        "flux2",
-        false,
-        true,
-        "None"
-      ],
-      "widgets_values_named": {
-        "unet_name": "Krea2-Turbo-int8-ConvRot.safetensors",
-        "weight_dtype": "default",
-        "model_type": "flux2",
-        "on_the_fly_quantization": false,
-        "enable_convrot": true,
-        "lora_mode": "None"
-      }
-    },
-    {
       "id": 89,
       "type": "Krea2OfficialTurboSigmaSchedulerFromLatent",
       "pos": [
@@ -505,7 +451,7 @@
         2088.880204863218
       ],
       "size": [
-        317.484375,
+        317.49375,
         133.984375
       ],
       "flags": {},
@@ -515,7 +461,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 256
+          "link": 506
         },
         {
           "name": "latent",
@@ -665,7 +611,7 @@
         117.96875
       ],
       "flags": {},
-      "order": 5,
+      "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -691,6 +637,45 @@
         "width": 1024,
         "height": 1776,
         "batch_size": 1
+      }
+    },
+    {
+      "id": 146,
+      "type": "UNETLoader",
+      "pos": [
+        1518.7870176502074,
+        1253.3949651584137
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            505,
+            506
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.37.0",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "Krea2-Turbo-int8-ConvRot.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "Krea2-Turbo-int8-ConvRot.safetensors",
+        "weight_dtype": "default"
       }
     }
   ],
@@ -744,14 +729,6 @@
       "VAE"
     ],
     [
-      256,
-      88,
-      0,
-      89,
-      0,
-      "MODEL"
-    ],
-    [
       275,
       89,
       0,
@@ -774,14 +751,6 @@
       25,
       2,
       "CONDITIONING"
-    ],
-    [
-      487,
-      88,
-      0,
-      1,
-      0,
-      "MODEL"
     ],
     [
       488,
@@ -838,6 +807,22 @@
       25,
       0,
       "MODEL"
+    ],
+    [
+      505,
+      146,
+      0,
+      1,
+      0,
+      "MODEL"
+    ],
+    [
+      506,
+      146,
+      0,
+      89,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [
@@ -881,13 +866,13 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.5193082004209836,
+      "scale": 0.8363510498599985,
       "offset": [
-        -978.2729635517192,
-        -853.6456621603186
+        -1144.5645325809387,
+        -937.073707564813
       ]
     },
-    "frontendVersion": "1.49.6"
+    "frontendVersion": "1.53.6"
   },
   "version": 0.4
 }

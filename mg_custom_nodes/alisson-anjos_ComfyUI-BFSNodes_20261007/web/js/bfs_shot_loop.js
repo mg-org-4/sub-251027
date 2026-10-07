@@ -256,7 +256,7 @@ function Panel(io) {
       out.push({ start: b[i], end: b[i + 1], len: b[i + 1] - b[i], gen: snapUp(b[i + 1] - b[i], plan.grid),
                  cut: cs.has(b[i]), enabled: m.enabled !== false, ref: m.ref || "", ref2: m.ref2 || "", prompt: m.prompt || "",
                  force: m.force || "auto", chain: m.chain || "off", chainFrame: m.chain_frame || "first",
-                 crop: !!m.crop, mask: m.mask || {} });
+                 crop: !!m.crop, mask: m.mask || {}, target: m.target || "" });
     }
     if (plan.max_parts > 0) out = out.slice(0, plan.max_parts);
     return out;
@@ -358,6 +358,19 @@ function Panel(io) {
     save();
   };
   const segKey = s => `${s.start}-${s.end}`;
+  const targetCrop = ref({});    // "start-end" -> data URL of the subject the description was made from
+  async function describeTarget(i) {
+    const s = segs.value[i]; if (!s) return;
+    busy.value = "Selecting the person (SAM 3) and describing them (VLM)…"; busySince.value = Date.now(); error.value = "";
+    try {
+      const r = await api.fetchApi("/bfs/shotloop/target", { method: "POST", body: JSON.stringify({ plan: { ...plan }, index: i }) });
+      const j = await r.json(); if (j.error) throw new Error(j.error);
+      targetCrop.value = { ...targetCrop.value, [segKey(s)]: j.crop };
+      if (j.desc) setMeta(i, "target", j.desc);
+      else error.value = "No VLM yet: connect it to the planner's vlm input and run once, or type the description yourself.";
+    } catch (e) { error.value = String(e.message || e); }
+    busy.value = "";
+  }
   async function previewMask(i, spec, intoModal = false) {
     const s = segs.value[i]; if (!s) return;
     const label = "Segmenting with SAM 3… (the first time downloads/loads the model)";
@@ -381,6 +394,23 @@ function Panel(io) {
     const m = meta(modal.idx); m.mask = { ...(m.mask || {}), points: modal.points, key: modal.key, text: modal.text }; save();
     if (modal.prev) maskPrev.value = { ...maskPrev.value, [segKey(segs.value[modal.idx])]: modal.prev };
     modal.open = false;
+  };
+  // the same selection on every shot (a subject that stays in place): each shot gets the points on its frame at the same
+  // relative position as the key frame here
+  const pointsToAll = (points, key, text, fromIdx) => {
+    const src = segs.value[fromIdx]; const rel = src ? key / Math.max(1, src.len - 1) : 0.5;
+    segs.value.forEach((x, i) => {
+      const m = meta(i);
+      m.mask = { ...(m.mask || {}), points: points.map(p => ({ ...p })), key: Math.round(rel * Math.max(0, x.len - 1)), text: text ?? (m.mask || {}).text };
+    });
+    maskPrev.value = {}; save();
+  };
+  const savePointsAll = () => { pointsToAll(modal.points, modal.key, modal.text, modal.idx); modal.open = false; };
+  const clearMask = i => {
+    const m = meta(i); m.mask = {}; m.crop = false;
+    const k = segs.value[i] ? segKey(segs.value[i]) : null;
+    if (k) { const mp = { ...maskPrev.value }; delete mp[k]; maskPrev.value = mp; }
+    save();
   };
   const mergeSug = list => { const o = { ...vlmSug.value }; for (const x of list || []) o[`${x.start}-${x.end}`] = x; vlmSug.value = o; };
   async function analyseVLM() {
@@ -938,17 +968,34 @@ function Panel(io) {
           h("input", { type: "checkbox", checked: cur.crop, onChange: e => setMeta(sel.value, "crop", e.target.checked) }), "✂ Crop to mask"]),
         h("input", { type: "text", value: cur.mask.text || "", style: "flex:1;min-width:160px",
           placeholder: "what to segment, in English: person in white, red car…",
-          title: "SAM 3 text prompt (up to 32 tokens; separate several things with commas). Points, when set, take priority.",
+          title: "What to segment, in English (up to 32 tokens; commas for several things), e.g. 'woman in pink top'. Enough on its own - no points needed: SAM 3 finds and tracks it through the shot. Points, when set, take priority.",
           onChange: e => setMask(sel.value, "text", e.target.value) }),
         h("button", { title: "Pick positive / negative points on a frame of this shot", onClick: () => openPoints(sel.value) },
           (cur.mask.points || []).length ? `🎯 Points (${cur.mask.points.length})` : "🎯 Points…"),
         h("button", { disabled: !!busy.value || !(cur.mask.text || (cur.mask.points || []).length), onClick: () => previewMask(sel.value) }, "👁 Preview mask"),
-        h("button", { title: "Use this text prompt for every shot (points stay per shot)", onClick: () => {
+        h("button", { disabled: !(cur.mask.points || []).length, title: "Copy this shot's points to every shot (same place in the frame, same relative frame)",
+          onClick: () => pointsToAll(cur.mask.points || [], cur.mask.key ?? Math.floor(cur.len / 2), undefined, sel.value) }, "Points → all"),
+        h("button", { disabled: !(cur.mask.text || (cur.mask.points || []).length || cur.crop),
+          title: "Remove this shot's segmentation (points, text, crop) - for shots where it picked the wrong thing",
+          onClick: () => clearMask(sel.value) }, "✕ Clear mask"),
+        h("button", { title: "Copy this shot's mask TEXT (e.g. 'woman in pink top') to every shot. Points are not copied (use Points → all). SAM 3 then finds that subject in every shot by itself - no clicking needed. Shots that have their own points keep using the points.", onClick: () => {
           const t = cur.mask.text || ""; segs.value.forEach((_, i) => { const m = meta(i); m.mask = { ...(m.mask || {}), text: t }; }); save();
-        } }, "Mask → all"),
-        h("button", { title: "Crop every shot that has a mask", onClick: () => {
+        } }, "Mask text → all"),
+        h("button", { title: "Set '✂ Crop to mask' on every shot that has a mask (text or points) to this shot's value: on = only the masked region is generated and BFS Shot Join pastes it back; off = the whole frame is generated.", onClick: () => {
           segs.value.forEach((x, i) => { if (x.mask.text || (x.mask.points || []).length || cur.mask.text) meta(i).crop = cur.crop; }); save();
         } }, "Crop → all"),
+      ]),
+      h("div", { class: "row", style: "margin-top:8px;align-items:center" }, [
+        targetCrop.value[`${cur.start}-${cur.end}`] ? h("img", { src: targetCrop.value[`${cur.start}-${cur.end}`], style: "height:56px;border-radius:6px" }) : null,
+        h("span", { class: "hint", style: "white-space:nowrap" }, "{target}"),
+        h("input", { type: "text", value: cur.target, style: "flex:1;min-width:200px",
+          placeholder: "who is replaced in this shot, e.g. the young woman in a pink crop top (empty = the person)",
+          title: "Write {target} in the prompt: it becomes this description, so the model knows WHICH person to replace (useful with several people on screen).",
+          onChange: e => setMeta(sel.value, "target", e.target.value) }),
+        h("button", { disabled: !!busy.value || !(cur.mask.text || (cur.mask.points || []).length),
+          title: "Uses this shot's selection (🎯 Points… on the person — click the BODY, not only the face, so the outfit is described — or the mask text): SAM 3 cuts the person out and the VLM describes them",
+          onClick: () => describeTarget(sel.value) }, "🧑 Describe target"),
+        h("button", { title: "Copy this description to every shot", onClick: () => { const t = cur.target; segs.value.forEach((_, i) => { meta(i).target = t; }); save(); } }, "Target → all"),
       ]),
       maskPrev.value[`${cur.start}-${cur.end}`] ? h("div", { class: "mstrip" }, [
         ...maskPrev.value[`${cur.start}-${cur.end}`].frames.map(f => h("img", { src: f.src, title: `frame ${f.f}` })),
@@ -1019,7 +1066,9 @@ function Panel(io) {
           h("span", { class: "hint" }, modal.prev.empty ? "nothing found" : `covers ${(modal.prev.coverage * 100).toFixed(1)}%`)]) : null,
         h("div", { class: "row", style: "margin-top:8px;justify-content:flex-end" }, [
           h("button", { onClick: () => { modal.open = false; } }, "Cancel"),
-          h("button", { class: "pri", onClick: savePoints }, "Save"),
+          h("button", { title: "Apply these points to EVERY shot, each on its frame at the same relative position (a subject that stays in place)",
+            onClick: savePointsAll }, "Save → all shots"),
+          h("button", { class: "pri", onClick: savePoints }, "Save (this shot)"),
         ]),
       ]),
     ]))) : null;

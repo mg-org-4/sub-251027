@@ -408,5 +408,102 @@ class ConditioningWriterTest(unittest.TestCase):
             self._run(task="style", instruction="anime")
 
 
+class TargetTest(unittest.TestCase):
+    def test_target_placeholder(self):
+        self.assertEqual(SL.fill_target("Replace {target} with <Subject 1>", "the man in a red coat"),
+                         "Replace the man in a red coat with <Subject 1>")
+        self.assertEqual(SL.fill_target("Replace {target} with <Subject 1>", ""), "Replace the person with <Subject 1>")
+        self.assertEqual(SL.fill_target("no placeholder", "x"), "no placeholder")
+
+
+class MaskOverlayTest(unittest.TestCase):
+    def test_overlay_marks_mask_and_box(self):
+        o = torch.zeros(3, 32, 32, 3)
+        m = torch.zeros(3, 32, 32); m[:, 8:16, 8:16] = 1
+        out = SL._mask_overlay(o, {"mask": m, "box": [0.1, 0.1, 0.9, 0.9]}, 3)
+        self.assertGreater(float(out[0, 12, 12, 0]), 0.3)          # red inside the mask
+        self.assertEqual(float(out[0, 20, 20].sum()), 0.0)          # untouched outside mask and box
+        self.assertGreater(float(out[0, 3, 16, 1]), 0.5)            # yellow box edge
+
+
+class StitchFinishTest(unittest.TestCase):
+    def _shot(self):
+        full = torch.full((4, 64, 64, 3), 0.5)
+        mask = torch.zeros(4, 64, 64); mask[:, 20:44, 24:40] = 1
+        return {"full_frames": full, "crop": {"box": [0.125, 0.125, 0.875, 0.875], "mask": mask, "paste": "mask",
+                                              "expand": 0, "feather": 2}}
+
+    def test_ring_colour_match_removes_drift_and_keeps_subject_contrast(self):
+        shot = self._shot()
+        gen = torch.full((4, 48, 48, 3), 0.62)          # the model brightened the whole crop (+0.12)
+        gen[:, 12:36, 16:32] = 0.2                       # a darker new subject
+        plain = SL.uncrop(gen, shot)
+        fixed = SL.uncrop(gen, shot, match_colors=1.0)
+        # around the subject the drift is gone, inside it the new subject stays darker than the scene
+        self.assertGreater(abs(float(plain[0, 21, 23].mean()) - 0.5), abs(float(fixed[0, 21, 23].mean()) - 0.5))
+        self.assertLess(float(fixed[0, 30, 30].mean()), 0.45)
+
+    def test_edge_hardness(self):
+        a = torch.tensor([[[0.1, 0.5, 0.9]]])
+        h = SL._alpha_hardness(a, 1.0)
+        self.assertEqual([round(float(x), 2) for x in h[0, 0]], [0.0, 0.5, 1.0])
+        self.assertTrue(torch.equal(SL._alpha_hardness(a, 0.0), a))
+
+
+class InpaintInCropTest(unittest.TestCase):
+    def test_latent_starts_from_the_shot_and_only_the_mask_is_generated(self):
+        sys.path.insert(0, str(ROOT))
+        nested = sys.modules.get("comfy.nested_tensor")
+        if nested is None:
+            class _N:
+                is_nested = True
+
+                def __init__(self, t):
+                    self.tensors = list(t)
+            comfy = sys.modules.setdefault("comfy", types.ModuleType("comfy"))
+            nested = types.ModuleType("comfy.nested_tensor"); nested.NestedTensor = _N
+            comfy.nested_tensor = nested
+            sys.modules["comfy.nested_tensor"] = nested
+            sys.modules.setdefault("comfy.utils", types.ModuleType("comfy.utils"))
+
+        class VAE:
+            def encode(self, px):
+                t = ((px.shape[0] - 5) // 17) * 5 + 2
+                x = px.mean(-1)[None, None]
+                return torch.nn.functional.interpolate(x, size=(t, px.shape[1] // 16, px.shape[2] // 16)).repeat(1, 24, 1, 1, 1)
+
+        lat = {"samples": nested.NestedTensor((torch.zeros(1, 24, 7, 8, 8), torch.zeros(1, 32, 2, 37)))}
+        frames = torch.full((22, 128, 128, 3), 0.4)
+        mask = torch.zeros(22, 128, 128); mask[:, 48:80, 48:80] = 1
+        pos, out = SL.inpaint_latent(lat, [], VAE(), frames, mask)
+        video = out["samples"].tensors[0]
+        self.assertAlmostEqual(float(video.mean()), 0.4, places=4)        # starts from the shot's own frames
+        vm, am = out["noise_mask"].tensors
+        self.assertEqual(tuple(vm.shape), (1, 1, 7, 8, 8))
+        self.assertEqual(float(vm[0, 0, 3, 4, 4]), 1.0)                   # the person: generated
+        self.assertEqual(float(vm[0, 0, 3, 0, 0]), 0.0)                   # the rest of the crop: kept
+        self.assertEqual(float(vm[0, 0, 3, 2, 4]), 1.0)                   # grown by one latent cell
+        self.assertTrue(bool((am == 1).all()))                            # audio fully generated
+
+
+    def test_generation_mask_with_and_without_crop(self):
+        m = torch.zeros(5, 64, 64); m[:, 20:40, 20:40] = 1
+        cropped = SL.generation_mask({"crop": {"crop_mask": m, "expand": 4}, "frames": torch.zeros(5, 64, 64, 3)})
+        self.assertEqual(float(cropped[0, 17, 30]), 1.0)                  # grown by expand
+        self.assertEqual(float(cropped[0, 10, 30]), 0.0)
+        with self.assertRaises(ValueError):
+            SL.generation_mask({"crop": None, "mask_src": None, "frames": torch.zeros(5, 64, 64, 3)})
+        orig = SL.shot_mask
+        SL.shot_mask = lambda *a: {"masks": torch.nn.functional.interpolate(m[:, None], size=(32, 32))[:, 0].to(torch.uint8)}
+        try:
+            full = SL.generation_mask({"crop": None, "frames": torch.zeros(5, 64, 64, 3),
+                                       "mask_src": {"path": "", "analysis": {}, "start": 0, "length": 5,
+                                                    "spec": {"expand": 0}}})
+        finally:
+            SL.shot_mask = orig
+        self.assertEqual(tuple(full.shape), (5, 64, 64))
+        self.assertTrue(torch.equal(full, m))
+
+
 if __name__ == "__main__":
     unittest.main()

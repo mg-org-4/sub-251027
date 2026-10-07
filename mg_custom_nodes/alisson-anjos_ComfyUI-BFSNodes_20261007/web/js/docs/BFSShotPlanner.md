@@ -139,7 +139,35 @@ positive / negative points on any frame of the shot, then **👁 Preview mask** 
 Tick **✂ Crop to mask** and the shot is cropped to one box around the mask (the union over all its frames, so
 the crop does not shake), at the source resolution, and sent to the model at the generation size; **BFS Shot
 Join** pastes the result back into the full frame, feathered by the mask (or the whole box). **BFS Shot
-Unpack** also outputs the shot's mask (`mask`), e.g. for an inpainting model.
+Unpack** also outputs the shot's mask (`mask`), e.g. for an inpainting model. In **BFS Shot Join**'s comparison
+video, cropped shots show their mask (red) and crop box (yellow) over the original column (`comparison_mask`, on by
+default), so you can check what was selected next to the result.
+
+**Stitch finishing** (BFS Shot Join, cropped shots only; adapted from Neko (Nekodificador)'s *NKD Inpaint Stitch*, MIT, built on AbleJones's workflow and nodes):
+
+| Option | What it does |
+|---|---|
+| `edge_hardness` (0-1) | hardens the soft edge of the paste; raise it when a faint ghost of the original person shows around the new one |
+| `match_colors` (0-1) | corrects the colour / brightness drift of the generated patch (Reinhard in LAB), with statistics over the whole shot so it does not flicker |
+| `match_region` | *around the subject (swap)*: measured on a ring of background around the mask, so a new person keeps their own colours. *inside the subject*: measured inside the mask, for retouching the same content |
+| `seamless_edges` | Poisson blend (OpenCV) for stubborn seams; slower |
+
+**Mask, crop or both.** A generation mask alone (MiniMax H3 per-row noise mask) keeps the background exact but
+generates the person at the frame's own size, so a small person gets few pixels. A crop alone gives the person much
+more resolution, but the whole box is regenerated and has to be pasted back (that is what the finishing above is for).
+Set **inpaint → only the mask** on BFS Shot H3 Conditioning to regenerate only the person: the latent starts from
+the shot's own frames and its SAM 3 mask (grown by *expand* plus one latent cell) becomes the H3 generation mask, so
+everything else stays identical.
+
+- **Mask only** (shot has a mask, *Crop to mask* off): the whole frame, no crop and no uncrop. Simplest, the
+  background is untouched; best when the person fills a good part of the frame.
+- **Crop + mask** (*Crop to mask* on): the same inside the crop, so a small person gets more pixels; BFS Shot Join
+  pastes it back with no seam. Works with the duet panel too.
+
+Raise *expand* when the new person is bigger than the old one (longer hair, wider body): the generated area cannot
+go past the grown mask. Credit to **Neko (Nekodificador)** and **AbleJones**, whose workflow and nodes this follows.
+ComfyUI builds without native H3 generation masks need a per-row mask patch on the model
+(e.g. ComfyUI-MiniMaxH3-PerRowMasking).
 
 The **Mask & crop** card holds the global settings, with defaults that work as they are: fill holes on,
 temporal expand 2 frames (less flicker), expand 16 px, feather 12 px, padding 15 %, paste by mask, blockify off
@@ -213,3 +241,97 @@ BFS Shot Join ◄── images ────────────────�
 
 For other models, use **BFS Shot Unpack** and wire `guide_frames`, `ref_image`, `prompt` and
 `length` into that model's own guide and reference nodes; the list mapping works the same way.
+
+## Choosing who is replaced (`{target}`), step by step
+
+With several people on screen, a prompt that says "replace the person" leaves the model to guess. `{target}`
+puts a short description of the right person into the prompt of every shot ("the young woman with dark hair in a
+pink top"), so the model knows WHICH one to swap. The selection is made with SAM 3, and the description by the
+VLM, so it works for anyone or anything you can click on.
+
+### What you need
+
+- The planner's **`vlm`** input connected to a Qwen3-VL (CLIPLoader, type *stable_diffusion*, `qwen3vl_8b` recommended).
+- The workflow run **once** with it connected. ComfyUI only hands models to nodes when they run; after that the
+  panel buttons can use it.
+- Without a VLM it still works: you get the cut-out and type the description yourself.
+
+### 1. Put `{target}` in the prompt
+
+Write `{target}` wherever the prompt names the person being replaced: in the global prompt (all shots) or in a
+shot's own prompt. For example, the swap caption the H3 LoRAs were trained with:
+
+```
+... only the face, body and clothing of {target} are replaced.  summary: [video generation + reference] Replace
+{target} in the guide video with <Subject 1>, keeping the scene, camera and the complete motion and facial
+performance of the guide video.  detailed_description: [Shot 1] <Subject 1> takes the exact place of {target}
+and moves with the same timing, body pose, gestures, ...
+```
+
+`{target}` can be combined with `{details}` (the description of the references) and `{shot}` (the VLM's
+description of the shot).
+
+### 2. Select the person
+
+Open a shot and click **🎯 Points…**. The modal shows one frame of the shot; the slider below picks the frame.
+
+- **Click on the person's body** (torso), not only the face. A click on the face selects the head, and the
+  description then misses the clothes.
+- **Right-click** (or shift+click) puts an *exclude* point, e.g. on a second person standing close.
+- **👁 Segment** shows what SAM 3 picked (red). Add or remove points until only that person is red.
+- Instead of points you can just type what to segment (`woman in pink`, `man with glasses`, `dog`): no clicking is
+  needed, SAM 3 finds and tracks it through the shot. Points are for when the text is ambiguous (two similar people).
+  Points win when both are set. **Mask text → all** copies the text to every shot; **Crop → all** sets *✂ Crop to
+  mask* on every shot that has a mask.
+
+Then save:
+
+| Button | What it does |
+|---|---|
+| **Save (this shot)** | keeps the selection on this shot only |
+| **Save → all shots** | applies the same points to every shot, each on its frame at the same relative position as the frame you clicked on (e.g. clicked in the middle of this shot → every shot uses its middle frame) |
+
+**Save → all shots** is for a person who stays in the same place across shots (a sequential video, a fixed camera).
+
+### 3. Describe the person
+
+Click **🧑 Describe target** in the shot's card:
+- SAM 3 cuts the person out of the selected frame, and a thumbnail of the cut-out appears next to the field.
+- The VLM writes a short phrase into the **`{target}`** field.
+- The field stays editable: correct it or write your own. Keep it short and visual (who, hair, main clothes with
+  colours) and start it with "the".
+- **Target → all** copies the description to every shot. Use it when the same person is replaced throughout;
+  otherwise describe shot by shot.
+
+### 4. Check and fix
+
+- **👁 Preview mask** on a few shots shows the selection on several frames of each shot.
+- In a shot where the selection picked the wrong thing, **✕ Clear mask** removes its points, text and crop. Select
+  again in that shot only (**Save (this shot)**) and describe again.
+- **Points → all** (in a shot's card) copies that shot's points to every shot without opening the modal.
+
+### What happens when the workflow runs
+
+Every shot's prompt gets its own `{target}` text. A shot without a description gets "the person". The selection is
+only used to make the description: it does not crop or mask anything unless **✂ Crop to mask** is also ticked.
+
+### Examples
+
+- **Two people, swap only one:** in the first shot, click on the woman's torso, put an exclude point on the man,
+  then **Save → all shots** and **🧑 Describe target** → "the young woman with long black hair in a white blouse".
+  **Target → all**.
+- **The person changes between shots:** describe shot by shot, e.g. shot 1 "the man in the grey suit", shot 2
+  "the woman in the red dress". Each shot keeps its own text.
+- **Animals:** it works the same way, e.g. "the small black dog in front".
+
+### Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| "No VLM yet" | connect the `vlm` input and run the workflow once, or type the description |
+| "Select the person first" | the shot has no points or mask text: use **🎯 Points…** |
+| "SAM 3 found nothing" | click again on the person (on the torso), or try another frame with the slider |
+| Only the face or the hair is described | the click was on the head: click the body |
+| The other person is described | add an exclude point (right-click) on the other person, **👁 Segment**, save, describe again |
+| The swap still hits the wrong person | make the description more specific (position: "on the left", clothing colours) |
+

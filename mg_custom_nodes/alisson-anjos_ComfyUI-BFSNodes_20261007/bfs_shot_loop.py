@@ -459,6 +459,7 @@ def resolve_plan(plan: dict, analysis: dict, path: str | None = None) -> list[di
         s["chain_frame"] = m.get("chain_frame") or "first"
         s["crop"] = bool(m.get("crop"))
         s["mask"] = m.get("mask") or {}
+        s["target"] = m.get("target") or ""
         s["cut_before"] = bool(s.get("cut_before")) or (s["start"] in cuts)
         s["gen_len"] = snap_up(s["end"] - s["start"], grid)
         s["people"], s["main"] = [], -1
@@ -930,8 +931,85 @@ def crop_panel(img: torch.Tensor, shot: dict) -> torch.Tensor:
     return img[:, y0:y0 + h, x0:x0 + w]
 
 
-def uncrop(result: torch.Tensor, shot: dict) -> torch.Tensor:
-    """Paste a cropped shot's result back into its full frames (feathered by the mask or the box)."""
+# --- stitch finishing: edge hardness, Reinhard colour match (LAB) and Poisson seamless clone. The three operations are
+# adapted from Neko (Nekodificador)'s ComfyUI-NKD-Basic-Tools (NKD Inpaint Stitch, MIT licence), built on AbleJones's
+# workflow and nodes. Differences: the colour
+# statistics are taken over the whole shot (no flicker), and by default from a ring AROUND the subject, so a swap's new
+# person keeps its own colours while the model's light / colour drift is corrected.
+
+def _alpha_hardness(alpha: torch.Tensor, hardness: float) -> torch.Tensor:
+    """Black / white point remap of the paste alpha: 0 = unchanged, 1 = hard cut at 0.5 (removes the halo of the
+    original subject in the soft edge)."""
+    if hardness <= 0.0:
+        return alpha
+    bp = min(hardness * 0.5, 0.499)
+    return ((alpha - bp) / (1.0 - 2 * bp)).clamp(0.0, 1.0)
+
+
+def _rgb_to_lab(rgb):
+    lin = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+    M = np.array([[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750], [0.0193339, 0.1191920, 0.9503041]], np.float32)
+    xyz = lin @ M.T / np.array([0.95047, 1.0, 1.08883], np.float32)
+    d = 6.0 / 29.0
+    f = lambda t: np.where(t > d ** 3, np.cbrt(t), t / (3 * d * d) + 4.0 / 29.0)
+    fx, fy, fz = f(xyz[..., 0]), f(xyz[..., 1]), f(xyz[..., 2])
+    return np.stack([116.0 * fy - 16.0, 500.0 * (fx - fy), 200.0 * (fy - fz)], -1).astype(np.float32)
+
+
+def _lab_to_rgb(lab):
+    fy = (lab[..., 0] + 16.0) / 116.0
+    fx, fz = lab[..., 1] / 500.0 + fy, fy - lab[..., 2] / 200.0
+    d = 6.0 / 29.0
+    fi = lambda t: np.where(t > d, t ** 3, 3 * d * d * (t - 4.0 / 29.0))
+    xyz = np.stack([fi(fx) * 0.95047, fi(fy), fi(fz) * 1.08883], -1)
+    Mi = np.array([[3.2404542, -1.5371385, -0.4985314], [-0.9692660, 1.8760108, 0.0415560], [0.0556434, -0.2040259, 1.0572252]], np.float32)
+    lin = np.clip(xyz @ Mi.T, 0.0, None)
+    return np.clip(np.where(lin <= 0.0031308, lin * 12.92, 1.055 * lin ** (1 / 2.4) - 0.055), 0, 1).astype(np.float32)
+
+
+def _shot_color_transfer(orig: torch.Tensor, gen: torch.Tensor, region: torch.Tensor, strength: float) -> torch.Tensor:
+    """Reinhard transfer in LAB with statistics over the whole shot inside `region` [N,H,W] (original vs generated),
+    applied to every generated frame. Returns gen unchanged when the region is too small."""
+    if strength <= 0.0:
+        return gen
+    sel = region > 0.5
+    if int(sel.sum()) < 400:
+        return gen
+    step = max(1, int(sel.sum()) // 200000)
+    o = _rgb_to_lab(orig[sel].numpy()[::step].astype(np.float32))
+    g = _rgb_to_lab(gen[sel].numpy()[::step].astype(np.float32))
+    om, os_, gm, gs = o.mean(0), o.std(0) + 1e-5, g.mean(0), g.std(0) + 1e-5
+    ratio = np.clip(os_ / gs, 0.5, 2.0)          # a flat region has ~0 spread: never blow the contrast up
+    lab = _rgb_to_lab(gen.numpy().astype(np.float32))
+    out = _lab_to_rgb((lab - gm) * ratio + om)
+    return torch.from_numpy(out) * strength + gen * (1.0 - strength)
+
+
+def _seamless(orig: np.ndarray, gen: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    """Poisson clone of gen onto orig inside alpha (one frame, float RGB 0-1)."""
+    import cv2
+    binary = (alpha > 0.1).astype(np.uint8) * 255
+    binary[0, :] = binary[-1, :] = 0
+    binary[:, 0] = binary[:, -1] = 0
+    x, y, w, h = cv2.boundingRect(binary)
+    a3 = alpha[..., None]
+    if w == 0 or h == 0:
+        return orig * (1 - a3) + gen * a3
+    try:
+        c = cv2.seamlessClone((np.clip(gen, 0, 1) * 255).astype(np.uint8), (np.clip(orig, 0, 1) * 255).astype(np.uint8),
+                              binary, (x + w // 2, y + h // 2), cv2.NORMAL_CLONE).astype(np.float32) / 255.0
+        return orig * (1 - a3) + c * a3
+    except Exception:  # noqa: BLE001
+        return orig * (1 - a3) + gen * a3
+
+
+MATCH_REGIONS = ["around the subject (swap)", "inside the subject (same content)"]
+
+
+def uncrop(result: torch.Tensor, shot: dict, edge_hardness: float = 0.0, match_colors: float = 0.0,
+           match_region: str = MATCH_REGIONS[0], seamless: bool = False) -> torch.Tensor:
+    """Paste a cropped shot's result back into its full frames (feathered by the mask or the box), with optional
+    edge hardness, colour match and seamless clone."""
     c = shot["crop"]
     full = shot["full_frames"]
     W, H = full.shape[2], full.shape[1]
@@ -947,8 +1025,22 @@ def uncrop(result: torch.Tensor, shot: dict) -> torch.Tensor:
     else:
         m = c["mask"][:n].float()
         alpha = grow_blur(m, int(c.get("expand", 8)), int(c.get("feather", 12)))
+    alpha = _alpha_hardness(alpha, float(edge_hardness))
+    if match_colors > 0 and c.get("mask") is not None:
+        m = c["mask"][:n].float()[:, y0:y1, x0:x1]
+        if match_region == MATCH_REGIONS[0]:     # ring around the subject: background the model also regenerated
+            k = max(3, int(0.06 * max(y1 - y0, x1 - x0)))
+            region = grow_blur(m, k, 0) - grow_blur(m, max(2, k // 3), 0)
+        else:
+            region = m
+        res = _shot_color_transfer(full[:n, y0:y1, x0:x1].float(), res, region, float(match_colors))
     a = alpha[:, y0:y1, x0:x1, None]
-    out[:, y0:y1, x0:x1] = res * a + out[:, y0:y1, x0:x1] * (1 - a)
+    if seamless:
+        for i in range(n):
+            out[i, y0:y1, x0:x1] = torch.from_numpy(_seamless(out[i, y0:y1, x0:x1].numpy().astype(np.float32),
+                                                              res[i].numpy().astype(np.float32), a[i, ..., 0].numpy()))
+    else:
+        out[:, y0:y1, x0:x1] = res * a + out[:, y0:y1, x0:x1] * (1 - a)
     if result.shape[0] > n:   # frames past the planned length stay as generated, pasted the same way
         out = torch.cat([out, out[-1:].expand(result.shape[0] - n, -1, -1, -1)], 0)
     return out
@@ -974,6 +1066,42 @@ def mask_preview(path: str, analysis: dict, start: int, length: int, spec: dict,
         out.append({"f": start + i, "src": "data:image/jpeg;base64," + base64.b64encode(buf.tobytes()).decode()})
     cover = float(masks.float().mean()) if masks.numel() else 0.0
     return {"box": box, "frames": out, "coverage": cover, "empty": box is None}
+
+
+# ---------------------------------------------------------------------------- {target}: who is replaced
+
+TARGET_Q = ("Describe the person in this picture as one short English noun phrase for a video prompt, at most 14 words: "
+            "apparent gender and age group, hair, and the main clothing with colours. Example: 'the young woman with long "
+            "black hair in a white T-shirt and denim shorts'. Start with 'the'. Reply with the phrase only.")
+
+
+def target_crop(path: str, analysis: dict, start: int, length: int, spec: dict, pad: float = 0.12):
+    """The selected subject (the shot's SAM 3 points / text, on its key frame) cropped from that frame, RGB uint8."""
+    src = _timeline(analysis["n_src"], analysis["fps_src"], float(analysis["fps"]))
+    key = max(0, min(length - 1, int(spec.get("key") or length // 2)))
+    fr = _read_frames(path, src[np.clip(np.array([start + key]), 0, analysis["n"] - 1)], None)[0]
+    img = torch.from_numpy(fr.astype(np.float32) / 255.0)[None]
+    m = segment_frames(img, dict(spec, key=0))[0] > 0.5
+    _node_boundary()
+    if not bool(m.any()):
+        return None
+    ys, xs = np.where(m.numpy())
+    H, W = fr.shape[:2]
+    py, px = int((ys.max() - ys.min()) * pad) + 4, int((xs.max() - xs.min()) * pad) + 4
+    return fr[max(0, ys.min() - py):min(H, ys.max() + py), max(0, xs.min() - px):min(W, xs.max() + px)]
+
+
+def describe_target(clip, crop: np.ndarray, max_tokens: int = 64) -> str:
+    img = torch.from_numpy(crop.astype(np.float32) / 255.0)[None]
+    t = vlm_generate(clip, TARGET_Q, img, max_tokens).strip().strip('"\'').split("\n")[0].strip().rstrip(".")
+    if t and not t.lower().startswith("the "):
+        t = "the " + t[0].lower() + t[1:]
+    return " ".join(t.split()[:16]) or "the person"
+
+
+def fill_target(text: str, desc: str) -> str:
+    """{target} = who is replaced in this shot (picked + described in the panel), else 'the person'."""
+    return text.replace("{target}", desc.strip() or "the person") if "{target}" in text else text
 
 
 # ---------------------------------------------------------------------------- VLM suggestions (optional)
@@ -1567,7 +1695,11 @@ class BFSShotPlanner:
                 suggestions.append(dict(sug, start=s["start"], end=s["end"]))
                 if vcfg["auto_segment"] and sug["segment"] and not (s["mask"].get("text") or s["mask"].get("points")):
                     s["mask"] = dict(s["mask"], text=sug["segment"])
-            crop, full_frames = None, None
+            crop, full_frames, mask_src = None, None, None
+            if not s.get("crop") and (s["mask"].get("text") or s["mask"].get("points")):
+                # mask without crop: segmented only if the conditioning asks for it (inpaint "only the mask")
+                mask_src = {"path": path, "analysis": a, "start": s["start"], "length": s["gen_len"],
+                            "spec": mask_spec(s.get("mask"), p.get("mask_cfg"))}
             if s.get("crop"):
                 spec = mask_spec(s.get("mask"), p.get("mask_cfg"))
                 r = shot_mask(path, a, s["start"], s["gen_len"], spec)
@@ -1588,11 +1720,11 @@ class BFSShotPlanner:
                 "index": i, "count": len(segs), "start": s["start"], "end": s["end"],
                 "length": s["end"] - s["start"], "gen_length": s["gen_len"], "fps": fps,
                 "cut_before": s["cut_before"], "width": ft.shape[2], "height": ft.shape[1], "frames": ft,
-                "crop": crop, "full_frames": full_frames,
+                "crop": crop, "full_frames": full_frames, "mask_src": mask_src,
                 "ref": ref, "ref2": ref2,
-                "prompt": fill_details((s["prompt"] or written.get(i) or g_prompt or "").replace(
+                "prompt": fill_target(fill_details((s["prompt"] or written.get(i) or g_prompt or "").replace(
                     "{shot}", sug["shot"] if (sug and vcfg["auto_shot"]) else ""),
-                    s["ref"] or g_names["ref"], s["ref2"] or g_names["ref2"], ref, ref2),
+                    s["ref"] or g_names["ref"], s["ref2"] or g_names["ref2"], ref, ref2), s.get("target", "")),
                 "audio": _slice_audio(audio, s["start"] / fps, s["gen_len"] / fps),
                 "run_id": rid, "queue": queue,
                 "chain": s["chain"], "chain_frame": s["chain_frame"], "chain_image": chain_img,
@@ -1780,6 +1912,49 @@ def add_setting(text: str, k: int, swap: bool) -> str:
     return (text.rstrip() + "\n\n" + line).strip()
 
 
+def generation_mask(shot: dict) -> torch.Tensor:
+    """The shot's person mask [F,H,W] at the generation size, grown by the mask's `expand`: the crop's own mask for a
+    cropped shot, otherwise the whole frame's (segmented here, cached)."""
+    crop = shot.get("crop") or {}
+    if crop.get("crop_mask") is not None:
+        m, grow = crop["crop_mask"], int(crop.get("expand") or 0)
+    elif shot.get("mask_src"):
+        ms = shot["mask_src"]
+        r = shot_mask(ms["path"], ms["analysis"], ms["start"], ms["length"], ms["spec"])
+        H, W = shot["frames"].shape[1:3]
+        m = torch.nn.functional.interpolate(r["masks"][:, None].float(), size=(H, W), mode="nearest")[:, 0]
+        grow = int(ms["spec"].get("expand") or 0)
+    else:
+        raise ValueError(f"shot {shot.get('index', 0) + 1}: inpaint 'only the mask' needs a SAM 3 mask on the shot "
+                         "(mask text or points in the Planner)")
+    return grow_blur(m, grow, 0) if grow > 0 else m.float()
+
+
+def inpaint_latent(latent: dict, positive, vae, frames: torch.Tensor, mask: torch.Tensor):
+    """H3 AV latent whose video starts from `frames` (VAE-encoded) and whose generation mask is `mask` (1 = regenerate)
+    on H3's latent grid (grown by one cell); the audio stays fully generated. Per-row mixed-timestep masking for H3:
+    credit to Neko (Nekodificador) and AbleJones, whose workflow and nodes this follows."""
+    import comfy.nested_tensor
+    try:
+        from .bfs_h3_side_panel import _encode, latent_mask
+    except ImportError:
+        from bfs_h3_side_panel import _encode, latent_mask
+    samples = latent["samples"]
+    video, audio = samples.tensors[0], samples.tensors[1]
+    T, h, w = video.shape[2], video.shape[3], video.shape[4]
+    if frames.shape[1] != h * 16 or frames.shape[2] != w * 16:
+        frames = torch.nn.functional.interpolate(frames[..., :3].movedim(-1, 1).float(), size=(h * 16, w * 16),
+                                                 mode="bilinear", align_corners=False).movedim(1, -1)
+    enc = _encode(vae, frames[..., :3]).to(video)
+    if enc.shape[2] != T:
+        raise ValueError(f"inpaint: the shot encodes to {enc.shape[2]} latent frames, the video has {T}")
+    vmask = latent_mask(mask, T, h, w, grow=1).to(video.device)
+    out = dict(latent)
+    out["samples"] = comfy.nested_tensor.NestedTensor((enc, audio))
+    out["noise_mask"] = comfy.nested_tensor.NestedTensor((vmask, torch.ones_like(audio)))
+    return positive, out
+
+
 class BFSShotH3Conditioning:
     """Native MiniMax H3 conditioning for one shot: references, prompt and the shot as a guide."""
 
@@ -1840,6 +2015,14 @@ class BFSShotH3Conditioning:
                     "'person' on that frame. 'source size' uses the video's own resolution (up to 2048 short edge): "
                     "sharper, slower."}),
                 "setting_mask": ("MASK", {"tooltip": "Optional mask of the person to cover in the setting picture."}),
+                "inpaint": (["off", "only the mask"], {"default": "off", "tooltip":
+                    "Regenerate ONLY the person. The latent starts from the shot's own frames and the shot's SAM 3 "
+                    "mask (grown by the mask's expand + one latent cell) becomes H3's generation mask; everything else "
+                    "stays exactly as it was. With 'Crop to mask' on the shot it works inside the crop (more pixels "
+                    "for the person, BFS Shot Join pastes it back); without crop it works on the whole frame (no "
+                    "crop / uncrop at all). Needs a mask (text or points) on the shot. Crop + H3 generation mask: credit to Neko (Nekodificador) and AbleJones, "
+                    "whose workflow and nodes this follows. On ComfyUI builds without native H3 generation masks, add "
+                    "a per-row mask patch to the model (e.g. ComfyUI-MiniMaxH3-PerRowMasking)."}),
             },
         }
 
@@ -1853,7 +2036,7 @@ class BFSShotH3Conditioning:
     def condition(self, shot, clip, vae, guide_mode, use_ref_2, first_frame, ref_image_size,
                   audio_vae=None, with_audio=False, duet="off", model=None, panel_position="left", panel_size=1.0,
                   panel_noise=0.0, rope_gap=0.0, task="planner prompt", instruction="", vlm=None,
-                  setting_ref="off", setting_mask=None):
+                  setting_ref="off", setting_mask=None, inpaint="off"):
         from comfy_extras.nodes_minimax_h3 import MiniMaxH3AddGuide, MiniMaxH3ReferenceToVideo
         try:
             from .bfs_h3_side_panel import build_prompt, layout_text, make_info
@@ -1927,6 +2110,11 @@ class BFSShotH3Conditioning:
             positive = MiniMaxH3AddGuide.execute(positive=positive, latent=latent, frame_idx=0, vae=vae,
                                                  image=prev).args[0]
         shot.pop("panel", None)
+        keep_mask = keep_video = None
+        if inpaint and inpaint != "off":
+            keep_mask, keep_video = generation_mask(shot), shot["frames"]
+        if keep_mask is not None and not on_canvas:
+            positive, latent = inpaint_latent(latent, positive, vae, keep_video, keep_mask)
         if on_canvas:
             try:
                 from .bfs_h3_side_panel import BFSH3SidePanel, patch_model_rope
@@ -1936,7 +2124,7 @@ class BFSShotH3Conditioning:
             guide = shot["frames"] if aligned and audio is None else None
             positive, latent, info, _, _ = BFSH3SidePanel().apply(
                 positive, latent, vae, shot["frames"], panel_position, panel_size, "contain", 0, "all frames",
-                panel_noise, guide, 0)
+                panel_noise, guide, 0, keep_video=keep_video, keep_mask=keep_mask)
             shot["panel"] = info        # BFS Shot Join crops the decoded canvas back to the video
             if duet == "shifted RoPE":
                 if model is None:
@@ -1969,7 +2157,23 @@ class BFSShotJoin:
                              "comparison's top bar, e.g. the model, LoRA, steps and seed."}),
                          "comparison_height": ("INT", {"default": 360, "min": 0, "max": 4096, "step": 16, "tooltip":
                              "Height of each column in the comparison (0 = full size). Smaller is much lighter "
-                             "for long videos."})},
+                             "for long videos."}),
+                         "edge_hardness": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.05, "tooltip":
+                             "Cropped shots: harden the soft edge of the paste (0 = as feathered, 1 = hard cut). Raise it "
+                             "when a faint ghost of the original person shows around the new one. From NKD Inpaint Stitch."}),
+                         "match_colors": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.05, "tooltip":
+                             "Cropped shots: correct the colour / brightness drift of the generated patch (Reinhard in "
+                             "LAB, statistics over the whole shot, so no flicker). 0.5-1 typical. From NKD Inpaint Stitch."}),
+                         "match_region": (MATCH_REGIONS, {"default": MATCH_REGIONS[0], "tooltip":
+                             "Where the colour statistics are measured. 'around the subject (swap)': a ring of background "
+                             "around the mask, so a new person keeps their own colours and only the scene's light drift "
+                             "is fixed. 'inside the subject': inside the mask (retouching the same person/content)."}),
+                         "seamless_edges": ("BOOLEAN", {"default": False, "tooltip": "Cropped shots: Poisson blend "
+                             "(OpenCV seamlessClone) for stubborn seams. Slower; can shift colours near the edge. From "
+                             "NKD Inpaint Stitch."}),
+                         "comparison_mask": ("BOOLEAN", {"default": True, "tooltip": "In the comparison, shots with "
+                             "'Crop to mask' show their SAM 3 mask (red) and crop box (yellow) over the original "
+                             "column, to check what was selected."})},
         }
 
     INPUT_IS_LIST = True
@@ -1980,15 +2184,21 @@ class BFSShotJoin:
     DESCRIPTION = "Concatenate the generated shots in order, trim each to its length and cross-fade soft joins."
 
     def join(self, images, shots, crossfade, audio=None, timeline=None, comparison=None, label=None,
-             comparison_height=None):
+             comparison_height=None, comparison_mask=None, edge_hardness=None, match_colors=None, match_region=None,
+             seamless_edges=None):
         tl = timeline[0] if timeline else None
+        fin = dict(edge_hardness=float(edge_hardness[0]) if edge_hardness else 0.0,
+                   match_colors=float(match_colors[0]) if match_colors else 0.0,
+                   match_region=match_region[0] if match_region else MATCH_REGIONS[0],
+                   seamless=bool(seamless_edges[0]) if seamless_edges else False)
+        self._comp_mask = bool(comparison_mask[0]) if comparison_mask else True
         want = bool(comparison[0]) if comparison else False
         self._comp_h = int(comparison_height[0]) if comparison_height else 360
         self._want = want
         lab = (label[0] if label else "") or ""
         self._parts = []   # (shot or None, frames in the output, original frames) per piece, for the comparison
         images = [crop_panel(img, sh) for img, sh in zip(images, shots)]
-        images = [uncrop(img, sh) if sh.get("crop") and sh.get("full_frames") is not None else img
+        images = [uncrop(img, sh, **fin) if sh.get("crop") and sh.get("full_frames") is not None else img
                   for img, sh in zip(images, shots)]
         if shots and shots[0].get("queue"):
             out = self._join_queue(images, shots, crossfade, audio, tl)
@@ -1997,7 +2207,7 @@ class BFSShotJoin:
         if len(out) == 3 and not isinstance(out[0], torch.Tensor):   # queue loop, not the last shot
             return out + (out[0],)
         video = out[0]
-        comp = comparison_video(video, self._parts, lab, self._comp_h) if want else video[:1]
+        comp = comparison_video(video, self._parts, lab, self._comp_h, self._comp_mask) if want else video[:1]
         return tuple(out) + (comp,)
 
     def _join_queue(self, images, shots, crossfade, audio, tl=None):
@@ -2221,9 +2431,31 @@ def _scale_batch(x: torch.Tensor, h: int, w: int) -> torch.Tensor:
     return y.movedim(1, -1).clamp(0, 1)
 
 
-def comparison_video(video: torch.Tensor, parts: list, label: str = "", height: int = 480) -> torch.Tensor:
+def _mask_overlay(o: torch.Tensor, crop: dict, L: int) -> torch.Tensor:
+    """The shot's SAM 3 mask in red (45 %) and its crop box in yellow over the original column [L,H,W,3]."""
+    H, W = o.shape[1:3]
+    m = crop.get("mask")
+    if m is not None and m.numel():
+        idx = torch.clamp(torch.arange(L), max=m.shape[0] - 1)
+        mm = torch.nn.functional.interpolate(m[idx].float()[:, None], size=(H, W), mode="nearest")[:, 0] > 0.5
+        red = torch.tensor([1.0, 0.16, 0.24])
+        o = torch.where(mm[..., None], o * 0.55 + red * 0.45, o)
+    box = crop.get("box")
+    if box:
+        x0, y0, x1, y1 = [int(round(v)) for v in (box[0] * W, box[1] * H, box[2] * W, box[3] * H)]
+        x0, y0, x1, y1 = max(0, x0), max(0, y0), min(W - 1, x1), min(H - 1, y1)
+        yel, t = torch.tensor([1.0, 0.82, 0.35]), max(1, H // 180)
+        o = o.clone()
+        o[:, y0:y0 + t, x0:x1] = yel; o[:, max(0, y1 - t):y1, x0:x1] = yel
+        o[:, y0:y1, x0:x0 + t] = yel; o[:, y0:y1, max(0, x1 - t):x1] = yel
+    return o
+
+
+def comparison_video(video: torch.Tensor, parts: list, label: str = "", height: int = 480,
+                     show_mask: bool = True) -> torch.Tensor:
     """original | references | result for every output frame, with shot info on top and the prompt below.
-    Built at `height` px per column (0 = full size) so long videos stay light."""
+    Built at `height` px per column (0 = full size) so long videos stay light. With show_mask, cropped shots show
+    their mask (red) and crop box (yellow) over the original column."""
     vH, vW = video.shape[1:3]
     s = min(1.0, height / vH) if height and height > 0 else 1.0
     H, W = max(16, int(vH * s) // 2 * 2), max(16, int(vW * s) // 2 * 2)
@@ -2262,6 +2494,8 @@ def comparison_video(video: torch.Tensor, parts: list, label: str = "", height: 
             idx = torch.clamp(torch.arange(L), max=orig.shape[0] - 1)
             o = orig[idx]
             o = _scale_batch(o.float() / 255.0 if o.dtype == torch.uint8 else o, H, W)
+            if show_mask and shot.get("crop"):
+                o = _mask_overlay(o, shot["crop"], L)
         else:
             o = torch.full((L, H, W, 3), 0.1)
         body = torch.cat([o, col[None].expand(L, -1, -1, -1), res], 2)
@@ -2436,6 +2670,35 @@ try:
         except Exception as exc:  # noqa: BLE001
             return web.json_response({"error": f"{type(exc).__name__}: {exc}"}, status=500)
         return web.json_response({"segs": out})
+
+    @PromptServer.instance.routes.post("/bfs/shotloop/target")
+    async def _bfs_shot_target(request):
+        """Pick + describe who is replaced: body {plan, index, mask?} -> {desc, crop}. The subject is the shot's SAM 3
+        selection (points on its key frame, else its text); the VLM, when connected, writes the description."""
+        body = await request.json()
+        try:
+            p = _load_plan(json.dumps(body.get("plan", {})))
+            path = _input_path(p["video"])
+            a = analyze(path, float(p["fps"]))
+            seg = resolve_plan(p, a, path)[int(body.get("index", 0))]
+            spec = mask_spec(body.get("mask") or seg.get("mask"), p.get("mask_cfg"))
+            if not (spec.get("points") or str(spec.get("text") or "").strip()):
+                raise ValueError("Select the person first: 🎯 Points… (click on them) or type what to segment.")
+            clip = _VLM.get("clip")
+
+            def work():
+                import cv2
+                crop = target_crop(path, a, seg["start"], seg["end"] - seg["start"], spec)
+                if crop is None:
+                    raise ValueError("SAM 3 found nothing at that selection.")
+                desc = describe_target(clip, crop) if clip is not None else ""
+                ok, buf = cv2.imencode(".jpg", cv2.cvtColor(crop, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 82])
+                return {"desc": desc, "crop": "data:image/jpeg;base64," + base64.b64encode(buf.tobytes()).decode(),
+                        "no_vlm": clip is None}
+            out = await _off_loop(work)
+        except Exception as exc:  # noqa: BLE001
+            return web.json_response({"error": f"{type(exc).__name__}: {exc}"}, status=500)
+        return web.json_response(out)
 
     @PromptServer.instance.routes.post("/bfs/shotloop/describe")
     async def _bfs_shot_describe(request):

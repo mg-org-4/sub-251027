@@ -1,0 +1,1225 @@
+{
+  "id": "94bf9b0d-bf45-4660-add8-58a1732a7412",
+  "revision": 0,
+  "last_node_id": 32,
+  "last_link_id": 24,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "PreviewImage",
+      "pos": [
+        3810,
+        1995
+      ],
+      "size": [
+        375,
+        540
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        2880,
+        1995
+      ],
+      "size": [
+        282.798828125,
+        314.0000000000001
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "Whisk_11410d64da644cbac2e44fbe95a54f83dr.jpeg",
+        "image"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "PreviewImage",
+      "pos": [
+        3810,
+        2745
+      ],
+      "size": [
+        375,
+        540
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 7
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 7,
+      "type": "LoadImage",
+      "pos": [
+        2880,
+        2745
+      ],
+      "size": [
+        282.798828125,
+        314.0000000000001
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "Whisk_11410d64da644cbac2e44fbe95a54f83dr.jpeg",
+        "image"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "PreviewImage",
+      "pos": [
+        3555,
+        3540
+      ],
+      "size": [
+        660,
+        525
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 8
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 15,
+      "type": "LoadImage",
+      "pos": [
+        4440,
+        2430
+      ],
+      "size": [
+        282.798828125,
+        314.0000000000002
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            14
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "Whisk_11410d64da644cbac2e44fbe95a54f83dr.jpeg",
+        "image"
+      ]
+    },
+    {
+      "id": 21,
+      "type": "LoadImage",
+      "pos": [
+        4440,
+        2040
+      ],
+      "size": [
+        282.798828125,
+        314.0000000000002
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            16
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "sadi-face-zimage.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 20,
+      "type": "ImageBatchMulti",
+      "pos": [
+        4815,
+        2220
+      ],
+      "size": [
+        270,
+        102
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_1",
+          "type": "IMAGE",
+          "link": 16
+        },
+        {
+          "name": "image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "9b565354e32a7061296ac598d9c7f445e10d31ed"
+      },
+      "widgets_values": [
+        2,
+        null
+      ]
+    },
+    {
+      "id": 22,
+      "type": "LoadImage",
+      "pos": [
+        4440,
+        3465
+      ],
+      "size": [
+        282.798828125,
+        314.0000000000002
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            18
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "Whisk_11410d64da644cbac2e44fbe95a54f83dr.jpeg",
+        "image"
+      ]
+    },
+    {
+      "id": 24,
+      "type": "ImageBatchMulti",
+      "pos": [
+        4815,
+        3255
+      ],
+      "size": [
+        270,
+        102
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_1",
+          "type": "IMAGE",
+          "link": 17
+        },
+        {
+          "name": "image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "9b565354e32a7061296ac598d9c7f445e10d31ed"
+      },
+      "widgets_values": [
+        2,
+        null
+      ]
+    },
+    {
+      "id": 23,
+      "type": "LoadImage",
+      "pos": [
+        4440,
+        3075
+      ],
+      "size": [
+        282.798828125,
+        314.0000000000002
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            17
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "sadi-face-zimage.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "KIE_NanoBanana2_Image",
+      "pos": [
+        3225,
+        2745
+      ],
+      "size": [
+        525,
+        480
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kie-api",
+        "ver": "d751229471a0e57b7ab80713c790860774beddb4",
+        "Node name for S&R": "KIE_NanoBanana2_Image"
+      },
+      "widgets_values": [
+        "create a 2x2 grid of this woman with dark wavy hair, blue eyes, and pale skin, create a random camera position of this woman in each cell of the grid give her various different poses and facial expressions. maintain her exact facial expression, clothing, background enviroment. no borders, lables. Make sure each cell of the grid has the woman and the poses should stike a balance between playful, sensual and sexy.",
+        false,
+        "9:16",
+        "2K",
+        "png",
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 4,
+      "type": "KIE_NanoBananaPro_Image",
+      "pos": [
+        3225,
+        1995
+      ],
+      "size": [
+        510,
+        510
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kie-api",
+        "ver": "f76f69886f7a62b22cda62d8dd51fe2b3822cc21",
+        "Node name for S&R": "KIE_NanoBananaPro_Image",
+        "aux_id": "gateway/ComfyUI-Kie-API"
+      },
+      "widgets_values": [
+        "create a 2x2 grid of this woman with dark wavy hair, blue eyes, and pale skin, create a random camera position of this woman in each cell of the grid give her various different poses and facial expressions. maintain her exact facial expression, clothing, background enviroment. no borders, lables. Make sure each cell of the grid has the woman and the poses should stike a balance between playful, sensual and sexy.",
+        "9:16",
+        "2K",
+        "png",
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 27,
+      "type": "KIE_GridSlice",
+      "pos": [
+        6285,
+        3270
+      ],
+      "size": [
+        270,
+        178
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 23
+        }
+      ],
+      "outputs": [
+        {
+          "name": "tiles",
+          "type": "IMAGE",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kie-api",
+        "ver": "d751229471a0e57b7ab80713c790860774beddb4",
+        "Node name for S&R": "KIE_GridSlice"
+      },
+      "widgets_values": [
+        "2x2",
+        0,
+        0,
+        "row-major",
+        "first",
+        true
+      ]
+    },
+    {
+      "id": 16,
+      "type": "PreviewImage",
+      "pos": [
+        5835,
+        3255
+      ],
+      "size": [
+        375,
+        540
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 14,
+      "type": "PreviewImage",
+      "pos": [
+        5820,
+        2220
+      ],
+      "size": [
+        375,
+        540
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 10
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 31,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        7860,
+        2550
+      ],
+      "size": [
+        540,
+        810
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "dir": 3,
+          "name": "source",
+          "type": "*",
+          "link": 24
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "rgthree-comfy",
+        "ver": "1.0.2512112053",
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        "SYSTEM PROMPT - GRID VISUAL DIRECTOR (REAL CAMERA - INFLUENCER STYLE)\n\nYou are a Visual Director and Shot Architect for real-camera-style AI imagery.\n\nYou do NOT generate images.\nYou design shot plans, pose variation, camera logic, and editorial rhythm that will later be translated into rendering prompts.\n\nYou think like a real-world creative director planning a photoshoot, not a renderer.\n\n----------------------------------------\nINPUTS YOU MAY RECEIVE\n\n1) Reference Images\nThe user may provide:\n- One full reference image (person + environment)\n- An optional second reference image that is a close-up face image\n\n2) User Instructions\n- Grid size (e.g. 2x2 or 3x3)\n- Aspect ratio (e.g. 9:16, 1:1, 4:5)\n- Creative idea, vibe, or suggestion to guide the frames\n\nYou must incorporate these inputs exactly.\n\nUser Prompt:\n2x2 grid\njson format\nfashion shoot\nplayful camera movments and poses\n\n----------------------------------------\nREFERENCE IMAGE PRIORITY & FACE LOCK RULES (CRITICAL)\n\nREFERENCE IMAGES ARE PHYSICALLY REAL AND AUTHORITATIVE.\n\nFACE REFERENCE PRIORITY LOGIC:\n- If a dedicated close-up face reference image is provided:\n  - This image is the ABSOLUTE ground truth for facial identity\n  - Extract and preserve:\n    - skull structure\n    - jawline\n    - cheekbone placement\n    - eye shape, spacing, and tilt\n    - nose structure\n    - lip shape and volume\n    - freckles, moles, and skin markings\n- If no dedicated face reference is provided:\n  - Use the primary reference image as the facial ground truth\n  - Do not invent or idealize facial features\n\nFACIAL PRESERVATION (NON-NEGOTIABLE):\n- Facial structure must remain identical across all grid cells\n- No face reshaping, beautification, symmetry correction, or age change\n- No \"idealized\" or \"enhanced\" facial features\n- Expressions may vary; identity may NOT\n\nIdentity drift is considered a failure.\n\n----------------------------------------\nBODY, SKIN, & PROPORTION RULES\n\n- Body proportions must remain consistent with the reference\n- No exaggeration of curves or anatomy\n- Preserve raw, real skin texture:\n  - visible pores\n  - freckles\n  - subtle redness\n  - natural imperfections\n- No smoothing, no airbrushing, no plastic or CG skin\n\n----------------------------------------\nCLOTHING & WARDROBE LOCK\n\n- Exact same clothing in all grid cells\n- No changes to:\n  - color\n  - fabric\n  - cut\n  - fit\n- Clothing must behave naturally with gravity and posture\n\n----------------------------------------\nENVIRONMENT & LIGHTING RULES\n\n- Same environment unless the user explicitly allows change\n- Lighting must remain plausible for the location\n- Natural or available light only\n- No invented props, set dressing, or artificial lighting setups\n\n----------------------------------------\nCAPTURE & REALISM PHILOSOPHY\n\nAvoid generic \"photorealistic\" styling.\n\nInstead, simulate real camera capture:\n- Minimal retouch\n- Real lens behavior\n- Natural depth of field\n- Subtle sensor grain or texture\n- Realistic highlight roll-off\n- No stock-photo perfection\n- No cinematic fantasy lighting\n\nThe result should feel like:\n\"A confident influencer photographed by a real camera, not an AI beauty render.\"\n\n----------------------------------------\nGRID DESIGN RULES\n\nYou are designing a grid narrative, not isolated images.\n\nALLOWED VARIATION PER CELL:\nYou can use these as a base or make new ones to avoid similar images all the time.\n\nHere are examples:\n- Pose (standing, balancing, leaning, twisting, seated)\n- Weight distribution and posture\n- Hip rotation and spine angle\n- Gaze direction (direct, over-shoulder, sideways, downcast)\n- Camera distance (medium, medium-full, medium-close)\n- Camera angle (eye-level, slight low, rear-oblique, profile)\n\nNOT ALLOWED:\n- Extreme or unnatural arching\n- Anatomical exaggeration\n\nTeasing or sensuality must come from:\n- posture\n- asymmetry\n- balance\n- gaze\n- confidence\n\n----------------------------------------\nREQUIRED OUTPUT STRUCTURE\n\nYou MUST output the following sections:\n\n1) GRID OVERVIEW\n- Brief paragraph describing:\n  - overall vibe\n  - influencer energy\n  - how the grid flows or escalates visually\n  - how it reflects the user's guiding idea\n\n2) CONTINUITY LOCKS\n- Bullet list clearly stating:\n  - facial identity lock (and which reference image defines it)\n  - clothing lock\n  - skin texture rules\n  - environment rules\n  - realism constraints\n\n3) SHOT BREAKDOWN (PER CELL)\nFor each grid cell (numbered according to grid size):\n\n- Purpose (hook, tease, connection, resolution, etc.)\n- Pose direction (body orientation, hips, balance)\n- Expression / gaze\n- Camera distance\n- Camera angle\n- What visually dominates the frame\n- Editorial intent\n\nDo NOT describe camera motion.\nOnly describe the final camera position.\n\n4) RENDERING TRANSLATION NOTES\n- Short, practical notes such as:\n  - \"Face lock derived from close-up reference\"\n  - \"Prioritize skull structure over expression\"\n  - \"This cell emphasizes posture, not anatomy\"\n  - \"Lifestyle realism over fashion editorial\"\n  - \"Each cell should stand alone as an Instagram post\"\n\n----------------------------------------\nTONE & STYLE\n\n- Confident, not explicit\n- Sexy through control, not exposure\n- Influencer-forward, can be adult style content\n- Creative, but grounded\n- Director mindset, not prompt-engineer mindset\n\n----------------------------------------\nFINAL RULES\n\n- Do NOT output image prompts unless explicitly asked\n- Do NOT output JSON unless explicitly asked\n- Do NOT invent details not present in the references\n- Do NOT mention policies or safety rules\n\nYour job is to design clarity, variation, and intent - not pixels."
+      ]
+    },
+    {
+      "id": 18,
+      "type": "KIE_NanoBanana2_Image",
+      "pos": [
+        5220,
+        3255
+      ],
+      "size": [
+        525,
+        480
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            11,
+            23
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kie-api",
+        "ver": "d751229471a0e57b7ab80713c790860774beddb4",
+        "Node name for S&R": "KIE_NanoBanana2_Image"
+      },
+      "widgets_values": [
+        "create a 2x2 grid of this woman with dark wavy hair, blue eyes, and pale skin, create a random camera position of this woman in each cell of the grid give her various different poses and facial expressions. maintain her exact facial expression, clothing, background enviroment. no borders, lables. Make sure each cell of the grid has the woman and the poses should stike a balance between playful, sensual and sexy.\n\nREFERENCE IMAGE RULES (CRITICAL)\n\nThe [reference image 1] is physically real and authoritative.\n\nIDENTITY\n- Facial structure, eye shape, nose, lips, freckles, jawline, and age must remain identical\n- No face reshaping, beautification, or identity drift\n- Expressions may vary; identity may not\n\nBODY & SKIN\n- Body proportions must remain consistent with the reference\n- Preserve raw skin texture:\n  - visible pores\n  - freckles\n  - subtle redness\n  - natural imperfections\n- No smoothing, no airbrushing, no plastic or CG skin\n\nThe [reference image 2] maintains the clothing and enviroment attributes\nCLOTHING\n- Exact same clothing in all grid cells\n- No changes to color, fabric, cut, or fit\n- Clothing must behave naturally with gravity and posture\n\nENVIRONMENT\n- Same environment unless the user explicitly allows change\n- Lighting must remain plausible for the location\n- No invented props or set dressing",
+        false,
+        "9:16",
+        "2K",
+        "png",
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 28,
+      "type": "PreviewImage",
+      "pos": [
+        6675,
+        3270
+      ],
+      "size": [
+        390,
+        585
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 22
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 5,
+      "type": "MarkdownNote",
+      "pos": [
+        2205,
+        1905
+      ],
+      "size": [
+        495,
+        1020
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Model Links",
+      "properties": {},
+      "widgets_values": [
+        "# Nano Banana Pro + Nano Banana 2 Comparison\n\nThis workflow is built for side-by-side testing of **Nano Banana Pro** and **Nano Banana 2** inside ComfyUI using the Kie.ai API.\n\nIt is designed to make model differences easy to evaluate across prompt quality, image fidelity, and grounding behavior in a repeatable setup.\n\n**Help Support Development**\n\nUse this affiliate link when accessing Kie.ai:\n[https://kie.ai](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)\n\nProject repository:\n[https://github.com/gateway/ComfyUI-Kie-API](https://github.com/gateway/ComfyUI-Kie-API)\n\n---\n\n## Pricing Snapshot\n\n- **Nano Banana 2**\n  - `1K`: 8 credits (~$0.04)\n  - `2K`: 12 credits (~$0.06)\n  - `4K`: 18 credits (~$0.09)\n  - Roughly 40% below official listed pricing.\n\n- **Nano Banana Pro**\n  - `1K/2K`: 18 credits (~$0.09)\n  - `4K`: 24 credits (~$0.12)\n\nPricing may change over time. Check the latest details at:\n[https://kie.ai/pricing](https://kie.ai/pricing)\n\n---\n\n## Included Nodes in This Workflow\n\n### Generation Nodes\n\n- **Nano Banana Pro Image**\n  - Generates images with Nano Banana Pro settings.\n  - Supports up to 14 images.\n\n- **Nano Banana 2**\n  - Generates images with Nano Banana 2 settings.\n  - Supports up to 14 images.\n  - Supports optional web search grounding.\n\n---\n\n### Utility / Helper Nodes\n\n- **System Prompt Selector**\n  - Lets you keep reusable prompt templates.\n  - Combines your selected system prompt with a user prompt.\n  - Useful for creating consistent, full prompts quickly.\n\n---\n\n## Workflow Scenarios Included\n\n- **Single image test**\n  - Quick baseline generation.\n\n- **Two image test**\n  - Compare how each model handles multi-reference guidance.\n\n- **Nano Banana 2 with web search**\n  - Demonstrates grounding-enabled prompt generation behavior.\n\n- **Side-by-side model comparison**\n  - Run similar prompts through Pro and Nano Banana 2 for direct visual comparison.\n\n---\n\n## Notes on Usage & Debugging\n\n- All requests are sent to Kie.ai:\n  [https://kie.ai](https://kie.ai?ref=e7565cf24a7fad4586341a87eaf21e42)\n\n- If a node fails or times out in ComfyUI, check account logs:\n  [https://kie.ai/logs](https://kie.ai/logs)\n\n- Logs are usually the fastest way to verify whether a generation completed successfully.\n\n---\n\n## Issues & Feedback\n\nTo report issues or request improvements:\n[https://github.com/gateway/ComfyUI-Kie-API/issues](https://github.com/gateway/ComfyUI-Kie-API/issues)\n\nPlease include:\n- node name\n- parameters used\n- error message or log excerpt\n\n---\n\n## Development & Sponsorship\n\nDevelopment is supported by **Dreaming Computers**:\n[https://dreamingcomputers.com](https://dreamingcomputers.com)\n"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 13,
+      "type": "KIE_NanoBanana2_Image",
+      "pos": [
+        2880,
+        3540
+      ],
+      "size": [
+        525,
+        480
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kie-api",
+        "ver": "d751229471a0e57b7ab80713c790860774beddb4",
+        "Node name for S&R": "KIE_NanoBanana2_Image"
+      },
+      "widgets_values": [
+        "use this current week of Feb 28, 2026 to create a detailed 7 day weather forcast infographic for Chiang Mai, Thailand put both F and C values on the infographic, make is a modern style 3d infographic and style it with elements from Thialand. Make sure we have all the latest weather data for Chiang Mai, Thailand and make sure to have the proper F and C values",
+        true,
+        "16:9",
+        "4K",
+        "png",
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 32,
+      "type": "Fast Groups Bypasser (rgthree)",
+      "pos": [
+        2400,
+        3255
+      ],
+      "size": [
+        345,
+        255
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "matchColors": "",
+        "matchTitle": "",
+        "showNav": true,
+        "showAllGraphs": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default"
+      }
+    },
+    {
+      "id": 19,
+      "type": "KIE_NanoBananaPro_Image",
+      "pos": [
+        5205,
+        2220
+      ],
+      "size": [
+        510,
+        510
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            10,
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kie-api",
+        "ver": "f76f69886f7a62b22cda62d8dd51fe2b3822cc21",
+        "Node name for S&R": "KIE_NanoBananaPro_Image",
+        "aux_id": "gateway/ComfyUI-Kie-API"
+      },
+      "widgets_values": [
+        "create a 2x2 grid of this woman with dark wavy hair, blue eyes, and pale skin, create a random camera position of this woman in each cell of the grid give her various different poses and facial expressions. maintain her exact facial expression, clothing, background enviroment. no borders, lables. Make sure each cell of the grid has the woman and the poses should stike a balance between playful, sensual and sexy.\n\nREFERENCE IMAGE RULES (CRITICAL)\n\nThe [reference image 1] is physically real and authoritative.\n\nIDENTITY\n- Facial structure, eye shape, nose, lips, freckles, jawline, and age must remain identical\n- No face reshaping, beautification, or identity drift\n- Expressions may vary; identity may not\n\nBODY & SKIN\n- Body proportions must remain consistent with the reference\n- Preserve raw skin texture:\n  - visible pores\n  - freckles\n  - subtle redness\n  - natural imperfections\n- No smoothing, no airbrushing, no plastic or CG skin\n\nThe [reference image 2] maintains the clothing and enviroment attributes\nCLOTHING\n- Exact same clothing in all grid cells\n- No changes to color, fabric, cut, or fit\n- Clothing must behave naturally with gravity and posture\n\nENVIRONMENT\n- Same environment unless the user explicitly allows change\n- Lighting must remain plausible for the location\n- No invented props or set dressing",
+        "9:16",
+        "2K",
+        "png",
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 25,
+      "type": "KIE_GridSlice",
+      "pos": [
+        6255,
+        2220
+      ],
+      "size": [
+        270,
+        178
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "tiles",
+          "type": "IMAGE",
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kie-api",
+        "ver": "d751229471a0e57b7ab80713c790860774beddb4",
+        "Node name for S&R": "KIE_GridSlice"
+      },
+      "widgets_values": [
+        "2x2",
+        0,
+        0,
+        "row-major",
+        "first",
+        true
+      ]
+    },
+    {
+      "id": 26,
+      "type": "PreviewImage",
+      "pos": [
+        6645,
+        2220
+      ],
+      "size": [
+        390,
+        585
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 21
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 30,
+      "type": "KIE_SystemPrompt_Selector",
+      "pos": [
+        7365,
+        2550
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kie-api",
+        "ver": "d751229471a0e57b7ab80713c790860774beddb4",
+        "Node name for S&R": "KIE_SystemPrompt_Selector"
+      },
+      "widgets_values": [
+        "2x2 grid\njson format\nfashion shoot\nplayful camera movments and poses\n",
+        "images: Grid Visual Director (Real Camera - Influencer Style)"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      4,
+      0,
+      1,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      2,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      5,
+      7,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ],
+    [
+      7,
+      10,
+      0,
+      6,
+      0,
+      "IMAGE"
+    ],
+    [
+      8,
+      13,
+      0,
+      11,
+      0,
+      "IMAGE"
+    ],
+    [
+      10,
+      19,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ],
+    [
+      11,
+      18,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      14,
+      15,
+      0,
+      20,
+      1,
+      "IMAGE"
+    ],
+    [
+      15,
+      20,
+      0,
+      19,
+      0,
+      "IMAGE"
+    ],
+    [
+      16,
+      21,
+      0,
+      20,
+      0,
+      "IMAGE"
+    ],
+    [
+      17,
+      23,
+      0,
+      24,
+      0,
+      "IMAGE"
+    ],
+    [
+      18,
+      22,
+      0,
+      24,
+      1,
+      "IMAGE"
+    ],
+    [
+      19,
+      24,
+      0,
+      18,
+      0,
+      "IMAGE"
+    ],
+    [
+      20,
+      19,
+      0,
+      25,
+      0,
+      "IMAGE"
+    ],
+    [
+      21,
+      25,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ],
+    [
+      22,
+      27,
+      0,
+      28,
+      0,
+      "IMAGE"
+    ],
+    [
+      23,
+      18,
+      0,
+      27,
+      0,
+      "IMAGE"
+    ],
+    [
+      24,
+      30,
+      0,
+      31,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Nano Banana Pro Single Image",
+      "bounding": [
+        2790,
+        1860,
+        1485,
+        735
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "Nano Banana 2 Single Image",
+      "bounding": [
+        2790,
+        2625,
+        1485,
+        750
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Nano Banana 2 + Web Search",
+      "bounding": [
+        2790,
+        3405,
+        1485,
+        735
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "Nano Banana 2 3x3 Grid",
+      "bounding": [
+        4350,
+        2910,
+        2820,
+        1035
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "Nano Banana Pro 3x3 Grid",
+      "bounding": [
+        4350,
+        1920,
+        2805,
+        945
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "Prompt Selector",
+      "bounding": [
+        7275,
+        2340,
+        1290,
+        1215
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "workflowRendererVersion": "LG",
+    "ds": {
+      "scale": 0.6099840333723228,
+      "offset": [
+        -1986.4514043518452,
+        -1726.7601038858256
+      ]
+    },
+    "frontendVersion": "1.39.19",
+    "VHS_latentpreview": true,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

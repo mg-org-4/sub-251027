@@ -1,0 +1,846 @@
+# Training Infrastructure
+
+FastVideo's training infrastructure (`fastvideo/train/`) is a YAML-driven
+framework for training and distilling video diffusion models. A single config
+file controls everything — models, algorithms, distributed strategy,
+checkpointing, and validation — with no code changes needed to mix and match.
+
+!!! note "Relationship to legacy training"
+    This system replaces the older script-based training in `fastvideo/training/`.
+    The legacy scripts still work for basic fine-tuning, but new development
+    should use the config-driven system documented here.
+
+---
+
+## Quick Start
+
+### Launch with the helper script
+
+```bash
+bash examples/train/run.sh examples/train/distill_wan2.1_t2v_1.3B_dmd2.yaml
+```
+
+The script auto-detects available GPUs and sets up `torchrun`. Override with
+environment variables:
+
+```bash
+NUM_GPUS=4 NNODES=2 NODE_RANK=0 \
+    MASTER_ADDR=10.0.0.1 MASTER_PORT=29501 \
+    bash examples/train/run.sh my_config.yaml
+```
+
+### Launch directly with torchrun
+
+```bash
+torchrun --nproc_per_node=8 \
+    fastvideo/train/entrypoint/train.py \
+    --config examples/train/distill_wan2.1_t2v_1.3B_dmd2.yaml
+```
+
+### CLI flags
+
+| Flag | Description |
+|------|-------------|
+| `--config` | Path to YAML config file (required) |
+| `--resume-from-checkpoint` | Path to a DCP checkpoint directory to resume from |
+| `--override-output-dir` | Override `training.checkpoint.output_dir` |
+| `--dry-run` | Validate config and exit without training |
+
+---
+
+## Config Format
+
+Every run is defined by a single YAML file with five top-level sections.
+See `examples/train/configs/example.yaml` for a fully-commented reference.
+
+### `models` — Role-based model instances
+
+Each entry defines a model role. The `_target_` field specifies the Python class
+to instantiate:
+
+```yaml
+models:
+  student:
+    _target_: fastvideo.train.models.wan.WanModel
+    init_from: Wan-AI/Wan2.1-T2V-1.3B-Diffusers
+    trainable: true
+  teacher:
+    _target_: fastvideo.train.models.wan.WanModel
+    init_from: Wan-AI/Wan2.1-T2V-1.3B-Diffusers
+    trainable: false
+    disable_custom_init_weights: true
+```
+
+Common model parameters:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `_target_` | *(required)* | Python class path for the model |
+| `init_from` | *(required)* | HuggingFace repo ID or local checkpoint path |
+| `trainable` | `true` | Whether the model's parameters require gradients |
+| `disable_custom_init_weights` | `false` | Skip custom weight initialization (use for teacher/critic) |
+| `flow_shift` | `3.0` | Timestep shifting factor |
+| `enable_gradient_checkpointing_type` | `null` | Gradient checkpointing (`"full"`, `"ops"`, `"block_skip"`, or `null`); a role that leaves it unset uses `training.model`'s value |
+| `attention_backend` | `null` | Optional role-local backend for Wan models (for example `ATTN_QAT_TRAIN`); overrides the process default only while this role's transformer is built |
+
+`full` and `ops` checkpoint the same transformer blocks; layers outside them,
+such as embeddings and the output head, keep their activations under either.
+`full` recomputes every block operation and is the memory-conservative choice.
+`ops` also retains the outputs of fused attention ops that the PyTorch
+dispatcher can see. It can reduce recompute time at the cost of higher
+activation memory, so use it only when the training shape has verified memory
+headroom. `block_skip` currently behaves like `full`, because the modular
+trainer has no setting for its layer interval.
+
+These attention paths have no retainable dispatcher op, so they still
+recompute in full under `ops`: math SDPA, VMoBA, SLA, `ATTN_QAT_TRAIN`, every
+FA3 path, FA4 masked self-attention, FA4 below sm90, and CuTe VSA with 128- or
+256-token blocks (`FASTVIDEO_VSA_CUTEDSL=1`). A run in which a checkpointed
+block retains nothing logs a one-time warning. With sequence parallelism, the
+Ulysses all-to-alls inside each block also run again during recompute.
+
+Which roles are needed depends on the training method:
+
+| Method | Required roles |
+|--------|---------------|
+| Fine-tune (SFT) | `student` |
+| Diffusion-Forcing SFT | `student` |
+| DMD2 | `student`, `teacher`, `critic` |
+| Self-Forcing | `student` (causal), `teacher`, `critic` |
+
+### `method` — Training algorithm
+
+Selects and configures the training algorithm:
+
+```yaml
+method:
+  _target_: fastvideo.train.methods.distribution_matching.dmd2.DMD2Method
+  rollout_mode: simulate
+  dmd_denoising_steps: [1000, 750, 500, 250]
+  generator_update_interval: 5
+```
+
+To switch algorithms, change `_target_` and adjust the method-specific keys.
+See [Training Methods](#training-methods) for details on each algorithm.
+
+### `training` — Typed infrastructure config
+
+This section maps to typed dataclasses with defaults and validation:
+
+```yaml
+training:
+  distributed:
+    num_gpus: 8
+    sp_size: 1            # sequence parallelism
+    tp_size: 1            # tensor parallelism
+    hsdp_replicate_dim: 1 # HSDP replication dimension
+    hsdp_shard_dim: 8     # HSDP sharding dimension
+
+  data:
+    data_path: data/my_dataset
+    train_batch_size: 1
+    dataloader_num_workers: 4
+    training_cfg_rate: 0.1  # classifier-free guidance dropout rate
+    seed: 1000
+    num_latent_t: 20
+    num_height: 448
+    num_width: 832
+    num_frames: 77
+
+  optimizer:
+    learning_rate: 2.0e-6
+    betas: [0.9, 0.999]
+    weight_decay: 0.01
+    lr_scheduler: constant  # constant, linear, cosine, polynomial
+    lr_warmup_steps: 0
+
+  loop:
+    max_train_steps: 4000
+    gradient_accumulation_steps: 1
+
+  checkpoint:
+    output_dir: outputs/my_run
+    training_state_checkpointing_steps: 1000  # 0 = disabled
+    checkpoints_total_limit: 3                # 0 = keep all
+
+  tracker:
+    project_name: my_project
+    run_name: my_run
+
+  performance:
+    enabled: true
+    peak_tflops_per_gpu: null  # optional dense BF16 peak for one GPU
+
+  model:
+    weighting_scheme: uniform   # uniform, logit_normal, mode
+    precondition_outputs: false
+    enable_gradient_checkpointing_type: full
+    enable_torch_compile: false
+    torch_compile_kwargs: {}
+
+  vsa:
+    sparsity: 0.0         # 0.0 = disabled
+    decay_rate: 0.0
+    decay_interval_steps: 0
+```
+
+`training.data.training_cfg_rate` enables classifier-free-guidance dropout. For most models the shared dataloader drops text conditioning by zeroing the stored embedding. LTX-2 is the exception: `LTX2Model` performs the drop itself and swaps in the checkpoint preset's unconditional embedding (the preset's `negative_prompt` — empty for the distilled presets, the quality-negative prompt for the base presets), because a zeroed post-connector embedding is not the model's unconditional input. The legacy `LTX2TrainingPipeline` (`fastvideo/training/`) does not implement the drop and rejects `training_cfg_rate > 0`.
+
+`training.data.data_path` can also mix multiple preprocessed datasets by using a mapping from dataset path to repeat count:
+
+```yaml
+training:
+  data:
+    data_path:
+      data/zeldam2-clean: 1
+      data/multi3d_games: 2
+```
+
+The repeat count duplicates that dataset's parquet file list before shuffling/sampling, so the example above trains with roughly twice as much `multi3d_games` exposure as `zeldam2-clean`. Paths are just suggested locations; use any local path that contains a FastVideo preprocessed parquet dataset.
+
+See [Training Trackers](trackers.md) to configure Weights & Biases or SwanLab,
+including SwanLab installation and authentication.
+
+### `torch.compile` for modular training
+
+Set `training.model.enable_torch_compile: true` to compile the repeated DiT
+blocks selected by the model's `_compile_conditions`. Training compilation is
+regional and always uses `fullgraph=True`: activation checkpointing is applied
+first, FSDP establishes the runtime parameter representation, and each selected
+block is then compiled inside its eager checkpoint wrapper. The checkpoint
+control logic, FSDP hooks, and the model-level block loop all remain outside
+the compiled region; checkpoint state-dict names are preserved.
+
+Both forward and backward block calls use the compiled path. Wan modulation is
+kept behind a small opaque operator boundary: this ensures all six modulation
+gradient slices are materialized before they are returned to FSDP instead of
+being fused into an incomplete Inductor output buffer. Eager execution keeps
+the original native PyTorch path. Regional training compile also enables
+Inductor's `emulate_precision_casts` option by default so fused BF16 operators
+retain eager's intermediate rounding points. It can be overridden explicitly
+under `torch_compile_kwargs.options`.
+
+Additional supported `torch.compile` options can be provided under
+`training.model.torch_compile_kwargs`; `fullgraph: false` is rejected because
+it would silently reintroduce partial graphs. For example:
+
+```yaml
+training:
+  model:
+    enable_gradient_checkpointing_type: full
+    enable_torch_compile: true
+    torch_compile_kwargs:
+      dynamic: false
+```
+
+The first step includes Dynamo, AOTAutograd, Inductor, and attention-kernel
+compilation, so compare steady-state steps after warmup as well as total job
+time. Use `TORCH_LOGS=recompiles,graph_breaks` when diagnosing specialization.
+A single initial type specialization can occur when DMD2 first reaches a role
+whose block has a different FSDP/checkpoint wrapper type; repeated recompilation
+in steady state is not expected.
+
+`FLASH_ATTN` does not select FlashAttention-4 merely because FA4 is installed.
+Set `FASTVIDEO_FA4=1` together with a `FLASH_ATTN` role backend to opt in. Set
+`FASTVIDEO_DISABLE_ATTENTION_COMPILE=1` only as a debugging escape hatch when
+an attention implementation cannot participate in a compiled block.
+
+### Training performance metrics
+
+The modular trainer logs low-overhead performance metrics on every optimizer
+step. The Transformer boundary is instrumented separately for each model role,
+so the accounting includes all forwards performed by the selected method:
+
+- bidirectional SFT records its dense or VSA student forward;
+- causal SFT records block-causal attention geometry;
+- streaming/self-forcing records every rollout chunk and KV-cache update;
+- DMD records student, critic, and teacher forwards independently, including
+  repeated rollouts and the conditional/unconditional teacher passes.
+
+The common metrics are:
+
+| Metric | Meaning |
+|--------|---------|
+| `step_time_sec` | Training wall time for one optimizer step, excluding checkpoint and validation callbacks |
+| `perf/steps_per_sec` | Reciprocal of `step_time_sec` |
+| `perf/samples_per_sec` | Configured global samples processed per second, including gradient accumulation and data-parallel replicas |
+| `perf/model_forward_calls` | Actual Transformer invocations during the optimizer step |
+| `perf/causal_chunks` | Block-causal chunks represented by those invocations |
+| `perf/query_latent_frames_per_sec` | Latent query frames processed across all roles and rollouts |
+| `perf/query_tokens_per_sec` | Patch tokens processed across all roles and rollouts |
+| `perf/attention_density` | Effective self-attention pairs divided by dense attention pairs |
+| `perf/estimated_tflops_per_gpu` | Estimated useful model FLOP/s per GPU |
+| `perf/estimated_mfu` | Estimated useful FLOP/s divided by the dense BF16 peak (ratio, not percent) |
+| `perf/peak_tflops_per_gpu` | Dense BF16 peak used for the MFU ratio (configured or inferred) |
+| `perf/role/<role>/*` | Forward count, grad-carrying forward count, causal chunks, and estimated TFLOP/s for one role |
+
+For DMD2, combine these metrics with the existing `update_student` metric to
+separate the expensive generator-update steps from critic-only steps.
+
+`perf/samples_per_sec` uses the configured `train_batch_size`, gradient
+accumulation, and data-parallel replica count. Methods that manage their own
+optimization (for example DiffusionNFT, whose outer step consumes
+`num_batches_per_epoch` dataloader batches) report the throughput of a single
+batch in the denominator, so use the method's own sample counter
+(`nft/num_sampled`) for those runs. The FLOP-derived metrics still aggregate
+every forward the method performs.
+
+MFU is an analytic Transformer-core estimate. Each no-grad forward contributes
+`1F`; a forward whose result carries autograd contributes `3F` (forward plus an
+approximately `2F` backward). Activation-checkpoint recomputation is excluded,
+as expected for model FLOPs utilization. Wan VSA uses the kernel's clamped
+tile-top-k density and includes its gate projection and pooled-attention
+overhead. VMOBA runs are modeled as dense self-attention: the MoBA top-k
+selection is not estimated, so `perf/attention_density` stays at `1.0` and the
+attention-dependent FLOPs are an upper bound. Causal Wan uses the configured
+chunk size, local window, and actual streaming cache position; when
+`local_attn_size` is unset, the modeled window is the transformer's 21-frame
+compatibility cap, and `pipeline.dit_config.sliding_window_num_frames` only
+sizes the streaming KV cache. MatrixGame2's 15-frame compatibility window is
+not modeled, so its attention density is an upper bound. Embedding,
+normalization, optimizer, communication, MatrixGame action modules, and other
+non-core work are not included, so MFU is an estimate rather than a
+hardware-profiler measurement.
+
+`perf/estimated_tflops_per_gpu` and `perf/estimated_mfu` aggregate every role
+(student, teacher, critic, EMA) that ran during the step, so they are not
+directly comparable to a single-model MFU number. Replica scaling assumes
+`world_size = data_parallel x sp_size`; `tp_size > 1` is not modeled and would
+inflate the per-GPU estimates.
+
+Forward counts and wall-clock throughput work for every modular model. The
+FLOP-derived metrics currently require a Wan-style architecture exposing
+`hidden_size`, `ffn_dim`, `num_layers`, and a three-axis `patch_size`; they are
+omitted for other architectures instead of reporting a misleading estimate.
+
+Known NVIDIA accelerators use an inferred dense BF16 peak. Set
+`training.performance.peak_tflops_per_gpu` explicitly for a different board
+form factor or clock. If the device is unknown and no peak is configured, the
+trainer still logs throughput, call counts, attention density, and estimated
+TFLOP/s, but omits `perf/estimated_mfu`. Set `enabled: false` to disable the
+forward hooks and all `perf/*` metrics.
+
+### `callbacks` — Pluggable hooks
+
+Callbacks run at specific points in the training loop (before/after optimizer
+steps, at validation time, etc.):
+
+```yaml
+callbacks:
+  grad_clip:
+    max_grad_norm: 1.0
+
+  ema:
+    _target_: fastvideo.train.callbacks.ema.EMACallback
+    decay: 0.9999
+    start_iter: 0
+
+  validation:
+    _target_: fastvideo.train.callbacks.validation.ValidationCallback
+    pipeline_target: fastvideo.pipelines.basic.wan.wan_pipeline.WanPipeline
+    dataset_file: path/to/validation.json
+    every_steps: 100
+    sampling_steps: [4]
+    guidance_scale: 5.0
+```
+
+See [Callbacks](#callbacks) for details on each callback.
+
+### `pipeline` — Inference pipeline overrides
+
+Optional overrides for the inference pipeline used during validation:
+
+```yaml
+pipeline:
+  flow_shift: 8
+```
+
+Registered transformer linear-quantization configs can also be selected by
+name. For example, the LTX-2 NVFP4-QAT recipe applies real FP4 forward GEMMs
+with a straight-through-estimator backward to its deployment-targeted
+attention/FFN projections:
+
+```yaml
+pipeline:
+  dit_config:
+    quant_config: nvfp4_qat_train
+```
+
+The LTX-2 recipe in
+`examples/train/configs/overfit_ltx2_t2v_nvfp4_qat.yaml` combines that linear
+configuration with `models.student.attention_backend: ATTN_QAT_TRAIN` for
+video-attention forward/backward. On sm120, its validation callback temporarily
+switches those layers to `ATTN_QAT_INFER`.
+On GB200, set `callbacks.validation.attn_qat_infer: false` to keep validation on
+the train-time QAT backend; the inference kernel is sm120-only.
+
+User-adaptable LTX-2 fine-tuning recipes (full, LoRA, and NVFP4 QAT) live in
+`examples/train/configs/fine_tuning/ltx2/`, alongside the other model
+families under `examples/train/configs/fine_tuning/`.
+
+---
+
+## Training Methods
+
+### Supervised Fine-Tuning (SFT)
+
+Standard flow-matching loss. The simplest method — train the student to predict
+noise (or clean x0) from noised data samples.
+
+```yaml
+models:
+  student:
+    _target_: fastvideo.train.models.wan.WanModel
+    init_from: Wan-AI/Wan2.1-T2V-1.3B-Diffusers
+    trainable: true
+
+method:
+  _target_: fastvideo.train.methods.fine_tuning.finetune.FineTuneMethod
+  attn_kind: dense   # "dense" or "vsa"
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `attn_kind` | `"dense"` | Attention mode: `"dense"` (standard) or `"vsa"` (sparse) |
+
+### Diffusion-Forcing SFT (DFSFT)
+
+SFT with **per-chunk inhomogeneous timesteps** — each temporal chunk of the
+video gets a different noise level. This is a prerequisite for training causal /
+streaming models that must handle mixed-noise inputs.
+
+```yaml
+method:
+  _target_: fastvideo.train.methods.fine_tuning.dfsft.DiffusionForcingSFTMethod
+  chunk_size: 3
+  min_timestep_ratio: 0.0
+  max_timestep_ratio: 1.0
+  attn_kind: dense
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `chunk_size` | `3` | Latent frames per temporal chunk |
+| `min_timestep_ratio` | `0.0` | Lower bound of timestep sampling range |
+| `max_timestep_ratio` | `1.0` | Upper bound of timestep sampling range |
+| `attn_kind` | `"dense"` | `"dense"` or `"vsa"` |
+
+### DMD2 (Distribution Matching Distillation)
+
+Distill a many-step teacher into a few-step student. The student learns to match
+the teacher's score function, guided by a trainable critic network.
+
+```yaml
+models:
+  student:
+    _target_: fastvideo.train.models.wan.WanModel
+    init_from: Wan-AI/Wan2.1-T2V-1.3B-Diffusers
+    trainable: true
+  teacher:
+    _target_: fastvideo.train.models.wan.WanModel
+    init_from: Wan-AI/Wan2.1-T2V-1.3B-Diffusers
+    trainable: false
+    disable_custom_init_weights: true
+  critic:
+    _target_: fastvideo.train.models.wan.WanModel
+    init_from: Wan-AI/Wan2.1-T2V-1.3B-Diffusers
+    trainable: true
+    disable_custom_init_weights: true
+
+method:
+  _target_: fastvideo.train.methods.distribution_matching.dmd2.DMD2Method
+  rollout_mode: simulate
+  dmd_denoising_steps: [1000, 750, 500, 250]
+  generator_update_interval: 5
+  real_score_guidance_scale: 4.5
+
+  fake_score_learning_rate: 8.0e-6
+  fake_score_betas: [0.0, 0.999]
+  fake_score_lr_scheduler: constant
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `rollout_mode` | *(required)* | `"simulate"` (pure noise) or `"data_latent"` (from data) |
+| `dmd_denoising_steps` | *(required)* | Timestep schedule for student rollout |
+| `generator_update_interval` | `1` | Update student every N critic steps |
+| `real_score_guidance_scale` | `1.0` | CFG scale for teacher predictions |
+| `min_timestep_ratio` | `0.0` | Lower bound for randomly sampled teacher/critic score timesteps |
+| `max_timestep_ratio` | `1.0` | Upper bound for randomly sampled teacher/critic score timesteps |
+| `fake_score_learning_rate` | *(required)* | Critic optimizer learning rate |
+| `fake_score_betas` | *(required)* | Critic optimizer Adam betas |
+| `fake_score_lr_scheduler` | *(required)* | Critic LR scheduler type |
+
+### Self-Forcing (Causal DMD)
+
+Extends DMD2 for **streaming / causal video generation**. The student processes
+video in temporal chunks, feeding its own denoised outputs as context for future
+chunks — simulating autoregressive rollout during training.
+
+Requires a causal model class (e.g., `WanCausalModel`) for the student:
+
+```yaml
+models:
+  student:
+    _target_: fastvideo.train.models.wan.wan_causal.WanCausalModel
+    init_from: Wan-AI/Wan2.1-T2V-1.3B-Diffusers
+    trainable: true
+
+method:
+  _target_: fastvideo.train.methods.distribution_matching.self_forcing.SelfForcingMethod
+  rollout_mode: simulate
+  dmd_denoising_steps: [1000, 750, 500, 250]
+  student_sample_type: sde
+  context_noise: 0.0
+  enable_gradient_in_rollout: true
+  start_gradient_frame: 0
+```
+
+Self-Forcing inherits all DMD2 parameters, plus:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `student_sample_type` | `"sde"` | `"sde"` or `"ode"` for intermediate steps |
+| `same_step_across_blocks` | `false` | Use same exit timestep for all blocks |
+| `last_step_only` | `false` | Always exit at the final denoising step |
+| `context_noise` | `0.0` | Noise added to context frames (0 = clean) |
+| `enable_gradient_in_rollout` | `true` | Enable backprop through rollout |
+| `start_gradient_frame` | `0` | Frame index where gradients begin |
+
+### Streaming Long Tuning
+
+`StreamingLongTuningMethod` extends Self-Forcing for LongLive-style rollouts. It
+keeps a streaming state, generates overlapping chunks, and trains only the new
+frames while preserving context from earlier chunks.
+
+For the MatrixGame2/Zelda world-model example, self-forcing and long tuning are
+separate runs: first train or load the 1k-step self-forcing checkpoint using
+`examples/train/scenario/worldmodel/zelda/self_forcing_causal_i2v.yaml`,
+then run
+`examples/train/scenario/worldmodel/zelda/streaming_long_tuning_causal_i2v.yaml`
+from that checkpoint for the 3k-step streaming long-tuning stage.
+
+```yaml
+method:
+  _target_: fastvideo.train.methods.distribution_matching.streaming_long_tuning.StreamingLongTuningMethod
+  streaming_chunk_size: 9
+  streaming_max_length: 39
+  streaming_fixed_overlap_latents: 3
+  streaming_reencode_overlap_anchor: true
+  streaming_anchor_inject_k: 1
+  streaming_require_full_blocks: true
+  multi_phased_distill_schedule:
+    - stage: streaming_long
+      start_step: 0
+      end_step: 3000
+      num_latent_t: 39
+      streaming_training: true
+```
+
+See
+`examples/train/scenario/worldmodel/zelda/streaming_long_tuning_causal_i2v.yaml`
+for a complete MatrixGame2/Zelda configuration.
+
+---
+
+## Callbacks
+
+Callbacks are pluggable hooks that run at specific points in the training loop.
+Configure them under the `callbacks` section.
+
+### GradNormClipCallback
+
+Clips gradient norms before the optimizer step. Optionally logs per-module
+gradient norms to the tracker.
+
+```yaml
+callbacks:
+  grad_clip:
+    max_grad_norm: 1.0      # 0.0 = disabled
+    log_grad_norms: false
+```
+
+### EMACallback
+
+Maintains an exponential moving average of the student's weights. The EMA
+weights are automatically swapped in during validation.
+
+```yaml
+callbacks:
+  ema:
+    _target_: fastvideo.train.callbacks.ema.EMACallback
+    decay: 0.9999
+    start_iter: 0   # delay EMA updates until this iteration
+```
+
+The EMA callback owns its own state and checkpoints independently — EMA weights
+are saved and restored automatically on resume.
+
+### ValidationCallback
+
+Runs inference with the trained model at regular intervals, saving generated
+videos and logging them to the tracker (W&B).
+
+```yaml
+callbacks:
+  validation:
+    _target_: fastvideo.train.callbacks.validation.ValidationCallback
+    pipeline_target: fastvideo.pipelines.basic.wan.wan_pipeline.WanPipeline
+    dataset_file: path/to/validation.json
+    every_steps: 100
+    sampling_steps: [4]
+    sampling_timesteps: [1000, 750, 500, 250]  # explicit timestep list
+    guidance_scale: 5.0
+    rollout_mode: parallel  # "parallel" or "streaming"
+```
+
+The validation dataset is a JSON file containing a list of prompt strings.
+If EMA is enabled, validation automatically uses the EMA weights.
+
+---
+
+## Checkpointing and Resume
+
+### Checkpoint format
+
+Checkpoints use PyTorch Distributed Checkpoint (DCP) format, compatible with
+FSDP/HSDP sharding. Each checkpoint saves:
+
+- Model weights (all roles)
+- Optimizer states (all roles)
+- LR scheduler states
+- RNG states (for exact reproducibility)
+- EMA shadow weights (if enabled)
+- Training step counter
+
+Checkpoints are saved to `<output_dir>/checkpoint-<step>/`.
+
+### Saving checkpoints
+
+```yaml
+training:
+  checkpoint:
+    output_dir: outputs/my_run
+    training_state_checkpointing_steps: 1000  # save every N steps (0 = off)
+    checkpoints_total_limit: 3                # rolling window (0 = keep all)
+```
+
+### Resuming training
+
+Use `--resume-from-checkpoint` to resume from a specific checkpoint:
+
+```bash
+# Via the helper script
+bash examples/train/run.sh my_config.yaml --resume outputs/my_run/checkpoint-2000
+
+# Via torchrun directly
+torchrun --nproc_per_node=8 \
+    fastvideo/train/entrypoint/train.py \
+    --config my_config.yaml \
+    --resume-from-checkpoint outputs/my_run/checkpoint-2000
+```
+
+Or set it in the YAML:
+
+```yaml
+training:
+  checkpoint:
+    resume_from_checkpoint: outputs/my_run/checkpoint-2000
+```
+
+### Exporting a checkpoint for inference
+
+A DCP directory is training state, not a pipeline model directory. Export one
+trainable role into a copy of its configured base model, and strictly reload
+the result before inference:
+
+```bash
+python -m fastvideo.train.entrypoint.dcp_to_diffusers \
+  --checkpoint outputs/my_run/checkpoint-2000 \
+  --output-dir outputs/my_run/export-2000 \
+  --role student \
+  --verify
+```
+
+The model plugin selects the physical transformer component. In particular,
+MiniMax H3 Ref2VA exports `transformer_ref/`, while T2VA exports
+`transformer/`. Training LoRA wrappers are merged into native transformer
+weights because the H3 inference pipeline does not load a standalone training
+adapter. The export records this choice in `fastvideo_training_export.json`.
+
+H3 opts into Diffusers' conventional
+`diffusion_pytorch_model.safetensors` naming (or numbered 5 GB shards plus
+`diffusion_pytorch_model.safetensors.index.json`). Existing model plugins keep
+the legacy `model.safetensors` handoff until they opt in, so QAT/KD override
+paths remain compatible.
+
+Export is not a streaming state-dict conversion. Rank 0 temporarily owns the
+live model and a full CPU-gathered state. `--verify` releases the training
+object graph and gathered mapping before strict reload, but the initial gather
+still needs enough CPU or unified memory for both copies plus runtime overhead.
+For a roughly 62 GiB H3 transformer, a 121 GiB unified-memory GB10 is not a
+validated full-export target; use a larger-memory host.
+
+### Reproducibility
+
+The training entrypoint enables deterministic mode automatically:
+
+- `torch.backends.cudnn.benchmark = False`
+- `torch.backends.cudnn.deterministic = True`
+- `torch.use_deterministic_algorithms(True)`
+
+A shared CUDA RNG generator is seeded from `training.data.seed` and threaded
+through all random operations (noise sampling, timestep sampling, etc.).
+Ranks within the same sequence-parallel group share a seed, ensuring identical
+noise across SP shards.
+
+---
+
+## Distributed Training
+
+The framework supports HSDP (Hybrid Sharded Data Parallel), Tensor Parallelism
+(TP), and Sequence Parallelism (SP):
+
+```yaml
+training:
+  distributed:
+    num_gpus: 8
+    sp_size: 1            # sequence parallelism group size
+    tp_size: 1            # tensor parallelism group size
+    hsdp_replicate_dim: 1 # number of HSDP replicas
+    hsdp_shard_dim: 8     # number of HSDP shards
+```
+
+**HSDP** shards model parameters across `hsdp_shard_dim` GPUs and replicates
+across `hsdp_replicate_dim` groups. The product
+`hsdp_replicate_dim * hsdp_shard_dim` should equal `num_gpus`.
+
+**Sequence parallelism** splits the sequence (video frames) across `sp_size`
+GPUs within each data-parallel group. Useful for long videos that don't fit on a
+single GPU.
+
+---
+
+## VSA (Variable Sparse Attention)
+
+VSA progressively increases attention sparsity during training, reducing compute
+while maintaining quality:
+
+```yaml
+training:
+  vsa:
+    sparsity: 0.9             # target sparsity level
+    decay_rate: 0.03          # sparsity increment per decay interval
+    decay_interval_steps: 1   # steps between sparsity increases
+```
+
+The effective sparsity at step `t` is
+`min(sparsity, decay_rate * (t // decay_interval_steps))`.
+
+---
+
+## Extending the Framework
+
+### Adding a new model
+
+1. Create a new module under `fastvideo/train/models/` (e.g.,
+   `fastvideo/train/models/mymodel/mymodel.py`).
+2. Subclass `ModelBase` (or `CausalModelBase` for streaming models).
+3. Implement the required methods:
+   - `prepare_batch()` — convert raw dataloader output to `TrainingBatch`
+   - `add_noise()` — forward-process noise addition
+   - `predict_noise()` — run the transformer forward pass
+   - `backward()` — backward pass with forward context restoration
+4. Reference it in your YAML config:
+
+```yaml
+models:
+  student:
+    _target_: fastvideo.train.models.mymodel.mymodel.MyModel
+    init_from: my-org/my-model
+    trainable: true
+```
+
+### Adding a new training method
+
+1. Create a new module under `fastvideo/train/methods/`.
+2. Subclass `TrainingMethod`.
+3. Implement the required methods:
+   - `single_train_step()` — one forward pass returning losses, outputs, metrics
+   - `get_optimizers()` — return optimizer list
+   - `get_lr_schedulers()` — return scheduler list
+4. Reference it in your config:
+
+```yaml
+method:
+  _target_: fastvideo.train.methods.my_method.MyMethod
+  my_param: 42
+```
+
+Method-specific parameters are accessible via `self.method_config` (a plain
+dict).
+
+### Adding a new callback
+
+1. Create a new module under `fastvideo/train/callbacks/`.
+2. Subclass `Callback`.
+3. Override the hooks you need: `on_train_start`, `on_training_step_end`,
+   `on_before_optimizer_step`, etc.
+4. Optionally implement `state_dict()` / `load_state_dict()` for checkpoint
+   persistence.
+5. Add it to your config:
+
+```yaml
+callbacks:
+  my_callback:
+    _target_: fastvideo.train.callbacks.my_callback.MyCallback
+    my_param: 42
+```
+
+---
+
+## File Structure
+
+```
+fastvideo/train/
+  entrypoint/
+    train.py                  # CLI entrypoint (torchrun)
+  trainer.py                  # Training loop orchestrator
+  models/
+    base.py                   # ModelBase, CausalModelBase ABCs
+    wan/
+      wan.py                  # Wan 2.1 T2V model
+      wan_causal.py           # Wan causal (streaming) model
+  methods/
+    base.py                   # TrainingMethod ABC
+    distribution_matching/
+      dmd2.py                 # DMD2 distillation
+      self_forcing.py         # Self-Forcing (causal DMD)
+    fine_tuning/
+      finetune.py             # Supervised fine-tuning
+      dfsft.py                # Diffusion-forcing SFT
+  callbacks/
+    callback.py               # Callback ABC and CallbackDict
+    grad_clip.py              # Gradient clipping + norm logging
+    ema.py                    # EMA weight averaging
+    validation.py             # Periodic inference validation
+  utils/
+    config.py                 # YAML parser -> RunConfig
+    training_config.py        # Typed config dataclasses
+    builder.py                # Model/method instantiation
+    optimizer.py              # Optimizer/scheduler construction
+    checkpoint.py             # DCP save/resume
+    dataloader.py             # Dataset/dataloader construction
+    tracking.py               # W&B tracker
+```
+
+---
+
+## Related Docs
+
+- [Training Architecture](../design/training_architecture.md) — design
+  rationale, model/method abstractions, and open questions.
+- [Training Overview](overview.md) — data requirements and preprocessing.
+- [Data Preprocessing](data_preprocess.md) — how to prepare datasets.
+- [Config Reference](https://github.com/hao-ai-lab/FastVideo/blob/main/examples/train/configs/example.yaml) — fully-commented
+  YAML config with all fields and defaults.

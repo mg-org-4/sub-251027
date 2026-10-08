@@ -1,0 +1,676 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Convert a DCP training checkpoint to a diffusers-style model directory.
+
+The converter can reshard a distributed checkpoint onto one GPU, but exporting
+a full model is a high-memory operation: rank 0 temporarily owns both the live
+model and its gathered CPU state.  Use a machine with enough CPU or unified
+memory for both copies plus runtime overhead.
+
+Usage (no torchrun needed)::
+
+    python -m fastvideo.train.entrypoint.dcp_to_diffusers \
+        --checkpoint /path/to/checkpoint-1000 \
+        --output-dir /path/to/diffusers_output
+
+Or with torchrun (also fine)::
+
+    torchrun --nproc_per_node=1 \
+        -m fastvideo.train.entrypoint.dcp_to_diffusers \
+        --checkpoint ... --output-dir ...
+
+The checkpoint must contain ``metadata.json`` (written by
+``CheckpointManager``).  If the checkpoint predates metadata
+support, pass ``--config`` explicitly to provide the training
+YAML.
+
+Pass ``--verify`` to strictly reload the exported transformer immediately
+after writing it, so a key-mapping bug fails here instead of deep inside a
+later training/inference launch that loads the exported directory.
+
+Model plugins select the physical component name (for example H3 Ref2VA uses
+``transformer_ref``). Training LoRA wrappers are exported as merged native
+weights because the public inference pipeline cannot consume those wrappers or
+a standalone H3 adapter.
+"""
+
+from __future__ import annotations
+
+import argparse
+import gc
+import json
+import os
+import sys
+from typing import Any
+
+import fastvideo.envs as envs
+from fastvideo.logger import init_logger
+
+logger = init_logger(__name__)
+
+_CHECKPOINT_WRAPPER_SEGMENT = "_checkpoint_wrapped_module"
+_EXPORT_MAX_SHARD_SIZE = "5GB"
+
+
+def _canonical_state_prefix(module_name: str) -> str:
+    """Map a module traversal name to its checkpoint state-dict prefix.
+
+    PyTorch's ``CheckpointWrapper`` intentionally hides its
+    ``_checkpoint_wrapped_module`` implementation detail from state-dict keys,
+    while ``named_modules()`` still exposes it.  LoRA discovery uses module
+    traversal, so remove only that exact path segment before looking up state.
+    """
+    return ".".join(segment for segment in module_name.split(".") if segment != _CHECKPOINT_WRAPPER_SEGMENT)
+
+
+def _transformer_component_name(model: Any) -> str:
+    """Return the physical Diffusers component owned by a training model."""
+    component_name = str(getattr(model, "transformer_module_type", "transformer"))
+    if not component_name or component_name in {".", ".."} or os.path.basename(component_name) != component_name:
+        raise ValueError(f"Invalid transformer component name: {component_name!r}")
+    return component_name
+
+
+def _native_export_state_dict(
+    module: Any,
+    state_dict: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, str], bool]:
+    """Merge training LoRA wrappers into the native transformer key surface.
+
+    H3 inference does not expose a public adapter-loading API.  Its supported
+    training handoff is therefore a normal Diffusers-style component with each
+    adapter merged into ``weight`` and every ``base_layer``/``lora_*`` key
+    removed.  The returned alias map lets reverse HF-name mapping still consult
+    the checkpoint mapping recorded for ``base_layer.weight``.
+    """
+    import torch
+
+    from fastvideo.layers.lora.linear import BaseLayerWithLoRA
+
+    # Consume the gathered state in place. H3's target projections account for
+    # tens of GiB; keeping the original base tensors alive in a second mapping
+    # while materializing every merged tensor would nearly duplicate them.
+    exported = state_dict
+    reverse_lookup_aliases: dict[str, str] = {}
+    wrappers: dict[str, BaseLayerWithLoRA] = {}
+    for module_name, child in module.named_modules():
+        if not module_name or not isinstance(child, BaseLayerWithLoRA):
+            continue
+        prefix = _canonical_state_prefix(module_name)
+        if not prefix:
+            raise ValueError(f"LoRA module {module_name!r} has an empty canonical state prefix")
+        if prefix in wrappers:
+            raise ValueError(f"LoRA modules collide at canonical state prefix {prefix!r}")
+        wrappers[prefix] = child
+
+    for prefix, wrapper in wrappers.items():
+        lora_a_key = f"{prefix}.lora_A"
+        lora_b_key = f"{prefix}.lora_B"
+        base_weight_key = f"{prefix}.base_layer.weight"
+        native_weight_key = f"{prefix}.weight"
+        missing = [key for key in (lora_a_key, lora_b_key, base_weight_key) if key not in exported]
+        if missing:
+            raise KeyError(f"LoRA export is missing state for {prefix!r}: {missing}")
+
+        lora_a = exported.pop(lora_a_key)
+        lora_b = exported.pop(lora_b_key)
+        base_weight = exported.pop(base_weight_key)
+        if not all(isinstance(value, torch.Tensor) for value in (lora_a, lora_b, base_weight)):
+            raise TypeError(f"LoRA export expected tensor state for {prefix!r}")
+        if wrapper.lora_rank is None or wrapper.lora_rank <= 0:
+            raise ValueError(f"LoRA export has invalid rank for {prefix!r}: {wrapper.lora_rank!r}")
+        alpha = wrapper.lora_alpha if wrapper.lora_alpha is not None else wrapper.lora_rank
+        scale = (float(alpha) / float(wrapper.lora_rank)) * float(wrapper.lora_strength)
+        exported[native_weight_key] = torch.addmm(
+            base_weight,
+            wrapper.slice_lora_b_weights(lora_b.to(base_weight)),
+            wrapper.slice_lora_a_weights(lora_a.to(base_weight)),
+            alpha=scale,
+        )
+        reverse_lookup_aliases[native_weight_key] = base_weight_key
+
+        base_prefix = f"{prefix}.base_layer."
+        for key in [name for name in exported if name.startswith(base_prefix)]:
+            native_key = f"{prefix}.{key[len(base_prefix):]}"
+            if native_key in exported:
+                raise ValueError(f"LoRA export key collision at {native_key!r}")
+            exported[native_key] = exported.pop(key)
+            reverse_lookup_aliases[native_key] = key
+
+    unexpected_wrapper_keys = [
+        name for name in exported if ".base_layer." in name or name.endswith((".lora_A", ".lora_B"))
+    ]
+    if unexpected_wrapper_keys:
+        raise ValueError(f"LoRA export left wrapper-only keys: {unexpected_wrapper_keys[:10]}")
+    return exported, reverse_lookup_aliases, bool(wrappers)
+
+
+def _save_diffusers_safetensors(
+    tensor_state: dict[str, Any],
+    module_dir: Any,
+    *,
+    max_shard_size: int | str = _EXPORT_MAX_SHARD_SIZE,
+) -> list[str]:
+    """Write a canonical Diffusers safetensors component, releasing each shard.
+
+    Small components use ``diffusion_pytorch_model.safetensors``. Large ones
+    use the conventional numbered shards plus
+    ``diffusion_pytorch_model.safetensors.index.json``.
+    """
+    from pathlib import Path
+
+    import torch
+    from diffusers.utils import SAFE_WEIGHTS_INDEX_NAME, SAFETENSORS_WEIGHTS_NAME
+    from huggingface_hub import split_torch_state_dict_into_shards
+    from safetensors.torch import save_file
+
+    destination = Path(module_dir)
+    split = split_torch_state_dict_into_shards(
+        tensor_state,
+        filename_pattern=SAFETENSORS_WEIGHTS_NAME.replace(".safetensors", "{suffix}.safetensors"),
+        max_shard_size=max_shard_size,
+    )
+    written: list[str] = []
+    for filename, tensor_names in split.filename_to_tensors.items():
+        shard: dict[str, torch.Tensor] = {}
+        for name in tensor_names:
+            value = tensor_state.pop(name)
+            if not isinstance(value, torch.Tensor):
+                raise TypeError(f"Expected tensor for {name!r}, got {type(value).__name__}")
+            shard[name] = value
+        save_file(shard, str(destination / filename))
+        written.append(filename)
+        del shard
+
+    if tensor_state:
+        raise RuntimeError(f"Safetensors shard plan left unsaved keys: {list(tensor_state)[:10]}")
+    if split.is_sharded:
+        index = {
+            "metadata": split.metadata,
+            "weight_map": split.tensor_to_filename,
+        }
+        (destination / SAFE_WEIGHTS_INDEX_NAME).write_text(
+            json.dumps(index, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        written.append(SAFE_WEIGHTS_INDEX_NAME)
+    return written
+
+
+def _ensure_distributed() -> None:
+    """Set up a single-process distributed env if needed.
+
+    When running under ``torchrun`` the env vars are already set.
+    For plain ``python`` we fill in the minimum required vars so
+    that ``init_process_group`` succeeds with world_size=1.
+    """
+    envs.setdefault_external("RANK", "0")
+    envs.setdefault_external("LOCAL_RANK", "0")
+    envs.setdefault_external("WORLD_SIZE", "1")
+    envs.setdefault_external("MASTER_ADDR", "127.0.0.1")
+    envs.setdefault_external("MASTER_PORT", "29500")
+
+
+def _save_role_pretrained(
+    *,
+    role: str,
+    base_model_path: str,
+    output_dir: str,
+    module_names: list[str] | None = None,
+    overwrite: bool = False,
+    model: Any,
+) -> str:
+    """Export a role's modules into a diffusers-style model dir.
+
+    Produces a ``model_path`` loadable by
+    ``PipelineComponentLoader`` (``model_index.json``,
+    ``transformer/``, ``vae/``, etc. copied from
+    ``base_model_path``).
+    """
+    import shutil
+    from pathlib import Path
+
+    import torch
+    import torch.distributed as dist
+    from torch.distributed.checkpoint.state_dict import (
+        StateDictOptions,
+        get_model_state_dict,
+    )
+
+    from fastvideo.utils import maybe_download_model
+
+    def _rank() -> int:
+        if dist.is_available() and dist.is_initialized():
+            return int(dist.get_rank())
+        return 0
+
+    def _barrier() -> None:
+        if dist.is_available() and dist.is_initialized():
+            dist.barrier()
+
+    local_base = Path(maybe_download_model(str(base_model_path))).resolve()
+    dst = Path(os.path.expanduser(str(output_dir))).resolve()
+
+    if _rank() == 0:
+        if dst.exists():
+            if overwrite:
+                shutil.rmtree(dst, ignore_errors=True)
+            else:
+                raise FileExistsError(f"Refusing to overwrite existing "
+                                      f"directory: {dst}. "
+                                      "Pass --overwrite to replace it.")
+
+        def _copy_or_link(src: str, dest: str) -> None:
+            # Resolve symlinks ourselves: os.link's follow_symlinks=True
+            # default isn't honored on all filesystems (e.g. some
+            # network/overlay mounts), which can silently hard-link to
+            # the symlink itself instead of its target.
+            real_src = os.path.realpath(src)
+            try:
+                os.link(real_src, dest)
+            except OSError:
+                shutil.copy2(real_src, dest)
+
+        logger.info(
+            "Creating pretrained export dir at %s "
+            "(base=%s)",
+            dst,
+            local_base,
+        )
+        shutil.copytree(
+            local_base,
+            dst,
+            symlinks=False,
+            copy_function=_copy_or_link,
+        )
+
+    _barrier()
+
+    transformer_component = _transformer_component_name(model)
+    use_diffusers_weight_layout = bool(getattr(model, "export_diffusers_weight_layout", False))
+    modules: dict[str, torch.nn.Module] = {}
+    if model.transformer is not None:
+        modules[transformer_component] = model.transformer
+
+    if module_names is None:
+        module_names = sorted(modules.keys())
+
+    for module_name in module_names:
+        if module_name not in modules:
+            raise KeyError(f"Role {role!r} does not have module "
+                           f"{module_name!r}. "
+                           f"Available: {sorted(modules.keys())}")
+
+        module_dir = dst / module_name
+        if not module_dir.is_dir():
+            raise FileNotFoundError(f"Export directory missing component "
+                                    f"dir {module_name!r}: {module_dir}")
+
+        options = StateDictOptions(
+            full_state_dict=True,
+            cpu_offload=True,
+        )
+        state_dict = get_model_state_dict(
+            modules[module_name],
+            options=options,
+        )
+
+        if _rank() == 0:
+            for pattern in (
+                    "*.safetensors",
+                    "*.safetensors.index.json",
+                    "diffusion_pytorch_model*.bin",
+                    "diffusion_pytorch_model.bin.index.json",
+            ):
+                for path in module_dir.glob(pattern):
+                    path.unlink(missing_ok=True)
+
+            # Convert internal parameter names back to HF format.
+            # load_model_from_full_model_state_dict builds reverse_param_names_mapping
+            # (internal_key → hf_key) and stores it on the module.  Without this,
+            # the exported safetensors would have internal keys (e.g.
+            # "patch_embedding.proj.bias") and the next load would double-map them
+            # (e.g. → "patch_embedding.proj.proj.bias").
+            reverse_mapping: dict = getattr(modules[module_name], "reverse_param_names_mapping", {})
+
+            native_state, reverse_lookup_aliases, merged_lora = _native_export_state_dict(
+                modules[module_name],
+                state_dict,
+            )
+            tensor_state: dict[str, torch.Tensor] = {}
+            for key, value in native_state.items():
+                if not isinstance(value, torch.Tensor):
+                    raise TypeError(f"Expected tensor in state_dict "
+                                    f"for {module_name}.{key}, "
+                                    f"got {type(value).__name__}")
+                reverse_key = reverse_lookup_aliases.get(key, key)
+                if reverse_key in reverse_mapping:
+                    hf_key, merge_index, _ = reverse_mapping[reverse_key]
+                    if merge_index is not None:
+                        logger.warning(
+                            "Skipping reverse-mapping for merged param %s "
+                            "(merge_index=%s); saving under internal key.",
+                            key,
+                            merge_index,
+                        )
+                        hf_key = key
+                    key = hf_key
+                tensor_state[key] = value.detach().cpu()
+
+            logger.info(
+                "Saving %s weights to %s (%s tensors, max shard %s)",
+                module_name,
+                module_dir,
+                len(tensor_state),
+                _EXPORT_MAX_SHARD_SIZE,
+            )
+            # ``native_state`` aliases the gathered DCP mapping. Clear that
+            # mapping before writing so it does not retain the CPU snapshot.
+            native_state.clear()
+            if use_diffusers_weight_layout:
+                # H3 publishes native Diffusers component folders and opts in
+                # to the conventional filename/shard contract. The shard
+                # writer pops each completed shard to reduce post-save memory.
+                written_weights = _save_diffusers_safetensors(tensor_state, module_dir)
+            else:
+                # Preserve the global converter's established contract for
+                # QAT/KD and other model plugins whose scripts consume this
+                # exact path as a transformer override.
+                from safetensors.torch import save_file
+                legacy_name = "model.safetensors"
+                save_file(tensor_state, str(module_dir / legacy_name))
+                tensor_state.clear()
+                written_weights = [legacy_name]
+            logger.info("Saved %s weight artifacts: %s", module_name, written_weights)
+
+            metadata_path = dst / "fastvideo_training_export.json"
+            metadata_path.write_text(
+                json.dumps(
+                    {
+                        "format_version": 1,
+                        "role": role,
+                        "transformer_component": transformer_component,
+                        "lora": "merged" if merged_lora else "none",
+                    },
+                    indent=2,
+                    sort_keys=True,
+                ) + "\n",
+                encoding="utf-8",
+            )
+
+        _barrier()
+
+    return str(dst)
+
+
+def _strict_reload_verify(
+    *,
+    output_dir: str,
+    training_config: Any,
+    module_type: str,
+) -> None:
+    """Reload the just-exported transformer from disk and fail loudly on
+    any key mismatch.
+
+    ``TransformerLoader.load()`` already loads strictly (``strict=True``)
+    for every non-Cosmos25 model, so this doesn't add leniency -- it moves
+    the failure to right after export, with a clear "the export is broken"
+    error, instead of surfacing deep inside a later training/inference
+    launch that happens to load this directory.
+    """
+    from fastvideo.train.utils.moduleloader import load_module_from_path
+
+    logger.info("Verifying export: strictly reloading %s from %s", module_type, output_dir)
+    load_module_from_path(
+        model_path=output_dir,
+        module_type=module_type,
+        training_config=training_config,
+    )
+    logger.info("Strict reload verification passed.")
+
+
+def convert(
+    *,
+    checkpoint_dir: str,
+    output_dir: str,
+    config_path: str | None = None,
+    role: str = "student",
+    overwrite: bool = False,
+    verify: bool = False,
+) -> str:
+    """Load a DCP checkpoint and export as a diffusers model.
+
+    Returns the path to the exported model directory.
+    """
+    _ensure_distributed()
+
+    from fastvideo.distributed import (
+        maybe_init_distributed_environment_and_model_parallel, )
+    from fastvideo.train.utils.builder import build_from_config
+    from fastvideo.train.utils.checkpoint import (
+        CheckpointManager,
+        _resolve_resume_checkpoint,
+    )
+    from fastvideo.train.utils.config import (
+        RunConfig,
+        load_run_config,
+    )
+
+    import torch.distributed.checkpoint as dcp
+
+    # -- Resolve checkpoint directory --
+    resolved = _resolve_resume_checkpoint(
+        checkpoint_dir,
+        output_dir=checkpoint_dir,
+    )
+    dcp_dir = resolved / "dcp"
+    if not dcp_dir.is_dir():
+        raise FileNotFoundError(f"Missing dcp/ under {resolved}")
+
+    # -- Obtain config --
+    cfg: RunConfig
+    if config_path is not None:
+        cfg = load_run_config(config_path)
+    else:
+        metadata = CheckpointManager.load_metadata(resolved)
+        raw_config = metadata.get("config")
+        if raw_config is None:
+            raise ValueError("Checkpoint metadata.json does not "
+                             "contain 'config'. Pass --config "
+                             "explicitly.")
+        cfg = _run_config_from_raw(raw_config)
+
+    tc = cfg.training
+
+    # -- Init distributed for the one-rank export process. DCP can reshard the
+    # checkpoint, but full-state gathering still requires substantial memory.
+    maybe_init_distributed_environment_and_model_parallel(
+        tp_size=1,
+        sp_size=1,
+    )
+
+    # Override distributed config so model loading uses 1 GPU.
+    tc.distributed.tp_size = 1
+    tc.distributed.sp_size = 1
+    tc.distributed.num_gpus = 1
+    tc.distributed.hsdp_replicate_dim = 1
+    tc.distributed.hsdp_shard_dim = 1
+
+    # -- Build model (loads pretrained weights + FSDP) --
+    _, method, _, _ = build_from_config(cfg)
+
+    # -- Load DCP weights into the model --
+    states = method.checkpoint_state()
+    logger.info(
+        "Loading DCP checkpoint from %s",
+        resolved,
+    )
+    dcp.load(states, checkpoint_id=str(dcp_dir))
+
+    # -- Export to diffusers format --
+    model = method._role_models[role]
+    base_model_path = str(tc.model_path)
+    if not base_model_path:
+        raise ValueError("Cannot determine base_model_path from "
+                         "config. Ensure models.student.init_from "
+                         "is set.")
+
+    logger.info(
+        "Exporting role=%s to %s (base=%s)",
+        role,
+        output_dir,
+        base_model_path,
+    )
+    transformer_component = _transformer_component_name(model)
+    result = _save_role_pretrained(
+        role=role,
+        base_model_path=base_model_path,
+        output_dir=output_dir,
+        overwrite=overwrite,
+        model=model,
+    )
+    logger.info("Export complete: %s", result)
+
+    if verify:
+        # Do not keep the live FSDP training graph and DCP state mapping alive
+        # while loading a second full transformer for strict verification.
+        del states, model, method
+        gc.collect()
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        _strict_reload_verify(
+            output_dir=result,
+            training_config=tc,
+            module_type=transformer_component,
+        )
+
+    return result
+
+
+def _run_config_from_raw(raw: dict[str, Any], ) -> Any:
+    """Reconstruct a RunConfig from a raw config dict.
+
+    This mirrors ``load_run_config`` but operates on an
+    already-parsed dict (from metadata.json) instead of
+    reading from a YAML file.
+    """
+    from fastvideo.train.utils.config import (
+        RunConfig,
+        _build_training_config,
+        _parse_pipeline_config,
+        _require_mapping,
+        _require_str,
+    )
+
+    models_raw = _require_mapping(
+        raw.get("models"),
+        where="models",
+    )
+    models: dict[str, dict[str, Any]] = {}
+    for role_key, model_cfg_raw in models_raw.items():
+        role_str = _require_str(
+            role_key,
+            where="models.<role>",
+        )
+        model_cfg = _require_mapping(
+            model_cfg_raw,
+            where=f"models.{role_str}",
+        )
+        models[role_str] = dict(model_cfg)
+
+    method_raw = _require_mapping(
+        raw.get("method"),
+        where="method",
+    )
+    method = dict(method_raw)
+
+    callbacks_raw = raw.get("callbacks")
+    callbacks: dict[str, dict[str, Any]] = (_require_mapping(
+        callbacks_raw,
+        where="callbacks",
+    ) if callbacks_raw is not None else {})
+
+    pipeline_config = _parse_pipeline_config(
+        raw,
+        models=models,
+    )
+
+    training_raw = _require_mapping(
+        raw.get("training"),
+        where="training",
+    )
+    t = dict(training_raw)
+    training = _build_training_config(
+        t,
+        models=models,
+        pipeline_config=pipeline_config,
+    )
+
+    return RunConfig(
+        models=models,
+        method=method,
+        training=training,
+        callbacks=callbacks,
+        raw=raw,
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=("Convert a DCP training checkpoint to a "
+                                                  "diffusers-style model directory. DCP can "
+                                                  "reshard onto one GPU, but full-model export "
+                                                  "requires memory for the live model and a "
+                                                  "gathered CPU state."), )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        required=True,
+        help=("Path to checkpoint-<step> dir, its dcp/ "
+              "subdir, or an output_dir (auto-picks "
+              "latest)."),
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        required=True,
+        help="Destination for the diffusers model.",
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help=("Training YAML config. If omitted, read "
+              "from checkpoint metadata.json."),
+    )
+    parser.add_argument(
+        "--role",
+        type=str,
+        default="student",
+        help="Role to export (default: student).",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite output-dir if it exists.",
+    )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help=("After exporting, strictly reload the transformer from "
+              "the exported directory to catch key-mapping bugs "
+              "immediately."),
+    )
+    args = parser.parse_args(sys.argv[1:])
+
+    convert(
+        checkpoint_dir=args.checkpoint,
+        output_dir=args.output_dir,
+        config_path=args.config,
+        role=args.role,
+        overwrite=args.overwrite,
+        verify=args.verify,
+    )
+
+
+if __name__ == "__main__":
+    main()

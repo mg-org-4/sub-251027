@@ -11,7 +11,7 @@
   <img src="https://raw.githubusercontent.com/ussoewwin/ComfyUI-DistorchMemoryManager/main/icon.png" width="128">
 </p>
 
-**ComfyUI-VRAM-Manager** (formerly ComfyUI-DistorchMemoryManager) is an independent memory management custom node for ComfyUI. Provides Distorch memory management functionality for efficient GPU/CPU memory handling. Supports purging of SeedVR2, Qwen3-VL, Nunchaku models (FLUX/Z-Image/Qwen-Image), HSWQ, and Ollama server VRAM. Includes Model Patch Memory Cleaner for ModelPatchLoader workflows. Auto-detects non-PyTorch VRAM usage via NVML to prevent OOM errors in multi-process environments.
+**ComfyUI-VRAM-Manager** (formerly ComfyUI-DistorchMemoryManager) is an independent memory management custom node for ComfyUI. Provides Distorch memory management functionality for efficient GPU/CPU memory handling. Supports purging of SeedVR2, Qwen3-VL, Nunchaku models (FLUX/Z-Image/Qwen-Image), HSWQ, and Ollama server VRAM. Features integrated Model Patch Memory Cleaner functionality inside General Purge VRAM V2 for ModelPatchLoader workflows. Auto-detects non-PyTorch VRAM usage via NVML to prevent OOM errors in multi-process environments.
 
 ## Overview
 
@@ -45,108 +45,68 @@ This is a completely original implementation designed specifically for Distorch 
 
 ---
 
-### Four Node Types
+### Three Node Types
 
-#### Model Patch Memory Cleaner (New in v1.2.0)
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/ussoewwin/ComfyUI-DistorchMemoryManager/main/png/mpatch.png" width="400">
-</p>
-
-* **Description**: Memory cleaner specifically for ModelPatcher loaded model patches
-* **Features**: Clears model patches loaded via ModelPatchLoader to prevent OOM during upscaling
-* **Input**: Any data type (ANY) passthrough
-* **Output**: Any data type (ANY) passthrough
-* **Options**:
-  * `clear_model_patches`: Clear model patches loaded via ModelPatchLoader (default: True)
-  * `clean_gpu`: Clear GPU memory (default: True)
-  * `force_gc`: Force garbage collection (default: True)
-* **Use Case**: Place this node after using ModelPatchLoader (e.g., Z-Image ControlNet, QwenImage BlockWise ControlNet, SigLIP MultiFeat Proj) and before upscaling operations to prevent OOM errors. This node is designed for patch model format loaded via ModelPatchLoader, which is an exceptional format different from standard ControlNet models.
-* **Technical Details**: 
-  * Detects ModelPatcher instances with `additional_models` or `attachments` containing model patches
-  * Safely unloads model patches from VRAM
-  * Performs cleanup_models_gc() to prevent memory leaks
-
-#### General Purge VRAM V2 (v1.10, Enhanced in v1.2.0, v2.0.0, v2.2.0, v2.4.1, v2.4.2, v2.4.3)
+#### General Purge VRAM V2
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/ussoewwin/ComfyUI-DistorchMemoryManager/main/png/pvram2.png" width="400">
 </p>
 
-* **Description**: Distortch suite node **General Purge VRAM V2** (formerly LayerStyle `LayerUtility: Purge VRAM V2`; class id `DisTorchPurgeVRAMV2`) with enhanced model unloading, SeedVR2 / Qwen3-VL / Nunchaku purging, (v2.4.1) an **`HSWQ`** toggle for full HSWQ VRAM purge, (v2.4.2) an **`Ollama`** toggle below **`HSWQ`** for zero-residual Ollama server VRAM purge, and (v2.4.3) HSWQ Method **2c** **NVFP4** runtime pool / CUDA graph clear so a second ConvRot NVFP4 generation after purge does not hit `quantize_nvfp4` / `PyCapsule` / `pooled TC path failed`
-* **Features**: Same UI/behavior lineage as the LayerStyle original; keeps legacy workflows via class id `DisTorchPurgeVRAMV2`. Enhanced in v1.2.0 with more aggressive model unloading and improved error handling. Enhanced in v2.0.0 with Qwen3-VL and Nunchaku model purging support. Enhanced in v2.2.0 with Nunchaku SDXL model support. Enhanced in v2.4.1 with dedicated **`HSWQ`** purge pipeline (PinCache drain, PromptExecutor/SEGS in-place clear, HostUnregister, `comfy_kitchen` CUDA workspace reset). Enhanced in v2.4.2 with **`Ollama`** purge for **comfyui-ollama** and **comfyui-ollama-describer** (including describer's default `keep_model_alive=-1`). Enhanced in v2.4.3 with HSWQ Method **2c** `sys.modules` scan for `nvfp4_runtime` and `clear_nvfp4_runtime_pools()` (in addition to kitchen workspace reset); prefers `nodes/purge_vram.py`; log prefix `HSWQ INT8/NVFP4:`. Supports SeedVR2 DiT/VAE, Qwen3-VL, Nunchaku (FLUX/Z-Image/Qwen-Image/SDXL), HSWQ (including NVFP4), and Ollama server unload.
-* **Input**: Any data type (ANY) passthrough
-* **Options**:  
-   * `purge_cache`: Run `gc.collect()`, flush CUDA caches, call `torch.cuda.ipc_collect()`  
-   * `purge_models`: Enhanced model unloading (v1.2.0):
-     * Calls `cleanup_models()` to remove dead models
-     * Calls `cleanup_models_gc()` for garbage collection
-     * Marks all models as not currently used
-     * Aggressively unloads models via `model_unload()`
-     * Calls `soft_empty_cache()` if available
-   * `purge_seedvr2_models`: Clear SeedVR2 DiT and VAE models from cache
-     * Clears all cached DiT models from SeedVR2's GlobalModelCache
-     * Clears all cached VAE models from SeedVR2's GlobalModelCache
-     * Clears runner templates
-     * Properly releases model memory using SeedVR2's release_model_memory()
-   * `purge_qwen3vl_models`: Clear Qwen3-VL models from GPU memory (v2.0.0)
-     * Searches for Qwen3-VL models in sys.modules and gc.get_objects()
-     * Handles device_map="auto" case for multi-device models
-     * Clears model parameters, buffers, and internal state
-   * `purge_nunchaku_models`: Clear Nunchaku models (FLUX/Z-Image/Qwen-Image/SDXL) from GPU memory (v2.0.0, Enhanced in v2.2.0)
-     * Supports NunchakuFluxTransformer2dModel, NunchakuZImageTransformer2DModel, NunchakuQwenImageTransformer2DModel, and NunchakuSDXLUNet2DConditionModel (v2.2.0)
-     * Disables CPU offload before clearing models
-     * Searches in sys.modules, ComfyUI current_loaded_models, and gc.get_objects()
-     * Clears cache and temporary data attributes (v2.2.0)
-     * Handles NunchakuSDXL wrapper class with diffusion_model access (v2.2.0)
-   * `HSWQ`: Purge HSWQ residual GPU (and related host) memory — whole HSWQ path, not INT8-only (v2.4.1; NVFP4 Method **2c** in v2.4.3)
-     * Force-imports and drains HSWQ PinCache; clears PromptExecutor / SEGS caches in-place (does not call `reset()` mid-prompt)
-     * Releases PINNED_MEMORY via HostUnregister where applicable
-     * After core cleanup, resets `comfy_kitchen` CUDA workspace / empty-tensor caches (Method **2c**) so reload (including INT8 GEMM) still works after purge
-     * (v2.4.3) After kitchen reset, scans `sys.modules` for `nvfp4_runtime` and calls `clear_nvfp4_runtime_pools()` to clear HSWQ **NVFP4** runtime pools / CUDA graphs
-     * UI label is **`HSWQ`**; legacy workflow kwargs `"HSWQ INT8"` remain accepted; log prefix `HSWQ INT8/NVFP4:`
-   * `Ollama`: Purge Ollama server VRAM loaded by **comfyui-ollama** and **comfyui-ollama-describer** (v2.4.2)
-     * Toggle appears **directly below `HSWQ`** in the node UI (see screenshot above)
-     * Targets describer's default `keep_model_alive=-1` (model stays loaded until explicitly unloaded)
-     * Harvests `api_host` / `url` from both custom-node packs; loops `GET /api/ps` until empty
-     * Sends `/api/generate` and `/api/chat` with `keep_alive=0`; runs `ollama stop`; Client API fallback when available
-     * Clears in-process `CHAT_SESSIONS` / `saved_context`; deletes `saved_context/` files; final `/api/ps` verification
-* **Enhancements in v1.2.0**:
-  * More aggressive model unloading with proper error handling
-  * None checks and callable() checks for all method calls
-  * Improved error messages and logging
-  * Safe handling of models with None real_model references
-  * SeedVR2 model support for clearing DiT and VAE models
-* **Enhancements in v2.0.0**:
-  * Qwen3-VL model purging with device_map="auto" support
-  * Nunchaku model purging (FLUX/Z-Image/Qwen-Image) with CPU offload handling
-  * Enhanced CUDA cache clearing for all devices
-  * Comprehensive debug logging for model detection and purging
-  * Fixed any() function name collision with AnyType
-  * Changed display name to ComfyUI-VRAM-Manager
-* **Enhancements in v2.2.0**:
-  * Nunchaku SDXL model purging support (NunchakuSDXLUNet2DConditionModel)
-  * NunchakuSDXL wrapper class detection and handling
-  * Cache and temporary data clearing for all Nunchaku detection methods
-  * More aggressive garbage collection (3x gc.collect()) and CUDA cache clearing
-  * Improved VRAM release for Nunchaku SDXL models (approximately 2.5GB)
-  * Preserves model structure while clearing top-level parameters only
-* **Enhancements in v2.4.1**:
-  * Dedicated **`HSWQ`** toggle for full HSWQ VRAM purge
-  * PinCache force-import/drain, PromptExecutor/SEGS in-place clear, HostUnregister path
-  * Method **2c** `comfy_kitchen` CUDA workspace / empty-tensor cache reset after core purge
-  * Fallback `nodes/purge_vram.py` kept in sync with the root node
-* **Enhancements in v2.4.2**:
-  * New **`Ollama`** toggle below **`HSWQ`** on DisTorchPurgeVRAMV2
-  * Zero-residual Ollama purge for **comfyui-ollama** and **comfyui-ollama-describer**
-  * `/api/ps` loop until empty, `keep_alive=0` on generate/chat, `ollama stop`, Client fallback
-  * Clears `CHAT_SESSIONS`, `saved_context`, and on-disk `saved_context/` files
-  * Fallback `nodes/purge_vram.py` kept in sync with the root node
-* **Enhancements in v2.4.3**:
-  * HSWQ Method **2c** clears HSWQ **NVFP4** runtime pools / CUDA graphs via `sys.modules` scan + `clear_nvfp4_runtime_pools()` (in addition to `comfy_kitchen` workspace reset)
-  * Avoids second ConvRot NVFP4 generation failures after purge (`quantize_nvfp4` / `PyCapsule` / `pooled TC path failed`)
-  * Prefers importing `DisTorchPurgeVRAMV2` from `nodes/purge_vram.py`; log prefix `HSWQ INT8/NVFP4:`
-* **Reason**: The original LayerStyle node disappeared upstream, so we duplicated it here to keep older workflows alive. Enhanced in v1.2.0 to provide better memory management. SeedVR2 support added to handle SeedVR2's independent model caching system. Enhanced in v2.0.0 to support Qwen3-VL and Nunchaku models, which are not managed by ComfyUI's standard model_management. Enhanced in v2.2.0 to support Nunchaku SDXL models, which require special handling due to their wrapper class structure and need for cache clearing. Enhanced in v2.4.1 because HSWQ leftovers are not fully recovered by generic ComfyUI unload or DistTorch general purge. Enhanced in v2.4.2 because Ollama models loaded via comfyui-ollama / comfyui-ollama-describer (especially with `keep_model_alive=-1`) are not released by standard ComfyUI or HSWQ purge alone. Enhanced in v2.4.3 because HSWQ **NVFP4** runtime pools / CUDA graphs survive kitchen-only Method **2c** and break the next ConvRot NVFP4 generation after purge.
+* **Description**: Distortch suite node **General Purge VRAM V2** (formerly LayerStyle `LayerUtility: Purge VRAM V2`; class id `DisTorchPurgeVRAMV2`). A unified, aggressive memory purging node designed to eliminate GPU/CPU residual allocations and deep caches that standard ComfyUI garbage collection cannot reach. Fully supports standard ComfyUI models, ModelPatchLoader patches, SeedVR2, Qwen3-VL, Nunchaku (FLUX / Z-Image / Qwen-Image / SDXL), full HSWQ execution pipelines (including INT8 & NVFP4 runtime pools/graphs), and external Ollama server processes.
+* **Features**:
+  * Preserves complete UI and workflow compatibility with legacy LayerStyle pipelines via class id `DisTorchPurgeVRAMV2`.
+  * Aggressive model unloading with robust error handling, callable verification, and safe handling of detached/None `real_model` references.
+  * Deep model patch cleanup directly integrated under `clear_model_patches` with instant CUDA cache flush, synchronization, and GC.
+  * Comprehensive memory evacuation across specialized third-party architectures (SeedVR2, Qwen3-VL, Nunchaku, HSWQ, Ollama).
+* **Input**: Any data type (`ANY`) passthrough
+* **Output**: Any data type (`ANY`) passthrough
+* **Options**:
+  * `purge_cache`: Run `gc.collect()`, flush CUDA caches across all active devices (`torch.cuda.empty_cache()`), and call `torch.cuda.ipc_collect()`.
+  * `purge_models`: Deep model unloading pipeline:
+    * Calls `cleanup_models()` to remove dead models
+    * Calls `cleanup_models_gc()` for garbage collection
+    * Marks all models as not currently used
+    * Aggressively unloads models via `model_unload()`
+    * Calls `soft_empty_cache()` if available
+    * Includes robust error handling, `None` checks, and `callable()` validation for all method calls (safely handling models with `None` `real_model` references)
+  * `clear_model_patches`: Clear model patches loaded via ModelPatchLoader (default: `True`; fully integrates the standalone Model Patch Memory Cleaner):
+    * Clears model patches loaded via ModelPatchLoader (e.g., Z-Image ControlNet, QwenImage BlockWise ControlNet, SigLIP MultiFeat Proj) to prevent OOM during upscaling
+    * Detects `ModelPatcher` instances with `additional_models` or `attachments` containing model patches
+    * Safely unloads model patches from VRAM via `model_unload()` and removes them from `current_loaded_models`
+    * Calls `cleanup_models_gc()`, followed immediately by `torch.cuda.empty_cache()`, `torch.cuda.synchronize()`, and `gc.collect()` for instantaneous physical VRAM recovery even when `purge_models=False`
+  * `purge_seedvr2_models`: Clear SeedVR2 DiT and VAE models from cache:
+    * Clears all cached DiT models from SeedVR2's `GlobalModelCache`
+    * Clears all cached VAE models from SeedVR2's `GlobalModelCache`
+    * Clears runner templates
+    * Properly releases model memory using SeedVR2's `release_model_memory()`
+  * `purge_qwen3vl_models`: Clear Qwen3-VL models from GPU memory:
+    * Searches for Qwen3-VL models in `sys.modules` and `gc.get_objects()`
+    * Handles `device_map="auto"` case for multi-device models
+    * Clears model parameters, buffers, and internal execution state
+  * `purge_nunchaku_models`: Clear Nunchaku models (FLUX / Z-Image / Qwen-Image / SDXL) from GPU memory:
+    * Supports `NunchakuFluxTransformer2dModel`, `NunchakuZImageTransformer2DModel`, `NunchakuQwenImageTransformer2DModel`, and `NunchakuSDXLUNet2DConditionModel`
+    * Disables CPU offload before clearing models to prevent stalls
+    * Searches in `sys.modules`, ComfyUI `current_loaded_models`, and `gc.get_objects()`
+    * Clears cache and temporary data attributes across all detection methods
+    * Handles `NunchakuSDXL` wrapper class with direct `diffusion_model` access; preserves model structure while clearing top-level parameters (~2.5GB VRAM recovered)
+    * Performs aggressive garbage collection (3x `gc.collect()`) and CUDA cache clearing
+  * `HSWQ`: Purge HSWQ residual GPU (and related host) memory — whole HSWQ path, not INT8-only:
+    * Force-imports and drains HSWQ `PinCache`; clears `PromptExecutor` / `SEGS` caches in-place (does not call `reset()` mid-prompt)
+    * Releases `PINNED_MEMORY` via `HostUnregister` where applicable
+    * Resets `comfy_kitchen` CUDA workspace / empty-tensor caches (Method **2c**) after core cleanup so reload (including INT8 GEMM) still works after purge
+    * Scans `sys.modules` for `nvfp4_runtime` and calls `clear_nvfp4_runtime_pools()` (Method **2c**) to clear HSWQ **NVFP4** runtime pools / CUDA graphs, preventing downstream ConvRot NVFP4 generation failures (`quantize_nvfp4` / `PyCapsule` / `pooled TC path failed`)
+    * UI label is **`HSWQ`**; legacy workflow kwargs `"HSWQ INT8"` remain accepted; log prefix `HSWQ INT8/NVFP4:`
+  * `Ollama`: Purge Ollama server VRAM loaded by **comfyui-ollama** and **comfyui-ollama-describer**:
+    * Toggle appears directly below `HSWQ` in the node UI
+    * Targets describer's default `keep_model_alive=-1` (model stays loaded until explicitly unloaded)
+    * Harvests `api_host` / `url` from both custom-node packs; loops `GET /api/ps` until empty
+    * Sends `/api/generate` and `/api/chat` with `keep_alive=0`; runs `ollama stop`; Client API fallback when available
+    * Clears in-process `CHAT_SESSIONS` / `saved_context`; deletes `saved_context/` files; final `/api/ps` verification
+* **Architecture & Design Rationale**:
+  * **Workflow Continuity**: Preserves full compatibility for pipelines built on the discontinued LayerStyle node via class id `DisTorchPurgeVRAMV2`.
+  * **Beyond Standard ComfyUI Unload**: Standard `model_management.unload_all_models()` only tracks models registered within ComfyUI's internal model registry. It cannot reach external frameworks, custom runner caches, or third-party background services.
+  * **Unified Multi-Engine Purge**: Consolidates memory evacuation for SeedVR2's independent model cache, Qwen3-VL's multi-device auto-mapping, Nunchaku's transformer wrapper structures, HSWQ's pinned caches / kitchen workspaces / NVFP4 CUDA graphs, ModelPatchLoader auxiliary attachments, and external Ollama server instances into a single, comprehensive node without requiring multiple separate cleaner utilities.
 
 #### Memory Manager (Advanced)
 
@@ -185,7 +145,7 @@ This is a completely original implementation designed specifically for Distorch 
     * `sageattn_qk_int8_pv_fp8_cuda++`: CUDA implementation (QK int8, PV FP8, optimized)
     * `sageattn3`: SageAttention 3 implementation (Blackwell support)
     * `sageattn3_per_block_mean`: SageAttention 3 implementation (per-block mean version)
-    * `spargeattn`: **SpargeAttn-hswq** (v2.4.7): two-stage block-sparse attention based on SageAttention2++ quantized kernels via the `spas_sage_hswq_attn` package (Owner's fork, coexists with official `sageattention`). **Prebuilt Windows wheels are published on Hugging Face: [Sage-Attention-and-Sparge-Attention-HSWQ](https://huggingface.co/ussoewwin/Sage-Attention-and-Sparge-Attention-HSWQ)** ? install the matching wheel (e.g. `pip install spas_sage_hswq_attn-1.0.0+cu132torch2.14.0cxx11abitrue-cp313-cp313-win_amd64.whl` for Python 3.13 / torch 2.14 / CUDA 13.2; pick the `cp3xx` matching your Python and the `torch2.xx`/`cu1xx` matching your environment). Constraint fallbacks to PyTorch/SDPA with logged notices: attention mask present, headdim not in 64/128, or seq_len < 128. Use the `sparge_topk` input to trade accuracy vs speed (0.5 default; lower = more sparse/faster).
+    * `spargeattn`: **SpargeAttn-hswq** (v2.4.7): two-stage block-sparse attention based on SageAttention2++ quantized kernels via the `spas_sage_hswq_attn` package (Owner's fork, coexists with official `sageattention`). **Prebuilt Windows wheels are published on Hugging Face: [Sage-Attention-and-Sparge-Attention-HSWQ](https://huggingface.co/ussoewwin/Sage-Attention-and-Sparge-Attention-HSWQ)** — install the matching wheel (e.g. `pip install spas_sage_hswq_attn-1.0.0+cu132torch2.14.0cxx11abitrue-cp313-cp313-win_amd64.whl` for Python 3.13 / torch 2.14 / CUDA 13.2; pick the `cp3xx` matching your Python and the `torch2.xx`/`cu1xx` matching your environment). Constraint fallbacks to PyTorch/SDPA with logged notices: attention mask present, headdim not in 64/128, or seq_len < 128. Use the `sparge_topk` input to trade accuracy vs speed (0.5 default; lower = more sparse/faster).
   * `sparge_topk` (optional): KV block keep ratio for `spargeattn` mode only (default 0.5, valid range (0, 1.0]). Higher keeps more KV blocks (more accurate, less acceleration); lower skips more blocks (faster, less accurate). `sparge_topk=1.0` computes all blocks (no skipping). **0 or invalid values are sanitized to 0.5 at run time with a log line** (the kernel computes `selected = topk * K`, so 0 would select zero blocks). Ignored by all other modes.
   * `allow_compile`: Allow torch.compile for SageAttention function (requires sageattn 2.2.0 or higher, default: False)
 * **Use Case**: Use this node to replace ComfyUI's attention mechanism with SageAttention for better memory efficiency and performance. The node patches attention on each model execution and automatically cleans up afterward.
@@ -231,7 +191,7 @@ pip install -r requirements.txt
 **For ModelPatchLoader workflows**:
 
 ```
-[ModelPatchLoader] → [QwenImageDiffsynthControlnet] → [Model Patch Memory Cleaner] → [Upscaling Node]
+[ModelPatchLoader] → [QwenImageDiffsynthControlnet] → [General Purge VRAM V2 (clear_model_patches=True)] → [Upscaling Node]
 ```
 
 **For general memory management**:
@@ -244,10 +204,10 @@ pip install -r requirements.txt
 
 **For ModelPatchLoader workflows (patch model format)**:
 
-* Use **Model Patch Memory Cleaner**
+* Use **General Purge VRAM V2** (`DisTorchPurgeVRAMV2`)
 * `clear_model_patches: True`
-* `clean_gpu: True`
-* `force_gc: True`
+* `purge_models: False` (optional, to keep base models loaded while clearing patches)
+* `purge_cache: True`
 * **Place after**: ModelPatchLoader usage, before upscaling operations
 * **Note**: This is for patch model format loaded via ModelPatchLoader (e.g., Z-Image ControlNet, QwenImage BlockWise ControlNet, SigLIP MultiFeat Proj), which is an exceptional format different from standard ControlNet models.
 
@@ -269,7 +229,7 @@ pip install -r requirements.txt
 
 **Solution**:
 
-1. For ModelPatchLoader workflows: Use **Model Patch Memory Cleaner** after ControlNet usage
+1. For ModelPatchLoader workflows: Use **General Purge VRAM V2** (`clear_model_patches: True`) after ControlNet usage
 2. For general workflows: Use **Memory Manager**
 3. Enable `clean_gpu` and `reset_virtual_memory`
 4. Enable `force_gc` if needed
@@ -278,17 +238,16 @@ pip install -r requirements.txt
 
 **Solution**:
 
-1. Add **Model Patch Memory Cleaner** node after QwenImageDiffsynthControlnet (when using ModelPatchLoader)
+1. Add **General Purge VRAM V2** node after QwenImageDiffsynthControlnet (when using ModelPatchLoader)
 2. Enable `clear_model_patches: True`
-3. Enable `clean_gpu: True`
-4. Enable `force_gc: True`
-5. **Note**: This applies to patch model format loaded via ModelPatchLoader, not standard ControlNet models
+3. Optionally set `purge_models: False` if you wish to retain base models while discarding patch models
+4. **Note**: This applies to patch model format loaded via ModelPatchLoader, not standard ControlNet models
 
 ### UI Corruption
 
 **Solution**:
 
-1. Use **Model Patch Memory Cleaner** or **Memory Manager**
+1. Use **General Purge VRAM V2** or **Memory Manager**
 2. Keep `clean_cpu` disabled (if using Memory Manager)
 3. Enable only essential options
 
@@ -353,7 +312,7 @@ pip install -r requirements.txt
 
 * Expanding paging file size can also reduce OOM occurrences during upscaling
 * Note: For OOM during video generation inference (where VRAM is critical), paging file expansion won't help
-* For ModelPatchLoader workflows: Always use Model Patch Memory Cleaner before upscaling to prevent OOM. Note that patch model format loaded via ModelPatchLoader is an exceptional format different from standard ControlNet models.
+* For ModelPatchLoader workflows: Always use General Purge VRAM V2 (`clear_model_patches: True`) before upscaling to prevent OOM. Note that patch model format loaded via ModelPatchLoader is an exceptional format different from standard ControlNet models.
 * For Qwen3-VL workflows: Use DisTorchPurgeVRAMV2 with `purge_qwen3vl_models: True` after Qwen3-VL model usage to prevent OOM. The node automatically handles device_map="auto" case for models distributed across multiple devices.
 * For Nunchaku workflows (FLUX/Z-Image/Qwen-Image/SDXL): Use DisTorchPurgeVRAMV2 with `purge_nunchaku_models: True` after Nunchaku model usage to prevent OOM. The node automatically disables CPU offload and clears models from all detection locations (sys.modules, ComfyUI model management, and gc.get_objects()). For Nunchaku SDXL models (v2.2.0), the node now includes cache clearing functionality that can release approximately 2.5GB of VRAM.
 * For SageAttention workflows (v2.3.0): Use Patch Sage Attention DM node to replace ComfyUI's attention mechanism with SageAttention for improved memory efficiency and performance. The node supports multiple SageAttention implementations and automatically patches attention on each model execution. To disable SageAttention, run the node again with `sage_attention` set to `disabled`.

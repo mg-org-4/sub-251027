@@ -484,6 +484,10 @@ class InpaintInCropTest(unittest.TestCase):
         self.assertEqual(float(vm[0, 0, 3, 0, 0]), 0.0)                   # the rest of the crop: kept
         self.assertEqual(float(vm[0, 0, 3, 2, 4]), 1.0)                   # grown by one latent cell
         self.assertTrue(bool((am == 1).all()))                            # audio fully generated
+        _, out2 = SL.inpaint_latent(lat, [], VAE(), frames, mask, strength=0.8)
+        vm2 = out2["noise_mask"].tensors[0]
+        self.assertAlmostEqual(float(vm2[0, 0, 3, 4, 4]), 0.8, places=5)     # partly regenerated inside the mask
+        self.assertEqual(float(vm2[0, 0, 3, 0, 0]), 0.0)                       # still kept outside
 
 
     def test_generation_mask_with_and_without_crop(self):
@@ -503,6 +507,227 @@ class InpaintInCropTest(unittest.TestCase):
             SL.shot_mask = orig
         self.assertEqual(tuple(full.shape), (5, 64, 64))
         self.assertTrue(torch.equal(full, m))
+
+
+    def test_comparison_overlay_for_mask_only_shots(self):
+        m = torch.zeros(5, 32, 32); m[:, 8:24, 8:24] = 1
+        ms = {"path": __file__, "analysis": {"fps": 24.0}, "start": 0, "length": 5, "spec": dict(SL.DEFAULT_MASK, expand=0)}
+        shot = {"crop": None, "frames": torch.zeros(5, 64, 64, 3), "mask_src": ms, "inpaint": True}
+        orig = SL.shot_mask
+        SL.shot_mask = lambda *a: {"masks": m.to(torch.uint8)}
+        try:
+            ov = SL.overlay_of(shot)
+            self.assertEqual(tuple(ov["mask"].shape), (5, 64, 64))
+            self.assertIsNone(SL.overlay_of(dict(shot, inpaint=False)))      # not used and not segmented yet: no SAM 3
+            self.assertIsNone(SL.overlay_of({"crop": None, "frames": shot["frames"]}))
+        finally:
+            SL.shot_mask = orig
+        o = SL._mask_overlay(torch.full((5, 32, 32, 3), 0.5), ov, 5)
+        self.assertGreater(float(o[0, 16, 16, 0]), float(o[0, 16, 16, 1]))     # red inside the mask
+        self.assertAlmostEqual(float(o[0, 2, 2, 0]), 0.5)                        # untouched outside
+
+
+class ExternalMaskTest(unittest.TestCase):
+    def _video(self, name, n=48, fps=24.0, w=64, h=36, box=(10, 5, 30, 25)):
+        import cv2
+        import numpy as np
+        path = str(Path(_TMP) / name)
+        vw = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
+        for i in range(n):
+            f = np.zeros((h, w, 3), np.uint8)
+            x0, y0, x1, y1 = box
+            f[y0:y1, x0 + i % 4:x1 + i % 4] = 255
+            vw.write(f)
+        vw.release()
+        return path
+
+    def setUp(self):
+        self.an = {"fps": 24.0, "n": 48, "n_src": 48, "fps_src": 24.0, "width": 64, "height": 36}
+
+    def test_precedence(self):
+        p = {"mask_video": "global.mp4"}
+        self.assertEqual(SL.plan_spec(p, {"video": "shot.mp4", "text": "man"})["ext"]["scope"], "shot")
+        self.assertNotIn("ext", SL.plan_spec(p, {"text": "man"}))                  # the shot's own SAM 3 text wins
+        self.assertEqual(SL.plan_spec(p, {})["ext"], {"file": "global.mp4", "scope": "video"})
+        SL._EXT_MASK["v.mp4"] = torch.ones(48, 36, 64)
+        try:
+            self.assertEqual(SL.plan_spec(p, {}, "v.mp4")["ext"], {"tensor": "v.mp4"})   # the node input beats the panel file
+        finally:
+            SL._EXT_MASK.pop("v.mp4")
+        self.assertFalse(SL.spec_has_mask(SL.plan_spec({}, {})))
+
+    def test_file_and_tensor_masks_replace_sam(self):
+        path = self._video("roto_whole.mp4")
+        self._video("roto_shot.mp4", n=12)
+        orig = SL.segment_frames
+        SL.segment_frames = lambda *a, **k: self.fail("SAM 3 must not run with an external mask")
+        try:
+            r = SL.shot_mask(path, self.an, 24, 12, SL.plan_spec({"mask_video": "roto_whole.mp4"}, {}))
+            self.assertEqual(r["masks"].shape[0], 12)
+            self.assertTrue(r["box"] is not None)
+            cov = float(r["masks"].float().mean())
+            self.assertTrue(0.1 < cov < 0.4, cov)
+            r2 = SL.shot_mask(path, self.an, 24, 12, SL.plan_spec({}, {"video": "roto_shot.mp4"}))
+            self.assertEqual(r2["masks"].shape[0], 12)
+            t = torch.zeros(48, 36, 64); t[:, 0:18, :] = 1                         # top half
+            SL._EXT_MASK[path] = t
+            r3 = SL.shot_mask(path, self.an, 0, 10, SL.plan_spec({}, {}, path))
+            m = r3["masks"].float()
+            self.assertGreater(float(m[:, :8].mean()), 0.9)
+            self.assertLess(float(m[:, -8:].mean()), 0.1)
+        finally:
+            SL.segment_frames = orig
+            SL._EXT_MASK.pop(path, None)
+
+
+class FramePasteTest(unittest.TestCase):
+    def test_paste_back_keeps_the_background_and_takes_the_new_outline(self):
+        base = torch.full((5, 64, 64, 3), 0.2)                       # the original frames
+        result = torch.full((5, 64, 64, 3), 0.9)                     # generated: everything changed
+        old = torch.zeros(5, 64, 64); old[:, 20:44, 20:36] = 1       # the original person
+        new = torch.zeros(5, 64, 64); new[:, 16:48, 18:44] = 1       # the new one is bigger
+        ms = {"path": "", "analysis": {}, "start": 0, "length": 5, "spec": dict(SL.DEFAULT_MASK, expand=0, feather=0)}
+        shot = {"index": 0, "frames": base, "mask_src": ms, "paste": True}
+        o1, o2 = SL.shot_mask, SL.segment_frames
+        SL.shot_mask = lambda *a: {"masks": old.to(torch.uint8)}
+        SL.segment_frames = lambda imgs, sp: torch.nn.functional.interpolate(new[:, None], size=imgs.shape[1:3])[:, 0]
+        try:
+            out = SL.paste_back(result, shot, True)
+            only_old = SL.paste_back(result, shot, False)
+        finally:
+            SL.shot_mask, SL.segment_frames = o1, o2
+        self.assertAlmostEqual(float(out[0, 2, 2, 0]), 0.2, places=4)      # background: the original
+        self.assertAlmostEqual(float(out[0, 30, 28, 0]), 0.9, places=4)    # the person: generated
+        self.assertAlmostEqual(float(out[0, 30, 41, 0]), 0.9, places=4)    # the bigger new outline is pasted too
+        self.assertAlmostEqual(float(only_old[0, 30, 41, 0]), 0.2, places=4)
+
+
+class MaskGuideTest(unittest.TestCase):
+    def test_masked_only_greys_everything_outside_the_mask(self):
+        fr = torch.full((4, 32, 32, 3), 0.9)
+        m = torch.zeros(4, 16, 16); m[:, 4:12, 4:12] = 1
+        g = SL.masked_only(fr, m)
+        self.assertEqual(tuple(g.shape), (4, 32, 32, 3))
+        self.assertAlmostEqual(float(g[0, 16, 16, 0]), 0.9)      # the masked region
+        self.assertAlmostEqual(float(g[0, 2, 2, 0]), 0.5)        # grey elsewhere
+        self.assertEqual(SL.MASK_GUIDES[0], "off")
+        fr2 = torch.rand(3, 64, 64, 3)
+        m2 = torch.zeros(3, 64, 64); m2[:, 10:50, 10:50] = 1
+        old_det = dict(SL._DET); SL._DET["pose"] = None                  # no YOLO pose model: a clear error
+        try:
+            with self.assertRaisesRegex(ValueError, "YOLO pose model"):
+                SL.masked_only(fr2, m2, look="pose (people)")
+        finally:
+            SL._DET.clear(); SL._DET.update(old_det)
+        for look in [x for x in SL.MASK_GUIDE_LOOKS if not x.startswith("pose")]:
+            g2 = SL.masked_only(fr2, m2, look=look)
+            self.assertEqual(tuple(g2.shape), (3, 64, 64, 3), look)
+            self.assertAlmostEqual(float(g2[0, 2, 2, 0]), 0.5, msg=look)                 # grey outside, every look
+            if look != "colour":                                                       # no colour inside
+                self.assertLess(float((g2[..., 0] - g2[..., 1]).abs().max()), 1e-5, look)
+        t = SL.add_mask_video("x subject_definitions: <Subject 1> is ...", 2)
+        self.assertIn("<Video 2> shows only the region", t)
+        self.assertEqual(SL.add_mask_video("follow {mask_video}", 1), "follow <Video 1>")
+
+
+class ConditionFlowTest(unittest.TestCase):
+    """BFS Shot H3 Conditioning with the native H3 nodes replaced by recorders."""
+
+    def setUp(self):
+        sys.path.insert(0, str(ROOT))
+        calls = self.calls = {"r2v": [], "guides": []}
+
+        class Out:
+            def __init__(self, *a):
+                self.args = a
+
+        class R2V:
+            @staticmethod
+            def execute(**kw):
+                calls["r2v"].append(kw)
+                N = sys.modules["comfy.nested_tensor"].NestedTensor
+                return Out([[torch.zeros(1), {}]], {"samples": N((torch.zeros(1, 24, 2, 4, 4), torch.zeros(1, 32, 2, 37)))})
+
+        class Guide:
+            @staticmethod
+            def execute(positive, latent, frame_idx, vae, image=None, **kw):
+                calls["guides"].append(image)
+                return Out(positive)
+
+        mod = types.ModuleType("comfy_extras.nodes_minimax_h3")
+        mod.MiniMaxH3ReferenceToVideo, mod.MiniMaxH3AddGuide = R2V, Guide
+        sys.modules.setdefault("comfy_extras", types.ModuleType("comfy_extras"))
+        self._old = sys.modules.get("comfy_extras.nodes_minimax_h3")
+        sys.modules["comfy_extras.nodes_minimax_h3"] = mod
+        if "comfy.nested_tensor" not in sys.modules:
+            class _N:
+                is_nested = True
+
+                def __init__(self, t):
+                    self.tensors = list(t)
+            comfy = sys.modules.setdefault("comfy", types.ModuleType("comfy"))
+            nt = types.ModuleType("comfy.nested_tensor"); nt.NestedTensor = _N
+            comfy.nested_tensor = nt; sys.modules["comfy.nested_tensor"] = nt
+
+    def tearDown(self):
+        if self._old is not None:
+            sys.modules["comfy_extras.nodes_minimax_h3"] = self._old
+        else:
+            sys.modules.pop("comfy_extras.nodes_minimax_h3", None)
+
+    def _shot(self, **kw):
+        m = torch.zeros(22, 64, 64); m[:, 16:48, 16:40] = 1
+        shot = {"index": 0, "count": 1, "frames": torch.full((22, 64, 64, 3), 0.7), "ref": torch.zeros(1, 32, 32, 3),
+                "ref2": None, "prompt": "subject_definitions: <Subject 1> is ...", "width": 64, "height": 64,
+                "gen_length": 22, "audio": None, "crop": {"crop_mask": m, "expand": 0} if kw.get("crop") else None,
+                "inpaint": kw.get("inpaint", True)}
+        if not kw.get("crop"):
+            shot["mask_src"] = {"path": __file__, "analysis": {"fps": 24.0}, "start": 0, "length": 22, "spec": dict(SL.DEFAULT_MASK, expand=0)}
+        return shot, m
+
+    def run_cond(self, shot, m, **kw):
+        class VAE:
+            def encode(self, px):
+                return torch.zeros(1, 24, 2, px.shape[1] // 16, px.shape[2] // 16)
+        orig = SL.shot_mask
+        SL.shot_mask = lambda *a: {"masks": m.to(torch.uint8)}
+        try:
+            return SL.BFSShotH3Conditioning().condition(shot, None, VAE(), SL.BFSShotH3Conditioning.GUIDE_MODES[0], False,
+                                                        "none", "match", **kw)
+        finally:
+            SL.shot_mask = orig
+
+    def test_reference_video_of_the_masked_region(self):
+        shot, m = self._shot()
+        self.run_cond(shot, m, inpaint=SL.INPAINT_MODES[0], mask_guide=SL.MASK_GUIDES[3], mask_ref_size="full",
+                      mask_guide_look="colour")
+        kw = self.calls["r2v"][0]
+        v = kw["ref_videos"]["ref_video_1"]
+        self.assertAlmostEqual(float(v[0, 2, 2, 0]), 0.5)          # grey outside the mask
+        self.assertAlmostEqual(float(v[0, 30, 30, 0]), 0.7)        # the subject
+        self.assertIn("<Video 1> shows only the region", kw["prompt"])
+        self.assertEqual(len(self.calls["guides"]), 1)             # the normal aligned guide is still there
+        self.calls["r2v"].clear()
+        self.run_cond(shot, m, inpaint=SL.INPAINT_MODES[0], mask_guide=SL.MASK_GUIDES[3], mask_ref_size="1/2")
+        self.assertEqual(tuple(self.calls["r2v"][0]["ref_videos"]["ref_video_1"].shape[1:3]), (32, 32))
+
+    def test_extra_and_instead_guides(self):
+        shot, m = self._shot()
+        self.run_cond(shot, m, inpaint=SL.INPAINT_MODES[0], mask_guide=SL.MASK_GUIDES[1])
+        self.assertEqual(len(self.calls["guides"]), 2)
+        self.calls["guides"].clear()
+        self.run_cond(shot, m, inpaint=SL.INPAINT_MODES[0], mask_guide=SL.MASK_GUIDES[2])
+        self.assertEqual(len(self.calls["guides"]), 1)
+        self.assertAlmostEqual(float(self.calls["guides"][0][0, 2, 2, 0]), 0.5)   # it is the masked one
+
+    def test_ignored_outside_mask_only(self):
+        shot, m = self._shot(inpaint=False)
+        self.run_cond(shot, m, inpaint=SL.INPAINT_MODES[0], mask_guide=SL.MASK_GUIDES[3])
+        self.assertNotIn("ref_videos", self.calls["r2v"][0])
+        shot, m = self._shot(crop=True)
+        self.calls["r2v"].clear()
+        self.run_cond(shot, m, inpaint=SL.INPAINT_MODES[0], mask_guide=SL.MASK_GUIDES[3])
+        self.assertNotIn("ref_videos", self.calls["r2v"][0])
 
 
 if __name__ == "__main__":

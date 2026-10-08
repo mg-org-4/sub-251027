@@ -1,0 +1,20 @@
+"""Top-level package for Draw Things for ComfyUI."""
+
+__author__ = """kcjerrell"""
+__version__ = "1.12.0"
+
+from .src.util import CancelRequest, Settings
+
+cancel_request = CancelRequest()
+settings = Settings()
+
+from .src import routes
+from .src.nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+
+WEB_DIRECTORY = "./web/dist"
+
+__all__ = [
+    "NODE_CLASS_MAPPINGS",
+    "NODE_DISPLAY_NAME_MAPPINGS",
+    "WEB_DIRECTORY",
+]

@@ -1,0 +1,40 @@
+[project]
+name = "draw-things-comfyui"
+version = "1.12.0"
+description = "The official Draw Things extension for ComfyUI. Sends image-generation requests to Draw Things over gRPC. Supports Bridge Mode for DT+ cloud and local model execution."
+authors = [{ name = "kcjerrell" }, { name = "Jokimbe" }]
+readme = "README.md"
+license = { text = "GNU General Public License v3" }
+classifiers = []
+dependencies = [
+    "numpy",
+    "pillow",
+    "torch",
+    "torchvision",
+    "grpcio>=1.71.0",
+    "flatbuffers>=25.2.10",
+    "protobuf>=5.29.0",
+    "typing_extensions>=4.12.2",
+    "fpzip",
+]
+
+[project.optional-dependencies]
+dev = [
+    "bump-my-version",
+    "coverage",             # testing
+    "mypy",                 # linting
+    "pytest",               # testing
+    "ruff",                 # linting
+    "grpcio-tools==1.71.0",
+]
+
+[project.urls]
+Repository = "https://github.com/drawthingsai/draw-things-comfyui"
+#  Used by Comfy Registry https://registry.comfy.org
+"Bug Tracker" = "https://github.com/drawthingsai/draw-things-comfyui/issues"
+
+[tool.comfy]
+PublisherId = "drawthingsai"
+DisplayName = "Draw Things for ComfyUI"
+Icon = ""
+includes = []
